@@ -180,7 +180,6 @@ export const AiSqlArtifactVisualization: FC<ContentProps> = ({
         <AiVizSwitchedResult
             projectUuid={projectUuid}
             results={results}
-            pivotArtifact={null}
             pivotQueryUuid={null}
             plan={plan}
             kind={pickVizKind(plan, chosenKind ?? 'table')}

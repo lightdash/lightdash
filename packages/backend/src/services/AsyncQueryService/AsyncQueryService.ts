@@ -2327,18 +2327,16 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
-    async assertQueryBoundToArtifact(
-        account: Account,
-        projectUuid: string,
-        queryUuid: string,
+    async getArtifactBoundQueryResults(
+        args: GetAsyncQueryResultsArgs,
         artifact: NonNullable<
             QueryHistory['requestParameters']['resultArtifact']
         >,
-    ): Promise<void> {
+    ): Promise<ApiGetAsyncQueryResults> {
         const history = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
-            account,
+            args.queryUuid,
+            args.projectUuid,
+            args.account,
         );
         const binding = history.requestParameters.resultArtifact;
         if (!binding)
@@ -2351,20 +2349,6 @@ export class AsyncQueryService extends ProjectService {
             binding.versionUuid !== artifact.versionUuid
         )
             throw new ForbiddenError('Artifact results are unavailable');
-    }
-
-    async getArtifactBoundQueryResults(
-        args: GetAsyncQueryResultsArgs,
-        artifact: NonNullable<
-            QueryHistory['requestParameters']['resultArtifact']
-        >,
-    ): Promise<ApiGetAsyncQueryResults> {
-        await this.assertQueryBoundToArtifact(
-            args.account,
-            args.projectUuid,
-            args.queryUuid,
-            artifact,
-        );
         return this.getAsyncQueryResults(args);
     }
 

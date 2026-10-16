@@ -13,11 +13,9 @@ import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTy
 import styles from './AiArtifactPanel.module.css';
 import { AiArtifactTableVisualization } from './AiArtifactTableVisualization';
 import { AiComposerChartVisualization } from './AiComposerChartVisualization';
-import { type ComposerPivotArtifact } from './useComposerPivot';
 
 type Props = {
     projectUuid: string;
-    pivotArtifact: ComposerPivotArtifact | null;
     results: InfiniteQueryResults;
     /** Stored result a pivot re-reads; null when there is none. */
     pivotQueryUuid: string | null;
@@ -33,7 +31,6 @@ type Props = {
 // pill floating over it whenever more than the table fits.
 export const AiVizSwitchedResult: FC<Props> = ({
     projectUuid,
-    pivotArtifact,
     results,
     pivotQueryUuid,
     plan,
@@ -67,7 +64,6 @@ export const AiVizSwitchedResult: FC<Props> = ({
                     <AiComposerChartVisualization
                         projectUuid={projectUuid}
                         results={results}
-                        pivotArtifact={pivotArtifact}
                         pivotQueryUuid={pivotQueryUuid}
                         vizConfig={vizConfig}
                         headerContent={headerContent}

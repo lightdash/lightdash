@@ -11,16 +11,15 @@ import { AiAccessCallout } from './AiAccessCallout';
 import { AiArtifactTableVisualization } from './AiArtifactTableVisualization';
 import { AiComposerChartVisualization } from './AiComposerChartVisualization';
 import { AiComposerResultError } from './AiComposerResultError';
-import { type ComposerPivotArtifact } from './useComposerPivot';
 
 type Props = {
     projectUuid: string;
-    pivotArtifact: ComposerPivotArtifact | null;
     results: InfiniteQueryResults;
     /** The displayed node's result in the run; null until the run has one. */
     queryUuid: string | null;
     /** The run itself failed to start, so no node has a result. */
     runError: ApiError | null;
+    onRerun: () => void;
     vizConfig: AllVizChartConfig;
     headerContent: ReactNode;
     flush?: boolean;
@@ -29,10 +28,10 @@ type Props = {
 // A displayed node result drawn as its viz config says: the table or a chart.
 export const AiComposerArtifactVisualization: FC<Props> = ({
     projectUuid,
-    pivotArtifact,
     results,
     queryUuid,
     runError,
+    onRerun,
     vizConfig,
     headerContent,
     flush = false,
@@ -45,6 +44,7 @@ export const AiComposerArtifactVisualization: FC<Props> = ({
             <AiAccessCallout
                 projectUuid={projectUuid}
                 refusal={refusal}
+                onRerun={onRerun}
                 variant="inline"
             />
         );
@@ -73,7 +73,6 @@ export const AiComposerArtifactVisualization: FC<Props> = ({
         <AiComposerChartVisualization
             projectUuid={projectUuid}
             results={results}
-            pivotArtifact={pivotArtifact}
             pivotQueryUuid={queryUuid}
             vizConfig={vizConfig}
             headerContent={headerContent}

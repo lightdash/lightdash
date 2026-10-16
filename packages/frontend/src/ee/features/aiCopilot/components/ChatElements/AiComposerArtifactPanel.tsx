@@ -48,6 +48,7 @@ type Props = {
     /** The run started on open; null while it starts or when it failed. */
     run: ApiAiAgentComposerArtifactVizQuery | null;
     runError: ApiError | null;
+    onRerun: () => void;
     /** Whether edits on the terminal node are written to the artifact version. */
     canEdit: boolean;
     onClose: (() => void) | null;
@@ -65,6 +66,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     config,
     run,
     runError,
+    onRerun,
     canEdit,
     onClose,
 }) => {
@@ -92,13 +94,6 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     );
     const queryUuid = nodeQueryUuids?.[displayedNodeId];
 
-    const pivotArtifact = useMemo(
-        () =>
-            identityEnabled && !isEmbed
-                ? { agentUuid, artifactUuid, versionUuid }
-                : null,
-        [identityEnabled, isEmbed, agentUuid, artifactUuid, versionUuid],
-    );
     const results = useInfiniteQueryResults(
         projectUuid,
         isEmbed || !identityFlag.isLoading ? queryUuid : undefined,
@@ -269,8 +264,8 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                             projectUuid={projectUuid}
                             results={results}
                             queryUuid={queryUuid ?? null}
-                            pivotArtifact={pivotArtifact}
                             runError={runError}
+                            onRerun={onRerun}
                             vizConfig={value}
                             headerContent={head}
                             flush

@@ -24,6 +24,7 @@ export const DEFAULT_UI_STRINGS = {
     'agentAttribution.dataApp': 'Data app',
     'agentAttribution.aiSummary': 'AI summary',
 
+    'aiAccess.runAsMe': 'Run as me',
     'aiAccess.alsoNeeded': 'Also needed: {requirements}',
     'aiAccess.requirements.capabilities.read_discover': 'Read and discover',
     'aiAccess.requirements.capabilities.query': 'Query data',

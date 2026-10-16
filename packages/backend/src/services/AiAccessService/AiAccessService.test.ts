@@ -111,7 +111,12 @@ import {
     type AgentSignInTestSteps,
     type TestResolvedAgentCredentials,
 } from './agentSignInTestSteps.mock';
-import { AiAccessService, type ResolvePlanArgs } from './AiAccessService';
+import {
+    AiAccessService,
+    type AgentResultReadAccess,
+    type AgentResultReadDecision,
+    type ResolvePlanArgs,
+} from './AiAccessService';
 import {
     aiAgentMarkerMock,
     aiExecutionPlanMock,
@@ -237,7 +242,10 @@ const readAgentResults = (
         ...options,
     });
 
-const setup = (agentResultIdentityCheckEnabled = true) => {
+const setup = (
+    agentResultIdentityCheckEnabled = true,
+    agentResultReadAccess: AgentResultReadAccess | null = null,
+) => {
     const provider = {
         warehouseType: WarehouseTypes.SNOWFLAKE,
         configurationError: vi.fn(async (): Promise<string | null> => null),
@@ -386,6 +394,7 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
         warehouseConnectionUuid: null,
     }));
     const service = new AiAccessService({
+        getAgentResultReadAccess: () => agentResultReadAccess,
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         getWarehouseClientFactory: () =>
             ({
@@ -6674,8 +6683,9 @@ describe('result producer compatibility', () => {
     const fixture = (
         owner: QueryResultProducer['credentialOwner'],
         enabled = true,
+        agentResultReadAccess: AgentResultReadAccess | null = null,
     ) => {
-        const f = setup(enabled);
+        const f = setup(enabled, agentResultReadAccess);
         let plan: AiExecutionPlan = markedPersonPlanMock;
         if (owner.kind === 'ai_service_account')
             plan = {
@@ -6718,48 +6728,55 @@ describe('result producer compatibility', () => {
             agentUuid: 'agent',
         });
 
-    test('the thread owner reads an agent-produced node through the artifact owner reader', async () => {
-        const f = fixture(owners[0]);
-        const ownerClaim = artifactOwnerClaim();
-        await expect(
-            f.service.assertCanReadResults(
-                account,
-                'project',
-                ready(producerFor(owners[0], ownerClaim)),
-                {
-                    reader: {
-                        kind: 'agent',
-                        authMethod: testAuthMethod(ownerClaim),
-                        claim: ownerClaim,
+    test.each([AgentActorSurface.IN_APP_AGENT, AgentActorSurface.SLACK_AGENT])(
+        'a person reads the agent result produced for them as the agent on %s',
+        async (surface) => {
+            const canPersonReadAgentResult = vi
+                .fn<AgentResultReadAccess['canPersonReadAgentResult']>()
+                .mockResolvedValue('allowed');
+            const f = fixture(owners[0], true, { canPersonReadAgentResult });
+            const clientId =
+                surface === AgentActorSurface.SLACK_AGENT
+                    ? 'installed-app'
+                    : AGENT_CLIENT_IDS[surface];
+            const ownerClaim = buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: account.user.id },
+                surface,
+                clientId,
+                agentUuid: 'agent',
+            });
+            await expect(
+                f.service.assertCanReadResults(
+                    account,
+                    'project',
+                    ready(producerFor(owners[0], ownerClaim)),
+                    {
+                        reader: { kind: 'person', authMethod: 'session' },
                     },
-                },
-            ),
-        ).resolves.not.toBeNull();
-    });
+                ),
+            ).resolves.not.toBeNull();
+            expect(canPersonReadAgentResult).toHaveBeenCalledExactlyOnceWith({
+                account,
+                projectUuid: 'project',
+                claim: ownerClaim,
+            });
+            expect(f.resolvePlan).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    agentActor: {
+                        surface,
+                        clientId,
+                        agentUuid: 'agent',
+                    },
+                }),
+            );
+        },
+    );
 
-    test('another person is refused the same node as a person and as an agent acting for them', async () => {
-        const f = fixture(owners[0]);
-        const ownerClaim = artifactOwnerClaim();
-        const otherClaim = artifactOwnerClaim('other-person');
-        const node = ready(producerFor(owners[0], ownerClaim));
-        await expect(
-            f.service.assertCanReadResults(account, 'project', node, {
-                reader: { kind: 'person', authMethod: testAuthMethod(null) },
-            }),
-        ).rejects.toBeInstanceOf(AiAccessRefusedError);
-        await expect(
-            f.service.assertCanReadResults(account, 'project', node, {
-                reader: {
-                    kind: 'agent',
-                    authMethod: testAuthMethod(otherClaim),
-                    claim: otherClaim,
-                },
-            }),
-        ).rejects.toBeInstanceOf(AiAccessRefusedError);
-    });
-
-    test('the owner reads the derived pivot of an agent-produced node and another person is refused', async () => {
-        const f = fixture(owners[0]);
+    test('a person reads the derived pivot of their agent result and the pivot they built on it as a person', async () => {
+        const canPersonReadAgentResult = vi
+            .fn<AgentResultReadAccess['canPersonReadAgentResult']>()
+            .mockResolvedValue('allowed');
+        const f = fixture(owners[0], true, { canPersonReadAgentResult });
         const ownerClaim = artifactOwnerClaim();
         const pivot: QueryHistoryWithLineage = {
             ...ready(producerFor({ kind: 'derived' }, ownerClaim)),
@@ -6780,24 +6797,140 @@ describe('result producer compatibility', () => {
         });
         await expect(
             f.service.assertCanReadResults(account, 'project', pivot, {
+                reader: { kind: 'person', authMethod: 'session' },
+            }),
+        ).resolves.toBeNull();
+        expect(canPersonReadAgentResult).toHaveBeenCalledOnce();
+        const ownPivot: QueryHistoryWithLineage = {
+            ...pivot,
+            queryUuid: 'own-pivot',
+            requestParameters: {
+                ...pivot.requestParameters,
+                resultProducer: producerFor({ kind: 'derived' }, null),
+            },
+        };
+        await expect(
+            f.service.assertCanReadResults(account, 'project', ownPivot, {
+                reader: { kind: 'person', authMethod: 'session' },
+            }),
+        ).resolves.toBeNull();
+        await expect(
+            f.service.assertCanReadResults(account, 'project', ownPivot, {
                 reader: {
                     kind: 'agent',
-                    authMethod: testAuthMethod(ownerClaim),
+                    authMethod: 'session',
                     claim: ownerClaim,
                 },
             }),
-        ).resolves.toBeNull();
-        expect(f.historyModel.get).toHaveBeenCalled();
+        ).rejects.toBeInstanceOf(AiAccessRefusedError);
+    });
+
+    test('another person is refused with a message that says so', async () => {
+        const cases: {
+            decision: AgentResultReadDecision | null;
+            message: string;
+        }[] = [
+            {
+                decision: 'other_person',
+                message:
+                    'An AI agent produced these results for another person. Run the query again to see them with your own access.',
+            },
+            {
+                decision: 'agent_unavailable',
+                message:
+                    'These results came from an AI agent you can no longer use. Run the query again to see them with your own access.',
+            },
+            {
+                decision: null,
+                message:
+                    'An AI agent produced these results. Run the query again to see them with your own access.',
+            },
+        ];
+        await Promise.all(
+            cases.map(async ({ decision, message }) => {
+                const f = fixture(
+                    owners[0],
+                    true,
+                    decision === null
+                        ? null
+                        : {
+                              canPersonReadAgentResult: vi
+                                  .fn()
+                                  .mockResolvedValue(decision),
+                          },
+                );
+                const read = f.service.assertCanReadResults(
+                    account,
+                    'project',
+                    ready(producerFor(owners[0], artifactOwnerClaim())),
+                    {
+                        reader: { kind: 'person', authMethod: 'session' },
+                    },
+                );
+                await expect(read).rejects.toBeInstanceOf(AiAccessRefusedError);
+                await expect(read).rejects.toMatchObject({
+                    refusal: { message },
+                });
+            }),
+        );
+    });
+
+    test('an agent acting for another person is refused', async () => {
+        const f = fixture(owners[0]);
         const otherClaim = artifactOwnerClaim('other-person');
         await expect(
-            f.service.assertCanReadResults(account, 'project', pivot, {
+            f.service.assertCanReadResults(
+                account,
+                'project',
+                ready(producerFor(owners[0], artifactOwnerClaim())),
+                {
+                    reader: {
+                        kind: 'agent',
+                        authMethod: 'session',
+                        claim: otherClaim,
+                    },
+                },
+            ),
+        ).rejects.toBeInstanceOf(AiAccessRefusedError);
+    });
+
+    test('the flag-off kill switch still skips the claim check', async () => {
+        const f = fixture(owners[0], false, {
+            canPersonReadAgentResult: vi.fn().mockResolvedValue('other_person'),
+        });
+        await expect(
+            f.service.assertCanReadResults(
+                account,
+                'project',
+                ready(producerFor(owners[0], artifactOwnerClaim())),
+                {
+                    reader: { kind: 'person', authMethod: 'session' },
+                },
+            ),
+        ).resolves.toBeNull();
+    });
+
+    test('an agent is refused a person-produced result with a message that says so', async () => {
+        const f = fixture(owners[0]);
+        const read = f.service.assertCanReadResults(
+            account,
+            'project',
+            ready(producerFor(owners[0], null)),
+            {
                 reader: {
                     kind: 'agent',
-                    authMethod: testAuthMethod(otherClaim),
-                    claim: otherClaim,
+                    authMethod: 'session',
+                    claim: artifactOwnerClaim(),
                 },
-            }),
-        ).rejects.toBeInstanceOf(AiAccessRefusedError);
+            },
+        );
+        await expect(read).rejects.toBeInstanceOf(AiAccessRefusedError);
+        await expect(read).rejects.toMatchObject({
+            refusal: {
+                message:
+                    'A person produced these results, so the agent cannot reuse them. Run the query again through the agent.',
+            },
+        });
     });
 
     test.each(

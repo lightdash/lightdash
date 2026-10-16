@@ -10,7 +10,6 @@ import {
     WarehouseTypes,
     type AiAgent,
     type AiArtifact,
-    type PivotConfiguration,
     type PossibleAbilities,
     type QueryHistory,
     type SessionUser,
@@ -25,7 +24,6 @@ import { agentExecutionContext } from '../../../services/AiAccessService/agentEx
 import { AiAccessService } from '../../../services/AiAccessService/AiAccessService';
 import { aiServiceAccountPlanMock } from '../../../services/AiAccessService/AiAccessService.mock';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
-import { type QuerySourceService } from '../../../services/QuerySourceService/QuerySourceService';
 import { WarehouseClientFactory } from '../../../services/WarehouseClientFactory/WarehouseClientFactory';
 import { getResultEntitlementFingerprint } from '../../../utils/queryResultProducer';
 import { withWarehouseCredentialVersion } from '../../../utils/warehouseCredentialVersion';
@@ -229,9 +227,7 @@ const setup = () => {
     const querySourceService = {
         submitQueries:
             vi.fn<
-                (
-                    ...args: Parameters<QuerySourceService['submitQueries']>
-                ) => Promise<{
+                () => Promise<{
                     queries: {
                         nodeId: string;
                         sourceType: QuerySourceType;
@@ -306,7 +302,6 @@ const setup = () => {
         service,
         asyncService,
         querySourceService,
-        queryHistoryModel,
         histories,
         user,
         history,
@@ -328,136 +323,6 @@ const setup = () => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('artifact result identity boundaries', () => {
-    const pivotConfiguration: PivotConfiguration = {
-        indexColumn: undefined,
-        valuesColumns: [],
-        groupByColumns: undefined,
-        sortBy: undefined,
-    };
-    const pivotArtifactBinding = {
-        agentUuid: 'agent',
-        artifactUuid: 'artifact',
-        versionUuid: 'version',
-    };
-
-    it('pivots an owner composer node as the thread agent and binds the pivot to the artifact', async () => {
-        const {
-            service,
-            user,
-            options,
-            prompt,
-            history,
-            histories,
-            querySourceService,
-            queryHistoryModel,
-        } = setup();
-        delete (prompt as Partial<SlackPrompt>).slackUserId;
-        history.requestParameters.resultArtifact = pivotArtifactBinding;
-        querySourceService.submitQueries.mockImplementation(async (args) => {
-            const scope = agentExecutionContext.getStore();
-            expect(scope?.agentUuid).toBe('agent');
-            expect(scope?.surface).toBe(AgentActorSurface.IN_APP_AGENT);
-            expect(args).toMatchObject({
-                context: QueryExecutionContext.AI,
-                queries: [
-                    {
-                        sourceType: QuerySourceType.DUCKDB,
-                        nodeId: 'viz_pivot',
-                        sql: 'SELECT * FROM src',
-                        references: { src: 'execution' },
-                        pivotConfiguration,
-                    },
-                ],
-            });
-            histories['pivot-execution'] = {
-                ...history,
-                queryUuid: 'pivot-execution',
-                agentIdentity: scope!.claim,
-                requestParameters: {
-                    sql: 'SELECT * FROM src',
-                    references: { src: 'execution' },
-                    resultProducer: {
-                        ...history.requestParameters.resultProducer!,
-                        credentialOwner: { kind: 'derived' },
-                        agentIdentity: scope!.claim,
-                    },
-                },
-            };
-            return {
-                queries: [
-                    {
-                        nodeId: 'viz_pivot',
-                        sourceType: QuerySourceType.DUCKDB,
-                        queryUuid: 'pivot-execution',
-                        cacheHit: false,
-                    },
-                ],
-            };
-        });
-        await expect(
-            service.executeArtifactPivotQuery(user, {
-                ...options,
-                pivotConfiguration,
-            }),
-        ).resolves.toEqual({ queryUuid: 'pivot-execution' });
-        expect(queryHistoryModel.recordResultArtifact).toHaveBeenCalledWith(
-            'pivot-execution',
-            'project',
-            user.userUuid,
-            pivotArtifactBinding,
-        );
-        expect(agentExecutionContext.getStore()).toBeUndefined();
-    });
-
-    it('refuses a pivot of a node that is not bound to the artifact version', async () => {
-        const { service, user, options, history, querySourceService } = setup();
-        await expect(
-            service.executeArtifactPivotQuery(user, {
-                ...options,
-                pivotConfiguration,
-            }),
-        ).rejects.toThrow(/Run the query again\.$/);
-        expect(querySourceService.submitQueries).not.toHaveBeenCalled();
-        history.requestParameters.resultArtifact = {
-            ...pivotArtifactBinding,
-            versionUuid: 'other-version',
-        };
-        await expect(
-            service.executeArtifactPivotQuery(user, {
-                ...options,
-                pivotConfiguration,
-            }),
-        ).rejects.toBeInstanceOf(ForbiddenError);
-        expect(querySourceService.submitQueries).not.toHaveBeenCalled();
-    });
-
-    it('runs a non-owner pivot as the person', async () => {
-        const { service, user, options, thread, history, querySourceService } =
-            setup();
-        thread.user.uuid = 'someone-else';
-        history.requestParameters.resultArtifact = pivotArtifactBinding;
-        querySourceService.submitQueries.mockImplementation(async () => {
-            expect(agentExecutionContext.getStore()).toBeUndefined();
-            return {
-                queries: [
-                    {
-                        nodeId: 'viz_pivot',
-                        sourceType: QuerySourceType.DUCKDB,
-                        queryUuid: 'pivot-execution',
-                        cacheHit: false,
-                    },
-                ],
-            };
-        });
-        await expect(
-            service.executeArtifactPivotQuery(user, {
-                ...options,
-                pivotConfiguration,
-            }),
-        ).resolves.toEqual({ queryUuid: 'pivot-execution' });
-        expect(querySourceService.submitQueries).toHaveBeenCalledOnce();
-    });
-
     it('round 16 artifact readers retain the trusted PAT sign-in method', async () => {
         const { service, user, options, getDownloadStream } = setup();
         await expect(
@@ -511,7 +376,9 @@ describe('artifact result identity boundaries', () => {
                 projectUuid: 'project',
                 queryUuid: 'execution',
             }),
-        ).rejects.toThrow(/Run the query again\.$/);
+        ).rejects.toThrow(
+            'An AI agent produced these results. Run the query again to see them with your own access.',
+        );
         expect(getDownloadStream).not.toHaveBeenCalled();
     });
 
@@ -547,15 +414,19 @@ describe('artifact result identity boundaries', () => {
             };
             if (mismatch === 'missing-producer')
                 history.requestParameters = { sql: 'select 1' };
+            const message =
+                mismatch === 'missing-producer'
+                    ? 'These results are not compatible with your current access. Run the query again.'
+                    : 'A different agent produced these results. Run the query again through this agent.';
             await expect(
                 service.getArtifactVizQuery(user, {
                     ...options,
                     cachedQueryUuid: options.queryUuid,
                 }),
-            ).rejects.toThrow(/Run the query again\.$/);
+            ).rejects.toThrow(message);
             await expect(
                 service.getArtifactQueryResults(user, options),
-            ).rejects.toThrow(/Run the query again\.$/);
+            ).rejects.toThrow(message);
             expect(getDownloadStream).not.toHaveBeenCalled();
         },
     );
@@ -989,7 +860,9 @@ describe('artifact result identity boundaries', () => {
                 projectUuid: 'project',
                 queryUuid: 'execution',
             }),
-        ).rejects.toThrow(/Run the query again\.$/);
+        ).rejects.toThrow(
+            'An AI agent produced these results. Run the query again to see them with your own access.',
+        );
         expect(getDownloadStream).not.toHaveBeenCalled();
         await expect(
             service.getArtifactQueryResults(user, {

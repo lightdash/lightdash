@@ -1084,10 +1084,10 @@ describe('alternate artifact visualization identity recovery', () => {
     it('shows the connection prompt for composer results instead of an error', () => {
         renderWithProviders(
             <AiComposerArtifactVisualization
-                pivotArtifact={null}
                 projectUuid="project"
                 queryUuid="query"
                 runError={null}
+                onRerun={vi.fn()}
                 results={{ ...mocks.rows(), error }}
                 vizConfig={
                     { type: ChartKind.TABLE } as ComponentProps<
