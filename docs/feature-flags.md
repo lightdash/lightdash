@@ -453,9 +453,10 @@ endpoints; it rejects known ambient modes and filters inherited variables.
 ### Mixed warehouse connections
 
 `mixed-warehouse-connections` is off by default on Cloud and self-hosted. It
-allows an extra connection to use a different warehouse type from the original
-connection. Both types must be Postgres, Athena, Snowflake or Trino. Same-type
-extras keep their existing behaviour. The multi-connection rollout flag and
+allows originals and extras of every user-connectable warehouse type, in any
+mix. With it off, only Postgres, Athena and Snowflake originals can hold extras,
+and extras must use the original type. Trino is refused with the flag off.
+Backend-provisioned DuckDB variants are always refused. The multi-connection rollout flag and
 licence checks still apply.
 
 Create, credential update and switch requests resolve this flag for the requesting
@@ -464,6 +465,8 @@ apply. The add-connection modal uses the server-resolved flag. Console changes
 apply to the next backend request and frontend flag refetch. The generic ENV
 precedence above applies; ENV changes require an API restart.
 
-Disabling the flag refuses new mixed-type saves and switches. It does not remove
+Disabling the flag restores the original allowlist for new saves and switches.
+An existing extra cannot change its type with either flag value; add a new
+connection instead. It does not remove
 saved connections or change query execution. Mixed-type extras keep their own
 user-credential requirement; same-type extras still inherit the original's.

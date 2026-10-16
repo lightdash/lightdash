@@ -28,12 +28,18 @@ Live tests ran on five warehouse types in one project: Postgres, Trino, DuckDB
 (DuckLake), BigQuery and Snowflake. A second project with a BigQuery original
 connection and Trino, Snowflake and DuckLake extras also passed.
 
+With the flag off, the original allowlist applies exactly: only Postgres,
+Athena and Snowflake originals can hold extras, and the extra must have the
+same type. Trino is refused even for a Trino original. Existing saved connections
+remain readable and queries keep their existing bindings.
+
 ## Supported warehouse types
 
-Every value of `WarehouseTypes` is a decision in
-`MULTI_CONNECTION_SUPPORT` (`packages/common/src/types/warehouseConnections.ts`).
-A new warehouse type does not compile until someone decides whether it can
-hold extra connections.
+With the flag on, every value of `WarehouseTypes` is eligible, subject to the
+DuckDB variant checks. `MULTI_CONNECTION_SUPPORT` and the exported
+`MULTI_CONNECTION_WAREHOUSE_TYPES` keep the original allowlist.
+`supportsMultipleConnections` requires the resolved mixed-types flag; no caller
+gets the wider allowlist by default.
 
 | Type | Original or extra | Mixed with other types | Restricted authentication for an extra | Database listing | Unit tests | Live test |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -78,7 +84,8 @@ settings on an extra connection instead of ignoring them.
 Unit tests:
 
 - Every ordered pair of warehouse types, with the flag on and off
-  (`warehouseConnections.test.ts`, 106 tests), including the DuckDB variants.
+  (`warehouseConnections.test.ts`, 107 tests), including the DuckDB variants.
+  The flag-off expectation is a separate implementation of the original rule.
 - The SQL builder for an explore bound to an extra connection of each type
   under an original of a different type: adapter, quote character and week
   start (`boundConnectionSqlBuilder.test.ts`).
@@ -88,8 +95,12 @@ Unit tests:
 - Frontend hook that resolves the explore's dialect and week start, with the
   project fallback.
 
-Real-schema integration tests on Postgres: connection service (62), switch
-(52) and SQL runner (26), including mixed types with the flag on and off.
+Real-schema integration tests on Postgres: connection service (64), switch
+(53), SQL runner (26), credentials (85), connection modes (31) and pre-aggregate
+refresh/finalize race (3). These include mixed types with the flag on and off.
+
+The live results below are from the earlier spike. This review pass uses
+targeted unit and real-schema tests.
 
 Live tests on a local instance:
 
@@ -120,11 +131,6 @@ Snowflake and DuckLake.
   when connections set different week starts.
 - **The explore API does extra lookups.** `getExploreResponse` now resolves
   the bound connection on each request. Measure it before rollout.
-- **Joins across connections are skipped with a misleading warning.** A join
-  to a model on another connection says the model "is not available in this
-  project". Make it an explicit compile error that names both connections.
-- **Changing an extra connection's type on update** keeps the old dialect in
-  its explores until the next compile. Refuse a type change on update.
 - **Additional dbt sources accept GitHub only.** The live tests attached
   manifest sources with a local edit that is not committed.
 - **Not live-tested:** Redshift, Databricks, ClickHouse, Athena and MotherDuck,
@@ -142,12 +148,12 @@ Snowflake and DuckLake.
 
 | Case | Today | Proposed |
 | --- | --- | --- |
-| Join between models on different connections | Skipped with a misleading warning | Explicit compile error that names both connections |
+| Join between models on different connections | Skipped with a warning that names both connections | Keep the warning and partial compilation |
 | Explore names that clash across connections | Refused at compile | Keep |
 | Backend-provisioned DuckDB (Playground, Analytics) as original or extra | Refused | Keep |
 | Interactive sign-in for an extra connection | Refused or personal credentials only | Keep |
 | Database listing on types that cannot list | Refused | Keep until each type supports listing |
-| Changing an extra connection's type | Allowed | Refuse |
+| Changing an extra connection's type | Refused before testing, under the project lock and under the credential row lock | Add a new connection instead |
 | Custom SQL in the wrong dialect | Fails at query time; editor shows the dialect | Keep |
 | Combining data across warehouses | Merge queries run each side on its own warehouse and merge in DuckDB | Keep as the supported route |
 
@@ -155,13 +161,45 @@ Snowflake and DuckLake.
 
 | Work | Days |
 | --- | --- |
-| Refuse type changes, join error, Trino form and `concatString` fixes | 2 to 3 |
+| Trino form and `concatString` fixes | 1 to 2 |
 | AI agent connection parameter for run-SQL and discovery | 2 to 3 |
 | Dashboard filter week start per tile | 1 to 2 |
 | Measure and, if needed, cache the explore connection lookup | 1 |
 | Live tests on Redshift, Databricks, ClickHouse, Athena, MotherDuck | 2 to 3 |
 | Additional dbt sources beyond GitHub, or document the limit | 1 to 2 |
-| **Total** | **9 to 14 (2 to 3 weeks)** |
+| **Total** | **8 to 13 (2 to 3 weeks)** |
+
+## Credentials and identifier checks
+
+Connection details use `OrganizationWarehouseCredentialsModel.stripSensitiveCredentials`.
+It removes top-level authentication fields and DuckLake catalog and storage
+secrets. The switch-plan fingerprint uses the same helper. Connection lists,
+explore connection metadata and agent project info return explicit metadata
+fields. Tests scan serialized responses for sentinel secret values for all nine
+warehouse types and all three DuckLake catalogs crossed with all four storage
+types. Updates cannot change a connection's warehouse type through project or
+organization credentials, with either flag value.
+
+Cross-connection join warnings are rewritten after group compilation. A skipped
+join to a model in another successful compile group names the model and both
+connections. A genuinely missing model keeps the existing missing-model warning.
+Compilation still succeeds when partial compilation allows the skipped join.
+
+Hostile connection names are JSON-encoded in the agent prompt and project-info
+text, and rendered as text in frontend connection/dialect badges. Tests include
+quotes, backticks, semicolons, SQL comment delimiters, newlines and HTML.
+
+The shared `quoteFieldReference` helper contains hostile field, table and alias
+names for every bound SQL builder, including BigQuery backslash escaping.
+There are existing gaps in the SQL paths that this spike reuses:
+`ExploreCompiler.compileDimensionReference('TABLE')` wraps the table alias
+without escaping its delimiter, and `getCustomSqlDimensionSql` does the same
+for custom dimension identifiers. `MetricQueryBuilder.getBaseTableFromSQL`
+also wraps its FROM alias without escaping. The targeted bound-builder suite
+records these as 27 explicit expected failures, one per path and warehouse type. This
+spike does not change these older SQL interpolation paths. The same expressions
+were verified in the GitHub `main` sources on 16 October 2026. These checks do not
+establish that every SQL identifier path is safe.
 
 ## Risks
 
