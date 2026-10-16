@@ -245,6 +245,10 @@ const SpaceActionModal: FC<
                     inheritParentPermissions: state.inheritParentPermissions,
                 }),
                 colorPaletteUuid: state.colorPaletteUuid,
+                ...(state.warehouseConnectionUuid !==
+                    data?.warehouseConnectionUuid && {
+                    warehouseConnectionUuid: state.warehouseConnectionUuid,
+                }),
             });
             onSubmitForm?.(result);
         } else if (actionType === ActionType.DELETE) {

@@ -73,6 +73,34 @@ The results cache key already includes `warehouseConnectionUuid`, so results fro
 
 The two compose. "Allow raw SQL" is the coarse switch on a connection; the space binding is who may reach that connection at all. A customer who wants viewers on a shared credential and SQL only under a personal credential uses SPK-2490. A customer who wants a different identity per team space uses this. SPK-2490 alone does not meet the ask in #30027.
 
+## Where it plugs into credential resolution
+
+Every warehouse query now resolves through one seam, `WarehouseClientFactory.resolveWarehouseCredentials(ref, context)` (`packages/backend/src/services/WarehouseClientFactory/WarehouseClientFactory.ts`), built up by the agent identity work. It has two layers:
+
+| Layer | Question | Implemented by | Space-level credentials |
+| --- | --- | --- | --- |
+| `loadBase` | Which connection row? | `WarehouseConnectionRouter.resolveCredentialReadWithRoute` over a `ConnectionBinding` (explore, SQL chart, query, connection, original) | **Plugs in here.** The prototype adds a `space` binding with a fallback. Nothing below it changes. |
+| `finish` / `resolveLoadedCredentials` | Who inside that connection? | `CredentialResolverRegistry` keyed by warehouse type and auth mode: shared credential, personal overlay (`personalCredentialOverlay.ts`), AI service account, agent sign-in, SSH transport; token refresh and rotation | Untouched. A space connection gets the same identity rules as any other connection: personal credential when the connection requires or allows one, the agent identity rule for agent queries. |
+
+`ConnectionContext` (`ConnectionContext.ts`) carries the actor: surface (app, in-app agent, Slack, MCP, CLI, schedule, embed, data app), the person, the AI client and the agent identity claim. It does not carry where the content lives, and it does not need to: the binding already names the content (chart, SQL chart, query), and the space is a property of that content.
+
+The read side is separate. `QueryResultProducer` records `warehouseConnectionUuid`, the credential owner and the agent claim for every stored result, and `AiAccessService.assertCanReadResults` compares producer with reader. `AiAgentService.canPersonReadAgentResult` (PR #31103) is the rule for a person reading what their agent produced. Space credentials need no new rule there: a result produced with the HR connection carries that connection uuid, and content access on the chart is what decides who may open it. User impersonation is an admin session as another person and resolves exactly as that person, so it is orthogonal too; it was the workaround the customer used.
+
+### How much it reduces the work
+
+| Without the seam (what the issue's suggested approach implied) | With the seam (this prototype) |
+| --- | --- |
+| A new credential store for space credentials, or a reuse of organisation credentials with a new assignment table | A nullable pointer column on `spaces` |
+| A second resolution path in `ProjectService.getWarehouseCredentials` and in every caller that bypasses it | One `ConnectionBinding` variant, resolved in the router that every caller already goes through |
+| Personal credential overlay, token refresh, rotation locks and SSH transport reimplemented or special-cased for the space credential | Inherited per connection |
+| Results cache key, query history and stored-result lineage extended with a space credential id | Already keyed by `warehouseConnectionUuid` |
+| Agent and MCP queries handled separately | Inherited: the agent identity rule runs in `finish` after the space picks the connection |
+| SQL runner catalogue per credential | Already per connection |
+
+The backend prototype is about 350 lines of product code plus tests, and it did not touch a resolver, the factory, the overlay, the cache key or the result lineage. The remaining work is product, not plumbing: the admin picker, the SQL runner reach rule, warehouse-type support for Trino in multi-connection, and the explore-versus-space host mismatch risk below.
+
+What the seam does not give: a per-content "which connection" decision for ad hoc explores (there is no content yet), and a place to express "same host, different identity" as a first-class credential kind. The credentials-as-rows work (SPK-2659) will add a `credential_bindings` slot table; a space slot there would be the long-term home of `spaces.warehouse_connection_uuid`.
+
 ## Risks
 
 - **Explore and space disagree.** An explore compiled on connection A whose chart sits in a space bound to connection B runs A's SQL with B's credential. That is the intended case when A and B are the same warehouse with different identities. It breaks when B points at a different host or catalogue. The prototype allows any connection of the project; a release should limit the picker to connections of the same warehouse and host, or compile per connection.
