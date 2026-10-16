@@ -586,6 +586,7 @@ describe.each([true, false])(
             test.each([
                 ['generate_data_app', 'create'],
                 ['iterate_data_app', 'update'],
+                ['create_custom_chart_type', 'create'],
             ])('%s is recorded before SDK dispatch', async (name, action) => {
                 const insert = vi.fn().mockResolvedValue(undefined);
                 transport.handleRequest.mockImplementationOnce(

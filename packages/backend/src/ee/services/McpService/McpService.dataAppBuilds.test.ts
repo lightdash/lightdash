@@ -405,6 +405,124 @@ describe('McpService generate_data_app', () => {
     });
 });
 
+describe('McpService create_custom_chart_type', () => {
+    const createArgs = {
+        name: 'Sankey Flow',
+        prompt: 'Draw a sankey of flows between stages',
+    };
+
+    it('registers the tool when the caller may create data apps', async () => {
+        await createServerWithRuntime({ createCustomChartType: vi.fn() });
+
+        expect(
+            mockRegisteredMcpTools.has(McpToolName.CREATE_CUSTOM_CHART_TYPE),
+        ).toBe(true);
+    });
+
+    it('omits the tool when data app builds are unavailable', async () => {
+        await createServerWithRuntime(
+            { createCustomChartType: vi.fn() },
+            { dataAppBuildsEnabled: false },
+        );
+
+        expect(
+            mockRegisteredMcpTools.has(McpToolName.CREATE_CUSTOM_CHART_TYPE),
+        ).toBe(false);
+    });
+
+    it('starts the build with the name, brief and theme', async () => {
+        const createCustomChartType = vi.fn().mockResolvedValue({
+            appUuid,
+            slug: 'sankey-flow',
+            version: 1,
+        });
+        await createServerWithRuntime({ createCustomChartType });
+
+        await callTool(McpToolName.CREATE_CUSTOM_CHART_TYPE, {
+            ...createArgs,
+            themeSlug: 'brand',
+        });
+
+        expect(createCustomChartType).toHaveBeenCalledWith({
+            name: 'Sankey Flow',
+            prompt: 'Draw a sankey of flows between stages',
+            themeSlug: 'brand',
+        });
+    });
+
+    it('passes a null theme when none is given', async () => {
+        const createCustomChartType = vi.fn().mockResolvedValue({
+            appUuid,
+            slug: 'sankey-flow',
+            version: 1,
+        });
+        await createServerWithRuntime({ createCustomChartType });
+
+        await callTool(McpToolName.CREATE_CUSTOM_CHART_TYPE, createArgs);
+
+        expect(createCustomChartType).toHaveBeenCalledWith({
+            ...createArgs,
+            themeSlug: null,
+        });
+    });
+
+    it('returns the slug and version with polling and Chart Studio guidance', async () => {
+        await createServerWithRuntime({
+            createCustomChartType: vi.fn().mockResolvedValue({
+                appUuid,
+                slug: 'sankey-flow-2',
+                version: 1,
+            }),
+        });
+
+        const result = await callTool(
+            McpToolName.CREATE_CUSTOM_CHART_TYPE,
+            createArgs,
+        );
+
+        expect(result.structuredContent).toEqual({
+            slug: 'sankey-flow-2',
+            version: 1,
+        });
+        const [{ text }] = result.content as Array<{ text: string }>;
+        expect(text).toContain(
+            'Started building the chart type "Sankey Flow" as slug "sankey-flow-2", version 1.',
+        );
+        expect(text).toContain(
+            'Poll get_data_app_build_status with appSlug "sankey-flow-2" every 15 seconds',
+        );
+        expect(text).toContain(
+            `https://lightdash.example/projects/${projectUuid}/chart-studio/sankey-flow-2`,
+        );
+        expect(text).not.toContain(appUuid);
+    });
+
+    it('surfaces a failed start as a tool error', async () => {
+        await createServerWithRuntime({
+            createCustomChartType: vi
+                .fn()
+                .mockRejectedValue(
+                    new Error(
+                        'Theme "neon" was not found. Valid theme slugs: brand, dark',
+                    ),
+                ),
+        });
+
+        const result = await callTool(McpToolName.CREATE_CUSTOM_CHART_TYPE, {
+            ...createArgs,
+            themeSlug: 'neon',
+        });
+
+        expect(result.isError).toBe(true);
+        expect(result.content).toEqual([
+            {
+                type: 'text',
+                text: 'Theme "neon" was not found. Valid theme slugs: brand, dark',
+            },
+        ]);
+    });
+});
+
 describe('McpService list_data_app_themes', () => {
     const themes = [
         {

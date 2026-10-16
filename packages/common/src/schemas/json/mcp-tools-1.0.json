@@ -267,6 +267,62 @@
             "annotations": {
                 "destructiveHint": false,
                 "idempotentHint": false,
+                "openWorldHint": false,
+                "readOnlyHint": false
+            },
+            "description": "Tool: create_custom_chart_type\n\nStart building a custom chart type: a reusable visualization that saved charts in this project can render with. Use it when the built-in chart types cannot draw what the user wants; for a whole interactive app, use generate_data_app.\n\n- Describe the data the chart type expects by role (a date, a category, a value), not by one query's field names.\n- The build takes a few minutes. Poll get_data_app_build_status with appSlug set to the returned slug until it is \"ready\", \"error\" or \"cancelled\", then send the user to Chart Studio. Call this tool once per request.\n- Refer to the chart type by the returned slug: a name already taken gets a numeric suffix.\n- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.\n",
+            "inputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "properties": {
+                    "name": {
+                        "description": "Short title-case name for the chart type (\"Sankey Flow\"). It sets the slug and is not renamed later.",
+                        "type": "string"
+                    },
+                    "prompt": {
+                        "description": "Self-contained brief for the coding agent: what the visualization draws, how it encodes the data and how it behaves. The agent does not see this conversation.",
+                        "type": "string"
+                    },
+                    "themeSlug": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": null,
+                        "description": "Organization theme to build the app with: its slug, from the attached context (\"Theme: <name> (slug: <slug>)\"). Omit when no theme is given — the organization default applies. An unknown slug returns an error listing the valid slugs and starts no build."
+                    }
+                },
+                "required": ["name", "prompt"],
+                "type": "object"
+            },
+            "name": "create_custom_chart_type",
+            "outputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                    "slug": {
+                        "description": "The app's permanent slug. Poll get_data_app_build_status with it.",
+                        "type": "string"
+                    },
+                    "version": {
+                        "description": "The version of the app this build produces.",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                    }
+                },
+                "required": ["slug", "version"],
+                "type": "object"
+            },
+            "title": "Create custom chart type"
+        },
+        {
+            "annotations": {
+                "destructiveHint": false,
+                "idempotentHint": false,
                 "openWorldHint": true,
                 "readOnlyHint": false
             },

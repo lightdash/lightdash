@@ -9,6 +9,7 @@ import {
     CatalogType,
     ConflictError,
     ContentType,
+    DATA_APP_VIZ_TEMPLATE,
     dataAppVizSchema,
     DimensionType,
     DOCUMENT_CONVERSATION_TAGS,
@@ -377,11 +378,18 @@ const AGENT_RUNTIME_TOOL_NAMES = {
     loadSkill: 'loadSkill',
 } satisfies Record<keyof AiAgentToolsRuntime, AgentToolName | null>;
 
+export type CreateCustomChartTypeFn = (args: {
+    name: string;
+    prompt: string;
+    themeSlug: string | null;
+}) => Promise<{ appUuid: string; slug: string; version: number }>;
+
 export type McpAiAgentToolsRuntime = Omit<
     AiAgentToolsRuntime,
     'getExplore' | 'findExplores' | 'findFields' | 'updateUserName'
 > & {
     getDataAppBuildStatus: GetDataAppBuildStatusFn;
+    createCustomChartType: CreateCustomChartTypeFn;
     createDocumentContent: (content: unknown) => Promise<DocumentContentResult>;
     readDocumentContent: (
         slug: string,
@@ -982,6 +990,10 @@ export class AiAgentToolsService extends BaseService {
             ...runtime,
             getDataAppBuildStatus: (args) =>
                 this.getDataAppBuildStatus(context, args),
+            createCustomChartType: (args) =>
+                this.withWriteRefusal(context, 'app', 'create', () =>
+                    this.createCustomChartType(context, args),
+                ),
             createDocumentContent: (content) =>
                 this.withWriteRefusal(context, 'document', 'create', () =>
                     this.createDocumentContent(context, content),
@@ -2233,6 +2245,46 @@ export class AiAgentToolsService extends BaseService {
                         name,
                         ...attribution,
                         ...AiAgentToolsService.getDataAppBuildThread(context),
+                        ...(designUuid === undefined
+                            ? {}
+                            : { designUuidInput: designUuid }),
+                    },
+                );
+            },
+        );
+    }
+
+    /** Starts a chart type build the way Chart Studio does; MCP-only. */
+    private createCustomChartType(
+        context: AiAgentToolsRuntimeContext,
+        { name, prompt, themeSlug }: Parameters<CreateCustomChartTypeFn>[0],
+    ): ReturnType<CreateCustomChartTypeFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.createCustomChartType`,
+            { withTheme: themeSlug !== null },
+            async () => {
+                const designUuid =
+                    themeSlug === null
+                        ? undefined
+                        : await this.resolveDataAppThemeReference(
+                              context,
+                              themeSlug,
+                          );
+                return this.appGenerateService.generateApp(
+                    context.user,
+                    context.projectUuid,
+                    prompt,
+                    [],
+                    undefined,
+                    undefined,
+                    undefined,
+                    DATA_APP_VIZ_TEMPLATE,
+                    undefined,
+                    undefined,
+                    undefined,
+                    {
+                        name,
+                        creationExperience: 'mcp',
                         ...(designUuid === undefined
                             ? {}
                             : { designUuidInput: designUuid }),
