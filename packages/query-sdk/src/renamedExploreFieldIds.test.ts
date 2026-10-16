@@ -212,6 +212,38 @@ describe('api transport on an explore defined under meta.explores', () => {
         expect(resolver).toHaveBeenCalledWith('orders_with_custom_dims');
     });
 
+    it('retries the lookup on the next query after it fails', async () => {
+        const calls: Call[] = [];
+        const resolver = vi
+            .fn<(exploreName: string) => Promise<string | null>>()
+            .mockRejectedValueOnce(new Error('Bad gateway'))
+            .mockResolvedValueOnce(null)
+            .mockResolvedValue('orders');
+        const transport = createApiTransport(CONFIG, createFakeAdapter(calls), {
+            resolveExploreBaseTable: resolver,
+        });
+
+        await transport.executeQuery(renamedExploreQuery());
+        await transport.executeQuery(renamedExploreQuery());
+        await transport.executeQuery(renamedExploreQuery());
+        await transport.executeQuery(renamedExploreQuery());
+
+        expect(resolver).toHaveBeenCalledTimes(3);
+        const dimensions = calls
+            .filter((c) => c.path.endsWith('/query/metric-query'))
+            .map(
+                (c) =>
+                    (c.body as { query: { dimensions: string[] } }).query
+                        .dimensions,
+            );
+        expect(dimensions).toEqual([
+            ['orders_with_custom_dims_status'],
+            ['orders_with_custom_dims_status'],
+            ['orders_status'],
+            ['orders_status'],
+        ]);
+    });
+
     it('qualifies underlying-data requests against the base table', async () => {
         const calls: Call[] = [];
         const transport = createApiTransport(CONFIG, createFakeAdapter(calls), {

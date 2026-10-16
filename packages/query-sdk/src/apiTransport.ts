@@ -902,7 +902,15 @@ export function createApiTransport(
         }
         let baseTable = baseTableByExplore.get(exploreName);
         if (baseTable === undefined) {
-            baseTable = resolveExploreBaseTable(exploreName).catch(() => null);
+            baseTable = resolveExploreBaseTable(exploreName)
+                .catch(() => null)
+                .then((resolved) => {
+                    // Keep only answers, so a failed lookup is retried.
+                    if (resolved === null) {
+                        baseTableByExplore.delete(exploreName);
+                    }
+                    return resolved;
+                });
             baseTableByExplore.set(exploreName, baseTable);
         }
         return createFieldQualifier(
