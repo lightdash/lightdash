@@ -1,3 +1,10 @@
+## [2.592.1](https://github.com/lightdash/lightdash/compare/2.592.0...2.592.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **dashboards:** explain disabled URL slug action ([#31056](https://github.com/lightdash/lightdash/issues/31056)) ([1370b82](https://github.com/lightdash/lightdash/commit/1370b826ebb5c27741712d9f4104b13ffc6bad34))
+
 # [2.592.0](https://github.com/lightdash/lightdash/compare/2.591.0...2.592.0) (2026-10-16)
 
 
