@@ -131,7 +131,9 @@ compile time. Do not add query federation.
 1. **Gate.** Keep `mixed-warehouse-connections` as an organisation-level flag
    on top of the multi-connection flag and licence. Allow
    Postgres, Athena, Snowflake and Trino. Add more types one at a time with a
-   test pass each.
+   test pass each. BigQuery is the next candidate. It is not a multi-connection
+   type yet, even for same-type extras, and its OAuth personal credentials
+   differ from Trino's user and password.
 2. **Connection type is fixed after create.** Refuse a type change on update.
    To change a type, the user creates a new connection and rebinds the source.
 3. **Per-explore dialect everywhere.** Add one helper that returns the bound
