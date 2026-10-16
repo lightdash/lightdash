@@ -1,3 +1,10 @@
+## [2.600.1](https://github.com/lightdash/lightdash/compare/2.600.0...2.600.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **ai-agents:** let a person read and re-shape the results an agent produced for them ([#31103](https://github.com/lightdash/lightdash/issues/31103)) ([87a1137](https://github.com/lightdash/lightdash/commit/87a11371c085442cf4549eacaf6a86f0d9f443f2))
+
 # [2.600.0](https://github.com/lightdash/lightdash/compare/2.599.2...2.600.0) (2026-10-16)
 
 
