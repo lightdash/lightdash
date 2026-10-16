@@ -1,3 +1,10 @@
+# [2.591.0](https://github.com/lightdash/lightdash/compare/2.590.0...2.591.0) (2026-10-16)
+
+
+### Features
+
+* **backend:** emit registry provenance in chart type downloads ([#31035](https://github.com/lightdash/lightdash/issues/31035)) ([b0376e7](https://github.com/lightdash/lightdash/commit/b0376e7eae392c6642827471e39d835efbb731a3)), closes [#31019](https://github.com/lightdash/lightdash/issues/31019)
+
 # [2.590.0](https://github.com/lightdash/lightdash/compare/2.589.5...2.590.0) (2026-10-16)
 
 
