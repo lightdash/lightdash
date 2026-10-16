@@ -2,8 +2,8 @@
 /**
  * Builds and uploads the e2b sandbox template for Lightdash python query nodes.
  *
- * The template pre-installs pandas, numpy, scipy and pyarrow — the harness is
- * written in per run by the backend.
+ * The template pre-installs pandas, numpy, scipy, pyarrow, scikit-learn and
+ * polars — the harness is written in per run by the backend.
  *
  * Prerequisites:
  *   npm install       # in this directory

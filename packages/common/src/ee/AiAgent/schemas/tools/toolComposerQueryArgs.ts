@@ -204,7 +204,7 @@ export const createToolComposerQueriesArgsSchema = ({
         code: z
             .string()
             .describe(
-                `Python defining \`def run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame\`. inputs[name] is one DataFrame per reference, keyed by its name in "references"; params is empty. Available libraries: pandas, numpy, scipy, pyarrow. No network access and no package installs. Return one DataFrame whose column names match ^[A-Za-z_][A-Za-z0-9_]{0,62}$. Rows past "limit" are dropped, so aggregate in Python when the output would be large.`,
+                `Python defining \`def run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame\`. inputs[name] is one DataFrame per reference, keyed by its name in "references"; params is empty. Available libraries: pandas, numpy, scipy, pyarrow, scikit-learn, polars. No network access and no package installs. Polars results must be converted back with .to_pandas(). Return one DataFrame whose column names match ^[A-Za-z_][A-Za-z0-9_]{0,62}$. Rows past "limit" are dropped, so aggregate in Python when the output would be large.`,
             ),
         references: referencesSchema.describe(
             'Which nodes the code reads, at least one, by node id, from this call or an earlier call in the thread. Shorthand array of node ids (each exposed as inputs[nodeId]), or a map of {inputName: nodeId} to alias them.',
