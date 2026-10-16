@@ -23,6 +23,7 @@ import {
     convertAiTableCalcsSchemaToTableCalcs,
     convertFieldRefToFieldId,
     createContentToolDefinition,
+    createCustomChartTypeToolDefinition,
     createMcpCompatibleInputShape,
     createScheduledDeliveryToolDefinition,
     createToolRunSqlArgsSchema,
@@ -269,6 +270,7 @@ export enum McpToolName {
     ITERATE_DATA_APP = 'iterate_data_app',
     LIST_DATA_APP_THEMES = 'list_data_app_themes',
     GET_DATA_APP_BUILD_STATUS = 'get_data_app_build_status',
+    CREATE_CUSTOM_CHART_TYPE = 'create_custom_chart_type',
     LIST_SKILLS = 'list_skills',
     READ_SKILL = 'read_skill',
     READ_SKILL_RESOURCE = 'read_skill_resource',
@@ -338,6 +340,9 @@ const mcpGetDataAppBuildStatusTool = withProjectScopeInput(
 );
 const mcpGenerateDataAppTool = withProjectScopeInput(
     generateDataAppToolDefinition.for('mcp'),
+);
+const mcpCreateCustomChartTypeTool = withProjectScopeInput(
+    createCustomChartTypeToolDefinition.for('mcp'),
 );
 const mcpIterateDataAppTool = withProjectScopeInput(
     iterateDataAppToolDefinition.for('mcp'),
@@ -1643,6 +1648,7 @@ export class McpService extends BaseService {
         this.registerIterateDataAppTool();
         this.registerListDataAppThemesTool();
         this.registerGetDataAppBuildStatusTool();
+        this.registerCreateCustomChartTypeTool();
     }
 
     /**
@@ -1727,6 +1733,38 @@ export class McpService extends BaseService {
                             });
                         return {
                             summary: `Started building the data app "${args.name}" as slug "${slug}", version ${version}. Poll get_data_app_build_status with that slug every ${DATA_APP_BUILD_POLL_INTERVAL_MS / 1000} seconds until it reports a terminal status.`,
+                            structuredContent: { slug, version },
+                        };
+                    },
+                ),
+        );
+    }
+
+    private registerCreateCustomChartTypeTool(): void {
+        this.registerTrackedTool(
+            mcpCreateCustomChartTypeTool.name,
+            {
+                title: mcpCreateCustomChartTypeTool.title,
+                description: mcpCreateCustomChartTypeTool.description,
+                inputSchema: mcpCreateCustomChartTypeTool.inputSchema.shape,
+                outputSchema: mcpCreateCustomChartTypeTool.outputSchema.shape,
+                annotations: mcpCreateCustomChartTypeTool.annotations,
+            },
+            async (args, extra) =>
+                this.callDataAppBuildTool(
+                    extra,
+                    args,
+                    'Error starting the chart type build. No chart type was created',
+                    async (toolsRuntime, projectUuid) => {
+                        const { slug, version } =
+                            await toolsRuntime.createCustomChartType({
+                                name: args.name,
+                                prompt: args.prompt,
+                                themeSlug: args.themeSlug ?? null,
+                            });
+                        const chartStudioUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/chart-studio/${slug}`;
+                        return {
+                            summary: `Started building the chart type "${args.name}" as slug "${slug}", version ${version}. Poll get_data_app_build_status with appSlug "${slug}" every ${DATA_APP_BUILD_POLL_INTERVAL_MS / 1000} seconds until it reports a terminal status. Then open it in Chart Studio at ${chartStudioUrl}`,
                             structuredContent: { slug, version },
                         };
                     },
@@ -5146,14 +5184,17 @@ export class McpService extends BaseService {
                         'create_scheduled_delivery',
                         'generate_data_app',
                         'iterate_data_app',
+                        'create_custom_chart_type',
                     ]),
                 }),
             })
             .safeParse(request);
         if (!call.success) return;
-        const dataApp = ['generate_data_app', 'iterate_data_app'].includes(
-            call.data.params.name,
-        );
+        const dataApp = [
+            'generate_data_app',
+            'iterate_data_app',
+            'create_custom_chart_type',
+        ].includes(call.data.params.name);
         if (dataApp) {
             if (availability.dataAppBuildsEnabled) return;
             const { enabled } = await this.featureFlagService.get({
@@ -5529,6 +5570,7 @@ export class McpService extends BaseService {
             case 'create_scheduled_delivery':
                 return { objectType: 'scheduler', action: 'create' };
             case 'generate_data_app':
+            case 'create_custom_chart_type':
                 return { objectType: 'app', action: 'create' };
             case 'iterate_data_app':
                 return { objectType: 'app', action: 'update' };

@@ -8,6 +8,7 @@ import {
     CatalogType,
     ChartType,
     ContentType,
+    DATA_APP_VIZ_TEMPLATE,
     DimensionType,
     Explore,
     FieldType,
@@ -4648,6 +4649,112 @@ describe('AiAgentToolsService generateDataApp', () => {
             const opts = generateAppOptions(appGenerateService);
             expect(opts).not.toHaveProperty('designUuidInput');
         });
+    });
+});
+
+describe('AiAgentToolsService createCustomChartType', () => {
+    const makeAppGenerateService = (
+        generateApp = vi.fn().mockResolvedValue({
+            appUuid: 'app-uuid',
+            slug: 'sankey-flow',
+            version: 1,
+        }),
+    ) => ({ generateApp });
+
+    const runCreate = (
+        service: AiAgentToolsService,
+        themeSlug: string | null = null,
+    ) =>
+        service
+            .createRuntime(makeRuntimeContext({ source: 'mcp' }))
+            .createCustomChartType({
+                name: 'Sankey Flow',
+                prompt: 'Draw a sankey',
+                themeSlug,
+            });
+
+    it('starts a chart type build the way Chart Studio does', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({ appGenerateService });
+
+        const result = await runCreate(service);
+
+        expect(result).toEqual({
+            appUuid: 'app-uuid',
+            slug: 'sankey-flow',
+            version: 1,
+        });
+        expect(appGenerateService.generateApp).toHaveBeenCalledWith(
+            user,
+            projectUuid,
+            'Draw a sankey',
+            [],
+            undefined,
+            undefined,
+            undefined,
+            DATA_APP_VIZ_TEMPLATE,
+            undefined,
+            undefined,
+            undefined,
+            { name: 'Sankey Flow', creationExperience: 'mcp' },
+        );
+    });
+
+    it('resolves the theme slug to the theme uuid', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({
+            appGenerateService,
+            organizationDesignModel: makeDesignModelWithThemes([
+                { designUuid: 'brand-uuid', slug: 'brand', name: 'Brand' },
+            ]),
+        });
+
+        await runCreate(service, 'brand');
+
+        expect(generateAppOptions(appGenerateService)).toEqual({
+            name: 'Sankey Flow',
+            creationExperience: 'mcp',
+            designUuidInput: 'brand-uuid',
+        });
+    });
+
+    it('names the valid slugs for an unknown theme and starts no build', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({
+            appGenerateService,
+            organizationDesignModel: makeDesignModelWithThemes([
+                { designUuid: 'brand-uuid', slug: 'brand', name: 'Brand' },
+            ]),
+        });
+
+        await expect(runCreate(service, 'neon')).rejects.toThrow(
+            'Theme "neon" was not found. Valid theme slugs: brand',
+        );
+        expect(appGenerateService.generateApp).not.toHaveBeenCalled();
+    });
+
+    it('records a forbidden build as an app create refusal', async () => {
+        const error = new ForbiddenError('secret details');
+        const service = makeService({
+            appGenerateService: makeAppGenerateService(
+                vi.fn().mockRejectedValue(error),
+            ),
+        });
+
+        await expect(
+            withAgentActionScope(user, AgentActorSurface.MCP, true, () =>
+                runCreate(service),
+            ),
+        ).rejects.toBe(error);
+        expect(service['agentActionLogModel'].insert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                object_type: 'app',
+                action: 'create',
+                outcome: 'denied',
+                policy_layer: 'casl',
+                reason_code: 'content_write_forbidden',
+            }),
+        );
     });
 });
 

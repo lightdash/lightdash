@@ -9,6 +9,7 @@ export const MCP_TOOL_CAPABILITIES = {
     clear_agent: [AgentCapability.ReadDiscover],
     connect_agent: [AgentCapability.ReadDiscover],
     create_content: [AgentCapability.ContentWrite],
+    create_custom_chart_type: [AgentCapability.ContentWrite],
     create_scheduled_delivery: [
         AgentCapability.ContentWrite,
         AgentCapability.Publish,

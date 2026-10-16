@@ -352,6 +352,7 @@ describe('defineTool', () => {
             .sort();
 
         expect(structuredMcpToolNames).toEqual([
+            'create_custom_chart_type',
             'generate_data_app',
             'generate_hashes',
             'get_ai_writeback_status',
