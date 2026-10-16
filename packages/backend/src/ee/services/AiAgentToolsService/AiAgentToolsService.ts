@@ -2140,7 +2140,7 @@ export class AiAgentToolsService extends BaseService {
         ).map((d) => d.slug);
         throw new NotFoundError(
             validSlugs.length === 0
-                ? `Theme "${themeSlug}" was not found: the organization has no themes. Omit themeSlug to use the default look`
+                ? `Theme "${themeSlug}" was not found: the organization has no themes. Omit themeSlug.`
                 : `Theme "${themeSlug}" was not found. Valid theme slugs: ${validSlugs.join(', ')}`,
         );
     }
@@ -2332,17 +2332,18 @@ export class AiAgentToolsService extends BaseService {
                         `Chart type "${slug}" was not found`,
                     );
                 }
-                if (app.template !== DATA_APP_VIZ_TEMPLATE) {
-                    throw new ParameterError(
-                        `"${slug}" is a data app, not a custom chart type. Use iterate_data_app to change it`,
-                    );
-                }
                 await this.assertDataAppInAgentScope(
                     context,
                     app.space_uuid,
                     slug,
                     'update',
+                    'Chart type',
                 );
+                if (app.template !== DATA_APP_VIZ_TEMPLATE) {
+                    throw new ParameterError(
+                        `"${slug}" is a data app, not a custom chart type. Use iterate_data_app to change it`,
+                    );
+                }
                 const readyVersion = await this.appModel.getLatestReadyVersion(
                     app.app_id,
                 );
@@ -2416,6 +2417,13 @@ export class AiAgentToolsService extends BaseService {
                         `Data app "${appSlug}" was not found`,
                     );
                 }
+                await this.assertDataAppInAgentScope(
+                    context,
+                    app.space_uuid,
+                    appSlug,
+                    'update',
+                    'Data app',
+                );
                 if (
                     context.source === 'mcp' &&
                     app.template === DATA_APP_VIZ_TEMPLATE
@@ -2424,12 +2432,6 @@ export class AiAgentToolsService extends BaseService {
                         `"${appSlug}" is a custom chart type. Use iterate_custom_chart_type to change it`,
                     );
                 }
-                await this.assertDataAppInAgentScope(
-                    context,
-                    app.space_uuid,
-                    appSlug,
-                    'update',
-                );
                 const dashboard =
                     dashboardSlug === null
                         ? undefined
@@ -2489,6 +2491,7 @@ export class AiAgentToolsService extends BaseService {
             source.app.spaceUuid,
             appSlug,
             'read',
+            'Data app',
         );
         return source;
     }
@@ -2578,6 +2581,7 @@ export class AiAgentToolsService extends BaseService {
                             source.app.spaceUuid,
                             slug,
                             'read',
+                            'Data app',
                         );
                         return {
                             type: 'data_app',
@@ -2712,6 +2716,7 @@ export class AiAgentToolsService extends BaseService {
         spaceUuid: string | null,
         slug: string,
         action: 'read' | 'update',
+        noun: 'Data app' | 'Chart type',
     ) {
         const scoped =
             context.spaceAccess !== null && context.spaceAccess.length > 0;
@@ -2730,7 +2735,7 @@ export class AiAgentToolsService extends BaseService {
                 'agent_scope',
                 'content_outside_agent_scope',
             );
-            throw new NotFoundError(`Data app "${slug}" was not found`);
+            throw new NotFoundError(`${noun} "${slug}" was not found`);
         }
     }
 

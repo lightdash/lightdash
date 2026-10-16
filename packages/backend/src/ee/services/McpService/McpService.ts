@@ -12,7 +12,6 @@ import {
     aiWritebackRunStatusToMcpTaskStatus,
     AiWritebackSource,
     AnyType,
-    AppVizBuildContext,
     assertRegisteredAccount,
     assertUnreachable,
     buildRunSqlDescription,
@@ -347,6 +346,29 @@ const mcpGetDataAppBuildStatusTool = withProjectScopeInput(
 const mcpGenerateDataAppTool = withProjectScopeInput(
     generateDataAppToolDefinition.for('mcp'),
 );
+type SampleRowsOutcome =
+    | { kind: 'not_requested' }
+    | { kind: 'shared'; sampleRows: Record<string, string>[] }
+    | { kind: 'sample_data_off' }
+    | { kind: 'no_rows' };
+
+const describeSampleRows = (outcome: SampleRowsOutcome): string => {
+    switch (outcome.kind) {
+        case 'not_requested':
+            return '';
+        case 'shared':
+            return ` Shared ${outcome.sampleRows.length} sample ${
+                outcome.sampleRows.length === 1 ? 'row' : 'rows'
+            } from the query.`;
+        case 'sample_data_off':
+            return ' Sample data is switched off on this instance, so no rows were shared.';
+        case 'no_rows':
+            return ' The query returned no rows, so none were shared.';
+        default:
+            return assertUnreachable(outcome, 'Unknown sample rows outcome');
+    }
+};
+
 const mcpCreateCustomChartTypeTool = withProjectScopeInput(
     createCustomChartTypeToolDefinition.for('mcp'),
 );
@@ -1766,13 +1788,17 @@ export class McpService extends BaseService {
                     args,
                     'Error starting the chart type build. No chart type was created',
                     async (toolsRuntime, projectUuid) => {
-                        const vizContext = await this.getSampleRowsVizContext(
+                        const sampleRows = await this.getSampleRows(
                             getMcpContext(extra),
                             projectUuid,
                             args.agentUuid,
                             args.queryUuid ?? null,
                             mcpCreateCustomChartTypeTool.name,
                         );
+                        const vizContext =
+                            sampleRows.kind === 'shared'
+                                ? { sampleRows: sampleRows.sampleRows }
+                                : null;
                         const { slug, version } =
                             await toolsRuntime.createCustomChartType({
                                 name: args.name,
@@ -1782,7 +1808,7 @@ export class McpService extends BaseService {
                             });
                         const chartStudioUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/chart-studio/${slug}`;
                         return {
-                            summary: `Started building the chart type "${args.name}" as slug "${slug}", version ${version}. Poll get_data_app_build_status with appSlug "${slug}" every ${DATA_APP_BUILD_POLL_INTERVAL_MS / 1000} seconds until it reports a terminal status. Then open it in Chart Studio at ${chartStudioUrl}`,
+                            summary: `Started building the chart type "${args.name}" as slug "${slug}", version ${version}. Poll get_data_app_build_status with appSlug "${slug}" every ${DATA_APP_BUILD_POLL_INTERVAL_MS / 1000} seconds until it reports a terminal status. Then open it in Chart Studio at ${chartStudioUrl}.${describeSampleRows(sampleRows)}`,
                             structuredContent: { slug, version },
                         };
                     },
@@ -1806,13 +1832,17 @@ export class McpService extends BaseService {
                     args,
                     'Error starting the chart type build. No version was added',
                     async (toolsRuntime, projectUuid) => {
-                        const vizContext = await this.getSampleRowsVizContext(
+                        const sampleRows = await this.getSampleRows(
                             getMcpContext(extra),
                             projectUuid,
                             args.agentUuid,
                             args.queryUuid ?? null,
                             mcpIterateCustomChartTypeTool.name,
                         );
+                        const vizContext =
+                            sampleRows.kind === 'shared'
+                                ? { sampleRows: sampleRows.sampleRows }
+                                : null;
                         const { slug, version, name } =
                             await toolsRuntime.iterateCustomChartType({
                                 slug: args.slug,
@@ -1821,7 +1851,7 @@ export class McpService extends BaseService {
                             });
                         const chartStudioUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/chart-studio/${slug}`;
                         return {
-                            summary: `Started building version ${version} of the chart type "${name}" (slug "${slug}"). Poll get_data_app_build_status with appSlug "${slug}" every ${DATA_APP_BUILD_POLL_INTERVAL_MS / 1000} seconds until it reports a terminal status. Then open it in Chart Studio at ${chartStudioUrl}`,
+                            summary: `Started building version ${version} of the chart type "${name}" (slug "${slug}"). Poll get_data_app_build_status with appSlug "${slug}" every ${DATA_APP_BUILD_POLL_INTERVAL_MS / 1000} seconds until it reports a terminal status. Then open it in Chart Studio at ${chartStudioUrl}.${describeSampleRows(sampleRows)}`,
                             structuredContent: { slug, version },
                         };
                     },
@@ -1830,18 +1860,18 @@ export class McpService extends BaseService {
     }
 
     /** Sample rows from a completed run_metric_query, the way Chart Studio shares them. */
-    private async getSampleRowsVizContext(
+    private async getSampleRows(
         ctx: McpProtocolContext,
         projectUuid: string,
         agentUuid: string | undefined,
         queryUuid: string | null,
         toolName: string,
-    ): Promise<AppVizBuildContext | null> {
-        if (
-            queryUuid === null ||
-            !this.lightdashConfig.appRuntime.sampleDataEnabled
-        ) {
-            return null;
+    ): Promise<SampleRowsOutcome> {
+        if (queryUuid === null) {
+            return { kind: 'not_requested' };
+        }
+        if (!this.lightdashConfig.appRuntime.sampleDataEnabled) {
+            return { kind: 'sample_data_off' };
         }
         const { user, account } = McpService.getAccount(ctx);
         const reader = buildResultReader(
@@ -1889,7 +1919,9 @@ export class McpService extends BaseService {
             fields,
             displayTimezone,
         );
-        return sampleRows.length > 0 ? { sampleRows } : null;
+        return sampleRows.length > 0
+            ? { kind: 'shared', sampleRows }
+            : { kind: 'no_rows' };
     }
 
     private registerIterateDataAppTool(): void {

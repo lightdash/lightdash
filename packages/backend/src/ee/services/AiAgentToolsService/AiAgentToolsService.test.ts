@@ -5018,6 +5018,28 @@ describe('AiAgentToolsService iterateDataApp', () => {
             expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
         });
 
+        it('says to omit the slug when the organization has no themes', async () => {
+            const appGenerateService = makeAppGenerateService();
+            const service = makeService({
+                appGenerateService,
+                organizationDesignModel: makeDesignModelWithThemes([]),
+                appModel: makeAppModel(),
+            });
+
+            await expect(
+                runIterate(
+                    service,
+                    makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+                    { themeSlug: 'brand' },
+                ),
+            ).rejects.toThrow(
+                new NotFoundError(
+                    'Theme "brand" was not found: the organization has no themes. Omit themeSlug.',
+                ),
+            );
+            expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
+        });
+
         it('keeps the app theme when the slug is absent', async () => {
             const appGenerateService = makeAppGenerateService();
             const organizationDesignModel = makeDesignModel();
@@ -5070,6 +5092,72 @@ describe('AiAgentToolsService iterateDataApp over MCP', () => {
         );
         expect(iterateApp).not.toHaveBeenCalled();
     });
+
+    it('hides an out-of-scope chart type as a missing data app', async () => {
+        const iterateApp = vi.fn();
+        const service = makeService({
+            appGenerateService: { iterateApp },
+            appModel: {
+                findAppBySlug: vi.fn().mockResolvedValue({
+                    app_id: 'viz-uuid',
+                    slug: 'sankey-flow',
+                    space_uuid: 'finance-space-uuid',
+                    template: DATA_APP_VIZ_TEMPLATE,
+                }),
+            },
+        });
+
+        await expect(
+            service
+                .createRuntime(
+                    makeRuntimeContext({
+                        source: 'mcp',
+                        spaceAccess: ['sales-space-uuid'],
+                    }),
+                )
+                .iterateDataApp({
+                    appSlug: 'sankey-flow',
+                    prompt: 'Colour the links',
+                    dashboardSlug: null,
+                    chartSlugs: null,
+                    themeSlug: null,
+                    toolCallId: null,
+                }),
+        ).rejects.toThrow(
+            new NotFoundError('Data app "sankey-flow" was not found'),
+        );
+        expect(iterateApp).not.toHaveBeenCalled();
+    });
+
+    it('lets the in-app agent iterate a chart type slug', async () => {
+        const iterateApp = vi
+            .fn()
+            .mockResolvedValue({ appUuid: 'viz-uuid', version: 2 });
+        const service = makeService({
+            appGenerateService: { iterateApp },
+            appModel: {
+                findAppBySlug: vi.fn().mockResolvedValue({
+                    app_id: 'viz-uuid',
+                    slug: 'sankey-flow',
+                    space_uuid: null,
+                    template: DATA_APP_VIZ_TEMPLATE,
+                }),
+            },
+        });
+
+        await service
+            .createRuntime(makeRuntimeContext({ promptUuid: 'prompt-uuid' }))
+            .iterateDataApp({
+                appSlug: 'sankey-flow',
+                prompt: 'Colour the links',
+                dashboardSlug: null,
+                chartSlugs: null,
+                themeSlug: null,
+                toolCallId: 'tool-call-1',
+            });
+
+        expect(iterateApp).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe('AiAgentToolsService iterateCustomChartType', () => {
@@ -5097,15 +5185,17 @@ describe('AiAgentToolsService iterateCustomChartType', () => {
     const makeAppModel = ({
         template = DATA_APP_VIZ_TEMPLATE,
         schema = vizSchema,
+        spaceUuid = null,
     }: {
         template?: string | null;
         schema?: DataAppVizSchema | null;
+        spaceUuid?: string | null;
     } = {}) => ({
         findAppBySlug: vi.fn().mockResolvedValue({
             app_id: 'viz-uuid',
             slug: 'sankey-flow',
             name: 'Sankey Flow',
-            space_uuid: null,
+            space_uuid: spaceUuid,
             template,
         }),
         getLatestReadyVersion: vi
@@ -5118,9 +5208,10 @@ describe('AiAgentToolsService iterateCustomChartType', () => {
     const runIterateChartType = (
         service: AiAgentToolsService,
         vizContext: AppVizBuildContext | null = null,
+        spaceAccess: string[] | null = null,
     ) =>
         service
-            .createRuntime(makeRuntimeContext({ source: 'mcp' }))
+            .createRuntime(makeRuntimeContext({ source: 'mcp', spaceAccess }))
             .iterateCustomChartType({
                 slug: 'sankey-flow',
                 prompt: 'Colour the links by source',
@@ -5209,6 +5300,40 @@ describe('AiAgentToolsService iterateCustomChartType', () => {
         );
         expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
     });
+
+    it.each([
+        ['a personal chart type', DATA_APP_VIZ_TEMPLATE, null],
+        ['a data app outside scope', null, 'finance-space-uuid'],
+    ])(
+        'hides %s from a space-scoped agent as a missing chart type',
+        async (_label, template, spaceUuid) => {
+            const appGenerateService = makeAppGenerateService();
+            const service = makeService({
+                appGenerateService,
+                appModel: makeAppModel({ template, spaceUuid }),
+            });
+
+            await expect(
+                withAgentActionScope(user, AgentActorSurface.MCP, true, () =>
+                    runIterateChartType(service, null, ['sales-space-uuid']),
+                ),
+            ).rejects.toThrow(
+                new NotFoundError('Chart type "sankey-flow" was not found'),
+            );
+            expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
+            expect(
+                service['agentActionLogModel'].insert,
+            ).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    object_type: 'app',
+                    action: 'update',
+                    outcome: 'denied',
+                    policy_layer: 'agent_scope',
+                    reason_code: 'content_outside_agent_scope',
+                }),
+            );
+        },
+    );
 
     it('records a forbidden build as an app update refusal', async () => {
         const error = new ForbiddenError('secret details');

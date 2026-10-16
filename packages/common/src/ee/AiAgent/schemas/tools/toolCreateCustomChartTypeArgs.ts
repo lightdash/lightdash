@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const MCP_CUSTOM_CHART_TYPE_AGENT_SCOPE_GUIDANCE =
-    '- An agent-scoped session restricted to specific spaces cannot read a personal chart type. Call this tool and get_data_app_build_status without agentUuid to build and poll a chart type you own.';
+    "- A chart type created over MCP is the caller's personal one, in no space, so a space-restricted agent-scoped session cannot read it. Omit agentUuid here and in get_data_app_build_status.";
 
 export const mcpCustomChartTypeBuildStartedOutputSchema = z.object({
     slug: z
@@ -18,11 +18,12 @@ export const mcpCustomChartTypeBuildStartedOutputSchema = z.object({
 
 export const MCP_TOOL_CREATE_CUSTOM_CHART_TYPE_DESCRIPTION = `Tool: create_custom_chart_type
 
-Start building a custom chart type: a reusable visualization that saved charts in this project can render with. Use it when the built-in chart types cannot draw what the user wants; for a whole interactive app, use generate_data_app.
+Build a custom chart type: a reusable visualization for saved charts in the project, when built-in chart types cannot draw what the user wants. For a whole interactive app, use generate_data_app.
 
-- Describe the data the chart type expects by role (a date, a category, a value), not by one query's field names. Pass queryUuid to share the first rows of a completed run_metric_query as sample data.
-- The build takes a few minutes. Poll get_data_app_build_status with appSlug set to the returned slug until it is "ready", "error" or "cancelled", then send the user to Chart Studio. Call this tool once per request.
-- Refer to the chart type by the returned slug: a name already taken gets a numeric suffix.
+- Describe the expected data by role (a date, a category, a value), not by a query's fields. Pass queryUuid to share sample rows from a completed run_metric_query.
+- Poll get_data_app_build_status with the returned slug as appSlug until "ready", "error" or "cancelled", then send the user to Chart Studio. Call this tool once per request.
+- Use the returned slug: a taken name gets a numeric suffix.
+- For a named theme, brand or look, find its themeSlug with list_data_app_themes.
 ${MCP_CUSTOM_CHART_TYPE_AGENT_SCOPE_GUIDANCE}
 `;
 
@@ -42,7 +43,7 @@ export const mcpCreateCustomChartTypeArgsSchema = z.object({
         .nullish()
         .default(null)
         .describe(
-            'Organization theme to build the chart type with: its slug, from the attached context ("Theme: <name> (slug: <slug>)"). Omit it to use the organization default. An unknown slug returns an error and starts no build.',
+            'Organization theme to build the chart type with: its slug, from list_data_app_themes. Omit it to use the organization default. An unknown slug returns an error and starts no build.',
         ),
     queryUuid: z
         .string()

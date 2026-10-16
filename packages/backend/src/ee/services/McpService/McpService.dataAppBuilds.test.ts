@@ -546,6 +546,7 @@ describe('McpService create_custom_chart_type', () => {
             `https://lightdash.example/projects/${projectUuid}/chart-studio/sankey-flow-2`,
         );
         expect(text).not.toContain(appUuid);
+        expect(text).not.toMatch(/shared|sample/i);
     });
 
     it('surfaces a failed start as a tool error', async () => {
@@ -625,6 +626,7 @@ describe('McpService create_custom_chart_type with a queryUuid', () => {
             data: { name: 'orders', tables: {} },
         } as Record<string, unknown>,
         sampleDataEnabled = true,
+        rows = [{ orders_status: 'shipped' }] as Record<string, unknown>[],
     } = {}) => {
         const createCustomChartType = vi.fn().mockResolvedValue({
             appUuid,
@@ -634,7 +636,7 @@ describe('McpService create_custom_chart_type with a queryUuid', () => {
         const asyncQueryService = {
             getAsyncQueryHistory: vi.fn().mockResolvedValue(history),
             getRawAsyncQueryResults: vi.fn().mockResolvedValue({
-                rows: [{ orders_status: 'shipped' }],
+                rows,
                 fields,
                 displayTimezone: null,
             }),
@@ -650,10 +652,21 @@ describe('McpService create_custom_chart_type with a queryUuid', () => {
         return { createCustomChartType, asyncQueryService };
     };
 
+    const summaryText = async () => {
+        const result = await callTool(
+            McpToolName.CREATE_CUSTOM_CHART_TYPE,
+            createArgs,
+        );
+        const [{ text }] = result.content as Array<{ text: string }>;
+        return text;
+    };
+
     it('shares the first rows of the query with the build', async () => {
         const { createCustomChartType, asyncQueryService } = await setup();
 
-        await callTool(McpToolName.CREATE_CUSTOM_CHART_TYPE, createArgs);
+        expect(await summaryText()).toContain(
+            'Shared 1 sample row from the query.',
+        );
 
         expect(createCustomChartType).toHaveBeenCalledWith({
             name: 'Sankey Flow',
@@ -676,9 +689,22 @@ describe('McpService create_custom_chart_type with a queryUuid', () => {
             sampleDataEnabled: false,
         });
 
-        await callTool(McpToolName.CREATE_CUSTOM_CHART_TYPE, createArgs);
+        expect(await summaryText()).toContain(
+            'Sample data is switched off on this instance, so no rows were shared.',
+        );
 
         expect(asyncQueryService.getAsyncQueryHistory).not.toHaveBeenCalled();
+        expect(createCustomChartType).toHaveBeenCalledWith(
+            expect.objectContaining({ vizContext: null }),
+        );
+    });
+
+    it('says no rows were shared when the query returned none', async () => {
+        const { createCustomChartType } = await setup({ rows: [] });
+
+        expect(await summaryText()).toContain(
+            'The query returned no rows, so none were shared.',
+        );
         expect(createCustomChartType).toHaveBeenCalledWith(
             expect.objectContaining({ vizContext: null }),
         );
@@ -876,7 +902,7 @@ describe('McpService iterate_custom_chart_type', () => {
             { asyncQueryService, sampleDataEnabled: true },
         );
 
-        await callTool(McpToolName.ITERATE_CUSTOM_CHART_TYPE, {
+        const result = await callTool(McpToolName.ITERATE_CUSTOM_CHART_TYPE, {
             ...iterateArgs,
             queryUuid,
         });
@@ -886,6 +912,8 @@ describe('McpService iterate_custom_chart_type', () => {
             prompt: 'Colour the links by source',
             vizContext: { sampleRows: [{ orders_status: 'shipped' }] },
         });
+        const [{ text }] = result.content as Array<{ text: string }>;
+        expect(text).toContain('Shared 1 sample row from the query.');
     });
 
     it('rejects a query not started by run_metric_query, naming this tool', async () => {
