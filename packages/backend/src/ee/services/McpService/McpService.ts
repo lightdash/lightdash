@@ -29,6 +29,7 @@ import {
     createScheduledDeliveryToolDefinition,
     createToolRunSqlArgsSchema,
     DATA_APP_BUILD_POLL_INTERVAL_MS,
+    DATA_APP_VIZ_TEMPLATE,
     editContentToolDefinition,
     Explore,
     FeatureFlags,
@@ -58,6 +59,7 @@ import {
     hashStringToBase36,
     isAiAccessRefusal,
     ItemsMap,
+    iterateCustomChartTypeToolDefinition,
     iterateDataAppToolDefinition,
     listAgentsToolDefinition,
     listContentToolDefinition,
@@ -274,6 +276,7 @@ export enum McpToolName {
     LIST_DATA_APP_THEMES = 'list_data_app_themes',
     GET_DATA_APP_BUILD_STATUS = 'get_data_app_build_status',
     CREATE_CUSTOM_CHART_TYPE = 'create_custom_chart_type',
+    ITERATE_CUSTOM_CHART_TYPE = 'iterate_custom_chart_type',
     LIST_SKILLS = 'list_skills',
     READ_SKILL = 'read_skill',
     READ_SKILL_RESOURCE = 'read_skill_resource',
@@ -346,6 +349,9 @@ const mcpGenerateDataAppTool = withProjectScopeInput(
 );
 const mcpCreateCustomChartTypeTool = withProjectScopeInput(
     createCustomChartTypeToolDefinition.for('mcp'),
+);
+const mcpIterateCustomChartTypeTool = withProjectScopeInput(
+    iterateCustomChartTypeToolDefinition.for('mcp'),
 );
 const mcpIterateDataAppTool = withProjectScopeInput(
     iterateDataAppToolDefinition.for('mcp'),
@@ -1652,6 +1658,7 @@ export class McpService extends BaseService {
         this.registerListDataAppThemesTool();
         this.registerGetDataAppBuildStatusTool();
         this.registerCreateCustomChartTypeTool();
+        this.registerIterateCustomChartTypeTool();
     }
 
     /**
@@ -1764,6 +1771,7 @@ export class McpService extends BaseService {
                             projectUuid,
                             args.agentUuid,
                             args.queryUuid ?? null,
+                            mcpCreateCustomChartTypeTool.name,
                         );
                         const { slug, version } =
                             await toolsRuntime.createCustomChartType({
@@ -1782,12 +1790,52 @@ export class McpService extends BaseService {
         );
     }
 
+    private registerIterateCustomChartTypeTool(): void {
+        this.registerTrackedTool(
+            mcpIterateCustomChartTypeTool.name,
+            {
+                title: mcpIterateCustomChartTypeTool.title,
+                description: mcpIterateCustomChartTypeTool.description,
+                inputSchema: mcpIterateCustomChartTypeTool.inputSchema.shape,
+                outputSchema: mcpIterateCustomChartTypeTool.outputSchema.shape,
+                annotations: mcpIterateCustomChartTypeTool.annotations,
+            },
+            async (args, extra) =>
+                this.callDataAppBuildTool(
+                    extra,
+                    args,
+                    'Error starting the chart type build. No version was added',
+                    async (toolsRuntime, projectUuid) => {
+                        const vizContext = await this.getSampleRowsVizContext(
+                            getMcpContext(extra),
+                            projectUuid,
+                            args.agentUuid,
+                            args.queryUuid ?? null,
+                            mcpIterateCustomChartTypeTool.name,
+                        );
+                        const { slug, version, name } =
+                            await toolsRuntime.iterateCustomChartType({
+                                slug: args.slug,
+                                prompt: args.prompt,
+                                vizContext,
+                            });
+                        const chartStudioUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/chart-studio/${slug}`;
+                        return {
+                            summary: `Started building version ${version} of the chart type "${name}" (slug "${slug}"). Poll get_data_app_build_status with appSlug "${slug}" every ${DATA_APP_BUILD_POLL_INTERVAL_MS / 1000} seconds until it reports a terminal status. Then open it in Chart Studio at ${chartStudioUrl}`,
+                            structuredContent: { slug, version },
+                        };
+                    },
+                ),
+        );
+    }
+
     /** Sample rows from a completed run_metric_query, the way Chart Studio shares them. */
     private async getSampleRowsVizContext(
         ctx: McpProtocolContext,
         projectUuid: string,
         agentUuid: string | undefined,
         queryUuid: string | null,
+        toolName: string,
     ): Promise<AppVizBuildContext | null> {
         if (
             queryUuid === null ||
@@ -1811,7 +1859,7 @@ export class McpService extends BaseService {
             queryHistory.context !== QueryExecutionContext.MCP_RUN_METRIC_QUERY
         ) {
             throw new ParameterError(
-                'create_custom_chart_type currently supports queries started by run_metric_query',
+                `${toolName} currently supports queries started by run_metric_query`,
             );
         }
         if (queryHistory.status !== QueryHistoryStatus.READY) {
@@ -1951,6 +1999,8 @@ export class McpService extends BaseService {
                             status: version.status,
                             error: version.error,
                             statusMessage: version.statusMessage,
+                            isCustomChartType:
+                                app.template === DATA_APP_VIZ_TEMPLATE,
                         });
                         return {
                             summary:
@@ -5257,6 +5307,7 @@ export class McpService extends BaseService {
                         'generate_data_app',
                         'iterate_data_app',
                         'create_custom_chart_type',
+                        'iterate_custom_chart_type',
                     ]),
                 }),
             })
@@ -5266,6 +5317,7 @@ export class McpService extends BaseService {
             'generate_data_app',
             'iterate_data_app',
             'create_custom_chart_type',
+            'iterate_custom_chart_type',
         ].includes(call.data.params.name);
         if (dataApp) {
             if (availability.dataAppBuildsEnabled) return;
@@ -5279,10 +5331,12 @@ export class McpService extends BaseService {
                 organizationUuid: user.organizationUuid,
                 projectUuid: null,
                 objectType: 'app',
-                action:
-                    call.data.params.name === 'iterate_data_app'
-                        ? 'update'
-                        : 'create',
+                action: [
+                    'iterate_data_app',
+                    'iterate_custom_chart_type',
+                ].includes(call.data.params.name)
+                    ? 'update'
+                    : 'create',
                 policyLayer: enabled ? 'casl' : 'organization_setting',
                 reasonCode: enabled
                     ? 'data_app_create_forbidden'
@@ -5645,6 +5699,7 @@ export class McpService extends BaseService {
             case 'create_custom_chart_type':
                 return { objectType: 'app', action: 'create' };
             case 'iterate_data_app':
+            case 'iterate_custom_chart_type':
                 return { objectType: 'app', action: 'update' };
             case 'run_ai_writeback':
                 return { objectType: 'ai_writeback_run', action: 'enqueue' };

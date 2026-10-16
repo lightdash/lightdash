@@ -27,6 +27,7 @@ export const MCP_TOOL_CAPABILITIES = {
     get_metadata: [AgentCapability.ReadDiscover],
     get_query_result: [AgentCapability.ReadDiscover],
     grep_fields: [AgentCapability.ReadDiscover],
+    iterate_custom_chart_type: [AgentCapability.ContentWrite],
     iterate_data_app: [AgentCapability.ContentWrite],
     list_agents: [AgentCapability.ReadDiscover],
     list_content: [AgentCapability.ReadDiscover],

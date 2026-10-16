@@ -528,6 +528,7 @@ export type DataAppBuildStatusSource = {
         uuid: string;
         slug: string;
         name: string;
+        template: DbApp['template'];
         spaceUuid: string | null;
     };
     version: {
@@ -13162,6 +13163,7 @@ export class AppGenerateService extends BaseService {
                 uuid: app.app_id,
                 slug: app.slug,
                 name: app.name,
+                template: app.template,
                 spaceUuid: app.space_uuid,
             },
             version: {
