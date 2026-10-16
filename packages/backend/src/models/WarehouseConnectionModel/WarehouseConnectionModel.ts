@@ -479,6 +479,11 @@ export class WarehouseConnectionModel {
                 }
                 warehouseType = credential.warehouse_type;
             }
+            if (warehouseType !== existing.warehouse_type) {
+                throw new ParameterError(
+                    "A connection's warehouse type cannot be changed. Add a new connection instead.",
+                );
+            }
             let current: CreateWarehouseCredentials | null = null;
             if (existing.encrypted_credentials) {
                 try {
@@ -502,13 +507,11 @@ export class WarehouseConnectionModel {
                 source.kind === 'project'
                     ? existing.organization_warehouse_credentials_uuid !=
                           null ||
-                      existing.warehouse_type !== source.credentials.type ||
                       !warehouseCredentialsEqual(
                           current,
                           normalizeWarehouseCredentials(source.credentials),
                       )
-                    : existing.warehouse_type !== warehouseType ||
-                      existing.encrypted_credentials != null ||
+                    : existing.encrypted_credentials != null ||
                       existing.organization_warehouse_credentials_uuid !==
                           source.organizationWarehouseCredentialsUuid;
             await transaction(WAREHOUSE_CONNECTIONS_TABLE)
@@ -516,7 +519,6 @@ export class WarehouseConnectionModel {
                 .where('warehouse_connection_uuid', warehouseConnectionUuid)
                 .where('is_original', false)
                 .update({
-                    warehouse_type: warehouseType,
                     ...this.toCredentialColumns(source, current),
                     ...(changed
                         ? {

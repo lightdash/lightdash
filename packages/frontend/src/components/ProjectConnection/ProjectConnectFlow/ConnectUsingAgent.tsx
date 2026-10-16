@@ -160,6 +160,7 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
                             </div>
                             <ProjectFormProvider>
                                 <WarehouseSettingsForm
+                                    allowMixedWarehouseTypes={false}
                                     disabled={createProjectMutation.isLoading}
                                 />
                             </ProjectFormProvider>

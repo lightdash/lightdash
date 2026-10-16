@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     ProjectType,
     WarehouseTypes,
     type Project,
@@ -19,14 +20,21 @@ import { lightdashApi } from '../../api';
 import { renderWithProviders } from '../../testing/testUtils';
 import ConnectionsPanel from './ConnectionsPanel';
 
-const flag = vi.hoisted(() => ({ enabled: true }));
+const flag = vi.hoisted(() => ({ enabled: true, mixedTypesEnabled: true }));
 
 vi.mock('../../api', () => ({
     lightdashApi: vi.fn(),
 }));
 
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: flag.enabled } }),
+    useServerFeatureFlag: (id: FeatureFlags) => ({
+        data: {
+            enabled:
+                id === FeatureFlags.MixedWarehouseConnections
+                    ? flag.mixedTypesEnabled
+                    : flag.enabled,
+        },
+    }),
 }));
 
 const mockApi = lightdashApi as unknown as Mock;
@@ -89,6 +97,7 @@ describe('ConnectionsPanel', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         flag.enabled = true;
+        flag.mixedTypesEnabled = true;
     });
 
     afterEach(() => {
@@ -173,6 +182,26 @@ describe('ConnectionsPanel', () => {
             screen.queryByText('Failed to load connections.'),
         ).not.toBeInTheDocument();
     });
+
+    it.each([false, true])(
+        'gates a Trino original in the panel with the resolved mixed flag %s',
+        async (enabled) => {
+            flag.mixedTypesEnabled = enabled;
+            mockApi.mockResolvedValue({
+                connections: [
+                    { ...original, warehouseType: WarehouseTypes.TRINO },
+                ],
+                capabilities: { canAddConnection: true, reason: null },
+            });
+            renderPanel();
+            const button = await screen.findByRole('button', {
+                name: 'Add connection',
+            });
+            await waitFor(() =>
+                expect(button).toHaveProperty('disabled', !enabled),
+            );
+        },
+    );
 
     it('lists connections and only offers edit and removal for extra connections', async () => {
         mockApi.mockResolvedValue({

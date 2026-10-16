@@ -26,7 +26,12 @@ const toProjectDetails = (
     dbtConnectionLabel: DbtProjectTypeLabels[info.dbtConnectionType],
     dbtVersion: info.dbtVersion,
     warehouseType: info.warehouseType,
-    connections: info.connections,
+    connections: info.connections.map((connection) => ({
+        name: connection.name,
+        warehouseConnectionUuid: connection.warehouseConnectionUuid,
+        warehouseType: connection.warehouseType,
+        isOriginal: connection.isOriginal,
+    })),
     git: info.git
         ? {
               repository: info.git.repository,

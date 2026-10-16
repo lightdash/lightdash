@@ -1062,30 +1062,39 @@ describe('Enable multiple connections on the real schema', () => {
             }
         });
 
-        test('allows a Redshift primary with a same-type extra', async () => {
-            const fixture = await createProject({
-                credentials: redshiftCredentials,
-            });
-            const request = switchRequest({
-                original: {
-                    name: 'Main warehouse',
-                    listAllDatabases: false,
-                    additionalDatabases: [],
-                },
-                connection: {
-                    name: 'Extra',
-                    warehouseConnection: redshiftCredentials,
-                },
-            });
-            await expect(
-                buildService().preview(
+        test.each([false, true])(
+            'gates a Redshift primary and same-type extra with mixed types %s',
+            async (enabled) => {
+                mixedTypes.enabled = enabled;
+                const fixture = await createProject({
+                    credentials: redshiftCredentials,
+                });
+                const request = switchRequest({
+                    original: {
+                        name: 'Main warehouse',
+                        listAllDatabases: false,
+                        additionalDatabases: [],
+                    },
+                    connection: {
+                        name: 'Extra',
+                        warehouseConnection: redshiftCredentials,
+                    },
+                });
+                const preview = buildService().preview(
                     fixture.admin,
                     fixture.projectUuid,
                     request,
-                ),
-            ).resolves.toBeDefined();
-            expect(await state(fixture.projectUuid)).toEqual(singleState);
-        });
+                );
+                if (enabled) {
+                    await expect(preview).resolves.toBeDefined();
+                } else {
+                    await expect(preview).rejects.toThrow(
+                        WAREHOUSE_TYPE_REASON,
+                    );
+                }
+                expect(await state(fixture.projectUuid)).toEqual(singleState);
+            },
+        );
 
         test.each([
             { name: 'a preview', type: ProjectType.PREVIEW, source: null },

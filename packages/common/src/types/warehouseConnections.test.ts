@@ -8,11 +8,20 @@ import {
 import {
     canUseExtraConnectionWarehouseType,
     isUserConnectableWarehouseConnection,
+    MULTI_CONNECTION_WAREHOUSE_TYPES,
     supportsConnectionDatabaseListing,
     supportsMultipleConnections,
 } from './warehouseConnections';
 
 const types = Object.values(WarehouseTypes);
+const mainAllowsExtra = (
+    original: WarehouseTypes | null,
+    extra: WarehouseTypes,
+) =>
+    original === extra &&
+    (original === WarehouseTypes.POSTGRES ||
+        original === WarehouseTypes.ATHENA ||
+        original === WarehouseTypes.SNOWFLAKE);
 
 describe('canUseExtraConnectionWarehouseType', () => {
     it.each(
@@ -34,7 +43,12 @@ describe('canUseExtraConnectionWarehouseType', () => {
                 ...pair,
                 mixedTypesEnabled: false,
             }),
-        ).toBe(pair.originalWarehouseType === pair.extraWarehouseType);
+        ).toBe(
+            mainAllowsExtra(
+                pair.originalWarehouseType,
+                pair.extraWarehouseType,
+            ),
+        );
     });
 
     it.each([true, false])(
@@ -52,11 +66,23 @@ describe('canUseExtraConnectionWarehouseType', () => {
 });
 
 describe('supportsMultipleConnections', () => {
+    it('preserves the exported original allowlist', () => {
+        expect([...MULTI_CONNECTION_WAREHOUSE_TYPES].sort()).toEqual(
+            [
+                WarehouseTypes.POSTGRES,
+                WarehouseTypes.ATHENA,
+                WarehouseTypes.SNOWFLAKE,
+            ].sort(),
+        );
+    });
     it.each(types)('supports user connections of type %s', (type) => {
-        expect(supportsMultipleConnections(type)).toBe(true);
+        expect(supportsMultipleConnections(type, true)).toBe(true);
+        expect(supportsMultipleConnections(type, false)).toBe(
+            mainAllowsExtra(type, type),
+        );
     });
     it('requires an original connection', () => {
-        expect(supportsMultipleConnections(null)).toBe(false);
+        expect(supportsMultipleConnections(null, false)).toBe(false);
     });
 });
 

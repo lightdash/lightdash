@@ -1,6 +1,7 @@
 import {
     getErrorMessage,
     getModelsFromManifest,
+    InlineErrorType,
     isExploreError,
     NotFoundError,
     ParameterError,
@@ -108,6 +109,7 @@ type CompiledExtraGroup = {
     explores: (Explore | ExploreError)[];
     manifest: Buffer;
     catalog: WarehouseCatalog | null;
+    modelNames: string[];
 };
 
 type MultiConnectionCompilerArguments = {
@@ -400,6 +402,9 @@ export class MultiConnectionCompiler {
                 return {
                     plan,
                     explores,
+                    modelNames: getModelsFromManifest(manifest).map(
+                        (model) => model.name,
+                    ),
                     manifest: await gzipAsync(
                         JSON.stringify(projectMergedManifest(manifest)),
                     ),
@@ -414,7 +419,48 @@ export class MultiConnectionCompiler {
         originalSources: ReadonlyMap<string, string>,
         originalConnectionName: string,
         extraGroups: CompiledExtraGroup[],
+        originalModelNames: string[],
     ): AsyncIterable<Explore | ExploreError> {
+        const groups = [
+            {
+                connectionName: originalConnectionName,
+                modelNames: originalModelNames,
+            },
+            ...extraGroups.map((group) => ({
+                connectionName: group.plan.connectionName,
+                modelNames: group.modelNames,
+            })),
+        ];
+        const withJoinWarnings = (
+            explore: Explore | ExploreError,
+            connectionName: string,
+        ): Explore | ExploreError => {
+            if (isExploreError(explore) || !explore.warnings) return explore;
+            return {
+                ...explore,
+                warnings: explore.warnings.map((warning) => {
+                    if (warning.type !== InlineErrorType.MISSING_TABLE)
+                        return warning;
+                    const match =
+                        /^Join "(.*)" to table "(.*)" was skipped because the model is not available in this project\./.exec(
+                            warning.message,
+                        );
+                    if (!match) return warning;
+                    const [, joinName, table] = match;
+                    const otherGroup = groups.find(
+                        (group) =>
+                            group.connectionName !== connectionName &&
+                            group.modelNames.includes(table),
+                    );
+                    return otherGroup
+                        ? {
+                              ...warning,
+                              message: `Join "${joinName}" was skipped: model "${table}" is on connection "${otherGroup.connectionName}", and this explore runs on connection "${connectionName}". Joins across connections are not supported.`,
+                          }
+                        : warning;
+                }),
+            };
+        };
         const producers = new Map<string, string>();
         const claim = (name: string, connectionName: string) => {
             const producer = producers.get(name);
@@ -432,10 +478,15 @@ export class MultiConnectionCompiler {
         );
         for await (const explore of original) {
             claim(explore.name, originalConnectionName);
-            yield withErrorSource(explore, originalSources);
+            yield withJoinWarnings(
+                withErrorSource(explore, originalSources),
+                originalConnectionName,
+            );
         }
         for (const group of extraGroups) {
-            yield* group.explores;
+            yield* group.explores.map((explore) =>
+                withJoinWarnings(explore, group.plan.connectionName),
+            );
         }
     }
 
@@ -663,6 +714,9 @@ export class MultiConnectionCompiler {
                 modelSources(originalMerged.manifest),
                 originalPlan.connectionName,
                 compiledExtraGroups,
+                getModelsFromManifest(originalMerged.manifest).map(
+                    (model) => model.name,
+                ),
             ),
             bindingOf: (exploreName) => extraBindings.get(exploreName) ?? null,
             carry: {

@@ -30,7 +30,20 @@ export const getMultipleConnectionsBlockReason = async (
         originalWarehouseType: WarehouseTypes | null;
     },
 ): Promise<string | null> => {
-    if (!supportsMultipleConnections(project.originalWarehouseType)) {
+    if (project.originalWarehouseType === null) return WAREHOUSE_TYPE_REASON;
+    const { enabled: mixedTypesEnabled } = await featureFlagService.get({
+        user: {
+            userUuid: account.user.userUuid,
+            organizationUuid: project.organizationUuid,
+        },
+        featureFlagId: FeatureFlags.MixedWarehouseConnections,
+    });
+    if (
+        !supportsMultipleConnections(
+            project.originalWarehouseType,
+            mixedTypesEnabled,
+        )
+    ) {
         return WAREHOUSE_TYPE_REASON;
     }
     if (!licenseService.canHoldMultipleConnections(project.organizationUuid)) {

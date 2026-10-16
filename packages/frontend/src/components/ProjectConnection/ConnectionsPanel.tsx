@@ -5,9 +5,11 @@ import {
     omitEmptySecrets,
     ProjectType,
     supportsConnectionDatabaseListing,
+    supportsMultipleConnections,
     validateWarehouseConnectionName,
     WAREHOUSE_CONNECTION_NAME_MAX_LENGTH,
     type WarehouseTypes,
+    type ApiWarehouseConnectionsResponse,
     type CreateWarehouseCredentials,
     type Project,
     type WarehouseConnection,
@@ -294,6 +296,7 @@ const EditConnectionForm: FC<{
                 form={form}
                 projectUuid={projectUuid}
                 warehouseType={connection.warehouseType}
+                allowMixedWarehouseTypes={false}
                 savedProject={savedProject}
                 warehouseConnectionUuid={
                     connection.isOriginal
@@ -522,6 +525,24 @@ const ConnectionActionModal: FC<{
     }
 };
 
+const useCanAddConnection = (
+    data: ApiWarehouseConnectionsResponse['results'] | undefined,
+): boolean => {
+    const mixedWarehouseFlag = useServerFeatureFlag(
+        FeatureFlags.MixedWarehouseConnections,
+    );
+    const original = data?.connections.find(
+        (connection) => connection.isOriginal,
+    );
+    return (
+        data?.capabilities.canAddConnection === true &&
+        supportsMultipleConnections(
+            original?.warehouseType ?? null,
+            mixedWarehouseFlag.data?.enabled === true,
+        )
+    );
+};
+
 const ConnectionsPanelContent: FC<{
     projectUuid: string;
     primaryRequiresUserCredentials: boolean;
@@ -530,6 +551,7 @@ const ConnectionsPanelContent: FC<{
         useWarehouseConnections(projectUuid);
     const [action, setAction] = useState<ConnectionAction | null>(null);
     const [isAddOpen, setIsAddOpen] = useState(false);
+    const canAddConnection = useCanAddConnection(data);
 
     if (isEnabled && isSingleConnectionProject(error)) {
         return (
@@ -547,7 +569,6 @@ const ConnectionsPanelContent: FC<{
     const originalWarehouseType = connections.find(
         (connection) => connection.isOriginal,
     )?.warehouseType;
-    const canAddConnection = data?.capabilities.canAddConnection ?? false;
     const closeAction = () => setAction(null);
 
     return (

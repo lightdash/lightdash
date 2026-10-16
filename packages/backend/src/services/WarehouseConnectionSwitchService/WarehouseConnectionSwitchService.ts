@@ -7,7 +7,6 @@ import {
     ForbiddenError,
     ParameterError,
     ProjectType,
-    sensitiveCredentialsFieldNames,
     validateWarehouseConnectionName,
     WAREHOUSE_CONNECTION_ALREADY_MULTI_MESSAGE,
     WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE,
@@ -32,6 +31,7 @@ import { trackSafely } from '../../analytics/trackSafely';
 import { createAuditLogEvent } from '../../logging/auditLog';
 import { createActorFromAccount } from '../../logging/caslAuditWrapper';
 import { logAuditEvent } from '../../logging/winston';
+import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import {
     type WarehouseConnectionCredentialSource,
@@ -108,16 +108,6 @@ const sortedJson = (value: unknown): unknown => {
     }
     return value;
 };
-
-const withoutSecrets = (credentials: CreateWarehouseCredentials) =>
-    Object.fromEntries(
-        Object.entries(credentials).filter(
-            ([key]) =>
-                !(sensitiveCredentialsFieldNames as readonly string[]).includes(
-                    key,
-                ),
-        ),
-    );
 
 const databaseOf = (credentials: CreateWarehouseCredentials): string | null => {
     if ('dbname' in credentials && typeof credentials.dbname === 'string') {
@@ -542,7 +532,12 @@ export class WarehouseConnectionSwitchService extends BaseService {
                               organizationWarehouseCredentialsUuid:
                                   source.organizationWarehouseCredentialsUuid,
                           }
-                        : { credentials: withoutSecrets(source.credentials) },
+                        : {
+                              credentials:
+                                  OrganizationWarehouseCredentialsModel.stripSensitiveCredentials(
+                                      source.credentials,
+                                  ),
+                          },
                 database: databaseOf(credentials),
                 listAllDatabases: request.connection.listAllDatabases ?? false,
                 additionalDatabases:

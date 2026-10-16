@@ -18,6 +18,7 @@ import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionM
 import { type WarehouseConnectionSwitchModel } from '../../models/WarehouseConnectionSwitchModel/WarehouseConnectionSwitchModel';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
+import { credentialRedactionCases } from '../WarehouseConnectionService/credentialRedactionFixtures.mock';
 import { warehouseConnectionCredentials } from '../WarehouseConnectionService/warehouseConnectionFixtures.mock';
 import { WarehouseConnectionSwitchService } from './WarehouseConnectionSwitchService';
 
@@ -618,4 +619,25 @@ describe('WarehouseConnectionSwitchService primary DuckDB variants', () => {
             credentialPolicy.testWarehouseConnectionCredentialsForSave,
         ).not.toHaveBeenCalled();
     });
+});
+
+describe('switch preview redaction', () => {
+    it.each(credentialRedactionCases)(
+        'does not expose secrets in the $name plan',
+        async ({ credentials: savedCredentials }) => {
+            const { service } = buildService(true);
+            const response = await service.preview(account, projectUuid, {
+                original: {
+                    name: 'Primary',
+                    listAllDatabases: false,
+                    additionalDatabases: [],
+                },
+                connection: {
+                    name: 'Extra',
+                    warehouseConnection: savedCredentials,
+                },
+            });
+            expect(JSON.stringify(response)).not.toContain('__SECRET_');
+        },
+    );
 });
