@@ -11528,7 +11528,7 @@ Response shape (MCP CallToolResult):
     version: number  // the version of the app this build produces
   }
 
-Errors: an unknown appSlug, themeSlug, dashboardSlug, or chartSlug returns an error and starts no build.
+Errors: an unknown appSlug, themeSlug, dashboardSlug, or chartSlug returns an error and starts no build. So does a custom chart type's slug: use iterate_custom_chart_type for those.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -11759,7 +11759,7 @@ Response shape (MCP CallToolResult):
     errorMessage:    string | null, // why the build failed, set only when status is "error"
     name:            string,        // the app's name
     slug:            string,        // the app's permanent slug
-    href:            string,        // URL to open the app in Lightdash
+    href:            string,        // URL to open the app in Lightdash; Chart Studio for a custom chart type
     nextPollAfterMs: number         // how long to wait before polling again
   }
 
@@ -11963,6 +11963,91 @@ Start building a custom chart type: a reusable visualization that saved charts i
         "type": "object",
       },
       "title": "Create custom chart type",
+    },
+    {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+      },
+      "description": "Tool: iterate_custom_chart_type
+
+Start a build that adds a version to an existing custom chart type from a follow-up brief. For a new chart type use create_custom_chart_type; for a data app use iterate_data_app.
+
+- Describe the change, not the whole chart type. The build keeps the chart type's inputs, so charts that already use it keep working. Pass queryUuid to share the first rows of a completed run_metric_query as sample data.
+- Poll get_data_app_build_status with appSlug set to the slug until it is "ready", "error" or "cancelled". If a version is already building, wait for it to end before calling again.
+- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.
+",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "prompt": {
+            "description": "Self-contained brief of the change for the coding agent, which works from the chart type's current source. The agent does not see this conversation, only the sample rows from queryUuid if given.",
+            "type": "string",
+          },
+          "queryUuid": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+            "default": null,
+            "description": "Optional uuid of a completed run_metric_query whose first rows are shared with the build as sample data. It does not bind the chart type to that query.",
+          },
+          "slug": {
+            "description": "Slug of the custom chart type to change, from an earlier create_custom_chart_type result or its Chart Studio URL.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "slug",
+          "prompt",
+          "projectUuid",
+        ],
+        "type": "object",
+      },
+      "name": "iterate_custom_chart_type",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "slug": {
+            "description": "The app's permanent slug. Poll get_data_app_build_status with it.",
+            "type": "string",
+          },
+          "version": {
+            "description": "The version of the app this build produces.",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer",
+          },
+        },
+        "required": [
+          "slug",
+          "version",
+        ],
+        "type": "object",
+      },
+      "title": "Iterate on custom chart type",
     },
   ],
 }
@@ -12676,5 +12761,6 @@ exports[`MCP tool contracts > matches the shared MCP tool definition names snaps
   "get_ai_writeback_status",
   "get_data_app_build_status",
   "create_custom_chart_type",
+  "iterate_custom_chart_type",
 ]
 `;

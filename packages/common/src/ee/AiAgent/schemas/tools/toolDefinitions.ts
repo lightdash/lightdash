@@ -217,6 +217,10 @@ import {
     toolGrepFieldsOutputSchema,
 } from './toolGrepFieldsArgs';
 import {
+    MCP_TOOL_ITERATE_CUSTOM_CHART_TYPE_DESCRIPTION,
+    mcpIterateCustomChartTypeArgsSchema,
+} from './toolIterateCustomChartTypeArgs';
+import {
     MCP_TOOL_ITERATE_DATA_APP_DESCRIPTION,
     TOOL_ITERATE_DATA_APP_DESCRIPTION,
     toolIterateDataAppArgsSchema,
@@ -1908,6 +1912,24 @@ export const createCustomChartTypeToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
+export const iterateCustomChartTypeToolDefinition: ToolDefinitionWithMcpOutput<
+    'iterateCustomChartType',
+    typeof mcpIterateCustomChartTypeArgsSchema,
+    typeof mcpIterateCustomChartTypeArgsSchema,
+    undefined,
+    typeof mcpDataAppBuildStartedOutputSchema
+> = defineTool({
+    name: 'iterateCustomChartType',
+    title: 'Iterate on custom chart type',
+    description: MCP_TOOL_ITERATE_CUSTOM_CHART_TYPE_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: mcpIterateCustomChartTypeArgsSchema,
+    mcp: {
+        annotations: writeAnnotations,
+        structuredContentSchema: mcpDataAppBuildStartedOutputSchema,
+    },
+});
+
 type AgentToolDefinitionsByName = {
     findExplores: typeof findExploresToolDefinition;
     findCustomChartTypes: typeof findCustomChartTypesToolDefinition;
@@ -2109,6 +2131,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     getAiWritebackStatusToolDefinition,
     getDataAppBuildStatusToolDefinition,
     createCustomChartTypeToolDefinition,
+    iterateCustomChartTypeToolDefinition,
 ] as const;
 
 export type BuiltInToolDefinition = ToolDefinitionInstance;

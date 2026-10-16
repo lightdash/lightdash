@@ -22,6 +22,7 @@ import {
     filterStaticFilterAutocompleteValues,
     findFieldByIdInExplore,
     ForbiddenError,
+    getAppDisplayName,
     getConnectionDefaults,
     getContentAsCodePathFromLtreePath,
     getDocumentSummaryMarkdown,
@@ -386,12 +387,19 @@ export type CreateCustomChartTypeFn = (args: {
     vizContext: AppVizBuildContext | null;
 }) => Promise<{ appUuid: string; slug: string; version: number }>;
 
+export type IterateCustomChartTypeFn = (args: {
+    slug: string;
+    prompt: string;
+    vizContext: AppVizBuildContext | null;
+}) => Promise<{ appUuid: string; slug: string; version: number; name: string }>;
+
 export type McpAiAgentToolsRuntime = Omit<
     AiAgentToolsRuntime,
     'getExplore' | 'findExplores' | 'findFields' | 'updateUserName'
 > & {
     getDataAppBuildStatus: GetDataAppBuildStatusFn;
     createCustomChartType: CreateCustomChartTypeFn;
+    iterateCustomChartType: IterateCustomChartTypeFn;
     createDocumentContent: (content: unknown) => Promise<DocumentContentResult>;
     readDocumentContent: (
         slug: string,
@@ -995,6 +1003,10 @@ export class AiAgentToolsService extends BaseService {
             createCustomChartType: (args) =>
                 this.withWriteRefusal(context, 'app', 'create', () =>
                     this.createCustomChartType(context, args),
+                ),
+            iterateCustomChartType: (args) =>
+                this.withWriteRefusal(context, 'app', 'update', () =>
+                    this.iterateCustomChartType(context, args),
                 ),
             createDocumentContent: (content) =>
                 this.withWriteRefusal(context, 'document', 'create', () =>
@@ -2302,6 +2314,67 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
+    /** Adds a chart type version the way Chart Studio does, keeping its field contract; MCP-only. */
+    private iterateCustomChartType(
+        context: AiAgentToolsRuntimeContext,
+        { slug, prompt, vizContext }: Parameters<IterateCustomChartTypeFn>[0],
+    ): ReturnType<IterateCustomChartTypeFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.iterateCustomChartType`,
+            { withSampleRows: vizContext !== null },
+            async () => {
+                const app = await this.appModel.findAppBySlug(
+                    context.projectUuid,
+                    slug,
+                );
+                if (!app) {
+                    throw new NotFoundError(
+                        `Chart type "${slug}" was not found`,
+                    );
+                }
+                if (app.template !== DATA_APP_VIZ_TEMPLATE) {
+                    throw new ParameterError(
+                        `"${slug}" is a data app, not a custom chart type. Use iterate_data_app to change it`,
+                    );
+                }
+                await this.assertDataAppInAgentScope(
+                    context,
+                    app.space_uuid,
+                    slug,
+                    'update',
+                );
+                const readyVersion = await this.appModel.getLatestReadyVersion(
+                    app.app_id,
+                );
+                const schema = readyVersion?.viz_schema ?? null;
+                const buildContext: AppVizBuildContext = {
+                    ...(schema === null ? {} : { schema }),
+                    ...(vizContext ?? {}),
+                };
+                const build = await this.appGenerateService.iterateApp(
+                    context.user,
+                    context.projectUuid,
+                    app.app_id,
+                    prompt,
+                    [],
+                    undefined,
+                    undefined,
+                    undefined,
+                    {
+                        creationExperience: 'mcp',
+                        ...(Object.keys(buildContext).length === 0
+                            ? {}
+                            : { vizContext: buildContext }),
+                    },
+                );
+                return {
+                    ...build,
+                    name: getAppDisplayName(app.name, app.app_id),
+                };
+            },
+        );
+    }
+
     private iterateDataApp(
         context: AiAgentToolsRuntimeContext,
         {
@@ -2341,6 +2414,14 @@ export class AiAgentToolsService extends BaseService {
                 if (!app) {
                     throw new NotFoundError(
                         `Data app "${appSlug}" was not found`,
+                    );
+                }
+                if (
+                    context.source === 'mcp' &&
+                    app.template === DATA_APP_VIZ_TEMPLATE
+                ) {
+                    throw new ParameterError(
+                        `"${appSlug}" is a custom chart type. Use iterate_custom_chart_type to change it`,
                     );
                 }
                 await this.assertDataAppInAgentScope(
