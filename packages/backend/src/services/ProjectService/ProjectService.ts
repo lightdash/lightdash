@@ -433,7 +433,10 @@ import {
     ProjectAdapter,
     TrackingParams,
 } from '../../types';
-import { type DbtManifestFetchOptions } from '../../types';
+import {
+    type DbtManifestFetchOptions,
+    type DbtManifestFetchResult,
+} from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import {
     captureAgentConnectionTask,
@@ -8226,6 +8229,27 @@ export class ProjectService
                 featureFlagId: FeatureFlags.CrossSourceDbtRefs,
                 user: { userUuid, organizationUuid },
             });
+        const logFetched = async (
+            event:
+                | 'dbt.compile.primarySourceFetched'
+                | 'dbt.compile.sourceFetched',
+            sourceName: string,
+            fetchManifest: () => Promise<DbtManifestFetchResult>,
+        ): Promise<DbtManifestFetchResult> => {
+            const startedAt = Date.now();
+            const result = await fetchManifest();
+            this.logDbtSourceFetched({
+                event,
+                projectUuid,
+                jobUuid: jobUuid ?? null,
+                sourceName,
+                durationMs: Date.now() - startedAt,
+                manifest: result.manifest,
+                selectedModelIds: result.selectedModelIds,
+                timings: result.timings,
+            });
+            return result;
+        };
         const sourceFetchStartedAt = Date.now();
         const resolution = await resolveCrossSourceManifests({
             enabled: crossSourceRefsEnabled,
@@ -8237,23 +8261,24 @@ export class ProjectService
                         name: identity.dbtSourceName,
                         precedence: 0,
                         uuid: identity.dbtSourceUuid,
-                        event: 'dbt.compile.primarySourceFetched' as
-                            | 'dbt.compile.primarySourceFetched'
-                            | 'dbt.compile.sourceFetched',
-                        startedAt: Date.now(),
                     },
-                    fetch: async (options: DbtManifestFetchOptions) => {
-                        try {
-                            return await primary.adapter.getDbtManifest(
-                                options,
-                            );
-                        } catch (error) {
-                            throw withCrossSourceRefsHint(
-                                error,
-                                crossSourceRefsEnabled,
-                            );
-                        }
-                    },
+                    fetch: (options: DbtManifestFetchOptions) =>
+                        logFetched(
+                            'dbt.compile.primarySourceFetched',
+                            identity.dbtSourceName,
+                            async () => {
+                                try {
+                                    return await primary.adapter.getDbtManifest(
+                                        options,
+                                    );
+                                } catch (error) {
+                                    throw withCrossSourceRefsHint(
+                                        error,
+                                        crossSourceRefsEnabled,
+                                    );
+                                }
+                            },
+                        ),
                 },
                 ...compilableSources.map((source) => {
                     let adapter: ProjectAdapter | null = null;
@@ -8268,47 +8293,55 @@ export class ProjectService
                             name: source.name,
                             precedence: source.precedence,
                             uuid: source.projectDbtSourceUuid,
-                            event: 'dbt.compile.sourceFetched' as const,
-                            startedAt: Date.now(),
                         },
-                        fetch: async (options: DbtManifestFetchOptions) => {
-                            if (adapter === null) {
-                                try {
-                                    adapter = await this.buildSourceAdapter(
-                                        source.dbtConnection,
-                                        source.warehouseLocation,
-                                        organizationUuid,
-                                        shared,
-                                        primary.dbtPartialParse
-                                            ? getDbtPartialParseBaselinePath({
-                                                  projectUuid,
-                                                  dbtSourceUuid:
-                                                      source.projectDbtSourceUuid,
-                                              })
-                                            : null,
-                                        primary.dbtTargetPolicy,
-                                    );
-                                    manifestFetchAdapters.push(adapter);
-                                } catch (error) {
-                                    throw new DbtSourceError(
-                                        `Failed to connect dbt source "${source.name}"${repoSuffix}: ${getErrorMessage(error)}`,
-                                        error,
-                                    );
-                                }
-                            }
-                            try {
-                                return await adapter.getDbtManifest(options);
-                            } catch (error) {
-                                const hinted = withCrossSourceRefsHint(
-                                    error,
-                                    crossSourceRefsEnabled,
-                                );
-                                throw new DbtSourceError(
-                                    `Failed to load dbt source "${source.name}"${repoSuffix}: ${getErrorMessage(hinted)}`,
-                                    hinted,
-                                );
-                            }
-                        },
+                        fetch: (options: DbtManifestFetchOptions) =>
+                            logFetched(
+                                'dbt.compile.sourceFetched',
+                                source.name,
+                                async () => {
+                                    if (adapter === null) {
+                                        try {
+                                            adapter =
+                                                await this.buildSourceAdapter(
+                                                    source.dbtConnection,
+                                                    source.warehouseLocation,
+                                                    organizationUuid,
+                                                    shared,
+                                                    primary.dbtPartialParse
+                                                        ? getDbtPartialParseBaselinePath(
+                                                              {
+                                                                  projectUuid,
+                                                                  dbtSourceUuid:
+                                                                      source.projectDbtSourceUuid,
+                                                              },
+                                                          )
+                                                        : null,
+                                                    primary.dbtTargetPolicy,
+                                                );
+                                            manifestFetchAdapters.push(adapter);
+                                        } catch (error) {
+                                            throw new DbtSourceError(
+                                                `Failed to connect dbt source "${source.name}"${repoSuffix}: ${getErrorMessage(error)}`,
+                                                error,
+                                            );
+                                        }
+                                    }
+                                    try {
+                                        return await adapter.getDbtManifest(
+                                            options,
+                                        );
+                                    } catch (error) {
+                                        const hinted = withCrossSourceRefsHint(
+                                            error,
+                                            crossSourceRefsEnabled,
+                                        );
+                                        throw new DbtSourceError(
+                                            `Failed to load dbt source "${source.name}"${repoSuffix}: ${getErrorMessage(hinted)}`,
+                                            hinted,
+                                        );
+                                    }
+                                },
+                            ),
                     };
                 }),
             ],
@@ -8325,17 +8358,7 @@ export class ProjectService
             });
         }
         const fetched = resolution.results.map(({ task, result }) => {
-            const { manifest, selectedModelIds, timings } = result;
-            this.logDbtSourceFetched({
-                event: task.context.event,
-                projectUuid,
-                jobUuid: jobUuid ?? null,
-                sourceName: task.key,
-                durationMs: Date.now() - task.context.startedAt,
-                manifest,
-                selectedModelIds,
-                timings,
-            });
+            const { manifest, selectedModelIds } = result;
             const selectedManifest = manifestWithCompilationSelection(
                 manifest,
                 selectedModelIds,
@@ -8562,11 +8585,14 @@ export class ProjectService
                 purpose: 'compile',
             },
         );
+        const primaryManifest = crossSourceRefsEnabled
+            ? null
+            : await primary.adapter.getDbtManifest();
         return this.multiConnectionCompiler.compile({
             projectUuid,
             primary: {
-                fetchManifest: (options) =>
-                    primary.adapter.getDbtManifest(options),
+                fetchManifest: async (options) =>
+                    primaryManifest ?? primary.adapter.getDbtManifest(options),
                 connection: primary.connection,
                 dbtProjectDir: primary.adapter.dbtProjectDir,
                 warehouseCredentials: primary.warehouseCredentials,
