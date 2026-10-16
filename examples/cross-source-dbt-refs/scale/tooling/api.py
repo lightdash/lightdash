@@ -1,4 +1,7 @@
 import http.cookiejar
+import os
+import tempfile
+from pathlib import Path
 import json
 import urllib.error
 import urllib.parse
@@ -11,15 +14,19 @@ class ApiError(Exception):
 
 class Api:
     def __init__(self, base_url, project, cookie_jar):
-        jar = http.cookiejar.MozillaCookieJar(str(cookie_jar))
-        jar.load(ignore_discard=True, ignore_expires=True)
-        self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+        cookies = []
+        for line in Path(cookie_jar).read_text().splitlines():
+            fields = line.replace('#HttpOnly_', '').split('\t')
+            if len(fields) == 7 and not fields[0].startswith('#'):
+                cookies.append(f'{fields[5]}={fields[6]}')
+        self.cookie_header = '; '.join(cookies)
+        self.opener = urllib.request.build_opener()
         self.base = base_url.rstrip('/') + '/api/v1/projects/' + urllib.parse.quote(project, safe='')
 
     def request(self, method, path, body=None):
         request = urllib.request.Request(self.base + path,
                                          data=json.dumps(body).encode() if body is not None else None,
-                                         headers={'Content-Type': 'application/json'}, method=method)
+                                         headers={'Content-Type': 'application/json', 'Cookie': self.cookie_header}, method=method)
         try:
             with self.opener.open(request, timeout=300) as response:
                 raw = response.read()
