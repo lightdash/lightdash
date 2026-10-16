@@ -15,6 +15,8 @@ import {
 import { promisify } from 'node:util';
 import { gzip } from 'node:zlib';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { resolveDbtSourceFetchConcurrency } from '../../config/dbtSourceFetchConcurrency';
+import { withCrossSourceRefsHint } from '../../dbt/dbtExternalNodes';
 import { DbtSourceError } from '../../dbt/DbtSourceError';
 import Logger from '../../logging/logger';
 import { type ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
@@ -33,8 +35,17 @@ import {
     type CompileGroupPlan,
     type SourceManifest,
 } from '../../projectAdapters/CompileGroup';
+import {
+    resolveCrossSourceManifests,
+    type CrossSourceFetchResult,
+    type CrossSourceFetchTask,
+} from '../../projectAdapters/crossSourceRefs';
 import { DbtManifestProjectAdapter } from '../../projectAdapters/dbtManifestProjectAdapter';
-import { type CachedWarehouse, type TrackingParams } from '../../types';
+import {
+    type CachedWarehouse,
+    type DbtManifestFetchOptions,
+    type TrackingParams,
+} from '../../types';
 import { projectMergedManifest } from '../ProjectService/projectMergedManifest';
 import { type ConnectionContext } from '../WarehouseClientFactory/ConnectionContext';
 import {
@@ -56,7 +67,8 @@ export type FetchSourceManifest = (
     source: CompilableDbtSource,
     warehouseCredentials: CreateWarehouseCredentials,
     connection: ScopedWarehouseConnection,
-) => Promise<{ manifest: DbtManifest; selectedModelIds?: string[] }>;
+    options: DbtManifestFetchOptions,
+) => Promise<CrossSourceFetchResult>;
 
 export type LoadExtraConnectionCredentials = (
     warehouseConnectionUuid: string,
@@ -64,8 +76,9 @@ export type LoadExtraConnectionCredentials = (
 
 export type PrimaryCompileInput = {
     connection: ScopedWarehouseConnection;
-    manifest: DbtManifest;
-    selectedModelIds?: string[];
+    fetchManifest: (
+        options: DbtManifestFetchOptions,
+    ) => Promise<CrossSourceFetchResult>;
     dbtProjectDir: string | undefined;
     warehouseCredentials: CreateWarehouseCredentials;
     cachedWarehouse: CachedWarehouse;
@@ -172,38 +185,65 @@ export class MultiConnectionCompiler {
         warehouseCredentials: CreateWarehouseCredentials,
         connection: ScopedWarehouseConnection,
         fetchSourceManifest: FetchSourceManifest,
+        enabled: boolean,
+        primaryTask?: CrossSourceFetchTask<
+            Omit<SourceManifest, 'manifest' | 'selectedModelIds'>
+        >,
     ): Promise<SourceManifest[]> {
-        return Promise.all(
-            sources.map(async (source) => {
-                const repoSuffix =
-                    'repository' in source.dbtConnection &&
-                    source.dbtConnection.repository
-                        ? ` (${source.dbtConnection.repository})`
-                        : '';
-                try {
-                    const { manifest, selectedModelIds } =
-                        await fetchSourceManifest(
-                            source,
-                            warehouseCredentials,
-                            connection,
-                        );
-                    return {
+        const resolution = await resolveCrossSourceManifests({
+            enabled,
+            concurrency: resolveDbtSourceFetchConcurrency(undefined).chosen,
+            tasks: [
+                ...(primaryTask ? [primaryTask] : []),
+                ...sources.map((source) => ({
+                    key: source.name,
+                    context: {
                         name: source.name,
                         precedence: source.precedence,
                         dbtSourceUuid: source.projectDbtSourceUuid,
-                        manifest,
-                        selectedModelIds,
-                    };
-                } catch (error) {
-                    throw new DbtSourceError(
-                        `Failed to load dbt source "${source.name}"${repoSuffix}: ${getErrorMessage(
-                            error,
-                        )}`,
-                        error,
-                    );
-                }
-            }),
-        );
+                    },
+                    fetch: async (options: DbtManifestFetchOptions) => {
+                        const repoSuffix =
+                            'repository' in source.dbtConnection &&
+                            source.dbtConnection.repository
+                                ? ` (${source.dbtConnection.repository})`
+                                : '';
+                        try {
+                            return await fetchSourceManifest(
+                                source,
+                                warehouseCredentials,
+                                connection,
+                                options,
+                            );
+                        } catch (error) {
+                            const hinted = withCrossSourceRefsHint(
+                                error,
+                                enabled,
+                            );
+                            throw new DbtSourceError(
+                                `Failed to load dbt source "${source.name}"${repoSuffix}: ${getErrorMessage(hinted)}`,
+                                hinted,
+                            );
+                        }
+                    },
+                })),
+            ],
+        });
+        if (resolution.rounds > 1) {
+            Logger.info('dbt.compile.crossSourceRefsResolved', {
+                event: 'dbt.compile.crossSourceRefsResolved',
+                rounds: resolution.rounds,
+                sources: resolution.results.map(({ task, injectedFrom }) => ({
+                    name: task.key,
+                    injectedFrom,
+                })),
+            });
+        }
+        return resolution.results.map(({ task, result }) => ({
+            ...task.context,
+            manifest: result.manifest,
+            selectedModelIds: result.selectedModelIds,
+        }));
     }
 
     private async compileExtraGroup({
@@ -212,6 +252,7 @@ export class MultiConnectionCompiler {
         plan,
         dbtVersion,
         fetchSourceManifest,
+        crossSourceRefsEnabled,
         loadExtraCredentials,
         beforeAcquireClient,
         trackingParams,
@@ -222,6 +263,7 @@ export class MultiConnectionCompiler {
         plan: CompileGroupPlan & { warehouseConnectionUuid: string };
         dbtVersion: SupportedDbtVersions;
         fetchSourceManifest: FetchSourceManifest;
+        crossSourceRefsEnabled: boolean;
         loadExtraCredentials: LoadExtraConnectionCredentials;
         beforeAcquireClient?: () => Promise<void>;
         trackingParams: TrackingParams | undefined;
@@ -261,6 +303,7 @@ export class MultiConnectionCompiler {
                         warehouseCredentials,
                         connection,
                         fetchSourceManifest,
+                        crossSourceRefsEnabled,
                     );
                 const { manifest, selectedModelIds } =
                     mergeCompileGroupManifests(sourceManifests);
@@ -338,6 +381,7 @@ export class MultiConnectionCompiler {
         dbtVersion,
         includeUnboundSources,
         fetchSourceManifest,
+        crossSourceRefsEnabled,
         loadExtraCredentials,
         beforeLoadExtraCredentials,
         trackingParams,
@@ -349,6 +393,7 @@ export class MultiConnectionCompiler {
         dbtVersion: SupportedDbtVersions;
         includeUnboundSources: boolean;
         fetchSourceManifest: FetchSourceManifest;
+        crossSourceRefsEnabled: boolean;
         loadExtraCredentials: LoadExtraConnectionCredentials;
         beforeLoadExtraCredentials?: () => Promise<void>;
         trackingParams?: TrackingParams;
@@ -362,21 +407,32 @@ export class MultiConnectionCompiler {
             await this.projectModel.getDbtSourceIdentity(projectUuid);
         const warnings: string[] = [];
 
-        const originalSources = [
-            {
-                name: identity.dbtSourceName,
-                precedence: 0,
-                dbtSourceUuid: identity.dbtSourceUuid,
-                manifest: primary.manifest,
-                selectedModelIds: primary.selectedModelIds,
-            },
-            ...(await MultiConnectionCompiler.fetchSourceManifests(
+        const originalSources =
+            await MultiConnectionCompiler.fetchSourceManifests(
                 originalPlan.sources,
                 primary.warehouseCredentials,
                 primary.connection,
                 fetchSourceManifest,
-            )),
-        ];
+                crossSourceRefsEnabled,
+                {
+                    key: identity.dbtSourceName,
+                    context: {
+                        name: identity.dbtSourceName,
+                        precedence: 0,
+                        dbtSourceUuid: identity.dbtSourceUuid,
+                    },
+                    fetch: async (options) => {
+                        try {
+                            return await primary.fetchManifest(options);
+                        } catch (error) {
+                            throw withCrossSourceRefsHint(
+                                error,
+                                crossSourceRefsEnabled,
+                            );
+                        }
+                    },
+                },
+            );
         const originalMerged = mergeCompileGroupManifests(originalSources);
         const originalAdapter = new DbtManifestProjectAdapter({
             parsedManifest: originalMerged.manifest,
@@ -421,6 +477,7 @@ export class MultiConnectionCompiler {
                         plan: extraPlan,
                         dbtVersion,
                         fetchSourceManifest,
+                        crossSourceRefsEnabled,
                         loadExtraCredentials,
                         beforeAcquireClient: beforeLoadExtraCredentials,
                         trackingParams,

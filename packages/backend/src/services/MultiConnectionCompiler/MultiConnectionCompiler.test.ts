@@ -154,7 +154,14 @@ describe('multi-source compilation diagnostics', () => {
                         },
                     ),
                     primary: {
-                        manifest,
+                        fetchManifest: async () => ({
+                            manifest,
+                            timings: {
+                                gitRefreshMs: null,
+                                depsMs: null,
+                                manifestMs: 0,
+                            },
+                        }),
                         connection: {
                             warehouseClient: warehouseClientMock,
                             connectionCredentials:
@@ -177,6 +184,7 @@ describe('multi-source compilation diagnostics', () => {
                     },
                     dbtVersion: SupportedDbtVersions.V1_7,
                     includeUnboundSources: true,
+                    crossSourceRefsEnabled: false,
                     fetchSourceManifest: async () => {
                         throw new DbtError('Failed to run dbt ls', [log]);
                     },
@@ -192,6 +200,139 @@ describe('multi-source compilation diagnostics', () => {
             expect.stringContaining('finance'),
             [log],
         );
+    });
+});
+
+describe('cross-source compilation', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('fetches the primary lazily with sibling nodes and compiles real models once', async () => {
+        const compiler = new MultiConnectionCompiler({
+            projectModel: {
+                getDbtSourceIdentity: vi.fn().mockResolvedValue({
+                    dbtSourceName: 'primary',
+                    dbtSourceUuid: 'primary-uuid',
+                }),
+            },
+            projectDbtSourcesModel: {},
+            warehouseConnectionCompileModel: {},
+        } as unknown as ConstructorParameters<
+            typeof MultiConnectionCompiler
+        >[0]);
+        vi.spyOn(compiler, 'planGroups').mockResolvedValue([
+            {
+                warehouseConnectionUuid: null,
+                connectionName: 'original',
+                listedDatabases: {
+                    listAllDatabases: false,
+                    additionalDatabases: [],
+                },
+                sources: [
+                    {
+                        name: 'shared',
+                        precedence: 1,
+                        projectDbtSourceUuid: 'shared-uuid',
+                        dbtConnection: { type: DbtProjectType.NONE },
+                    },
+                ],
+            } as unknown as CompileGroupPlan,
+        ]);
+        const prepare = vi
+            .spyOn(DbtManifestProjectAdapter.prototype, 'prepareExploreStream')
+            .mockResolvedValue(
+                (async function* empty() {
+                    yield* [];
+                })(),
+            );
+        const sharedNode = {
+            unique_id: 'model.shared.calendar',
+            resource_type: 'model',
+            name: 'calendar',
+            package_name: 'shared',
+            path: 'calendar.sql',
+            original_file_path: 'models/calendar.sql',
+            schema: 'public',
+            database: 'db',
+            alias: 'calendar',
+            columns: {},
+            meta: {},
+        };
+        const upstream = {
+            ...manifest,
+            metadata: { ...manifest.metadata, project_name: 'shared' },
+            nodes: { [sharedNode.unique_id]: sharedNode },
+        };
+        const primaryManifest = {
+            ...manifest,
+            metadata: { ...manifest.metadata, project_name: 'analytics' },
+            nodes: {
+                [sharedNode.unique_id]: {
+                    ...sharedNode,
+                    path: '',
+                    original_file_path: '',
+                },
+            },
+        };
+        const timings = { gitRefreshMs: null, depsMs: null, manifestMs: 0 };
+        const fetchManifest = vi
+            .fn()
+            .mockRejectedValueOnce(
+                new DbtError(
+                    "depends on a node named 'calendar' in package or project 'shared' which was not found",
+                ),
+            )
+            .mockResolvedValueOnce({
+                manifest: primaryManifest,
+                selectedModelIds: [sharedNode.unique_id],
+                timings,
+            });
+        const fetchSourceManifest = vi
+            .fn<FetchSourceManifest>()
+            .mockResolvedValue({ manifest: upstream, timings });
+        await compiler.compile({
+            projectUuid: 'project-uuid',
+            context: connectionContextFromUser(
+                { userUuid: 'user' },
+                {
+                    organizationUuid: 'org',
+                    queryContext: null,
+                    purpose: 'compile',
+                },
+            ),
+            primary: {
+                fetchManifest,
+                connection: {
+                    deriveClient: vi.fn(() => warehouseClientMock),
+                } as unknown as Parameters<
+                    typeof compiler.compile
+                >[0]['primary']['connection'],
+                warehouseCredentials: warehouseClientMock.credentials,
+                cachedWarehouse: {
+                    warehouseCatalog: undefined,
+                    onWarehouseCatalogChange: vi.fn(),
+                },
+                dbtProjectDir: undefined,
+            },
+            dbtVersion: SupportedDbtVersions.V1_7,
+            includeUnboundSources: true,
+            crossSourceRefsEnabled: true,
+            fetchSourceManifest,
+            loadExtraCredentials: vi.fn(),
+        });
+        expect(fetchManifest).toHaveBeenCalledTimes(2);
+        expect(fetchManifest.mock.calls[1][0]).toEqual({
+            externalNodes: [
+                expect.objectContaining({
+                    package_name: 'shared',
+                    name: 'calendar',
+                }),
+            ],
+        });
+        expect(fetchSourceManifest).toHaveBeenCalledTimes(1);
+        expect(fetchSourceManifest.mock.calls[0][3]).toEqual({
+            externalNodes: [],
+        });
+        expect(prepare).toHaveBeenCalledTimes(1);
     });
 });
 
@@ -332,7 +473,14 @@ describe('extra connection scope cleanup', () => {
                             schema: 'source_schema',
                         }).credentials,
                     ).toMatchObject({ host: '127.0.0.1', port: 43210 });
-                    return { manifest };
+                    return {
+                        manifest,
+                        timings: {
+                            gitRefreshMs: null,
+                            depsMs: null,
+                            manifestMs: 0,
+                        },
+                    };
                 },
             ) satisfies Parameters<
                 typeof compiler.compile
@@ -342,7 +490,14 @@ describe('extra connection scope cleanup', () => {
                 context,
                 primary: {
                     connection: lease,
-                    manifest,
+                    fetchManifest: async () => ({
+                        manifest,
+                        timings: {
+                            gitRefreshMs: null,
+                            depsMs: null,
+                            manifestMs: 0,
+                        },
+                    }),
                     dbtProjectDir: undefined,
                     warehouseCredentials: lease.connectionCredentials,
                     cachedWarehouse: {
@@ -352,6 +507,7 @@ describe('extra connection scope cleanup', () => {
                 },
                 dbtVersion: SupportedDbtVersions.V1_7,
                 includeUnboundSources: true,
+                crossSourceRefsEnabled: false,
                 fetchSourceManifest,
                 loadExtraCredentials: vi.fn(async () => extraCredentials),
             });
@@ -446,7 +602,14 @@ describe('Snowflake extra compile credentials', () => {
                 expect(connection.warehouseClient.credentials).toMatchObject(
                     credentials,
                 );
-                return { manifest };
+                return {
+                    manifest,
+                    timings: {
+                        gitRefreshMs: null,
+                        depsMs: null,
+                        manifestMs: 0,
+                    },
+                };
             },
         );
         const loadExtraCredentials = vi.fn(async () => credentials);
@@ -566,6 +729,7 @@ describe('DuckLake extra compile credentials', () => {
         ).mockResolvedValue([]);
         const fetchSourceManifest = vi.fn<FetchSourceManifest>(async () => ({
             manifest,
+            timings: { gitRefreshMs: null, depsMs: null, manifestMs: 0 },
         }));
         const internals = compiler as unknown as {
             compileExtraGroup: (args: {

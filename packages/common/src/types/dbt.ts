@@ -65,6 +65,9 @@ export type DbtRawModelNode = Omit<
     'resource_type' | 'compiled' | 'language'
 > & {
     resource_type: 'model' | 'seed';
+    version?: string | number | null;
+    latest_version?: string | number | null;
+    access?: string | null;
     compiled?: boolean;
     language?: string;
     columns: { [name: string]: DbtModelColumn };
@@ -545,6 +548,7 @@ export interface DbtManifest {
 }
 
 export interface DbtRawManifestMetadata {
+    project_name?: string;
     dbt_schema_version: string;
     generated_at: string;
     adapter_type: string;
@@ -945,13 +949,67 @@ export type DbtExposure = {
     tags?: string[];
 };
 
+export const isExternalDbtNode = (
+    node: Pick<DbtRawModelNode, 'path' | 'original_file_path'>,
+): boolean => !node.path && !node.original_file_path;
+
+export type DbtExternalModelNode = {
+    name: string;
+    package_name: string;
+    identifier: string;
+    schema: string;
+    database: string | null;
+    relation_name: string | null;
+    version: string | number | null;
+    latest_version: string | number | null;
+    access: string | null;
+    depends_on_nodes: string[];
+};
+
+export const getExternalModelNodesFromManifest = (
+    manifest: DbtManifest,
+): DbtExternalModelNode[] =>
+    Object.values(manifest.nodes)
+        .filter((node) => node.resource_type === 'model')
+        .map((node) => node as DbtRawModelNode)
+        .filter((node) => !isExternalDbtNode(node))
+        .map((node) => ({
+            name: node.name,
+            package_name: node.package_name,
+            identifier: node.alias ?? node.name,
+            schema: node.schema,
+            database: node.database ?? null,
+            relation_name: node.relation_name ?? null,
+            version: node.version ?? null,
+            latest_version: node.latest_version ?? null,
+            access: node.access ?? null,
+            depends_on_nodes: node.depends_on?.nodes ?? [],
+        }));
+
+export const stripExternalDbtNodes = (manifest: DbtManifest): DbtManifest => ({
+    ...manifest,
+    nodes: Object.fromEntries(
+        Object.entries(manifest.nodes).filter(
+            ([, node]) =>
+                (node.resource_type !== 'model' &&
+                    node.resource_type !== 'seed') ||
+                !isExternalDbtNode(node as DbtRawModelNode),
+        ),
+    ),
+});
+
+export const getDbtManifestProjectName = (
+    manifest: DbtManifest,
+): string | null => manifest.metadata.project_name ?? null;
+
 export const getModelsFromManifest = (
     manifest: DbtManifest,
 ): DbtModelNode[] => {
     const models = Object.values(manifest.nodes).filter(
         (node) =>
             ['model', 'seed'].includes(node.resource_type) &&
-            node.config?.materialized !== 'ephemeral',
+            node.config?.materialized !== 'ephemeral' &&
+            !isExternalDbtNode(node as DbtRawModelNode),
     ) as DbtRawModelNode[];
 
     if (!isSupportedDbtAdapter(manifest.metadata)) {

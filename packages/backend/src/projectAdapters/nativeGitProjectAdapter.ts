@@ -24,7 +24,11 @@ import {
     type GitCredentialFiles,
 } from '../dbt/gitCredentials';
 import { preAggregatePostProcessor } from '../ee/preAggregates/postProcessor';
-import { type ProjectAdapter, type TrackingParams } from '../types';
+import {
+    type DbtManifestFetchOptions,
+    type ProjectAdapter,
+    type TrackingParams,
+} from '../types';
 import {
     DEFAULT_BITBUCKET_HOST_DOMAIN,
     DEFAULT_GITHUB_HOST_DOMAIN,
@@ -219,7 +223,7 @@ export class NativeGitProjectAdapter implements ProjectAdapter {
     }
 
     // eslint-disable-next-line class-methods-use-this
-    async getDbtManifest(): Promise<never> {
+    async getDbtManifest(_options?: DbtManifestFetchOptions): Promise<never> {
         throw new ParameterError(
             'Native YAML projects cannot be combined with additional dbt sources.',
         );

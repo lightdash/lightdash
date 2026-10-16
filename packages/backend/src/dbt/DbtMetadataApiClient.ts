@@ -16,6 +16,7 @@ import {
 } from '@lightdash/common';
 import { gql, GraphQLClient } from 'graphql-request';
 import Logger from '../logging/logger';
+import { type DbtManifestFetchOptions } from '../types';
 import { DbtClient } from '../types';
 import { DEFAULT_DBT_CLOUD_DISCOVERY_ENDPOINT } from '../utils/credentialDestination';
 
@@ -540,7 +541,7 @@ export class DbtMetadataApiClient implements DbtClient {
         }
     }
 
-    async getDbtManifest() {
+    async getDbtManifest(_options?: DbtManifestFetchOptions) {
         try {
             const [results, definitions] = await Promise.all([
                 this.getModels(),

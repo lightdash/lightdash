@@ -3,9 +3,13 @@ import {
     convertModelMetric,
     convertToAiHints,
     flattenAiHints,
+    getDbtManifestProjectName,
     getEffectiveFieldAiHints,
+    getExternalModelNodesFromManifest,
     getModelsFromManifest,
+    isExternalDbtNode,
     patchPathParts,
+    stripExternalDbtNodes,
     type DbtManifest,
 } from './dbt';
 import { DimensionType, MetricType } from './field';
@@ -442,5 +446,115 @@ describe('patchPathParts', () => {
             project: 'my_project',
             path: 'models/weird://name.yml',
         });
+    });
+});
+
+describe('external dbt model nodes', () => {
+    const stub = {
+        ...baseModel,
+        name: 'external',
+        unique_id: 'model.shared.external',
+        path: '',
+        original_file_path: '',
+    };
+    const local = {
+        ...baseModel,
+        name: 'local',
+        unique_id: 'model.test.local',
+        depends_on: { nodes: [stub.unique_id], macros: [] },
+    };
+    const manifest = makeManifest({
+        [stub.unique_id]: stub,
+        [local.unique_id]: local,
+    });
+
+    it('recognizes only nodes with both paths empty as external', () => {
+        expect(isExternalDbtNode(stub)).toBe(true);
+        expect(isExternalDbtNode({ ...stub, path: 'model.sql' })).toBe(false);
+        expect(
+            isExternalDbtNode({
+                ...stub,
+                original_file_path: 'models/model.sql',
+            }),
+        ).toBe(false);
+        expect(
+            getModelsFromManifest(manifest).map((node) => node.unique_id),
+        ).toEqual([local.unique_id]);
+    });
+    it('exports real models including ephemeral models and preserves relation and version fields', () => {
+        const ephemeral = {
+            ...local,
+            name: 'ephemeral',
+            alias: undefined,
+            version: 2,
+            latest_version: 3,
+            access: 'public',
+            config: { materialized: 'ephemeral' },
+        };
+        const nodes = getExternalModelNodesFromManifest(
+            makeManifest({
+                stub,
+                local,
+                ephemeral,
+                seed: { ...local, resource_type: 'seed' },
+            }),
+        );
+        expect(nodes).toEqual([
+            {
+                name: 'local',
+                package_name: 'test',
+                identifier: 'model',
+                schema: 'public',
+                database: 'db',
+                relation_name: baseModel.relation_name,
+                version: null,
+                latest_version: null,
+                access: null,
+                depends_on_nodes: [stub.unique_id],
+            },
+            {
+                name: 'ephemeral',
+                package_name: 'test',
+                identifier: 'ephemeral',
+                schema: 'public',
+                database: 'db',
+                relation_name: baseModel.relation_name,
+                version: 2,
+                latest_version: 3,
+                access: 'public',
+                depends_on_nodes: [stub.unique_id],
+            },
+        ]);
+        expect(
+            getExternalModelNodesFromManifest(
+                makeManifest({
+                    minimal: {
+                        ...local,
+                        database: undefined,
+                        relation_name: undefined,
+                        depends_on: undefined,
+                    },
+                }),
+            )[0],
+        ).toMatchObject({
+            database: null,
+            relation_name: null,
+            depends_on_nodes: [],
+        });
+    });
+    it('strips stubs without changing dependencies or mutating the input', () => {
+        const stripped = stripExternalDbtNodes(manifest);
+        expect(stripped.nodes).toEqual({ [local.unique_id]: local });
+        expect(manifest.nodes).toHaveProperty(stub.unique_id);
+        expect(local.depends_on.nodes).toEqual([stub.unique_id]);
+    });
+    it('reads project names and returns null for older metadata', () => {
+        expect(getDbtManifestProjectName(manifest)).toBeNull();
+        expect(
+            getDbtManifestProjectName({
+                ...manifest,
+                metadata: { ...manifest.metadata, project_name: 'analytics' },
+            }),
+        ).toBe('analytics');
     });
 });

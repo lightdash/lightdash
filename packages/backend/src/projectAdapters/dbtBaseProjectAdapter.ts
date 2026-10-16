@@ -49,6 +49,7 @@ import { traceSpan } from '../tracing/tracing';
 import {
     CachedWarehouse,
     DbtClient,
+    DbtManifestFetchOptions,
     DbtManifestFetchResult,
     ProjectAdapter,
     type TrackingParams,
@@ -105,7 +106,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         return undefined;
     }
 
-    public async getDbtManifest(): Promise<DbtManifestFetchResult> {
+    public async getDbtManifest(
+        options?: DbtManifestFetchOptions,
+    ): Promise<DbtManifestFetchResult> {
         // Install dependencies first (same as compileAllExplores) — a git source's
         // `dbt ls` fails without its packages installed.
         let depsMs: number | null = null;
@@ -117,7 +120,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         }
         Logger.debug(`Get dbt manifest`);
         const manifestStartedAt = Date.now();
-        const result = await this.dbtClient.getDbtManifest();
+        const result = await this.dbtClient.getDbtManifest(options);
         return {
             ...result,
             timings: {

@@ -1,4 +1,5 @@
 import {
+    DbtExternalModelNode,
     DbtPackages,
     DbtRpcGetManifestResults,
     Explore,
@@ -14,6 +15,8 @@ export type TrackingParams = {
     projectUuid: string;
     jobUuid?: string;
 };
+
+export type DbtManifestFetchOptions = { externalNodes: DbtExternalModelNode[] };
 
 export type DbtManifestFetchTimings = {
     gitRefreshMs: number | null;
@@ -52,7 +55,9 @@ export interface ProjectAdapter {
      * by the multiple-dbt-sources merge to combine each source's manifest before
      * a single compile.
      */
-    getDbtManifest(): Promise<DbtManifestFetchResult>;
+    getDbtManifest(
+        options?: DbtManifestFetchOptions,
+    ): Promise<DbtManifestFetchResult>;
 
     test(): Promise<void>;
 
@@ -77,7 +82,9 @@ export interface ProjectAdapter {
 export interface DbtClient {
     installDeps?(): Promise<void>;
 
-    getDbtManifest(): Promise<DbtRpcGetManifestResults>;
+    getDbtManifest(
+        options?: DbtManifestFetchOptions,
+    ): Promise<DbtRpcGetManifestResults>;
 
     getDbtPackages?(): Promise<DbtPackages | undefined>;
 

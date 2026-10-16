@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import Logger from '../logging/logger';
+import { type DbtManifestFetchOptions } from '../types';
 import { ProjectAdapter } from '../types';
 
 type DbtNoneCredentialsProjectAdapterArgs = {
@@ -59,7 +60,9 @@ export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
     }
 
     // eslint-disable-next-line class-methods-use-this
-    public async getDbtManifest(): Promise<never> {
+    public async getDbtManifest(
+        _options?: DbtManifestFetchOptions,
+    ): Promise<never> {
         throw new ParameterError(
             'Cannot read a dbt manifest as this project was created via CLI and has no dbt connection configured.',
         );

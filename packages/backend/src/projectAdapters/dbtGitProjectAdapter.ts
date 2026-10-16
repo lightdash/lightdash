@@ -14,6 +14,7 @@ import Logger from '../logging/logger';
 import type { DbtTargetResult } from '../services/WarehouseClientFactory/CredentialResolver';
 import {
     CachedWarehouse,
+    DbtManifestFetchOptions,
     DbtManifestFetchResult,
     ProjectAdapter,
     type TrackingParams,
@@ -162,11 +163,13 @@ export class DbtGitProjectAdapter
         await super.test();
     }
 
-    public async getDbtManifest(): Promise<DbtManifestFetchResult> {
+    public async getDbtManifest(
+        options?: DbtManifestFetchOptions,
+    ): Promise<DbtManifestFetchResult> {
         const refreshStartedAt = Date.now();
         await this._refreshRepo();
         const gitRefreshMs = Date.now() - refreshStartedAt;
-        const result = await super.getDbtManifest();
+        const result = await super.getDbtManifest(options);
         return { ...result, timings: { ...result.timings, gitRefreshMs } };
     }
 }
