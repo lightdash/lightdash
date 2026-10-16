@@ -1,3 +1,18 @@
+# [2.593.0](https://github.com/lightdash/lightdash/compare/2.592.2...2.593.0) (2026-10-16)
+
+
+### Bug Fixes
+
+* **mcp:** address review findings on custom chart type tools ([#31077](https://github.com/lightdash/lightdash/issues/31077)) ([5315613](https://github.com/lightdash/lightdash/commit/5315613f6b2b861a0bfaa00ae06c23c04dfb44dd))
+* **mcp:** describe custom chart type tools as chart types ([#31076](https://github.com/lightdash/lightdash/issues/31076)) ([1fd8f56](https://github.com/lightdash/lightdash/commit/1fd8f56a576bf10cc46a7ecba869a9cafb30f08e))
+
+
+### Features
+
+* **mcp:** build custom chart types from a query's sample rows ([#31073](https://github.com/lightdash/lightdash/issues/31073)) ([4f252bf](https://github.com/lightdash/lightdash/commit/4f252bfb56d97993462c772cf3d3d0254a0da448))
+* **mcp:** create custom chart types ([#31072](https://github.com/lightdash/lightdash/issues/31072)) ([e0d0430](https://github.com/lightdash/lightdash/commit/e0d04307485dc45ad6cde0650d84baa9199dd4ba))
+* **mcp:** iterate on custom chart types ([#31074](https://github.com/lightdash/lightdash/issues/31074)) ([dd28c17](https://github.com/lightdash/lightdash/commit/dd28c17b7c50cad766c2d89dedc3e7dbb8961c0c))
+
 ## [2.592.2](https://github.com/lightdash/lightdash/compare/2.592.1...2.592.2) (2026-10-16)
 
 
