@@ -116,6 +116,11 @@ export type PreviewChartVizBindingMapping = {
     previewAppVersion: number;
 };
 
+export type DbDataAppVizWithLatestReadyVersion = DbApp & {
+    viz_schema: DataAppVizSchema;
+    latest_ready_version: number;
+};
+
 const AppSlugSequence = 'apps_slug_sequence';
 
 type AppWithOrgAndPin = DbApp & {
@@ -1462,9 +1467,7 @@ export class AppModel {
         paginateArgs?: KnexPaginateArgs,
         search?: string,
         sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
-    ): Promise<
-        KnexPaginatedData<(DbApp & { viz_schema: DataAppVizSchema })[]>
-    > {
+    ): Promise<KnexPaginatedData<DbDataAppVizWithLatestReadyVersion[]>> {
         const query = this.joinLatestReadyVersion(this.database(AppsTableName))
             .where({
                 [`${AppsTableName}.project_uuid`]: projectUuid,
@@ -1472,9 +1475,10 @@ export class AppModel {
             })
             .whereNull(`${AppsTableName}.deleted_at`)
             .whereNotNull(`${AppVersionsTableName}.viz_schema`)
-            .select<(DbApp & { viz_schema: DataAppVizSchema })[]>(
+            .select<DbDataAppVizWithLatestReadyVersion[]>(
                 `${AppsTableName}.*`,
                 `${AppVersionsTableName}.viz_schema`,
+                this.database.ref('lrv.version').as('latest_ready_version'),
             );
         const sortColumn: Record<DataAppVizListSort['sortBy'], string> = {
             createdAt: 'created_at',
@@ -1579,7 +1583,7 @@ export class AppModel {
     async findDataAppVisualizationBySlug(
         projectUuid: string,
         slug: string,
-    ): Promise<(DbApp & { viz_schema: DataAppVizSchema }) | undefined> {
+    ): Promise<DbDataAppVizWithLatestReadyVersion | undefined> {
         return this.joinLatestReadyVersion(this.database(AppsTableName))
             .where({
                 [`${AppsTableName}.project_uuid`]: projectUuid,
@@ -1588,9 +1592,10 @@ export class AppModel {
             })
             .whereNull(`${AppsTableName}.deleted_at`)
             .whereNotNull(`${AppVersionsTableName}.viz_schema`)
-            .select<(DbApp & { viz_schema: DataAppVizSchema })[]>(
+            .select<DbDataAppVizWithLatestReadyVersion[]>(
                 `${AppsTableName}.*`,
                 `${AppVersionsTableName}.viz_schema`,
+                this.database.ref('lrv.version').as('latest_ready_version'),
             )
             .first();
     }

@@ -144,6 +144,11 @@ import {
     toolFindCustomChartTypesOutputSchema,
 } from './toolFindCustomChartTypesArgs';
 import {
+    MCP_TOOL_FIND_CUSTOM_CHART_TYPES_DESCRIPTION,
+    mcpFindCustomChartTypesArgsSchema,
+    mcpFindCustomChartTypesOutputSchema,
+} from './toolFindCustomChartTypesMcpArgs';
+import {
     TOOL_FIND_DASHBOARDS_DESCRIPTION,
     toolFindDashboardsArgsSchema,
     toolFindDashboardsOutputSchema,
@@ -1913,6 +1918,25 @@ export const createCustomChartTypeToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
+// MCP counterpart of findCustomChartTypes: structured output, read-only.
+export const mcpFindCustomChartTypesToolDefinition: ToolDefinitionWithMcpOutput<
+    'findCustomChartTypes',
+    typeof mcpFindCustomChartTypesArgsSchema,
+    typeof mcpFindCustomChartTypesArgsSchema,
+    undefined,
+    typeof mcpFindCustomChartTypesOutputSchema
+> = defineTool({
+    name: 'findCustomChartTypes',
+    title: 'Find custom chart types',
+    description: MCP_TOOL_FIND_CUSTOM_CHART_TYPES_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: mcpFindCustomChartTypesArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpFindCustomChartTypesOutputSchema,
+    },
+});
+
 export const iterateCustomChartTypeToolDefinition: ToolDefinitionWithMcpOutput<
     'iterateCustomChartType',
     typeof mcpIterateCustomChartTypeArgsSchema,
@@ -2133,6 +2157,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     getDataAppBuildStatusToolDefinition,
     createCustomChartTypeToolDefinition,
     iterateCustomChartTypeToolDefinition,
+    mcpFindCustomChartTypesToolDefinition,
 ] as const;
 
 export type BuiltInToolDefinition = ToolDefinitionInstance;

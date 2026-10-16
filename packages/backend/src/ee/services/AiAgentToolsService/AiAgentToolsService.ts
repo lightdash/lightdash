@@ -49,6 +49,7 @@ import {
     SessionUser,
     shouldUseStaticFilterAutocomplete,
     TimeoutError,
+    toMcpCustomChartTypeVizSchema,
     UnexpectedServerError,
     UserAttributeValueMap,
     WarehouseQueryError,
@@ -64,6 +65,7 @@ import {
     type DataAppVizSchema,
     type Document,
     type FieldValueSearchResult,
+    type McpCustomChartType,
     type ParameterDefinitions,
     type PersistedDataAppDataReferences,
     type SchedulerAiAugmentation,
@@ -394,6 +396,10 @@ export type IterateCustomChartTypeFn = (args: {
     vizContext: AppVizBuildContext | null;
 }) => Promise<{ appUuid: string; slug: string; version: number; name: string }>;
 
+export type SearchCustomChartTypesFn = (
+    args: { query: string } | { slug: string },
+) => Promise<McpCustomChartType[]>;
+
 export type McpAiAgentToolsRuntime = Omit<
     AiAgentToolsRuntime,
     'getExplore' | 'findExplores' | 'findFields' | 'updateUserName'
@@ -401,6 +407,7 @@ export type McpAiAgentToolsRuntime = Omit<
     getDataAppBuildStatus: GetDataAppBuildStatusFn;
     createCustomChartType: CreateCustomChartTypeFn;
     iterateCustomChartType: IterateCustomChartTypeFn;
+    searchCustomChartTypes: SearchCustomChartTypesFn;
     createDocumentContent: (content: unknown) => Promise<DocumentContentResult>;
     readDocumentContent: (
         slug: string,
@@ -1009,6 +1016,8 @@ export class AiAgentToolsService extends BaseService {
                 this.withWriteRefusal(context, 'app', 'update', () =>
                     this.iterateCustomChartType(context, args),
                 ),
+            searchCustomChartTypes: (args) =>
+                this.searchCustomChartTypes(context, args),
             createDocumentContent: (content) =>
                 this.withWriteRefusal(context, 'document', 'create', () =>
                     this.createDocumentContent(context, content),
@@ -1352,6 +1361,75 @@ export class AiAgentToolsService extends BaseService {
                     args.query,
                 );
                 return this.parseCustomChartTypes(data);
+            },
+        );
+    }
+
+    /** Chart Studio's gallery gate: chart types enabled and manage:Explore. */
+    async canUseCustomChartTypes(context: {
+        user: SessionUser;
+        projectUuid: string | null;
+    }): Promise<boolean> {
+        return this.appGenerateService.canUseChartTypes(
+            context.user,
+            context.projectUuid,
+        );
+    }
+
+    /** MCP-only: the agent's lookups behind the gallery gate, with version and Chart Studio link. */
+    private searchCustomChartTypes(
+        context: AiAgentToolsRuntimeContext,
+        args: Parameters<SearchCustomChartTypesFn>[0],
+    ): ReturnType<SearchCustomChartTypesFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.searchCustomChartTypes`,
+            args,
+            async () => {
+                if (!(await this.canUseCustomChartTypes(context))) {
+                    throw new ForbiddenError(
+                        'You do not have permission to use chart types in this project',
+                    );
+                }
+                const rows =
+                    'slug' in args
+                        ? [
+                              await this.appModel.findDataAppVisualizationBySlug(
+                                  context.projectUuid,
+                                  args.slug,
+                              ),
+                          ].filter((row) => row !== undefined)
+                        : (
+                              await this.appModel.listDataAppVisualizations(
+                                  context.projectUuid,
+                                  {
+                                      page: 1,
+                                      pageSize:
+                                          AiAgentToolsService.CUSTOM_CHART_TYPES_SEARCH_LIMIT,
+                                  },
+                                  args.query,
+                              )
+                          ).data;
+                return rows.flatMap((row) => {
+                    const parsed = dataAppVizSchema.safeParse(row.viz_schema);
+                    if (!parsed.success) {
+                        this.logger.warn(
+                            `Dropping custom chart type "${row.slug}": persisted viz_schema failed validation`,
+                        );
+                        return [];
+                    }
+                    return [
+                        {
+                            slug: row.slug,
+                            name: row.name,
+                            description: row.description || null,
+                            version: row.latest_ready_version,
+                            chartStudioUrl: `${this.lightdashConfig.siteUrl}/projects/${context.projectUuid}/chart-studio/${row.slug}`,
+                            vizSchema: toMcpCustomChartTypeVizSchema(
+                                parsed.data,
+                            ),
+                        },
+                    ];
+                });
             },
         );
     }

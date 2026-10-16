@@ -77,6 +77,7 @@ import {
     mcpCreateContentToolDefinition,
     McpCreateTaskResult,
     mcpEditContentToolDefinition,
+    mcpFindCustomChartTypesToolDefinition,
     McpGetTaskResult,
     mcpListProjectsToolDefinition,
     mcpReadContentToolDefinition,
@@ -276,6 +277,7 @@ export enum McpToolName {
     GET_DATA_APP_BUILD_STATUS = 'get_data_app_build_status',
     CREATE_CUSTOM_CHART_TYPE = 'create_custom_chart_type',
     ITERATE_CUSTOM_CHART_TYPE = 'iterate_custom_chart_type',
+    FIND_CUSTOM_CHART_TYPES = 'find_custom_chart_types',
     LIST_SKILLS = 'list_skills',
     READ_SKILL = 'read_skill',
     READ_SKILL_RESOURCE = 'read_skill_resource',
@@ -374,6 +376,9 @@ const mcpCreateCustomChartTypeTool = withProjectScopeInput(
 );
 const mcpIterateCustomChartTypeTool = withProjectScopeInput(
     iterateCustomChartTypeToolDefinition.for('mcp'),
+);
+const mcpFindCustomChartTypesTool = withProjectScopeInput(
+    mcpFindCustomChartTypesToolDefinition.for('mcp'),
 );
 const mcpIterateDataAppTool = withProjectScopeInput(
     iterateDataAppToolDefinition.for('mcp'),
@@ -600,6 +605,7 @@ export type McpServerToolOptions = {
         filterExpressionsEnabled: boolean;
         documentsEnabled: boolean;
         dataAppBuildsEnabled: boolean;
+        customChartTypesEnabled: boolean;
         agentIdentityEnabled: boolean;
     };
 };
@@ -1860,6 +1866,50 @@ export class McpService extends BaseService {
         );
     }
 
+    private registerFindCustomChartTypesTool(): void {
+        this.registerTrackedTool(
+            mcpFindCustomChartTypesTool.name,
+            {
+                title: mcpFindCustomChartTypesTool.title,
+                description: mcpFindCustomChartTypesTool.description,
+                inputSchema: mcpFindCustomChartTypesTool.inputSchema.shape,
+                outputSchema: mcpFindCustomChartTypesTool.outputSchema.shape,
+                annotations: mcpFindCustomChartTypesTool.annotations,
+            },
+            async (args, extra) =>
+                this.callDataAppBuildTool(
+                    extra,
+                    args,
+                    'Error finding custom chart types',
+                    async (toolsRuntime) => {
+                        const query = args.query?.trim() || null;
+                        const slug = args.slug?.trim() || null;
+                        const request = (() => {
+                            if (query !== null && slug === null)
+                                return { query };
+                            if (slug !== null && query === null)
+                                return { slug };
+                            throw new ParameterError(
+                                'Set exactly one of query (search) or slug (fetch one chart type).',
+                            );
+                        })();
+                        const results =
+                            await toolsRuntime.searchCustomChartTypes(request);
+                        const listed = results
+                            .map((match) => `${match.name} (${match.slug})`)
+                            .join(', ');
+                        return {
+                            summary:
+                                results.length === 0
+                                    ? `No custom chart type matched ${'slug' in request ? `slug "${request.slug}"` : `"${request.query}"`}.`
+                                    : `Found ${results.length} custom chart type(s): ${listed}. Slots, options and versions are in structuredContent.`,
+                            structuredContent: { results },
+                        };
+                    },
+                ),
+        );
+    }
+
     /** Sample rows from a completed run_metric_query, the way Chart Studio shares them. */
     private async getSampleRows(
         ctx: McpProtocolContext,
@@ -2721,6 +2771,7 @@ export class McpService extends BaseService {
                 documentsEnabled: false,
                 agentIdentityEnabled: false,
                 dataAppBuildsEnabled: false,
+                customChartTypesEnabled: false,
             },
         },
     ): void {
@@ -4528,6 +4579,10 @@ export class McpService extends BaseService {
             this.registerDataAppBuildTools();
         }
 
+        if (options.customChartTypesEnabled) {
+            this.registerFindCustomChartTypesTool();
+        }
+
         this.mcpServer.registerPrompt(
             'lightdash-analyst',
             {
@@ -5441,6 +5496,17 @@ export class McpService extends BaseService {
         return this.aiAgentToolsService.canGenerateDataApp({
             user,
             projectUuid: headerProjectUuid,
+        });
+    }
+
+    /** Chart Studio's gallery gate; coarse without a pinned project, like isDataAppBuildsEnabled. */
+    public async isCustomChartTypesEnabled(
+        user: SessionUser,
+        headerProjectUuid?: string,
+    ): Promise<boolean> {
+        return this.aiAgentToolsService.canUseCustomChartTypes({
+            user,
+            projectUuid: headerProjectUuid ?? null,
         });
     }
 

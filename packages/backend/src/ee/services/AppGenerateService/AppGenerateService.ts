@@ -292,7 +292,10 @@ import {
     promptHistoryToMarkdown,
     SEMANTIC_LAYER_POINTER_FILE,
 } from './appContext';
-import { assertChartTypesEnabled } from './chartTypeFeatureGate';
+import {
+    assertChartTypesEnabled,
+    chartTypesEnabledFor,
+} from './chartTypeFeatureGate';
 import {
     CLARIFY_APP_SYSTEM_PROMPT,
     CLARIFY_VIZ_SYSTEM_PROMPT,
@@ -1806,6 +1809,29 @@ export class AppGenerateService extends BaseService {
         if (auditedAbility.cannot('manage', subject('Explore', context))) {
             throw new ForbiddenError('Insufficient permissions');
         }
+    }
+
+    /**
+     * Chart Studio's gallery gate as a boolean. Without a project it is the
+     * coarse check for surfaces that must not vary per project, e.g. MCP tools/list.
+     */
+    async canUseChartTypes(
+        user: SessionUser,
+        projectUuid: string | null,
+    ): Promise<boolean> {
+        if (!(await chartTypesEnabledFor(this.featureFlagModel, user))) {
+            return false;
+        }
+        const auditedAbility = this.createAuditedAbility(user);
+        if (projectUuid === null) {
+            return auditedAbility.can('manage', 'Explore');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        return auditedAbility.can(
+            'manage',
+            subject('Explore', { organizationUuid, projectUuid }),
+        );
     }
 
     /**

@@ -1918,3 +1918,55 @@ describe('getDataAppVizUpgradeImpact', () => {
         expect(getDataAppVizUsageCounts).not.toHaveBeenCalled();
     });
 });
+
+describe('canUseChartTypes', () => {
+    const canUse = (
+        role: OrganizationMemberRole,
+        projectUuid: string | null,
+        featureFlags: Record<string, boolean> = {},
+    ) => {
+        const { service, user } = buildServiceWithRealAbility(
+            {},
+            role,
+            'user-1',
+        );
+        (service as unknown as { featureFlagModel: unknown }).featureFlagModel =
+            {
+                get: async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    enabled: featureFlags[featureFlagId] ?? true,
+                }),
+            };
+        return service.canUseChartTypes(user, projectUuid);
+    };
+
+    it.each(['project-1', null])(
+        'matches the gallery gate for project %s',
+        async (projectUuid) => {
+            expect(
+                await canUse(
+                    OrganizationMemberRole.INTERACTIVE_VIEWER,
+                    projectUuid,
+                ),
+            ).toBe(true);
+            expect(
+                await canUse(OrganizationMemberRole.VIEWER, projectUuid),
+            ).toBe(false);
+        },
+    );
+
+    it('follows either chart type flag', async () => {
+        const off = {
+            [FeatureFlags.EnableDataApps]: false,
+            [FeatureFlags.ChartTypeRegistry]: false,
+        };
+        expect(
+            await canUse(OrganizationMemberRole.ADMIN, 'project-1', off),
+        ).toBe(false);
+        expect(
+            await canUse(OrganizationMemberRole.ADMIN, 'project-1', {
+                ...off,
+                [FeatureFlags.ChartTypeRegistry]: true,
+            }),
+        ).toBe(true);
+    });
+});

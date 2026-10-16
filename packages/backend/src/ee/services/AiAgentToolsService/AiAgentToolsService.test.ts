@@ -6149,3 +6149,150 @@ test('SQL admission uses a fresh handle on each invocation of one mapped runtime
         membership: 1,
     });
 });
+
+describe('AiAgentToolsService searchCustomChartTypes', () => {
+    const storedSchema = {
+        fields: [
+            {
+                name: 'stage',
+                label: 'Stage',
+                type: 'dimension',
+                required: true,
+                multiple: true,
+            },
+        ],
+        configOptions: [
+            {
+                name: 'sort',
+                label: 'Sort',
+                type: 'select',
+                choices: [{ value: 'desc', label: 'Descending' }],
+                default: 'desc',
+            },
+        ],
+        colorPalette: { group: 'Colors' },
+        hierarchy: { field: 'stage' },
+    };
+    const row = {
+        app_id: 'viz-uuid',
+        slug: 'funnel-viz',
+        name: 'Funnel',
+        description: '',
+        project_uuid: projectUuid,
+        viz_schema: storedSchema,
+        latest_ready_version: 4,
+    };
+
+    const search = (
+        args: { query: string } | { slug: string },
+        {
+            canUseChartTypes = true,
+            appModel = {},
+        }: { canUseChartTypes?: boolean; appModel?: Record<string, unknown> },
+    ) => {
+        const service = makeService({
+            appGenerateService: {
+                canUseChartTypes: vi.fn().mockResolvedValue(canUseChartTypes),
+            },
+            appModel,
+        });
+        return (
+            service as unknown as {
+                searchCustomChartTypes: (
+                    context: AiAgentToolsRuntimeContext,
+                    a: typeof args,
+                ) => Promise<unknown>;
+            }
+        ).searchCustomChartTypes(makeRuntimeContext({ source: 'mcp' }), args);
+    };
+
+    it('refuses a caller who fails the gallery gate', async () => {
+        const listDataAppVisualizations = vi.fn();
+        await expect(
+            search(
+                { query: 'funnel' },
+                {
+                    canUseChartTypes: false,
+                    appModel: { listDataAppVisualizations },
+                },
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(listDataAppVisualizations).not.toHaveBeenCalled();
+    });
+
+    it('returns query matches with version, link and plain schema, without uuids', async () => {
+        const listDataAppVisualizations = vi
+            .fn()
+            .mockResolvedValue({ data: [row] });
+
+        const result = await search(
+            { query: 'funnel' },
+            { appModel: { listDataAppVisualizations } },
+        );
+
+        expect(listDataAppVisualizations).toHaveBeenCalledWith(
+            projectUuid,
+            {
+                page: 1,
+                pageSize: AiAgentToolsService.CUSTOM_CHART_TYPES_SEARCH_LIMIT,
+            },
+            'funnel',
+        );
+        expect(result).toEqual([
+            {
+                slug: 'funnel-viz',
+                name: 'Funnel',
+                description: null,
+                version: 4,
+                chartStudioUrl: `https://lightdash.example/projects/${projectUuid}/chart-studio/funnel-viz`,
+                vizSchema: {
+                    fields: [
+                        {
+                            name: 'stage',
+                            label: 'Stage',
+                            type: 'dimension',
+                            required: true,
+                            multiple: true,
+                            description: null,
+                        },
+                    ],
+                    configOptions: [
+                        {
+                            name: 'sort',
+                            label: 'Sort',
+                            type: 'select',
+                            group: null,
+                            default: 'desc',
+                            choices: [{ value: 'desc', label: 'Descending' }],
+                            min: null,
+                            max: null,
+                        },
+                    ],
+                    colorPalette: { group: 'Colors' },
+                    hierarchy: { field: 'stage' },
+                    inputGuidance: null,
+                },
+            },
+        ]);
+        expect(JSON.stringify(result)).not.toContain('viz-uuid');
+    });
+
+    it('fetches one chart type by slug', async () => {
+        const findDataAppVisualizationBySlug = vi
+            .fn()
+            .mockResolvedValueOnce(row)
+            .mockResolvedValueOnce(undefined);
+        const appModel = { findDataAppVisualizationBySlug };
+
+        await expect(
+            search({ slug: 'funnel-viz' }, { appModel }),
+        ).resolves.toMatchObject([{ slug: 'funnel-viz', version: 4 }]);
+        await expect(
+            search({ slug: 'missing' }, { appModel }),
+        ).resolves.toEqual([]);
+        expect(findDataAppVisualizationBySlug).toHaveBeenLastCalledWith(
+            projectUuid,
+            'missing',
+        );
+    });
+});

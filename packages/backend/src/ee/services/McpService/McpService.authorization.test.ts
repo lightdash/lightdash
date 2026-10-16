@@ -107,6 +107,7 @@ describe('MCP scoped tool catalogue', () => {
             runSqlEnabled: true,
             runMetricQueryEnabled: true,
             dataAppBuildsEnabled: true,
+            customChartTypesEnabled: true,
             agentIdentityEnabled: true,
             documentsEnabled: true,
         });
