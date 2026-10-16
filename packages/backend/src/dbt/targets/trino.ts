@@ -12,28 +12,34 @@ export const trinoTarget = (
     >,
     _policy: DbtTargetPolicy,
 ): DbtTargetResult => {
-    const target = {
-        type: credentials.type,
-        host: credentials.host,
-        user: envVarReference('user'),
-        port: credentials.port,
-        database: credentials.dbname,
-        schema: credentials.schema,
-        http_scheme: credentials.http_scheme,
-    };
     if (!credentials.password) {
         return {
             kind: 'target',
-            target: { ...target, method: 'none' },
+            target: {
+                type: credentials.type,
+                host: credentials.host,
+                method: 'none',
+                user: envVarReference('user'),
+                port: credentials.port,
+                database: credentials.dbname,
+                schema: credentials.schema,
+                http_scheme: credentials.http_scheme,
+            },
             environment: { [envVar('user')]: credentials.user },
         };
     }
     return {
         kind: 'target',
         target: {
-            ...target,
+            type: credentials.type,
+            host: credentials.host,
             method: 'ldap',
+            user: envVarReference('user'),
             password: envVarReference('password'),
+            port: credentials.port,
+            database: credentials.dbname,
+            schema: credentials.schema,
+            http_scheme: credentials.http_scheme,
         },
         environment: {
             [envVar('user')]: credentials.user,
