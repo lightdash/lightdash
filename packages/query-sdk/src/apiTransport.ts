@@ -200,13 +200,15 @@ export const createFieldQualifier =
         if (fieldId.includes('.')) {
             return fieldId.replace('.', '_');
         }
-        if (baseTable !== null && fieldId.startsWith(`${baseTable}_`)) {
-            return fieldId;
+        if (baseTable !== null) {
+            return fieldId.startsWith(`${baseTable}_`)
+                ? fieldId
+                : `${baseTable}_${fieldId}`;
         }
         if (fieldId.startsWith(`${exploreName}_`)) {
             return fieldId;
         }
-        return `${baseTable ?? exploreName}_${fieldId}`;
+        return `${exploreName}_${fieldId}`;
     };
 
 /** Resolves an explore's base table, or `null` when it can't be learned. */

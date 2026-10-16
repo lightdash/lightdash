@@ -23,6 +23,7 @@ type ExploreInput = Parameters<typeof buildDataAppExploreIndexFromExplores>[0];
 const compiledExplores = [
     {
         name: 'orders',
+        baseTable: 'orders',
         tables: {
             orders: {
                 dimensions: {
@@ -49,6 +50,7 @@ const compiledExplores = [
     },
     {
         name: 'customers',
+        baseTable: 'customers',
         tables: {
             customers: {
                 dimensions: {
@@ -137,6 +139,54 @@ const indexes: [string, DataAppExploreIndex][] = [
     ],
     ['model files', buildDataAppExploreIndexFromModelFiles(modelFiles)],
 ];
+
+describe('checkDataAppDataReferences on an explore defined under meta.explores', () => {
+    const index = buildDataAppExploreIndexFromExplores([
+        {
+            name: 'sales',
+            baseTable: 'sales_orders',
+            tables: {
+                sales_orders: {
+                    dimensions: {
+                        status: dim('sales_orders', 'status'),
+                        sales_channel: dim('sales_orders', 'sales_channel'),
+                    },
+                    metrics: {
+                        total_amount: met('sales_orders', 'total_amount'),
+                    },
+                },
+            },
+        },
+    ] as unknown as ExploreInput);
+
+    it('accepts short names, base-table ids and a short name starting with the explore name', () => {
+        const errors = checkDataAppDataReferences(
+            [
+                queryRef({
+                    explore: 'sales',
+                    dimensions: [
+                        'status',
+                        'sales_orders_status',
+                        'sales_channel',
+                    ],
+                    metrics: ['total_amount'],
+                    sortFields: ['total_amount'],
+                }),
+            ],
+            index,
+        );
+        expect(errors).toEqual([]);
+    });
+
+    it('suggests the short name without the base-table prefix', () => {
+        const errors = checkDataAppDataReferences(
+            [queryRef({ explore: 'sales', dimensions: ['statu'] })],
+            index,
+        );
+        expect(errors).toHaveLength(1);
+        expect(errors[0].error).toContain("did you mean 'status'?");
+    });
+});
 
 describe.each(indexes)('checkDataAppDataReferences (%s)', (_, index) => {
     it('accepts a valid query including joined-table dot refs and explore-prefixed refs', () => {

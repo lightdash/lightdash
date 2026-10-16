@@ -25,6 +25,8 @@ import {
 export type DataAppExploreFields = {
     dimensionIds: Set<string>;
     metricIds: Set<string>;
+    /** Table that prefixes the explore's field ids; null when unknown. */
+    baseTable: string | null;
 };
 
 /** Queryable explore names → their valid field ids. */
@@ -43,7 +45,7 @@ export type DataAppValidationError = {
 };
 
 export const buildDataAppExploreIndexFromExplores = (
-    explores: Pick<Explore, 'name' | 'tables'>[],
+    explores: Pick<Explore, 'name' | 'baseTable' | 'tables'>[],
 ): DataAppExploreIndex => {
     const map = new Map<string, DataAppExploreFields>();
     for (const explore of explores) {
@@ -54,6 +56,7 @@ export const buildDataAppExploreIndexFromExplores = (
             metricIds: new Set(
                 Object.keys(getMetricsMapFromTables(explore.tables)),
             ),
+            baseTable: explore.baseTable,
         });
     }
     return { explores: map };
@@ -77,6 +80,7 @@ const collectModelEntry = (
     const entry = modelsByName.get(name) ?? {
         dimensionIds: new Set<string>(),
         metricIds: new Set<string>(),
+        baseTable: null,
         joins: [],
     };
     modelsByName.set(name, entry);
@@ -161,22 +165,27 @@ export const buildDataAppExploreIndexFromModelFiles = (
                 for (const id of joined.metricIds) metricIds.add(id);
             }
         }
-        map.set(name, { dimensionIds, metricIds });
+        map.set(name, { dimensionIds, metricIds, baseTable: fields.baseTable });
     }
     return { explores: map };
 };
 
 /**
  * Mirrors the SDK's field qualifier (`createFieldQualifier` in apiTransport):
- * dot refs collapse their first dot, refs already prefixed with the explore
- * name pass through, bare refs get the explore prefix. The checker must agree
- * with what the runtime sends — `convertFieldRefToFieldId` differs on the
- * passthrough case and would double-prefix already-qualified refs.
+ * dot refs collapse their first dot; with a known base table, refs prefixed
+ * with it pass through and bare refs get it; otherwise the explore name plays
+ * that role. The checker must agree with what the runtime sends —
+ * `convertFieldRefToFieldId` differs on the passthrough case and would
+ * double-prefix already-qualified refs.
  */
-const qualifyFieldRef = (exploreName: string, ref: string): string => {
+const qualifyFieldRef = (
+    exploreName: string,
+    baseTable: string | null,
+    ref: string,
+): string => {
     if (ref.includes('.')) return ref.replace('.', '_');
-    if (ref.startsWith(`${exploreName}_`)) return ref;
-    return `${exploreName}_${ref}`;
+    const prefix = `${baseTable ?? exploreName}_`;
+    return ref.startsWith(prefix) ? ref : `${prefix}${ref}`;
 };
 
 const levenshtein = (a: string, b: string): number => {
@@ -213,9 +222,15 @@ const findClosest = (
     return best !== null && bestDistance < input.length ? best : null;
 };
 
-/** Field ids read more like the source when the explore prefix is dropped. */
-const presentFieldId = (exploreName: string, id: string): string =>
-    id.startsWith(`${exploreName}_`) ? id.slice(exploreName.length + 1) : id;
+/** Field ids read more like the source when the table prefix is dropped. */
+const presentFieldId = (
+    exploreName: string,
+    baseTable: string | null,
+    id: string,
+): string => {
+    const prefix = `${baseTable ?? exploreName}_`;
+    return id.startsWith(prefix) ? id.slice(prefix.length) : id;
+};
 
 type FieldRole =
     | 'dimension'
@@ -343,12 +358,16 @@ class DataAppReferenceChecker {
 
         const selectedFieldIds = new Set(
             [...ref.dimensions, ...ref.metrics].map((field) =>
-                qualifyFieldRef(scope.explore, field),
+                qualifyFieldRef(scope.explore, scope.fields.baseTable, field),
             ),
         );
 
         for (const sortField of ref.sortFields) {
-            const id = qualifyFieldRef(scope.explore, sortField);
+            const id = qualifyFieldRef(
+                scope.explore,
+                scope.fields.baseTable,
+                sortField,
+            );
             const isLocalField = DataAppReferenceChecker.isLocalField(
                 scope,
                 sortField,
@@ -377,7 +396,11 @@ class DataAppReferenceChecker {
         role: FieldRole,
         location: DataReferenceLocation,
     ): void {
-        const id = qualifyFieldRef(scope.explore, rawRef);
+        const id = qualifyFieldRef(
+            scope.explore,
+            scope.fields.baseTable,
+            rawRef,
+        );
         if (DataAppReferenceChecker.isLocalField(scope, rawRef, id)) return;
         const isDimension = scope.fields.dimensionIds.has(id);
         const isMetric = scope.fields.metricIds.has(id);
@@ -417,7 +440,7 @@ class DataAppReferenceChecker {
                 DataAppReferenceChecker.candidatesForRole(scope.fields, role),
             );
             const suggestion = closest
-                ? ` — did you mean '${presentFieldId(scope.explore, closest)}'?`
+                ? ` — did you mean '${presentFieldId(scope.explore, scope.fields.baseTable, closest)}'?`
                 : '';
             this.errors.push({
                 errorType: ROLE_ERROR_TYPE[role],
@@ -529,14 +552,14 @@ class DataAppReferenceChecker {
             return;
         }
         for (const fieldRef of fieldRefs) {
-            const id = qualifyFieldRef(ref.explore, fieldRef);
+            const id = qualifyFieldRef(ref.explore, fields.baseTable, fieldRef);
             if (!fields.dimensionIds.has(id) && !fields.metricIds.has(id)) {
                 const closest = findClosest(id, [
                     ...fields.dimensionIds,
                     ...fields.metricIds,
                 ]);
                 const suggestion = closest
-                    ? ` — did you mean '${presentFieldId(ref.explore, closest)}'?`
+                    ? ` — did you mean '${presentFieldId(ref.explore, fields.baseTable, closest)}'?`
                     : '';
                 this.errors.push({
                     errorType: ValidationErrorType.Filter,

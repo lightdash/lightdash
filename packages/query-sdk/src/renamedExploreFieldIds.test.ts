@@ -77,10 +77,9 @@ describe('createFieldQualifier', () => {
         expect(qualify('orders.status')).toBe('orders_status');
     });
 
-    it('keeps names qualified with the explore name for back-compat', () => {
-        expect(qualify('orders_with_custom_dims_status')).toBe(
-            'orders_with_custom_dims_status',
-        );
+    it('prefixes a short name that starts with the explore name', () => {
+        const sales = createFieldQualifier('sales', 'sales_orders');
+        expect(sales('sales_amount')).toBe('sales_orders_sales_amount');
     });
 
     it('is unchanged for a normal explore', () => {
@@ -93,6 +92,9 @@ describe('createFieldQualifier', () => {
     it('falls back to the explore name when the base table is unknown', () => {
         const fallback = createFieldQualifier('orders_with_custom_dims', null);
         expect(fallback('status')).toBe('orders_with_custom_dims_status');
+        expect(fallback('orders_with_custom_dims_status')).toBe(
+            'orders_with_custom_dims_status',
+        );
     });
 });
 
