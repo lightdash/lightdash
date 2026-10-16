@@ -1,3 +1,10 @@
+# [2.600.0](https://github.com/lightdash/lightdash/compare/2.599.2...2.600.0) (2026-10-16)
+
+
+### Features
+
+* **sandboxes:** add scikit-learn and polars to the python-runner sandbox ([#31101](https://github.com/lightdash/lightdash/issues/31101)) ([2c83a79](https://github.com/lightdash/lightdash/commit/2c83a792ead526c8504e13ffb1485fdff0127965))
+
 ## [2.599.2](https://github.com/lightdash/lightdash/compare/2.599.1...2.599.2) (2026-10-16)
 
 
