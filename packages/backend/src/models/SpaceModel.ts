@@ -1219,6 +1219,7 @@ export class SpaceModel {
                             .whereNull(`${AppsTableName}.deleted_at`),
                         documentCount: trx.raw('0::integer'),
                         slug: `${SpaceTableName}.slug`,
+                        warehouseConnectionUuid: `${SpaceTableName}.warehouse_connection_uuid`,
                         parentSpaceUuid: `${SpaceTableName}.parent_space_uuid`,
                         path: `${SpaceTableName}.path`,
                         inheritParentPermissions: `${SpaceTableName}.inherit_parent_permissions`,
@@ -1407,6 +1408,7 @@ export class SpaceModel {
             projectMemberAccessRole:
                 (row.project_member_access_role as SpaceMemberRole) ?? null,
             colorPaletteUuid: row.color_palette_uuid,
+            warehouseConnectionUuid: row.warehouse_connection_uuid,
         };
     }
 
@@ -1952,6 +1954,58 @@ export class SpaceModel {
         }));
     }
 
+    async getEffectiveWarehouseConnectionUuid({
+        projectUuid,
+        spaceUuid,
+    }: {
+        projectUuid: string;
+        spaceUuid: string;
+    }): Promise<string | null> {
+        const result = await this.database.raw<{
+            rows: { warehouse_connection_uuid: string }[];
+        }>(
+            `WITH RECURSIVE ancestors AS (
+                SELECT s.space_uuid, s.parent_space_uuid,
+                    s.warehouse_connection_uuid, s.project_id, 0 AS depth,
+                    ARRAY[s.space_uuid] AS visited
+                FROM spaces s
+                JOIN projects p ON p.project_id = s.project_id
+                WHERE s.space_uuid = ? AND p.project_uuid = ?
+                    AND s.deleted_at IS NULL
+                UNION ALL
+                SELECT s.space_uuid, s.parent_space_uuid,
+                    s.warehouse_connection_uuid, s.project_id, a.depth + 1,
+                    a.visited || s.space_uuid
+                FROM spaces s
+                JOIN ancestors a ON s.space_uuid = a.parent_space_uuid
+                    AND s.project_id = a.project_id
+                WHERE s.deleted_at IS NULL AND a.warehouse_connection_uuid IS NULL
+                    AND NOT s.space_uuid = ANY(a.visited)
+            )
+            SELECT warehouse_connection_uuid FROM ancestors
+            WHERE warehouse_connection_uuid IS NOT NULL
+            ORDER BY depth LIMIT 1`,
+            [spaceUuid, projectUuid],
+        );
+        return result.rows[0]?.warehouse_connection_uuid ?? null;
+    }
+
+    async getSpaceUuidsBoundToConnection({
+        projectUuid,
+        warehouseConnectionUuid,
+    }: {
+        projectUuid: string;
+        warehouseConnectionUuid: string;
+    }): Promise<string[]> {
+        const spaces = await this.database(SpaceTableName)
+            .join(ProjectTableName, 'projects.project_id', 'spaces.project_id')
+            .where('projects.project_uuid', projectUuid)
+            .where('spaces.warehouse_connection_uuid', warehouseConnectionUuid)
+            .whereNull('spaces.deleted_at')
+            .select('spaces.space_uuid');
+        return spaces.map((space) => space.space_uuid);
+    }
+
     async getSpaceSummary(
         spaceUuid: string,
         options?: { deleted?: boolean; projectUuid?: string },
@@ -2122,6 +2176,7 @@ export class SpaceModel {
             projectMemberAccessRole:
                 (space.project_member_access_role as SpaceMemberRole) ?? null,
             colorPaletteUuid: space.color_palette_uuid,
+            warehouseConnectionUuid: space.warehouse_connection_uuid,
         };
     }
 
@@ -2526,6 +2581,10 @@ export class SpaceModel {
                 updateData.project_member_access_role =
                     space.projectMemberAccessRole;
             }
+            if (space.warehouseConnectionUuid !== undefined) {
+                updateData.warehouse_connection_uuid =
+                    space.warehouseConnectionUuid;
+            }
             if (space.colorPaletteUuid !== undefined) {
                 updateData.color_palette_uuid = space.colorPaletteUuid;
             }
@@ -2581,6 +2640,10 @@ export class SpaceModel {
             if (space.projectMemberAccessRole !== undefined) {
                 updateData.project_member_access_role =
                     space.projectMemberAccessRole;
+            }
+            if (space.warehouseConnectionUuid !== undefined) {
+                updateData.warehouse_connection_uuid =
+                    space.warehouseConnectionUuid;
             }
             if (space.colorPaletteUuid !== undefined) {
                 updateData.color_palette_uuid = space.colorPaletteUuid;

@@ -123,6 +123,7 @@ export const projectEntry: Pick<
 };
 
 export const spaceEntry: SpaceTable['base'] = {
+    warehouse_connection_uuid: null,
     space_id: 0,
     space_uuid: '123',
     slug: 'space-name',

@@ -28,6 +28,7 @@ const space: Space = {
     inheritParentPermissions: false,
     projectMemberAccessRole: null,
     colorPaletteUuid: null,
+    warehouseConnectionUuid: null,
     path: 'space',
 };
 const impact: SpaceDeleteImpact = {

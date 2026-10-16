@@ -1606,6 +1606,8 @@ export class ServiceRepository
             'spaceService',
             () =>
                 new SpaceService({
+                    warehouseConnectionModel:
+                        this.models.getWarehouseConnectionModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     analytics: this.context.lightdashAnalytics,
                     lightdashConfig: this.context.lightdashConfig,

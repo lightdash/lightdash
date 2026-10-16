@@ -16,6 +16,8 @@ export enum FeatureFlags {
     WarehouseOAuthRefreshLock = 'warehouse-oauth-refresh-lock',
 
     MultiConnectionProjects = 'multi-connection-projects',
+    // Organisation scope, off by default, no handler.
+    SpaceWarehouseConnections = 'space-warehouse-connections',
     /** Independent Documents containing narrative and saved chart definitions. */
     Documents = 'documents',
     /** Backend-provisioned usage analytics projects. */
