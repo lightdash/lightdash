@@ -1594,7 +1594,7 @@ Usage tips:
     {
       "agentName": null,
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
@@ -1916,7 +1916,7 @@ Usage tips:
     {
       "agentName": null,
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
@@ -2269,7 +2269,7 @@ Usage tips:
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false,
-        "readOnlyHint": false,
+        "readOnlyHint": true,
       },
       "description": "Set the configured project context. Most tools (list_explores, MCP schema-discovery tools, run_metric_query, etc.) also require its projectUuid explicitly. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request and pass its returned agentUuid explicitly to subsequent scoped tools; use list_agents and set_agent only for manual override.",
       "inputSchema": {
@@ -2341,9 +2341,9 @@ Usage tips:
       "agentName": null,
       "annotations": {
         "destructiveHint": false,
-        "idempotentHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
-        "readOnlyHint": false,
+        "readOnlyHint": true,
       },
       "description": "Select the best AI agent for a user request within the required projectUuid when agent-specific scope is useful and routing is available. Pass the returned agentUuid explicitly to subsequent scoped tools. If routing is unavailable, use list_agents and set_agent for manual selection; omit agentUuid when full project scope is desired. Also updates shared agent context for clients that use it.",
       "inputSchema": {
@@ -2496,7 +2496,7 @@ Usage tips:
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false,
-        "readOnlyHint": false,
+        "readOnlyHint": true,
       },
       "description": "Manually select an AI agent for the required projectUuid. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Pass the agentUuid explicitly to subsequent scoped tools and use this context to guide them — prefer the agent's explores when calling MCP schema-discovery tools, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
       "inputSchema": {
@@ -2527,7 +2527,7 @@ Usage tips:
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false,
-        "readOnlyHint": false,
+        "readOnlyHint": true,
       },
       "description": "@deprecated Omit agentUuid from scoped tool calls instead. Clears legacy shared agent context for older clients only.",
       "inputSchema": {
@@ -11362,7 +11362,7 @@ Response shape (MCP CallToolResult):
     {
       "agentName": null,
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
@@ -11503,7 +11503,7 @@ Errors: an unknown themeSlug, dashboardSlug, or chartSlug returns an error and s
     {
       "agentName": null,
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
@@ -11869,7 +11869,7 @@ Errors: an unknown slug, or an app or version this caller may not view, returns 
     {
       "agentName": null,
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
@@ -11968,7 +11968,7 @@ Build a custom chart type: a reusable visualization for saved charts in the proj
     {
       "agentName": null,
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
