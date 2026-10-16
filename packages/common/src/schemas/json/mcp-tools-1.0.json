@@ -555,7 +555,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "Tool: find_custom_chart_types\n\nSearch the project's custom chart types (reusable visualizations, including ones installed from the library) by `query` against name and description, or fetch one by `slug`. Set exactly one of the two; to browse page by page, use list_custom_chart_types.\n\n- Each match has its latest version, field slots, config options and a Chart Studio link.\n- Search before create_custom_chart_type and reuse a type that fits.\n- To save a chart with a type, call create_content with chartConfig { type: \"data_app_viz\", config: { dataAppVizSlug, fieldMapping, optionValues } }, binding each slot name to query field IDs.\n",
+            "description": "Tool: find_custom_chart_types\n\nSearch the project's custom chart types (reusable visualizations, including ones installed from the library) by `query` against name and description, or fetch one by `slug`. Set exactly one of the two; to browse page by page, use list_custom_chart_types.\n\n- Each match has its latest version, field slots, config options and a Chart Studio link.\n- Reuse a fitting type before building one with create_custom_chart_type, if available.\n- To save a chart with a type, call create_content (if available) with chartConfig { type: \"data_app_viz\", config: { dataAppVizSlug, fieldMapping, optionValues } }, binding each slot name to query field IDs.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
