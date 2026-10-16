@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     AthenaAuthenticationType,
     ConflictError,
+    DuckdbConnectionType,
     FeatureFlags,
     ForbiddenError,
     NotFoundError,
@@ -612,7 +613,7 @@ describe('WarehouseConnectionService on the real schema', () => {
                     request,
                 ),
             ).rejects.toThrow(
-                'A Snowflake connection without shared credentials requires users to provide their own credentials on the original connection.',
+                'A Snowflake connection without shared credentials requires users to provide their own credentials for this project.',
             );
             expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
 
@@ -636,82 +637,99 @@ describe('WarehouseConnectionService on the real schema', () => {
             expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
         });
 
-        test('rejects interactive browser authentication on an extra Snowflake connection', async () => {
-            const fixture = await createProject({
-                mode: 'multi',
-                warehouseType: WarehouseTypes.SNOWFLAKE,
-                credentials: {
-                    ...snowflakeCredentials,
-                    requireUserCredentials: true,
-                },
-            });
-            await expect(
-                buildService().create(
-                    fixture.credentialsAdmin,
-                    fixture.projectUuid,
-                    {
-                        name: 'Browser',
-                        warehouseConnection: {
-                            ...snowflakeCredentials,
-                            requireUserCredentials: true,
-                            authenticationType:
-                                SnowflakeAuthenticationType.EXTERNAL_BROWSER,
-                        },
+        test.each([
+            SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+            SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
+        ])(
+            'rejects interactive browser authentication on an extra Snowflake connection (%s)',
+            async (authenticationType) => {
+                const fixture = await createProject({
+                    mode: 'multi',
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                    credentials: {
+                        ...snowflakeCredentials,
+                        requireUserCredentials: true,
                     },
-                ),
-            ).rejects.toThrow(
-                'External browser authentication is not supported for an extra Snowflake connection.',
-            );
-            expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
-        });
+                });
+                await expect(
+                    buildService().create(
+                        fixture.credentialsAdmin,
+                        fixture.projectUuid,
+                        {
+                            name: 'Browser',
+                            warehouseConnection: {
+                                ...snowflakeCredentials,
+                                requireUserCredentials: true,
+                                authenticationType,
+                            },
+                        },
+                    ),
+                ).rejects.toThrow(
+                    'External browser authentication is not supported for an extra Snowflake connection.',
+                );
+                expect(
+                    testWarehouseConnectionCredentials,
+                ).not.toHaveBeenCalled();
+            },
+        );
 
-        test('applies Snowflake authentication rules when editing an extra connection', async () => {
-            const fixture = await createProject({
-                mode: 'multi',
-                warehouseType: WarehouseTypes.SNOWFLAKE,
-                credentials: snowflakeCredentials,
-            });
-            const service = buildService();
-            const created = await service.create(
-                fixture.credentialsAdmin,
-                fixture.projectUuid,
-                { name: 'Extra', warehouseConnection: snowflakeCredentials },
-            );
-            testWarehouseConnectionCredentials.mockClear();
-            await expect(
-                service.update(
+        test.each([
+            SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+            SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
+        ])(
+            'applies Snowflake authentication rules when editing an extra connection (%s)',
+            async (authenticationType) => {
+                const fixture = await createProject({
+                    mode: 'multi',
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                    credentials: snowflakeCredentials,
+                });
+                const service = buildService();
+                const created = await service.create(
                     fixture.credentialsAdmin,
                     fixture.projectUuid,
-                    created.warehouseConnectionUuid,
                     {
-                        warehouseConnection: {
-                            ...snowflakeCredentials,
-                            authenticationType:
-                                SnowflakeAuthenticationType.NONE,
-                        },
+                        name: 'Extra',
+                        warehouseConnection: snowflakeCredentials,
                     },
-                ),
-            ).rejects.toThrow(
-                'A Snowflake connection without shared credentials requires users to provide their own credentials on the original connection.',
-            );
-            await expect(
-                service.update(
-                    fixture.credentialsAdmin,
-                    fixture.projectUuid,
-                    created.warehouseConnectionUuid,
-                    {
-                        warehouseConnection: {
-                            ...snowflakeCredentials,
-                            authenticationType:
-                                SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+                );
+                testWarehouseConnectionCredentials.mockClear();
+                await expect(
+                    service.update(
+                        fixture.credentialsAdmin,
+                        fixture.projectUuid,
+                        created.warehouseConnectionUuid,
+                        {
+                            warehouseConnection: {
+                                ...snowflakeCredentials,
+                                authenticationType:
+                                    SnowflakeAuthenticationType.NONE,
+                            },
                         },
-                    },
-                ),
-            ).rejects.toThrow(
-                'External browser authentication is not supported for an extra Snowflake connection.',
-            );
-            expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
-        });
+                    ),
+                ).rejects.toThrow(
+                    'A Snowflake connection without shared credentials requires users to provide their own credentials for this project.',
+                );
+                await expect(
+                    service.update(
+                        fixture.credentialsAdmin,
+                        fixture.projectUuid,
+                        created.warehouseConnectionUuid,
+                        {
+                            warehouseConnection: {
+                                ...snowflakeCredentials,
+                                authenticationType,
+                            },
+                        },
+                    ),
+                ).rejects.toThrow(
+                    'External browser authentication is not supported for an extra Snowflake connection.',
+                );
+                expect(
+                    testWarehouseConnectionCredentials,
+                ).not.toHaveBeenCalled();
+            },
+        );
 
         test('saves a Snowflake SSO form payload with the resolved refresh token for later queries and updates', async () => {
             const fixture = await createProject({
@@ -811,27 +829,23 @@ describe('WarehouseConnectionService on the real schema', () => {
             expect(await countConnections(fixture.projectUuid)).toBe(2);
         });
 
-        test('refuses a project whose warehouse type cannot hold several connections', async () => {
+        test('refuses a backend-managed analytics primary connection', async () => {
+            const analyticsCredentials: CreateWarehouseCredentials = {
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.ANALYTICS,
+                database: 'memory',
+                schema: 'main',
+            };
             const fixture = await createProject({
                 mode: 'multi',
-                warehouseType: WarehouseTypes.REDSHIFT,
-                credentials: {
-                    ...postgresCredentials,
-                    type: WarehouseTypes.REDSHIFT,
-                } as CreateWarehouseCredentials,
+                warehouseType: WarehouseTypes.DUCKDB,
+                credentials: analyticsCredentials,
             });
-
             await expect(
                 buildService().create(
                     fixture.credentialsAdmin,
                     fixture.projectUuid,
-                    {
-                        name: 'Finance',
-                        warehouseConnection: {
-                            ...postgresCredentials,
-                            type: WarehouseTypes.REDSHIFT,
-                        } as CreateWarehouseCredentials,
-                    },
+                    { name: 'Extra', warehouseConnection: postgresCredentials },
                 ),
             ).rejects.toEqual(new ForbiddenError(WAREHOUSE_TYPE_REASON));
         });
@@ -1017,7 +1031,7 @@ describe('WarehouseConnectionService on the real schema', () => {
                 ),
             ).rejects.toEqual(
                 new ParameterError(
-                    'Snowflake OAuth authorization code authentication is only supported in the CLI and cannot be saved on a project',
+                    'External browser authentication is not supported for an extra Snowflake connection.',
                 ),
             );
             expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();

@@ -517,11 +517,16 @@ Affected charts:
 
     private async getWarehouseSqlBuilder(
         projectUuid: UUID,
+        tableName: string,
     ): Promise<WarehouseSqlBuilder> {
+        const explore = await this.getExploreContainingTable(
+            projectUuid,
+            tableName,
+        );
         const credentials =
-            await this.projectModel.getWarehouseCredentialsForBinding(
+            await this.projectModel.getWarehouseConnectionForBinding(
                 projectUuid,
-                { kind: 'original' },
+                { kind: 'explore', exploreName: explore.name },
             );
         return warehouseSqlBuilderFromType(
             credentials.type,
@@ -543,13 +548,35 @@ Affected charts:
                     writebacks.items.filter(ofModel(model)),
                 );
         }
-        const warehouseSqlBuilder =
-            await this.getWarehouseSqlBuilder(projectUuid);
-        return (editor, model) =>
-            editor.addCustomDimensions(
+        const builders = new Map(
+            await Promise.all(
+                [
+                    ...new Set(
+                        writebacks.items.map((item) => item.column.model),
+                    ),
+                ].map(
+                    async (model) =>
+                        [
+                            model,
+                            await this.getWarehouseSqlBuilder(
+                                projectUuid,
+                                model,
+                            ),
+                        ] as const,
+                ),
+            ),
+        );
+        return (editor, model) => {
+            const builder = builders.get(model);
+            if (!builder)
+                throw new ParameterError(
+                    `No warehouse connection found for model "${model}".`,
+                );
+            return editor.addCustomDimensions(
                 writebacks.items.filter(ofModel(model)),
-                warehouseSqlBuilder,
+                builder,
             );
+        };
     }
 
     private async prepareFileUpdates(
@@ -1009,8 +1036,6 @@ Affected charts:
             projectUuid,
             yamlQuoteChar,
         );
-        const warehouseSqlBuilder =
-            await this.getWarehouseSqlBuilder(projectUuid);
         const writebacks = await this.createColumnResolver(projectUuid)(
             customDimensions,
             resolveCustomDimensionWritebackColumn,
@@ -1020,7 +1045,26 @@ Affected charts:
             [...new Set(writebacks.map((item) => item.column.model))],
         );
         const definitions: Record<string, unknown> = {};
+        const builders = new Map(
+            await Promise.all(
+                [...files.keys()].map(
+                    async (model) =>
+                        [
+                            model,
+                            await this.getWarehouseSqlBuilder(
+                                projectUuid,
+                                model,
+                            ),
+                        ] as const,
+                ),
+            ),
+        );
         files.forEach((file, model) => {
+            const warehouseSqlBuilder = builders.get(model);
+            if (!warehouseSqlBuilder)
+                throw new ParameterError(
+                    `No warehouse connection found for model "${model}".`,
+                );
             writebacks
                 .filter((item) => item.column.model === model)
                 .forEach((item) => {

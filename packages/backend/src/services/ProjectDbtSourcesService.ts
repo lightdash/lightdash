@@ -151,15 +151,20 @@ export class ProjectDbtSourcesService extends BaseService {
     private async resolveWarehouseLocation(
         projectUuid: string,
         warehouseLocation: WarehouseLocation | undefined,
+        warehouseConnectionUuid: string | null,
     ): Promise<WarehouseLocation | undefined> {
         if (!warehouseLocation) {
             return undefined;
         }
         const location = normalizeWarehouseLocation(warehouseLocation);
-        const project = await this.projectModel.get(projectUuid);
-        if (project.warehouseConnection) {
-            validateWarehouseLocation(project.warehouseConnection, location);
-        }
+        const connection =
+            warehouseConnectionUuid === null
+                ? (await this.projectModel.get(projectUuid)).warehouseConnection
+                : await this.projectModel.getWarehouseConnectionForBinding(
+                      projectUuid,
+                      { kind: 'connection', warehouseConnectionUuid },
+                  );
+        if (connection) validateWarehouseLocation(connection, location);
         return location;
     }
 
@@ -287,6 +292,7 @@ export class ProjectDbtSourcesService extends BaseService {
         const warehouseLocation = await this.resolveWarehouseLocation(
             projectUuid,
             data.warehouseLocation,
+            null,
         );
         const identity =
             await this.projectModel.getDbtSourceIdentity(projectUuid);
@@ -447,9 +453,20 @@ export class ProjectDbtSourcesService extends BaseService {
                 data.dbtConnection,
             );
         }
+        const boundSource = data.warehouseLocation
+            ? (
+                  await this.projectDbtSourcesModel.getSourcesWithBindings(
+                      projectUuid,
+                  )
+              ).find(
+                  (source) =>
+                      source.projectDbtSourceUuid === projectDbtSourceUuid,
+              )
+            : null;
         const warehouseLocation = await this.resolveWarehouseLocation(
             projectUuid,
             data.warehouseLocation,
+            boundSource?.warehouseConnectionUuid ?? null,
         );
         // The edit form receives the connection with secrets stripped; restore
         // any the user did not re-enter from the stored connection.

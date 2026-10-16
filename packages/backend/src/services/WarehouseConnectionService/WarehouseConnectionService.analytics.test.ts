@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     ConflictError,
+    DuckdbConnectionType,
     FeatureFlags,
     ProjectType,
     WarehouseTypes,
@@ -19,6 +20,7 @@ import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCr
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
+import { warehouseConnectionCredentials } from './warehouseConnectionFixtures.mock';
 import { WarehouseConnectionService } from './WarehouseConnectionService';
 
 const projectUuid = 'project-uuid';
@@ -147,14 +149,15 @@ const buildService = (mixedTypesEnabled = false) => {
                 }),
             ),
     };
+    const projectModel = {
+        getSummary: vi.fn().mockResolvedValue(summary),
+        getWarehouseCredentialsForProject: vi
+            .fn()
+            .mockResolvedValue(credentials),
+    };
     const service = new WarehouseConnectionService({
         warehouseConnectionModel: model as unknown as WarehouseConnectionModel,
-        projectModel: {
-            getSummary: vi.fn().mockResolvedValue(summary),
-            getWarehouseCredentialsForProject: vi
-                .fn()
-                .mockResolvedValue(credentials),
-        } as unknown as Pick<
+        projectModel: projectModel as unknown as Pick<
             ProjectModel,
             'getSummary' | 'getWarehouseCredentialsForProject'
         >,
@@ -168,7 +171,14 @@ const buildService = (mixedTypesEnabled = false) => {
         credentialPolicy,
         analytics,
     });
-    return { service, model, analytics, featureFlagService, credentialPolicy };
+    return {
+        service,
+        model,
+        analytics,
+        featureFlagService,
+        credentialPolicy,
+        projectModel,
+    };
 };
 
 describe('WarehouseConnectionService lifecycle analytics', () => {
@@ -373,7 +383,7 @@ describe('WarehouseConnectionService mixed warehouse types', () => {
     );
 
     it.each(['create', 'update'] as const)(
-        'refuses a BigQuery organization extra with the flag on on %s',
+        'allows a BigQuery organization extra with the flag on on %s',
         async (operation) => {
             const { service, model } = buildService(true);
             model.get.mockResolvedValue(connection(extraUuid, false));
@@ -385,13 +395,10 @@ describe('WarehouseConnectionService mixed warehouse types', () => {
                 organizationWarehouseCredentialsUuid:
                     'organization-credentials-uuid',
             };
-            await expect(
-                operation === 'create'
-                    ? service.create(account, projectUuid, request)
-                    : service.update(account, projectUuid, extraUuid, request),
-            ).rejects.toThrow(
-                'An extra connection must use the same warehouse type as the original connection.',
-            );
+            await (operation === 'create'
+                ? service.create(account, projectUuid, request)
+                : service.update(account, projectUuid, extraUuid, request));
+            expect(model.loadOrganizationCredentials).toHaveBeenCalled();
         },
     );
 
@@ -444,5 +451,134 @@ describe('WarehouseConnectionService mixed warehouse types', () => {
             model.createExtra.mock.calls[0][1].source.credentials
                 .requireUserCredentials,
         ).toBe(true);
+    });
+});
+
+describe('WarehouseConnectionService warehouse matrix', () => {
+    it.each(Object.values(warehouseConnectionCredentials))(
+        'allows $type on a Postgres primary with mixed types enabled',
+        async (warehouseConnection) => {
+            const { service, model } = buildService(true);
+            await service.create(account, projectUuid, {
+                name: warehouseConnection.type,
+                warehouseConnection,
+            });
+            expect(model.createExtra).toHaveBeenCalledWith(
+                project,
+                expect.objectContaining({
+                    warehouseType: warehouseConnection.type,
+                }),
+            );
+        },
+    );
+    it.each(
+        Object.values(warehouseConnectionCredentials).filter(
+            (value) => value.type !== WarehouseTypes.POSTGRES,
+        ),
+    )(
+        'refuses $type on a Postgres primary with mixed types disabled',
+        async (warehouseConnection) => {
+            const { service, model, credentialPolicy } = buildService(false);
+            await expect(
+                service.create(account, projectUuid, {
+                    name: warehouseConnection.type,
+                    warehouseConnection,
+                }),
+            ).rejects.toThrow('same warehouse type');
+            expect(model.createExtra).not.toHaveBeenCalled();
+            expect(
+                credentialPolicy.testWarehouseConnectionCredentialsForSave,
+            ).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['project', 'organization'] as const)(
+        'refuses internal analytics from %s credentials',
+        async (kind) => {
+            const { service, model } = buildService(true);
+            const warehouseConnection = {
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.ANALYTICS,
+                database: 'memory',
+                schema: 'main',
+            } as const;
+            model.loadOrganizationCredentials.mockResolvedValue(
+                warehouseConnection,
+            );
+            await expect(
+                service.create(account, projectUuid, {
+                    name: 'Analytics',
+                    ...(kind === 'project'
+                        ? { warehouseConnection }
+                        : {
+                              organizationWarehouseCredentialsUuid:
+                                  'org-credentials',
+                          }),
+                }),
+            ).rejects.toThrow('Internal analytics');
+            expect(model.createExtra).not.toHaveBeenCalled();
+        },
+    );
+});
+
+describe('WarehouseConnectionService database listing validation', () => {
+    it.each(
+        Object.values(warehouseConnectionCredentials).filter(
+            (candidate) =>
+                candidate.type !== WarehouseTypes.POSTGRES &&
+                candidate.type !== WarehouseTypes.ATHENA,
+        ),
+    )(
+        'refuses database listing on $type at create and update',
+        async (warehouseConnection) => {
+            const { service, model, credentialPolicy } = buildService(true);
+            await expect(
+                service.create(account, projectUuid, {
+                    name: 'Extra',
+                    warehouseConnection,
+                    additionalDatabases: ['ignored'],
+                }),
+            ).rejects.toThrow('Database listing settings are not supported');
+            model.get.mockResolvedValue({
+                ...connection(extraUuid, false),
+                warehouseType: warehouseConnection.type,
+            });
+            await expect(
+                service.update(account, projectUuid, extraUuid, {
+                    listAllDatabases: true,
+                }),
+            ).rejects.toThrow('Database listing settings are not supported');
+            expect(model.createExtra).not.toHaveBeenCalled();
+            expect(model.updateListingSettings).not.toHaveBeenCalled();
+            expect(
+                credentialPolicy.testWarehouseConnectionCredentialsForSave,
+            ).not.toHaveBeenCalled();
+        },
+    );
+});
+
+describe('WarehouseConnectionService primary DuckDB variants', () => {
+    it('refuses an analytics primary before testing the extra', async () => {
+        const { service, model, projectModel, credentialPolicy } =
+            buildService(true);
+        model.getProject.mockResolvedValue({
+            ...project,
+            originalWarehouseType: WarehouseTypes.DUCKDB,
+        });
+        projectModel.getWarehouseCredentialsForProject.mockResolvedValue({
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.ANALYTICS,
+            database: 'memory',
+            schema: 'main',
+        });
+        await expect(
+            service.create(account, projectUuid, {
+                name: 'Extra',
+                warehouseConnection: trinoCredentials,
+            }),
+        ).rejects.toThrow('user-connectable warehouse connection');
+        expect(
+            credentialPolicy.testWarehouseConnectionCredentialsForSave,
+        ).not.toHaveBeenCalled();
+        expect(model.createExtra).not.toHaveBeenCalled();
     });
 });

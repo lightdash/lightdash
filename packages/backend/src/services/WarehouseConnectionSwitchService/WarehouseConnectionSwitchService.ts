@@ -5,10 +5,10 @@ import {
     ConflictError,
     FeatureFlags,
     ForbiddenError,
+    isUserConnectableWarehouseConnection,
     ParameterError,
     ProjectType,
     sensitiveCredentialsFieldNames,
-    SnowflakeAuthenticationType,
     validateWarehouseConnectionName,
     WAREHOUSE_CONNECTION_ALREADY_MULTI_MESSAGE,
     WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE,
@@ -45,7 +45,11 @@ import {
 import { BaseService } from '../BaseService';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
-import { shouldTestExtraCredentials } from '../WarehouseConnectionService/extraConnectionAuthentication';
+import {
+    assertExtraConnectionAuthentication,
+    shouldTestExtraCredentials,
+} from '../WarehouseConnectionService/extraConnectionAuthentication';
+import { assertExtraConnectionSettings } from '../WarehouseConnectionService/extraConnectionSettings';
 import {
     ENTITLEMENT_REASON,
     getMultipleConnectionsBlockReason,
@@ -333,6 +337,16 @@ export class WarehouseConnectionSwitchService extends BaseService {
         ) {
             return DEFAULT_PROJECT_ONLY_REASON;
         }
+        if (
+            project.originalWarehouseType === WarehouseTypes.DUCKDB &&
+            !isUserConnectableWarehouseConnection(
+                await this.projectModel.getWarehouseCredentialsForProject(
+                    project.projectUuid,
+                ),
+            )
+        ) {
+            return WAREHOUSE_TYPE_REASON;
+        }
         const gateReason = await getMultipleConnectionsBlockReason(
             {
                 licenseService: this.licenseService,
@@ -406,6 +420,9 @@ export class WarehouseConnectionSwitchService extends BaseService {
         source: WarehouseConnectionCredentialSource,
         credentials: CreateWarehouseCredentials | null,
     ): void {
+        if (credentials !== null) {
+            assertExtraConnectionAuthentication(credentials);
+        }
         this.credentialPolicy.assertCanWriteWarehouseConnection(
             account,
             summary,
@@ -554,14 +571,6 @@ export class WarehouseConnectionSwitchService extends BaseService {
         const source = WarehouseConnectionSwitchService.toSource(
             request.connection,
         );
-        if (
-            source.kind === 'project' &&
-            source.credentials.type === WarehouseTypes.SNOWFLAKE &&
-            source.credentials.authenticationType ===
-                SnowflakeAuthenticationType.EXTERNAL_BROWSER
-        ) {
-            shouldTestExtraCredentials(source.credentials);
-        }
         this.assertCanWrite(
             account,
             summary,
@@ -610,27 +619,17 @@ export class WarehouseConnectionSwitchService extends BaseService {
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
             );
-        let effectiveCredentials = credentials;
-        if (
-            source.kind === 'project' &&
-            (credentials.type === WarehouseTypes.POSTGRES ||
-                credentials.type === WarehouseTypes.ATHENA ||
-                credentials.type === WarehouseTypes.SNOWFLAKE ||
-                credentials.type === WarehouseTypes.TRINO)
-        ) {
-            if (credentials.type !== original.type) {
-                effectiveCredentials = {
-                    ...credentials,
-                    requireUserCredentials:
-                        credentials.requireUserCredentials ?? false,
-                };
-            } else if (credentials.type === WarehouseTypes.SNOWFLAKE) {
-                effectiveCredentials = {
-                    ...credentials,
-                    requireUserCredentials: original.requireUserCredentials,
-                };
-            }
-        }
+        assertExtraConnectionSettings(credentials, request.connection);
+        const effectiveCredentials: CreateWarehouseCredentials =
+            source.kind === 'project'
+                ? {
+                      ...credentials,
+                      requireUserCredentials:
+                          credentials.type === original.type
+                              ? original.requireUserCredentials
+                              : (credentials.requireUserCredentials ?? false),
+                  }
+                : credentials;
         const needsTest = shouldTestExtraCredentials(effectiveCredentials);
         const resolvedCredentials = needsTest
             ? await this.assertConnectionWorks(

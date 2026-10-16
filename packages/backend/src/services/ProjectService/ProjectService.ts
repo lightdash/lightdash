@@ -5755,10 +5755,34 @@ export class ProjectService
             );
         }
 
+        const startOfWeekByExplore = new Map(
+            await Promise.all(
+                explores
+                    .filter(
+                        (explore) =>
+                            this.lightdashConfig.preAggregates.enabled &&
+                            explore.preAggregates?.length,
+                    )
+                    .map(
+                        async (explore) =>
+                            [
+                                explore.name,
+                                (
+                                    await this.projectModel.getWarehouseConnectionForDeploy(
+                                        projectUuid,
+                                        explore.name,
+                                        cliDeploy.sourceUuid,
+                                    )
+                                ).startOfWeek ?? null,
+                            ] as const,
+                    ),
+            ),
+        );
         const exploresWithPreAggregates = enhanceExploresForPreAggregates({
             explores,
             enabled: this.lightdashConfig.preAggregates.enabled,
             startOfWeek: project.warehouseConnection?.startOfWeek ?? null,
+            startOfWeekByExplore,
         });
 
         await this.saveDeployExplores({
@@ -13599,15 +13623,36 @@ export class ProjectService
             undefined,
             false,
         );
+        const [warehouseConnectionUuid, settings, target] = await Promise.all([
+            this.projectModel.getExploreWarehouseConnectionUuid(
+                projectUuid,
+                exploreName,
+            ),
+            this.getWarehouseSqlBuilderSettings(projectUuid, {
+                kind: 'explore',
+                exploreName,
+            }),
+            this.projectModel.resolveWarehouseCredentialRead(projectUuid, {
+                kind: 'explore',
+                exploreName,
+            }),
+        ]);
         return {
             ...(this.cannotViewEmbedCompiledSql(account, projectUuid)
                 ? redactExploreSql(explore)
                 : explore),
-            warehouseConnectionUuid:
-                await this.projectModel.getExploreWarehouseConnectionUuid(
-                    projectUuid,
-                    exploreName,
-                ),
+            warehouseConnectionUuid,
+            warehouseConnection: {
+                warehouseConnectionUuid:
+                    target.kind === 'extra'
+                        ? target.warehouseConnectionUuid
+                        : null,
+                warehouseType:
+                    explore.type === ExploreType.EXTERNAL_SOURCE
+                        ? WarehouseTypes.DUCKDB
+                        : settings.type,
+                startOfWeek: settings.startOfWeek,
+            },
         };
     }
 

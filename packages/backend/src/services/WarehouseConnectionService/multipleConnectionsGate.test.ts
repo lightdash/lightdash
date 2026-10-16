@@ -46,7 +46,7 @@ describe('multiple connections gate', () => {
             });
         },
     );
-    it('refuses BigQuery before resolving rollout flags', async () => {
+    it('refuses a missing original connection before resolving rollout flags', async () => {
         const featureFlagService = { get: vi.fn<FeatureFlagService['get']>() };
         expect(
             await getMultipleConnectionsBlockReason(
@@ -61,11 +61,11 @@ describe('multiple connections gate', () => {
                 account,
                 {
                     organizationUuid: 'organization-uuid',
-                    originalWarehouseType: WarehouseTypes.BIGQUERY,
+                    originalWarehouseType: null,
                 },
             ),
         ).toBe(WAREHOUSE_TYPE_REASON);
         expect(featureFlagService.get).not.toHaveBeenCalled();
-        expect(WAREHOUSE_TYPE_REASON).toContain('Trino');
+        expect(WAREHOUSE_TYPE_REASON).toContain('user-connectable');
     });
 });

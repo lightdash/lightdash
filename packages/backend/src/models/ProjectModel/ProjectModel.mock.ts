@@ -467,6 +467,29 @@ export const singleRouteProjectModelMethods = {
             originalWarehouseConnectionUuid: null,
         };
     },
+    async getWarehouseConnectionForBinding(
+        this: {
+            getWarehouseCredentialsForProject: (
+                requestedProjectUuid: string,
+            ) => unknown;
+        },
+        requestedProjectUuid: string,
+    ) {
+        return this.getWarehouseCredentialsForProject(requestedProjectUuid);
+    },
+    async getWarehouseConnectionForDeploy(
+        this: {
+            getWarehouseCredentialsForProject: (
+                requestedProjectUuid: string,
+            ) => unknown;
+        },
+        requestedProjectUuid: string,
+    ) {
+        return this.getWarehouseCredentialsForProject(requestedProjectUuid);
+    },
+    async getWarehouseConnectionsMetadata() {
+        return [];
+    },
     async getWarehouseCredentialsForBinding(
         this: {
             getWarehouseCredentialsForProject: (

@@ -1,94 +1,104 @@
 import { describe, expect, it } from 'vitest';
-import { WarehouseTypes } from './projects';
+import {
+    DuckdbConnectionType,
+    DucklakeCatalogType,
+    DucklakeDataPathType,
+    WarehouseTypes,
+} from './projects';
 import {
     canUseExtraConnectionWarehouseType,
-    MIXED_TYPE_EXTRA_CONNECTION_WAREHOUSE_TYPES,
+    isUserConnectableWarehouseConnection,
+    supportsConnectionDatabaseListing,
     supportsMultipleConnections,
 } from './warehouseConnections';
 
-describe('canUseExtraConnectionWarehouseType', () => {
-    it.each(Object.values(WarehouseTypes))(
-        'allows the same type %s with the flag off',
-        (warehouseType) => {
-            expect(
-                canUseExtraConnectionWarehouseType({
-                    originalWarehouseType: warehouseType,
-                    extraWarehouseType: warehouseType,
-                    mixedTypesEnabled: false,
-                }),
-            ).toBe(true);
-        },
-    );
+const types = Object.values(WarehouseTypes);
 
+describe('canUseExtraConnectionWarehouseType', () => {
     it.each(
-        MIXED_TYPE_EXTRA_CONNECTION_WAREHOUSE_TYPES.flatMap(
-            (originalWarehouseType) =>
-                MIXED_TYPE_EXTRA_CONNECTION_WAREHOUSE_TYPES.map(
-                    (extraWarehouseType) => ({
-                        originalWarehouseType,
-                        extraWarehouseType,
-                    }),
-                ),
+        types.flatMap((originalWarehouseType) =>
+            types.map((extraWarehouseType) => ({
+                originalWarehouseType,
+                extraWarehouseType,
+            })),
         ),
-    )('gates $originalWarehouseType to $extraWarehouseType', (types) => {
+    )('gates $originalWarehouseType to $extraWarehouseType', (pair) => {
         expect(
             canUseExtraConnectionWarehouseType({
-                ...types,
+                ...pair,
                 mixedTypesEnabled: true,
             }),
         ).toBe(true);
         expect(
             canUseExtraConnectionWarehouseType({
-                ...types,
+                ...pair,
                 mixedTypesEnabled: false,
             }),
-        ).toBe(types.originalWarehouseType === types.extraWarehouseType);
+        ).toBe(pair.originalWarehouseType === pair.extraWarehouseType);
     });
 
-    it.each(
-        Object.values(WarehouseTypes).filter(
-            (type) =>
-                !MIXED_TYPE_EXTRA_CONNECTION_WAREHOUSE_TYPES.includes(type),
-        ),
-    )(
-        'refuses unsupported mixed type %s in both directions',
-        (warehouseType) => {
+    it.each([true, false])(
+        'refuses a missing original with mixed types %s',
+        (mixedTypesEnabled) => {
             expect(
                 canUseExtraConnectionWarehouseType({
-                    originalWarehouseType: WarehouseTypes.POSTGRES,
-                    extraWarehouseType: warehouseType,
-                    mixedTypesEnabled: true,
-                }),
-            ).toBe(false);
-            expect(
-                canUseExtraConnectionWarehouseType({
-                    originalWarehouseType: warehouseType,
+                    originalWarehouseType: null,
                     extraWarehouseType: WarehouseTypes.TRINO,
-                    mixedTypesEnabled: true,
+                    mixedTypesEnabled,
                 }),
             ).toBe(false);
         },
     );
-
-    it('refuses a missing original type', () => {
-        expect(
-            canUseExtraConnectionWarehouseType({
-                originalWarehouseType: null,
-                extraWarehouseType: WarehouseTypes.TRINO,
-                mixedTypesEnabled: true,
-            }),
-        ).toBe(false);
-    });
 });
 
 describe('supportsMultipleConnections', () => {
-    it('supports a Trino primary', () => {
-        expect(supportsMultipleConnections(WarehouseTypes.TRINO)).toBe(true);
+    it.each(types)('supports user connections of type %s', (type) => {
+        expect(supportsMultipleConnections(type)).toBe(true);
     });
-    it('refuses a missing or unsupported primary', () => {
+    it('requires an original connection', () => {
         expect(supportsMultipleConnections(null)).toBe(false);
-        expect(supportsMultipleConnections(WarehouseTypes.BIGQUERY)).toBe(
-            false,
+    });
+});
+
+describe('isUserConnectableWarehouseConnection', () => {
+    it.each([
+        {
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.MOTHERDUCK,
+            database: 'db',
+            schema: 'main',
+        },
+        {
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.DUCKLAKE,
+            catalog: { type: DucklakeCatalogType.DUCKDB, path: 'catalog.db' },
+            dataPath: { type: DucklakeDataPathType.LOCAL, path: 'data' },
+            schema: 'main',
+        },
+    ] as const)('allows $connectionType', (credentials) => {
+        expect(isUserConnectableWarehouseConnection(credentials)).toBe(true);
+    });
+    it.each([
+        {
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.ANALYTICS,
+            database: 'memory',
+            schema: 'main',
+        },
+        {
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.EMBEDDED,
+            dataset: 'jaffle',
+        },
+    ] as const)('refuses backend-managed $connectionType', (credentials) => {
+        expect(isUserConnectableWarehouseConnection(credentials)).toBe(false);
+    });
+});
+
+describe('supportsConnectionDatabaseListing', () => {
+    it.each(types)('keeps database listing support for %s', (type) => {
+        expect(supportsConnectionDatabaseListing(type)).toBe(
+            type === WarehouseTypes.POSTGRES || type === WarehouseTypes.ATHENA,
         );
     });
 });

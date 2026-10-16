@@ -941,7 +941,7 @@ describe('Enable multiple connections on the real schema', () => {
             await refusesBoth(
                 withoutPersonal,
                 new ParameterError(
-                    'A Snowflake connection without shared credentials requires users to provide their own credentials on the original connection.',
+                    'A Snowflake connection without shared credentials requires users to provide their own credentials for this project.',
                 ),
                 withoutPersonal.admin,
                 request,
@@ -958,32 +958,39 @@ describe('Enable multiple connections on the real schema', () => {
             expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
         });
 
-        test('rejects Snowflake external browser authentication in preview and execution', async () => {
-            const fixture = await createProject({
-                credentials: {
-                    ...snowflakeCredentials,
-                    requireUserCredentials: true,
-                },
-            });
-            await refusesBoth(
-                fixture,
-                new ParameterError(
-                    'External browser authentication is not supported for an extra Snowflake connection.',
-                ),
-                fixture.admin,
-                switchRequest({
-                    connection: {
-                        name: 'Browser',
-                        warehouseConnection: {
-                            ...snowflakeCredentials,
-                            authenticationType:
-                                SnowflakeAuthenticationType.EXTERNAL_BROWSER,
-                        },
+        test.each([
+            SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+            SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
+        ])(
+            'rejects Snowflake interactive authentication in preview and execution (%s)',
+            async (authenticationType) => {
+                const fixture = await createProject({
+                    credentials: {
+                        ...snowflakeCredentials,
+                        requireUserCredentials: true,
                     },
-                }),
-            );
-            expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
-        });
+                });
+                await refusesBoth(
+                    fixture,
+                    new ParameterError(
+                        'External browser authentication is not supported for an extra Snowflake connection.',
+                    ),
+                    fixture.admin,
+                    switchRequest({
+                        connection: {
+                            name: 'Browser',
+                            warehouseConnection: {
+                                ...snowflakeCredentials,
+                                authenticationType,
+                            },
+                        },
+                    }),
+                );
+                expect(
+                    testWarehouseConnectionCredentials,
+                ).not.toHaveBeenCalled();
+            },
+        );
 
         test('saves the resolved Snowflake SSO refresh token when switching', async () => {
             const fixture = await createProject({
@@ -1034,7 +1041,7 @@ describe('Enable multiple connections on the real schema', () => {
             expect(await state(fixture.projectUuid)).toEqual(singleState);
         });
 
-        test('requires the rollout flag, the licence and a supported warehouse type', async () => {
+        test('requires the rollout flag and the licence', async () => {
             const flagged = await createProject();
             flag.enabled = false;
             await refusesBoth(flagged, new ForbiddenError(ROLLOUT_REASON));
@@ -1049,24 +1056,35 @@ describe('Enable multiple connections on the real schema', () => {
                 buildService(false),
             );
 
-            const redshift = await createProject({
-                credentials: redshiftCredentials,
-            });
-            await refusesBoth(
-                redshift,
-                new ForbiddenError(WAREHOUSE_TYPE_REASON),
-                redshift.admin,
-                switchRequest({
-                    connection: {
-                        name: 'Finance',
-                        warehouseConnection: redshiftCredentials,
-                    },
-                }),
-            );
-            for (const fixture of [flagged, unlicensed, redshift]) {
+            for (const fixture of [flagged, unlicensed]) {
                 // eslint-disable-next-line no-await-in-loop
                 expect(await state(fixture.projectUuid)).toEqual(singleState);
             }
+        });
+
+        test('allows a Redshift primary with a same-type extra', async () => {
+            const fixture = await createProject({
+                credentials: redshiftCredentials,
+            });
+            const request = switchRequest({
+                original: {
+                    name: 'Main warehouse',
+                    listAllDatabases: false,
+                    additionalDatabases: [],
+                },
+                connection: {
+                    name: 'Extra',
+                    warehouseConnection: redshiftCredentials,
+                },
+            });
+            await expect(
+                buildService().preview(
+                    fixture.admin,
+                    fixture.projectUuid,
+                    request,
+                ),
+            ).resolves.toBeDefined();
+            expect(await state(fixture.projectUuid)).toEqual(singleState);
         });
 
         test.each([
