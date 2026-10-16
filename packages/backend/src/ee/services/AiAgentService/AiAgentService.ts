@@ -75,6 +75,7 @@ import {
     ApiUpdateAiMcpServerCredentialBody,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
+    assertRegisteredAccount,
     assertUnreachable,
     buildAgentIdentityClaim,
     CatalogType,
@@ -105,6 +106,7 @@ import {
     formatAiThreadFileSize,
     formatMergeQueryRefusal,
     GenerateArtifactQuestionJobPayload,
+    getAgentConnectionGrantRef,
     getAiAgentSkillListingText,
     getAppDisplayName,
     getDataAppVizChartFromArtifact,
@@ -177,6 +179,7 @@ import {
     UserAttributeValueMap,
     validateAgentSuggestion,
     validateAiAgentSkill,
+    type AgentIdentityClaim,
     type AgentSuggestionTool,
     type AgentToolName,
     type AgentWorkMarker,
@@ -326,6 +329,7 @@ import {
     buildResultReader,
     createAgentExecutionContext,
 } from '../../../services/AiAccessService/agentExecutionContext';
+import { type AgentResultReadDecision } from '../../../services/AiAccessService/AiAccessService';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
@@ -9382,6 +9386,45 @@ export class AiAgentService extends BaseService {
             throw new NotFoundError('Original chart results are unavailable');
         }
         return { history, reader };
+    }
+
+    async canPersonReadAgentResult({
+        account,
+        projectUuid,
+        claim,
+    }: {
+        account: Account;
+        projectUuid: string;
+        claim: AgentIdentityClaim;
+    }): Promise<AgentResultReadDecision> {
+        if (
+            !account.isRegisteredUser() ||
+            claim.subject.type !== 'user' ||
+            (claim.act.surface !== AgentActorSurface.IN_APP_AGENT &&
+                claim.act.surface !== AgentActorSurface.SLACK_AGENT) ||
+            claim.act.agent_uuid == null ||
+            getAgentConnectionGrantRef(claim) !== null ||
+            !account.organization.organizationUuid
+        )
+            return 'not_applicable';
+        if (claim.subject.uuid !== account.user.id) return 'other_person';
+        assertRegisteredAccount(account);
+        const { organizationUuid } = account.organization;
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid: claim.act.agent_uuid,
+        });
+        const user = toSessionUser(account);
+        if (
+            agent === null ||
+            agent.projectUuid !== projectUuid ||
+            !(await canAccessAiAgent(user, agent, {
+                auditedAbility: this.createAuditedAbility(user),
+                groupsModel: this.groupsModel,
+            }))
+        )
+            return 'agent_unavailable';
+        return 'allowed';
     }
 
     private async getArtifactOwnerResultReader(

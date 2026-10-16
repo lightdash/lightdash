@@ -376,7 +376,9 @@ describe('artifact result identity boundaries', () => {
                 projectUuid: 'project',
                 queryUuid: 'execution',
             }),
-        ).rejects.toThrow(/Run the query again\.$/);
+        ).rejects.toThrow(
+            'An AI agent produced these results. Run the query again to see them with your own access.',
+        );
         expect(getDownloadStream).not.toHaveBeenCalled();
     });
 
@@ -412,15 +414,19 @@ describe('artifact result identity boundaries', () => {
             };
             if (mismatch === 'missing-producer')
                 history.requestParameters = { sql: 'select 1' };
+            const message =
+                mismatch === 'missing-producer'
+                    ? 'These results are not compatible with your current access. Run the query again.'
+                    : 'A different agent produced these results. Run the query again through this agent.';
             await expect(
                 service.getArtifactVizQuery(user, {
                     ...options,
                     cachedQueryUuid: options.queryUuid,
                 }),
-            ).rejects.toThrow(/Run the query again\.$/);
+            ).rejects.toThrow(message);
             await expect(
                 service.getArtifactQueryResults(user, options),
-            ).rejects.toThrow(/Run the query again\.$/);
+            ).rejects.toThrow(message);
             expect(getDownloadStream).not.toHaveBeenCalled();
         },
     );
@@ -854,7 +860,9 @@ describe('artifact result identity boundaries', () => {
                 projectUuid: 'project',
                 queryUuid: 'execution',
             }),
-        ).rejects.toThrow(/Run the query again\.$/);
+        ).rejects.toThrow(
+            'An AI agent produced these results. Run the query again to see them with your own access.',
+        );
         expect(getDownloadStream).not.toHaveBeenCalled();
         await expect(
             service.getArtifactQueryResults(user, {

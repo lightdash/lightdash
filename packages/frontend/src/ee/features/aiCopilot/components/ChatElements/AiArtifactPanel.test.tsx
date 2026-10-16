@@ -1087,6 +1087,7 @@ describe('alternate artifact visualization identity recovery', () => {
                 projectUuid="project"
                 queryUuid="query"
                 runError={null}
+                onRerun={vi.fn()}
                 results={{ ...mocks.rows(), error }}
                 vizConfig={
                     { type: ChartKind.TABLE } as ComponentProps<

@@ -52,6 +52,7 @@ import {
     type OrganizationAgentIdentitySnowflakeSetup,
     type OrganizationAgentIdentitySnowflakeVerify,
     type QueryHistory,
+    type QueryResultProducer,
     type QueryResultReader,
     type SessionUser,
     type UpdateOrganizationAgentIdentityRule,
@@ -335,7 +336,39 @@ type ResultReadOptions = {
     internalLookup?: boolean;
 };
 
+export type AgentResultReadDecision =
+    | 'allowed'
+    | 'other_person'
+    | 'agent_unavailable'
+    | 'not_applicable';
+
+export type AgentResultReadAccess = {
+    canPersonReadAgentResult(args: {
+        account: Account;
+        projectUuid: string;
+        claim: AgentIdentityClaim;
+    }): Promise<AgentResultReadDecision>;
+};
+
+export const getAgentClaimMismatchMessage = (
+    stored: QueryResultProducer,
+    nodeReader: QueryResultReader,
+    decision: AgentResultReadDecision | null,
+): string => {
+    if (nodeReader.kind === 'person') {
+        if (decision === 'other_person')
+            return 'An AI agent produced these results for another person. Run the query again to see them with your own access.';
+        if (decision === 'agent_unavailable')
+            return 'These results came from an AI agent you can no longer use. Run the query again to see them with your own access.';
+        return 'An AI agent produced these results. Run the query again to see them with your own access.';
+    }
+    if (stored.agentIdentity === null)
+        return 'A person produced these results, so the agent cannot reuse them. Run the query again through the agent.';
+    return 'A different agent produced these results. Run the query again through this agent.';
+};
+
 type AiAccessServiceArguments = {
+    getAgentResultReadAccess?: () => AgentResultReadAccess | null;
     getAgentConnectionGrantService?: () => AgentConnectionGrantService;
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     getWarehouseClientFactory?: () => WarehouseClientFactory;
@@ -364,6 +397,10 @@ type AiAccessServiceArguments = {
 };
 
 export class AiAccessService extends BaseService {
+    private readonly getAgentResultReadAccess:
+        | (() => AgentResultReadAccess | null)
+        | null;
+
     private readonly getAgentConnectionGrantService:
         | (() => AgentConnectionGrantService)
         | null;
@@ -414,6 +451,7 @@ export class AiAccessService extends BaseService {
     private readonly agentSignInRegistry: CredentialResolverRegistry;
 
     constructor({
+        getAgentResultReadAccess,
         getAgentConnectionGrantService,
         agentActionLogModel,
         getWarehouseClientFactory,
@@ -432,6 +470,7 @@ export class AiAccessService extends BaseService {
         agentSignInCredentialResolver,
     }: AiAccessServiceArguments) {
         super();
+        this.getAgentResultReadAccess = getAgentResultReadAccess ?? null;
         this.getAgentConnectionGrantService =
             getAgentConnectionGrantService ?? null;
         this.agentActionLogModel = agentActionLogModel;
@@ -2018,14 +2057,46 @@ export class AiAccessService extends BaseService {
             ? await refreshAccount()
             : account;
         let currentEntitlement: ResultEntitlementFingerprintForms | null = null;
-        const agentActor =
-            reader.kind === 'agent'
+        const agentResultReadAccess = this.getAgentResultReadAccess?.() ?? null;
+        const personReadDecisions = new Map<
+            string,
+            Promise<AgentResultReadDecision>
+        >();
+        const decideNodeReader = async (
+            node: QueryHistory,
+        ): Promise<{
+            reader: QueryResultReader;
+            decision: AgentResultReadDecision | null;
+        }> => {
+            const claim =
+                node.requestParameters?.resultProducer?.agentIdentity ?? null;
+            if (reader.kind !== 'person' || claim === null)
+                return { reader, decision: null };
+            if (agentResultReadAccess === null)
+                return { reader, decision: 'not_applicable' };
+            const key = `${claim.sub}|${claim.act.sub}|${claim.act.agent_uuid ?? ''}`;
+            let decision = personReadDecisions.get(key);
+            if (!decision) {
+                decision = agentResultReadAccess.canPersonReadAgentResult({
+                    account: currentAccount,
+                    projectUuid,
+                    claim,
+                });
+                personReadDecisions.set(key, decision);
+            }
+            const resolved = await decision;
+            return resolved === 'allowed'
                 ? {
-                      surface: reader.claim.act.surface,
-                      clientId: reader.claim.act.client_id,
-                      agentUuid: reader.claim.act.agent_uuid,
+                      reader: {
+                          kind: 'agent',
+                          claim,
+                          authMethod: reader.authMethod,
+                      },
+                      decision: resolved,
                   }
-                : null;
+                : { reader, decision: resolved };
+        };
+        const nodeReaders = new Map<string, QueryResultReader>();
         if (enabled) onIdentityEnabled?.();
         const visited = new Set(
             uniqueRoots.map((root) => root.queryHistory.queryUuid),
@@ -2057,12 +2128,14 @@ export class AiAccessService extends BaseService {
             refusedNode: string,
             reason: string,
             depth: number | null = null,
+            message?: string,
         ) => {
             logLineageRefusal(refusedNode, reason, depth);
             return new AiAccessRefusedError(
                 AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
                 {
                     message:
+                        message ??
                         'These results are not compatible with your current access. Run the query again.',
                 },
             );
@@ -2214,7 +2287,7 @@ export class AiAccessService extends BaseService {
             WarehouseTypes
         >();
         const plansByConnection = new Map<
-            string | null,
+            string,
             Promise<AiExecutionPlan | null>
         >();
         const legacyAgentConnections = new Set(
@@ -2231,7 +2304,7 @@ export class AiAccessService extends BaseService {
         );
         const producerChecks: (() => Promise<void>)[] = [];
         const currentProducers = new Map<
-            string | null,
+            string,
             ReturnType<typeof WarehouseClientFactory.getResultProducer>
         >();
         await [...nodes.values()].reduce(
@@ -2242,6 +2315,17 @@ export class AiAccessService extends BaseService {
                 await previous;
                 const uuid = node.queryUuid;
                 await authorizeNode?.(node);
+                const { reader: nodeReader, decision } =
+                    await decideNodeReader(node);
+                nodeReaders.set(uuid, nodeReader);
+                const nodeAgentActor =
+                    nodeReader.kind === 'agent'
+                        ? {
+                              surface: nodeReader.claim.act.surface,
+                              clientId: nodeReader.claim.act.client_id,
+                              agentUuid: nodeReader.claim.act.agent_uuid,
+                          }
+                        : null;
                 const storedProducer = node.requestParameters?.resultProducer;
                 const checksEnabled =
                     getAgentConnectionGrantRef(node.agentIdentity) != null ||
@@ -2264,9 +2348,18 @@ export class AiAccessService extends BaseService {
                             storedProducer?.credentialOwner.kind ===
                                 'no_warehouse_data') &&
                         (!storedProducer ||
-                            !isSameResultReader(storedProducer, reader))
+                            !isSameResultReader(storedProducer, nodeReader))
                     )
-                        throw refuse(uuid, 'agent_claim_mismatch');
+                        throw refuse(
+                            uuid,
+                            'agent_claim_mismatch',
+                            null,
+                            getAgentClaimMismatchMessage(
+                                storedProducer,
+                                nodeReader,
+                                decision,
+                            ),
+                        );
                 }
                 if (
                     storedProducer?.version === 1 &&
@@ -2290,9 +2383,8 @@ export class AiAccessService extends BaseService {
                 }
                 const warehouseConnectionUuid =
                     node.warehouseConnectionUuid ?? null;
-                let planPromise = plansByConnection.get(
-                    warehouseConnectionUuid,
-                );
+                const readerConnectionKey = `${warehouseConnectionUuid ?? ''}|${nodeReader.kind === 'agent' ? `${nodeReader.claim.sub}|${nodeReader.claim.act.sub}|${nodeReader.claim.act.agent_uuid ?? ''}` : 'person'}`;
+                let planPromise = plansByConnection.get(readerConnectionKey);
                 if (!planPromise) {
                     planPromise = (async () => {
                         const connection = await (async () =>
@@ -2331,7 +2423,7 @@ export class AiAccessService extends BaseService {
                             connection.type,
                         );
                         if (
-                            reader.kind === 'person' &&
+                            nodeReader.kind === 'person' &&
                             (checksEnabled ||
                                 !legacyAgentConnections.has(
                                     warehouseConnectionUuid,
@@ -2340,7 +2432,7 @@ export class AiAccessService extends BaseService {
                             return null;
                         return this.resolveEnabledPlan({
                             evaluation,
-                            agentActor,
+                            agentActor: nodeAgentActor,
                             projectUuid,
                             organizationUuid,
                             warehouseConnectionUuid,
@@ -2351,7 +2443,7 @@ export class AiAccessService extends BaseService {
                             isServiceAccount: currentAccount.isServiceAccount(),
                         });
                     })();
-                    plansByConnection.set(warehouseConnectionUuid, planPromise);
+                    plansByConnection.set(readerConnectionKey, planPromise);
                 }
                 const plan = await planPromise.catch((error: unknown) => {
                     if (error instanceof AiAccessRefusedError)
@@ -2360,7 +2452,7 @@ export class AiAccessService extends BaseService {
                 });
                 const generation = getAiExecutionCredentialUuid(plan);
                 if (
-                    (reader.kind === 'agent' ||
+                    (nodeReader.kind === 'agent' ||
                         plan !== null ||
                         isDuckdbExecution) &&
                     node.status === QueryHistoryStatus.READY &&
@@ -2372,7 +2464,7 @@ export class AiAccessService extends BaseService {
                     this.trackQueryRefusal(
                         {
                             evaluation,
-                            agentActor,
+                            agentActor: nodeAgentActor,
                             organizationUuid,
                             projectUuid,
                             warehouseConnectionUuid,
@@ -2391,11 +2483,14 @@ export class AiAccessService extends BaseService {
                     throw refuse(uuid, 'credential_generation_mismatch');
                 }
                 producerChecks.push(async () => {
-                    const refuseProducer = (reason: string) => {
+                    const refuseProducer = (
+                        reason: string,
+                        message?: string,
+                    ) => {
                         this.trackQueryRefusal(
                             {
                                 evaluation,
-                                agentActor,
+                                agentActor: nodeAgentActor,
                                 organizationUuid,
                                 projectUuid,
                                 warehouseConnectionUuid,
@@ -2413,7 +2508,7 @@ export class AiAccessService extends BaseService {
                                 ? plan.inheritedFromProjectUuid
                                 : null,
                         );
-                        return refuse(uuid, reason);
+                        return refuse(uuid, reason, null, message);
                     };
                     if (
                         node.status === QueryHistoryStatus.READY &&
@@ -2423,12 +2518,19 @@ export class AiAccessService extends BaseService {
                         if (!producer || producer.version !== 1)
                             throw refuseProducer('missing_producer');
                         const claim =
-                            reader.kind === 'agent' ? reader.claim : null;
-                        if (!isSameResultReader(producer, reader))
-                            throw refuseProducer('agent_claim_mismatch');
-                        let current = currentProducers.get(
-                            warehouseConnectionUuid,
-                        );
+                            nodeReader.kind === 'agent'
+                                ? nodeReader.claim
+                                : null;
+                        if (!isSameResultReader(producer, nodeReader))
+                            throw refuseProducer(
+                                'agent_claim_mismatch',
+                                getAgentClaimMismatchMessage(
+                                    producer,
+                                    nodeReader,
+                                    decision,
+                                ),
+                            );
+                        let current = currentProducers.get(readerConnectionKey);
                         if (!current) {
                             if (plan && plan.identity !== 'marked_person') {
                                 current =
@@ -2442,7 +2544,7 @@ export class AiAccessService extends BaseService {
                                         currentAccount.user.id,
                                         claim,
                                         currentEntitlement?.current ?? null,
-                                        reader.authMethod,
+                                        nodeReader.authMethod,
                                     );
                             } else {
                                 if (!this.getWarehouseClientFactory)
@@ -2473,13 +2575,10 @@ export class AiAccessService extends BaseService {
                                         currentAccount.user.id,
                                         claim,
                                         currentEntitlement?.current ?? null,
-                                        reader.authMethod,
+                                        nodeReader.authMethod,
                                     );
                             }
-                            currentProducers.set(
-                                warehouseConnectionUuid,
-                                current,
-                            );
+                            currentProducers.set(readerConnectionKey, current);
                         }
                         if (!isSameResultProducerOwner(producer, current))
                             throw refuseProducer('producer_mismatch');
@@ -2491,6 +2590,15 @@ export class AiAccessService extends BaseService {
         );
         for (const uuid of ordered) {
             const { queryHistory: node, sources } = nodes.get(uuid)!;
+            const nodeReader = nodeReaders.get(uuid)!;
+            const nodeAgentActor =
+                nodeReader.kind === 'agent'
+                    ? {
+                          surface: nodeReader.claim.act.surface,
+                          clientId: nodeReader.claim.act.client_id,
+                          agentUuid: nodeReader.claim.act.agent_uuid,
+                      }
+                    : null;
             const plan = plans.get(uuid) ?? null;
             const sourcePlans = sources.map(
                 (source) => plans.get(source) ?? null,
@@ -2512,7 +2620,7 @@ export class AiAccessService extends BaseService {
                 this.trackQueryRefusal(
                     {
                         evaluation,
-                        agentActor,
+                        agentActor: nodeAgentActor,
                         organizationUuid,
                         projectUuid,
                         warehouseConnectionUuid:
@@ -2546,6 +2654,7 @@ export class AiAccessService extends BaseService {
                       },
             );
             this.logger.info('Agent result lineage', {
+                readAs: nodeReader.kind,
                 queryUuid: uuid,
                 projectUuid,
                 agentIdentity: node.agentIdentity ?? null,
