@@ -60653,10 +60653,15 @@
             },
             "OrganizationSettings": {
                 "properties": {
+                    "dataAppCapturesEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Whether images of a running data app, and files, may be captured or\nattached anywhere in the data app builder: prompt-bar screenshots, file\nattachments sent to the coding agent, manual and automatic thumbnails,\nand the Slack build-outcome image. Inherits and is capped by the\ninstance-wide `LIGHTDASH_APP_CAPTURES_ENABLED` (the ceiling): an org can\nturn captures off, never back on past the env. `null` inherits it.\nAlways resolved to an effective boolean in API responses."
+                    },
                     "dataAppAutomaticThumbnailsEnabled": {
                         "type": "boolean",
                         "nullable": true,
-                        "description": "Whether a data app version gets a thumbnail captured automatically when\nit becomes ready. On unless the org turned it off, so `null` (or no\nstored row) resolves to `true`."
+                        "description": "Whether a data app version gets a thumbnail captured automatically when\nit becomes ready. On unless the org turned it off, so `null` (or no\nstored row) resolves to `true`. Always resolved to `false` while\n{@link OrganizationSettings.dataAppCapturesEnabled} is off."
                     },
                     "corsAllowedDomains": {
                         "items": {
@@ -60736,6 +60741,7 @@
                     }
                 },
                 "required": [
+                    "dataAppCapturesEnabled",
                     "dataAppAutomaticThumbnailsEnabled",
                     "corsAllowedDomains",
                     "csvCellsLimit",
@@ -60849,7 +60855,12 @@
                     "dataAppAutomaticThumbnailsEnabled": {
                         "type": "boolean",
                         "nullable": true,
-                        "description": "Whether a data app version gets a thumbnail captured automatically when\nit becomes ready. On unless the org turned it off, so `null` (or no\nstored row) resolves to `true`."
+                        "description": "Whether a data app version gets a thumbnail captured automatically when\nit becomes ready. On unless the org turned it off, so `null` (or no\nstored row) resolves to `true`. Always resolved to `false` while\n{@link OrganizationSettings.dataAppCapturesEnabled} is off."
+                    },
+                    "dataAppCapturesEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Whether images of a running data app, and files, may be captured or\nattached anywhere in the data app builder: prompt-bar screenshots, file\nattachments sent to the coding agent, manual and automatic thumbnails,\nand the Slack build-outcome image. Inherits and is capped by the\ninstance-wide `LIGHTDASH_APP_CAPTURES_ENABLED` (the ceiling): an org can\nturn captures off, never back on past the env. `null` inherits it.\nAlways resolved to an effective boolean in API responses."
                     }
                 },
                 "type": "object",
@@ -61144,6 +61155,10 @@
                         "type": "object",
                         "description": "Postgres wire protocol connection details for the semantic layer, only\npopulated on the authenticated `GET /org` response (not the public health\nendpoint). `enabled` reflects whether the instance exposes a pgwire port\nand is returned to every org member; `host`/`port` are the infra endpoint\nclients connect to and are only populated for org admins (null otherwise)."
                     },
+                    "dataAppCapturesEnabled": {
+                        "type": "boolean",
+                        "description": "Effective value of the org's \"allow screenshots and attachments in data\napp builds\" switch (the org setting capped by the instance env). Returned\nto every org member on the authenticated `GET /org` response so the\nbuilder can hide the capture affordances for non-admins too; the backend\nenforces it regardless. Absent on older servers — treat as `true`."
+                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -61229,6 +61244,10 @@
                     "colorPaletteUuid": {
                         "type": "string",
                         "description": "The active color palette uuid for all projects in the organization"
+                    },
+                    "dataAppCapturesEnabled": {
+                        "type": "boolean",
+                        "description": "Effective value of the org's \"allow screenshots and attachments in data\napp builds\" switch (the org setting capped by the instance env). Returned\nto every org member on the authenticated `GET /org` response so the\nbuilder can hide the capture affordances for non-admins too; the backend\nenforces it regardless. Absent on older servers — treat as `true`."
                     },
                     "chartColors": {
                         "items": {
@@ -73236,7 +73255,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.594.0",
+        "version": "2.595.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

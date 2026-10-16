@@ -1,3 +1,15 @@
+# [2.595.0](https://github.com/lightdash/lightdash/compare/2.594.0...2.595.0) (2026-10-16)
+
+
+### Bug Fixes
+
+* render custom tooltips for table calculation axes ([#31078](https://github.com/lightdash/lightdash/issues/31078)) ([c910c01](https://github.com/lightdash/lightdash/commit/c910c0131752079e307c9a60eca7a301783fae63))
+
+
+### Features
+
+* **data-apps:** org switch to disable screenshots, thumbnails and attachments ([#31068](https://github.com/lightdash/lightdash/issues/31068)) ([c61c67d](https://github.com/lightdash/lightdash/commit/c61c67db5c4c7a9dce23cfac6e327ba349cdcc17)), closes [#31063](https://github.com/lightdash/lightdash/issues/31063)
+
 # [2.594.0](https://github.com/lightdash/lightdash/compare/2.593.0...2.594.0) (2026-10-16)
 
 

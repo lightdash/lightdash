@@ -65680,6 +65680,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                dataAppCapturesEnabled: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 dataAppAutomaticThumbnailsEnabled: {
                     dataType: 'union',
                     subSchemas: [
@@ -65919,6 +65927,14 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 dataAppAutomaticThumbnailsEnabled: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                dataAppCapturesEnabled: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'boolean' },
@@ -66211,6 +66227,7 @@ const models: TsoaRoute.Models = {
                         enabled: { dataType: 'boolean', required: true },
                     },
                 },
+                dataAppCapturesEnabled: { dataType: 'boolean' },
                 createdAt: { dataType: 'datetime' },
                 defaultProjectUuid: { dataType: 'string' },
                 needsProject: { dataType: 'boolean' },
@@ -66279,6 +66296,13 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                dataAppCapturesEnabled: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
                         { dataType: 'undefined' },
                     ],
                 },

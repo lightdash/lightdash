@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "2.594.0",
-  "previousVersion": "2.593.0",
-  "releaseDate": "2026-10-16T12:36:34.036Z",
+  "version": "2.595.0",
+  "previousVersion": "2.594.0",
+  "releaseDate": "2026-10-16T12:52:34.217Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261016100000_add_data_app_captures_enabled_to_organization_settings.ts",
+        "edition": "core",
+        "tables": [
+          "organization_settings"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
