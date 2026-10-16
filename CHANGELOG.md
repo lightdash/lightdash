@@ -1,3 +1,10 @@
+## [2.589.5](https://github.com/lightdash/lightdash/compare/2.589.4...2.589.5) (2026-10-16)
+
+
+### Bug Fixes
+
+* **ai:** create AI org settings row when mirroring the first Bedrock credential ([#31060](https://github.com/lightdash/lightdash/issues/31060)) ([1a446d5](https://github.com/lightdash/lightdash/commit/1a446d51eac7e650171ea6d1ab9a58af3da2cf29)), closes [#31001](https://github.com/lightdash/lightdash/issues/31001)
+
 ## [2.589.4](https://github.com/lightdash/lightdash/compare/2.589.3...2.589.4) (2026-10-16)
 
 
