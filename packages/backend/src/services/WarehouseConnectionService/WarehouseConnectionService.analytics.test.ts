@@ -1,8 +1,11 @@
 import { Ability } from '@casl/ability';
 import {
     ConflictError,
+    FeatureFlags,
     ProjectType,
     WarehouseTypes,
+    type CreatePostgresCredentials,
+    type CreateTrinoCredentials,
     type PossibleAbilities,
     type ProjectSummary,
     type WarehouseConnection,
@@ -65,7 +68,25 @@ const connection = (
     updatedAt: new Date('2026-01-01'),
 });
 
-const buildService = () => {
+const credentials: CreatePostgresCredentials = {
+    type: WarehouseTypes.POSTGRES,
+    host: 'localhost',
+    user: 'user',
+    password: 'password',
+    port: 5432,
+    dbname: 'database',
+    schema: 'public',
+    requireUserCredentials: true,
+};
+const trinoCredentials: CreateTrinoCredentials = {
+    ...credentials,
+    type: WarehouseTypes.TRINO,
+    port: 8080,
+    http_scheme: 'http',
+    requireUserCredentials: false,
+};
+
+const buildService = (mixedTypesEnabled = false) => {
     let primary = connection(primaryUuid, true);
     const extra = connection(extraUuid, false);
     const model = {
@@ -87,6 +108,13 @@ const buildService = () => {
         clearOlderSqlChartVersionBindings: vi.fn(),
         deleteExtra: vi.fn(),
         insertEvent: vi.fn(),
+        createExtra: vi.fn().mockResolvedValue({
+            ...extra,
+            warehouseType: WarehouseTypes.TRINO,
+        }),
+        updateExtraCredentials: vi.fn(),
+        getCredentials: vi.fn().mockResolvedValue(credentials),
+        loadOrganizationCredentials: vi.fn(),
         transaction: vi.fn(),
     };
     model.transaction.mockImplementation(
@@ -97,11 +125,35 @@ const buildService = () => {
         ) => run(model as unknown as WarehouseConnectionModel),
     );
     const analytics = { track: vi.fn<LightdashAnalytics['track']>() };
+    const featureFlagService = {
+        get: vi
+            .fn<FeatureFlagService['get']>()
+            .mockImplementation(async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled:
+                    featureFlagId === FeatureFlags.MixedWarehouseConnections
+                        ? mixedTypesEnabled
+                        : true,
+            })),
+    };
+    const credentialPolicy = {
+        assertCanWriteWarehouseConnection: vi.fn(),
+        testWarehouseConnectionCredentialsForSave: vi
+            .fn()
+            .mockImplementation(
+                async (_account, _organizationUuid, warehouseConnection) => ({
+                    credentials: warehouseConnection,
+                    result: { ok: true, hops: [] },
+                }),
+            ),
+    };
     const service = new WarehouseConnectionService({
         warehouseConnectionModel: model as unknown as WarehouseConnectionModel,
         projectModel: {
             getSummary: vi.fn().mockResolvedValue(summary),
-            getWarehouseCredentialsForProject: vi.fn(),
+            getWarehouseCredentialsForProject: vi
+                .fn()
+                .mockResolvedValue(credentials),
         } as unknown as Pick<
             ProjectModel,
             'getSummary' | 'getWarehouseCredentialsForProject'
@@ -109,20 +161,14 @@ const buildService = () => {
         userWarehouseCredentialsModel: {
             getByUuid: vi.fn(),
         } as unknown as Pick<UserWarehouseCredentialsModel, 'getByUuid'>,
-        featureFlagService: { get: vi.fn() } as unknown as Pick<
-            FeatureFlagService,
-            'get'
-        >,
+        featureFlagService,
         licenseService: {
-            canHoldMultipleConnections: vi.fn(),
+            canHoldMultipleConnections: vi.fn().mockReturnValue(true),
         } as unknown as Pick<LicenseService, 'canHoldMultipleConnections'>,
-        credentialPolicy: {
-            assertCanWriteWarehouseConnection: vi.fn(),
-            testWarehouseConnectionCredentialsForSave: vi.fn(),
-        },
+        credentialPolicy,
         analytics,
     });
-    return { service, model, analytics };
+    return { service, model, analytics, featureFlagService, credentialPolicy };
 };
 
 describe('WarehouseConnectionService lifecycle analytics', () => {
@@ -230,5 +276,173 @@ describe('WarehouseConnectionService lifecycle analytics', () => {
                 }),
             }),
         );
+    });
+});
+
+describe('WarehouseConnectionService mixed warehouse types', () => {
+    it.each(['create', 'update'] as const)(
+        'refuses a Trino extra with the flag off on %s',
+        async (operation) => {
+            const { service, model, analytics, credentialPolicy } =
+                buildService();
+            model.get.mockResolvedValue(connection(extraUuid, false));
+            const request = {
+                name: 'Trino',
+                warehouseConnection: trinoCredentials,
+            };
+            await expect(
+                operation === 'create'
+                    ? service.create(account, projectUuid, request)
+                    : service.update(account, projectUuid, extraUuid, request),
+            ).rejects.toThrow(
+                'An extra connection must use the same warehouse type as the original connection.',
+            );
+            expect(
+                credentialPolicy.testWarehouseConnectionCredentialsForSave,
+            ).not.toHaveBeenCalled();
+            expect(analytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'warehouse_connection.action_refused',
+                    properties: expect.objectContaining({
+                        reason: 'warehouse_type_mismatch',
+                    }),
+                }),
+            );
+        },
+    );
+
+    it.each(['create', 'update'] as const)(
+        'allows a Trino extra with its own credential requirement on %s',
+        async (operation) => {
+            const {
+                service,
+                model,
+                analytics,
+                featureFlagService,
+                credentialPolicy,
+            } = buildService(true);
+            model.get.mockResolvedValue(connection(extraUuid, false));
+            const request = {
+                name: 'Trino',
+                warehouseConnection: trinoCredentials,
+            };
+            await (operation === 'create'
+                ? service.create(account, projectUuid, request)
+                : service.update(account, projectUuid, extraUuid, request));
+            expect(
+                credentialPolicy.testWarehouseConnectionCredentialsForSave,
+            ).toHaveBeenCalledWith(
+                account,
+                organizationUuid,
+                expect.objectContaining({
+                    type: WarehouseTypes.TRINO,
+                    requireUserCredentials: false,
+                }),
+            );
+            const savedSource =
+                operation === 'create'
+                    ? model.createExtra.mock.calls[0][1].source
+                    : model.updateExtraCredentials.mock.calls[0][2];
+            expect(savedSource).toEqual({
+                kind: 'project',
+                credentials: trinoCredentials,
+            });
+            expect(
+                featureFlagService.get.mock.calls.filter(
+                    ([args]) =>
+                        args.featureFlagId ===
+                        FeatureFlags.MixedWarehouseConnections,
+                ),
+            ).toEqual([
+                [
+                    {
+                        user: {
+                            userUuid: account.user.userUuid,
+                            organizationUuid,
+                        },
+                        featureFlagId: FeatureFlags.MixedWarehouseConnections,
+                    },
+                ],
+            ]);
+            expect(analytics.track).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'warehouse_connection.action_refused',
+                }),
+            );
+        },
+    );
+
+    it.each(['create', 'update'] as const)(
+        'refuses a BigQuery organization extra with the flag on on %s',
+        async (operation) => {
+            const { service, model } = buildService(true);
+            model.get.mockResolvedValue(connection(extraUuid, false));
+            model.loadOrganizationCredentials.mockResolvedValue({
+                type: WarehouseTypes.BIGQUERY,
+            });
+            const request = {
+                name: 'BigQuery',
+                organizationWarehouseCredentialsUuid:
+                    'organization-credentials-uuid',
+            };
+            await expect(
+                operation === 'create'
+                    ? service.create(account, projectUuid, request)
+                    : service.update(account, projectUuid, extraUuid, request),
+            ).rejects.toThrow(
+                'An extra connection must use the same warehouse type as the original connection.',
+            );
+        },
+    );
+
+    it.each(['create', 'update'] as const)(
+        'rechecks the warehouse type inside the %s transaction with the same flag value',
+        async (operation) => {
+            const { service, model, featureFlagService } = buildService();
+            model.get.mockResolvedValue(connection(extraUuid, false));
+            model.getProject.mockResolvedValueOnce(project).mockResolvedValue({
+                ...project,
+                originalWarehouseType: WarehouseTypes.SNOWFLAKE,
+            });
+            const request = { name: 'Extra', warehouseConnection: credentials };
+            await expect(
+                operation === 'create'
+                    ? service.create(account, projectUuid, request)
+                    : service.update(account, projectUuid, extraUuid, request),
+            ).rejects.toThrow(
+                'An extra connection must use the same warehouse type as the original connection.',
+            );
+            expect(model.createExtra).not.toHaveBeenCalled();
+            expect(model.updateExtraCredentials).not.toHaveBeenCalled();
+            expect(
+                featureFlagService.get.mock.calls.filter(
+                    ([args]) =>
+                        args.featureFlagId ===
+                        FeatureFlags.MixedWarehouseConnections,
+                ),
+            ).toHaveLength(1);
+        },
+    );
+
+    it('keeps primary credential inheritance for the same warehouse type with the flag off', async () => {
+        const { service, model, credentialPolicy } = buildService();
+        await service.create(account, projectUuid, {
+            name: 'Extra',
+            warehouseConnection: {
+                ...credentials,
+                requireUserCredentials: false,
+            },
+        });
+        expect(
+            credentialPolicy.testWarehouseConnectionCredentialsForSave,
+        ).toHaveBeenCalledWith(
+            account,
+            organizationUuid,
+            expect.objectContaining({ requireUserCredentials: true }),
+        );
+        expect(
+            model.createExtra.mock.calls[0][1].source.credentials
+                .requireUserCredentials,
+        ).toBe(true);
     });
 });

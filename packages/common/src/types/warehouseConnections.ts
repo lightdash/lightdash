@@ -10,6 +10,7 @@ export const MULTI_CONNECTION_WAREHOUSE_TYPES: WarehouseTypes[] = [
     WarehouseTypes.POSTGRES,
     WarehouseTypes.ATHENA,
     WarehouseTypes.SNOWFLAKE,
+    WarehouseTypes.TRINO,
 ];
 
 export const supportsMultipleConnections = (
@@ -17,6 +18,32 @@ export const supportsMultipleConnections = (
 ): boolean =>
     warehouseType !== null &&
     MULTI_CONNECTION_WAREHOUSE_TYPES.includes(warehouseType);
+
+export const MIXED_TYPE_EXTRA_CONNECTION_WAREHOUSE_TYPES: WarehouseTypes[] = [
+    WarehouseTypes.POSTGRES,
+    WarehouseTypes.ATHENA,
+    WarehouseTypes.SNOWFLAKE,
+    WarehouseTypes.TRINO,
+];
+
+export const canUseExtraConnectionWarehouseType = ({
+    originalWarehouseType,
+    extraWarehouseType,
+    mixedTypesEnabled,
+}: {
+    originalWarehouseType: WarehouseTypes | null;
+    extraWarehouseType: WarehouseTypes;
+    mixedTypesEnabled: boolean;
+}): boolean =>
+    originalWarehouseType === extraWarehouseType ||
+    (mixedTypesEnabled &&
+        originalWarehouseType !== null &&
+        MIXED_TYPE_EXTRA_CONNECTION_WAREHOUSE_TYPES.includes(
+            originalWarehouseType,
+        ) &&
+        MIXED_TYPE_EXTRA_CONNECTION_WAREHOUSE_TYPES.includes(
+            extraWarehouseType,
+        ));
 
 const DATABASE_LISTING_WAREHOUSE_TYPES: WarehouseTypes[] = [
     WarehouseTypes.POSTGRES,
