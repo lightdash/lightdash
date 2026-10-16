@@ -11192,6 +11192,38 @@ export class AppGenerateService extends BaseService {
         dataAppVizUuid: string,
         version: number,
     ): Promise<string> {
+        return this.mintAuthoringDataAppVizPreviewToken(
+            user,
+            projectUuid,
+            dataAppVizUuid,
+            version,
+            'chart',
+        );
+    }
+
+    /** Same gate as Chart Studio's preview token, tagged for MCP chart renders. */
+    async getMcpDataAppVizPreviewToken(
+        user: SessionUser,
+        projectUuid: string,
+        dataAppVizUuid: string,
+        version: number,
+    ): Promise<string> {
+        return this.mintAuthoringDataAppVizPreviewToken(
+            user,
+            projectUuid,
+            dataAppVizUuid,
+            version,
+            'mcp',
+        );
+    }
+
+    private async mintAuthoringDataAppVizPreviewToken(
+        user: SessionUser,
+        projectUuid: string,
+        dataAppVizUuid: string,
+        version: number,
+        viewContext: 'chart' | 'mcp',
+    ): Promise<string> {
         const dataAppViz = await this.getAuthorizedDataAppVizForAuthoring(
             user,
             projectUuid,
@@ -11214,7 +11246,7 @@ export class AppGenerateService extends BaseService {
             await this.externalConnectionModel.getBrowserImageOrigins(
                 dataAppViz.app_id,
             ),
-            'chart',
+            viewContext,
         );
     }
 

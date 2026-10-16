@@ -28,7 +28,7 @@ const mint = (keyring: ReturnType<typeof secrets>) =>
     );
 
 describe('app preview tokens across secret rotation', () => {
-    test.each(['standalone', 'builder', 'embed'] as const)(
+    test.each(['standalone', 'builder', 'embed', 'mcp'] as const)(
         'retains signed %s view context',
         (viewContext) => {
             const token = mintPreviewToken(

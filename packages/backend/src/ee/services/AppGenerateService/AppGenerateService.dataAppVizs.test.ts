@@ -1475,6 +1475,61 @@ describe('AppGenerateService data app vizs', () => {
             });
         });
 
+        it('mints an MCP-tagged token for a renderable version', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 2 })),
+            };
+            const service = buildService(appModel);
+
+            const token = await service.getMcpDataAppVizPreviewToken(
+                USER,
+                'project-1',
+                'data-app-viz-1',
+                2,
+            );
+
+            expect(
+                verifyPreviewToken(
+                    token,
+                    testLightdashSecrets,
+                    'data-app-viz-1',
+                    2,
+                ),
+            ).toMatchObject({
+                ok: true,
+                payload: { version: 2, viewContext: 'mcp' },
+            });
+        });
+
+        it('refuses the MCP token without manage:Explore', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi.fn(),
+            };
+            const { service, user } = buildServiceWithRealAbility(
+                appModel,
+                OrganizationMemberRole.VIEWER,
+                'viewer-1',
+            );
+
+            await expect(
+                service.getMcpDataAppVizPreviewToken(
+                    user,
+                    'project-1',
+                    'data-app-viz-1',
+                    1,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(appModel.getVersion).not.toHaveBeenCalled();
+        });
+
         it.each([
             null,
             makeVersion({ status: 'building' }),

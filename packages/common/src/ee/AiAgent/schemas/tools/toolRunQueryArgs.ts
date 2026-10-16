@@ -277,7 +277,7 @@ export const chartConfigSchema = z
     .nullable();
 
 // Builtin-only view pinning surfaces that do not support custom chart types
-// (MCP run_metric_query / render_chart, the dashboard tool): their contracts
+// (MCP run_metric_query, the dashboard tool): their contracts
 // stay byte-identical to before the union existed.
 export const chartConfigBuiltinOnlySchema = chartConfigBuiltinSchema.nullable();
 
@@ -579,6 +579,8 @@ Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel.
 - For single values or detailed data: use \`table\`.
 - Always provide axis labels.
 
+To render a custom chart type instead, set chartConfig to { customChartTypeSlug, fieldMapping, options } using the slots and options from find_custom_chart_types or list_custom_chart_types.
+
 The full chart payload is app metadata; structuredContent contains only a lightweight placeholder. Custom artifacts should build visuals from query data instead.
 
 ${MCP_ARTIFACT_INTEGRATION_NOTE}`;
@@ -588,7 +590,7 @@ export const toolRenderChartArgsSchema = createToolSchema()
         queryUuid: mcpAsyncQueryUuidSchema.describe(
             'Completed query UUID returned by run_metric_query (or get_query_result) in this conversation, copied from the `queryUuid: <id>` text block of that response. Do not fabricate, guess, or reuse a UUID from another query. Currently render_chart supports UUIDs from run_metric_query and does not support SQL Runner/run_sql UUIDs.',
         ),
-        chartConfig: chartConfigBuiltinOnlySchema,
+        chartConfig: chartConfigSchema,
         title: z
             .string()
             .optional()
@@ -605,7 +607,7 @@ export const toolRenderChartArgsSchema = createToolSchema()
 
 export const toolRenderChartArgsSchemaTransformed = toolRenderChartArgsSchema
     .extend({
-        chartConfig: chartConfigBuiltinOnlySchema.default(null),
+        chartConfig: chartConfigSchema.default(null),
     })
     .transform((data) => ({
         ...data,
