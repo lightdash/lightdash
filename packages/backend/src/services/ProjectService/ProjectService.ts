@@ -1176,10 +1176,7 @@ export class ProjectService
             throw new ForbiddenError('User is not part of an organization');
         }
         const { organizationUuid } = user;
-        await this.assertAnalyticsProjectAccess(user, {
-            organizationUuid,
-            provisioningSource: 'analytics',
-        });
+        await this.assertAnalyticsProjectAdministration(user);
         // Fail before creating a project if the signed file reads cannot authenticate.
         const analyticsClient = await createAnalyticsClient(
             organizationUuid,
@@ -3316,9 +3313,9 @@ export class ProjectService
             credentials.type === WarehouseTypes.DUCKDB &&
             credentials.connectionType === DuckdbConnectionType.ANALYTICS
         ) {
-            if (!isRegisteredUser || isServiceAccount)
+            if (!isRegisteredUser)
                 throw new ForbiddenError(
-                    'Local analytics requires a signed-in organization administrator',
+                    'Managed analytics requires an authenticated organization member',
                 );
             const project = await this.projectModel.getSummary(projectUuid);
             const user = await this.userModel.findSessionUserAndOrgByUuid(
@@ -4585,7 +4582,10 @@ export class ProjectService
 
     async assertAnalyticsProjectAccess(
         account: Account | SessionUser,
-        project: Pick<Project, 'provisioningSource' | 'organizationUuid'>,
+        project: Pick<
+            Project,
+            'provisioningSource' | 'organizationUuid' | 'projectUuid'
+        >,
     ): Promise<void> {
         if (project.provisioningSource !== 'analytics') return;
         const organizationUuid =
@@ -4601,8 +4601,16 @@ export class ProjectService
             this.featureFlagModel,
             project.organizationUuid,
         );
+        const ability = this.createAuditedAbility(account);
         if (
-            this.createAuditedAbility(account).cannot(
+            ability.cannot(
+                'view',
+                subject('SystemAnalytics', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid: project.projectUuid,
+                }),
+            ) &&
+            ability.cannot(
                 'manage',
                 subject('Organization', {
                     organizationUuid: project.organizationUuid,
@@ -4610,7 +4618,32 @@ export class ProjectService
             )
         ) {
             throw new ForbiddenError(
-                'Internal analytics requires organization administration access',
+                'Managed analytics requires the View managed analytics permission',
+            );
+        }
+    }
+
+    // Reading analytics does not grant provisioning, content sync or deletion.
+    async assertAnalyticsProjectAdministration(
+        user: SessionUser,
+    ): Promise<void> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        await assertAnalyticsProjectEnabled(
+            this.featureFlagModel,
+            user.organizationUuid,
+        );
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('Organization', {
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Managing analytics requires organization administration access',
             );
         }
     }
