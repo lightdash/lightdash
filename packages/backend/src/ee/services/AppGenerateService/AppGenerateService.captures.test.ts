@@ -1,12 +1,15 @@
 import { Ability } from '@casl/ability';
 import {
     ForbiddenError,
+    NotFoundError,
     ProjectType,
     type SessionUser,
 } from '@lightdash/common';
 import { Readable } from 'node:stream';
+import { type AppThumbnailClientArgs } from '../../clients/AppThumbnailClient';
 import {
     buildAppThumbnailClientMock,
+    createInMemoryAppThumbnailStorage,
     organizationSettingsModelWith,
 } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
@@ -31,7 +34,7 @@ const png = Buffer.concat([
 ]);
 
 const ability = new Ability(
-    ['manage', 'create'].map((action) => ({
+    ['manage', 'create', 'view'].map((action) => ({
         action,
         subject: 'DataApp',
         conditions: { projectUuid: PROJECT_UUID },
@@ -45,9 +48,14 @@ const builder = {
     abilityRules: ability.rules,
 } as unknown as SessionUser;
 
+type AppModelFake = AppThumbnailClientArgs['appModel'];
+type AppRow = Awaited<ReturnType<AppModelFake['getApp']>>;
+type VersionRow = NonNullable<Awaited<ReturnType<AppModelFake['getVersion']>>>;
+
 /**
- * A service whose org has the given stored captures choice, on an instance
- * whose `LIGHTDASH_APP_CAPTURES_ENABLED` is `capturesEnabledOnInstance`.
+ * A service whose org has the given stored captures choice (changeable while
+ * the test runs), on an instance whose `LIGHTDASH_APP_CAPTURES_ENABLED` is
+ * `capturesEnabledOnInstance`.
  */
 const buildService = ({
     storedCapturesChoice = null,
@@ -56,6 +64,7 @@ const buildService = ({
     storedCapturesChoice?: boolean | null;
     capturesEnabledOnInstance?: boolean;
 } = {}) => {
+    const captures = { stored: storedCapturesChoice };
     const appRow = {
         app_id: APP_UUID,
         project_uuid: PROJECT_UUID,
@@ -64,18 +73,43 @@ const buildService = ({
         created_by_user_uuid: 'builder',
         name: 'Revenue app',
         template: 'dashboard',
-    };
-    const appModel = {
+    } as AppRow;
+    const version = {
+        app_id: APP_UUID,
+        version: 1,
+        status: 'ready',
+        created_by_user_uuid: 'builder',
+        thumbnail_captured_at: null,
+        thumbnail_is_manual: null,
+    } as VersionRow;
+    const appModel: AppModelFake & {
+        findApp: () => Promise<AppRow>;
+    } = {
         getApp: async () => appRow,
         findApp: async () => appRow,
         findAppByUuid: async () => appRow,
+        getVersion: async () => version,
+        getLatestReadyVersion: async () => version,
+        hasAnyVersionThumbnail: async () =>
+            version.thumbnail_captured_at !== null,
+        setVersionThumbnail: async (_appUuid, _version, { isManual }) => {
+            version.thumbnail_captured_at = new Date();
+            version.thumbnail_is_manual = isManual;
+            return true;
+        },
+        clearVersionThumbnail: async () => {
+            version.thumbnail_captured_at = null;
+            version.thumbnail_is_manual = null;
+        },
     };
+    const { storage, download } = createInMemoryAppThumbnailStorage();
     const appThumbnailClient = buildAppThumbnailClientMock({
-        appModel: appModel as never,
+        appModel,
+        storage,
         capturesEnabledOnInstance,
         organizationSettingsModel: organizationSettingsModelWith(
             () => null,
-            () => storedCapturesChoice,
+            () => captures.stored,
         ),
     });
     const service = new AppGenerateService({
@@ -155,8 +189,43 @@ const buildService = ({
             APP_UUID,
             null,
         );
+    /** The served app thumbnail, or null when the API says there is none. */
+    const appThumbnail = async () => {
+        try {
+            const { thumbnailUrl } = await service.getThumbnailUrl(
+                builder,
+                PROJECT_UUID,
+                APP_UUID,
+            );
+            return download(thumbnailUrl);
+        } catch (error) {
+            if (error instanceof NotFoundError) return null;
+            throw error;
+        }
+    };
+    const versionThumbnail = async () => {
+        try {
+            const { thumbnailUrl } = await service.getVersionThumbnailUrl(
+                builder,
+                PROJECT_UUID,
+                APP_UUID,
+                1,
+            );
+            return download(thumbnailUrl);
+        } catch (error) {
+            if (error instanceof NotFoundError) return null;
+            throw error;
+        }
+    };
 
-    return { service, uploadScreenshot, uploadThumbnail };
+    return {
+        service,
+        captures,
+        uploadScreenshot,
+        uploadThumbnail,
+        appThumbnail,
+        versionThumbnail,
+    };
 };
 
 describe('AppGenerateService data app captures switch', () => {
@@ -217,5 +286,20 @@ describe('AppGenerateService data app captures switch', () => {
 
         await expect(uploadScreenshot().result).rejects.toThrow(ForbiddenError);
         await expect(uploadThumbnail()).rejects.toThrow(ForbiddenError);
+    });
+
+    it('hides stored thumbnails while off and shows them again when turned back on', async () => {
+        const s = buildService();
+        await s.uploadThumbnail();
+        expect(await s.appThumbnail()).toBe(png.toString());
+        expect(await s.versionThumbnail()).toBe(png.toString());
+
+        s.captures.stored = false;
+        expect(await s.appThumbnail()).toBeNull();
+        expect(await s.versionThumbnail()).toBeNull();
+
+        s.captures.stored = true;
+        expect(await s.appThumbnail()).toBe(png.toString());
+        expect(await s.versionThumbnail()).toBe(png.toString());
     });
 });

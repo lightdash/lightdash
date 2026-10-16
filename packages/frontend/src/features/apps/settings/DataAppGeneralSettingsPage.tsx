@@ -106,7 +106,8 @@ export const DataAppGeneralSettingsPage: FC = () => {
                                     every way an image of your data can be
                                     captured in the builder, including automatic
                                     thumbnails and the image posted with a Slack
-                                    build. Existing thumbnails are kept.
+                                    build. Existing thumbnails are kept but
+                                    hidden until it is turned back on.
                                 </Text>
                             </Box>
                             <Switch

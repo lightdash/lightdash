@@ -2623,6 +2623,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
     ): Promise<{ thumbnailUrl: string }> {
         await this.assertCanViewAppThumbnail(user, projectUuid, appUuid);
+        await this.assertThumbnailsVisible(user);
         const thumbnailUrl = await this.appThumbnailClient.getAppThumbnailUrl({
             projectUuid,
             appUuid,
@@ -2633,6 +2634,17 @@ export class AppGenerateService extends BaseService {
         return { thumbnailUrl };
     }
 
+    /**
+     * Stored thumbnails are kept but not served while the org's captures
+     * switch is off, so "off" means no image of the data is visible anywhere.
+     * Reads as "no thumbnail", which every hover card already handles.
+     */
+    private async assertThumbnailsVisible(user: SessionUser): Promise<void> {
+        if (!(await this.areDataAppCapturesEnabled(user.organizationUuid!))) {
+            throw new NotFoundError('App thumbnail not found');
+        }
+    }
+
     async getVersionThumbnailUrl(
         user: SessionUser,
         projectUuid: string,
@@ -2640,6 +2652,7 @@ export class AppGenerateService extends BaseService {
         version: number,
     ): Promise<{ thumbnailUrl: string }> {
         await this.assertCanViewAppThumbnail(user, projectUuid, appUuid);
+        await this.assertThumbnailsVisible(user);
         const thumbnailUrl =
             await this.appThumbnailClient.getVersionThumbnailUrl({
                 projectUuid,
