@@ -11977,7 +11977,7 @@ Build a custom chart type: a reusable visualization for saved charts in the proj
 
 Start a build that adds a version to an existing custom chart type from a follow-up brief. For a new chart type use create_custom_chart_type; for a data app use iterate_data_app.
 
-- Describe the change, not the whole chart type. The build keeps the chart type's inputs, so charts that already use it keep working. Pass queryUuid to share the first rows of a completed run_metric_query as sample data.
+- Describe the change, not the whole chart type. The build keeps the chart type's inputs, so charts that already use it keep working. Pass queryUuid to share the first rows of a completed run_metric_query as sample data. Pass themeSlug only to switch the theme.
 - Poll get_data_app_build_status with appSlug set to the slug until it is "ready", "error" or "cancelled". If a version is already building, wait for it to end before calling again.
 - A chart type created over MCP is the caller's personal one, in no space, so a space-restricted agent-scoped session cannot read it. Omit agentUuid here and in get_data_app_build_status.
 ",
@@ -12017,6 +12017,18 @@ Start a build that adds a version to an existing custom chart type from a follow
           "slug": {
             "description": "Slug of the custom chart type to change, from an earlier create_custom_chart_type result or its Chart Studio URL.",
             "type": "string",
+          },
+          "themeSlug": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+            "default": null,
+            "description": "Organization theme to rebuild the chart type with: its slug, from list_data_app_themes. Omit it to keep the current theme. An unknown slug returns an error and starts no build.",
           },
         },
         "required": [

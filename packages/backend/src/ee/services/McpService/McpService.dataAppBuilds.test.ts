@@ -825,6 +825,24 @@ describe('McpService iterate_custom_chart_type', () => {
         expect(iterateCustomChartType).toHaveBeenCalledWith({
             slug: 'sankey-flow',
             prompt: 'Colour the links by source',
+            themeSlug: null,
+            vizContext: null,
+        });
+    });
+
+    it('passes a themeSlug to the build', async () => {
+        const iterateCustomChartType = started();
+        await createServerWithRuntime({ iterateCustomChartType });
+
+        await callTool(McpToolName.ITERATE_CUSTOM_CHART_TYPE, {
+            ...iterateArgs,
+            themeSlug: 'brand',
+        });
+
+        expect(iterateCustomChartType).toHaveBeenCalledWith({
+            slug: 'sankey-flow',
+            prompt: 'Colour the links by source',
+            themeSlug: 'brand',
             vizContext: null,
         });
     });
@@ -910,6 +928,7 @@ describe('McpService iterate_custom_chart_type', () => {
         expect(iterateCustomChartType).toHaveBeenCalledWith({
             slug: 'sankey-flow',
             prompt: 'Colour the links by source',
+            themeSlug: null,
             vizContext: { sampleRows: [{ orders_status: 'shipped' }] },
         });
         const [{ text }] = result.content as Array<{ text: string }>;

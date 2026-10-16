@@ -5209,12 +5209,14 @@ describe('AiAgentToolsService iterateCustomChartType', () => {
         service: AiAgentToolsService,
         vizContext: AppVizBuildContext | null = null,
         spaceAccess: string[] | null = null,
+        themeSlug: string | null = null,
     ) =>
         service
             .createRuntime(makeRuntimeContext({ source: 'mcp', spaceAccess }))
             .iterateCustomChartType({
                 slug: 'sankey-flow',
                 prompt: 'Colour the links by source',
+                themeSlug,
                 vizContext,
             });
 
@@ -5272,6 +5274,62 @@ describe('AiAgentToolsService iterateCustomChartType', () => {
 
         expect(iterateAppOptions(appGenerateService)).toEqual({
             creationExperience: 'mcp',
+        });
+    });
+
+    describe('themeSlug', () => {
+        const brandThemes = () =>
+            makeDesignModelWithThemes([
+                { designUuid: 'brand-uuid', slug: 'brand', name: 'Brand' },
+            ]);
+
+        it('switches the theme alongside the requested change', async () => {
+            const appGenerateService = makeAppGenerateService();
+            const service = makeService({
+                appGenerateService,
+                appModel: makeAppModel(),
+                organizationDesignModel: brandThemes(),
+            });
+
+            await runIterateChartType(service, null, null, 'brand');
+
+            expect(iterateAppOptions(appGenerateService)).toEqual({
+                creationExperience: 'mcp',
+                vizContext: { schema: vizSchema },
+                designUuidInput: 'brand-uuid',
+                themeChangePrompt: 'append',
+            });
+        });
+
+        it('keeps the current theme when no slug is given', async () => {
+            const appGenerateService = makeAppGenerateService();
+            const service = makeService({
+                appGenerateService,
+                appModel: makeAppModel(),
+                organizationDesignModel: brandThemes(),
+            });
+
+            await runIterateChartType(service);
+
+            const opts = iterateAppOptions(appGenerateService);
+            expect(opts).not.toHaveProperty('designUuidInput');
+            expect(opts).not.toHaveProperty('themeChangePrompt');
+        });
+
+        it('names the valid slugs for an unknown theme and starts no build', async () => {
+            const appGenerateService = makeAppGenerateService();
+            const service = makeService({
+                appGenerateService,
+                appModel: makeAppModel(),
+                organizationDesignModel: brandThemes(),
+            });
+
+            await expect(
+                runIterateChartType(service, null, null, 'neon'),
+            ).rejects.toThrow(
+                'Theme "neon" was not found. Valid theme slugs: brand',
+            );
+            expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
         });
     });
 
