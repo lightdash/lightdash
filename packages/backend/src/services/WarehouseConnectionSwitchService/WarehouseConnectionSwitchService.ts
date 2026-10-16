@@ -5,7 +5,6 @@ import {
     ConflictError,
     FeatureFlags,
     ForbiddenError,
-    isUserConnectableWarehouseConnection,
     ParameterError,
     ProjectType,
     sensitiveCredentialsFieldNames,
@@ -53,6 +52,7 @@ import { assertExtraConnectionSettings } from '../WarehouseConnectionService/ext
 import {
     ENTITLEMENT_REASON,
     getMultipleConnectionsBlockReason,
+    getProvisionedOriginalBlockReason,
     ROLLOUT_REASON,
     WAREHOUSE_TYPE_REASON,
 } from '../WarehouseConnectionService/multipleConnectionsGate';
@@ -337,16 +337,11 @@ export class WarehouseConnectionSwitchService extends BaseService {
         ) {
             return DEFAULT_PROJECT_ONLY_REASON;
         }
-        if (
-            project.originalWarehouseType === WarehouseTypes.DUCKDB &&
-            !isUserConnectableWarehouseConnection(
-                await this.projectModel.getWarehouseCredentialsForProject(
-                    project.projectUuid,
-                ),
-            )
-        ) {
-            return WAREHOUSE_TYPE_REASON;
-        }
+        const provisionedReason = await getProvisionedOriginalBlockReason(
+            this.projectModel,
+            project,
+        );
+        if (provisionedReason !== null) return provisionedReason;
         const gateReason = await getMultipleConnectionsBlockReason(
             {
                 licenseService: this.licenseService,

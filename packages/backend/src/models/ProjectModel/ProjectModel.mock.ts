@@ -477,15 +477,8 @@ export const singleRouteProjectModelMethods = {
     ) {
         return this.getWarehouseCredentialsForProject(requestedProjectUuid);
     },
-    async getWarehouseConnectionForDeploy(
-        this: {
-            getWarehouseCredentialsForProject: (
-                requestedProjectUuid: string,
-            ) => unknown;
-        },
-        requestedProjectUuid: string,
-    ) {
-        return this.getWarehouseCredentialsForProject(requestedProjectUuid);
+    async getDeployStartOfWeek() {
+        return { kind: 'original' as const };
     },
     async getWarehouseConnectionsMetadata() {
         return [];

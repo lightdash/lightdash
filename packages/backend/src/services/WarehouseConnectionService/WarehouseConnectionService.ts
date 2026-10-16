@@ -55,6 +55,7 @@ import { getExtraConnectionRequireUserCredentials } from './extraConnectionUserC
 import {
     ENTITLEMENT_REASON,
     getMultipleConnectionsBlockReason,
+    getProvisionedOriginalBlockReason,
     ROLLOUT_REASON,
     WAREHOUSE_TYPE_REASON,
 } from './multipleConnectionsGate';
@@ -301,16 +302,11 @@ export class WarehouseConnectionService extends BaseService {
         account: RegisteredAccount,
         project: WarehouseConnectionProject,
     ): Promise<string | null> {
-        if (
-            project.originalWarehouseType === WarehouseTypes.DUCKDB &&
-            !isUserConnectableWarehouseConnection(
-                await this.projectModel.getWarehouseCredentialsForProject(
-                    project.projectUuid,
-                ),
-            )
-        ) {
-            return WAREHOUSE_TYPE_REASON;
-        }
+        const provisionedReason = await getProvisionedOriginalBlockReason(
+            this.projectModel,
+            project,
+        );
+        if (provisionedReason !== null) return provisionedReason;
         return getMultipleConnectionsBlockReason(
             {
                 licenseService: this.licenseService,

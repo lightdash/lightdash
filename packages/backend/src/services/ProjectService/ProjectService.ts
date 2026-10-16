@@ -5756,27 +5756,32 @@ export class ProjectService
         }
 
         const startOfWeekByExplore = new Map(
-            await Promise.all(
-                explores
-                    .filter(
-                        (explore) =>
-                            this.lightdashConfig.preAggregates.enabled &&
-                            explore.preAggregates?.length,
-                    )
-                    .map(
-                        async (explore) =>
-                            [
-                                explore.name,
-                                (
-                                    await this.projectModel.getWarehouseConnectionForDeploy(
-                                        projectUuid,
-                                        explore.name,
-                                        cliDeploy.sourceUuid,
-                                    )
-                                ).startOfWeek ?? null,
-                            ] as const,
-                    ),
-            ),
+            (
+                await Promise.all(
+                    explores
+                        .filter(
+                            (explore) =>
+                                this.lightdashConfig.preAggregates.enabled &&
+                                explore.preAggregates?.length,
+                        )
+                        .map(async (explore) => {
+                            const deployStartOfWeek =
+                                await this.projectModel.getDeployStartOfWeek(
+                                    projectUuid,
+                                    explore.name,
+                                    cliDeploy.sourceUuid,
+                                );
+                            return deployStartOfWeek.kind === 'extra'
+                                ? [
+                                      [
+                                          explore.name,
+                                          deployStartOfWeek.startOfWeek,
+                                      ] as const,
+                                  ]
+                                : [];
+                        }),
+                )
+            ).flat(),
         );
         const exploresWithPreAggregates = enhanceExploresForPreAggregates({
             explores,
