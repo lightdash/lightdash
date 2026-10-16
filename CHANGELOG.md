@@ -1,3 +1,10 @@
+## [2.597.1](https://github.com/lightdash/lightdash/compare/2.597.0...2.597.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **ai:** lock the availability toggle of the only org provider key ([#31090](https://github.com/lightdash/lightdash/issues/31090)) ([32d7cf0](https://github.com/lightdash/lightdash/commit/32d7cf0d921889f2502276a98028297e7d514760)), closes [#31089](https://github.com/lightdash/lightdash/issues/31089)
+
 # [2.597.0](https://github.com/lightdash/lightdash/compare/2.596.0...2.597.0) (2026-10-16)
 
 
