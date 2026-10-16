@@ -1,3 +1,11 @@
+# [2.592.0](https://github.com/lightdash/lightdash/compare/2.591.0...2.592.0) (2026-10-16)
+
+
+### Features
+
+* **ai:** add opt-in agent setting to run SQL without approval ([#31065](https://github.com/lightdash/lightdash/issues/31065)) ([480f036](https://github.com/lightdash/lightdash/commit/480f03699e5d92516dce78e59b79150b8cf787b3))
+* **backend:** re-install library chart types from the registry on upload ([#31036](https://github.com/lightdash/lightdash/issues/31036)) ([718b520](https://github.com/lightdash/lightdash/commit/718b5201a9f86adbccfea4ef83becbe7bac1407c)), closes [#31019](https://github.com/lightdash/lightdash/issues/31019)
+
 # [2.591.0](https://github.com/lightdash/lightdash/compare/2.590.0...2.591.0) (2026-10-16)
 
 

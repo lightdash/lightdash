@@ -8767,6 +8767,9 @@
                         "format": "double",
                         "nullable": true
                     },
+                    "enableSqlAutoApproval": {
+                        "type": "boolean"
+                    },
                     "enableSqlMode": {
                         "type": "boolean"
                     },
@@ -29077,7 +29080,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
+            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -29203,6 +29206,9 @@
                     "enableSqlMode": {
                         "type": "boolean"
                     },
+                    "enableSqlAutoApproval": {
+                        "type": "boolean"
+                    },
                     "adminOnly": {
                         "type": "boolean"
                     },
@@ -29247,6 +29253,7 @@
                     "enableContentTools",
                     "enableUserContext",
                     "enableSqlMode",
+                    "enableSqlAutoApproval",
                     "adminOnly",
                     "modelConfig",
                     "providerCredentialUuid",
@@ -29256,7 +29263,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -29963,7 +29970,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -30089,6 +30096,9 @@
                     "enableSqlMode": {
                         "type": "boolean"
                     },
+                    "enableSqlAutoApproval": {
+                        "type": "boolean"
+                    },
                     "adminOnly": {
                         "type": "boolean"
                     },
@@ -30133,6 +30143,7 @@
                     "enableContentTools",
                     "enableUserContext",
                     "enableSqlMode",
+                    "enableSqlAutoApproval",
                     "adminOnly",
                     "modelConfig",
                     "providerCredentialUuid",
@@ -30142,7 +30153,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -31006,6 +31017,9 @@
                             "adminOnly": {
                                 "type": "boolean"
                             },
+                            "enableSqlAutoApproval": {
+                                "type": "boolean"
+                            },
                             "enableSqlMode": {
                                 "type": "boolean"
                             },
@@ -31134,6 +31148,9 @@
                                     "type": "string"
                                 },
                                 "type": "array"
+                            },
+                            "enableSqlAutoApproval": {
+                                "type": "boolean"
                             },
                             "enableSqlMode": {
                                 "type": "boolean"
@@ -36367,7 +36384,7 @@
                     },
                     "autoApproveSql": {
                         "type": "boolean",
-                        "description": "Skips the SQL human-approval gate for this stream. Used by the review\nremediation workspace so Continue PR turns run frictionlessly. Defaults\nto false — normal chat still asks the user to approve SQL."
+                        "description": "Skips the SQL human-approval gate for this stream. Used by the review\nremediation workspace so Continue PR turns run frictionlessly. Defaults\nto false; the agent-level `enableSqlAutoApproval` setting also skips the gate."
                     },
                     "enableFastDecisions": {
                         "type": "boolean",
@@ -45653,7 +45670,7 @@
                 "type": "string",
                 "enum": ["createdAt", "title"]
             },
-            "Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-version_": {
+            "Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-version_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -45708,6 +45725,9 @@
                     "enableSqlMode": {
                         "type": "boolean"
                     },
+                    "enableSqlAutoApproval": {
+                        "type": "boolean"
+                    },
                     "adminOnly": {
                         "type": "boolean"
                     },
@@ -45732,6 +45752,7 @@
                     "enableContentTools",
                     "enableUserContext",
                     "enableSqlMode",
+                    "enableSqlAutoApproval",
                     "adminOnly",
                     "modelConfig"
                 ],
@@ -45739,7 +45760,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentThreadDumpAgent": {
-                "$ref": "#/components/schemas/Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-version_"
+                "$ref": "#/components/schemas/Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-version_"
             },
             "ServedSkillMetadata": {
                 "properties": {
@@ -73215,7 +73236,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.591.0",
+        "version": "2.592.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

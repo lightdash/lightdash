@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "2.591.0",
-  "previousVersion": "2.590.0",
-  "releaseDate": "2026-10-16T10:09:06.586Z",
+  "version": "2.592.0",
+  "previousVersion": "2.591.0",
+  "releaseDate": "2026-10-16T10:20:09.791Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 1,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 1,
+    "files": [
+      {
+        "name": "20261016120000_add_enable_sql_auto_approval_to_ai_agent.ts",
+        "edition": "ee",
+        "tables": [
+          "ai_agent"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
