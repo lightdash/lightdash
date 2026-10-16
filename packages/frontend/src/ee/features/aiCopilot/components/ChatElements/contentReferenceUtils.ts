@@ -9,6 +9,7 @@ import {
     type AiPromptContextItem,
 } from '@lightdash/common';
 import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
+import i18n from '../../../../../i18n/i18n';
 
 // Element references never render inline; they always show as pills.
 // Restore items live on hidden turns and are rendered as build cards.
@@ -82,14 +83,24 @@ export const getPromptContextItemKey = (
 
 export const getThemeContextItemLabel = (
     item: Extract<AiPromptContextItem, { type: 'design' }>,
-): string => `Theme: ${item.displayName ?? item.designSlug ?? 'unavailable'}`;
+): string =>
+    i18n.t('contextItems.theme', {
+        ns: 'aiCopilotChat',
+        name:
+            item.displayName ??
+            item.designSlug ??
+            i18n.t('contextItems.themeUnavailable', { ns: 'aiCopilotChat' }),
+    });
 
 export const getDataAppContextItemName = (
     item: Pick<
         Extract<AiPromptContextItem, { type: 'data_app' }>,
         'displayName' | 'appSlug'
     >,
-): string => item.displayName ?? item.appSlug ?? 'Data app';
+): string =>
+    item.displayName ??
+    item.appSlug ??
+    i18n.t('dataAppBuild.dataAppFallback', { ns: 'aiCopilotChat' });
 
 export const getDataAppContextItemLabel = (
     item: Extract<AiPromptContextItem, { type: 'data_app' }>,
@@ -110,11 +121,24 @@ const getProposedChangeLabel = (
 const getPromptContextItemLabel = (item: InlineReferenceItem) => {
     switch (item.type) {
         case 'chart':
-            return item.displayName ?? item.chartSlug ?? 'Chart';
+            return (
+                item.displayName ??
+                item.chartSlug ??
+                i18n.t('contentMentions.chartFallback', { ns: 'aiCopilotChat' })
+            );
         case 'dashboard':
-            return item.displayName ?? item.dashboardSlug ?? 'Dashboard';
+            return (
+                item.displayName ??
+                item.dashboardSlug ??
+                i18n.t('contentMentions.dashboardFallback', {
+                    ns: 'aiCopilotChat',
+                })
+            );
         case 'thread':
-            return item.displayName ?? 'Conversation';
+            return (
+                item.displayName ??
+                i18n.t('contextItems.conversation', { ns: 'aiCopilotChat' })
+            );
         case 'file':
             return item.path;
         case 'repository':
@@ -124,17 +148,34 @@ const getPromptContextItemLabel = (item: InlineReferenceItem) => {
         case 'thread_file':
             return item.fileName;
         case 'pull_request':
-            return item.title ?? `PR #${item.prNumber ?? ''}`.trim();
+            return (
+                item.title ??
+                i18n
+                    .t('contextItems.pullRequest', {
+                        ns: 'aiCopilotChat',
+                        number: item.prNumber ?? '',
+                    })
+                    .trim()
+            );
         case 'proposed_change':
             return getProposedChangeLabel(item);
         case 'review_finding':
             return item.title;
         case 'preview_environment':
-            return item.projectName ?? 'Preview environment';
+            return (
+                item.projectName ??
+                i18n.t('contextItems.previewEnvironment', {
+                    ns: 'aiCopilotChat',
+                })
+            );
         case 'data_app':
             return getDataAppContextItemName(item);
         case 'document':
-            return item.displayName ?? item.documentSlug ?? 'Document';
+            return (
+                item.displayName ??
+                item.documentSlug ??
+                i18n.t('contextItems.document', { ns: 'aiCopilotChat' })
+            );
         case 'skill':
             return `/${item.name}`;
         default:

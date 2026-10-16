@@ -9,8 +9,10 @@ import { extractColumnRefs, parse } from '@lightdash/formula';
 import { Stack, Text, TextInput } from '@mantine/core';
 import { IconCalculator } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../../components/common/MantineModal';
 import { type FieldSuggestionItem } from '../../../components/common/SuggestionList';
+import i18n from '../../../i18n/i18n';
 import {
     explorerActions,
     selectSorts,
@@ -39,7 +41,12 @@ const nextCalculationName = (
         const candidate = suffix === 0 ? base : `${base}_${suffix}`;
         if (!names.has(candidate)) return candidate;
     }
-    throw new Error(`Table calculation ID "${displayName}" already exists.`);
+    throw new Error(
+        i18n.t('tableCalculation.idExists', {
+            ns: 'mergeQuery',
+            name: displayName,
+        }),
+    );
 };
 
 export const MergeTableCalculationModal: FC<{
@@ -47,6 +54,7 @@ export const MergeTableCalculationModal: FC<{
     onClose: () => void;
     tableCalculation?: MergeTableCalculation;
 }> = ({ opened, onClose, tableCalculation }) => {
+    const { t } = useTranslation('mergeQuery');
     const merge = useMerge();
     const dispatch = useExplorerDispatch();
     const sorts = useExplorerSelector(selectSorts);
@@ -64,7 +72,9 @@ export const MergeTableCalculationModal: FC<{
     const validateFormula = () => {
         const normalized = withFormulaPrefix(formula.trim());
         if (normalized.length > MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH) {
-            const message = `Formula must be ${MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH.toLocaleString()} characters or fewer`;
+            const message = t('tableCalculation.formulaTooLong', {
+                max: MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH.toLocaleString(),
+            });
             setError(message);
             return message;
         }
@@ -78,7 +88,10 @@ export const MergeTableCalculationModal: FC<{
             );
             const nextError =
                 unknown.length > 0
-                    ? `Unknown merged field${unknown.length === 1 ? '' : 's'}: ${unknown.join(', ')}`
+                    ? t('tableCalculation.unknownFields', {
+                          count: unknown.length,
+                          fields: unknown.join(', '),
+                      })
                     : null;
             setError(nextError);
             return nextError;
@@ -86,14 +99,16 @@ export const MergeTableCalculationModal: FC<{
             const message =
                 nextError instanceof Error
                     ? nextError.message
-                    : 'Invalid formula';
+                    : t('tableCalculation.invalidFormula');
             setError(message);
             return message;
         }
     };
 
     const handleSave = () => {
-        const nameError = displayName.trim() ? null : 'Name is required';
+        const nameError = displayName.trim()
+            ? null
+            : t('tableCalculation.nameRequired');
         if (nameError) {
             setError(nameError);
             return;
@@ -147,16 +162,24 @@ export const MergeTableCalculationModal: FC<{
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title={`${tableCalculation ? 'Edit' : 'Create'} Table Calculation`}
+            title={
+                tableCalculation
+                    ? t('tableCalculation.editTitle')
+                    : t('tableCalculation.createTitle')
+            }
             icon={IconCalculator}
             size="xl"
             onConfirm={handleSave}
-            confirmLabel={tableCalculation ? 'Save changes' : 'Create formula'}
+            confirmLabel={
+                tableCalculation
+                    ? t('tableCalculation.saveChanges')
+                    : t('tableCalculation.createFormula')
+            }
             modalRootProps={{ closeOnClickOutside: false }}
         >
             <Stack gap="sm">
                 <Text size="sm" fw={600}>
-                    Formula
+                    {t('tableCalculation.formula')}
                 </Text>
                 <FormulaEditor
                     explore={undefined}
@@ -184,12 +207,16 @@ export const MergeTableCalculationModal: FC<{
                     </Text>
                 )}
                 <TextInput
-                    label="Name"
+                    label={t('tableCalculation.name')}
                     value={displayName}
                     onChange={(event) =>
                         setDisplayName(event.currentTarget.value)
                     }
-                    error={!displayName.trim() ? 'Name is required' : null}
+                    error={
+                        !displayName.trim()
+                            ? t('tableCalculation.nameRequired')
+                            : null
+                    }
                     data-testid="merge-table-calculation-name"
                 />
             </Stack>
@@ -201,6 +228,7 @@ export const DeleteMergeTableCalculationModal: FC<{
     tableCalculation: MergeTableCalculation;
     onClose: () => void;
 }> = ({ tableCalculation, onClose }) => {
+    const { t } = useTranslation('mergeQuery');
     const merge = useMerge();
     const dispatch = useExplorerDispatch();
     const sorts = useExplorerSelector(selectSorts);
@@ -208,9 +236,9 @@ export const DeleteMergeTableCalculationModal: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            title="Delete Table Calculation"
+            title={t('tableCalculation.deleteTitle')}
             variant="delete"
-            resourceType="table calculation"
+            resourceType={t('tableCalculation.resourceType')}
             onConfirm={() => {
                 merge.removeTableCalculation(tableCalculation.name);
                 const fieldId = getItemId({

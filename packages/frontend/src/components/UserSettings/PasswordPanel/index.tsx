@@ -1,8 +1,10 @@
 import { getPasswordSchema } from '@lightdash/common';
 import { Button, Flex, PasswordInput, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { type TFunction } from 'i18next';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
@@ -13,13 +15,16 @@ import PasswordTextInput from '../../PasswordTextInput';
 
 const passwordSchema = getPasswordSchema();
 
-const validationSchema = (hasCurrentPassword: boolean) => {
+const validationSchema = (hasCurrentPassword: boolean, t: TFunction) => {
     return hasCurrentPassword
         ? z.object({
               // we check validity of current password on the server
               currentPassword: z
                   .string()
-                  .min(1, 'Current password is required'),
+                  .min(
+                      1,
+                      t('passwordPanel.validation.currentPasswordRequired'),
+                  ),
               newPassword: passwordSchema,
           })
         : z.object({
@@ -28,6 +33,7 @@ const validationSchema = (hasCurrentPassword: boolean) => {
 };
 
 const PasswordPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { data: hasPassword } = useUserHasPassword();
     const { showToastSuccess, showToastApiError } = useToaster();
 
@@ -36,21 +42,21 @@ const PasswordPanel: FC = () => {
             currentPassword: '',
             newPassword: '',
         },
-        validate: zodResolver(validationSchema(!!hasPassword)),
+        validate: zodResolver(validationSchema(!!hasPassword, t)),
     });
 
     const { isLoading: isUpdatingUserPassword, mutate: updateUserPassword } =
         useUserUpdatePasswordMutation({
             onSuccess: () => {
                 showToastSuccess({
-                    title: 'Your password has been updated',
+                    title: t('passwordPanel.toasts.updateSuccess'),
                 });
 
                 window.location.href = '/login';
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to update password',
+                    title: t('passwordPanel.toasts.updateFailed'),
                     apiError: error,
                 });
             },
@@ -71,16 +77,18 @@ const PasswordPanel: FC = () => {
             <Stack mt="md">
                 {hasPassword && (
                     <PasswordInput
-                        label="Current password"
-                        placeholder="Enter your password..."
+                        label={t('passwordPanel.currentPassword.label')}
+                        placeholder={t(
+                            'passwordPanel.currentPassword.placeholder',
+                        )}
                         disabled={isUpdatingUserPassword}
                         {...form.getInputProps('currentPassword')}
                     />
                 )}
                 <PasswordTextInput passwordValue={form.values.newPassword}>
                     <PasswordInput
-                        label="New password"
-                        placeholder="Enter your new password..."
+                        label={t('passwordPanel.newPassword.label')}
+                        placeholder={t('passwordPanel.newPassword.placeholder')}
                         disabled={isUpdatingUserPassword}
                         {...form.getInputProps('newPassword')}
                     />
@@ -89,7 +97,7 @@ const PasswordPanel: FC = () => {
                 <Flex justify="flex-end" gap="sm">
                     {form.isDirty() && !isUpdatingUserPassword && (
                         <Button variant="outline" onClick={() => form.reset()}>
-                            Cancel
+                            {t('actions.cancel', { ns: 'common' })}
                         </Button>
                     )}
 
@@ -98,7 +106,7 @@ const PasswordPanel: FC = () => {
                         loading={isUpdatingUserPassword}
                         disabled={isUpdatingUserPassword}
                     >
-                        Update
+                        {t('actions.update', { ns: 'common' })}
                     </Button>
                 </Flex>
             </Stack>

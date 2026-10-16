@@ -12,6 +12,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { memo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FieldSelect from '../../common/FieldSelect';
 import { NumberInput } from '../../common/NumberInput';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
@@ -22,6 +23,7 @@ import GaugeSections from './GaugeSections';
 import { GaugeValueMode } from './types';
 
 export const GaugeDisplayConfig: FC = memo(() => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig, itemsMap } = useVisualizationContext();
 
     if (!isGaugeVisualizationConfig(visualizationConfig)) {
@@ -64,11 +66,11 @@ export const GaugeDisplayConfig: FC = memo(() => {
         <Stack>
             <Config>
                 <Config.Section>
-                    <Config.Heading>Scale</Config.Heading>
+                    <Config.Heading>{t('gauge.display.scale')}</Config.Heading>
                     <NumberInput
                         size="xs"
-                        label="Minimum value"
-                        description="Set the minimum value for the gauge scale"
+                        label={t('gauge.display.minimumValue')}
+                        description={t('gauge.display.minimumValueDescription')}
                         value={min}
                         onNumberChange={(value) => setMin(value ?? 0)}
                         placeholder="0"
@@ -78,8 +80,10 @@ export const GaugeDisplayConfig: FC = memo(() => {
                         {maxValueMode === GaugeValueMode.FIXED ? (
                             <NumberInput
                                 size="xs"
-                                label="Maximum value"
-                                description="Set the maximum value for the gauge scale"
+                                label={t('gauge.display.maximumValue')}
+                                description={t(
+                                    'gauge.display.maximumValueDescription',
+                                )}
                                 value={max}
                                 onNumberChange={(value) => setMax(value ?? 0)}
                                 placeholder="100"
@@ -88,8 +92,10 @@ export const GaugeDisplayConfig: FC = memo(() => {
                             />
                         ) : (
                             <FieldSelect
-                                label="Maximum value"
-                                description="Select a field to use as the maximum value"
+                                label={t('gauge.display.maximumValue')}
+                                description={t(
+                                    'gauge.display.maximumFieldDescription',
+                                )}
                                 item={maxField}
                                 items={numericMetricsList}
                                 onChange={(newValue) => {
@@ -122,16 +128,28 @@ export const GaugeDisplayConfig: FC = memo(() => {
                             data={[
                                 {
                                     label: (
-                                        <Tooltip label="Set the maximum value">
-                                            <Center>Value</Center>
+                                        <Tooltip
+                                            label={t(
+                                                'gauge.display.setMaxValue',
+                                            )}
+                                        >
+                                            <Center>
+                                                {t('gauge.display.value')}
+                                            </Center>
                                         </Tooltip>
                                     ),
                                     value: GaugeValueMode.FIXED,
                                 },
                                 {
                                     label: (
-                                        <Tooltip label="Select a field to use as the maximum value">
-                                            <Center>Field</Center>
+                                        <Tooltip
+                                            label={t(
+                                                'gauge.display.maximumFieldDescription',
+                                            )}
+                                        >
+                                            <Center>
+                                                {t('gauge.display.field')}
+                                            </Center>
                                         </Tooltip>
                                     ),
                                     value: GaugeValueMode.FIELD,
@@ -143,12 +161,16 @@ export const GaugeDisplayConfig: FC = memo(() => {
             </Config>
             <Config>
                 <Config.Section>
-                    <Config.Heading>Appearance</Config.Heading>
+                    <Config.Heading>
+                        {t('gauge.display.appearance')}
+                    </Config.Heading>
 
                     <Checkbox
                         size="xs"
-                        label="Show axis labels"
-                        description="Display axis labels and tick marks"
+                        label={t('gauge.display.showAxisLabels')}
+                        description={t(
+                            'gauge.display.showAxisLabelsDescription',
+                        )}
                         checked={showAxisLabels}
                         onChange={(event) =>
                             setShowAxisLabels(event.currentTarget.checked)
@@ -157,8 +179,10 @@ export const GaugeDisplayConfig: FC = memo(() => {
 
                     <Checkbox
                         size="xs"
-                        label="Show as percentage"
-                        description="Display the value as a percentage of the scale"
+                        label={t('gauge.display.showAsPercentage')}
+                        description={t(
+                            'gauge.display.showAsPercentageDescription',
+                        )}
                         checked={showPercentage}
                         onChange={(event) =>
                             setShowPercentage(event.currentTarget.checked)
@@ -167,27 +191,31 @@ export const GaugeDisplayConfig: FC = memo(() => {
 
                     {showPercentage && (
                         <LabelEditor
-                            label="Custom percentage label"
-                            description="Add a custom label after the percentage"
+                            label={t('gauge.display.customPercentageLabel')}
+                            description={t(
+                                'gauge.display.customPercentageLabelDescription',
+                            )}
                             value={customPercentageLabel || ''}
                             onChange={(value) =>
                                 setCustomPercentageLabel(value || undefined)
                             }
                             fields={granularityFields}
-                            placeholder="e.g. 'completed'"
+                            placeholder={t(
+                                'gauge.display.customPercentageLabelPlaceholder',
+                            )}
                         />
                     )}
 
                     <LabelEditor
-                        label="Custom label"
-                        description="Override the default field label"
+                        label={t('gauge.display.customLabel')}
+                        description={t('gauge.display.customLabelDescription')}
                         value={customLabel || ''}
                         onChange={(value) => setCustomLabel(value || undefined)}
                         fields={granularityFields}
                         placeholder={
                             selectedField
                                 ? getItemLabelWithoutTableName(selectedField)
-                                : "e.g. 'Sales'"
+                                : t('gauge.display.customLabelPlaceholder')
                         }
                     />
                 </Config.Section>

@@ -8,6 +8,7 @@ import {
     type DataAppInvestigation,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
+import i18n from '../../../i18n/i18n';
 import { pollJobStatus } from '../../scheduler/hooks/useScheduler';
 
 const analysisBase = (projectUuid: string, appUuid: string) =>
@@ -93,7 +94,9 @@ export const investigateDataAppAnomaly = async ({
     const details = await pollJobStatus(jobId);
     const investigationId = details?.investigationId;
     if (typeof investigationId !== 'string') {
-        throw new Error('The investigation finished without a result');
+        throw new Error(
+            i18n.t('analysis.investigationNoResult', { ns: 'apps' }),
+        );
     }
     const record: DataAppAnalysisRecord = await getDataAppAnalysis({
         projectUuid,
@@ -101,7 +104,7 @@ export const investigateDataAppAnomaly = async ({
         analysisId: investigationId,
     });
     if (record.operation !== 'investigate') {
-        throw new Error('Unexpected analysis type');
+        throw new Error(i18n.t('analysis.unexpectedType', { ns: 'apps' }));
     }
     return record;
 };

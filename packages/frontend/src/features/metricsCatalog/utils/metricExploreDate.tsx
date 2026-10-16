@@ -6,7 +6,10 @@ import {
 } from '@lightdash/common';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
+import i18n from '../../../i18n/i18n';
 import { type DateRangePreset } from '../hooks/useDateRangePicker';
+
+const ns = 'metricsCatalog';
 
 dayjs.extend(isoWeek);
 
@@ -39,43 +42,43 @@ export const getDateRangePresets = (
         case TimeFrames.DAY:
             return [
                 {
-                    label: 'Today',
-                    controlLabel: 'Today',
+                    label: i18n.t('datePresets.labels.today', { ns }),
+                    controlLabel: i18n.t('datePresets.labels.today', { ns }),
                     getValue: () => [today.toDate(), now.toDate()],
                 },
                 {
-                    label: 'Past 7 days',
-                    controlLabel: '7D',
+                    label: i18n.t('datePresets.labels.past7Days', { ns }),
+                    controlLabel: i18n.t('datePresets.controls.d7', { ns }),
                     getValue: () => [
                         today.subtract(7, 'day').toDate(),
                         now.toDate(),
                     ],
                 },
                 {
-                    label: 'Past 30 days',
-                    controlLabel: '30D',
+                    label: i18n.t('datePresets.labels.past30Days', { ns }),
+                    controlLabel: i18n.t('datePresets.controls.d30', { ns }),
                     getValue: () =>
                         getDefaultDateRangeFromInterval(timeInterval),
                 },
                 {
-                    label: 'Past 3 months',
-                    controlLabel: '3M',
+                    label: i18n.t('datePresets.labels.past3Months', { ns }),
+                    controlLabel: i18n.t('datePresets.controls.m3', { ns }),
                     getValue: () => [
                         today.subtract(12, 'week').toDate(),
                         now.toDate(),
                     ],
                 },
                 {
-                    label: 'Past 12 months',
-                    controlLabel: '12M',
+                    label: i18n.t('datePresets.labels.past12Months', { ns }),
+                    controlLabel: i18n.t('datePresets.controls.m12', { ns }),
                     getValue: () => [
                         today.subtract(12, 'month').toDate(),
                         now.toDate(),
                     ],
                 },
                 {
-                    label: 'Past 5 years',
-                    controlLabel: '5Y',
+                    label: i18n.t('datePresets.labels.past5Years', { ns }),
+                    controlLabel: i18n.t('datePresets.controls.y5', { ns }),
                     getValue: () => [
                         today.subtract(5, 'year').toDate(),
                         now.toDate(),
@@ -95,46 +98,46 @@ export const getDateRangePresets = (
         case TimeFrames.WEEK:
             return [
                 {
-                    label: 'This week',
-                    controlLabel: 'This week',
+                    label: i18n.t('datePresets.labels.thisWeek', { ns }),
+                    controlLabel: i18n.t('datePresets.labels.thisWeek', { ns }),
                     getValue: () => [
                         today.startOf('isoWeek').toDate(),
                         now.toDate(),
                     ],
                 },
                 {
-                    label: 'Past 1 week',
-                    controlLabel: '1W',
+                    label: i18n.t('datePresets.labels.past1Week', { ns }),
+                    controlLabel: i18n.t('datePresets.controls.w1', { ns }),
                     getValue: () => [
                         today.subtract(1, 'week').startOf('isoWeek').toDate(),
                         now.toDate(),
                     ],
                 },
                 {
-                    label: 'Past 4 weeks',
-                    controlLabel: '4W',
+                    label: i18n.t('datePresets.labels.past4Weeks', { ns }),
+                    controlLabel: i18n.t('datePresets.controls.w4', { ns }),
                     getValue: () => [
                         today.subtract(4, 'week').startOf('isoWeek').toDate(),
                         now.toDate(),
                     ],
                 },
                 {
-                    label: 'Past 3 months',
-                    controlLabel: '3M',
+                    label: i18n.t('datePresets.labels.past3Months', { ns }),
+                    controlLabel: i18n.t('datePresets.controls.m3', { ns }),
                     getValue: () =>
                         getDefaultDateRangeFromInterval(timeInterval),
                 },
                 {
-                    label: 'Past 12 months',
-                    controlLabel: '12M',
+                    label: i18n.t('datePresets.labels.past12Months', { ns }),
+                    controlLabel: i18n.t('datePresets.controls.m12', { ns }),
                     getValue: () => [
                         today.subtract(12, 'month').startOf('month').toDate(),
                         now.toDate(),
                     ],
                 },
                 {
-                    label: 'Past 5 years',
-                    controlLabel: '5Y',
+                    label: i18n.t('datePresets.labels.past5Years', { ns }),
+                    controlLabel: i18n.t('datePresets.controls.y5', { ns }),
                     getValue: () => [
                         today.subtract(5, 'year').startOf('year').toDate(),
                         now.toDate(),
@@ -153,38 +156,40 @@ export const getDateRangePresets = (
         case TimeFrames.MONTH:
             return [
                 {
-                    label: 'This month',
-                    controlLabel: 'This month',
+                    label: i18n.t('datePresets.labels.thisMonth', { ns }),
+                    controlLabel: i18n.t('datePresets.labels.thisMonth', {
+                        ns,
+                    }),
                     getValue: () => [
                         today.startOf('month').toDate(),
                         now.toDate(),
                     ],
                 },
                 {
-                    label: 'Past 3 months',
-                    controlLabel: '3M',
+                    label: i18n.t('datePresets.labels.past3Months', { ns }),
+                    controlLabel: i18n.t('datePresets.controls.m3', { ns }),
                     getValue: () => [
                         today.subtract(3, 'month').startOf('month').toDate(),
                         now.toDate(),
                     ],
                 },
                 {
-                    label: 'Past 6 months',
-                    controlLabel: '6M',
+                    label: i18n.t('datePresets.labels.past6Months', { ns }),
+                    controlLabel: i18n.t('datePresets.controls.m6', { ns }),
                     getValue: () => [
                         today.subtract(6, 'month').startOf('month').toDate(),
                         now.toDate(),
                     ],
                 },
                 {
-                    label: 'Past 12 months',
-                    controlLabel: '12M',
+                    label: i18n.t('datePresets.labels.past12Months', { ns }),
+                    controlLabel: i18n.t('datePresets.controls.m12', { ns }),
                     getValue: () =>
                         getDefaultDateRangeFromInterval(timeInterval),
                 },
                 {
-                    label: 'Past 5 years',
-                    controlLabel: '5Y',
+                    label: i18n.t('datePresets.labels.past5Years', { ns }),
+                    controlLabel: i18n.t('datePresets.controls.y5', { ns }),
                     getValue: () => [
                         today.subtract(5, 'year').startOf('year').toDate(),
                         now.toDate(),
@@ -201,30 +206,30 @@ export const getDateRangePresets = (
         case TimeFrames.YEAR:
             return [
                 {
-                    label: 'This year',
-                    controlLabel: 'This year',
+                    label: i18n.t('datePresets.labels.thisYear', { ns }),
+                    controlLabel: i18n.t('datePresets.labels.thisYear', { ns }),
                     getValue: () => [
                         today.startOf('year').toDate(),
                         now.toDate(),
                     ],
                 },
                 {
-                    label: 'Past 1 year',
-                    controlLabel: '1Y',
+                    label: i18n.t('datePresets.labels.past1Year', { ns }),
+                    controlLabel: i18n.t('datePresets.controls.y1', { ns }),
                     getValue: () => [
                         today.subtract(1, 'year').startOf('year').toDate(),
                         now.toDate(),
                     ],
                 },
                 {
-                    label: 'Past 3 years',
-                    controlLabel: '3Y',
+                    label: i18n.t('datePresets.labels.past3Years', { ns }),
+                    controlLabel: i18n.t('datePresets.controls.y3', { ns }),
                     getValue: () =>
                         getDefaultDateRangeFromInterval(timeInterval),
                 },
                 {
-                    label: 'Past 5 years',
-                    controlLabel: '5Y',
+                    label: i18n.t('datePresets.labels.past5Years', { ns }),
+                    controlLabel: i18n.t('datePresets.controls.y5', { ns }),
                     getValue: () => [
                         today.subtract(5, 'year').startOf('year').toDate(),
                         now.toDate(),

@@ -6,6 +6,7 @@ import {
 import { Anchor, Box, Group, Loader } from '@mantine/core';
 import { IconArrowUpRight } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -20,6 +21,7 @@ const RecentAppSuggestion: FC<{
     position: number;
     onClick: (app: ApiAppSummary, position: number) => void;
 }> = ({ app, position, onClick }) => {
+    const { t } = useTranslation('apps');
     const displayName = getAppDisplayName(app.name, app.appUuid);
     const isBuilding =
         app.lastVersionStatus !== null &&
@@ -30,7 +32,7 @@ const RecentAppSuggestion: FC<{
             component={Link}
             to={`/projects/${app.projectUuid}/apps/${app.appUuid}`}
             className={classes.suggestion}
-            title={`Continue building: ${displayName}`}
+            title={t('recent.continueBuildingTitle', { name: displayName })}
             onClick={() => onClick(app, position)}
         >
             <Group gap={4} wrap="nowrap">
@@ -43,21 +45,24 @@ const RecentAppSuggestion: FC<{
                         color="ldGray.5"
                     />
                 )}
-                <span className={classes.prefix}>Continue building:</span>
+                <span className={classes.prefix}>
+                    {t('recent.continueBuildingPrefix')}
+                </span>
                 <span className={classes.label}>{displayName}</span>
                 {isBuilding && (
                     <span className={classes.status}>
-                        · Building
                         {app.lastVersionNumber !== null
-                            ? ` v${app.lastVersionNumber}`
-                            : ''}
+                            ? t('recent.buildingVersion', {
+                                  version: app.lastVersionNumber,
+                              })
+                            : t('recent.building')}
                     </span>
                 )}
                 {app.lastVersionStatus === 'error' && (
                     <span
                         className={`${classes.status} ${classes.errorStatus}`}
                     >
-                        · Build failed
+                        {t('recent.buildFailed')}
                     </span>
                 )}
             </Group>

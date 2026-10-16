@@ -5,6 +5,7 @@ import {
     type UpdateOrganizationHomepageSettings,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useHomepageAiState } from './useHomepageAiState';
@@ -34,6 +35,7 @@ const updateOrgHomepageSettingsApi = async (
     });
 
 export const useUpdateOrgHomepageSettings = () => {
+    const { t } = useTranslation('homepageBuilder');
     const { showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<
@@ -54,7 +56,7 @@ export const useUpdateOrgHomepageSettings = () => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update homepage settings',
+                title: t('toasts.updateSettingsFailed'),
                 apiError: error,
             });
         },

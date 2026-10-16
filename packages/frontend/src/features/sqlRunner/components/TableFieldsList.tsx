@@ -14,6 +14,7 @@ import {
 import { useHover } from '@mantine/hooks';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
@@ -26,6 +27,7 @@ const FieldRow: FC<{
     field: WarehouseTableField;
     search: string;
 }> = memo(({ table, field, search }) => {
+    const { t } = useTranslation('sqlRunner');
     const { ref: hoverRef, hovered } = useHover();
     const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
     return (
@@ -46,8 +48,10 @@ const FieldRow: FC<{
             {hovered ? (
                 <CopyActionIcon
                     value={`${table}.${field.name}`}
-                    copyLabel="Copy column"
-                    copiedLabel="Copied to clipboard"
+                    copyLabel={t('tableFields.copyColumn')}
+                    copiedLabel={t('feedback.copiedToClipboard', {
+                        ns: 'common',
+                    })}
                     tooltipPosition="right"
                     size="xs"
                     ml="auto"
@@ -85,92 +89,97 @@ export const TableFieldsList: FC<Props> = ({
     search,
     onSearchChange,
     highlight,
-}) => (
-    <Stack gap={0} h="100%" className={styles.root}>
-        <Group gap={0} wrap="nowrap" className={styles.header}>
-            {pathPrefix && (
-                <Text
-                    ff="monospace"
-                    fz="xs"
-                    c="ldGray.5"
-                    className={styles.pathPrefix}
+}) => {
+    const { t } = useTranslation('sqlRunner');
+    return (
+        <Stack gap={0} h="100%" className={styles.root}>
+            <Group gap={0} wrap="nowrap" className={styles.header}>
+                {pathPrefix && (
+                    <Text
+                        ff="monospace"
+                        fz="xs"
+                        c="ldGray.5"
+                        className={styles.pathPrefix}
+                    >
+                        {pathPrefix}
+                    </Text>
+                )}
+                {pathPrefix && (
+                    <Text ff="monospace" fz="xs" c="ldGray.5" flex="0 0 auto">
+                        .
+                    </Text>
+                )}
+                <Text ff="monospace" fz="xs" fw={500} truncate>
+                    {table}
+                </Text>
+                <CopyActionIcon
+                    value={copyValue}
+                    copyLabel={t('tableFields.copyTablePath')}
+                    copiedLabel={t('feedback.copiedToClipboard', {
+                        ns: 'common',
+                    })}
+                    tooltipPosition="left"
+                    ml="auto"
+                />
+            </Group>
+            <Box px="xs" pb="xs">
+                <TextInput
+                    size="xs"
+                    disabled={!isReady}
+                    leftSection={
+                        isLoading ? (
+                            <Loader size="xs" />
+                        ) : (
+                            <MantineIcon icon={IconSearch} />
+                        )
+                    }
+                    rightSectionPointerEvents="all"
+                    rightSection={
+                        search ? (
+                            <ActionIcon
+                                aria-label={t('tablesToolbar.clearSearch')}
+                                onMouseDown={(event) => event.preventDefault()}
+                                size="xs"
+                                onClick={() => onSearchChange('')}
+                            >
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        ) : null
+                    }
+                    placeholder={t('tableFields.searchFields')}
+                    value={search}
+                    onChange={(event) => onSearchChange(event.target.value)}
+                />
+            </Box>
+            {isReady && fields.length > 0 && (
+                <ScrollArea
+                    offsetScrollbars
+                    scrollbars="y"
+                    classNames={{ content: scrollAreaClasses.verticalContent }}
+                    flex={1}
+                    type="auto"
+                    scrollbarSize={8}
+                    pl="xs"
                 >
-                    {pathPrefix}
-                </Text>
+                    <Stack gap={0}>
+                        {fields.map((field) => (
+                            <FieldRow
+                                key={field.name}
+                                table={table}
+                                field={field}
+                                search={highlight}
+                            />
+                        ))}
+                    </Stack>
+                </ScrollArea>
             )}
-            {pathPrefix && (
-                <Text ff="monospace" fz="xs" c="ldGray.5" flex="0 0 auto">
-                    .
-                </Text>
+            {isReady && fields.length === 0 && (
+                <Center p="sm">
+                    <Text c="dimmed" fz="sm">
+                        {t('tableFields.noColumns')}
+                    </Text>
+                </Center>
             )}
-            <Text ff="monospace" fz="xs" fw={500} truncate>
-                {table}
-            </Text>
-            <CopyActionIcon
-                value={copyValue}
-                copyLabel="Copy full table path"
-                copiedLabel="Copied to clipboard"
-                tooltipPosition="left"
-                ml="auto"
-            />
-        </Group>
-        <Box px="xs" pb="xs">
-            <TextInput
-                size="xs"
-                disabled={!isReady}
-                leftSection={
-                    isLoading ? (
-                        <Loader size="xs" />
-                    ) : (
-                        <MantineIcon icon={IconSearch} />
-                    )
-                }
-                rightSectionPointerEvents="all"
-                rightSection={
-                    search ? (
-                        <ActionIcon
-                            aria-label="Clear search"
-                            onMouseDown={(event) => event.preventDefault()}
-                            size="xs"
-                            onClick={() => onSearchChange('')}
-                        >
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    ) : null
-                }
-                placeholder="Search fields"
-                value={search}
-                onChange={(event) => onSearchChange(event.target.value)}
-            />
-        </Box>
-        {isReady && fields.length > 0 && (
-            <ScrollArea
-                offsetScrollbars
-                scrollbars="y"
-                classNames={{ content: scrollAreaClasses.verticalContent }}
-                flex={1}
-                type="auto"
-                scrollbarSize={8}
-                pl="xs"
-            >
-                <Stack gap={0}>
-                    {fields.map((field) => (
-                        <FieldRow
-                            key={field.name}
-                            table={table}
-                            field={field}
-                            search={highlight}
-                        />
-                    ))}
-                </Stack>
-            </ScrollArea>
-        )}
-        {isReady && fields.length === 0 && (
-            <Center p="sm">
-                <Text c="dimmed" fz="sm">
-                    No columns found
-                </Text>
-            </Center>
-        )}
-    </Stack>
-);
+        </Stack>
+    );
+};

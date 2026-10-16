@@ -1,6 +1,7 @@
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconUser } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FilterFacet, {
     type FilterFacetOption,
 } from '../../../../../components/common/FilterFacet';
@@ -25,6 +26,7 @@ const UsersFilter: FC<UsersFilterProps> = ({
     selectedUserUuids,
     setSelectedUserUuids,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const [searchValue, setSearchValue] = useState('');
     const [debouncedSearchValue] = useDebouncedValue(searchValue, 300);
     const { data, isLoading, isFetching, hasNextPage, fetchNextPage } =
@@ -67,20 +69,20 @@ const UsersFilter: FC<UsersFilterProps> = ({
 
     return (
         <FilterFacet
-            label="User"
+            label={t('filters.users.label')}
             icon={IconUser}
             options={options}
             selected={selectedUserUuids}
             onChange={setSelectedUserUuids}
-            tooltipLabel="Filter by user"
+            tooltipLabel={t('filters.users.tooltip')}
             searchValue={searchValue}
             onSearchChange={setSearchValue}
-            searchPlaceholder="Search users..."
+            searchPlaceholder={t('filters.users.searchPlaceholder')}
             loading={isLoading}
             loadingMore={isFetching && !isLoading}
             onScrollEnd={handleScrollEnd}
             enableSelectAll
-            emptyLabel="No users found."
+            emptyLabel={t('filters.users.empty')}
         />
     );
 };

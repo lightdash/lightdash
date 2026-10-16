@@ -9,6 +9,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 
 export type ThreadFileAttachment = Extract<
     AiPromptContextItem,
@@ -87,10 +88,14 @@ export const useThreadFileAttachment = ({
         async (file: File) => {
             if (file.size > AI_THREAD_FILE_MAX_BYTES) {
                 showToastError({
-                    title: 'Could not attach the file',
-                    subtitle: `${file.name} is larger than the ${
-                        AI_THREAD_FILE_MAX_BYTES / 1024
-                    } KB limit.`,
+                    title: i18n.t('toasts.attachments.attachFailed', {
+                        ns: 'aiAgent',
+                    }),
+                    subtitle: i18n.t('toasts.attachments.tooLarge', {
+                        ns: 'aiAgent',
+                        name: file.name,
+                        limitKb: AI_THREAD_FILE_MAX_BYTES / 1024,
+                    }),
                 });
                 return;
             }
@@ -109,16 +114,23 @@ export const useThreadFileAttachment = ({
                 if (isAbortError(error) || signal.aborted) return;
                 if (isApiError(error)) {
                     showToastApiError({
-                        title: 'Could not attach the file',
+                        title: i18n.t('toasts.attachments.attachFailed', {
+                            ns: 'aiAgent',
+                        }),
                         apiError: error.error,
                     });
                 } else {
                     showToastError({
-                        title: 'Could not attach the file',
+                        title: i18n.t('toasts.attachments.attachFailed', {
+                            ns: 'aiAgent',
+                        }),
                         subtitle:
                             error instanceof Error
                                 ? error.message
-                                : 'Something went wrong while uploading.',
+                                : i18n.t(
+                                      'toasts.attachments.uploadFailedFallback',
+                                      { ns: 'aiAgent' },
+                                  ),
                     });
                 }
             } finally {
@@ -145,7 +157,9 @@ export const useThreadFileAttachment = ({
             } catch (error) {
                 if (isApiError(error)) {
                     showToastApiError({
-                        title: 'Could not remove the file',
+                        title: i18n.t('toasts.attachments.removeFailed', {
+                            ns: 'aiAgent',
+                        }),
                         apiError: error.error,
                     });
                 }

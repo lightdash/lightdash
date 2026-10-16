@@ -16,6 +16,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -78,6 +79,7 @@ const AddFieldSearch: FC<AddFieldSearchProps> = ({
 };
 
 export const FieldsAndTiles: FC = () => {
+    const { t } = useTranslation('dashboardFilters');
     const {
         editingRule,
         isPlaceholder,
@@ -235,8 +237,8 @@ export const FieldsAndTiles: FC = () => {
                 )}
                 <Text fz="xs" c="dimmed" className={classes.hint}>
                     {hasFields
-                        ? 'Select the field to filter tiles by.'
-                        : 'Select the column to filter tiles by.'}
+                        ? t('controls.fields.selectFieldHint')
+                        : t('controls.fields.selectColumnHint')}
                 </Text>
             </Stack>
         );
@@ -251,10 +253,10 @@ export const FieldsAndTiles: FC = () => {
             <Stack gap="xs" ref={rowsRef}>
                 <Stack gap={2}>
                     <Text fz="sm" fw={600}>
-                        Tiles are filtered by
+                        {t('controls.fields.tilesFilteredBy')}
                     </Text>
                     <Text fz="xs" c="dimmed">
-                        Select a field to see and change its tiles.
+                        {t('controls.fields.selectToSeeTiles')}
                     </Text>
                 </Stack>
                 {rowIds.map((fieldId, index) => {
@@ -293,7 +295,7 @@ export const FieldsAndTiles: FC = () => {
             </Stack>
             <Stack gap="xs" align="flex-start">
                 <Tooltip
-                    label="No tile has another field this filter could use"
+                    label={t('controls.fields.noOtherField')}
                     disabled={hasCandidates}
                 >
                     <Button
@@ -308,7 +310,7 @@ export const FieldsAndTiles: FC = () => {
                         data-disabled={!hasCandidates || undefined}
                         aria-disabled={!hasCandidates || undefined}
                     >
-                        Add another field
+                        {t('controls.fields.addAnotherField')}
                     </Button>
                 </Tooltip>
                 {isAdding && hasCandidates && (

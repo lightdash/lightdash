@@ -14,6 +14,7 @@ import {
     IconMinus,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -51,6 +52,7 @@ export const PanelHeader: FC<Props> = ({
     showAgentSwitcher = true,
     showAgentIdentity = true,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const dispatch = useAiAgentStoreDispatch();
     const navigate = useNavigate();
     const pendingContext = useAiAgentStoreSelector(
@@ -97,7 +99,9 @@ export const PanelHeader: FC<Props> = ({
                 {canSwitchAgent ? (
                     <Menu position="bottom-start" withinPortal={false}>
                         <Menu.Target>
-                            <UnstyledButton aria-label="Switch agent">
+                            <UnstyledButton
+                                aria-label={t('launcher.switchAgent')}
+                            >
                                 <Group gap="xs" wrap="nowrap">
                                     {isAuto ? (
                                         <Avatar
@@ -162,7 +166,7 @@ export const PanelHeader: FC<Props> = ({
                                         handleSwitchAgent(LAUNCHER_AUTO_AGENT)
                                     }
                                 >
-                                    Auto
+                                    {t('agentSelector.auto')}
                                 </Menu.Item>
                             )}
                             {agents.map((a) => (
@@ -217,7 +221,7 @@ export const PanelHeader: FC<Props> = ({
                     size="sm"
                     onClick={handleExpand}
                     disabled={!agent}
-                    aria-label="Open in fullscreen"
+                    aria-label={t('launcher.openFullscreen')}
                 >
                     <MantineIcon
                         icon={IconWindowMaximize}
@@ -228,7 +232,7 @@ export const PanelHeader: FC<Props> = ({
                 <ActionIcon
                     size="sm"
                     onClick={handleClose}
-                    aria-label="Close panel"
+                    aria-label={t('launcher.closePanel')}
                 >
                     <MantineIcon icon={IconMinus} size={16} />
                 </ActionIcon>

@@ -2,9 +2,11 @@ import { getErrorMessage, isApiError } from '@lightdash/common';
 import { Group, Text, Tooltip } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../MantineIcon';
 
 const TotalCalculationErrorCell: FC<{ error: unknown }> = ({ error }) => {
+    const { t } = useTranslation('table');
     const message = isApiError(error)
         ? error.error.message
         : getErrorMessage(error);
@@ -19,11 +21,13 @@ const TotalCalculationErrorCell: FC<{ error: unknown }> = ({ error }) => {
                 c="red.6"
                 w="100%"
                 style={{ cursor: 'help' }}
-                aria-label={`Total calculation error: ${message}`}
+                aria-label={t('totals.calculationErrorWithMessage', {
+                    message,
+                })}
             >
                 <MantineIcon icon={IconAlertCircle} size={14} />
                 <Text component="span" size="xs" fw={600} c="inherit">
-                    Error
+                    {t('state.error', { ns: 'common' })}
                 </Text>
             </Group>
         </Tooltip>

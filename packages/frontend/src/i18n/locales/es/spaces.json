@@ -1,0 +1,28 @@
+{
+    "defaultUserSpaces": {
+        "title": "Espacios personales",
+        "description": "Si se activa, cada miembro del proyecto tendrá automáticamente un espacio personal donde guardar sus propios gráficos y paneles.",
+        "enable": "Activar espacios de usuario predeterminados"
+    },
+    "spacesPage": {
+        "title": "Espacios",
+        "home": "Inicio",
+        "sharedWithMeEmpty": "Todavía no se ha compartido nada contigo.",
+        "createNewSpace": "Crear nuevo espacio"
+    },
+    "spacePage": {
+        "loading": "Cargando espacio",
+        "notFoundTitle": "El espacio no existe",
+        "notFoundDescription": "No pudimos encontrar el espacio con uuid {{spaceUuid}}",
+        "noAccess": "No tienes acceso a este espacio",
+        "createSpace": "Crear espacio",
+        "createDashboard": "Crear nuevo panel",
+        "createChart": "Crear nuevo gráfico",
+        "createDocument": "Crear nuevo documento",
+        "createDataApp": "Crear nueva app de datos",
+        "actions": "Acciones del espacio",
+        "updateSpace": "Actualizar espacio",
+        "deleteSpace": "Eliminar espacio",
+        "createSpaceIn": "Crear espacio en \"{{name}}\""
+    }
+}

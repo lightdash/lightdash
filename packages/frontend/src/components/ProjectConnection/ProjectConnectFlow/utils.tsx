@@ -1,6 +1,7 @@
 import { assertUnreachable, WarehouseTypes } from '@lightdash/common';
 import { Avatar } from '@mantine/core';
 import { IconDots } from '@tabler/icons-react';
+import i18n from '../../../i18n/i18n';
 import MantineIcon, { type MantineIconSize } from '../../common/MantineIcon';
 // assets
 import Athena from './Assets/athena.svg';
@@ -74,7 +75,12 @@ export const WarehouseTypeLabels: WarehouseLabel[] = [
         image: DuckDB,
     },
     {
-        label: 'Other',
+        // Getter resolves lazily so the label follows the active language
+        get label() {
+            return i18n.t('connectFlow.otherWarehouse', {
+                ns: 'projectConnection',
+            });
+        },
         key: OtherWarehouse.Other,
         iconType: 'icon',
         Icon: IconDots,

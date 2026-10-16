@@ -22,6 +22,7 @@ import {
 } from '@mantine/core';
 import { IconAppsOff, IconCode, IconFilter } from '@tabler/icons-react';
 import React, { useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
 import { getVisiblePreviewTokenError } from '../../features/apps/hooks/previewTokenQueryOptions';
@@ -53,6 +54,7 @@ const DashboardFiltersIndicator: FC<{
     filterRules: DashboardFilterRule[];
     filterableItems: Record<string, FilterableItem>;
 }> = ({ filterRules, filterableItems }) => {
+    const { t } = useTranslation('dashboard');
     const fieldsByTile = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
@@ -77,9 +79,9 @@ const DashboardFiltersIndicator: FC<{
         return { filterRule, labels };
     });
 
-    const availableFiltersLabel = `${filterRules.length} dashboard filter${
-        filterRules.length === 1 ? '' : 's'
-    } available to this Data App`;
+    const availableFiltersLabel = t('dataAppTile.filtersAvailableCount', {
+        count: filterRules.length,
+    });
 
     return (
         <TileHeaderPopover>
@@ -90,8 +92,9 @@ const DashboardFiltersIndicator: FC<{
             >
                 <Stack gap="xs" align="flex-start">
                     <Text c="ldGray.7" fw={500} fz="xs">
-                        Dashboard filter{filterRules.length === 1 ? '' : 's'}{' '}
-                        available to this Data App:
+                        {t('dataAppTile.filtersAvailableHeading', {
+                            count: filterRules.length,
+                        })}
                     </Text>
                     {labelledRules.map(({ filterRule, labels }) => (
                         <Badge
@@ -110,7 +113,7 @@ const DashboardFiltersIndicator: FC<{
                             </Text>{' '}
                             {filterRule.disabled ? (
                                 <Text span inherit c="foreground">
-                                    is any value
+                                    {t('dataAppTile.isAnyValue')}
                                 </Text>
                             ) : (
                                 <>
@@ -136,6 +139,7 @@ const DashboardFiltersIndicator: FC<{
 };
 
 const DataAppTile: FC<Props> = (props) => {
+    const { t } = useTranslation('dashboard');
     const { pathname } = useLocation();
     const {
         tile: {
@@ -254,7 +258,7 @@ const DataAppTile: FC<Props> = (props) => {
             leftSection={<MantineIcon icon={IconCode} />}
             href={`/projects/${projectUuid}/apps/${appUuid}`}
         >
-            Continue building
+            {t('dataAppTile.continueBuilding')}
         </LinkMenuItem>
     ) : null;
 
@@ -355,29 +359,31 @@ const DataAppTile: FC<Props> = (props) => {
                 {isNotFound ? (
                     <SuboptimalState
                         icon={IconAppsOff}
-                        title="Data app not available"
+                        title={t('dataAppTile.notAvailable.title')}
                         description={
                             isPreviewProject
-                                ? "Data apps aren't duplicated into preview environments yet. You can however edit or remove the tile itself."
-                                : 'This data app no longer exists. Edit the tile to pick another app.'
+                                ? t('dataAppTile.notAvailable.preview')
+                                : t('dataAppTile.notAvailable.deleted')
                         }
                     />
                 ) : isForbidden ? (
                     <SuboptimalState
                         icon={IconAppsOff}
-                        title="No access"
-                        description="You don't have permission to view this data app."
+                        title={t('dataAppTile.noAccess.title')}
+                        description={t('dataAppTile.noAccess.description')}
                     />
                 ) : hasNoReadyVersion ? (
                     <SuboptimalState
                         icon={IconAppsOff}
-                        title="No ready version"
-                        description="This data app hasn't finished building yet."
+                        title={t('dataAppTile.noReadyVersion.title')}
+                        description={t(
+                            'dataAppTile.noReadyVersion.description',
+                        )}
                     />
                 ) : otherError ? (
                     <Stack align="center" justify="center" h="100%">
                         <Text c="red" size="sm">
-                            Failed to load app
+                            {t('dataAppTile.loadFailed')}
                         </Text>
                     </Stack>
                 ) : isLoading || !previewUrl || !token ? (

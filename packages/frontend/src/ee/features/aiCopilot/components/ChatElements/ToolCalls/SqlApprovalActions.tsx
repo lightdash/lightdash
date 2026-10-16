@@ -15,6 +15,7 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSessionStorage } from 'react-use';
 import { lightdashApi } from '../../../../../../api';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
@@ -43,6 +44,7 @@ const useSqlApprovalDecision = ({
     threadUuid,
     toolCallId,
 }: SqlApprovalTarget) => {
+    const { t } = useTranslation('aiCopilotChat');
     const dispatch = useAiAgentStoreDispatch();
     const [autoApprove, setAutoApprove] = useSessionStorage<boolean>(
         getSqlAutoApproveKey(threadUuid),
@@ -65,10 +67,14 @@ const useSqlApprovalDecision = ({
                 dispatch(markToolCallDecided({ threadUuid, toolCallId }));
             } catch (e) {
                 setSubmitting('idle');
-                setError(e instanceof Error ? e.message : 'Could not submit');
+                setError(
+                    e instanceof Error
+                        ? e.message
+                        : t('sqlApproval.couldNotSubmit'),
+                );
             }
         },
-        [projectUuid, agentUuid, threadUuid, toolCallId, dispatch],
+        [projectUuid, agentUuid, threadUuid, toolCallId, dispatch, t],
     );
 
     const autoApprovedFired = useRef(false);
@@ -122,6 +128,7 @@ const SqlApprovalButtons: FC<{
     placement: 'card' | 'modal';
     onDecide: () => void;
 }> = ({ decision, size, placement, onDecide }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const { submitting } = decision;
     const iconSize = ICON_SIZES[size];
     const decide = (handler: () => void) => () => {
@@ -139,7 +146,7 @@ const SqlApprovalButtons: FC<{
             disabled={submitting !== 'idle'}
             onClick={decide(decision.onApprove)}
         >
-            Approve
+            {t('sqlApproval.approve')}
         </Button>
     );
     const approveAlways = (
@@ -153,7 +160,7 @@ const SqlApprovalButtons: FC<{
             disabled={submitting !== 'idle'}
             onClick={decide(decision.onApproveAlways)}
         >
-            Approve & don't ask again this thread
+            {t('sqlApproval.approveAlways')}
         </Button>
     );
     const reject = (
@@ -166,7 +173,7 @@ const SqlApprovalButtons: FC<{
             disabled={submitting !== 'idle'}
             onClick={decide(decision.onReject)}
         >
-            Reject
+            {t('sqlApproval.reject')}
         </Button>
     );
 
@@ -182,13 +189,20 @@ const SqlApprovalButtons: FC<{
 
 const noop = () => undefined;
 
-export const SqlExpandButton: FC<{ onClick: () => void }> = ({ onClick }) => (
-    <Tooltip label="Expand SQL">
-        <ActionIcon size="sm" aria-label="Expand SQL" onClick={onClick}>
-            <MantineIcon icon={IconArrowsDiagonal} size={14} />
-        </ActionIcon>
-    </Tooltip>
-);
+export const SqlExpandButton: FC<{ onClick: () => void }> = ({ onClick }) => {
+    const { t } = useTranslation('aiCopilotChat');
+    return (
+        <Tooltip label={t('sqlApproval.expandSql')}>
+            <ActionIcon
+                size="sm"
+                aria-label={t('sqlApproval.expandSql')}
+                onClick={onClick}
+            >
+                <MantineIcon icon={IconArrowsDiagonal} size={14} />
+            </ActionIcon>
+        </Tooltip>
+    );
+};
 
 type SqlApprovalActionsProps = SqlApprovalTarget & {
     size?: 'xs' | 'compact-xs';

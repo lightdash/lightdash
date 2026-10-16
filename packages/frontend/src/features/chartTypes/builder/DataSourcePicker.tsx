@@ -36,6 +36,7 @@ import {
     type ReactNode,
     type Ref,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ChartIcon } from '../../../components/common/ResourceIcon';
@@ -115,6 +116,7 @@ const PickerBody: FC<BodyProps> = ({
     onClose,
     ref,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const projectUuid = useProjectUuid();
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 250);
@@ -142,14 +144,14 @@ const PickerBody: FC<BodyProps> = ({
     const exploresError =
         exploreSource !== null && exploresQuery.isError
             ? {
-                  message: 'Couldn’t load your tables.',
+                  message: t('picker.tablesError'),
                   retry: exploresQuery.refetch,
               }
             : null;
     const chartsError =
         savedChartSource !== null && chartsQuery.isError
             ? {
-                  message: 'Couldn’t load your saved charts.',
+                  message: t('picker.chartsError'),
                   retry: chartsQuery.refetch,
               }
             : null;
@@ -379,12 +381,12 @@ const PickerBody: FC<BodyProps> = ({
     }, [hasSearch, needle, firstOptionValue, selectFirstOption]);
 
     // What the list holds, as the copy names it.
-    const kinds =
+    const kinds: 'both' | 'tables' | 'charts' =
         exploreSource !== null && savedChartSource !== null
-            ? 'tables or saved charts'
+            ? 'both'
             : exploreSource !== null
               ? 'tables'
-              : 'saved charts';
+              : 'charts';
     const showTables = exploreSource !== null && tableGroups.length > 0;
     const showCharts = savedChartSource !== null && charts.length > 0;
 
@@ -399,8 +401,8 @@ const PickerBody: FC<BodyProps> = ({
         list = (
             <Combobox.Empty fz="xs">
                 {hasSearch
-                    ? `No ${kinds} match “${search.trim()}”`
-                    : `No ${kinds}`}
+                    ? t(`picker.noMatch.${kinds}`, { search: search.trim() })
+                    : t(`picker.none.${kinds}`)}
             </Combobox.Empty>
         );
     } else {
@@ -423,7 +425,7 @@ const PickerBody: FC<BodyProps> = ({
                                     size={12}
                                     color="indigo.4"
                                 />
-                                Suggested for this chart
+                                {t('picker.suggested')}
                             </>
                         }
                         classNames={{ groupLabel: classes.sectionHeader }}
@@ -457,7 +459,7 @@ const PickerBody: FC<BodyProps> = ({
                 )}
                 {showTables && (
                     <Combobox.Group
-                        label="Tables"
+                        label={t('picker.tables')}
                         classNames={{ groupLabel: classes.sectionHeader }}
                     >
                         {tableGroups.map((group) => {
@@ -497,7 +499,9 @@ const PickerBody: FC<BodyProps> = ({
                         })}
                         {hiddenTableCount > 0 && (
                             <Text fz="xs" c="dimmed" px={6} pb={4}>
-                                {`Type to search ${hiddenTableCount} more tables`}
+                                {t('picker.moreTables', {
+                                    count: hiddenTableCount,
+                                })}
                             </Text>
                         )}
                     </Combobox.Group>
@@ -514,8 +518,10 @@ const PickerBody: FC<BodyProps> = ({
                     <Combobox.Group
                         label={
                             chartTotal !== null
-                                ? `Saved charts · ${chartTotal}`
-                                : 'Saved charts'
+                                ? t('picker.savedChartsCount', {
+                                      total: chartTotal,
+                                  })
+                                : t('source.savedCharts')
                         }
                         classNames={{ groupLabel: classes.sectionHeader }}
                     >
@@ -556,8 +562,8 @@ const PickerBody: FC<BodyProps> = ({
         <>
             <Combobox.Search
                 size="xs"
-                placeholder={`Search ${kinds.replace(' or ', ' and ')}`}
-                aria-label={`Search ${kinds.replace(' or ', ' and ')}`}
+                placeholder={t(`picker.search.${kinds}`)}
+                aria-label={t(`picker.search.${kinds}`)}
                 leftSection={<MantineIcon icon={IconSearch} size={14} />}
                 rightSection={
                     (isFetchingCharts && !chartsQuery.isInitialLoading) ||
@@ -596,7 +602,7 @@ const PickerBody: FC<BodyProps> = ({
                                     color="dimmed"
                                 />
                             }
-                            label="Use sample data instead"
+                            label={t('source.useSampleData')}
                         />
                     </Combobox.Footer>
                 )}

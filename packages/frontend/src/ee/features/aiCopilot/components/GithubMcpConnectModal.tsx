@@ -11,6 +11,7 @@ import {
 } from '@mantine/core';
 import { IconBrandGithub } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 
@@ -35,6 +36,7 @@ export const GithubMcpConnectModal: FC<Props> = ({
     onClose,
     onConnect,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const [token, setToken] = useState('');
     const [scope, setScope] = useState<AiMcpCredentialScope>('user');
 
@@ -50,7 +52,7 @@ export const GithubMcpConnectModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title="Give the agent the code behind your data"
+            title={t('githubConnect.title')}
             icon={IconBrandGithub}
             actions={
                 <Button
@@ -59,23 +61,19 @@ export const GithubMcpConnectModal: FC<Props> = ({
                     disabled={!trimmedToken}
                     onClick={() => onConnect(trimmedToken, scope)}
                 >
-                    Connect GitHub
+                    {t('mcpInput.github.connect')}
                 </Button>
             }
         >
             <Stack gap="md">
-                <Text size="sm">
-                    Once connected, your agent can use your repositories to
-                    enhance its understanding of your semantic layer when
-                    answering questions or making changes.
-                </Text>
+                <Text size="sm">{t('githubConnect.intro')}</Text>
 
                 <Divider />
 
                 {canChooseScope && (
                     <Stack gap={4}>
                         <Text size="sm" fw={600}>
-                            Who can use this token?
+                            {t('githubConnect.whoCanUse')}
                         </Text>
                         <SegmentedControl
                             fullWidth
@@ -85,50 +83,64 @@ export const GithubMcpConnectModal: FC<Props> = ({
                                 setScope(value as AiMcpCredentialScope)
                             }
                             data={[
-                                { label: 'Just me', value: 'user' },
-                                { label: 'Whole project', value: 'shared' },
+                                {
+                                    label: t('githubConnect.justMe'),
+                                    value: 'user',
+                                },
+                                {
+                                    label: t('githubConnect.wholeProject'),
+                                    value: 'shared',
+                                },
                             ]}
                         />
                         <Text size="xs" c="dimmed">
                             {scope === 'user'
-                                ? 'Each user connects their own token — the agent reads code as whoever is asking.'
-                                : 'One token shared by everyone using this agent.'}
+                                ? t('githubConnect.justMeHelp')
+                                : t('githubConnect.wholeProjectHelp')}
                         </Text>
                     </Stack>
                 )}
 
                 <Stack gap="xs">
                     <Text size="sm" fw={600}>
-                        Create a GitHub personal access token
+                        {t('githubConnect.createToken')}
                     </Text>
                     <List type="ordered" size="sm" spacing="xs">
                         <List.Item>
-                            Open{' '}
-                            <Anchor
-                                href={GITHUB_FINE_GRAINED_TOKEN_URL}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                GitHub → Fine-grained tokens
-                            </Anchor>
-                            .
+                            <Trans
+                                t={t}
+                                i18nKey="githubConnect.step1"
+                                components={{
+                                    anchor: (
+                                        <Anchor
+                                            href={GITHUB_FINE_GRAINED_TOKEN_URL}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        />
+                                    ),
+                                }}
+                            />
                         </List.Item>
                         <List.Item>
-                            Under <b>Repository access</b>, select the repos
-                            that you want to give the agent access to.
+                            <Trans
+                                t={t}
+                                i18nKey="githubConnect.step2"
+                                components={{ b: <b /> }}
+                            />
                         </List.Item>
                         <List.Item>
-                            Under <b>Permissions → Repository</b>, set{' '}
-                            <b>Contents</b> to <b>Read-only</b>.
+                            <Trans
+                                t={t}
+                                i18nKey="githubConnect.step3"
+                                components={{ b: <b /> }}
+                            />
                         </List.Item>
-                        <List.Item>
-                            Generate the token and paste it below.
-                        </List.Item>
+                        <List.Item>{t('githubConnect.step4')}</List.Item>
                     </List>
                 </Stack>
 
                 <PasswordInput
-                    label="Personal access token"
+                    label={t('githubConnect.tokenLabel')}
                     placeholder="github_pat_..."
                     value={token}
                     onChange={(event) => setToken(event.currentTarget.value)}
@@ -136,9 +148,7 @@ export const GithubMcpConnectModal: FC<Props> = ({
                 />
 
                 <Text size="xs" c="dimmed">
-                    Stored encrypted — use a read-only token scoped to only the
-                    repos you need. You can remove it any time from the agent's
-                    settings.
+                    {t('githubConnect.storageNote')}
                 </Text>
             </Stack>
         </MantineModal>

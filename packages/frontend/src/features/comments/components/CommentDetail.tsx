@@ -22,6 +22,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
@@ -61,6 +62,7 @@ export const CommentDetail: FC<Props> = ({
     canUnresolve,
     onUnresolve,
 }) => {
+    const { t } = useTranslation('comments');
     const getUiString = useUiStrings();
     const { ref, hovered } = useHover();
 
@@ -168,7 +170,7 @@ export const CommentDetail: FC<Props> = ({
                                                 data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-dashboards"] >> [data-tour-anchor="dashboard-row"][data-tour-value="Jaffle Shop overview"] >> [data-tour-anchor="tile-comments"] >> [data-tour-anchor="comment-actions"]'
                                                 data-tour-docs="explore/dashboards/interact.mdx#comment-on-a-tile:li3:1"
                                             >
-                                                Resolve
+                                                {t('detail.resolve')}
                                             </Menu.Item>
                                         )}
                                         {canUnresolve && onUnresolve && (
@@ -182,7 +184,7 @@ export const CommentDetail: FC<Props> = ({
                                                 }
                                                 onClick={() => onUnresolve()}
                                             >
-                                                Unresolve
+                                                {t('detail.unresolve')}
                                             </Menu.Item>
                                         )}
                                         {canRemove && (
@@ -197,7 +199,9 @@ export const CommentDetail: FC<Props> = ({
                                                 }
                                                 onClick={() => onRemove()}
                                             >
-                                                Delete
+                                                {t('actions.delete', {
+                                                    ns: 'common',
+                                                })}
                                             </Menu.Item>
                                         )}
                                     </Menu.Dropdown>

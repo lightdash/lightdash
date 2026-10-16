@@ -1,4 +1,5 @@
 import { getAllScopesForRole, ProjectMemberRole } from '@lightdash/common';
+import i18n from '../../i18n/i18n';
 
 export const ROLE_ORDER: ProjectMemberRole[] = [
     ProjectMemberRole.VIEWER,
@@ -8,13 +9,16 @@ export const ROLE_ORDER: ProjectMemberRole[] = [
     ProjectMemberRole.ADMIN,
 ];
 
-export const ROLE_LABELS: Record<ProjectMemberRole, string> = {
-    [ProjectMemberRole.VIEWER]: 'Viewer',
-    [ProjectMemberRole.INTERACTIVE_VIEWER]: 'Interactive viewer',
-    [ProjectMemberRole.EDITOR]: 'Editor',
-    [ProjectMemberRole.DEVELOPER]: 'Developer',
-    [ProjectMemberRole.ADMIN]: 'Admin',
+const ROLE_KEYS: Record<ProjectMemberRole, string> = {
+    [ProjectMemberRole.VIEWER]: 'viewer',
+    [ProjectMemberRole.INTERACTIVE_VIEWER]: 'interactiveViewer',
+    [ProjectMemberRole.EDITOR]: 'editor',
+    [ProjectMemberRole.DEVELOPER]: 'developer',
+    [ProjectMemberRole.ADMIN]: 'admin',
 };
+
+export const getRoleLabel = (role: ProjectMemberRole): string =>
+    i18n.t(`roles.${ROLE_KEYS[role]}`, { ns: 'learn' });
 
 /**
  * A role holds a feature when it holds the base scope or a variant it can

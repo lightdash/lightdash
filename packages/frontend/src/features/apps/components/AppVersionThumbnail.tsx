@@ -1,6 +1,7 @@
 import { Box, Image, UnstyledButton } from '@mantine/core';
 import { useIntersection } from '@mantine/hooks';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppVersionThumbnailUrl } from '../hooks/useAppThumbnail';
 import classes from './AppVersionThumbnail.module.css';
 
@@ -21,6 +22,7 @@ type Props = {
  * the row scrolls into view; its space is held until then so rows do not jump.
  */
 const AppVersionThumbnail: FC<Props> = ({ source, version, onView }) => {
+    const { t } = useTranslation('apps');
     const { ref: frameRef, entry: frameEntry } = useIntersection({
         rootMargin: '200px',
     });
@@ -49,7 +51,7 @@ const AppVersionThumbnail: FC<Props> = ({ source, version, onView }) => {
             {thumbnailUrl !== null && (
                 <UnstyledButton
                     className={classes.button}
-                    aria-label={`View v${version}`}
+                    aria-label={t('versionHistory.viewVersion', { version })}
                     onClick={onView}
                 >
                     <Image
@@ -57,7 +59,7 @@ const AppVersionThumbnail: FC<Props> = ({ source, version, onView }) => {
                         h="100%"
                         fit="cover"
                         src={thumbnailUrl}
-                        alt={`Thumbnail of v${version}`}
+                        alt={t('versionHistory.thumbnailAlt', { version })}
                         onError={() => setBrokenUrl(thumbnailUrl)}
                     />
                 </UnstyledButton>

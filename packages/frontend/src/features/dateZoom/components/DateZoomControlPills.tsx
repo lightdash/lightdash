@@ -24,6 +24,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { v4 as uuid4 } from 'uuid';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
@@ -39,6 +40,7 @@ type Props = {
 
 export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
     const getUiString = useUiStrings();
+    const { t } = useTranslation('dashboard');
     const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
     const setDateZoomConfig = useDashboardContext((c) => c.setDateZoomConfig);
     const controlGranularities = useDashboardContext(
@@ -190,7 +192,9 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                                             </Button>
                                         </Menu.Target>
                                         <Menu.Dropdown>
-                                            <Menu.Label>Granularity</Menu.Label>
+                                            <Menu.Label>
+                                                {t('dateZoom.granularity')}
+                                            </Menu.Label>
                                             {standardGranularities.map(
                                                 (granularity) => (
                                                     <Menu.Item
@@ -219,7 +223,7 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                                                 <>
                                                     <Menu.Divider />
                                                     <Menu.Label>
-                                                        Custom
+                                                        {t('dateZoom.custom')}
                                                     </Menu.Label>
                                                     {customGranularities.map(
                                                         (granularity) => (
@@ -259,7 +263,7 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                                                     )
                                                 }
                                             >
-                                                Reset to default
+                                                {t('dateZoom.resetToDefault')}
                                             </Menu.Item>
                                             {isEditMode && (
                                                 <>
@@ -278,7 +282,9 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                                                             )
                                                         }
                                                     >
-                                                        Configure
+                                                        {t(
+                                                            'dateZoom.configure',
+                                                        )}
                                                     </Menu.Item>
                                                     <Menu.Item
                                                         fz="xs"
@@ -294,7 +300,9 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                                                             )
                                                         }
                                                     >
-                                                        Remove
+                                                        {t('actions.remove', {
+                                                            ns: 'common',
+                                                        })}
                                                     </Menu.Item>
                                                 </>
                                             )}
@@ -324,12 +332,14 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                                 <Tooltip
                                     label={
                                         control.hidden
-                                            ? 'Hidden from viewers. Click to show.'
-                                            : 'Visible to viewers. Click to hide.'
+                                            ? t('dateZoom.hiddenFromViewers')
+                                            : t('dateZoom.visibleToViewers')
                                     }
                                 >
                                     <Button
-                                        aria-label="Toggle zoom control visibility for viewers"
+                                        aria-label={t(
+                                            'dateZoom.toggleVisibility',
+                                        )}
                                         size="xs"
                                         variant="default"
                                         color="ldGray"
@@ -365,7 +375,7 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                             onClick={() =>
                                 setEditingControl({
                                     uuid: uuid4(),
-                                    name: 'Date zoom',
+                                    name: t('dateZoom.defaultControlName'),
                                     granularity:
                                         defaultDateZoomGranularity ??
                                         dateZoomGranularities[0] ??
@@ -373,7 +383,7 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                                 })
                             }
                         >
-                            Add date zoom
+                            {t('dateZoom.addDateZoom')}
                         </Button>
                     </Popover.Target>
                     <Popover.Dropdown>

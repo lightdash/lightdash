@@ -1,6 +1,7 @@
 import { Box, Flex, Text, Button } from '@mantine/core';
 import { IconAlertCircle, IconRefresh, IconTable } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     isChunkLoadError,
     triggerChunkErrorReload,
@@ -48,6 +49,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
     enableContextMenu = true,
     ...rest
 }) => {
+    const { t } = useTranslation('visualization');
     const {
         columnOrder,
         itemsMap,
@@ -207,11 +209,11 @@ const SimpleTable: FC<SimpleTableProps> = ({
         return (
             <SuboptimalState
                 icon={IconTable}
-                title="No results"
-                description="This query ran successfully but returned no results"
+                title={t('table.noResults')}
+                description={t('table.noResultsDescription')}
             />
         );
-    }, []);
+    }, [t]);
 
     useEffect(() => {
         if (shouldPaginateResults) return;
@@ -277,16 +279,12 @@ const SimpleTable: FC<SimpleTableProps> = ({
             return (
                 <SuboptimalState
                     icon={IconAlertCircle}
-                    title="Application update required"
+                    title={t('table.updateRequired')}
                     description={
                         <Box>
-                            <Text mb="xs">
-                                Refresh your browser to load the latest version
-                                and display this visualization correctly.
-                            </Text>
+                            <Text mb="xs">{t('table.refreshToLoad')}</Text>
                             <Text size="sm" c="dimmed">
-                                If this persists after refreshing, contact
-                                support.
+                                {t('table.contactSupportIfPersists')}
                             </Text>
                         </Box>
                     }
@@ -297,7 +295,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                             leftSection={<IconRefresh size={16} />}
                             onClick={triggerChunkErrorReload}
                         >
-                            Refresh page
+                            {t('table.refreshPage')}
                         </Button>
                     }
                 />
@@ -305,7 +303,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         }
         return (
             <SuboptimalState
-                title="Results not available"
+                title={t('table.resultsNotAvailable')}
                 description={pivotTableData.error}
                 icon={IconAlertCircle}
             />

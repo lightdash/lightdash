@@ -13,6 +13,7 @@ import {
     useQueryClient,
     type QueryKey,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 
@@ -76,6 +77,7 @@ export const useHomepageRecommendedActionSkips = (
     { enabled }: { enabled: boolean },
 ) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('homepageBuilder');
     const { showToastApiError } = useToaster();
     const queryKey = homepageRecommendedActionSkipsQueryKey(projectUuid);
     const query = useQuery<
@@ -138,7 +140,7 @@ export const useHomepageRecommendedActionSkips = (
                 }
             });
             showToastApiError({
-                title: 'Failed to update setup checklist',
+                title: t('toasts.updateChecklistFailed'),
                 apiError: error,
             });
         },

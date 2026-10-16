@@ -1,6 +1,7 @@
 import { Box, Group, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../components/common/MantineIcon';
 
 export const AgentSetupStep = ({
@@ -15,25 +16,32 @@ export const AgentSetupStep = ({
     done: boolean;
     action?: ReactNode;
     children?: ReactNode;
-}) => (
-    <Group align="flex-start" wrap="nowrap" gap="sm">
-        <ThemeIcon
-            radius="xl"
-            color={done ? 'green' : 'gray'}
-            variant="light"
-            size="md"
-            aria-label={done ? `Step ${number} done` : `Step ${number}`}
-        >
-            {done ? <MantineIcon icon={IconCheck} size="sm" /> : number}
-        </ThemeIcon>
-        <Stack gap="xs" flex={1} miw={0}>
-            <Group justify="space-between">
-                <Text size="sm" fw={600}>
-                    {title}
-                </Text>
-                {action}
-            </Group>
-            <Box>{children}</Box>
-        </Stack>
-    </Group>
-);
+}) => {
+    const { t } = useTranslation('aiAccess');
+    return (
+        <Group align="flex-start" wrap="nowrap" gap="sm">
+            <ThemeIcon
+                radius="xl"
+                color={done ? 'green' : 'gray'}
+                variant="light"
+                size="md"
+                aria-label={
+                    done
+                        ? t('setupStep.stepDone', { number })
+                        : t('setupStep.step', { number })
+                }
+            >
+                {done ? <MantineIcon icon={IconCheck} size="sm" /> : number}
+            </ThemeIcon>
+            <Stack gap="xs" flex={1} miw={0}>
+                <Group justify="space-between">
+                    <Text size="sm" fw={600}>
+                        {title}
+                    </Text>
+                    {action}
+                </Group>
+                <Box>{children}</Box>
+            </Stack>
+        </Group>
+    );
+};

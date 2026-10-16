@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { IconArrowRight } from '@tabler/icons-react';
 import { type FC, type FormEvent, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
@@ -37,6 +38,7 @@ export const MemoryPromotionAction: FC<Props> = ({
     status,
     promotionReviewItem,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const [opened, setOpened] = useState(false);
     const [reason, setReason] = useState('');
     const { data: settings, isLoading: isLoadingSettings } =
@@ -57,7 +59,9 @@ export const MemoryPromotionAction: FC<Props> = ({
         if (!canManageProjectAgent && !canManageOrganizationAgent) {
             return (
                 <Badge color="violet" size="lg">
-                    {status === 'promoted' ? 'Promoted' : 'Proposal pending'}
+                    {status === 'promoted'
+                        ? t('memoryPromotion.promoted')
+                        : t('memoryPromotion.pending')}
                 </Badge>
             );
         }
@@ -74,7 +78,7 @@ export const MemoryPromotionAction: FC<Props> = ({
                 size="xs"
                 rightSection={<MantineIcon icon={IconArrowRight} size={14} />}
             >
-                View proposal
+                {t('memoryPromotion.viewProposal')}
             </Button>
         );
     }
@@ -82,9 +86,9 @@ export const MemoryPromotionAction: FC<Props> = ({
     const reviewsEnabled = settings?.aiAgentReviewsAvailable === true;
     const disabledReason =
         status !== 'active'
-            ? 'Only active memories can be proposed.'
+            ? t('memoryPromotion.onlyActive')
             : !isLoadingSettings && !reviewsEnabled
-              ? 'Enable project context reviews before proposing a memory.'
+              ? t('memoryPromotion.enableReviews')
               : null;
     const nominationReason = reason.trim();
 
@@ -119,7 +123,7 @@ export const MemoryPromotionAction: FC<Props> = ({
                         disabled={isLoadingSettings || !!disabledReason}
                         onClick={() => setOpened(true)}
                     >
-                        Propose for project context
+                        {t('memoryPromotion.propose')}
                     </Button>
                 </Box>
             </Tooltip>
@@ -127,7 +131,7 @@ export const MemoryPromotionAction: FC<Props> = ({
             <MantineModal
                 opened={opened}
                 onClose={close}
-                title="Propose memory for project context"
+                title={t('memoryPromotion.modalTitle')}
                 size="md"
                 cancelDisabled={promoteMemory.isLoading}
                 actions={
@@ -136,20 +140,18 @@ export const MemoryPromotionAction: FC<Props> = ({
                         form={MEMORY_PROMOTION_FORM_ID}
                         loading={promoteMemory.isLoading}
                     >
-                        Create proposal
+                        {t('memoryPromotion.create')}
                     </Button>
                 }
             >
                 <form id={MEMORY_PROMOTION_FORM_ID} onSubmit={submit}>
                     <Stack gap="sm">
                         <Text fz="sm" c="dimmed">
-                            This proposes making this guidance available to
-                            everyone in the project. The memory will only be
-                            prompted if reviewer approves.
+                            {t('memoryPromotion.explanation')}
                         </Text>
                         <Textarea
-                            label="Why should this become project context?"
-                            description="Optional, shown to reviewers and used to guide the proposal."
+                            label={t('memoryPromotion.reasonLabel')}
+                            description={t('memoryPromotion.reasonDescription')}
                             value={reason}
                             onChange={(event) =>
                                 setReason(event.currentTarget.value)

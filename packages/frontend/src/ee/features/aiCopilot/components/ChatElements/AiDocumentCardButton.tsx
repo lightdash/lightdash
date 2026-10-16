@@ -1,6 +1,7 @@
 import { Box, Text, UnstyledButton } from '@mantine/core';
 import { IconChevronRight, IconFileText } from '@tabler/icons-react';
 import { type FC, type MouseEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useDocument } from '../../../../../features/documents/useDocument';
@@ -29,13 +30,16 @@ const DocumentCardLabel: FC<{
     documentUuid: string;
     isEmbed: boolean;
 }> = ({ projectUuid, documentUuid, isEmbed }) => {
+    const { t } = useTranslation('aiCopilotChat');
     // Embeds can't read Documents directly, so they keep the plain label
     const { data: document } = useDocument(projectUuid, documentUuid, {
         enabled: !isEmbed,
     });
     return (
         <Text size="xs" c="dimmed">
-            {document?.spaceUuid === null ? 'Personal document' : 'Document'}
+            {document?.spaceUuid === null
+                ? t('documentCard.personal')
+                : t('documentCard.document')}
         </Text>
     );
 };

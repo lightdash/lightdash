@@ -3,6 +3,7 @@ import { Button, Divider, Group, Popover, Text, Tooltip } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
 import { IconEye, IconEyeOff, IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -42,6 +43,7 @@ const AddFilterButton: FC<Props> = ({
 }) => {
     const popoverId = useId();
     const getUiString = useUiStrings();
+    const { t } = useTranslation('dashboardFilters');
     const isAddFilterDisabled = useDashboardContext(
         (c) => c.isAddFilterDisabled,
     );
@@ -248,12 +250,12 @@ const AddFilterButton: FC<Props> = ({
                     <Tooltip
                         label={
                             isAddFilterDisabled
-                                ? 'Hidden from viewers. Click to show.'
-                                : 'Visible to viewers. Click to hide.'
+                                ? t('addFilter.hiddenFromViewers')
+                                : t('addFilter.visibleToViewers')
                         }
                     >
                         <Button
-                            aria-label="Toggle filter visibility for viewers"
+                            aria-label={t('addFilter.toggleVisibility')}
                             size="xs"
                             variant="default"
                             color="gray"
@@ -285,9 +287,9 @@ const AddFilterButton: FC<Props> = ({
                 <>
                     <Divider orientation="vertical" />
 
-                    <Tooltip label="Reset all filters">
+                    <Tooltip label={t('addFilter.resetAll')}>
                         <Button
-                            aria-label="Reset all filters"
+                            aria-label={t('addFilter.resetAll')}
                             size="xs"
                             variant="default"
                             color="gray"

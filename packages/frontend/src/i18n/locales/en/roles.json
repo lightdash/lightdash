@@ -1,0 +1,100 @@
+{
+    "roleSets": {
+        "rolesFor": "Roles for {{name}}",
+        "systemRoleGroup": "System role",
+        "customRolesGroup": "Custom roles (additive)",
+        "unionTooltip": "Permissions are the union of every selected role. One system role at most; custom roles add on top.",
+        "organizationNotLoaded": "Organization is not loaded yet",
+        "toasts": {
+            "userRolesUpdated": "Success! User roles updated.",
+            "userRolesUpdateFailed": "Failed to update user's roles",
+            "userProjectRolesUpdated": "Success! User project roles updated.",
+            "userProjectRolesUpdateFailed": "Failed to update user project roles",
+            "groupProjectRolesUpdated": "Success! Group project roles updated.",
+            "groupProjectRolesUpdateFailed": "Failed to update group project roles"
+        }
+    },
+    "projectGroupAccess": {
+        "removeGroupAccess": "Remove group access",
+        "addGroupAccess": "Add group access",
+        "groupAccessAdded": "Group access added",
+        "systemRoleGroup": "System role",
+        "customRoleGroup": "Custom role",
+        "columns": {
+            "groupName": "Group Name",
+            "groupRole": "Group Role"
+        },
+        "memberCount_one": "{{count}} member",
+        "memberCount_other": "{{count}} members",
+        "empty": {
+            "title": "No group found with access to this project",
+            "description": "Click \"Add group access\" to add a group to this project"
+        },
+        "revokeModal": {
+            "title": "Revoke group project access",
+            "description": "Are you sure you want to revoke project access for this group \"{{name}}\"?",
+            "revoke": "Revoke"
+        },
+        "addModal": {
+            "title": "Add group access",
+            "giveAccess": "Give access",
+            "groupRequired": "Group is required",
+            "roleRequired": "Role is required",
+            "noGroupsTitle": "No groups available",
+            "allGroupsHaveAccess": "You've already given access to all groups",
+            "noGroupsYet": "Your organization doesn't have any groups yet. Go to <bold>\"Organization settings\" > \"Users & Groups\"</bold> to create a group",
+            "selectGroupLabel": "Select group",
+            "selectGroupPlaceholder": "Click here to select group",
+            "roleLabel": "Role",
+            "selectRolePlaceholder": "Select role"
+        }
+    },
+    "projectAccess": {
+        "tabs": {
+            "users": "Users",
+            "groups": "Groups"
+        },
+        "revokeProjectAccess": "Revoke project access",
+        "cannotRevokeInherited": "Cannot revoke inherited access from Organization",
+        "systemRoleGroup": "System role",
+        "customRoleGroup": "Custom role",
+        "sourceOrganization": "Organization",
+        "sourceGroup": "Group {{name}}",
+        "columns": {
+            "user": "User",
+            "role": "Role"
+        },
+        "roleSummary": {
+            "organizationRole": "Organization role: <bold>{{role}}</bold>",
+            "groupRole": "Group <bold>{{group}}</bold>: <bold>{{role}}</bold>",
+            "projectRole": "Project role: <bold>{{role}}</bold>"
+        },
+        "membersNoAccessTitle": "Members have no access to this project.",
+        "membersNoAccessHint": "Assign a project role to grant them visibility.",
+        "inheritsFrom": "User inherits this role from <bold>{{source}}</bold>",
+        "noProjectAccess": "No project access",
+        "inheritsRole": "Inherits {{role}}",
+        "organizationRoleGroup": "Organization role",
+        "memberNoProjectAccess": "member (no project access)",
+        "searchTooltip": "Search by name, email, or role",
+        "searchPlaceholder": "Search users by name, email, or role",
+        "addUserAccess": "Add user access",
+        "viewOptions": "View options",
+        "showMembers": "Show members ({{hidden}})",
+        "membersInfo": "Members have no project access by default. They only see content if given a role at project or group level.",
+        "removeModal": {
+            "title": "Revoke project access",
+            "description": "Are you sure you want to revoke project access for \"{{name}}\"?"
+        },
+        "createModal": {
+            "title": "Add user access",
+            "giveAccess": "Give access",
+            "emailLabel": "Enter user email address",
+            "emailPlaceholder": "example@gmail.com",
+            "needAdmin": "You need to be an organization admin to add new users.",
+            "nothingFound": "Nothing found",
+            "inviteOption": "This user is not a member of your organization. Select to invite them.",
+            "selectRolePlaceholder": "Select role"
+        }
+    }
+}

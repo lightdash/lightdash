@@ -1,4 +1,7 @@
 import { isSystemRole } from '@lightdash/common';
+import i18n from '../../../../i18n/i18n';
+
+const tr = (key: string) => i18n.t(`validation.${key}`, { ns: 'customRoles' });
 
 /**
  * Validates a role name
@@ -7,13 +10,13 @@ import { isSystemRole } from '@lightdash/common';
  */
 export const validateRoleName = (value: string): string | null => {
     if (!value || value.trim().length === 0) {
-        return 'Role name is required';
+        return tr('nameRequired');
     }
     if (value.length < 3) {
-        return 'Role name must be at least 3 characters';
+        return tr('nameTooShort');
     }
     if (isSystemRole(value.toLocaleLowerCase())) {
-        return 'Role name cannot match a system role';
+        return tr('nameIsSystemRole');
     }
     return null;
 };
@@ -28,7 +31,7 @@ export const validateScopes = (
 ): string | null => {
     const isScopesEmpty = !Object.values(value).some(Boolean);
     if (isScopesEmpty) {
-        return 'At least one scope is required';
+        return tr('scopeRequired');
     }
     return null;
 };

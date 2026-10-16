@@ -11,6 +11,7 @@ import {
 } from '@mantine/core';
 import { IconExternalLink, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import DocumentRenderer from '../../../../../features/documents/DocumentRenderer';
@@ -28,6 +29,7 @@ type Props = {
 };
 
 export const AiDocumentPreviewPanel: FC<Props> = ({ documentPreview }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const dispatch = useAiAgentStoreDispatch();
     const {
         data: document,
@@ -42,7 +44,7 @@ export const AiDocumentPreviewPanel: FC<Props> = ({ documentPreview }) => {
         <ActionIcon
             size="sm"
             onClick={() => dispatch(clearPreview())}
-            aria-label="Close"
+            aria-label={t('actions.close', { ns: 'common' })}
         >
             <MantineIcon icon={IconX} />
         </ActionIcon>
@@ -61,7 +63,7 @@ export const AiDocumentPreviewPanel: FC<Props> = ({ documentPreview }) => {
                             <Loader
                                 type="dots"
                                 color="gray"
-                                delayedMessage="Loading document..."
+                                delayedMessage={t('documentPreview.loading')}
                             />
                         )}
                         {closeButton}
@@ -82,7 +84,7 @@ export const AiDocumentPreviewPanel: FC<Props> = ({ documentPreview }) => {
                             document={document}
                             size="xs"
                         />
-                        <Tooltip label="Open Document">
+                        <Tooltip label={t('documentPreview.open')}>
                             <ActionIcon
                                 component={Link}
                                 to={getDocumentUrl(
@@ -91,7 +93,7 @@ export const AiDocumentPreviewPanel: FC<Props> = ({ documentPreview }) => {
                                     document.slug,
                                 )}
                                 size="sm"
-                                aria-label="Open Document"
+                                aria-label={t('documentPreview.open')}
                             >
                                 <MantineIcon icon={IconExternalLink} />
                             </ActionIcon>

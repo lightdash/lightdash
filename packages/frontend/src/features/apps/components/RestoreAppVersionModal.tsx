@@ -2,6 +2,7 @@ import { type ApiError } from '@lightdash/common';
 import { Stack, Text } from '@mantine/core';
 import { IconRestore } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../components/common/Callout';
 import MantineModal from '../../../components/common/MantineModal';
 
@@ -21,31 +22,30 @@ export const RestoreAppVersionModal: FC<Props> = ({
     onConfirm,
     isLoading,
     error,
-}) => (
-    <MantineModal
-        opened
-        onClose={() => {
-            if (isLoading) return;
-            onClose();
-        }}
-        title={`Restore version ${version}?`}
-        icon={IconRestore}
-        confirmLabel="Restore version"
-        cancelDisabled={isLoading}
-        confirmLoading={isLoading}
-        onConfirm={onConfirm}
-    >
-        <Stack gap="sm">
-            <Text fz="sm">
-                This will create a new version on top of the timeline that
-                duplicates the contents of version {version}. Your next prompt
-                will iterate from there.
-            </Text>
-            {error !== null && (
-                <Callout variant="danger">
-                    {error.error?.message ?? 'Failed to restore version.'}
-                </Callout>
-            )}
-        </Stack>
-    </MantineModal>
-);
+}) => {
+    const { t } = useTranslation('apps');
+    return (
+        <MantineModal
+            opened
+            onClose={() => {
+                if (isLoading) return;
+                onClose();
+            }}
+            title={t('restore.title', { version })}
+            icon={IconRestore}
+            confirmLabel={t('restore.confirm')}
+            cancelDisabled={isLoading}
+            confirmLoading={isLoading}
+            onConfirm={onConfirm}
+        >
+            <Stack gap="sm">
+                <Text fz="sm">{t('restore.description', { version })}</Text>
+                {error !== null && (
+                    <Callout variant="danger">
+                        {error.error?.message ?? t('restore.failed')}
+                    </Callout>
+                )}
+            </Stack>
+        </MantineModal>
+    );
+};

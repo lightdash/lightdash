@@ -12,6 +12,7 @@ import {
     useComputedColorScheme,
 } from '@mantine/core';
 import { IconPlus, IconUser } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useMemo } from 'react';
 import { type ContentTableColumnDef } from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -40,10 +41,12 @@ import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
 import { MetricsCatalogColumnOwner } from './MetricsCatalogColumnOwner';
 import styles from './MetricsCatalogColumns.module.css';
 
-export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
+export const getMetricsCatalogColumns = (
+    t: TFunction,
+): ContentTableColumnDef<CatalogField>[] => [
     {
         accessorKey: SpotlightTableColumns.METRIC,
-        header: 'Metric',
+        header: t('columns.metric'),
         enableSorting: true,
         enableEditing: false,
         size: 350,
@@ -80,7 +83,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
     },
     {
         accessorKey: SpotlightTableColumns.TABLE,
-        header: 'Table',
+        header: t('columns.table'),
         enableSorting: true,
         enableEditing: false,
         size: 150,
@@ -90,7 +93,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                     table.getState().columnSizingInfo.isResizingColumn,
                 )}
                 Icon={Table}
-                tooltipLabel="Table"
+                tooltipLabel={t('columns.tableTooltip')}
             >
                 {column.columnDef.header}
             </MetricCatalogColumnHeaderCell>
@@ -150,14 +153,14 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
         enableEditing: false,
         size: 400,
         minSize: 200,
-        header: 'Description',
+        header: t('columns.description'),
         Header: ({ column, table }) => (
             <MetricCatalogColumnHeaderCell
                 disabled={Boolean(
                     table.getState().columnSizingInfo.isResizingColumn,
                 )}
                 Icon={Description}
-                tooltipLabel="Defined in the metric's .yml file"
+                tooltipLabel={t('columns.descriptionTooltip')}
             >
                 {column.columnDef.header}
             </MetricCatalogColumnHeaderCell>
@@ -171,7 +174,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
     },
     {
         accessorKey: SpotlightTableColumns.CATEGORIES,
-        header: 'Category',
+        header: t('columns.category'),
         enableSorting: false,
         enableEditing: true,
         size: 270,
@@ -195,7 +198,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                     table.getState().columnSizingInfo.isResizingColumn,
                 )}
                 Icon={Tag}
-                tooltipLabel="Categories help you organize your metrics and KPIs. Click on the cell to add or edit a category, if you have the required permissions."
+                tooltipLabel={t('columns.categoryTooltip')}
             >
                 {column.columnDef.header}
             </MetricCatalogColumnHeaderCell>
@@ -344,7 +347,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
     },
     {
         accessorKey: SpotlightTableColumns.CHART_USAGE,
-        header: 'Popularity',
+        header: t('columns.popularity'),
         enableSorting: true,
         enableEditing: false,
         size: 150,
@@ -363,7 +366,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                     table.getState().columnSizingInfo.isResizingColumn,
                 )}
                 Icon={Popularity}
-                tooltipLabel="Shows how many charts use this metric"
+                tooltipLabel={t('columns.popularityTooltip')}
             >
                 {column.columnDef.header}
             </MetricCatalogColumnHeaderCell>
@@ -372,7 +375,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
     },
     {
         accessorKey: SpotlightTableColumns.OWNER,
-        header: 'Owner',
+        header: t('columns.owner'),
         enableSorting: true,
         enableEditing: false,
         size: 200,
@@ -386,7 +389,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                 Icon={() => (
                     <MantineIcon icon={IconUser} size={14} color="ldGray.5" />
                 )}
-                tooltipLabel="Metric owner defined in the YAML file"
+                tooltipLabel={t('columns.ownerTooltip')}
             >
                 {column.columnDef.header}
             </MetricCatalogColumnHeaderCell>

@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { IconArrowLeft, IconLock, IconRobot } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -17,6 +18,7 @@ import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPa
 import useIsEmbedded from '../../providers/Embed/useIsEmbedded';
 
 const AiAgentsNotAuthorizedPage: FC = () => {
+    const { t } = useTranslation('eeMisc');
     const projectUuid = useProjectUuid();
     const isEmbed = useIsEmbedded();
 
@@ -53,13 +55,12 @@ const AiAgentsNotAuthorizedPage: FC = () => {
                     </Box>
 
                     <Title order={3} ta="center">
-                        You're not authorized to interact with this AI agent
+                        {t('agents.notAuthorized.title')}
                     </Title>
                     <Paper p="md" w="100%">
                         <Stack align="center" gap="xs">
                             <Text size="xs" c="dimmed" ta="center">
-                                To gain access, please contact your organization
-                                administrator.
+                                {t('agents.notAuthorized.description')}
                             </Text>
                             {!isEmbed && (
                                 <Button
@@ -71,7 +72,7 @@ const AiAgentsNotAuthorizedPage: FC = () => {
                                     component={Link}
                                     to={`/projects/${projectUuid}/home`}
                                 >
-                                    Go back to project home
+                                    {t('agents.notAuthorized.goHome')}
                                 </Button>
                             )}
                         </Stack>

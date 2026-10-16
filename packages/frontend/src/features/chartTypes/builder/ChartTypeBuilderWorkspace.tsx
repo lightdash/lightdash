@@ -2,6 +2,7 @@ import { type DataAppVizContext } from '@lightdash/common';
 import { Box, Transition } from '@mantine/core';
 import { useReducedMotion } from '@mantine/hooks';
 import { useRef, useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SIDEBAR_ANIMATION_DURATION } from '../../../components/common/Page/constants';
 import ResizableSplitter from '../../../components/common/ResizableSplitter';
 import { type AppIframePreviewHandle } from '../../apps/AppIframePreview';
@@ -58,6 +59,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
     configurePanel,
     configurationSidebar,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const {
         dataAppVizUuid,
         build,
@@ -119,7 +121,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
             }}
         >
             <ResizableSplitter
-                handleLabel="Resize version history"
+                handleLabel={t('workspace.resizeHistory')}
                 resizable={showHistory}
                 attributes={{
                     handle: { 'aria-hidden': !showHistory || undefined },

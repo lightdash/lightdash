@@ -21,11 +21,13 @@ import {
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineModal from '../../../components/common/MantineModal';
 import { useProjects } from '../../../hooks/useProjects';
 import { useCustomRoles } from '../customRoles/useCustomRoles';
 import {
+    getSystemRoleOptions,
     SYSTEM_PROJECT_ROLE_OPTIONS,
     type ProjectRoleRow,
 } from './projectRoleOptions';
@@ -36,23 +38,6 @@ import { useServiceAccounts } from './useServiceAccounts';
 const EDIT_FORM_ID = 'edit-service-account-form';
 
 type ScopeMode = 'organization' | 'project';
-
-// Organization-mode role options. Mirrors `ServiceAccountsCreateModal` —
-// `Member` is intentionally absent (it's the Project-scope marker, not a
-// user-selectable Organization role).
-const SYSTEM_ROLE_OPTIONS: { value: string; label: string }[] = [
-    { value: `scope:${ServiceAccountScope.SYSTEM_VIEWER}`, label: 'Viewer' },
-    {
-        value: `scope:${ServiceAccountScope.SYSTEM_INTERACTIVE_VIEWER}`,
-        label: 'Interactive viewer',
-    },
-    { value: `scope:${ServiceAccountScope.SYSTEM_EDITOR}`, label: 'Editor' },
-    {
-        value: `scope:${ServiceAccountScope.SYSTEM_DEVELOPER}`,
-        label: 'Developer',
-    },
-    { value: `scope:${ServiceAccountScope.SYSTEM_ADMIN}`, label: 'Admin' },
-];
 
 // Legacy `org:*` scopes predate the `system:*` aliases shown in the picker.
 // Map them so an SA minted on a legacy scope resolves to the matching option
@@ -149,6 +134,7 @@ const EditForm: FC<{
     isSubmitting: boolean;
     onSubmit: (payload: UpdateServiceAccount) => void;
 }> = ({ serviceAccount, grants, isSubmitting, onSubmit }) => {
+    const { t } = useTranslation('serviceAccounts');
     const { data: projects = [] } = useProjects();
     const { options: customRoleOptions, isLoading: rolesLoading } =
         useCustomRoleOptions();
@@ -164,30 +150,38 @@ const EditForm: FC<{
             group: string;
             items: { value: string; label: string }[];
         }[] = [
-            { group: 'Organization system roles', items: SYSTEM_ROLE_OPTIONS },
+            {
+                group: t('roleGroups.organizationSystem'),
+                items: getSystemRoleOptions(t),
+            },
         ];
         if (organizationCustomRoleOptions.length > 0) {
             groups.push({
-                group: 'Custom roles',
+                group: t('roleGroups.custom'),
                 items: organizationCustomRoleOptions,
             });
         }
         return groups;
-    }, [organizationCustomRoleOptions]);
+    }, [organizationCustomRoleOptions, t]);
 
     const projectRoleOptions = useMemo(() => {
         const groups: {
             group: string;
             items: { value: string; label: string }[];
-        }[] = [{ group: 'System roles', items: SYSTEM_PROJECT_ROLE_OPTIONS }];
+        }[] = [
+            {
+                group: t('roleGroups.system'),
+                items: SYSTEM_PROJECT_ROLE_OPTIONS,
+            },
+        ];
         if (projectCustomRoleOptions.length > 0) {
             groups.push({
-                group: 'Custom roles',
+                group: t('roleGroups.custom'),
                 items: projectCustomRoleOptions,
             });
         }
         return groups;
-    }, [projectCustomRoleOptions]);
+    }, [projectCustomRoleOptions, t]);
 
     const form = useForm({
         initialValues: {
@@ -199,16 +193,16 @@ const EditForm: FC<{
         validate: {
             roleSelection: (value, values) =>
                 values.scope === 'organization' && value === ''
-                    ? 'Please select a permission set'
+                    ? t('validation.selectPermissionSet')
                     : null,
             projectRoles: (rows, values) => {
                 if (values.scope !== 'project') return null;
-                if (rows.length === 0) return 'Add at least one project';
+                if (rows.length === 0) return t('validation.addProject');
                 if (rows.some((r) => !r.projectUuid))
-                    return 'Pick a project for each row';
+                    return t('validation.pickProjectEachRow');
                 const uniques = new Set(rows.map((r) => r.projectUuid));
                 if (uniques.size !== rows.length)
-                    return 'Each project can only be added once';
+                    return t('validation.projectOnce');
                 return null;
             },
         },
@@ -252,15 +246,15 @@ const EditForm: FC<{
         form.values.scope === initialScope
             ? null
             : form.values.scope === 'organization'
-              ? 'Switching to Organization removes all project access from this service account.'
-              : 'Switching to Project replaces the organization role with per-project access.';
+              ? t('editModal.switchToOrganizationWarning')
+              : t('editModal.switchToProjectWarning');
 
     return (
         <form id={EDIT_FORM_ID} onSubmit={handleOnSubmit}>
             <Stack gap="md">
                 <TextInput
-                    label="Description"
-                    placeholder="What's this service account for?"
+                    label={t('form.description')}
+                    placeholder={t('form.descriptionPlaceholder')}
                     required
                     disabled={isSubmitting}
                     {...form.getInputProps('description')}
@@ -268,14 +262,20 @@ const EditForm: FC<{
 
                 <Stack gap="xs">
                     <Text size="sm" fw={500}>
-                        Scope
+                        {t('form.scope')}
                     </Text>
                     <SegmentedControl
                         fullWidth
                         disabled={isSubmitting}
                         data={[
-                            { label: 'Organization', value: 'organization' },
-                            { label: 'Project', value: 'project' },
+                            {
+                                label: t('form.scopeOrganization'),
+                                value: 'organization',
+                            },
+                            {
+                                label: t('form.scopeProject'),
+                                value: 'project',
+                            },
                         ]}
                         {...form.getInputProps('scope')}
                     />
@@ -288,22 +288,23 @@ const EditForm: FC<{
 
                 {form.values.scope === 'organization' ? (
                     <Select
-                        label="Role"
+                        label={t('form.role')}
                         description={
-                            <>
-                                Pick a system role or a custom role you've
-                                created in{' '}
-                                <Anchor
-                                    component={Link}
-                                    to="/generalSettings/customRoles"
-                                    size="xs"
-                                >
-                                    custom roles
-                                </Anchor>
-                                .
-                            </>
+                            <Trans
+                                t={t}
+                                i18nKey="form.roleDescription"
+                                components={{
+                                    anchor: (
+                                        <Anchor
+                                            component={Link}
+                                            to="/generalSettings/customRoles"
+                                            size="xs"
+                                        />
+                                    ),
+                                }}
+                            />
                         }
-                        placeholder="Select a permission set"
+                        placeholder={t('form.rolePlaceholder')}
                         data={roleOptions}
                         required
                         searchable
@@ -336,6 +337,7 @@ export const ServiceAccountsEditModal: FC<Props> = ({
     onClose,
     serviceAccount,
 }) => {
+    const { t } = useTranslation('serviceAccounts');
     const { updateAccount } = useServiceAccounts();
     // Grants are fetched at the modal level so loading/ready state is derived
     // here at render time (no effects) and the form prefills project access.
@@ -370,7 +372,7 @@ export const ServiceAccountsEditModal: FC<Props> = ({
         if (grantsQuery.isError || !grantsQuery.data) {
             return (
                 <Text size="sm" c="red">
-                    Failed to load this service account's project access.
+                    {t('editModal.loadError')}
                 </Text>
             );
         }
@@ -389,9 +391,9 @@ export const ServiceAccountsEditModal: FC<Props> = ({
         <MantineModal
             opened={isOpen}
             onClose={onClose}
-            title="Edit service account"
+            title={t('editModal.title')}
             icon={IconPencil}
-            cancelLabel="Cancel"
+            cancelLabel={t('actions.cancel', { ns: 'common' })}
             cancelDisabled={isSubmitting}
             actions={
                 <Button
@@ -400,7 +402,7 @@ export const ServiceAccountsEditModal: FC<Props> = ({
                     loading={isSubmitting}
                     disabled={!grantsReady}
                 >
-                    Save changes
+                    {t('editModal.save')}
                 </Button>
             }
         >

@@ -8,6 +8,7 @@ import {
 import { useForm } from '@mantine/form';
 import { IconGitPullRequest } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../../components/common/MantineModal';
 import { useCreatePullRequest } from '../hooks';
 
@@ -29,18 +30,18 @@ const CreatePullRequestModal: FC<CreatePullRequestModalProps> = ({
     branch,
     onPRCreated,
 }) => {
+    const { t } = useTranslation('sourceCode');
     const { mutateAsync, isLoading } = useCreatePullRequest(projectUuid);
 
     const form = useForm<FormState>({
         initialValues: {
-            title: `Update from branch ${branch}`,
-            description:
-                'This pull request contains changes made via the Lightdash source code editor.',
+            title: t('createPullRequest.defaultTitle', { branch }),
+            description: t('createPullRequest.defaultDescription'),
         },
         validateInputOnChange: true,
         validate: {
             title: (value) => {
-                if (!value.trim()) return 'Title is required';
+                if (!value.trim()) return t('createPullRequest.titleRequired');
                 return null;
             },
         },
@@ -61,7 +62,7 @@ const CreatePullRequestModal: FC<CreatePullRequestModalProps> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Create Pull Request"
+            title={t('createPullRequest.title')}
             icon={IconGitPullRequest}
             actions={
                 <Button
@@ -70,28 +71,30 @@ const CreatePullRequestModal: FC<CreatePullRequestModalProps> = ({
                     type="submit"
                     form="create-pr-form"
                 >
-                    Create Pull Request
+                    {t('createPullRequest.title')}
                 </Button>
             }
         >
             <form id="create-pr-form" onSubmit={handleSubmit}>
                 <Stack>
                     <TextInput
-                        label="Title"
+                        label={t('createPullRequest.titleLabel')}
                         required
-                        placeholder="e.g., Add new metric to orders model"
+                        placeholder={t('createPullRequest.titlePlaceholder')}
                         disabled={isLoading}
                         {...form.getInputProps('title')}
                     />
                     <TextInput
-                        label="From branch"
+                        label={t('createPullRequest.fromBranch')}
                         value={branch}
                         disabled
                         readOnly
                     />
                     <Textarea
-                        label="Description"
-                        placeholder="Describe your changes..."
+                        label={t('createPullRequest.descriptionLabel')}
+                        placeholder={t(
+                            'createPullRequest.descriptionPlaceholder',
+                        )}
                         disabled={isLoading}
                         autosize
                         minRows={4}

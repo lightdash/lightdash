@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { IconUnlink } from '@tabler/icons-react';
 import { useEffect, useLayoutEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Provider } from 'react-redux';
 import Page from '../../../../../components/common/Page/Page';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
@@ -40,6 +41,7 @@ const EmbedExploreView: FC<{
     isEditMode,
     chartView,
 }) => {
+    const { t } = useTranslation('embed');
     const { data } = useExplore(exploreId);
     const rightSidebarProps = useChartGalleryRightSidebar({
         enabled: isEditMode,
@@ -51,7 +53,7 @@ const EmbedExploreView: FC<{
     return (
         <Page
             withContainerHeight={fitContainerHeight}
-            title={data ? data?.label : 'Tables'}
+            title={data ? data?.label : t('explore.tables')}
             sidebar={
                 <ExploreSideBar
                     onExploreClick={
@@ -248,6 +250,7 @@ const EmbedExplore: FC<Props> = ({
     chartView,
     runQueryOnLoad,
 }) => {
+    const { t } = useTranslation('embed');
     const { projectUuid } = useEmbed();
     const { error: exploreError } = useExplore(exploreId);
     const contentKey = useEmbedExploreKey({
@@ -259,7 +262,7 @@ const EmbedExplore: FC<Props> = ({
     if (!projectUuid) {
         return (
             <div style={{ marginTop: '20px' }}>
-                <SuboptimalState title="Missing project UUID" />
+                <SuboptimalState title={t('missingProjectUuid')} />
             </div>
         );
     }
@@ -268,11 +271,11 @@ const EmbedExplore: FC<Props> = ({
         return (
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState
-                    title="Error loading explore"
+                    title={t('explore.loadError')}
                     icon={IconUnlink}
                     description={
                         exploreError.error.message.includes('jwt expired')
-                            ? 'This embed link has expired'
+                            ? t('expired')
                             : exploreError.error.message
                     }
                 />

@@ -4,6 +4,7 @@ import {
     type UpdateImpersonationOrganizationSettings,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useApp from '../../providers/App/useApp';
 import useToaster from '../toaster/useToaster';
@@ -51,6 +52,7 @@ const updateImpersonationSettings = async (
 
 export const useUpdateImpersonationSettings = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
 
     return useMutation<
@@ -61,13 +63,15 @@ export const useUpdateImpersonationSettings = () => {
         mutationKey: ['impersonation_settings_update'],
         onSuccess: async () => {
             showToastSuccess({
-                title: 'Impersonation settings updated',
+                title: t('useImpersonation.impersonationSettingsUpdated'),
             });
             await queryClient.invalidateQueries(['impersonation_settings']);
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update impersonation settings',
+                title: t(
+                    'useImpersonation.failedToUpdateImpersonationSettings',
+                ),
                 apiError: error,
             });
         },

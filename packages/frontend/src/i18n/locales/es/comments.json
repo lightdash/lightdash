@@ -1,0 +1,41 @@
+{
+    "form": {
+        "reply": "Responder",
+        "addComment": "Añadir comentario",
+        "placeholder": "Añadir comentario (escribe @ para mencionar a alguien)"
+    },
+    "detail": {
+        "resolve": "Resolver",
+        "unresolve": "Reabrir"
+    },
+    "mentions": {
+        "noSpaceAccess": "El usuario no tiene acceso al espacio de este dashboard"
+    },
+    "tileFallbackTitle": {
+        "chart": "Gráfico sin título",
+        "markdown": "Markdown",
+        "loom": "Vídeo de Loom",
+        "heading": "Encabezado",
+        "dataApp": "App de datos"
+    },
+    "panel": {
+        "removedTileTitle": "El tile ya no está en este dashboard",
+        "removedTilesSection": "Ya no están en este dashboard",
+        "dashboardSection": "Dashboard",
+        "title": "Comentarios",
+        "close": "Cerrar comentarios",
+        "goToTile": "Ir al tile",
+        "goToTileNamed": "Ir al tile {{title}}",
+        "openCount": "{{count}} abiertos",
+        "resolvedCount": "{{count}} resueltos",
+        "noOpenComments": "No hay comentarios abiertos",
+        "emptyCanCreate": "Usa el botón de comentarios de un tile para iniciar un hilo.",
+        "emptyViewOnly": "Los hilos iniciados en cualquier tile aparecerán aquí.",
+        "showResolved": "Mostrar resueltos ({{count}})",
+        "hideResolved": "Ocultar resueltos ({{count}})"
+    },
+    "replies": {
+        "count_one": "{{count}} respuesta",
+        "count_other": "{{count}} respuestas"
+    }
+}

@@ -1,5 +1,6 @@
 import { SchedulerFormat } from '@lightdash/common';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type useSchedulerFilters } from '../../../features/scheduler/hooks/useSchedulerFilters';
 import FilterFacet, { type FilterFacetOption } from '../../common/FilterFacet';
 
@@ -8,32 +9,38 @@ type FormatFilterProps = Pick<
     'selectedFormats' | 'setSelectedFormats'
 >;
 
-const FORMAT_LABELS: Record<SchedulerFormat, string> = {
-    [SchedulerFormat.CSV]: '.csv',
-    [SchedulerFormat.XLSX]: '.xlsx',
-    [SchedulerFormat.IMAGE]: 'Image',
-    [SchedulerFormat.GSHEETS]: 'Google Sheets',
-    [SchedulerFormat.PDF]: 'PDF',
+const FORMAT_LABEL_KEYS: Record<SchedulerFormat, string> = {
+    [SchedulerFormat.CSV]: 'formats.csv',
+    [SchedulerFormat.XLSX]: 'formats.xlsx',
+    [SchedulerFormat.IMAGE]: 'formats.image',
+    [SchedulerFormat.GSHEETS]: 'formats.googleSheets',
+    [SchedulerFormat.PDF]: 'formats.pdf',
 };
-
-const ALL_FORMAT_OPTIONS: FilterFacetOption[] = Object.values(
-    SchedulerFormat,
-).map((format) => ({
-    value: format,
-    label: FORMAT_LABELS[format],
-}));
 
 const FormatFilter: FC<FormatFilterProps> = ({
     selectedFormats,
     setSelectedFormats,
-}) => (
-    <FilterFacet
-        label="Format"
-        options={ALL_FORMAT_OPTIONS}
-        selected={selectedFormats}
-        onChange={(values) => setSelectedFormats(values as SchedulerFormat[])}
-        tooltipLabel="Filter schedulers by format"
-    />
-);
+}) => {
+    const { t } = useTranslation('scheduler');
+    const options = useMemo<FilterFacetOption[]>(
+        () =>
+            Object.values(SchedulerFormat).map((format) => ({
+                value: format,
+                label: t(FORMAT_LABEL_KEYS[format]),
+            })),
+        [t],
+    );
+    return (
+        <FilterFacet
+            label={t('filters.format.label')}
+            options={options}
+            selected={selectedFormats}
+            onChange={(values) =>
+                setSelectedFormats(values as SchedulerFormat[])
+            }
+            tooltipLabel={t('filters.format.tooltip')}
+        />
+    );
+};
 
 export default FormatFilter;

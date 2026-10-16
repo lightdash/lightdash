@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { Group, Text } from '@mantine/core';
 import type { FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ToolCallChip } from '../ToolCallChip';
 import { formatFieldName } from '../utils/formatFieldName';
 
@@ -16,6 +17,7 @@ type QueryResultToolCallDescriptionProps = {
 export const QueryResultToolCallDescription: FC<
     QueryResultToolCallDescriptionProps
 > = ({ title, queryConfig, chartConfig }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const dimensions = queryConfig?.dimensions || [];
     const metrics = queryConfig?.metrics || [];
     const groupBy =
@@ -39,7 +41,7 @@ export const QueryResultToolCallDescription: FC<
             {metrics.length > 0 && (
                 <>
                     <Text c="dimmed" size="xs">
-                        shows
+                        {t('toolDescriptions.query.shows')}
                     </Text>
                     {metrics.map((metric: string) => (
                         <ToolCallChip key={metric}>
@@ -51,7 +53,7 @@ export const QueryResultToolCallDescription: FC<
             {regularDimensions.length > 0 && (
                 <>
                     <Text c="dimmed" size="xs">
-                        by
+                        {t('toolDescriptions.query.by')}
                     </Text>
                     {regularDimensions.map((dim: string) => (
                         <ToolCallChip key={dim}>
@@ -63,7 +65,7 @@ export const QueryResultToolCallDescription: FC<
             {groupByDimensions.length > 0 && (
                 <>
                     <Text c="dimmed" size="xs">
-                        grouped by
+                        {t('toolDescriptions.query.groupedBy')}
                     </Text>
                     {groupByDimensions.map((dim: string) => (
                         <ToolCallChip key={dim}>
@@ -74,15 +76,20 @@ export const QueryResultToolCallDescription: FC<
             )}
             {customMetricsArray.length > 0 && (
                 <Text c="dimmed" size="xs">
-                    with {customMetricsArray.length} custom metric
-                    {customMetricsArray.length !== 1 ? 's' : ''}
+                    {t('toolDescriptions.query.withCustomMetrics', {
+                        count: customMetricsArray.length,
+                    })}
                 </Text>
             )}
             {tableCalculationsArray.length > 0 && (
                 <Text c="dimmed" size="xs">
-                    {customMetricsArray.length > 0 ? 'and' : 'with'}{' '}
-                    {tableCalculationsArray.length} calculation
-                    {tableCalculationsArray.length !== 1 ? 's' : ''}
+                    {customMetricsArray.length > 0
+                        ? t('toolDescriptions.query.andCalculations', {
+                              count: tableCalculationsArray.length,
+                          })
+                        : t('toolDescriptions.query.withCalculations', {
+                              count: tableCalculationsArray.length,
+                          })}
                 </Text>
             )}
         </Group>

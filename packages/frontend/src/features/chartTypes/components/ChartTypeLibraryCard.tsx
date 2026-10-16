@@ -5,6 +5,7 @@ import {
 import { Badge, Box, Group, Paper, Stack, Text } from '@mantine/core';
 import { IconPhoto } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPaperButton';
 import { useAppColorScheme } from '../../../providers/ColorSchemeContext';
@@ -15,25 +16,28 @@ import OfficialChartTypeBadge from './OfficialChartTypeBadge';
 import RegistryAssetImage from './RegistryAssetImage';
 
 const StateBadge: FC<{ item: RegistryChartTypeListItem }> = ({ item }) => {
+    const { t } = useTranslation('chartTypes');
     switch (item.state) {
         case 'not_installed':
             return null;
         case 'installed':
             return (
                 <Badge size="xs" variant="light" color="green">
-                    Installed v{item.installedRegistryVersion}
+                    {t('libraryCard.installed', {
+                        version: item.installedRegistryVersion,
+                    })}
                 </Badge>
             );
         case 'update_available':
             return (
                 <Badge size="xs" variant="light" color="orange">
-                    Update available
+                    {t('gallery.updateAvailable')}
                 </Badge>
             );
         case 'incompatible':
             return (
                 <Badge size="xs" variant="light" color="gray">
-                    Requires newer Lightdash
+                    {t('libraryCard.requiresNewer')}
                 </Badge>
             );
         default:
@@ -50,6 +54,7 @@ type Props = {
 };
 
 const ChartTypeLibraryCard: FC<Props> = ({ item, onClick }) => {
+    const { t } = useTranslation('chartTypes');
     const { colorScheme } = useAppColorScheme();
     const thumbnail = registryThumbnailPath(item, colorScheme);
     const placeholder = (
@@ -92,7 +97,7 @@ const ChartTypeLibraryCard: FC<Props> = ({ item, onClick }) => {
                     </Group>
                 </Group>
                 <Text fz="xs" c="dimmed" lh={1.35} lineClamp={2}>
-                    {item.description || 'No description'}
+                    {item.description || t('detail.noDescription')}
                 </Text>
                 <StateBadge item={item} />
             </Stack>

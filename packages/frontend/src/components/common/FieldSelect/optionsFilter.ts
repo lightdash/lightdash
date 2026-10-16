@@ -4,16 +4,14 @@ import {
     type OptionsFilter,
 } from '@mantine/core';
 import { type ReactNode } from 'react';
+import i18n from '../../../i18n/i18n';
 
-export const ADD_TO_QUERY_GROUP_LABEL = 'Add to query';
-export const SUGGESTED_GROUP_LABEL = 'Suggested';
+export const getAddToQueryGroupLabel = () =>
+    i18n.t('fieldSelect.addToQueryGroup', { ns: 'commonUi' });
+const getSuggestedGroupLabel = () =>
+    i18n.t('fieldSelect.suggestedGroup', { ns: 'commonUi' });
 /** Value of the disabled trailing row that counts options cut by `limit`. */
 export const MORE_OPTIONS_VALUE = '__field_select_more__';
-
-const SYNTHETIC_GROUP_LABELS = new Set([
-    ADD_TO_QUERY_GROUP_LABEL,
-    SUGGESTED_GROUP_LABEL,
-]);
 
 type SearchableOption = ComboboxItem & { tablePrefix?: string };
 
@@ -27,13 +25,17 @@ type SearchableOption = ComboboxItem & { tablePrefix?: string };
  */
 export const optionsFilter: OptionsFilter = ({ options, search, limit }) => {
     const words = search.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    const syntheticGroupLabels = new Set([
+        getAddToQueryGroupLabel(),
+        getSuggestedGroupLabel(),
+    ]);
     const matches = (option: ComboboxItem, groupLabel: ReactNode) => {
         if (words.length === 0) return true;
         const { label, tablePrefix } = option as SearchableOption;
         const table =
             tablePrefix ??
             (typeof groupLabel === 'string' &&
-            !SYNTHETIC_GROUP_LABELS.has(groupLabel)
+            !syntheticGroupLabels.has(groupLabel)
                 ? groupLabel
                 : '');
         const haystack = `${table} ${label}`.toLowerCase();

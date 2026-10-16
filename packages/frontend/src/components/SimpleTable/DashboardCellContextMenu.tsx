@@ -15,6 +15,7 @@ import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -34,6 +35,7 @@ const DashboardCellContextMenu: FC<
         itemsMap: ItemsMap | undefined;
     }
 > = ({ cell, itemsMap }) => {
+    const { t } = useTranslation('visualization');
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
     const { openUnderlyingDataModal, metricQuery } =
@@ -106,8 +108,8 @@ const DashboardCellContextMenu: FC<
 
     const handleCopyToClipboard = useCallback(() => {
         clipboard.copy(value.formatted);
-        showToastSuccess({ title: 'Copied to clipboard!' });
-    }, [value, clipboard, showToastSuccess]);
+        showToastSuccess({ title: t('contextMenu.copiedToClipboard') });
+    }, [value, clipboard, showToastSuccess, t]);
 
     const handleViewUnderlyingData = useCallback(() => {
         if (meta === undefined) return;
@@ -164,7 +166,7 @@ const DashboardCellContextMenu: FC<
                 leftSection={<MantineIcon icon={IconCopy} />}
                 onClick={handleCopyToClipboard}
             >
-                Copy value
+                {t('contextMenu.copyValue')}
             </Menu.Item>
 
             {item &&
@@ -181,7 +183,7 @@ const DashboardCellContextMenu: FC<
                             leftSection={<MantineIcon icon={IconStack} />}
                             onClick={handleViewUnderlyingData}
                         >
-                            View underlying data
+                            {t('contextMenu.viewUnderlyingData')}
                         </Menu.Item>
                     </Can>
                 )}

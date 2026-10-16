@@ -5,8 +5,11 @@ import {
     type HomepageOpening,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
+import i18n from '../../../i18n/i18n';
 import { getDefaultQuickActions } from './blocks/quickActionDefaults';
-import { DEFAULT_GREETING_SUBTITLE } from './greeting';
+import { getDefaultGreetingSubtitle } from './greeting';
+
+const ns = 'homepageBuilder';
 
 /**
  * The layout a brand-new homepage starts from — a block-for-block copy of what
@@ -25,7 +28,9 @@ export const buildStarterHomepage = (
         row({
             id: uuidv4(),
             type: 'favorites',
-            config: { title: 'My favorites' },
+            config: {
+                title: i18n.t('blockDefaults.favoritesTitle', { ns }),
+            },
         }),
         opening === 'ask-first'
             ? row({
@@ -36,7 +41,7 @@ export const buildStarterHomepage = (
             : row({
                   id: uuidv4(),
                   type: 'greeting',
-                  config: { subtitle: DEFAULT_GREETING_SUBTITLE },
+                  config: { subtitle: getDefaultGreetingSubtitle() },
               }),
     ];
 
@@ -60,7 +65,7 @@ export const buildStarterHomepage = (
                 id: uuidv4(),
                 type: 'collection',
                 config: {
-                    title: 'Start here',
+                    title: i18n.t('starter.startHere', { ns }),
                     items: keySpaceUuids.map((uuid) => ({
                         contentType: 'space' as const,
                         uuid,
@@ -76,7 +81,9 @@ export const buildStarterHomepage = (
         row({
             id: uuidv4(),
             type: 'recent',
-            config: { title: 'Recently viewed' },
+            config: {
+                title: i18n.t('blockDefaults.recentTitle', { ns }),
+            },
         }),
     );
 
@@ -87,7 +94,7 @@ export const buildStarterHomepage = (
             id: uuidv4(),
             type: 'collection',
             config: {
-                title: 'Most popular',
+                title: i18n.t('starter.mostPopular', { ns }),
                 source: 'most-viewed',
                 items: [],
             },
@@ -99,7 +106,7 @@ export const buildStarterHomepage = (
             id: uuidv4(),
             type: 'collection',
             config: {
-                title: 'Verified',
+                title: i18n.t('starter.verified', { ns }),
                 source: 'verified',
                 items: [],
             },
@@ -112,7 +119,7 @@ export const buildStarterHomepage = (
                 id: uuidv4(),
                 type: 'collection',
                 config: {
-                    title: 'Pinned',
+                    title: i18n.t('starter.pinned', { ns }),
                     // The live pin list, not a copy of it: a frozen snapshot
                     // stops tracking pins the moment it's published, and
                     // everyone reasonably expects this block to follow them.

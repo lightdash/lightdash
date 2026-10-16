@@ -2,46 +2,82 @@ import {
     assertUnreachable,
     TableCalculationTemplateType,
 } from '@lightdash/common';
+import i18n from '../../../i18n/i18n';
 
-export const TemplateTypeLabels: Record<TableCalculationTemplateType, string> =
-    {
-        [TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS]:
-            'Percent change from previous',
-        [TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS]:
-            'Difference from previous',
-        [TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE]:
-            'Percent of previous value',
-        [TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL]:
-            'Percent of column total',
-        [TableCalculationTemplateType.RANK_IN_COLUMN]: 'Rank in column',
-        [TableCalculationTemplateType.RUNNING_TOTAL]: 'Running total',
-        [TableCalculationTemplateType.WINDOW_FUNCTION]: 'Window function',
-    };
+export const getTemplateTypeLabel = (
+    type: TableCalculationTemplateType,
+): string => {
+    switch (type) {
+        case TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS:
+            return i18n.t('templateTypes.percentChangeFromPrevious.label', {
+                ns: 'tableCalculation',
+            });
+        case TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS:
+            return i18n.t('templateTypes.differenceFromPrevious.label', {
+                ns: 'tableCalculation',
+            });
+        case TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE:
+            return i18n.t('templateTypes.percentOfPreviousValue.label', {
+                ns: 'tableCalculation',
+            });
+        case TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL:
+            return i18n.t('templateTypes.percentOfColumnTotal.label', {
+                ns: 'tableCalculation',
+            });
+        case TableCalculationTemplateType.RANK_IN_COLUMN:
+            return i18n.t('templateTypes.rankInColumn.label', {
+                ns: 'tableCalculation',
+            });
+        case TableCalculationTemplateType.RUNNING_TOTAL:
+            return i18n.t('templateTypes.runningTotal.label', {
+                ns: 'tableCalculation',
+            });
+        case TableCalculationTemplateType.WINDOW_FUNCTION:
+            return i18n.t('templateTypes.windowFunction.label', {
+                ns: 'tableCalculation',
+            });
+        default:
+            return assertUnreachable(type, `Unknown template type`);
+    }
+};
 
 export const formatTemplateType = (
     type: TableCalculationTemplateType,
-): string => {
-    return TemplateTypeLabels[type] || type;
-};
+): string => getTemplateTypeLabel(type) || type;
 
 export const getTemplateDescription = (
     type: TableCalculationTemplateType,
 ): string => {
     switch (type) {
         case TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS:
-            return 'Subtracts the previous row value from the current row value.';
+            return i18n.t('templateTypes.differenceFromPrevious.description', {
+                ns: 'tableCalculation',
+            });
         case TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS:
-            return 'Calculates the percentage change from the previous row value.';
+            return i18n.t(
+                'templateTypes.percentChangeFromPrevious.description',
+                { ns: 'tableCalculation' },
+            );
         case TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE:
-            return 'Shows the current value as a percentage of the previous row value.';
+            return i18n.t('templateTypes.percentOfPreviousValue.description', {
+                ns: 'tableCalculation',
+            });
         case TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL:
-            return 'Shows each value as a percentage of the column total.';
+            return i18n.t('templateTypes.percentOfColumnTotal.description', {
+                ns: 'tableCalculation',
+            });
         case TableCalculationTemplateType.RANK_IN_COLUMN:
-            return 'Ranks values within the column from highest to lowest.';
+            return i18n.t('templateTypes.rankInColumn.description', {
+                ns: 'tableCalculation',
+            });
         case TableCalculationTemplateType.RUNNING_TOTAL:
-            return 'Calculates a cumulative sum across rows.';
+            return i18n.t('templateTypes.runningTotal.description', {
+                ns: 'tableCalculation',
+            });
         case TableCalculationTemplateType.WINDOW_FUNCTION:
-            return 'Applies SQL window functions (e.g., ROW_NUMBER, PERCENT_RANK) to the result set.';
+            return i18n.t('templateTypes.windowFunction.description', {
+                ns: 'tableCalculation',
+            });
         default:
             return assertUnreachable(type, `Unknown template type`);
     }

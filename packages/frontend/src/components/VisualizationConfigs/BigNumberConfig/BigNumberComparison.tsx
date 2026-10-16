@@ -4,19 +4,25 @@ import {
     type CompactOrAlias,
 } from '@lightdash/common';
 import { Group, SegmentedControl, Select, Stack, Switch } from '@mantine/core';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import FieldSelect from '../../common/FieldSelect';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { LabelEditor } from '../common/LabelEditor';
 import classes from './BigNumberComparison.module.css';
-import { StyleOptions } from './common';
+import { getStyleOptions } from './common';
 
 type CompareTarget = 'previous_row' | 'another_field';
 
 export const Comparison: React.FC = () => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig, itemsMap } = useVisualizationContext();
+    const styleOptions = useMemo(
+        () => getStyleOptions(t('state.none', { ns: 'common' })),
+        [t],
+    );
 
     const isBigNumber = isBigNumberVisualizationConfig(visualizationConfig);
     const chartConfig = isBigNumber
@@ -71,7 +77,9 @@ export const Comparison: React.FC = () => {
             <Config>
                 <Config.Section>
                     <Group gap="xs" align="center">
-                        <Config.Heading>Show comparison</Config.Heading>
+                        <Config.Heading>
+                            {t('bigNumber.comparison.showComparison')}
+                        </Config.Heading>
                         <Switch
                             size="xs"
                             checked={showComparison}
@@ -84,16 +92,22 @@ export const Comparison: React.FC = () => {
                     {showComparison ? (
                         <>
                             <Group gap="xs">
-                                <Config.Label>Compare to</Config.Label>
+                                <Config.Label>
+                                    {t('bigNumber.comparison.compareTo')}
+                                </Config.Label>
                                 <SegmentedControl
                                     data={[
                                         {
                                             value: 'previous_row' as CompareTarget,
-                                            label: 'Previous row',
+                                            label: t(
+                                                'bigNumber.comparison.previousRow',
+                                            ),
                                         },
                                         {
                                             value: 'another_field' as CompareTarget,
-                                            label: 'Same row',
+                                            label: t(
+                                                'bigNumber.comparison.sameRow',
+                                            ),
                                         },
                                     ]}
                                     value={compareTarget}
@@ -115,7 +129,7 @@ export const Comparison: React.FC = () => {
 
                             {compareTarget === 'another_field' && (
                                 <FieldSelect
-                                    label="Field"
+                                    label={t('bigNumber.comparison.field')}
                                     item={comparisonFieldItem}
                                     items={comparisonFieldItems}
                                     onChange={(newValue) => {
@@ -130,16 +144,22 @@ export const Comparison: React.FC = () => {
                             )}
 
                             <Group gap="xs">
-                                <Config.Label>Format</Config.Label>
+                                <Config.Label>
+                                    {t('bigNumber.comparison.format')}
+                                </Config.Label>
                                 <SegmentedControl
                                     data={[
                                         {
                                             value: ComparisonFormatTypes.RAW,
-                                            label: 'Raw value',
+                                            label: t(
+                                                'bigNumber.comparison.rawValue',
+                                            ),
                                         },
                                         {
                                             value: ComparisonFormatTypes.PERCENTAGE,
-                                            label: 'Percentage',
+                                            label: t(
+                                                'bigNumber.comparison.percentage',
+                                            ),
                                         },
                                     ]}
                                     value={
@@ -158,7 +178,9 @@ export const Comparison: React.FC = () => {
 
                             <Switch
                                 size="xs"
-                                label="Flip positive color"
+                                label={t(
+                                    'bigNumber.comparison.flipPositiveColor',
+                                )}
                                 checked={flipColors}
                                 onChange={() => {
                                     setFlipColors(!flipColors);
@@ -173,8 +195,8 @@ export const Comparison: React.FC = () => {
                                 comparisonFormat ===
                                     ComparisonFormatTypes.RAW && (
                                     <Select
-                                        label="Style"
-                                        data={StyleOptions}
+                                        label={t('bigNumber.comparison.style')}
+                                        data={styleOptions}
                                         value={bigNumberComparisonStyle ?? ''}
                                         onChange={(newValue) => {
                                             if (!newValue) {
@@ -191,9 +213,13 @@ export const Comparison: React.FC = () => {
                                 )}
 
                             <LabelEditor
-                                label="Comparison label"
+                                label={t(
+                                    'bigNumber.comparison.comparisonLabel',
+                                )}
                                 value={comparisonLabel ?? ''}
-                                placeholder="Add an optional label"
+                                placeholder={t(
+                                    'bigNumber.comparison.comparisonLabelPlaceholder',
+                                )}
                                 onChange={setComparisonLabel}
                                 fields={granularityFields}
                             />

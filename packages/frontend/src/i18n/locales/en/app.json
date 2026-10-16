@@ -1,0 +1,1079 @@
+{
+    "preAggregateStatusBadge": {
+        "fallback": "Pre-aggregate matched ({{name}}) but failed to serve. Results came from the warehouse",
+        "active": "Pre-aggregate cache active: {{name}}",
+        "bypassed": "Pre-aggregate bypassed by user",
+        "miss": "Cache miss: {{reason}}"
+    },
+    "forbidden": {
+        "createProject": "Or create a new project.",
+        "noProjectTitle": "Your organization doesn't have a project yet",
+        "noProjectDescription": "A project connects to your data. Ask an organization admin to finish setting one up.",
+        "noAccess": "You don't have access",
+        "noAccessTo": "You don't have access to this {{subject}}",
+        "contactAdmin": "Please contact the admin to request access."
+    },
+    "jsonViewer": {
+        "copied": "Copied"
+    },
+    "documentationHelpButton": {
+        "tooltip": "Open documentation"
+    },
+    "versionAutoUpdater": {
+        "title": "A new version is ready for you!",
+        "action": "Use new version"
+    },
+    "aboutFooter": {
+        "license": {
+            "valid": "Valid",
+            "validDescription": "Enterprise features are enabled.",
+            "invalid": "Not valid",
+            "invalidDescription": "The configured license key is not valid.",
+            "none": "No license",
+            "noneDescription": "No enterprise license key is configured."
+        },
+        "versionPrefix": "Lightdash - ",
+        "newVersionAria": "New version available! Open what's new",
+        "newVersion": "New version available!",
+        "documentation": "Documentation",
+        "aboutTitle": "About Lightdash",
+        "instanceDetails": "Instance details.",
+        "instanceDetailsAndLicense": "Instance details and licensing status.",
+        "version": "Version",
+        "notAvailable": "n/a",
+        "enterpriseLicense": "Enterprise license"
+    },
+    "renderedSql": {
+        "compiling": "Compiling SQL",
+        "compilationError": "Compilation error",
+        "mergeCannotCompile": "This merge cannot compile"
+    },
+    "preAggregateAudit": {
+        "queryTypes": {
+            "explorer": "Ad-hoc Explorer",
+            "chart": "Saved Chart",
+            "dashboard": "Dashboard Chart"
+        },
+        "filters": {
+            "type": "Type",
+            "typeTooltip": "Filter by query type",
+            "explore": "Explore",
+            "exploreTooltip": "Filter by explore",
+            "preAggregate": "Pre-aggregate",
+            "preAggregateTooltip": "Filter by pre-aggregate",
+            "reason": "Reason",
+            "reasonTooltip": "Filter by miss reason"
+        },
+        "resetFilters": "Reset filters",
+        "refreshed": "Pre-aggregate stats refreshed",
+        "title": "Pre-aggregate analytics",
+        "description": "Track cache performance for this project's pre-aggregates. Data is retained for 3 days.",
+        "refreshStats": "Refresh stats",
+        "cacheRate": "Cache Rate (3 days)",
+        "noData": "No data",
+        "totalQueries": "Total Queries",
+        "exploresWithPreAggregates": "Explores with Pre-Aggregates",
+        "columns": {
+            "explore": "Explore",
+            "preAggregate": "Pre-aggregate",
+            "chart": "Chart",
+            "dashboard": "Dashboard",
+            "cache": "Cache",
+            "missReason": "Miss Reason",
+            "lastSeen": "Last Seen"
+        },
+        "adHocQuery": "Ad-hoc query",
+        "cached_one": "{{count}} cached",
+        "cached_other": "{{count}} cached",
+        "uncached_one": "{{count}} uncached",
+        "uncached_other": "{{count}} uncached",
+        "failed_one": "{{count}} failed",
+        "failed_other": "{{count}} failed",
+        "failedTooltip": "Matched a pre-aggregate but execution failed. Results were served from the warehouse"
+    },
+    "preAggregateMaterializations": {
+        "definitionError": "Definition error",
+        "externalTooltip": "Served from a customer-managed warehouse table",
+        "unknownError": "Unknown error",
+        "status": {
+            "active": "Active",
+            "in_progress": "Building",
+            "failed": "Failed",
+            "superseded": "Superseded",
+            "external": "External",
+            "never_materialized": "Never materialized"
+        },
+        "filterByStatus": "Filter by status",
+        "filterByStatusLabel": "Filter by status:",
+        "columns": {
+            "name": "Name",
+            "sourceExplore": "Source explore",
+            "status": "Status",
+            "rowCount": "Row count",
+            "columns": "Columns",
+            "fileSize": "File size",
+            "buildTime": "Build time",
+            "lastMaterialized": "Last materialized",
+            "refreshSchedule": "Refresh schedule"
+        },
+        "maxRowsApplied": "Max rows applied",
+        "customerManagedTooltip": "Refreshes are managed outside Lightdash",
+        "customerManaged": "Customer managed",
+        "manual": "Manual",
+        "rebuildOne": "Rebuild this pre-aggregate",
+        "searchPlaceholder": "Search by name...",
+        "summary": "{{active}} active, {{total}} total",
+        "summaryExternal_one": ", {{count}} external",
+        "summaryExternal_other": ", {{count}} external",
+        "summaryWarnings_one": ", {{count}} warning",
+        "summaryWarnings_other": ", {{count}} warnings",
+        "title": "Pre-aggregate materializations",
+        "description": "Overview of all pre-aggregate definitions and their current materialization status.",
+        "rebuildManaged": "Rebuild managed",
+        "personalConnectionsWarning": "Pre-aggregates aren't compatible with personal warehouse connections. Materialized results are shared across all viewers and may not match what each user would see querying the warehouse directly. <link>Learn more</link>.",
+        "emptyTitle": "No pre-aggregates defined yet",
+        "emptyDescription": "Define pre-aggregates in your dbt YAML to serve queries from materialized results instead of hitting your warehouse.",
+        "rebuildModal": {
+            "title": "Rebuild managed pre-aggregates",
+            "description_one": "This rebuilds {{count}} Lightdash-managed pre-aggregate. External definitions stay untouched.",
+            "description_other": "This rebuilds {{count}} Lightdash-managed pre-aggregates. External definitions stay untouched.",
+            "duration": "Depending on the number of pre-aggregates and the size of your data, this may take several minutes and will use warehouse resources. You can track the progress in the table below.",
+            "largeTitle": "Large pre-aggregates",
+            "largeDescription": "Some pre-aggregates exceed the recommended row count threshold. Refreshing will re-query these large datasets from your warehouse."
+        }
+    },
+    "materializationDrawer": {
+        "filterBound": {
+            "toDateExcludingToday": " to date, excluding today",
+            "toDate": " to date",
+            "completed": "completed "
+        },
+        "columnsCount": "Columns ({{count}})",
+        "role": "Materialization role",
+        "email": "Email",
+        "attributes": "Attributes",
+        "filters": "Filters",
+        "and": "AND",
+        "subtitle": "Pre-aggregate details",
+        "customerManagedDescription": "Lightdash serves matching queries from this warehouse table, but does not build or refresh it.",
+        "externalTable": "External table",
+        "metrics": "Metrics",
+        "dimensions": "Dimensions",
+        "timeDimension": "Time dimension",
+        "granularity": "Granularity",
+        "warnings": "Warnings",
+        "lastMaterialization": "Last materialization",
+        "trigger": "Trigger: {{trigger}}",
+        "triggers": {
+            "compile": "Project compile",
+            "cron": "Scheduled (cron)",
+            "manual": "Manual",
+            "webhook": "Webhook"
+        },
+        "materializedAt": "Materialized at: {{date}}",
+        "rows": "Rows: {{rows}}",
+        "fileSize": "File size: {{size}}",
+        "buildTime": "Build time: {{duration}}",
+        "error": "Error"
+    },
+    "dataOps": {
+        "description": "Perform data operations between on this project",
+        "promoteTitle": "Promote content",
+        "promoteDescription": "Developers and admins on this organization can copy content from this project into the selected upstream project, overriding its defaults or creating new content if it is new.",
+        "currentProject": "{{name}} (Current)",
+        "previewProjects": "Preview projects",
+        "productionProjects": "Production projects",
+        "upstreamProject": "Upstream project",
+        "selectProject": "Select project",
+        "toast": {
+            "updated": "Project updated",
+            "updatedSubtitle": "Project upstream project updated successfully",
+            "updateFailed": "Failed to update project"
+        }
+    },
+    "versionHistory": {
+        "loadingVersion": "Loading version...",
+        "loadVersionError": "Could not load this version.",
+        "loading": "Loading...",
+        "versions": "Versions",
+        "previewVersionFrom": "Preview version from {{timestamp}}",
+        "updatedBy": "Updated by: {{name}}",
+        "currentTooltip": "This is the current version.",
+        "current": "current",
+        "versionActions": "Version actions",
+        "restoreThisVersion": "Restore this version",
+        "selectVersion": "Select a version",
+        "restore": "Restore"
+    },
+    "chartHistory": {
+        "chartVersions": "Chart versions",
+        "dataFreshness": "Data freshness",
+        "dataFreshnessDescription": "Version history preview changes chart configuration and setup, but always queries the latest version of the data itself",
+        "restoreTitle": "Restore chart version",
+        "restoreDescription": "By restoring to this chart version, a new version will be generated and saved. All previous versions are still safely stored and can be restored at any time.",
+        "unsavedEditsDiscarded": "Your unsaved edits in the chart editor will be discarded."
+    },
+    "jobTitles": {
+        "dataLeader": "Data/Analytics Leader (manager, director, etc.)",
+        "dataScientist": "Data Scientist",
+        "dataAnalyst": "Data Analyst",
+        "dataEngineer": "Data Engineer",
+        "analyticsEngineer": "Analytics Engineer",
+        "softwareEngineer": "Software Engineer",
+        "sales": "Sales",
+        "marketing": "Marketing",
+        "product": "Product",
+        "operations": "Operations",
+        "customerService": "Customer Service",
+        "student": "Student",
+        "other": "Other"
+    },
+    "userCompletion": {
+        "title": "Nearly there...",
+        "description": "Tell us a bit more about yourself",
+        "organizationName": "Organization name",
+        "organizationNamePlaceholder": "Enter company name",
+        "role": "What's your role?",
+        "rolePlaceholder": "Select your role",
+        "howDidYouHear": "How did you hear about us?",
+        "howDidYouHearPlaceholder": "Google, a colleague, a podcast...",
+        "allowDomain": "Allow users with @{{domain}} to join the organization as a viewer",
+        "marketingOptIn": "Keep me updated on new Lightdash features",
+        "anonymize": "Anonymize my usage data"
+    },
+    "metricQueryData": {
+        "copiedToClipboard": "Copied to clipboard!",
+        "copyValue": "Copy value",
+        "sortBy": "Sort <label>{{label}}</label>",
+        "removeSort": "Remove sort",
+        "contextMenu": "Context menu",
+        "drillInto": "Drill into \"{{value}}\"",
+        "drillDown": "Drill down",
+        "openInNewTab": "Open in new tab",
+        "viewUnderlyingData": "View underlying data",
+        "exportCsv": "Export CSV",
+        "exploreFromHere": "Explore from here",
+        "filterCount_one": "{{count}} filter",
+        "filterCount_other": "{{count}} filters",
+        "loadingUnderlyingData": "Loading underlying data",
+        "drillIntoMenu": "Drill into <value>{{value}}</value>"
+    },
+    "errorBoundary": {
+        "updateRequired": "Application update required",
+        "newVersion": "A new version is available. Please refresh your browser to load the latest version.",
+        "clearCache": "If this persists after refreshing, try clearing your browser cache or opening in an incognito window.",
+        "refresh": "Refresh page",
+        "somethingWentWrong": "Something went wrong.",
+        "contactSupport": "You can contact support with the following error ID",
+        "errorId": "Error ID: {{eventId}}"
+    },
+    "previewScreenshot": {
+        "customWidth": "Custom width configuration",
+        "currentView": "Current view ({{width}}px)",
+        "noPreview": "No preview yet",
+        "generate": "Generate preview"
+    },
+    "directAccess": {
+        "roles": {
+            "viewer": "Can view",
+            "editor": "Can edit",
+            "admin": "Full access"
+        },
+        "you": "(you)",
+        "user": "User",
+        "group": "Group",
+        "roleFor": "Role for {{name}}",
+        "removeAccess": "Remove access",
+        "removeAccessFor": "Remove access for {{name}}",
+        "users": "Users",
+        "groups": "Groups",
+        "shareWith": "Share with",
+        "shareWithPlaceholder": "Select users or groups to share with",
+        "shareWithAria": "Select a user or group to share with",
+        "noMatches": "No matching users or groups",
+        "loadPrincipalsError": "Unable to load users and groups. Close and reopen this dialog to retry.",
+        "roleForNew": "Role for new assignment",
+        "share": "Share",
+        "title": "Share \"{{name}}\"",
+        "removeAll": "Remove all access",
+        "done": "Done",
+        "dashboardRolesHint": "Can edit allows changes to dashboard contents. Full access also allows deleting the dashboard and managing sharing. Permissions from other roles still apply.",
+        "unavailableTitle": "Sharing isn't available",
+        "unavailableDescription": "Content sharing isn't enabled for this organization.",
+        "loadError": "Could not load access",
+        "notShared": "Not shared with anyone yet.",
+        "notSharedSpace": "Not shared with anyone yet. People with access to the space can still see it.",
+        "listLabel": "Direct access",
+        "removeOwn": "Remove your own access",
+        "removeAllDescription": "This removes everyone \"{{name}}\" was shared with. People will keep any access they have through spaces.",
+        "removeOwnDescription": "You may lose access to \"{{name}}\" once it is no longer shared with you.",
+        "toast": {
+            "updated": "Access updated",
+            "updateFailed": "Failed to update access",
+            "removed": "Access removed",
+            "removeFailed": "Failed to remove access",
+            "allRemoved": "All access removed"
+        }
+    },
+    "usePromoteChart": {
+        "successChartWasPromoted": "Success! Chart was promoted.",
+        "openChart": "Open chart",
+        "failedToPromoteChart": "Failed to promote chart",
+        "failedToGetDiffFromChart": "Failed to get diff from chart"
+    },
+    "usePromoteDashboard": {
+        "successDashboardWasPromoted": "Success! Dashboard was promoted.",
+        "openDashboard": "Open dashboard",
+        "failedToPromoteDashboard": "Failed to promote dashboard",
+        "failedToGetDiffFromDashboard": "Failed to get diff from dashboard"
+    },
+    "usePromoteDocument": {
+        "failedToGetDiffFromDocument": "Failed to get diff from document",
+        "successDocumentWasPromoted": "Success! Document was promoted.",
+        "openDocument": "Open document",
+        "failedToPromoteDocument": "Failed to promote document"
+    },
+    "promotion": {
+        "toBeCreated": "To be created ({{count}})",
+        "toBeUpdated": "To be updated ({{count}})",
+        "deleted": "Deleted {{count}}",
+        "promoting": {
+            "chart": "Promoting chart",
+            "dashboard": "Promoting dashboard",
+            "document": "Promoting document"
+        },
+        "promote": "Promote",
+        "aboutToPromote": {
+            "chart": "You are about to promote chart: \"{{name}}\"",
+            "dashboard": "You are about to promote dashboard: \"{{name}}\"",
+            "document": "You are about to promote document: \"{{name}}\""
+        },
+        "loadingDifferences": "Loading differences...",
+        "changesApplied": "These changes will be applied:",
+        "sections": {
+            "spaces": "Spaces:",
+            "dashboards": "Dashboards:",
+            "documents": "Documents:",
+            "charts": "Charts:",
+            "sqlCharts": "SQL charts:",
+            "dataApps": "Data apps:"
+        },
+        "noChanges": "No changes to promote",
+        "onlyRecent": "We only promote content that is more recent in this project."
+    },
+    "pullRequests": {
+        "sources": {
+            "customMetric": "Custom metric",
+            "customDimension": "Custom dimension",
+            "sqlRunner": "SQL runner",
+            "sourceEditor": "Source editor",
+            "aiAgent": "AI agent",
+            "contentAsCode": "Content as code"
+        },
+        "columns": {
+            "pullRequest": "Pull request",
+            "source": "Source"
+        },
+        "loadFailedTooltip": "Couldn't load this pull request from {{provider}}. It may have been deleted, or access was revoked.",
+        "loadFailed": "Couldn't load pull request",
+        "openedBy": "opened {{time}} by <author>{{name}}</author>",
+        "opened": "opened {{time}}",
+        "fixesReview": "Fixes review:",
+        "viewIssue": "View issue",
+        "viewThread": "View thread",
+        "viewPr": "View PR",
+        "previewThread": "Preview thread",
+        "viewOn": "View on {{provider}}",
+        "viewPrOn": "View pull request on {{provider}}",
+        "shown": {
+            "open": "{{count}} open shown",
+            "merged": "{{count}} merged shown",
+            "closed": "{{count}} closed shown",
+            "all": "{{count}} shown"
+        },
+        "filters": {
+            "open": "Open",
+            "merged": "Merged",
+            "closed": "Closed",
+            "all": "All"
+        },
+        "loadingMore": "Loading more...",
+        "scrollForMore": "Scroll for more",
+        "allLoaded": "All {{count}} loaded",
+        "empty": "No pull requests yet.",
+        "emptyDescription": "Changes proposed by AI agents and the in-app editors will appear here once a pull request is opened.",
+        "noneForFilter": {
+            "open": "No open pull requests in the loaded results.",
+            "merged": "No merged pull requests in the loaded results.",
+            "closed": "No closed pull requests in the loaded results.",
+            "all": "No pull requests in the loaded results."
+        },
+        "showAll": "Show all",
+        "title": "Pull requests",
+        "loadListFailed": "Failed to load pull requests"
+    },
+    "activeJob": {
+        "viewErrors": "View errors",
+        "viewLog": "View log",
+        "refreshFailed": "Failed to refresh server"
+    },
+    "dashboardProvider": {
+        "restoreParamsFailed": "Could not restore parameters from URL",
+        "incompleteLink": "The link appears to be incomplete. Please ask for it to be shared again.",
+        "restoreUnsavedFiltersFailed": "Could not restore unsaved filters",
+        "restoreUnsavedFiltersFailedSubtitle": "Your previous filter changes could not be loaded",
+        "lockedFilter": "Locked dashboard filter",
+        "lockedOverridesIgnored_one": "A filter override was ignored because the dashboard editor locked that filter.",
+        "lockedOverridesIgnored_other": "{{count}} filter overrides were ignored because the dashboard editor locked those filters.",
+        "lockedTemporaryIgnored_one": "A temporary filter was ignored because the dashboard editor locked it.",
+        "lockedTemporaryIgnored_other": "{{count}} temporary filters were ignored because the dashboard editor locked them.",
+        "lockedTemporaryIgnoredOnTab_one": "A temporary filter was ignored because the dashboard editor locked it on this tab.",
+        "lockedTemporaryIgnoredOnTab_other": "{{count}} temporary filters were ignored because the dashboard editor locked them on this tab.",
+        "restoreFiltersFailed": "Could not restore filters from URL"
+    },
+    "schedulerJobs": {
+        "unknownError": "Unknown error",
+        "backgroundJobs": "Background jobs",
+        "job": "Job",
+        "jobCompleted": "{{label}} completed",
+        "jobFailed": "{{label}} failed",
+        "jobInProgress": "{{label}} in progress...",
+        "completedOf": "{{completed}} of {{total}} completed",
+        "jobsFailed_one": "{{count}} job failed",
+        "jobsFailed_other": "{{count}} jobs failed"
+    },
+    "supportDrawer": {
+        "success": "Success",
+        "sent": "Support request sent successfully",
+        "includeImage": "Include this image",
+        "screenshot": "Screenshot",
+        "screenshotFailed": "Screenshot could not be captured. You can still submit your report with the details below",
+        "moreDetails": "Do you have and other details you'd like to share?",
+        "moreDetailsPlaceholder": "Enter more details",
+        "allowAccess": "Allow Lightdash support access to your instance",
+        "accessAgreement": "By ticking this box, you agree to give Lightdash Support access to your organization for 12 hours to investigate this issue.",
+        "logsNote": "We will also share your Lightdash logs and your recent network requests to help us investigate this issue.",
+        "share": "Share"
+    },
+    "networkDiagnostics": {
+        "offline": "You appear to be offline. Check your internet connection and try again.",
+        "blocked": "The server is reachable, but this request was blocked before it arrived. A corporate proxy, VPN or security software on your network most likely intercepted it. Try again from another network, or copy the diagnostics for your IT team.",
+        "unreachable": "The server cannot be reached from your network right now. Check your connection or VPN and try again.",
+        "intercepted": "Something between you and the server answered this request with HTTP {{status}} instead of the server. A proxy, firewall or load balancer intercepted it. Try again in a few moments, or copy the diagnostics for your IT team.",
+        "cancelled": "The request was cancelled before the server responded."
+    },
+    "timezoneSource": {
+        "viewer": "This chart follows each viewer's own time zone. You're seeing it in {{timezone}}.",
+        "pinned": "This chart is pinned to {{timezone}} and won't follow the project time zone.",
+        "project": "This chart resolves in the project time zone ({{timezone}})."
+    },
+    "roleAccessWarnings": {
+        "andMore": "{{examples}} and {{count}} more",
+        "and": "and",
+        "legacyGroup": "This user belongs to a group <b>{{group}}</b> which has a custom role <b>{{role}}</b> assigned.",
+        "legacyGroupHint": "Make sure the organization or project role doesn't override the group role permissions.",
+        "inheritsFromGroup": "User inherits role <b>{{role}}</b> from group <b>{{group}}</b>.",
+        "inheritsFromOrg": "User inherits higher role <b>{{role}}</b> from organization.",
+        "customAndOrgRole": "This user has a custom role and an organization role <b>{{role}}</b> assigned.",
+        "customAndOrgRoleHint": "Make sure the organization or group role doesn't override the project role permissions.",
+        "organizationRoleLabel": "organization role <b>{{role}}</b>",
+        "groupRoleLabel": "group <b>{{group}}</b> (role <b>{{role}}</b>)",
+        "customRoleConflict_one": "This user has a custom role, but <sources/> grants them permissions the custom role does not include (e.g. <b>{{examples}}</b>).",
+        "customRoleConflict_other": "This user has a custom role, but <sources/> grant them permissions the custom role does not include (e.g. <b>{{examples}}</b>).",
+        "additiveProject": "Organization and group permissions are additive and cannot be restricted by the project role.",
+        "customGroupConflict": "This user belongs to group <b>{{group}}</b> which has custom role <b>{{role}}</b> assigned, but their other roles grant them permissions beyond it (e.g. <b>{{examples}}</b>).",
+        "additiveGroup": "Organization and project permissions are additive and cannot be restricted by the group role."
+    },
+    "sortLabels": {
+        "dateAsc": "Old-New",
+        "dateDesc": "New-Old",
+        "booleanAsc": "False-True",
+        "booleanDesc": "True-False"
+    },
+    "fieldValidators": {
+        "required": "{{fieldName}} is required",
+        "uppercase": "{{fieldName}} should be uppercase",
+        "noWhiteSpaces": "{{fieldName}} should not have white spaces",
+        "gitRepository": "{{fieldName}} should match the pattern \"org/project\" or \"project\"",
+        "startWithSlash": "{{fieldName}} should start with a \"/\"",
+        "startWithHttps": "{{fieldName}} should start with a \"https://\"",
+        "cronFiveValues": "{{fieldName}} should only have 5 values separated by a space.",
+        "cronInvalidValues": "{{fieldName}} has invalid values. Example of valid values: \"1\", \"1,2,3\", \"1-3\", \"*/5\" and \"*\".",
+        "cronInvalidFrequency": "{{fieldName}} has invalid frequency, custom cron input is limited to hourly"
+    },
+    "useOrganizationAppearance": {
+        "colorPaletteCreatedSuccessfully": "Color palette created successfully",
+        "failedToCreateColorPalette": "Failed to create color palette",
+        "colorPaletteUpdatedSuccessfully": "Color palette updated successfully",
+        "failedToUpdateColorPalette": "Failed to update color palette",
+        "colorPaletteDeletedSuccessfully": "Color palette deleted successfully",
+        "failedToDeleteColorPalette": "Failed to delete color palette {{colorPaletteUuid}}",
+        "activeColorPaletteUpdatedSuccessfully": "Active color palette updated successfully",
+        "failedToSetActiveColorPalette": "Failed to set active color palette"
+    },
+    "useDashboard": {
+        "isBeingExportedThisMightTake": "{{name}} is being exported. This might take a few seconds.",
+        "wasExportedWithFailedChartS": "{{name}} was exported with {{numFailures}} failed chart(s).",
+        "someChartsCouldNotBeExported": "Some charts could not be exported. The download contains only the successful ones.",
+        "successWasExported": "Success! {{name}} was exported.",
+        "missingFileUrlFor": "Missing file url for {{name}}",
+        "somethingWentWrong": "Something went wrong",
+        "failedToExport": "Failed to export {{name}}",
+        "generatingPreviewFor": "Generating preview for {{name}}",
+        "success": "Success!",
+        "dashboardDraftSavedForReview": "Dashboard draft saved for review",
+        "onlyYouCanSeeTheseChanges": "Only you can see these changes until a reviewer writes them back to the repo.",
+        "openDashboard": "Open dashboard",
+        "failedToUpdateDashboard": "Failed to update dashboard",
+        "successDashboardWasCreated": "Success! Dashboard was created.",
+        "failedToCreateDashboard": "Failed to create dashboard",
+        "dashboardCreatedSuccessfully": "Dashboard created successfully!",
+        "dashboardSuccessfullyDuplicated": "Dashboard successfully duplicated!",
+        "failedToDuplicateDashboard": "Failed to duplicate dashboard",
+        "deletedDashboardWasDeleted": "Deleted! Dashboard was deleted.",
+        "goToRecentlyDeleted": "Go to recently deleted",
+        "failedToDeleteDashboard": "Failed to delete dashboard",
+        "successDashboardWasReverted": "Success! Dashboard was reverted.",
+        "failedToRevertDashboard": "Failed to revert dashboard",
+        "successNameUpdated": "Success! Dashboard name was updated.",
+        "successUpdated": "Success! Dashboard was updated.",
+        "previewFailed": "Failed to generate preview for {{name}}"
+    },
+    "useTileLink": {
+        "linkToTileCopiedToClipboard": "Link to tile copied to clipboard!"
+    },
+    "useFavoriteMutation": {
+        "couldNotUpdateFavorite": "Could not update favorite",
+        "added": "Added to favorites",
+        "removed": "Removed from favorites"
+    },
+    "useGdrive": {
+        "authenticationFailed": "Authentication failed"
+    },
+    "useAllowedDomains": {
+        "successAllowedEmailDomainsWereUpdated": "Success! Allowed email domains were updated",
+        "failedToUpdateAllowedEmailDomains": "Failed to update allowed email domains"
+    },
+    "useEmailWhitelabel": {
+        "sendingDomainSetUpAddThe": "Sending domain set up — add the DNS records to verify",
+        "failedToSetUpSendingDomain": "Failed to set up sending domain",
+        "verified": "{{domain}} verified",
+        "stillWaitingOnDns": "Still waiting on DNS",
+        "dnsChangesCanTakeUpTo": "DNS changes can take up to 24 hours to propagate. We’ll keep checking and email you when it’s verified.",
+        "failedToVerifySendingDomain": "Failed to verify sending domain",
+        "failedToUpdateSendingDomain": "Failed to update sending domain",
+        "sendingDomainRemoved": "Sending domain removed",
+        "failedToRemoveSendingDomain": "Failed to remove sending domain",
+        "sendingEnabled": "Sending from your domain is now enabled",
+        "sendingDisabled": "Sending from your domain is now disabled"
+    },
+    "useOrganizationBrand": {
+        "failedToFetchBrand": "Failed to fetch brand",
+        "brandAppearanceSaved": "Brand appearance saved",
+        "failedToSaveBrand": "Failed to save brand"
+    },
+    "useOrganizationDeleteMultation": {
+        "failedToDeleteOrganization": "Failed to delete organization"
+    },
+    "useOrganizationDomainVerification": {
+        "failedToSendVerificationCode": "Failed to send verification code",
+        "verified": "{{domain}} verified",
+        "failedToVerifyDomain": "Failed to verify domain",
+        "verifiedDomainRemoved": "Verified domain removed",
+        "failedToRemoveVerifiedDomain": "Failed to remove verified domain"
+    },
+    "useOrganizationSettings": {
+        "organizationSettingsSaved": "Organization settings saved",
+        "failedToSaveOrganizationSettings": "Failed to save organization settings"
+    },
+    "useOrganizationSso": {
+        "azureAdSsoSettingsSaved": "Azure AD SSO settings saved",
+        "failedToSaveAzureAdSso": "Failed to save Azure AD SSO settings",
+        "azureAdSsoSettingsRemoved": "Azure AD SSO settings removed",
+        "failedToRemoveAzureAdSso": "Failed to remove Azure AD SSO settings",
+        "oktaSsoSettingsSaved": "Okta SSO settings saved",
+        "failedToSaveOktaSsoSettings": "Failed to save Okta SSO settings",
+        "oktaSsoSettingsRemoved": "Okta SSO settings removed",
+        "failedToRemoveOktaSsoSettings": "Failed to remove Okta SSO settings",
+        "oidcSsoSettingsSaved": "OIDC SSO settings saved",
+        "failedToSaveOidcSsoSettings": "Failed to save OIDC SSO settings",
+        "oidcSsoSettingsRemoved": "OIDC SSO settings removed",
+        "failedToRemoveOidcSsoSettings": "Failed to remove OIDC SSO settings",
+        "oneloginSsoSettingsSaved": "OneLogin SSO settings saved",
+        "failedToSaveOneloginSsoSettings": "Failed to save OneLogin SSO settings",
+        "oneloginSsoSettingsRemoved": "OneLogin SSO settings removed",
+        "failedToRemoveOneloginSsoSettings": "Failed to remove OneLogin SSO settings",
+        "googleSsoSettingsSaved": "Google SSO settings saved",
+        "failedToSaveGoogleSsoSettings": "Failed to save Google SSO settings",
+        "googleSsoSettingsRemoved": "Google SSO settings removed",
+        "failedToRemoveGoogleSsoSettings": "Failed to remove Google SSO settings"
+    },
+    "useOrganizationUpdateMutation": {
+        "successOrganizationWasUpdated": "Success! Organization was updated",
+        "failedToUpdateOrganization": "Failed to update organization"
+    },
+    "useOrganizationWarehouseCredentials": {
+        "warehouseCredentialsCreated": "Warehouse credentials created",
+        "failedToCreateWarehouseCredentials": "Failed to create warehouse credentials",
+        "warehouseCredentialsUpdated": "Warehouse credentials updated",
+        "failedToUpdateWarehouseCredentials": "Failed to update warehouse credentials",
+        "warehouseCredentialsDeleted": "Warehouse credentials deleted",
+        "failedToDeleteWarehouseCredentials": "Failed to delete warehouse credentials"
+    },
+    "useChartPinningMutation": {
+        "successChartWasPinnedToHomepage": "Success! Chart was pinned to homepage",
+        "successChartWasUnpinnedFromHomepage": "Success! Chart was unpinned from homepage",
+        "failedToPinChart": "Failed to pin chart"
+    },
+    "useDashboardPinningMutation": {
+        "successDashboardWasPinnedToHomepage": "Success! Dashboard was pinned to homepage",
+        "successDashboardWasUnpinnedFromHomepage": "Success! Dashboard was unpinned from homepage",
+        "failedToPinDashboard": "Failed to pin dashboard"
+    },
+    "useDocumentPinningMutation": {
+        "failedToPinDocument": "Failed to pin document",
+        "pinned": "Success! Document was pinned to homepage",
+        "unpinned": "Success! Document was unpinned from homepage"
+    },
+    "usePinnedItems": {
+        "couldNotReOrderPinnedItems": "Could not re-order pinned items"
+    },
+    "useSpaceMutation": {
+        "successSpaceWasPinnedToHomepage": "Success! Space was pinned to homepage",
+        "successSpaceWasUnpinnedFromHomepage": "Success! Space was unpinned from homepage",
+        "failedToPinSpace": "Failed to pin space"
+    },
+    "useSlack": {
+        "deletedSlackIntegrationWasDeleted": "Deleted! Slack integration was deleted",
+        "failedToDeleteSlackIntegration": "Failed to delete Slack integration",
+        "successSlackAppSettingsUpdated": "Success! Slack app settings updated",
+        "failedToUpdateSlackAppSettings": "Failed to update Slack app settings"
+    },
+    "useAccessToken": {
+        "failedToCreateToken": "Failed to create token",
+        "successYourTokenWasDeleted": "Success! Your token was deleted.",
+        "failedToDeleteToken": "Failed to delete token",
+        "successYourTokenWasRotated": "Success! Your token was rotated.",
+        "failedToRotateToken": "Failed to rotate token"
+    },
+    "useAsyncClipboard": {
+        "linkCopiedToClipboard": "Link copied to clipboard"
+    },
+    "useContent": {
+        "goToSpace": "Go to space",
+        "goToRecentlyDeleted": "Go to recently deleted",
+        "failedToMoveContent": "Failed to move content",
+        "types": {
+            "chart": "chart",
+            "dashboard": "dashboard",
+            "space": "space",
+            "data_app": "data app",
+            "document": "document"
+        },
+        "movedOne": "Successfully moved {{type}} to a space",
+        "deletedOne": "Successfully deleted {{type}}.",
+        "movedItems_one": "Successfully moved {{count}} item to a space",
+        "movedItems_other": "Successfully moved {{count}} items to a space",
+        "deletedItems_one": "Successfully deleted {{count}} item.",
+        "deletedItems_other": "Successfully deleted {{count}} items.",
+        "failedToDeleteContent": "Failed to delete content"
+    },
+    "useContentVerification": {
+        "chartVerified": "Chart verified",
+        "failedToVerifyChart": "Failed to verify chart",
+        "chartVerificationRemoved": "Chart verification removed",
+        "failedToRemoveChartVerification": "Failed to remove chart verification",
+        "dashboardVerified": "Dashboard verified",
+        "failedToVerifyDashboard": "Failed to verify dashboard",
+        "dataAppVerified": "Data app verified",
+        "failedToVerifyDataApp": "Failed to verify data app",
+        "dataAppVerificationRemoved": "Data app verification removed",
+        "failedToRemoveDataAppVerification": "Failed to remove data app verification",
+        "dashboardVerificationRemoved": "Dashboard verification removed",
+        "failedToRemoveDashboardVerification": "Failed to remove dashboard verification",
+        "documentVerified": "Document verified",
+        "failedToVerifyDocument": "Failed to verify Document",
+        "documentVerificationRemoved": "Document verification removed",
+        "failedToRemoveDocumentVerification": "Failed to remove Document verification"
+    },
+    "useDatabricks": {
+        "authenticationFailed": "Authentication failed"
+    },
+    "useEmailVerification": {
+        "weCouldnTSendAVerification": "We couldn't send a verification e-mail to your inbox.",
+        "successYourEMailHasBeen": "Success! Your e-mail has been verified."
+    },
+    "useExplorerRoute": {
+        "errorParsingUrl": "Error parsing url",
+        "urlIsInvalidOrIncomplete": "URL is invalid or incomplete.{{errorMessage}}"
+    },
+    "useInviteLink": {
+        "failedToAcceptInvite": "Failed to accept invite",
+        "failedToCreateInviteLink": "Failed to create invite link",
+        "createdNewInviteLink": "Created new invite link"
+    },
+    "useOAuthClients": {
+        "failedToCreateOauthApplication": "Failed to create OAuth application",
+        "oauthApplicationUpdated": "OAuth application updated",
+        "failedToUpdateOauthApplication": "Failed to update OAuth application",
+        "oauthApplicationDeleted": "OAuth application deleted",
+        "failedToDeleteOauthApplication": "Failed to delete OAuth application"
+    },
+    "useOrganizationGroups": {
+        "successGroupWasCreated": "Success! Group was created.",
+        "failedToCreateGroup": "Failed to create group",
+        "successGroupWasUpdated": "Success! Group '{{name}}' was updated.",
+        "failedToUpdateGroup": "Failed to update group",
+        "successGroupWasDeleted": "Success! Group '{{name}}' was deleted.",
+        "failedToDeleteGroup": "Failed to delete group"
+    },
+    "useOrganizationRoles": {
+        "successUserRoleUpdated": "Success! User role updated.",
+        "failedToUpdateUserSRole": "Failed to update user's role"
+    },
+    "useOrganizationUsers": {
+        "successUserWasDeleted": "Success! User was deleted.",
+        "failedToDeleteUser": "Failed to delete user",
+        "failedToTransferDashboards": "Failed to transfer dashboards",
+        "failedToReassignScheduledDeliveries": "Failed to reassign scheduled deliveries",
+        "dashboardsTransferred_one": "Success! {{count}} dashboard transferred.",
+        "dashboardsTransferred_other": "Success! {{count}} dashboards transferred.",
+        "deliveriesReassigned_one": "Success! {{count}} scheduled delivery reassigned.",
+        "deliveriesReassigned_other": "Success! {{count}} scheduled deliveries reassigned."
+    },
+    "usePasswordReset": {
+        "passwordRecoveryEmailSentSuccessfully": "Password recovery email sent successfully",
+        "failedToSendPasswordRecoveryEmail": "Failed to send password recovery email",
+        "passwordUpdatedSuccessfully": "Password updated successfully",
+        "failedToResetPassword": "Failed to reset password"
+    },
+    "usePreAggregateRefresh": {
+        "failedToRebuildPreAggregates": "Failed to rebuild pre-aggregates",
+        "failedToRebuildPreAggregate": "Failed to rebuild pre-aggregate",
+        "rebuildingAll": "Rebuilding pre-aggregates",
+        "rebuildingOne": "Rebuilding pre-aggregate"
+    },
+    "useProject": {
+        "failedToUpdateProject": "Failed to update project",
+        "failedToCreateProject": "Failed to create project",
+        "couldNotRunTheConnectionTest": "Could not run the connection test",
+        "warehouseCredentialsUpdated": "Warehouse credentials updated",
+        "failedToUpdateWarehouseCredentials": "Failed to update warehouse credentials",
+        "projectColorPaletteUpdated": "Project color palette updated",
+        "failedToUpdateProjectColorPalette": "Failed to update project color palette",
+        "defaultUserSpacesUpdated": "Default user spaces updated",
+        "failedToUpdateDefaultUserSpaces": "Failed to update default user spaces"
+    },
+    "useProjectDbtSources": {
+        "dbtSourceAdded": "dbt source added",
+        "failedToAddDbtSource": "Failed to add dbt source",
+        "dbtSourceUpdated": "dbt source updated",
+        "failedToUpdateDbtSource": "Failed to update dbt source",
+        "dbtSourceRemoved": "dbt source removed",
+        "failedToRemoveDbtSource": "Failed to remove dbt source"
+    },
+    "useProjectGroupRoles": {
+        "successGroupProjectRoleAssignmentUpdated": "Success! Group project role assignment updated.",
+        "failedToUpdateGroupProjectRole": "Failed to update group project role assignment",
+        "successGroupProjectRoleAssignmentDeleted": "Success! Group project role assignment deleted.",
+        "failedToDeleteGroupProjectRole": "Failed to delete group project role assignment"
+    },
+    "useProjectPreview": {
+        "previewProjectCreated": "Preview project created",
+        "openPreviewProject": "Open preview project",
+        "failedToCreatePreviewProject": "Failed to create preview project",
+        "copyFailed": "Failed to copy preview project"
+    },
+    "useProjectPreviewExpirationSettings": {
+        "previewExpirationSettingsUpdated": "Preview expiration settings updated",
+        "failedToUpdatePreviewExpirationSettings": "Failed to update preview expiration settings"
+    },
+    "useProjectResultsCacheSettings": {
+        "cacheDurationUpdated": "Cache duration updated",
+        "failedToUpdateCacheDuration": "Failed to update cache duration"
+    },
+    "useProjectRoles": {
+        "successUserProjectRoleAssignmentUpdated": "Success! User project role assignment updated.",
+        "failedToUpdateUserProjectRole": "Failed to update user project role assignment",
+        "successUserProjectRoleAssignmentDeleted": "Success! User project role assignment deleted.",
+        "failedToDeleteUserProjectRole": "Failed to delete user project role assignment"
+    },
+    "useProjectTablesConfiguration": {
+        "savedProjectConfiguration": "Saved project configuration",
+        "failedToSaveTablesConfiguration": "Failed to save tables configuration"
+    },
+    "useProjects": {
+        "deletedProjectWasDeleted": "Deleted! Project was deleted.",
+        "failedToDeleteProject": "Failed to delete project"
+    },
+    "useQueryError": {
+        "validationError": "Validation error",
+        "invalidFieldWithValueTheTeam": "Invalid field {{keys}} with value {{values}}. The team has been already notified, we'll fix it soon",
+        "unknownValidationError": "Unknown validation error",
+        "chartError": "Chart '{{chartName}}': Error"
+    },
+    "useRedshiftAwsSso": {
+        "awsSignInFailed": "AWS sign-in failed"
+    },
+    "useRefreshServer": {
+        "synced": "Synced: {{tableErrors}}",
+        "errorSyncingProject": "Error syncing project",
+        "steps": {
+            "done": "Completed",
+            "pending": "Pending",
+            "skipped": "Skipped",
+            "error": "Error",
+            "running": "Running"
+        },
+        "create": {
+            "done": "Project created!",
+            "started": "Pending project creation",
+            "error": "Error while creating project",
+            "running": "Creating your project"
+        },
+        "sync": {
+            "done": "Successfully synced project!",
+            "started": "Pending sync",
+            "error": "Error while syncing project",
+            "running": "Syncing project"
+        },
+        "tablesWithErrors": "{{count}} of {{total}} tables have errors",
+        "connectionsFailedWithTables": "Connections failed to compile; {{tableErrors}}",
+        "connectionsFailed": "Connections failed to compile",
+        "runningStep": "Step {{step}}/{{total}}: {{label}}"
+    },
+    "useSavedChartImageExport": {
+        "unableToDownloadChartImage": "Unable to download chart image"
+    },
+    "useSavedDashboardFiltersOverrides": {
+        "couldNotRestoreFiltersFromUrl": "Could not restore filters from URL",
+        "theLinkAppearsToBeIncomplete": "The link appears to be incomplete. Please ask for it to be shared again."
+    },
+    "useSavedQuery": {
+        "successChartWasReverted": "Success! Chart was reverted.",
+        "failedToRevertChart": "Failed to revert chart",
+        "successChartWasDeleted": "Success! Chart was deleted.",
+        "goToRecentlyDeleted": "Go to recently deleted",
+        "failedToDeleteChart": "Failed to delete chart",
+        "openDashboard": "Open dashboard",
+        "failedToSaveChart": "Failed to save chart",
+        "successChartWasSaved": "Success! Chart was saved.",
+        "viewChart": "View chart",
+        "canTSaveChart": "Can't save chart",
+        "youDonTHavePermissionTo": "You don't have permission to author custom SQL dimensions. Remove them from your chart to save.",
+        "openChart": "Open chart",
+        "failedToDuplicateChart": "Failed to duplicate chart",
+        "canTUpdateChart": "Can't update chart",
+        "failedToUpdateChart": "Failed to update chart",
+        "draftSaved": "Chart draft saved for review",
+        "duplicated": "Chart successfully duplicated!",
+        "successUpdated": "Success! Chart was updated."
+    },
+    "useSpaces": {
+        "successSpaceWasDeleted": "Success! Space was deleted.",
+        "goToRecentlyDeleted": "Go to recently deleted",
+        "failedToDeleteSpace": "Failed to delete space",
+        "successSpaceWasUpdated": "Success! Space was updated.",
+        "failedToUpdateSpace": "Failed to update space",
+        "successSpaceWasCreated": "Success! Space was created.",
+        "failedToCreateSpace": "Failed to create space",
+        "successSpaceAccessUpdated": "Success! Space access updated!",
+        "failedToUpdateSpaceAccess": "Failed to update space access",
+        "successSpaceGroupAccessUpdated": "Success! Space group access updated!",
+        "failedToUpdateSpaceGroupAccess": "Failed to update space group access"
+    },
+    "useUserAttributes": {
+        "successUserAttributeWasCreated": "Success! user attribute was created.",
+        "failedToCreateUserAttribute": "Failed to create user attribute",
+        "successUserAttributeWasUpdated": "Success! user attribute was updated.",
+        "failedToUpdateUserAttribute": "Failed to update user attribute",
+        "successUserAttributeWasDeleted": "Success! user attribute was deleted.",
+        "failedToDeleteUserAttribute": "Failed to delete user attribute"
+    },
+    "useWarehouseConnectionSwitch": {
+        "multipleConnectionsEnabled": "Multiple connections enabled",
+        "failedToEnableMultipleConnections": "Failed to enable multiple connections"
+    },
+    "useWarehouseConnections": {
+        "credentialsPreferenceSavedSuccessfully": "Credentials preference saved successfully",
+        "failedToSaveCredentialsPreference": "Failed to save credentials preference",
+        "connectionAdded": "Connection added",
+        "failedToAddConnection": "Failed to add connection",
+        "connectionUpdated": "Connection updated",
+        "failedToUpdateConnection": "Failed to update connection",
+        "connectionRenamed": "Connection renamed",
+        "failedToRenameConnection": "Failed to rename connection",
+        "connectionRemoved": "Connection removed"
+    },
+    "useImpersonation": {
+        "impersonationSettingsUpdated": "Impersonation settings updated",
+        "failedToUpdateImpersonationSettings": "Failed to update impersonation settings"
+    },
+    "useLeaveOrganizationMutation": {
+        "failedToLeaveOrganization": "Failed to leave organization"
+    },
+    "useOpenIdentity": {
+        "deletedSocialLoginWasDeleted": "Deleted! Social login was deleted.",
+        "failedToDeleteSocialLogin": "Failed to delete social login"
+    },
+    "useUserCompleteMutation": {
+        "failedToCompleteSetup": "Failed to complete setup"
+    },
+    "useProjectUserWarehouseCredentialsPreference": {
+        "credentialsPreferenceSavedSuccessfully": "Credentials preference saved successfully",
+        "failedToSaveCredentialsPreference": "Failed to save credentials preference"
+    },
+    "useUserWarehouseCredentials": {
+        "successWarehouseConnectionWasCreated": "Success! Warehouse connection was created.",
+        "failedToCreateWarehouseConnection": "Failed to create warehouse connection",
+        "successWarehouseConnectionWasUpdated": "Success! Warehouse connection was updated.",
+        "failedToUpdateWarehouseConnection": "Failed to update warehouse connection",
+        "successWarehouseConnectionWasDeleted": "Success! Warehouse connection was deleted.",
+        "failedToDeleteWarehouseConnection": "Failed to delete warehouse connection"
+    },
+    "useValidation": {
+        "validationCompleted": "Validation completed",
+        "unableToUpdateValidation": "Unable to update validation",
+        "failedToUpdateValidation": "Failed to update validation",
+        "validationDismissed": "Validation dismissed",
+        "failedToDismissValidation": "Failed to dismiss validation",
+        "unableToGetValidation": "Unable to get validation",
+        "failedToGetValidation": "Failed to get validation"
+    },
+    "common": {
+        "pleaseTryAgain": "Please try again"
+    },
+    "useSnowflake": {
+        "authenticationFailed": "Authentication failed"
+    },
+    "useSettingsNavigation": {
+        "profile": "Profile",
+        "myWarehouseConnections": "My warehouse connections",
+        "myAgentIdentity": "My agent identity",
+        "myScheduledDeliveries": "My scheduled deliveries",
+        "myApps": "My apps",
+        "personalAccessTokens": "Personal access tokens",
+        "general": "General",
+        "allowedEmailDomains": "Allowed email domains",
+        "defaultProject": "Default project",
+        "userImpersonation": "User impersonation",
+        "lightdashSupportAccess": "Lightdash support access",
+        "dangerZone": "Danger zone",
+        "exporting": "Exporting",
+        "limits": "Limits",
+        "customRoles": "Custom roles",
+        "appearance": "Appearance",
+        "themes": "Themes",
+        "activity": "Activity",
+        "aiAnalysis": "AI analysis",
+        "dataApps": "Data apps",
+        "integrations": "Integrations",
+        "oauthApplications": "OAuth applications",
+        "verifiedDomains": "Verified domains",
+        "emailDomain": "Email domain",
+        "singleSignOn": "Single Sign-On",
+        "warehouseCredentials": "Warehouse credentials",
+        "allProjects": "All projects",
+        "lightdashAnalytics": "Lightdash analytics",
+        "scimAccessTokens": "SCIM access tokens",
+        "serviceAccounts": "Service accounts",
+        "aiCredits": "AI credits",
+        "threads": "Threads",
+        "agents": "Agents",
+        "evals": "Evals",
+        "issues": "Issues",
+        "memories": "Memories",
+        "deepResearch": "Deep research",
+        "askAi": "Ask AI",
+        "identity": "Identity",
+        "permissions": "Permissions",
+        "connect": "Connect",
+        "clientSetup": "Client setup",
+        "enableAgentsOverMcp": "Enable agents over MCP",
+        "allowContentChangesViaMcp": "Allow content changes via MCP",
+        "analytics": "Analytics",
+        "mcp": "MCP",
+        "roadmap": "Roadmap",
+        "yourSettings": "Your settings",
+        "organizationSettings": "Organization settings",
+        "validator": "Validator",
+        "recentlyDeleted": "Recently deleted",
+        "currentProject": "Current project",
+        "connectionSettings": "Connection settings",
+        "tablesConfiguration": "Tables configuration",
+        "agentIdentity": "Agent identity",
+        "agentDataScope": "Agent data scope",
+        "aiRegion": "AI region",
+        "compilationHistory": "Compilation history",
+        "preAggregates": "Pre-aggregates",
+        "materializations": "Materializations",
+        "resultsCaching": "Results caching",
+        "parameters": "Parameters",
+        "projectTimeZone": "Project time zone",
+        "previewSettings": "Preview settings",
+        "projectAccess": "Project access",
+        "defaultUserSpaces": "Default user spaces",
+        "externalSources": "External sources",
+        "usageAnalytics": "Usage analytics",
+        "syncsScheduledDeliveries": "Syncs & Scheduled deliveries",
+        "dataAppConnections": "Data app connections",
+        "metricSqlApi": "Metric SQL API",
+        "cors": "CORS",
+        "embedConfiguration": "Embed configuration",
+        "verifiedContent": "Verified content",
+        "reviewRequests": "Review requests",
+        "dataOps": "Data ops",
+        "pullRequests": "Pull requests",
+        "contentReview": "Content review",
+        "passwordAndSocialLogins": "Password & Social Logins",
+        "password": "Password",
+        "usersAndGroups": "Users & groups",
+        "userManagement": "User management",
+        "userAndGroupAttributes": "User & group attributes",
+        "userAttributes": "User attributes"
+    },
+    "useQueryResults": {
+        "queryFailed": "Query failed",
+        "errorRunningQueryForChart": "Error running query for chart '{{chartName}}'",
+        "errorRunningQuery": "Error running query",
+        "queryCancelled": "Query cancelled"
+    },
+    "apiErrorDisplay": {
+        "showLess": "Show less",
+        "viewFullError": "View full error",
+        "copyError": "Copy error",
+        "copyErrorDetails": "Copy error details",
+        "copied": "Copied",
+        "shareWithSupport": "Share with Lightdash Support",
+        "copyDiagnostics": "Copy diagnostics",
+        "notifySupport": "Notify support",
+        "reauthGoogle": "Re-authenticate with Google",
+        "openConnectionSettings": "Open the connection settings",
+        "contactSupport": "Contact support with the following information:",
+        "errorId": "Error ID:",
+        "traceId": "Trace ID:",
+        "notAvailable": "n/a",
+        "snowflakeAuthError": "Snowflake Authentication Error",
+        "reauthSnowflake": "You can try to reauthenticate with Snowflake:"
+    },
+    "multipleToast": {
+        "hideOlder": "Hide {{count}} older",
+        "showOlder": "Show {{count}} older",
+        "dismissError": "Dismiss error",
+        "dismissNotification": "Dismiss notification"
+    },
+    "useColumns": {
+        "invalidImageProtocol": "Invalid image protocol",
+        "fieldNotFound": "This field was not found in the dbt project."
+    },
+    "aceCompleter": {
+        "tableCalculation": "Table calculation",
+        "systemVariable": "System variable",
+        "customDimension": "Custom dimension",
+        "aggregate": "Aggregate",
+        "row": "Row",
+        "pivot": "Pivot",
+        "metric": "Metric",
+        "dimension": "Dimension"
+    }
+}

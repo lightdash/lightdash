@@ -4,6 +4,7 @@ import debounce from 'lodash/debounce';
 import isEmpty from 'lodash/isEmpty';
 import { type editor } from 'monaco-editor';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type TourEditable } from '../../../components/common/GuidedTour/GuidedTour';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import Editor, {
@@ -149,6 +150,7 @@ export const SqlEditorView: FC<
         currentTable,
         currentSchema,
     } = catalog;
+    const { t } = useTranslation('sqlRunner');
     const { monaco: monacoTheme } = useEditorTheme();
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const dispatch = useAppDispatch();
@@ -401,7 +403,7 @@ export const SqlEditorView: FC<
     if (!warehouseConnectionType) {
         return (
             <SuboptimalState
-                title="Warehouse connection not available"
+                title={t('editor.warehouseConnectionUnavailable')}
                 icon={IconAlertCircle}
             />
         );

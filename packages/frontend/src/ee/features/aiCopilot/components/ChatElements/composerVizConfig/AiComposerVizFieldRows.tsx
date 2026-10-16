@@ -1,5 +1,6 @@
 import {
     addComposerVizY,
+    assertUnreachable,
     ChartKind,
     DimensionType,
     getComposerVizSort,
@@ -17,8 +18,9 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Group, Select, Stack, Text, Tooltip } from '@mantine/core';
 import { IconMinus, IconPlus } from '@tabler/icons-react';
-import capitalize from 'lodash/capitalize';
+import { type TFunction } from 'i18next';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { FieldReferenceSelect } from '../../../../../../components/DataViz/FieldReferenceSelect';
 import fieldSelectClasses from '../../../../../../components/DataViz/FieldReferenceSelect.module.css';
@@ -28,19 +30,36 @@ type ChartConfig = Exclude<AllVizChartConfig, VizTableConfig>;
 
 // Same options and labels as the SQL runner's sort and aggregation pills.
 const NO_SORT = 'none';
-const SORT_OPTIONS = [
-    { value: NO_SORT, label: 'No sorting' },
-    { value: SortByDirection.ASC, label: 'Ascending' },
-    { value: SortByDirection.DESC, label: 'Descending' },
+const getSortOptions = (t: TFunction) => [
+    { value: NO_SORT, label: t('vizFields.sort.none') },
+    { value: SortByDirection.ASC, label: t('vizFields.sort.ascending') },
+    { value: SortByDirection.DESC, label: t('vizFields.sort.descending') },
 ];
 const toSortDirection = (value: string | null): SortByDirection | null =>
     Object.values(SortByDirection).find((direction) => direction === value) ??
     null;
 
-const aggregationLabel = (aggregation: VizAggregationOptions) =>
-    aggregation === VizAggregationOptions.ANY
-        ? 'Any value'
-        : capitalize(aggregation);
+const aggregationLabel = (
+    aggregation: VizAggregationOptions,
+    t: TFunction,
+): string => {
+    switch (aggregation) {
+        case VizAggregationOptions.SUM:
+            return t('vizFields.aggregation.sum');
+        case VizAggregationOptions.COUNT:
+            return t('vizFields.aggregation.count');
+        case VizAggregationOptions.AVERAGE:
+            return t('vizFields.aggregation.avg');
+        case VizAggregationOptions.MIN:
+            return t('vizFields.aggregation.min');
+        case VizAggregationOptions.MAX:
+            return t('vizFields.aggregation.max');
+        case VizAggregationOptions.ANY:
+            return t('vizFields.aggregation.any');
+        default:
+            return assertUnreachable(aggregation, 'Unknown aggregation');
+    }
+};
 const toAggregation = (value: string | null) =>
     Object.values(VizAggregationOptions).find(
         (aggregation) => aggregation === value,
@@ -109,6 +128,7 @@ export const AiComposerVizFieldRows: FC<Props> = ({
     onChange,
     disabled,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const layout = value.fieldConfig;
     if (!layout) return null;
     const typeOf = (reference: string | undefined) =>
@@ -127,12 +147,12 @@ export const AiComposerVizFieldRows: FC<Props> = ({
     return (
         <Stack gap="md">
             {hasX && (
-                <Row title="X axis">
+                <Row title={t('vizFields.xAxis')}>
                     <Group gap="xs" wrap="nowrap">
                         <FieldReferenceSelect
                             flex={1}
-                            aria-label="X axis"
-                            placeholder="Select X axis"
+                            aria-label={t('vizFields.xAxis')}
+                            placeholder={t('vizFields.selectXAxis')}
                             disabled={disabled}
                             allowDeselect={false}
                             comboboxProps={{ withinPortal: true }}
@@ -147,8 +167,8 @@ export const AiComposerVizFieldRows: FC<Props> = ({
                             fieldType={typeOf(layout.x?.reference)}
                         />
                         <SideSelect
-                            label="Sort"
-                            data={SORT_OPTIONS}
+                            label={t('vizFields.sortLabel')}
+                            data={getSortOptions(t)}
                             value={getComposerVizSort(value) ?? NO_SORT}
                             disabled={disabled}
                             onChange={(next) =>
@@ -164,16 +184,19 @@ export const AiComposerVizFieldRows: FC<Props> = ({
                 </Row>
             )}
             <Row
-                title="Y-axis"
+                title={t('vizFields.yAxis')}
                 action={
                     isCartesian &&
                     canAddY && (
-                        <Tooltip label="Add a Y axis value" withinPortal>
+                        <Tooltip
+                            label={t('vizFields.addYAxisValue')}
+                            withinPortal
+                        >
                             <ActionIcon
                                 size="sm"
                                 variant="subtle"
                                 color="gray"
-                                aria-label="Add a Y axis value"
+                                aria-label={t('vizFields.addYAxisValue')}
                                 disabled={disabled}
                                 onClick={() =>
                                     onChange(addComposerVizY(value, columns))
@@ -189,8 +212,10 @@ export const AiComposerVizFieldRows: FC<Props> = ({
                     <Group key={index} gap="xs" wrap="nowrap">
                         <FieldReferenceSelect
                             flex={1}
-                            aria-label={`Y axis value ${index + 1}`}
-                            placeholder="Select Y axis"
+                            aria-label={t('vizFields.yAxisValue', {
+                                index: index + 1,
+                            })}
+                            placeholder={t('vizFields.selectYAxis')}
                             disabled={disabled}
                             allowDeselect={false}
                             comboboxProps={{ withinPortal: true }}
@@ -207,10 +232,12 @@ export const AiComposerVizFieldRows: FC<Props> = ({
                             fieldType={typeOf(y.reference)}
                         />
                         <SideSelect
-                            label={`Aggregation ${index + 1}`}
+                            label={t('vizFields.aggregationLabel', {
+                                index: index + 1,
+                            })}
                             data={options.aggregations.map((aggregation) => ({
                                 value: aggregation,
-                                label: aggregationLabel(aggregation),
+                                label: aggregationLabel(aggregation, t),
                             }))}
                             value={y.aggregation}
                             disabled={disabled}
@@ -225,12 +252,20 @@ export const AiComposerVizFieldRows: FC<Props> = ({
                             }}
                         />
                         {layout.y.length > 1 && (
-                            <Tooltip label="Remove this value" withinPortal>
+                            <Tooltip
+                                label={t('vizFields.removeValue')}
+                                withinPortal
+                            >
                                 <ActionIcon
                                     size="sm"
                                     variant="subtle"
                                     color="gray"
-                                    aria-label={`Remove Y axis value ${index + 1}`}
+                                    aria-label={t(
+                                        'vizFields.removeYAxisValue',
+                                        {
+                                            index: index + 1,
+                                        },
+                                    )}
                                     disabled={disabled}
                                     onClick={() =>
                                         onChange(
@@ -246,16 +281,16 @@ export const AiComposerVizFieldRows: FC<Props> = ({
                 ))}
                 {groupBy && layout.y.length > 1 && (
                     <Text size="xs" c="dimmed">
-                        With a split, only the first Y axis value is charted.
+                        {t('vizFields.splitNotice')}
                     </Text>
                 )}
             </Row>
             {isCartesian && (
-                <Row title="Split series by">
+                <Row title={t('vizFields.splitSeriesBy')}>
                     <FieldReferenceSelect
                         flex={1}
-                        aria-label="Split series by"
-                        placeholder="Select a column"
+                        aria-label={t('vizFields.splitSeriesBy')}
+                        placeholder={t('vizFields.selectColumn')}
                         clearable
                         disabled={disabled}
                         comboboxProps={{ withinPortal: true }}

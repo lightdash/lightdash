@@ -2,6 +2,7 @@ import { type OAuthClientSummary } from '@lightdash/common';
 import { ActionIcon, Group, Menu, Paper, Table, Text } from '@mantine/core';
 import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
 import { useDeleteOAuthClient } from '../../../hooks/useOAuthClients';
 import { CopyActionIcon } from '../../common/CopyActionIcon';
@@ -13,6 +14,7 @@ import classesModule from './OAuthClientsTable.module.css';
 const OAuthClientRow: FC<{
     client: OAuthClientSummary;
 }> = ({ client }) => {
+    const { t } = useTranslation('userSettings');
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const { mutate: deleteClient, isLoading: isDeleting } =
@@ -63,14 +65,14 @@ const OAuthClientRow: FC<{
                                 leftSection={<MantineIcon icon={IconPencil} />}
                                 onClick={() => setIsEditModalOpen(true)}
                             >
-                                Edit
+                                {t('actions.edit', { ns: 'common' })}
                             </Menu.Item>
                             <Menu.Item
                                 leftSection={<MantineIcon icon={IconTrash} />}
                                 color="red"
                                 onClick={() => setIsDeleteModalOpen(true)}
                             >
-                                Delete
+                                {t('actions.delete', { ns: 'common' })}
                             </Menu.Item>
                         </Menu.Dropdown>
                     </Menu>
@@ -87,9 +89,13 @@ const OAuthClientRow: FC<{
             <MantineModal
                 opened={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
-                title={`Delete ${client.clientName}`}
+                title={t('oauthClientsPanel.table.deleteModal.title', {
+                    name: client.clientName,
+                })}
                 variant="delete"
-                resourceType="OAuth application"
+                resourceType={t(
+                    'oauthClientsPanel.table.deleteModal.resourceType',
+                )}
                 resourceLabel={client.clientName}
                 actions={
                     <ActionIcon
@@ -114,6 +120,7 @@ const OAuthClientRow: FC<{
 export const OAuthClientsTable: FC<{
     clients: OAuthClientSummary[];
 }> = ({ clients }) => {
+    const { t } = useTranslation('userSettings');
     return (
         <Paper className={tableStyles.paper}>
             <Table
@@ -122,13 +129,17 @@ export const OAuthClientsTable: FC<{
                 <Table.Thead>
                     <Table.Tr>
                         <Table.Th className={classesModule.nameColumn}>
-                            Name
+                            {t('oauthClientsPanel.table.columns.name')}
                         </Table.Th>
-                        <Table.Th>Client ID</Table.Th>
+                        <Table.Th>
+                            {t('oauthClientsPanel.table.columns.clientId')}
+                        </Table.Th>
                         <Table.Th className={classesModule.redirectColumn}>
-                            Redirect URIs
+                            {t('oauthClientsPanel.table.columns.redirectUris')}
                         </Table.Th>
-                        <Table.Th>Created</Table.Th>
+                        <Table.Th>
+                            {t('oauthClientsPanel.table.columns.created')}
+                        </Table.Th>
                         <Table.Th />
                     </Table.Tr>
                 </Table.Thead>

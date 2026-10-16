@@ -1,0 +1,106 @@
+{
+    "itemTypes": {
+        "plural": {
+            "field": "Fields",
+            "document": "Documents",
+            "dashboard": "Dashboards",
+            "dashboardTab": "Dashboard Tabs",
+            "chart": "Charts",
+            "space": "Spaces",
+            "table": "Tables",
+            "page": "Pages",
+            "sqlChart": "SQL Charts",
+            "dataApp": "Data apps",
+            "settings": "Settings"
+        },
+        "singular": {
+            "field": "Field",
+            "document": "Document",
+            "dashboard": "Dashboard",
+            "dashboardTab": "Dashboard Tab",
+            "chart": "Chart",
+            "space": "Space",
+            "table": "Table",
+            "page": "Page",
+            "sqlChart": "SQL Chart",
+            "dataApp": "Data app",
+            "settings": "Settings"
+        },
+        "error": {
+            "field": "field",
+            "dashboard": "dashboard",
+            "dashboardTab": "dashboard tab",
+            "chart": "chart"
+        }
+    },
+    "typeLabels": {
+        "table": "Table",
+        "joinedTable": "Joined table",
+        "dimension": "Dimension",
+        "metric": "Metric"
+    },
+    "dateFilter": {
+        "from": "From {{date}}",
+        "to": "To {{date}}",
+        "range": "From {{from}} to {{to}}",
+        "label": "Date"
+    },
+    "searchItem": {
+        "dashboardDescription": "Dashboard: {{name}}"
+    },
+    "ariaLabel": "Search content and settings",
+    "target": {
+        "placeholder": "Search"
+    },
+    "recentlyViewed": "Recently viewed",
+    "input": {
+        "placeholder": "Search {{project}}...",
+        "placeholderFallback": "Search in your project...",
+        "clear": "Clear search"
+    },
+    "actions": {
+        "close": "Close",
+        "backToResults": "Back to results",
+        "open": "Open",
+        "navigate": "Navigate",
+        "askAi": "Ask AI",
+        "runQuery": "Run query",
+        "settings": "Settings"
+    },
+    "emptyState": {
+        "loadingRecent": "Loading recently viewed...",
+        "searchWithFilters": "Search with these filters",
+        "startTyping": "Start typing to apply them.",
+        "searchProject": "Search {{project}}",
+        "searchYourProject": "Search your project",
+        "searchHint": "Find dashboards, charts, spaces, tables, fields and more.",
+        "keepTyping": "Keep typing...",
+        "minLengthHint": "Search kicks in at 3 characters.",
+        "searching": "Searching...",
+        "noResults": "No results for \"{{query}}\"",
+        "noResultsHint": "Try a different term, or adjust the filters."
+    },
+    "item": {
+        "verified": "Verified",
+        "preview": "Preview {{title}}",
+        "brokenContent": "This content is broken. Learn more about the validation error(s) <anchor>here</anchor>.",
+        "itemError": "There's an error with this {{type}}"
+    },
+    "preview": {
+        "empty": "Hover or navigate to a result to preview it here.",
+        "space": "Space",
+        "views": "Views",
+        "createdBy": "Created by",
+        "verified": "Verified",
+        "validationError": "Has a validation error"
+    },
+    "filters": {
+        "clearFilter": "Clear filter",
+        "verified": "Verified",
+        "itemType": "Item type",
+        "clear": "Clear",
+        "searchUser": "Search a user...",
+        "createdBy": "Created by",
+        "clearFilters": "Clear filters"
+    }
+}

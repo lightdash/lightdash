@@ -32,6 +32,7 @@ import {
 } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { ProjectRoleSetCell } from '../../features/roleSets/components/ProjectRoleSetCell';
 import {
     useMultipleRolesEnabled,
@@ -94,6 +95,7 @@ const ProjectAccessActionCell: FC<ProjectAccessActionCellProps> = ({
     onDelete,
     isLoading,
 }) => {
+    const { t } = useTranslation('roles');
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     if (!canManageProjectAccess) return null;
@@ -104,8 +106,8 @@ const ProjectAccessActionCell: FC<ProjectAccessActionCellProps> = ({
                 position="top"
                 label={
                     user.hasProjectRole
-                        ? 'Revoke project access'
-                        : 'Cannot revoke inherited access from Organization'
+                        ? t('projectAccess.revokeProjectAccess')
+                        : t('projectAccess.cannotRevokeInherited')
                 }
             >
                 <ActionIcon
@@ -144,6 +146,7 @@ interface ProjectAccessProps {
 }
 
 const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
+    const { t } = useTranslation('roles');
     const theme = useMantineTheme();
     const { user } = useApp();
     const ability = useAbilityContext();
@@ -177,9 +180,11 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                 value: role.roleUuid,
                 label: role.name,
                 group:
-                    role.ownerType === 'system' ? 'System role' : 'Custom role',
+                    role.ownerType === 'system'
+                        ? t('projectAccess.systemRoleGroup')
+                        : t('projectAccess.customRoleGroup'),
             }));
-    }, [organizationRoles]);
+    }, [organizationRoles, t]);
 
     const roleScopesById = useMemo(() => {
         if (!organizationRoles) return undefined;
@@ -324,7 +329,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
 
             // Compute highest role
             let bestRole = organizationRoleId || 'member';
-            let bestSource = 'Organization';
+            let bestSource = t('projectAccess.sourceOrganization');
             userGroupAccesses.forEach((uga) => {
                 const roleId = uga.access.roleId;
                 if (
@@ -332,7 +337,9 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                     systemRolesOrder.indexOf(bestRole)
                 ) {
                     bestRole = roleId;
-                    bestSource = `Group ${uga.group.name}`;
+                    bestSource = t('projectAccess.sourceGroup', {
+                        name: uga.group.name,
+                    });
                 }
             });
 
@@ -367,6 +374,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
         rolesData,
         roleScopesById,
         roleNamesById,
+        t,
     ]);
 
     const filteredUsers = useMemo(() => {
@@ -387,7 +395,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
             const cols: ContentTableColumnDef<EnrichedProjectUser>[] = [
                 {
                     accessorKey: 'email',
-                    header: 'User',
+                    header: t('projectAccess.columns.user'),
                     enableSorting: false,
                     size: 300,
                     Header: ({ column }) => (
@@ -403,31 +411,46 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                         const roleSummary = (
                             <Stack>
                                 <Text fw={400} fz="xs">
-                                    Organization role:{' '}
-                                    <Text fw={600} span fz="xs">
-                                        {getRoleName(
-                                            u.organizationRoleId || '',
-                                        )}
-                                    </Text>
+                                    <Trans
+                                        t={t}
+                                        i18nKey="projectAccess.roleSummary.organizationRole"
+                                        values={{
+                                            role: getRoleName(
+                                                u.organizationRoleId || '',
+                                            ),
+                                        }}
+                                        components={{
+                                            bold: (
+                                                <Text fw={600} span fz="xs" />
+                                            ),
+                                        }}
+                                    />
                                 </Text>
                                 {u.userGroupAccesses.map((uga) => (
                                     <Text key={uga.group.uuid} fw={400}>
-                                        Group{' '}
-                                        <Text fw={600} span>
-                                            {uga.group.name}
-                                        </Text>
-                                        :{' '}
-                                        <Text fw={600} span>
-                                            {uga.roleName}
-                                        </Text>
+                                        <Trans
+                                            t={t}
+                                            i18nKey="projectAccess.roleSummary.groupRole"
+                                            values={{
+                                                group: uga.group.name,
+                                                role: uga.roleName,
+                                            }}
+                                            components={{
+                                                bold: <Text fw={600} span />,
+                                            }}
+                                        />
                                     </Text>
                                 ))}
                                 {u.hasProjectRole && (
                                     <Text fw={400}>
-                                        Project role:{' '}
-                                        <Text fw={600} span>
-                                            {u.projectRole}
-                                        </Text>
+                                        <Trans
+                                            t={t}
+                                            i18nKey="projectAccess.roleSummary.projectRole"
+                                            values={{ role: u.projectRole }}
+                                            components={{
+                                                bold: <Text fw={600} span />,
+                                            }}
+                                        />
                                     </Text>
                                 )}
                             </Stack>
@@ -453,7 +476,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                 },
                 {
                     accessorKey: 'role',
-                    header: 'Role',
+                    header: t('projectAccess.columns.role'),
                     enableSorting: false,
                     size: 300,
                     Cell: ({ row }) => {
@@ -476,20 +499,34 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                                         !u.hasProjectRole ? (
                                             <Text fz="xs">
                                                 <Text fw={600} fz="xs">
-                                                    Members have no access to
-                                                    this project.
+                                                    {t(
+                                                        'projectAccess.membersNoAccessTitle',
+                                                    )}
                                                 </Text>
                                                 <Text fz="xs">
-                                                    Assign a project role to
-                                                    grant them visibility.
+                                                    {t(
+                                                        'projectAccess.membersNoAccessHint',
+                                                    )}
                                                 </Text>
                                             </Text>
                                         ) : (
                                             <Text fz="xs">
-                                                User inherits this role from{' '}
-                                                <Text span fw={600} fz="xs">
-                                                    {u.highestRoleType}
-                                                </Text>
+                                                <Trans
+                                                    t={t}
+                                                    i18nKey="projectAccess.inheritsFrom"
+                                                    values={{
+                                                        source: u.highestRoleType,
+                                                    }}
+                                                    components={{
+                                                        bold: (
+                                                            <Text
+                                                                span
+                                                                fw={600}
+                                                                fz="xs"
+                                                            />
+                                                        ),
+                                                    }}
+                                                />
                                             </Text>
                                         )
                                     }
@@ -521,8 +558,17 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                                                 placeholder={
                                                     u.highestRole ===
                                                     OrganizationMemberRole.MEMBER
-                                                        ? 'No project access'
-                                                        : `Inherits ${getRoleName(u.highestRole)}`
+                                                        ? t(
+                                                              'projectAccess.noProjectAccess',
+                                                          )
+                                                        : t(
+                                                              'projectAccess.inheritsRole',
+                                                              {
+                                                                  role: getRoleName(
+                                                                      u.highestRole,
+                                                                  ),
+                                                              },
+                                                          )
                                                 }
                                                 onChange={(roleSet) =>
                                                     replaceRoleSetMutation.mutate(
@@ -548,11 +594,15 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                                                 u.isMember && !u.hasProjectRole
                                                     ? [
                                                           {
-                                                              group: 'Organization role',
+                                                              group: t(
+                                                                  'projectAccess.organizationRoleGroup',
+                                                              ),
                                                               items: [
                                                                   {
                                                                       value: 'member',
-                                                                      label: 'member (no project access)',
+                                                                      label: t(
+                                                                          'projectAccess.memberNoProjectAccess',
+                                                                      ),
                                                                   },
                                                               ],
                                                           },
@@ -624,6 +674,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
             organizationRoles,
             projectUuid,
             replaceRoleSetMutation,
+            t,
         ]);
 
     const table = useContentTable({
@@ -685,13 +736,13 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                 wrap="nowrap"
             >
                 <Group gap="xs" wrap="nowrap">
-                    <Tooltip label="Search by name, email, or role">
+                    <Tooltip label={t('projectAccess.searchTooltip')}>
                         <TextInput
                             data-testid="project-access-search-input"
                             size="xs"
                             type="search"
                             variant="default"
-                            placeholder="Search users by name, email, or role"
+                            placeholder={t('projectAccess.searchPlaceholder')}
                             value={search}
                             leftSection={
                                 <MantineIcon
@@ -726,13 +777,13 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                             leftSection={<MantineIcon icon={IconPlus} />}
                             onClick={() => setIsAddingProjectAccess(true)}
                         >
-                            Add user access
+                            {t('projectAccess.addUserAccess')}
                         </Button>
                     )}
                     {hiddenMembersCount > 0 && (
                         <Menu position="bottom-end">
                             <Menu.Target>
-                                <Tooltip label="View options">
+                                <Tooltip label={t('projectAccess.viewOptions')}>
                                     <ActionIcon size="sm">
                                         <MantineIcon icon={IconDotsVertical} />
                                     </ActionIcon>
@@ -754,7 +805,9 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                                         setShowMembersOnly(!showMembersOnly)
                                     }
                                 >
-                                    Show members ({hiddenMembersCount})
+                                    {t('projectAccess.showMembers', {
+                                        hidden: hiddenMembersCount,
+                                    })}
                                 </Menu.Item>
                                 <Menu.Item
                                     leftSection={
@@ -767,9 +820,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                                     disabled
                                 >
                                     <Text size="xs" c="dimmed" maw={260}>
-                                        Members have no project access by
-                                        default. They only see content if given
-                                        a role at project or group level.
+                                        {t('projectAccess.membersInfo')}
                                     </Text>
                                 </Menu.Item>
                             </Menu.Dropdown>

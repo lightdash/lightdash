@@ -1,0 +1,106 @@
+{
+    "itemTypes": {
+        "plural": {
+            "field": "Campos",
+            "document": "Documentos",
+            "dashboard": "Dashboards",
+            "dashboardTab": "Pestañas de dashboard",
+            "chart": "Gráficos",
+            "space": "Espacios",
+            "table": "Tablas",
+            "page": "Páginas",
+            "sqlChart": "Gráficos SQL",
+            "dataApp": "Apps de datos",
+            "settings": "Configuración"
+        },
+        "singular": {
+            "field": "Campo",
+            "document": "Documento",
+            "dashboard": "Dashboard",
+            "dashboardTab": "Pestaña de dashboard",
+            "chart": "Gráfico",
+            "space": "Espacio",
+            "table": "Tabla",
+            "page": "Página",
+            "sqlChart": "Gráfico SQL",
+            "dataApp": "App de datos",
+            "settings": "Configuración"
+        },
+        "error": {
+            "field": "campo",
+            "dashboard": "dashboard",
+            "dashboardTab": "pestaña de dashboard",
+            "chart": "gráfico"
+        }
+    },
+    "typeLabels": {
+        "table": "Tabla",
+        "joinedTable": "Tabla unida",
+        "dimension": "Dimensión",
+        "metric": "Métrica"
+    },
+    "dateFilter": {
+        "from": "Desde {{date}}",
+        "to": "Hasta {{date}}",
+        "range": "Del {{from}} al {{to}}",
+        "label": "Fecha"
+    },
+    "searchItem": {
+        "dashboardDescription": "Dashboard: {{name}}"
+    },
+    "ariaLabel": "Buscar contenido y configuración",
+    "target": {
+        "placeholder": "Buscar"
+    },
+    "recentlyViewed": "Vistos recientemente",
+    "input": {
+        "placeholder": "Buscar en {{project}}...",
+        "placeholderFallback": "Buscar en tu proyecto...",
+        "clear": "Limpiar búsqueda"
+    },
+    "actions": {
+        "close": "Cerrar",
+        "backToResults": "Volver a los resultados",
+        "open": "Abrir",
+        "navigate": "Navegar",
+        "askAi": "Preguntar a la IA",
+        "runQuery": "Ejecutar consulta",
+        "settings": "Configuración"
+    },
+    "emptyState": {
+        "loadingRecent": "Cargando vistos recientemente...",
+        "searchWithFilters": "Buscar con estos filtros",
+        "startTyping": "Empieza a escribir para aplicarlos.",
+        "searchProject": "Buscar en {{project}}",
+        "searchYourProject": "Buscar en tu proyecto",
+        "searchHint": "Encuentra dashboards, gráficos, espacios, tablas, campos y más.",
+        "keepTyping": "Sigue escribiendo...",
+        "minLengthHint": "La búsqueda empieza a partir de 3 caracteres.",
+        "searching": "Buscando...",
+        "noResults": "No hay resultados para \"{{query}}\"",
+        "noResultsHint": "Prueba con otro término o ajusta los filtros."
+    },
+    "item": {
+        "verified": "Verificado",
+        "preview": "Vista previa de {{title}}",
+        "brokenContent": "Este contenido está roto. Obtén más información sobre los errores de validación <anchor>aquí</anchor>.",
+        "itemError": "Hay un error en este {{type}}"
+    },
+    "preview": {
+        "empty": "Pasa el cursor o navega hasta un resultado para verlo aquí.",
+        "space": "Espacio",
+        "views": "Visualizaciones",
+        "createdBy": "Creado por",
+        "verified": "Verificado",
+        "validationError": "Tiene un error de validación"
+    },
+    "filters": {
+        "clearFilter": "Quitar filtro",
+        "verified": "Verificado",
+        "itemType": "Tipo de elemento",
+        "clear": "Limpiar",
+        "searchUser": "Buscar un usuario...",
+        "createdBy": "Creado por",
+        "clearFilters": "Limpiar filtros"
+    }
+}

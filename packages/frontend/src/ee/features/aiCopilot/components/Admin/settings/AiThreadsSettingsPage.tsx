@@ -3,6 +3,7 @@ import { Button, Drawer } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChartDots, IconMessageCircleShare } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import LinkButton from '../../../../../../components/common/LinkButton';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../../components/common/MantineModal';
@@ -20,6 +21,7 @@ import { AiFeaturesDisabledAlert } from './AiFeaturesDisabledAlert';
 import drawerClasses from './ThreadPreviewDrawer.module.css';
 
 export const AiThreadsSettingsPage = () => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const { data: health } = useHealth();
     const { data: settings } = useAiOrganizationSettings();
 
@@ -47,8 +49,8 @@ export const AiThreadsSettingsPage = () => {
 
     return (
         <SettingsPage
-            title="Threads"
-            description="Review AI conversations across your organization."
+            title={t('settings.threads.title')}
+            description={t('settings.threads.description')}
             actions={
                 <SettingsPageActions>
                     {isAnalyticsEmbedEnabled && (
@@ -58,7 +60,7 @@ export const AiThreadsSettingsPage = () => {
                             size="xs"
                             leftSection={<MantineIcon icon={IconChartDots} />}
                         >
-                            Insights
+                            {t('settings.threads.insights')}
                         </Button>
                     )}
                     <LinkButton
@@ -68,7 +70,7 @@ export const AiThreadsSettingsPage = () => {
                         radius="md"
                         size="xs"
                     >
-                        New Thread
+                        {t('settings.threads.newThread')}
                     </LinkButton>
                 </SettingsPageActions>
             }
@@ -117,7 +119,7 @@ export const AiThreadsSettingsPage = () => {
                 opened={isAnalyticsEmbedOpen}
                 size="xl"
                 onClose={toggleAnalyticsEmbed}
-                title="AI Agents Insights"
+                title={t('settings.threads.insightsModalTitle')}
                 icon={IconChartDots}
             >
                 <AnalyticsEmbedDashboard />

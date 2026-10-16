@@ -39,12 +39,14 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
 import { lightdashApi } from '../../../../api';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useAsyncClipboard } from '../../../../hooks/useAsyncClipboard';
 import useUser from '../../../../hooks/user/useUser';
+import i18n from '../../../../i18n/i18n';
 import EmbedCodeSnippet, { type EmbedMethod } from './EmbedCodeSnippet';
 
 const useEmbedUrlCreateMutation = (projectUuid: string) => {
@@ -60,7 +62,9 @@ const useEmbedUrlCreateMutation = (projectUuid: string) => {
             mutationKey: ['create-embed-url'],
             onError: (error) => {
                 showToastError({
-                    title: `We couldn't create your embed url.`,
+                    title: i18n.t('preview.toasts.urlCreateFailed', {
+                        ns: 'embed',
+                    }),
                     subtitle: error.error.message,
                 });
             },
@@ -98,6 +102,7 @@ const EmbedPreviewChartForm: FC<{
     writeActionsPanel,
     onChartSpaceChange,
 }) => {
+    const { t } = useTranslation('embed');
     const { mutateAsync: createEmbedUrl } =
         useEmbedUrlCreateMutation(projectUuid);
     const colorScheme = useComputedColorScheme();
@@ -122,7 +127,9 @@ const EmbedPreviewChartForm: FC<{
         },
         validate: {
             chartUuid: (value: undefined | string) => {
-                return value && value.length > 0 ? null : 'Chart is required';
+                return value && value.length > 0
+                    ? null
+                    : t('preview.chartRequired');
             },
         },
     });
@@ -217,12 +224,12 @@ const EmbedPreviewChartForm: FC<{
             <Stack gap="md" mb="md">
                 <Select
                     required
-                    label="Chart"
+                    label={t('preview.chart')}
                     data={charts.map((chart) => ({
                         value: chart.uuid,
                         label: chart.name,
                     }))}
-                    placeholder="Select a chart..."
+                    placeholder={t('allowList.selectChart')}
                     searchable
                     {...form.getInputProps('chartUuid')}
                     onChange={(chartUuid) => {
@@ -236,7 +243,7 @@ const EmbedPreviewChartForm: FC<{
 
                 <Stack gap="xs">
                     <Text size="sm" fw={500}>
-                        Expires in
+                        {t('preview.expiresIn')}
                     </Text>
                     <SegmentedControl
                         value={form.values.expiresIn}
@@ -244,11 +251,23 @@ const EmbedPreviewChartForm: FC<{
                             form.setFieldValue('expiresIn', value)
                         }
                         data={[
-                            { label: '1 hour', value: '1 hour' },
-                            { label: '1 day', value: '1 day' },
-                            { label: '1 week', value: '1 week' },
-                            { label: '30 days', value: '30 days' },
-                            { label: '1 year', value: '1 year' },
+                            {
+                                label: t('preview.expiry.hour'),
+                                value: '1 hour',
+                            },
+                            { label: t('preview.expiry.day'), value: '1 day' },
+                            {
+                                label: t('preview.expiry.week'),
+                                value: '1 week',
+                            },
+                            {
+                                label: t('preview.expiry.days30'),
+                                value: '30 days',
+                            },
+                            {
+                                label: t('preview.expiry.year'),
+                                value: '1 year',
+                            },
                         ]}
                         size="xs"
                     />
@@ -256,9 +275,9 @@ const EmbedPreviewChartForm: FC<{
 
                 <Paper p="md">
                     <Stack gap="md">
-                        <Title order={6}>Identification & Security</Title>
+                        <Title order={6}>{t('preview.identification')}</Title>
                         <Stack gap="xs">
-                            <Input.Wrapper label="User identifier">
+                            <Input.Wrapper label={t('preview.userIdentifier')}>
                                 <TextInput
                                     size="xs"
                                     placeholder="1234"
@@ -266,15 +285,17 @@ const EmbedPreviewChartForm: FC<{
                                 />
                             </Input.Wrapper>
 
-                            <Input.Wrapper label="User email">
+                            <Input.Wrapper label={t('preview.userEmail')}>
                                 <TextInput
                                     size="xs"
-                                    placeholder="Type an email to add as intrinsic user attribute"
+                                    placeholder={t(
+                                        'preview.userEmailPlaceholder',
+                                    )}
                                     {...form.getInputProps('email')}
                                 />
                             </Input.Wrapper>
 
-                            <Input.Wrapper label="User attributes">
+                            <Input.Wrapper label={t('preview.userAttributes')}>
                                 <Stack gap="xs" mt="xs">
                                     {form.values.userAttributes.map(
                                         (item, index) => (
@@ -285,7 +306,9 @@ const EmbedPreviewChartForm: FC<{
                                             >
                                                 <TextInput
                                                     size="xs"
-                                                    placeholder="E.g. user_country"
+                                                    placeholder={t(
+                                                        'preview.attributeKeyPlaceholder',
+                                                    )}
                                                     flex={1}
                                                     {...form.getInputProps(
                                                         `userAttributes.${index}.key`,
@@ -293,7 +316,9 @@ const EmbedPreviewChartForm: FC<{
                                                 />
                                                 <TextInput
                                                     size="xs"
-                                                    placeholder="E.g. US"
+                                                    placeholder={t(
+                                                        'preview.attributeValuePlaceholder',
+                                                    )}
                                                     flex={1}
                                                     {...form.getInputProps(
                                                         `userAttributes.${index}.value`,
@@ -333,7 +358,7 @@ const EmbedPreviewChartForm: FC<{
                                             )
                                         }
                                     >
-                                        Add attribute
+                                        {t('preview.addAttribute')}
                                     </Button>
                                 </Stack>
                             </Input.Wrapper>
@@ -343,22 +368,22 @@ const EmbedPreviewChartForm: FC<{
 
                 <Paper p="md">
                     <Stack gap="md">
-                        <Title order={6}>Interactivity & Permissions</Title>
+                        <Title order={6}>{t('preview.interactivity')}</Title>
                         <Stack gap="xs">
                             <Text size="sm" fw={500}>
-                                Users can:
+                                {t('preview.usersCan')}
                             </Text>
                             <Switch
                                 {...form.getInputProps('canExportCsv', {
                                     type: 'checkbox',
                                 })}
-                                label="Export CSV"
+                                label={t('preview.exportCsv')}
                             />
                             <Switch
                                 {...form.getInputProps('canExportImages', {
                                     type: 'checkbox',
                                 })}
-                                label="Export Images"
+                                label={t('preview.exportImages')}
                             />
                             <Switch
                                 {...form.getInputProps(
@@ -367,7 +392,7 @@ const EmbedPreviewChartForm: FC<{
                                         type: 'checkbox',
                                     },
                                 )}
-                                label="View underlying data"
+                                label={t('preview.viewUnderlyingData')}
                             />
                         </Stack>
                     </Stack>
@@ -377,19 +402,19 @@ const EmbedPreviewChartForm: FC<{
                     <Paper p="md">
                         <Stack gap="xs" mb="md">
                             <Group gap="sm">
-                                <Title order={6}>Write actions</Title>
+                                <Title order={6}>
+                                    {t('preview.writeActions')}
+                                </Title>
                                 <Badge
                                     color="violet"
                                     size="sm"
                                     leftSection={<IconFlask2Filled size={12} />}
                                 >
-                                    Experimental
+                                    {t('preview.experimental')}
                                 </Badge>
                             </Group>
                             <Text c="dimmed" fz="sm">
-                                Choose which Lightdash actor should power
-                                embedded actions like creating scheduled
-                                deliveries or saving charts.
+                                {t('preview.writeActionsDescription')}
                             </Text>
                         </Stack>
                         {writeActionsPanel}
@@ -402,14 +427,14 @@ const EmbedPreviewChartForm: FC<{
                         leftSection={<MantineIcon icon={IconEye} />}
                         onClick={handlePreview}
                     >
-                        Preview content
+                        {t('preview.previewContent')}
                     </Button>
                     <Button
                         variant="default"
                         type="submit"
                         leftSection={<MantineIcon icon={IconLink} />}
                     >
-                        Generate & copy URL
+                        {t('preview.generateUrl')}
                     </Button>
                 </Flex>
             </Stack>
@@ -417,7 +442,7 @@ const EmbedPreviewChartForm: FC<{
             <Stack gap="md" mb="md">
                 <Stack gap="xs">
                     <Text size="sm" fw={500}>
-                        Embed method
+                        {t('preview.embedMethod')}
                     </Text>
                     <SegmentedControl
                         value={embedMethod}
@@ -425,21 +450,24 @@ const EmbedPreviewChartForm: FC<{
                             setEmbedMethod(value as EmbedMethod)
                         }
                         data={[
-                            { label: 'Iframe', value: 'iframe' },
-                            { label: 'SDK', value: 'sdk' },
+                            {
+                                label: t('preview.methods.iframe'),
+                                value: 'iframe',
+                            },
+                            { label: t('preview.methods.sdk'), value: 'sdk' },
                         ]}
                     />
                 </Stack>
                 <Stack gap="xs">
                     <Title order={5}>
                         {embedMethod === 'iframe'
-                            ? 'Iframe embed code'
-                            : 'React SDK code'}
+                            ? t('preview.iframeCode')
+                            : t('preview.sdkCode')}
                     </Title>
                     <Text c="dimmed" fz="sm">
                         {embedMethod === 'iframe'
-                            ? 'Use this for iframe or direct embedding with a full embed URL.'
-                            : 'Use this for React SDK embedding with a backend-generated JWT.'}
+                            ? t('preview.iframeDescription')
+                            : t('preview.sdkDescription')}
                     </Text>
                 </Stack>
                 <EmbedCodeSnippet

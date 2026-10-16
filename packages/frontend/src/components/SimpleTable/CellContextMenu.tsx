@@ -12,6 +12,7 @@ import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useAccount } from '../../hooks/user/useAccount';
@@ -31,6 +32,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const { openUnderlyingDataModal, metricQuery, tableName } =
         useMetricQueryDataContext();
     const { isEditMode, hasExplorerStore } = useVisualizationContext();
+    const { t } = useTranslation('visualization');
     const { showToastSuccess } = useToaster();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
@@ -68,8 +70,8 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
 
     const handleCopyToClipboard = useCallback(() => {
         clipboard.copy(value.formatted);
-        showToastSuccess({ title: 'Copied to clipboard!' });
-    }, [clipboard, showToastSuccess, value.formatted]);
+        showToastSuccess({ title: t('contextMenu.copiedToClipboard') });
+    }, [clipboard, showToastSuccess, value.formatted, t]);
 
     const handleViewUnderlyingData = useCallback(() => {
         openUnderlyingDataModal({
@@ -113,7 +115,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                 }
                 onClick={handleCopyToClipboard}
             >
-                Copy value
+                {t('contextMenu.copyValue')}
             </Menu.Item>
 
             {item &&
@@ -133,7 +135,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                             }
                             onClick={handleViewUnderlyingData}
                         >
-                            View underlying data
+                            {t('contextMenu.viewUnderlyingData')}
                         </Menu.Item>
                     </Can>
                 )}

@@ -35,6 +35,7 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import { useGoogleLoginPopup } from '../../../hooks/gdrive/useGdrive';
 import {
@@ -63,30 +64,35 @@ import {
 import DataTimezoneField from './DataTimezoneField';
 import { BigQueryDefaultValues } from './defaultValues';
 
-const bigQuerySchemaDescription = (
-    <p>
-        This is the name of your dbt dataset: the dataset in your warehouse
-        where the output of your dbt models is written to. If you're not sure
-        what this is, check out the
-        <b> dataset </b>
-        value{' '}
-        <Anchor
-            inherit
-            target="_blank"
-            href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#:~:text=This%20connection%20method%20requires%20local%20OAuth%20via%20gcloud."
-            rel="noreferrer"
-        >
-            you've set in your dbt <b>profiles.yml</b> file
-        </Anchor>
-        .
-        <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#data-set" />
-    </p>
-);
+const BigQuerySchemaDescription: FC = () => {
+    const { t } = useTranslation('projectConnection');
+    return (
+        <p>
+            <Trans
+                t={t}
+                i18nKey="warehouseFields.bigQueryDatasetDescription"
+                components={{
+                    b: <b />,
+                    docsLink: (
+                        <Anchor
+                            inherit
+                            target="_blank"
+                            href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#:~:text=This%20connection%20method%20requires%20local%20OAuth%20via%20gcloud."
+                            rel="noreferrer"
+                        />
+                    ),
+                }}
+            />
+            <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#data-set" />
+        </p>
+    );
+};
 
 export const BigQuerySchemaInput: FC<{
     disabled: boolean;
     description?: ReactNode;
 }> = ({ disabled, description }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
     const { savedProject } = useProjectFormContext();
     const { data, error: bigqueryAuthError } = useIsBigQueryAuthenticated();
@@ -152,8 +158,8 @@ export const BigQuerySchemaInput: FC<{
             <TextInput
                 name="warehouse.dataset"
                 {...datasetField}
-                label="Data set"
-                description={description ?? bigQuerySchemaDescription}
+                label={t('warehouseFields.dataset')}
+                description={description ?? <BigQuerySchemaDescription />}
                 required
                 disabled={disabled}
             />
@@ -163,14 +169,14 @@ export const BigQuerySchemaInput: FC<{
     return (
         <Autocomplete
             name="warehouse.dataset"
-            label="Data set"
-            description={description ?? bigQuerySchemaDescription}
+            label={t('warehouseFields.dataset')}
+            description={description ?? <BigQuerySchemaDescription />}
             placeholder={
                 !hasProject
-                    ? 'Choose a project first'
+                    ? t('warehouseFields.chooseProjectFirst')
                     : isLoadingDatasets
-                      ? 'Loading data sets...'
-                      : 'Type or select a data set'
+                      ? t('warehouseFields.loadingDatasets')
+                      : t('warehouseFields.selectDataset')
             }
             required
             {...datasetField}
@@ -195,7 +201,7 @@ export const BigQuerySchemaInput: FC<{
                     </Text>
                     {option.value === recommendedDataset ? (
                         <Badge size="xs" color="green">
-                            Recommended · largest
+                            {t('warehouseFields.recommendedLargest')}
                         </Badge>
                     ) : null}
                 </Group>
@@ -206,7 +212,7 @@ export const BigQuerySchemaInput: FC<{
                 isLoadingDatasets ? (
                     <Loader size="xs" />
                 ) : datasetsError ? (
-                    <Tooltip label="Failed to load data sets. You can type manually.">
+                    <Tooltip label={t('warehouseFields.datasetsLoadFailed')}>
                         <MantineIcon
                             icon={IconExclamationCircle}
                             color="yellow"
@@ -223,6 +229,7 @@ export const BigQuerySSOInput: FC<{
     disabled: boolean;
     openLoginPopup: () => void;
 }> = ({ isAuthenticated, disabled, openLoginPopup }) => {
+    const { t } = useTranslation('projectConnection');
     if (isAuthenticated) return null;
 
     // Similar to ThirdPartySignInButton
@@ -241,12 +248,12 @@ export const BigQuerySSOInput: FC<{
                         src={
                             'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTgiIGhlaWdodD0iMTgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj48cGF0aCBkPSJNMTcuNiA5LjJsLS4xLTEuOEg5djMuNGg0LjhDMTMuNiAxMiAxMyAxMyAxMiAxMy42djIuMmgzYTguOCA4LjggMCAwIDAgMi42LTYuNnoiIGZpbGw9IiM0Mjg1RjQiIGZpbGwtcnVsZT0ibm9uemVybyIvPjxwYXRoIGQ9Ik05IDE4YzIuNCAwIDQuNS0uOCA2LTIuMmwtMy0yLjJhNS40IDUuNCAwIDAgMS04LTIuOUgxVjEzYTkgOSAwIDAgMCA4IDV6IiBmaWxsPSIjMzRBODUzIiBmaWxsLXJ1bGU9Im5vbnplcm8iLz48cGF0aCBkPSJNNCAxMC43YTUuNCA1LjQgMCAwIDEgMC0zLjRWNUgxYTkgOSAwIDAgMCAwIDhsMy0yLjN6IiBmaWxsPSIjRkJCQzA1IiBmaWxsLXJ1bGU9Im5vbnplcm8iLz48cGF0aCBkPSJNOSAzLjZjMS4zIDAgMi41LjQgMy40IDEuM0wxNSAyLjNBOSA5IDAgMCAwIDEgNWwzIDIuNGE1LjQgNS40IDAgMCAxIDUtMy43eiIgZmlsbD0iI0VBNDMzNSIgZmlsbC1ydWxlPSJub256ZXJvIi8+PHBhdGggZD0iTTAgMGgxOHYxOEgweiIvPjwvZz48L3N2Zz4='
                         }
-                        alt="Google logo"
+                        alt={t('warehouseFields.googleLogo')}
                     />
                 }
                 className={classes.signInButton}
             >
-                Sign in with Google
+                {t('warehouseFields.signInGoogle')}
             </Button>
         </>
     );
@@ -255,6 +262,7 @@ export const BigQuerySSOInput: FC<{
 const BigQueryForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const { t } = useTranslation('projectConnection');
     const {
         data,
         error: bigqueryAuthError,
@@ -431,15 +439,15 @@ const BigQueryForm: FC<{
     const authenticationTypes = [
         {
             value: BigqueryAuthenticationType.PRIVATE_KEY,
-            label: 'Service Account (JSON key file)',
+            label: t('warehouseFields.serviceAccount'),
         },
         (isGoogleSsoAvailable || isSavedBigquerySsoProject) && {
             value: BigqueryAuthenticationType.SSO,
-            label: 'User Account (Sign in with Google)',
+            label: t('warehouseFields.userAccountGoogle'),
         },
         isAdcEnabled && {
             value: BigqueryAuthenticationType.ADC,
-            label: 'Application Default Credentials',
+            label: t('warehouseFields.applicationDefaultCredentials'),
         },
     ].filter(Boolean) as ComboboxItem[];
     return (
@@ -454,11 +462,13 @@ const BigQueryForm: FC<{
                                 'warehouse.authenticationType',
                             )}
                             defaultValue={defaultAuthenticationType}
-                            label="Authentication Type"
+                            label={t('warehouseFields.authenticationType')}
                             description={
                                 isAuthenticated ? (
                                     <Text mt="0" c="gray" fs="xs">
-                                        You are connected to BigQuery,{' '}
+                                        {t('warehouseFields.connectedTo', {
+                                            warehouse: 'BigQuery',
+                                        })}{' '}
                                         <Anchor
                                             inherit
                                             href="#"
@@ -466,11 +476,15 @@ const BigQueryForm: FC<{
                                                 openLoginPopup();
                                             }}
                                         >
-                                            Click here to reauthenticate.
+                                            {t(
+                                                'warehouseFields.reauthenticate',
+                                            )}
                                         </Anchor>
                                     </Text>
                                 ) : (
-                                    'Choose whether to authenticate with a service account or a user account'
+                                    t(
+                                        'warehouseFields.bigQueryAuthenticationDescription',
+                                    )
                                 )
                             }
                             data={authenticationTypes}
@@ -479,7 +493,9 @@ const BigQueryForm: FC<{
                             w={isAuthenticated ? '90%' : '100%'}
                         />
                         {isAuthenticated && (
-                            <Tooltip label="You are connected to BigQuery">
+                            <Tooltip
+                                label={t('warehouseFields.connectedBigQuery')}
+                            >
                                 <Group mb={10}>
                                     <MantineIcon
                                         icon={IconCheck}
@@ -504,7 +520,7 @@ const BigQueryForm: FC<{
                             {isSso && isAuthenticated ? (
                                 <Autocomplete
                                     name="warehouse.project"
-                                    label="Project"
+                                    label={t('warehouseFields.project')}
                                     filter={projectOptionsFilter}
                                     description={
                                         <p>
@@ -514,7 +530,9 @@ const BigQueryForm: FC<{
                                                 href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#project"
                                                 rel="noreferrer"
                                             >
-                                                This is the GCP project ID
+                                                {t(
+                                                    'warehouseFields.gcpProjectId',
+                                                )}
                                             </Anchor>
                                             .
                                         </p>
@@ -522,8 +540,10 @@ const BigQueryForm: FC<{
                                     placeholder={
                                         isLoadingProjects ||
                                         isLoadingProjectRecommendation
-                                            ? 'Loading projects...'
-                                            : 'Type or select a project'
+                                            ? t(
+                                                  'warehouseFields.loadingProjects',
+                                              )
+                                            : t('warehouseFields.selectProject')
                                     }
                                     required
                                     {...project}
@@ -568,7 +588,9 @@ const BigQueryForm: FC<{
                                                         size="xs"
                                                         color="green"
                                                     >
-                                                        Recommended · largest
+                                                        {t(
+                                                            'warehouseFields.recommendedLargest',
+                                                        )}
                                                     </Badge>
                                                 ) : null}
                                             </Group>
@@ -582,7 +604,11 @@ const BigQueryForm: FC<{
                                         isLoadingProjectRecommendation ? (
                                             <Loader size="xs" />
                                         ) : projectsError ? (
-                                            <Tooltip label="Failed to load projects. You can type manually.">
+                                            <Tooltip
+                                                label={t(
+                                                    'warehouseFields.projectsLoadFailed',
+                                                )}
+                                            >
                                                 <MantineIcon
                                                     icon={IconExclamationCircle}
                                                     color="yellow"
@@ -601,7 +627,7 @@ const BigQueryForm: FC<{
                             ) : (
                                 <TextInput
                                     name="warehouse.project"
-                                    label="Project"
+                                    label={t('warehouseFields.project')}
                                     description={
                                         <p>
                                             <Anchor
@@ -610,7 +636,9 @@ const BigQueryForm: FC<{
                                                 href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#project"
                                                 rel="noreferrer"
                                             >
-                                                This is the GCP project ID
+                                                {t(
+                                                    'warehouseFields.gcpProjectId',
+                                                )}
                                             </Anchor>
                                             .
                                         </p>
@@ -630,7 +658,9 @@ const BigQueryForm: FC<{
                                 />
                             )}
                             {hasDatasets && (
-                                <Tooltip label="You have access to this project">
+                                <Tooltip
+                                    label={t('warehouseFields.projectAccess')}
+                                >
                                     <Group mb={10}>
                                         <MantineIcon
                                             icon={IconCheck}
@@ -643,27 +673,30 @@ const BigQueryForm: FC<{
 
                         <TextInput
                             name="warehouse.location"
-                            label="Location"
+                            label={t('warehouseFields.location')}
                             description={
                                 <p>
-                                    The location of BigQuery datasets. You can
-                                    see more details in{' '}
-                                    <Anchor
-                                        inherit
-                                        target="_blank"
-                                        href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#dataset-locations"
-                                        rel="noreferrer"
-                                    >
-                                        dbt documentation
-                                    </Anchor>
-                                    .
+                                    <Trans
+                                        t={t}
+                                        i18nKey="warehouseFields.bigQueryLocationDescription"
+                                        components={{
+                                            docsLink: (
+                                                <Anchor
+                                                    inherit
+                                                    target="_blank"
+                                                    href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#dataset-locations"
+                                                    rel="noreferrer"
+                                                />
+                                            ),
+                                        }}
+                                    />
                                 </p>
                             }
                             {...locationField}
                             onChange={onChangeFactory(locationField.onChange)}
                             placeholder={
                                 isLocationLoading
-                                    ? 'Detecting location...'
+                                    ? t('warehouseFields.detectingLocation')
                                     : undefined
                             }
                             disabled={disabled || isLocationLoading}
@@ -689,25 +722,28 @@ const BigQueryForm: FC<{
                                             withError: true,
                                         },
                                     )}
-                                    label="Key File"
+                                    label={t('warehouseFields.keyFile')}
                                     placeholder={
                                         !requireSecrets
                                             ? '**************'
-                                            : 'Choose file...'
+                                            : t('warehouseFields.chooseFile')
                                     }
                                     description={
                                         <p>
-                                            This is the JSON key file. You can
-                                            see{' '}
-                                            <Anchor
-                                                inherit
-                                                target="_blank"
-                                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#key-file"
-                                                rel="noreferrer"
-                                            >
-                                                how to create a key here
-                                            </Anchor>
-                                            .
+                                            <Trans
+                                                t={t}
+                                                i18nKey="warehouseFields.keyFileDescription"
+                                                components={{
+                                                    docsLink: (
+                                                        <Anchor
+                                                            inherit
+                                                            target="_blank"
+                                                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#key-file"
+                                                            rel="noreferrer"
+                                                        />
+                                                    ),
+                                                }}
+                                            />
                                         </p>
                                     }
                                     required={requireSecrets}
@@ -739,7 +775,9 @@ const BigQueryForm: FC<{
                                                     setTimeout(() => {
                                                         form.setFieldError(
                                                             'warehouse.keyfileContents',
-                                                            'Invalid JSON file',
+                                                            t(
+                                                                'warehouseFields.invalidJsonFile',
+                                                            ),
                                                         );
                                                     });
 
@@ -775,7 +813,9 @@ const BigQueryForm: FC<{
                                             type: 'checkbox',
                                         },
                                     )}
-                                    label="Require users to provide their own credentials"
+                                    label={t(
+                                        'warehouseFields.requireUserCredentials',
+                                    )}
                                     disabled={disabled}
                                     defaultChecked={
                                         BigQueryDefaultValues.requireUserCredentials
@@ -787,8 +827,12 @@ const BigQueryForm: FC<{
                                         'warehouse.allowUserCredentials',
                                         { type: 'checkbox' },
                                     )}
-                                    label="Use personal credentials when available"
-                                    description="Signed-in users with personal BigQuery credentials use them instead of the project connection. Other users use the project connection."
+                                    label={t(
+                                        'warehouseFields.usePersonalCredentials',
+                                    )}
+                                    description={t(
+                                        'warehouseFields.usePersonalCredentialsDescription',
+                                    )}
                                     checked={
                                         !!form.values.warehouse
                                             .requireUserCredentials ||
@@ -806,23 +850,25 @@ const BigQueryForm: FC<{
 
                                 <TextInput
                                     name="warehouse.executionProject"
-                                    label="Execution project"
+                                    label={t(
+                                        'warehouseFields.executionProject',
+                                    )}
                                     description={
                                         <p>
-                                            You may specify a project to bill
-                                            for query execution, instead of the
-                                            project/database where you
-                                            materialize most resources. You can
-                                            see more details in{' '}
-                                            <Anchor
-                                                inherit
-                                                target="_blank"
-                                                href="https://docs.getdbt.com/docs/core/connect-data-platform/bigquery-setup#execution-project"
-                                                rel="noreferrer"
-                                            >
-                                                dbt documentation
-                                            </Anchor>
-                                            .
+                                            <Trans
+                                                t={t}
+                                                i18nKey="warehouseFields.executionProjectDescription"
+                                                components={{
+                                                    docsLink: (
+                                                        <Anchor
+                                                            inherit
+                                                            target="_blank"
+                                                            href="https://docs.getdbt.com/docs/core/connect-data-platform/bigquery-setup#execution-project"
+                                                            rel="noreferrer"
+                                                        />
+                                                    ),
+                                                }}
+                                            />
                                         </p>
                                     }
                                     {...executionProjectField}
@@ -833,14 +879,15 @@ const BigQueryForm: FC<{
                                 />
                                 <TextInput
                                     name="warehouse.accessUrl"
-                                    label="BigQuery URL override"
+                                    label={t(
+                                        'warehouseFields.bigQueryUrlOverride',
+                                    )}
                                     placeholder="e.g. https://bigquery.googleapis.com"
                                     description={
                                         <p>
-                                            Override the default BigQuery API
-                                            endpoint. This is useful for Private
-                                            Service Connect, custom proxies, or
-                                            local emulators.
+                                            {t(
+                                                'warehouseFields.bigQueryUrlOverrideDescription',
+                                            )}
                                         </p>
                                     }
                                     {...accessUrlField}
@@ -855,25 +902,26 @@ const BigQueryForm: FC<{
                                     {...form.getInputProps(
                                         'warehouse.timeoutSeconds',
                                     )}
-                                    label="Timeout in seconds"
+                                    label={t('warehouseFields.timeoutSeconds')}
                                     defaultValue={
                                         BigQueryDefaultValues.timeoutSeconds
                                     }
                                     description={
                                         <p>
-                                            If a dbt model takes longer than
-                                            this timeout to complete, then
-                                            BigQuery may cancel the query. You
-                                            can see more details in{' '}
-                                            <Anchor
-                                                inherit
-                                                target="_blank"
-                                                href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#timeouts"
-                                                rel="noreferrer"
-                                            >
-                                                dbt documentation
-                                            </Anchor>
-                                            .
+                                            <Trans
+                                                t={t}
+                                                i18nKey="warehouseFields.bigQueryTimeoutDescription"
+                                                components={{
+                                                    docsLink: (
+                                                        <Anchor
+                                                            inherit
+                                                            target="_blank"
+                                                            href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#timeouts"
+                                                            rel="noreferrer"
+                                                        />
+                                                    ),
+                                                }}
+                                            />
                                         </p>
                                     }
                                     required
@@ -889,21 +937,23 @@ const BigQueryForm: FC<{
                                     defaultValue={
                                         BigQueryDefaultValues.priority
                                     }
-                                    label="Priority"
+                                    label={t('warehouseFields.priority')}
                                     description={
                                         <p>
-                                            The priority for the BigQuery jobs
-                                            that dbt executes. You can see more
-                                            details in{' '}
-                                            <Anchor
-                                                inherit
-                                                target="_blank"
-                                                href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#priority"
-                                                rel="noreferrer"
-                                            >
-                                                dbt documentation
-                                            </Anchor>
-                                            .
+                                            <Trans
+                                                t={t}
+                                                i18nKey="warehouseFields.priorityDescription"
+                                                components={{
+                                                    docsLink: (
+                                                        <Anchor
+                                                            inherit
+                                                            target="_blank"
+                                                            href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#priority"
+                                                            rel="noreferrer"
+                                                        />
+                                                    ),
+                                                }}
+                                            />
                                         </p>
                                     }
                                     data={[
@@ -924,22 +974,23 @@ const BigQueryForm: FC<{
                                     name="warehouse.retries"
                                     {...form.getInputProps('warehouse.retries')}
                                     defaultValue={BigQueryDefaultValues.retries}
-                                    label="Retries"
+                                    label={t('warehouseFields.retries')}
                                     description={
                                         <p>
-                                            The number of times dbt should retry
-                                            queries that result in unhandled
-                                            server errors You can see more
-                                            details in{' '}
-                                            <Anchor
-                                                inherit
-                                                target="_blank"
-                                                href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#retries"
-                                                rel="noreferrer"
-                                            >
-                                                dbt documentation
-                                            </Anchor>
-                                            .
+                                            <Trans
+                                                t={t}
+                                                i18nKey="warehouseFields.bigQueryRetriesDescription"
+                                                components={{
+                                                    docsLink: (
+                                                        <Anchor
+                                                            inherit
+                                                            target="_blank"
+                                                            href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#retries"
+                                                            rel="noreferrer"
+                                                        />
+                                                    ),
+                                                }}
+                                            />
                                         </p>
                                     }
                                     required
@@ -953,24 +1004,25 @@ const BigQueryForm: FC<{
                                     defaultValue={
                                         BigQueryDefaultValues.maximumBytesBilled
                                     }
-                                    label="Maximum bytes billed"
+                                    label={t(
+                                        'warehouseFields.maximumBytesBilled',
+                                    )}
                                     description={
                                         <p>
-                                            When a value is configured, queries
-                                            executed by dbt will fail if they
-                                            exceed the configured maximum bytes
-                                            threshold. You can see more details
-                                            in{' '}
-                                            <Anchor
-                                                inherit
-                                                target="_blank"
-                                                href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#maximum-bytes-billed"
-                                                rel="noreferrer"
-                                            >
-                                                dbt documentation
-                                            </Anchor>
-                                            . Leaving this field empty or with a
-                                            0 value means no limit.
+                                            <Trans
+                                                t={t}
+                                                i18nKey="warehouseFields.maximumBytesBilledDescription"
+                                                components={{
+                                                    docsLink: (
+                                                        <Anchor
+                                                            inherit
+                                                            target="_blank"
+                                                            href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#maximum-bytes-billed"
+                                                            rel="noreferrer"
+                                                        />
+                                                    ),
+                                                }}
+                                            />
                                         </p>
                                     }
                                     disabled={disabled}
@@ -978,14 +1030,14 @@ const BigQueryForm: FC<{
 
                                 <Stack gap="xs">
                                     <Text size="sm" fw={500}>
-                                        Maximum bytes billed by role
+                                        {t(
+                                            'warehouseFields.maximumBytesBilledByRole',
+                                        )}
                                     </Text>
                                     <Text size="xs" c="dimmed">
-                                        Overrides the limit above for queries
-                                        run in the app, using each person's
-                                        highest project role. Leave a role empty
-                                        to use the limit above; 0 means no
-                                        limit. Custom roles use the limit above.
+                                        {t(
+                                            'warehouseFields.maximumBytesBilledByRoleDescription',
+                                        )}
                                     </Text>
                                     {Object.values(ProjectMemberRole).map(
                                         (role) => {
@@ -1019,8 +1071,12 @@ const BigQueryForm: FC<{
 
                                 <NumberInput
                                     name="warehouse.agentMaximumBytesBilled"
-                                    label="AI agent maximum bytes billed"
-                                    description="Applies to queries run by AI agents and agent service accounts, before any role limit. Leave empty to use the role or connection limit; 0 means no limit."
+                                    label={t(
+                                        'warehouseFields.aiAgentMaxBytesBilled',
+                                    )}
+                                    description={t(
+                                        'warehouseFields.aiAgentMaxBytesBilledDescription',
+                                    )}
                                     min={0}
                                     value={
                                         form.getInputProps(
@@ -1042,8 +1098,12 @@ const BigQueryForm: FC<{
                                         'warehouse.estimateQueryBytes',
                                         { type: 'checkbox' },
                                     )}
-                                    label="Show query cost estimates"
-                                    description="Runs a free BigQuery dry run before queries in the explorer and SQL runner and shows the estimated bytes processed."
+                                    label={t(
+                                        'warehouseFields.showQueryCostEstimates',
+                                    )}
+                                    description={t(
+                                        'warehouseFields.showQueryCostEstimatesDescription',
+                                    )}
                                     disabled={disabled}
                                 />
 
@@ -1052,8 +1112,12 @@ const BigQueryForm: FC<{
                                     {...form.getInputProps(
                                         'warehouse.confirmEstimatedBytesAbove',
                                     )}
-                                    label="Confirm queries estimated above (bytes)"
-                                    description="Users must confirm before running a query whose estimate is above this. Requires query cost estimates. Leave empty for no confirmation."
+                                    label={t(
+                                        'warehouseFields.confirmQueriesAbove',
+                                    )}
+                                    description={t(
+                                        'warehouseFields.confirmQueriesAboveDescription',
+                                    )}
                                     disabled={
                                         disabled ||
                                         !(
@@ -1070,8 +1134,12 @@ const BigQueryForm: FC<{
                                     {...form.getInputProps(
                                         'warehouse.agentMaximumEstimatedBytes',
                                     )}
-                                    label="AI agent query limit (estimated bytes)"
-                                    description="AI agent queries whose dry run estimate is above this are refused, and the agent is told the estimate so it can narrow the query. Dry runs can underreport, so keep maximum bytes billed as the hard limit. Leave empty for no limit."
+                                    label={t(
+                                        'warehouseFields.aiAgentQueryLimit',
+                                    )}
+                                    description={t(
+                                        'warehouseFields.aiAgentQueryLimitDescription',
+                                    )}
                                     disabled={disabled}
                                 />
 
@@ -1083,7 +1151,7 @@ const BigQueryForm: FC<{
                             isSectionOpen={isOpen}
                             onClick={toggleOpen}
                         >
-                            Advanced configuration options
+                            {t('dbtSettings.advancedOptions')}
                         </FormCollapseButton>
                     </>
                 )}

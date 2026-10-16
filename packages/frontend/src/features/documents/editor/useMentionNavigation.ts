@@ -7,6 +7,7 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router';
 import { mentionUrl } from '../../../ee/features/homepageBuilder/blocks/markdownEditor/contentMentionMarkdown';
+import i18n from '../../../i18n/i18n';
 
 const MENTION_CHIP_SELECTOR = '.node-contentMention';
 
@@ -32,7 +33,12 @@ export const useMentionNavigation = (
                 chip.setAttribute('role', 'link');
                 chip.setAttribute(
                     'aria-label',
-                    `Open ${chip.textContent ?? ''}`.trim(),
+                    i18n
+                        .t('editor.openMention', {
+                            ns: 'documents',
+                            name: chip.textContent ?? '',
+                        })
+                        .trim(),
                 );
             });
         };

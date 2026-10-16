@@ -10,6 +10,7 @@ import {
 import { useHotkeys, useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
 import { memo, useCallback, useTransition, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     explorerActions,
     selectIsValidQuery,
@@ -31,6 +32,7 @@ import { ExplorerQueryCostEstimateBadge } from './QueryCostEstimate/ExplorerQuer
 import RunQuerySettings from './RunQuerySettings';
 
 export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
+    const { t } = useTranslation('explorer');
     const [, startTransition] = useTransition();
     const health = useHealth();
     const maxLimit = health.data?.query.maxLimit ?? 5000;
@@ -103,7 +105,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                                     <Kbd size="xs">
                                         {os === 'macos' || os === 'ios'
                                             ? '⌘'
-                                            : 'Ctrl'}
+                                            : t('refreshButton.ctrlKey')}
                                     </Kbd>
                                     <Kbd size="xs">↵</Kbd>
                                 </Group>
@@ -144,7 +146,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                             data-tour-via='[data-tour-nav="new"] >> [data-tour-nav="new-chart"] >> [data-tour-anchor="explore-table"] >> [data-tour-anchor="explore-metric"] >> [data-tour-anchor="explore-dimension"]'
                             data-tour-docs="explore/explore-view.mdx#select-your-fields:li3"
                         >
-                            Run query
+                            {t('refreshButton.runQuery')}
                         </Button>
                     </Tooltip>
 

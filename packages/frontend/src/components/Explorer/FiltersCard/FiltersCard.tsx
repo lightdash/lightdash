@@ -25,6 +25,7 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     explorerActions,
     selectAdditionalMetrics,
@@ -53,6 +54,7 @@ import FiltersProvider from '../../common/Filters/FiltersProvider';
 import { useFieldsWithSuggestions } from './useFieldsWithSuggestions';
 
 const QueryAFiltersCard: FC = memo(() => {
+    const { t } = useTranslation('explorer');
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
 
@@ -267,8 +269,9 @@ const QueryAFiltersCard: FC = memo(() => {
             }
             return (
                 <>
-                    Tried to reference field with unknown id:{' '}
-                    {filterRule.target.fieldId}
+                    {t('filtersCard.unknownField', {
+                        fieldId: filterRule.target.fieldId,
+                    })}
                 </>
             );
         };
@@ -376,16 +379,16 @@ const QueryAFiltersCard: FC = memo(() => {
         };
 
         return renderExpression(filterExpression);
-    }, [processedFilters, visibleFields]);
+    }, [processedFilters, visibleFields, t]);
 
     return (
         <CollapsableCard
             isOpen={filterIsOpen}
-            title="Filters"
+            title={t('filtersCard.title')}
             disabled={!tableName || (totalActiveFilters === 0 && !isEditMode)}
             toggleTooltip={
                 totalActiveFilters === 0 && !isEditMode
-                    ? 'This chart has no filters'
+                    ? t('filtersCard.noFilters')
                     : ''
             }
             onToggle={() => toggleExpandedSection(ExplorerSection.FILTERS)}
@@ -411,15 +414,15 @@ const QueryAFiltersCard: FC = memo(() => {
                             position="bottom-start"
                         >
                             <Badge>
-                                {totalActiveFilters} active filter
-                                {totalActiveFilters === 1 ? '' : 's'}
+                                {t('filtersCard.activeFilters', {
+                                    count: totalActiveFilters,
+                                })}
                             </Badge>
                         </Tooltip>
                     ) : null}
                     {totalActiveFilters > 0 && filterIsOpen && !isEditMode ? (
                         <Text c="gray" fz="sm">
-                            You must be in 'edit' or 'explore' mode to change
-                            the filters
+                            {t('filtersCard.mustBeInEditMode')}
                         </Text>
                     ) : null}
                 </>

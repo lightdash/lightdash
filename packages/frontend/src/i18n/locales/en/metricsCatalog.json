@@ -1,0 +1,381 @@
+{
+    "funnelBuilder": {
+        "title": "Funnel Builder",
+        "experimental": "Experimental",
+        "toasts": {
+            "runFailed": "Failed to run funnel query",
+            "loadEventNamesFailed": "Failed to load event names",
+            "unexpectedError": "An unexpected error occurred"
+        },
+        "fields": {
+            "suggested": "Suggested",
+            "allFields": "All Fields",
+            "explore": "Explore",
+            "selectExplore": "Select an explore",
+            "timestampField": "Timestamp Field",
+            "selectTimestamp": "Select timestamp",
+            "userIdField": "User ID Field",
+            "selectUserId": "Select user identifier",
+            "eventNameField": "Event Name Field",
+            "selectEventName": "Select event name",
+            "breakdown": "Breakdown (Optional)",
+            "selectBreakdown": "Select breakdown"
+        },
+        "datePresets": {
+            "last_7_days": "Last 7 days",
+            "last_14_days": "Last 14 days",
+            "last_30_days": "Last 30 days",
+            "last_90_days": "Last 90 days",
+            "last_6_months": "Last 6 months",
+            "last_12_months": "Last 12 months",
+            "custom": "Custom range"
+        },
+        "customDateRange": "Custom Date Range",
+        "emptyState": {
+            "configure": "Configure your funnel in the sidebar",
+            "selectFields": "Select fields and add at least 2 steps to see results"
+        },
+        "viewSql": "View Generated SQL",
+        "tabs": {
+            "fields": "Fields",
+            "steps": "Steps"
+        },
+        "table": {
+            "breakdown": "Breakdown",
+            "users": "Users",
+            "conversion": "Conv %",
+            "time": "Time"
+        },
+        "steps": {
+            "title": "Funnel Steps",
+            "step": "Step {{number}}",
+            "selectEvent": "Select event",
+            "addStep": "Add Step",
+            "conversionWindow": "Conversion Window",
+            "hours": "Hours",
+            "days": "Days",
+            "weeks": "Weeks"
+        },
+        "tooltip": {
+            "users": "Users",
+            "conversion": "Conversion",
+            "overall": "Overall"
+        },
+        "chart": {
+            "conversion": "Conversion",
+            "dropOff": "Drop-off"
+        }
+    },
+    "category": {
+        "yamlCannotRemove": "This category cannot be removed from this metric because it was defined in the .yml file."
+    },
+    "exploreButton": {
+        "tooltip": "Click to view this in the Metrics Explorer",
+        "label": "Explore"
+    },
+    "chartUsage": {
+        "usedBy_one": "Used by {{count}} chart.",
+        "usedBy_other": "Used by {{count}} charts.",
+        "clickToView": "Click to view the full list."
+    },
+    "owner": {
+        "unassigned": "Unassigned"
+    },
+    "visualizationEmptyState": {
+        "title": "Data unavailable for selected range",
+        "description": "We'd love to show you more, but the data isn't available for this range. Try selecting a different range to continue exploring!"
+    },
+    "exploreFromHere": {
+        "tooltip": "Continue exploring this metric further",
+        "label": "Explore from here"
+    },
+    "saveChart": {
+        "tooltip": "Save this chart to a space or dashboard",
+        "label": "Save chart"
+    },
+    "chartUsageModal": {
+        "title": "Metric Usage",
+        "loading": "Loading...",
+        "empty": "No charts found using this metric"
+    },
+    "detailPopover": {
+        "howCalculated": "How's total calculated?",
+        "hideSql": "Hide SQL",
+        "showSql": "Show SQL",
+        "copySql": "Copy SQL",
+        "copied": "Copied!",
+        "unableToLoadSql": "Unable to load SQL",
+        "metricSql": "Metric SQL",
+        "sql": "SQL",
+        "showCompiledSql": "Show compiled SQL",
+        "compiledSql": "Compiled SQL",
+        "timeDimension": "Time dimension",
+        "explore": "Explore"
+    },
+    "categoryForm": {
+        "addErrorTitle": "Error adding category",
+        "addErrorSubtitle": "Unable to add category to metric.",
+        "removeErrorTitle": "Error removing category",
+        "removeErrorSubtitle": "Unable to remove category from metric.",
+        "editAriaLabel": "Edit metric categories",
+        "searchPlaceholder": "Search",
+        "selectOrCreate": "Select a category or create a new one",
+        "create": "Create"
+    },
+    "categoryFormItem": {
+        "editCategory": "Edit category",
+        "namePlaceholder": "Category name",
+        "deleteTooltip": "Delete this tag permanently",
+        "save": "Save",
+        "yamlNotEditable": "This category was created in the .yml config and its properties cannot be edited"
+    },
+    "columns": {
+        "metric": "Metric",
+        "table": "Table",
+        "tableTooltip": "Table",
+        "description": "Description",
+        "descriptionTooltip": "Defined in the metric's .yml file",
+        "category": "Category",
+        "categoryTooltip": "Categories help you organize your metrics and KPIs. Click on the cell to add or edit a category, if you have the required permissions.",
+        "popularity": "Popularity",
+        "popularityTooltip": "Shows how many charts use this metric",
+        "owner": "Owner",
+        "ownerTooltip": "Metric owner defined in the YAML file"
+    },
+    "table": {
+        "loadingMore": "Loading more...",
+        "scrollForMore": "Scroll for more metrics",
+        "allLoaded": "All metrics loaded",
+        "loadedCount": "({{count}} loaded)",
+        "totalCount": "({{count}})",
+        "noMetricsTitle": "No metrics defined in this project",
+        "noMetricsDocs": "To learn how to define metrics, check out our <anchor>documentation</anchor>",
+        "noResults": "No results found"
+    },
+    "panel": {
+        "learnMore": "Learn more",
+        "spotlightIsHere": "✨ Spotlight is here!",
+        "spotlightDescription": "Explore and curate your key Metrics in the <bold>Catalog</bold> and click to visualize them over time in the <bold>Explorer</bold>.",
+        "viewDemo": "View Demo",
+        "title": "Metrics Catalog",
+        "subtitle": "Browse all Metrics & KPIs across this project",
+        "refreshingCatalog": "Refreshing catalog",
+        "lastRefreshed": "Last refreshed {{timeAgo}}",
+        "refreshCatalog": "Refresh catalog"
+    },
+    "filters": {
+        "owners": {
+            "label": "Owners",
+            "tooltip": "Filter metrics by owner",
+            "noMatch": "No owners match your search.",
+            "empty": "No owners configured yet. Add spotlight.owner in your metric or model YAML to assign owners.",
+            "searchPlaceholder": "Search owners...",
+            "unassigned": "Unassigned"
+        },
+        "tables": {
+            "label": "Tables",
+            "tooltip": "Filter metrics by table",
+            "noMatch": "No tables match your search.",
+            "empty": "No tables available.",
+            "searchPlaceholder": "Search tables..."
+        },
+        "categories": {
+            "label": "Categories",
+            "tooltip": "Filter metrics by category",
+            "noMatch": "No categories match your search.",
+            "empty": "No categories added yet. Click on the category cells to assign categories to your metrics.",
+            "searchPlaceholder": "Search categories...",
+            "uncategorized": "Uncategorized",
+            "match": "Match",
+            "any": "Any",
+            "all": "All"
+        }
+    },
+    "toolbar": {
+        "columnPinned": "The {{column}} column is pinned for usability",
+        "reorderColumn": "Reorder {{column}} column",
+        "toggleColumn": "Toggle {{column}} column",
+        "searchPlaceholder": "Search by name or description",
+        "clearSearch": "Clear search",
+        "manageColumns": "Manage column visibility",
+        "discardChanges": "Discard unsaved changes",
+        "resetForEveryone": "Reset configuration for everyone",
+        "discard": "Discard",
+        "reset": "Reset",
+        "saveForEveryone": "Save for everyone",
+        "listView": "List view",
+        "canvas": "Canvas",
+        "metricsCount_one": "{{count}} metric",
+        "metricsCount_other": "{{count}} metrics"
+    },
+    "treeList": {
+        "title": "Saved Trees",
+        "new": "New",
+        "loading": "Loading trees…",
+        "editingBy": "Editing by {{name}}",
+        "empty": "No saved trees yet"
+    },
+    "savedTree": {
+        "noTreeSelected": "No tree selected",
+        "noTreeSelectedDescription": "Select a tree from the sidebar or create a new one",
+        "treeName": "Tree name",
+        "cancel": "Cancel",
+        "save": "Save",
+        "discardTitle": "Discard changes",
+        "discardDescription": "Are you sure you want to discard your unsaved changes?",
+        "discard": "Discard",
+        "keepEditing": "Keep editing",
+        "unsavedTitle": "Unsaved changes",
+        "unsavedDescription": "You have unsaved changes. Are you sure you want to leave?",
+        "leave": "Leave",
+        "stay": "Stay",
+        "editingBy": "Editing by {{name}}",
+        "close": "Close",
+        "copyLink": "Copy link to tree",
+        "beingEditedBy": "Being edited by {{name}}",
+        "edit": "Edit",
+        "cannotDeleteWhileEdited": "Cannot delete while being edited",
+        "cannotDeleteWhileEditedBy": "Cannot delete while being edited by {{name}}",
+        "delete": "Delete",
+        "deleteTitle": "Delete metrics tree",
+        "resourceType": "metrics tree"
+    },
+    "metricsSidebar": {
+        "addToCanvas": "Add {{title}} to canvas",
+        "yamlDrivers": "Drivers defined in YAML",
+        "table": "Table: <value>{{table}}</value>",
+        "notOnCanvas_one": "{{count}} metric not on canvas",
+        "notOnCanvas_other": "{{count}} metrics not on canvas",
+        "documentation": "Documentation",
+        "allOnCanvas": "All metrics are on the canvas",
+        "loadMore": "Load more"
+    },
+    "canvas": {
+        "cleanUp": "Clean up",
+        "cannotDeleteYamlEdgeTitle": "Cannot delete YAML-defined edge",
+        "cannotDeleteYamlEdgeSubtitle": "This connection is defined in your dbt YAML files. Update your YAML to remove it."
+    },
+    "expandedNode": {
+        "comparison": {
+            "rolling": "Last {{days}} days vs. previous {{days}} days",
+            "day": "Current day vs. last day to date",
+            "week": "Current week vs. last week to date",
+            "month": "Current month vs. last month to date",
+            "year": "Current year vs. last year to date",
+            "default": "Current vs. previous period"
+        },
+        "addYamlDrivers": "Add drivers from YAML",
+        "addYamlDriversAriaLabel": "Add YAML drivers to canvas"
+    },
+    "canvasTimeFrame": {
+        "currentWeekToDate": "Current week to date",
+        "currentMonthToDate": "Current month to date",
+        "currentYearToDate": "Current year to date",
+        "currentPeriodToDate": "Current period to date",
+        "lastDays_one": "Last {{count}} day",
+        "lastDays_other": "Last {{count}} days",
+        "comparedTo": "compared to"
+    },
+    "intervals": {
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "yearly": "Yearly"
+    },
+    "segmentation": {
+        "title": "Segment",
+        "clear": "Clear",
+        "noFields": "There are no available fields to segment this metric by",
+        "placeholder": "Segment by",
+        "limited": "Only the first {{count}} series are displayed to maintain a clear and readable chart."
+    },
+    "comparison": {
+        "previousYearTooltip": "Show data from the same period in the previous year",
+        "selectMetric": "Select a metric",
+        "timeDimensionRequired": "Only metrics with a time dimension defined in the .yml can be compared.",
+        "learnMore": "Learn more"
+    },
+    "datePicker": {
+        "custom": "Custom",
+        "customWithRange": "Custom: <range>{{range}}</range>",
+        "presetRange": "{{from}} to {{to}}",
+        "changeGranularity": "Change granularity",
+        "cancel": "Cancel",
+        "apply": "Apply"
+    },
+    "filter": {
+        "title": "Filter",
+        "clear": "Clear",
+        "filterBy": "Filter by",
+        "condition": "Condition",
+        "typeValues": "Type values...",
+        "apply": "Apply",
+        "operators": {
+            "is": "is",
+            "isNot": "is not",
+            "isTrue": "is true",
+            "isFalse": "is false"
+        }
+    },
+    "autocomplete": {
+        "addValue": "Add \"{{value}}\"",
+        "loading": "Loading...",
+        "noResults": "No results found",
+        "showingFirstContinue": "Showing first {{count}} results. Continue typing...",
+        "showingFirstStart": "Showing first {{count}} results. Start typing...",
+        "refreshCache": "Click here to refresh cache filter values",
+        "loadedAt": "Results loaded at {{date}}"
+    },
+    "exploreModal": {
+        "comparison": "Comparison",
+        "clear": "Clear"
+    },
+    "toasts": {
+        "refreshCatalogFailed": "Failed to refresh catalog",
+        "treeSaved": "Metrics tree saved successfully",
+        "treeSaveFailed": "Failed to save metrics tree",
+        "lockFailed": "Failed to acquire edit lock",
+        "treeDeleted": "Metrics tree deleted successfully",
+        "treeDeleteFailed": "Failed to delete metrics tree",
+        "treeUpdated": "Metrics tree updated successfully",
+        "treeUpdateFailed": "Failed to update metrics tree",
+        "spotlightConfigSaved": "Spotlight table config saved for everyone in this project",
+        "spotlightConfigSaveFailed": "Error saving spotlight table config"
+    },
+    "visualization": {
+        "comparisonSeries": "Comparison"
+    },
+    "dateRangePicker": {
+        "selectDateRange": "Select date range"
+    },
+    "datePresets": {
+        "labels": {
+            "today": "Today",
+            "past7Days": "Past 7 days",
+            "past30Days": "Past 30 days",
+            "past3Months": "Past 3 months",
+            "past12Months": "Past 12 months",
+            "past5Years": "Past 5 years",
+            "thisWeek": "This week",
+            "past1Week": "Past 1 week",
+            "past4Weeks": "Past 4 weeks",
+            "thisMonth": "This month",
+            "past6Months": "Past 6 months",
+            "thisYear": "This year",
+            "past1Year": "Past 1 year",
+            "past3Years": "Past 3 years"
+        },
+        "controls": {
+            "d7": "7D",
+            "d30": "30D",
+            "m3": "3M",
+            "m12": "12M",
+            "y5": "5Y",
+            "w1": "1W",
+            "w4": "4W",
+            "m6": "6M",
+            "y1": "1Y",
+            "y3": "3Y"
+        }
+    }
+}

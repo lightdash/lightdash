@@ -1,10 +1,10 @@
 import {
-    READ_CONTENT_TYPE_LABELS,
     TOOL_DISPLAY_MESSAGES,
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
     type ReadContentType,
     type ToolName,
 } from '@lightdash/common';
+import i18n from '../../../../../../../i18n/i18n';
 import { type ToolCallGroupDisplay } from './toolCallGrouping';
 import { type ToolCallSummary } from './types';
 
@@ -15,26 +15,21 @@ type ContentToolArgs = {
 };
 
 // Documents are read and written by the content tools but aren't a readContent type
-const CONTENT_TYPE_LABELS: Record<ReadContentType | 'document', string> = {
-    ...READ_CONTENT_TYPE_LABELS,
-    document: 'document',
+const CONTENT_TYPE_LABEL_KEYS: Record<ReadContentType | 'document', string> = {
+    dashboard: 'contentTool.types.dashboard',
+    chart: 'contentTool.types.chart',
+    sql_chart: 'contentTool.types.sqlChart',
+    data_app: 'contentTool.types.dataApp',
+    document: 'contentTool.types.document',
 };
 
-const CONTENT_TOOL_LABELS: Partial<
-    Record<ToolName, Record<ToolCallDisplayStatus, (type: string) => string>>
+// Keys under `contentTool` in the aiCopilotChat namespace.
+const CONTENT_TOOL_LABEL_KEYS: Partial<
+    Record<ToolName, Record<ToolCallDisplayStatus, string>>
 > = {
-    readContent: {
-        running: (type) => `Reading ${type}`,
-        done: (type) => `Read ${type}`,
-    },
-    editContent: {
-        running: (type) => `Editing ${type}`,
-        done: (type) => `Edited ${type}`,
-    },
-    createContent: {
-        running: (type) => `Creating ${type}`,
-        done: (type) => `Created ${type}`,
-    },
+    readContent: { running: 'reading', done: 'read' },
+    editContent: { running: 'editing', done: 'edited' },
+    createContent: { running: 'creating', done: 'created' },
 };
 
 const getContentType = (call: ToolCallSummary) => {
@@ -47,7 +42,7 @@ const getContentToolDisplayMessage = (
     calls: ToolCallSummary[],
     status: ToolCallDisplayStatus,
 ) => {
-    const labelForTool = CONTENT_TOOL_LABELS[toolName];
+    const labelForTool = CONTENT_TOOL_LABEL_KEYS[toolName];
     if (!labelForTool) return null;
 
     const contentTypes = new Set(calls.map(getContentType).filter(Boolean));
@@ -55,7 +50,12 @@ const getContentToolDisplayMessage = (
 
     const [contentType] = contentTypes;
     return contentType
-        ? labelForTool[status](CONTENT_TYPE_LABELS[contentType])
+        ? i18n.t(`contentTool.${labelForTool[status]}`, {
+              ns: 'aiCopilotChat',
+              type: i18n.t(CONTENT_TYPE_LABEL_KEYS[contentType], {
+                  ns: 'aiCopilotChat',
+              }),
+          })
         : null;
 };
 

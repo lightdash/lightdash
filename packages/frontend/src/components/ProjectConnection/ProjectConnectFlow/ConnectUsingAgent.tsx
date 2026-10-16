@@ -8,6 +8,7 @@ import {
 import { Button, Stack, Text, Title } from '@mantine/core';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AgentOnboardingLaunchPanel } from '../../../ee/features/agentOnboarding/AgentOnboardingLaunchPanel';
 import { useCreateProjectWithoutCompileMutation } from '../../../hooks/useProject';
 import MantineIcon from '../../common/MantineIcon';
@@ -55,6 +56,7 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
     siteUrl,
     onBack,
 }) => {
+    const { t } = useTranslation('projectConnection');
     const [preparedProject, setPreparedProject] = useState<PreparedProject>();
     const isCreatingProjectRef = useRef(false);
     const createProjectMutation = useCreateProjectWithoutCompileMutation();
@@ -85,7 +87,9 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
                 [getSchemaField(selectedWarehouse)]: '',
             } as CreateWarehouseCredentials;
             const result = await createProjectMutation.mutateAsync({
-                name: `Coding agent onboarding ${new Date().toISOString()}`,
+                name: t('connectFlow.agent.projectName', {
+                    date: new Date().toISOString(),
+                }),
                 type: ProjectType.DEFAULT,
                 dbtConnection: { type: DbtProjectType.NONE },
                 dbtVersion: dbtDefaults.dbtVersion,
@@ -126,17 +130,17 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
                 leftSection={<MantineIcon icon={IconChevronLeft} />}
                 onClick={onBack}
             >
-                Back
+                {t('actions.back', { ns: 'common' })}
             </Button>
 
             <div>
                 <OnboardingTitle>
-                    Connect your {getWarehouseLabel(selectedWarehouse)}{' '}
-                    warehouse
+                    {t('connectFlow.agent.title', {
+                        warehouse: getWarehouseLabel(selectedWarehouse),
+                    })}
                 </OnboardingTitle>
                 <Text c="dimmed" mt="xs">
-                    Lightdash stores these credentials securely. They are never
-                    copied into the coding-agent prompt.
+                    {t('connectFlow.agent.credentialsNote')}
                 </Text>
             </div>
 
@@ -150,12 +154,10 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
                             <div>
                                 {getWarehouseIcon(selectedWarehouse)}
                                 <Title order={5} mt="xs">
-                                    Warehouse connection
+                                    {t('projectForm.warehouseConnection')}
                                 </Title>
                                 <Text c="dimmed" fz="sm" mt="xs">
-                                    The coding agent can query your warehouse
-                                    through Lightdash without receiving its
-                                    credentials.
+                                    {t('connectFlow.agent.warehouseNote')}
                                 </Text>
                             </div>
                             <ProjectFormProvider>
@@ -171,7 +173,7 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
                             disabled={createProjectMutation.isLoading}
                             style={{ alignSelf: 'end' }}
                         >
-                            Next
+                            {t('actions.next', { ns: 'common' })}
                         </Button>
                     </Stack>
                 </form>

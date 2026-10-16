@@ -6,6 +6,7 @@ import {
 } from '@mantine/core';
 import { IconStar, IconStarFilled } from '@tabler/icons-react';
 import { type FC, type MouseEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon, { type MantineIconSize } from './MantineIcon';
 
 type Props = Omit<ActionIconProps, 'children' | 'color'> & {
@@ -28,12 +29,20 @@ export const FavoriteActionIcon: FC<Props> = ({
     favoriteColor = 'orange',
     ...rest
 }) => {
-    const subject = name ? ` ${name}` : '';
-    const label =
-        customLabel ??
-        (isFavorite
-            ? `Remove${subject} from favorites`
-            : `Add${subject} to favorites`);
+    const { t } = useTranslation('commonUi');
+    const favoriteLabel = name
+        ? t(
+              isFavorite
+                  ? 'favoriteActionIcon.removeNamed'
+                  : 'favoriteActionIcon.addNamed',
+              { name },
+          )
+        : t(
+              isFavorite
+                  ? 'favoriteActionIcon.remove'
+                  : 'favoriteActionIcon.add',
+          );
+    const label = customLabel ?? favoriteLabel;
 
     return (
         <Tooltip label={label}>

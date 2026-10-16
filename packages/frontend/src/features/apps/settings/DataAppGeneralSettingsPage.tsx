@@ -10,6 +10,7 @@ import {
     Title,
 } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../components/common/Callout';
 import ErrorState from '../../../components/common/ErrorState';
 import { SettingsCard } from '../../../components/common/Settings/SettingsCard';
@@ -22,6 +23,7 @@ import {
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 
 export const DataAppGeneralSettingsPage: FC = () => {
+    const { t } = useTranslation('apps');
     const health = useHealth();
     const {
         data: settings,
@@ -43,8 +45,8 @@ export const DataAppGeneralSettingsPage: FC = () => {
 
     return (
         <SettingsPage
-            title="General"
-            description="Organization-wide behaviour of data apps."
+            title={t('generalSettings.title')}
+            description={t('generalSettings.description')}
         >
             {isError ? (
                 <SettingsCard>
@@ -54,7 +56,7 @@ export const DataAppGeneralSettingsPage: FC = () => {
                             variant="default"
                             onClick={() => void refetch()}
                         >
-                            Try again
+                            {t('generalSettings.tryAgain')}
                         </Button>
                     </Stack>
                 </SettingsCard>
@@ -70,12 +72,10 @@ export const DataAppGeneralSettingsPage: FC = () => {
                     {!hasHeadlessBrowser && (
                         <Callout
                             variant="info"
-                            title="No headless browser is configured"
+                            title={t('generalSettings.noBrowser.title')}
                         >
                             <Text fz="xs">
-                                Thumbnails are captured in a headless browser,
-                                and this instance does not have one. Automatic
-                                capture is skipped until one is configured.
+                                {t('generalSettings.noBrowser.body')}
                             </Text>
                         </Callout>
                     )}
@@ -88,20 +88,19 @@ export const DataAppGeneralSettingsPage: FC = () => {
                         >
                             <Box maw={620}>
                                 <Title order={5} mb={4}>
-                                    Automatically capture thumbnails
+                                    {t('generalSettings.thumbnails.title')}
                                 </Title>
                                 <Text c="dimmed" fz="xs">
-                                    Each data app version gets a thumbnail when
-                                    it becomes ready, rendered as the user who
-                                    created it. Text is blurred so values are
-                                    not readable. Turning this off keeps
-                                    existing thumbnails, and thumbnails can
-                                    still be captured by hand.
+                                    {t(
+                                        'generalSettings.thumbnails.description',
+                                    )}
                                 </Text>
                             </Box>
                             <Switch
                                 size="md"
-                                aria-label="Automatically capture thumbnails for data app versions"
+                                aria-label={t(
+                                    'generalSettings.thumbnails.ariaLabel',
+                                )}
                                 checked={
                                     settings.dataAppAutomaticThumbnailsEnabled !==
                                     false

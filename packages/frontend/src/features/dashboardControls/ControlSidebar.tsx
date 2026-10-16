@@ -1,6 +1,7 @@
 import { type DashboardFilterRule } from '@lightdash/common';
 import { Button, Group, Menu, Text, TextInput } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { EditorShell } from './EditorShell';
 import { FieldsAndTiles } from './FieldsAndTiles';
@@ -24,6 +25,7 @@ type FilterEditorProps = {
 // Mounted with the filter id as key, so the label draft and the armed state
 // never carry over to another control, and the label takes focus each time
 const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
+    const { t } = useTranslation('dashboardFilters');
     const isNew = useControlsSidebarSelector((c) => c.isNew);
     const emptiedFieldLabel = useControlsSidebarSelector(
         (c) => c.emptiedFieldLabel,
@@ -53,7 +55,9 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     }, [removeArmed, removeFilter]);
     const moreActions = (
         <Menu.Item color="red" onClick={handleRemoveClick}>
-            {removeArmed ? 'Click again to remove' : 'Remove filter'}
+            {removeArmed
+                ? t('controls.editor.clickAgainToRemove')
+                : t('controls.editor.removeFilter')}
         </Menu.Item>
     );
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
@@ -118,29 +122,45 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     // A control that lost its last field keeps the title it had
     const title =
         isPlaceholder && isNew && emptiedFieldLabel === null
-            ? 'New filter'
+            ? t('controls.editor.newFilter')
             : hasLabel
               ? label.draft
-              : (fallbackName ?? emptiedFieldLabel ?? 'Filter');
+              : (fallbackName ??
+                emptiedFieldLabel ??
+                t('controls.editor.filterFallbackTitle'));
     // Closing keeps the edits, so the footer says what closing would drop
     const footerStatus = isPlaceholder
-        ? 'Select a field to keep this filter'
+        ? t('controls.editor.selectFieldToKeep')
         : isDefaultValueIncomplete(filterRule)
-          ? 'No default value set, so the default stays off'
+          ? t('controls.editor.noDefaultValue')
           : null;
     const discardLabel = isNew
-        ? 'Discard filter'
+        ? t('controls.editor.discardFilter')
         : isDirty
-          ? 'Discard changes'
+          ? t('controls.editor.discardChanges')
           : null;
     const fieldCount = getFilterFields(filterRule).length;
     const tabReach =
         dashboardTabs.length > 1
-            ? ` on ${reach.tabCount} of ${dashboardTabs.length} tabs`
+            ? t('controls.editor.subtitle.tabReach', {
+                  applied: reach.tabCount,
+                  total: dashboardTabs.length,
+              })
             : '';
     const subtitle = isPlaceholder
-        ? 'No field yet'
-        : `${fieldCount > 1 ? `${fieldCount} fields · filters` : 'Filters'} ${reach.applied} of ${reach.total} ${reach.total === 1 ? 'tile' : 'tiles'}${tabReach}`;
+        ? t('controls.editor.subtitle.noField')
+        : fieldCount > 1
+          ? t('controls.editor.subtitle.fieldsFilterTiles', {
+                fieldCount,
+                applied: reach.applied,
+                count: reach.total,
+                tabReach,
+            })
+          : t('controls.editor.subtitle.filtersTiles', {
+                applied: reach.applied,
+                count: reach.total,
+                tabReach,
+            });
     const showSettings = activeSection === 'settings' && !isPlaceholder;
 
     return (
@@ -155,14 +175,14 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
             tabs={[
                 {
                     value: 'fields',
-                    label: 'Fields and tiles',
+                    label: t('controls.editor.tabs.fieldsAndTiles'),
                     count: isPlaceholder ? 0 : fieldCount,
                 },
                 {
                     value: 'settings',
-                    label: 'Settings',
+                    label: t('controls.editor.tabs.settings'),
                     disabled: isPlaceholder,
-                    disabledReason: 'Select a field first',
+                    disabledReason: t('controls.editor.tabs.selectFieldFirst'),
                 },
             ]}
             activeTab={showSettings ? 'settings' : 'fields'}
@@ -174,9 +194,12 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
             aboveTabs={
                 <>
                     <TextInput
-                        label="Filter label"
+                        label={t('controls.editor.filterLabel')}
                         // Left empty, the filter goes by its field's name
-                        placeholder={fallbackName ?? 'Name viewers will see'}
+                        placeholder={
+                            fallbackName ??
+                            t('controls.editor.filterLabelPlaceholder')
+                        }
                         autoFocus
                         data-controls-label
                         value={label.draft}
@@ -194,7 +217,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                     {isNew && !hasLabel && fieldLabel !== null && (
                         <Group gap="xs">
                             <Text fz="xs" c="dimmed">
-                                Suggestions
+                                {t('controls.editor.suggestions')}
                             </Text>
                             <Button
                                 size="compact-xs"

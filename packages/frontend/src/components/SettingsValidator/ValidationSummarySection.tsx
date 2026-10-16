@@ -1,5 +1,4 @@
 import {
-    friendlyName,
     ValidationErrorType,
     type ValidationErrorGroup,
     type ValidationGroupedSummary,
@@ -16,45 +15,59 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../common/MantineIcon';
+import { getErrorTypeLabel } from './utils/errorTypeLabel';
 import classes from './ValidationSummarySection.module.css';
 
-const getGroupTitle = (group: ValidationErrorGroup): string => {
+const getGroupTitle = (
+    group: ValidationErrorGroup,
+    t: TFunction<'projectSettings'>,
+): string => {
     if (group.errorType === ValidationErrorType.Model && group.tableName) {
         return group.sampleError.includes('failed to compile')
-            ? `Model ${group.tableName} failed to compile`
-            : `Model ${group.tableName} no longer exists`;
+            ? t('validator.summary.modelFailedToCompile', {
+                  tableName: group.tableName,
+              })
+            : t('validator.summary.modelNoLongerExists', {
+                  tableName: group.tableName,
+              });
     }
+    const errorType = getErrorTypeLabel(group.errorType, t);
     if (group.fieldName) {
-        return `${friendlyName(group.errorType)}: ${group.fieldName}`;
+        return t('validator.summary.typeWithName', {
+            errorType,
+            name: group.fieldName,
+        });
     }
     if (group.tableName) {
-        return `${friendlyName(group.errorType)}: ${group.tableName}`;
+        return t('validator.summary.typeWithName', {
+            errorType,
+            name: group.tableName,
+        });
     }
-    return `${friendlyName(group.errorType)} errors`;
+    return t('validator.summary.typeErrors', { errorType });
 };
 
-const getAffectedLabel = (group: ValidationErrorGroup): string => {
+const getAffectedLabel = (
+    group: ValidationErrorGroup,
+    t: TFunction<'projectSettings'>,
+): string => {
     const parts = [
         group.affectedCharts > 0 &&
-            `${group.affectedCharts} chart${
-                group.affectedCharts === 1 ? '' : 's'
-            }`,
+            t('validator.counts.charts', { count: group.affectedCharts }),
         group.affectedDashboards > 0 &&
-            `${group.affectedDashboards} dashboard${
-                group.affectedDashboards === 1 ? '' : 's'
-            }`,
+            t('validator.counts.dashboards', {
+                count: group.affectedDashboards,
+            }),
         group.affectedTables > 0 &&
-            `${group.affectedTables} table${
-                group.affectedTables === 1 ? '' : 's'
-            }`,
+            t('validator.counts.tables', { count: group.affectedTables }),
         group.affectedDataApps > 0 &&
-            `${group.affectedDataApps} data app${
-                group.affectedDataApps === 1 ? '' : 's'
-            }`,
+            t('validator.counts.dataApps', { count: group.affectedDataApps }),
     ].filter(Boolean);
-    return parts.join(', ');
+    return parts.join(t('validator.listSeparator'));
 };
 
 type Props = {
@@ -70,15 +83,20 @@ export const ValidationSummarySection: FC<Props> = ({
     onToggleGroup,
     onDeleteGroup,
 }) => {
+    const { t } = useTranslation('projectSettings');
     if (summary.groups.length === 0) return null;
 
     return (
         <Stack gap="xs">
             <Text fz="xs" fw={600} c="ldGray.7">
-                {summary.totalErrors} error
-                {summary.totalErrors === 1 ? '' : 's'} across{' '}
-                {summary.totalAffectedItems} item
-                {summary.totalAffectedItems === 1 ? '' : 's'}, grouped by cause
+                {t('validator.summary.header', {
+                    errors: t('validator.counts.errors', {
+                        count: summary.totalErrors,
+                    }),
+                    items: t('validator.counts.items', {
+                        count: summary.totalAffectedItems,
+                    }),
+                })}
             </Text>
             <ScrollArea scrollbars="x" offsetScrollbars>
                 <Group gap="xs" wrap="nowrap">
@@ -122,16 +140,20 @@ export const ValidationSummarySection: FC<Props> = ({
                                                     fw={600}
                                                     className={classes.title}
                                                 >
-                                                    {getGroupTitle(group)}
+                                                    {getGroupTitle(group, t)}
                                                 </Text>
                                                 <Text fz="xs" c="dimmed">
-                                                    {getAffectedLabel(group)}
+                                                    {getAffectedLabel(group, t)}
                                                 </Text>
                                             </Stack>
                                         </Group>
                                     </UnstyledButton>
                                     {isDeletableModelGroup && (
-                                        <Tooltip label="Delete all content referencing this model">
+                                        <Tooltip
+                                            label={t(
+                                                'validator.summary.deleteGroupTooltip',
+                                            )}
+                                        >
                                             <ActionIcon
                                                 color="red"
                                                 size="sm"

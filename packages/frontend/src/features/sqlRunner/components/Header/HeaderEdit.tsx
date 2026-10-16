@@ -19,6 +19,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import isEqual from 'lodash/isEqual';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import PageHeader from '../../../../components/common/Page/PageHeader';
@@ -45,6 +46,7 @@ import { SqlQueryBeforeSaveAlert } from '../SqlQueryBeforeSaveAlert';
 import { UpdateSqlChartModal } from '../UpdateSqlChartModal';
 
 export const HeaderEdit: FC = () => {
+    const { t } = useTranslation('sqlRunner');
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
@@ -252,7 +254,7 @@ export const HeaderEdit: FC = () => {
                                     loading={isLoading}
                                     onClick={onSaveClick}
                                 >
-                                    Save
+                                    {t('actions.save', { ns: 'common' })}
                                 </Button>
                             </HoverCard.Target>
                             <HoverCard.Dropdown p={0} bg="yellow.0">
@@ -266,11 +268,11 @@ export const HeaderEdit: FC = () => {
                                 variant="default"
                                 onClick={handleGoBackToViewPage}
                             >
-                                Cancel
+                                {t('actions.cancel', { ns: 'common' })}
                             </Button>
                         ) : (
                             <Tooltip
-                                label="Back to view page"
+                                label={t('header.backToViewPage')}
                                 position="bottom"
                             >
                                 <ActionIcon
@@ -290,7 +292,7 @@ export const HeaderEdit: FC = () => {
                                 </ActionIcon>
                             </Menu.Target>
                             <Menu.Dropdown>
-                                <Menu.Label>Manage</Menu.Label>
+                                <Menu.Label>{t('header.manage')}</Menu.Label>
                                 <Menu.Item
                                     disabled={!config || !sql}
                                     leftSection={
@@ -303,7 +305,7 @@ export const HeaderEdit: FC = () => {
                                         )
                                     }
                                 >
-                                    Delete
+                                    {t('actions.delete', { ns: 'common' })}
                                 </Menu.Item>
                             </Menu.Dropdown>
                         </Menu>

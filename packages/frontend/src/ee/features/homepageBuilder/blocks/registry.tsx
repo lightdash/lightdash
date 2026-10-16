@@ -15,6 +15,8 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import i18n from '../../../../i18n/i18n';
+import { getDefaultGreetingSubtitle } from '../greeting';
 import {
     AnnouncementsBlockBuild,
     AnnouncementsBlockView,
@@ -35,10 +37,14 @@ import { RecentBlockBuild, RecentBlockView } from './RecentBlock';
 import { ResourcesBlockBuild, ResourcesBlockView } from './ResourcesBlock';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
+const ns = 'homepageBuilder';
+
 export type BlockDefinition = {
     type: HomepageBlock['type'];
-    label: string;
-    description: string;
+    labelKey: string;
+    descriptionKey: string;
+    /** Stable English value for `data-tour-value`; not user-facing copy. */
+    tourValue: string;
     icon: Icon;
     requiresAi?: boolean;
     /** Can only be added once per homepage. */
@@ -53,8 +59,9 @@ export type BlockDefinition = {
 export const blockLibrary: BlockDefinition[] = [
     {
         type: 'ask-ai-hero',
-        label: 'Ask AI',
-        description: 'AI chat composer with live suggestions, and a greeting.',
+        labelKey: 'blockLibrary.askAiHero.label',
+        descriptionKey: 'blockLibrary.askAiHero.description',
+        tourValue: 'Ask AI',
         icon: IconMessageChatbot,
         requiresAi: true,
         singleton: true,
@@ -68,14 +75,15 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'greeting',
-        label: 'Greeting',
-        description: 'A time-of-day welcome, personalised per viewer.',
+        labelKey: 'blockLibrary.greeting.label',
+        descriptionKey: 'blockLibrary.greeting.description',
+        tourValue: 'Greeting',
         icon: IconSun,
         create: () => ({
             id: uuidv4(),
             type: 'greeting',
             config: {
-                subtitle: 'Pick up where you left off, or start something new.',
+                subtitle: getDefaultGreetingSubtitle(),
             },
         }),
         View: GreetingBlockView,
@@ -83,8 +91,9 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'quick-actions',
-        label: 'Quick actions',
-        description: 'Primary CTA cards — tailor the main action per audience.',
+        labelKey: 'blockLibrary.quickActions.label',
+        descriptionKey: 'blockLibrary.quickActions.description',
+        tourValue: 'Quick actions',
         icon: IconBolt,
         create: () => ({
             id: uuidv4(),
@@ -96,15 +105,16 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'cta',
-        label: 'Call to action',
-        description: 'One brand-themed banner with a single button.',
+        labelKey: 'blockLibrary.cta.label',
+        descriptionKey: 'blockLibrary.cta.description',
+        tourValue: 'Call to action',
         icon: IconRocket,
         singleton: true,
         create: () => ({
             id: uuidv4(),
             type: 'cta',
             config: {
-                buttonLabel: 'Run a query',
+                buttonLabel: i18n.t('blockDefaults.ctaButtonLabel', { ns }),
                 target: { type: 'run-query' },
             },
         }),
@@ -113,98 +123,121 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'metrics',
-        label: 'Metrics',
-        description: 'KPI cards from the metrics catalog, with deltas.',
+        labelKey: 'blockLibrary.metrics.label',
+        descriptionKey: 'blockLibrary.metrics.description',
+        tourValue: 'Metrics',
         icon: IconChartDots,
         singleton: true,
         create: () => ({
             id: uuidv4(),
             type: 'metrics',
-            config: { title: 'This month', items: [] },
+            config: {
+                title: i18n.t('blockDefaults.metricsTitle', { ns }),
+                items: [],
+            },
         }),
         View: MetricsBlockView,
         Build: MetricsBlockBuild,
     },
     {
         type: 'collection',
-        label: 'Collection',
-        description:
-            'A curated set of dashboards, charts, spaces, and data apps.',
+        labelKey: 'blockLibrary.collection.label',
+        descriptionKey: 'blockLibrary.collection.description',
+        tourValue: 'Collection',
         icon: IconLayoutGrid,
         create: () => ({
             id: uuidv4(),
             type: 'collection',
-            config: { title: 'Key dashboards', items: [] },
+            config: {
+                title: i18n.t('blockDefaults.collectionTitle', { ns }),
+                items: [],
+            },
         }),
         View: CollectionBlockView,
         Build: CollectionBlockBuild,
     },
     {
         type: 'resources',
-        label: 'Resources',
-        description:
-            'Rich cards — data apps, Claude artifacts, YouTube, docs, links.',
+        labelKey: 'blockLibrary.resources.label',
+        descriptionKey: 'blockLibrary.resources.description',
+        tourValue: 'Resources',
         icon: IconBook,
         create: () => ({
             id: uuidv4(),
             type: 'resources',
-            config: { title: 'Getting started', items: [], layout: 'card' },
+            config: {
+                title: i18n.t('blockDefaults.resourcesTitle', { ns }),
+                items: [],
+                layout: 'card',
+            },
         }),
         View: ResourcesBlockView,
         Build: ResourcesBlockBuild,
     },
     {
         type: 'announcements',
-        label: 'Announcements',
-        description: 'Updates from the data team, newest first.',
+        labelKey: 'blockLibrary.announcements.label',
+        descriptionKey: 'blockLibrary.announcements.description',
+        tourValue: 'Announcements',
         icon: IconSpeakerphone,
         singleton: true,
         create: () => ({
             id: uuidv4(),
             type: 'announcements',
-            config: { title: 'From the data team' },
+            config: {
+                title: i18n.t('blockDefaults.announcementsTitle', { ns }),
+            },
         }),
         View: AnnouncementsBlockView,
         Build: AnnouncementsBlockBuild,
     },
     {
         type: 'favorites',
-        label: 'Favorites',
-        description: 'Each viewer’s starred content, only visible to them.',
+        labelKey: 'blockLibrary.favorites.label',
+        descriptionKey: 'blockLibrary.favorites.description',
+        tourValue: 'Favorites',
         icon: IconStar,
         personal: true,
         create: () => ({
             id: uuidv4(),
             type: 'favorites',
-            config: { title: 'My favorites' },
+            config: {
+                title: i18n.t('blockDefaults.favoritesTitle', { ns }),
+            },
         }),
         View: FavoritesBlockView,
         Build: FavoritesBlockBuild,
     },
     {
         type: 'recent',
-        label: 'Recently viewed',
-        description: 'Each viewer’s recently opened charts and dashboards.',
+        labelKey: 'blockLibrary.recent.label',
+        descriptionKey: 'blockLibrary.recent.description',
+        tourValue: 'Recently viewed',
         icon: IconClock,
         singleton: true,
         personal: true,
         create: () => ({
             id: uuidv4(),
             type: 'recent',
-            config: { title: 'Recently viewed' },
+            config: {
+                title: i18n.t('blockDefaults.recentTitle', { ns }),
+            },
         }),
         View: RecentBlockView,
         Build: RecentBlockBuild,
     },
     {
         type: 'markdown',
-        label: 'Text / banner',
-        description: 'Markdown text, notes or a welcome banner.',
+        labelKey: 'blockLibrary.markdown.label',
+        descriptionKey: 'blockLibrary.markdown.description',
+        tourValue: 'Text / banner',
         icon: IconMarkdown,
         create: () => ({
             id: uuidv4(),
             type: 'markdown',
-            config: { content: '## New section\n\nEdit me.' },
+            config: {
+                content: i18n.t('blockDefaults.markdownContent', { ns }),
+            },
         }),
         View: MarkdownBlockView,
         Build: MarkdownBlockBuild,

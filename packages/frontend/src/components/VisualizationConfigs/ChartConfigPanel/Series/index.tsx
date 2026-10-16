@@ -19,6 +19,7 @@ import {
 import { Checkbox, Divider, Stack, Switch } from '@mantine/core';
 import React, { Fragment, useCallback, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import {
     getSeriesGroupedByField,
     isPivotSeriesOrderDeterminedByQuery,
@@ -53,6 +54,7 @@ type Props = {
 };
 
 export const Series: FC<Props> = ({ items }) => {
+    const { t } = useTranslation('vizConfig');
     const {
         visualizationConfig,
         getSeriesColor,
@@ -378,7 +380,7 @@ export const Series: FC<Props> = ({ items }) => {
                         <Stack gap="xs">
                             <Switch
                                 size="xs"
-                                label="Apply custom colors"
+                                label={t('series.applyCustomColors')}
                                 checked={customColorsEnabled}
                                 onChange={(e) => {
                                     if (e.currentTarget.checked) {
@@ -445,7 +447,7 @@ export const Series: FC<Props> = ({ items }) => {
                 <Checkbox
                     size="xs"
                     checked={showOverlappingLabelsEnabled}
-                    label="Show overlapping labels"
+                    label={t('series.showOverlappingLabels')}
                     onChange={handleOverlappingLabelsToggle}
                 />
             )}

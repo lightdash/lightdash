@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Badge, Button, Group, Text, Tooltip } from '@mantine/core';
 import { IconArrowsDiff, IconX } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import {
     Link,
     Navigate,
@@ -45,50 +46,62 @@ const VersionByline = ({
 }: {
     summary: DocumentVersionSummary | null;
     isCurrent: boolean;
-}) => (
-    <Group gap="xs" wrap="nowrap">
-        {summary && (
-            <>
-                <Group
-                    gap="xs"
-                    wrap="nowrap"
-                    role="group"
-                    aria-label="Saved by"
-                >
-                    {summary.createdBy && (
-                        <LightdashUserAvatar
-                            userUuid={summary.createdBy.userUuid}
-                            avatarUrl={summary.createdBy.avatarUrl}
-                            avatarGradient={summary.createdBy.avatarGradient}
-                            name={getVersionAuthor(summary)}
-                            size="sm"
-                            aria-hidden
-                        />
-                    )}
-                    <Text fz="xs" fw={500} c="dimmed">
-                        {getVersionAuthor(summary)}
+}) => {
+    const { t } = useTranslation('pages');
+    return (
+        <Group gap="xs" wrap="nowrap">
+            {summary && (
+                <>
+                    <Group
+                        gap="xs"
+                        wrap="nowrap"
+                        role="group"
+                        aria-label={t('documentHistory.savedBy')}
+                    >
+                        {summary.createdBy && (
+                            <LightdashUserAvatar
+                                userUuid={summary.createdBy.userUuid}
+                                avatarUrl={summary.createdBy.avatarUrl}
+                                avatarGradient={
+                                    summary.createdBy.avatarGradient
+                                }
+                                name={getVersionAuthor(summary)}
+                                size="sm"
+                                aria-hidden
+                            />
+                        )}
+                        <Text fz="xs" fw={500} c="dimmed">
+                            {getVersionAuthor(summary)}
+                        </Text>
+                    </Group>
+                    <Text fz="xs" c="dimmed" aria-hidden>
+                        ·
                     </Text>
-                </Group>
-                <Text fz="xs" c="dimmed" aria-hidden>
-                    ·
-                </Text>
-                <Text fz="xs" c="dimmed">
-                    Saved {formatVersionTime(summary.createdAt)}
-                </Text>
-                <Text fz="xs" c="dimmed" aria-hidden>
-                    ·
-                </Text>
-                <Badge size="sm" role="status">
-                    {isCurrent
-                        ? `Current version ${summary.versionNumber}`
-                        : `Version ${summary.versionNumber}`}
-                </Badge>
-            </>
-        )}
-    </Group>
-);
+                    <Text fz="xs" c="dimmed">
+                        {t('documentHistory.saved', {
+                            time: formatVersionTime(summary.createdAt),
+                        })}
+                    </Text>
+                    <Text fz="xs" c="dimmed" aria-hidden>
+                        ·
+                    </Text>
+                    <Badge size="sm" role="status">
+                        {isCurrent
+                            ? t('documentHistory.currentVersion', {
+                                  number: summary.versionNumber,
+                              })
+                            : t('documentHistory.version', {
+                                  number: summary.versionNumber,
+                              })}
+                    </Badge>
+                </>
+            )}
+        </Group>
+    );
+};
 
 const DocumentHistoryView = ({ document }: { document: Document }) => {
+    const { t } = useTranslation('pages');
     const navigate = useNavigate();
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -144,14 +157,14 @@ const DocumentHistoryView = ({ document }: { document: Document }) => {
     if (!isCurrent && historical.error) {
         return (
             <SuboptimalState
-                title="Version unavailable"
-                description="This version does not belong to this document, or it could not be loaded."
+                title={t('documentHistory.versionUnavailable')}
+                description={t('documentHistory.versionUnavailableDescription')}
                 action={
                     <Button
                         variant="default"
                         onClick={() => setSearchParams({}, { replace: true })}
                     >
-                        Show current version
+                        {t('documentHistory.showCurrent')}
                     </Button>
                 }
             />
@@ -161,19 +174,22 @@ const DocumentHistoryView = ({ document }: { document: Document }) => {
         <VersionByline summary={summary} isCurrent={shownIsCurrent} />
     );
     const actions = (
-        <ActionIcon.Group role="group" aria-label="Version history controls">
+        <ActionIcon.Group
+            role="group"
+            aria-label={t('documentHistory.controls')}
+        >
             {!isCurrent && (
                 <Tooltip
                     label={
                         isComparing
-                            ? 'Show this version'
-                            : 'Compare with current version'
+                            ? t('documentHistory.showThisVersion')
+                            : t('documentHistory.compareWithCurrent')
                     }
                 >
                     <ActionIcon
                         variant={isComparing ? 'filled' : 'default'}
                         size="lg"
-                        aria-label="Compare with current version"
+                        aria-label={t('documentHistory.compareWithCurrent')}
                         aria-pressed={isComparing}
                         onClick={() =>
                             setSearchParams(
@@ -191,11 +207,11 @@ const DocumentHistoryView = ({ document }: { document: Document }) => {
                     </ActionIcon>
                 </Tooltip>
             )}
-            <Tooltip label="Close version history">
+            <Tooltip label={t('documentHistory.close')}>
                 <ActionIcon
                     variant="default"
                     size="lg"
-                    aria-label="Close version history"
+                    aria-label={t('documentHistory.close')}
                     onClick={() => void navigate(documentUrl)}
                 >
                     <MantineIcon icon={IconX} />
@@ -219,10 +235,15 @@ const DocumentHistoryView = ({ document }: { document: Document }) => {
                         <DocumentVersionComparison
                             before={historical.data.version.content}
                             after={document.version.content}
-                            description={`Changes from version ${historical.data.version.versionNumber} to the current version ${document.version.versionNumber}.`}
+                            description={t('documentHistory.changesFrom', {
+                                from: historical.data.version.versionNumber,
+                                to: document.version.versionNumber,
+                            })}
                         />
                     ) : (
-                        <EmptyStateLoader title="Loading version" />
+                        <EmptyStateLoader
+                            title={t('documentHistory.loadingVersion')}
+                        />
                     )}
                 </DocumentReportLayout>
             ) : (
@@ -245,23 +266,26 @@ const DocumentHistoryContent = ({
     projectUuid: string;
     documentUuidOrSlug: UuidOrSlug;
 }) => {
+    const { t } = useTranslation('pages');
     const query = useDocument(projectUuid, documentUuidOrSlug);
     const projectUrlIdentifier = useProjectUrlIdentifier();
     if (query.isInitialLoading) {
-        return <EmptyStateLoader my="xl" title="Loading version history" />;
+        return (
+            <EmptyStateLoader my="xl" title={t('documentHistory.loading')} />
+        );
     }
     if (query.isError || !query.data) {
         return (
             <SuboptimalState
-                title="Document unavailable"
-                description="This document may have been deleted, or you may not have access."
+                title={t('document.unavailable')}
+                description={t('document.unavailableDescription')}
                 action={
                     <Button
                         component={Link}
                         to={`/projects/${projectUrlIdentifier}/documents`}
                         variant="default"
                     >
-                        Back
+                        {t('actions.back', { ns: 'common' })}
                     </Button>
                 }
             />
@@ -276,13 +300,16 @@ const DocumentHistoryContent = ({
 };
 
 const DocumentHistoryPage = () => {
+    const { t } = useTranslation('pages');
     const projectUuid = useProjectUuid();
     const { documentUuidOrSlug } = useParams<{
         documentUuidOrSlug: UuidOrSlug;
     }>();
     const flag = useServerFeatureFlag(FeatureFlags.Documents);
     if (!projectUuid || flag.isInitialLoading) {
-        return <EmptyStateLoader my="xl" title="Loading version history" />;
+        return (
+            <EmptyStateLoader my="xl" title={t('documentHistory.loading')} />
+        );
     }
     if (flag.isError || !flag.data?.enabled || !documentUuidOrSlug) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;

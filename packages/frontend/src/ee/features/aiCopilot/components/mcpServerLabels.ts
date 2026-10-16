@@ -3,15 +3,16 @@ import {
     type AiMcpServerAuthType,
     type AiMcpServerConnectionStatus,
 } from '@lightdash/common';
+import i18n from '../../../../i18n/i18n';
 
 export const getMcpAuthTypeLabel = (authType: AiMcpServerAuthType) => {
     switch (authType) {
         case 'oauth':
-            return 'OAuth';
+            return i18n.t('mcpLabels.auth.oauth', { ns: 'aiAgent' });
         case 'bearer':
-            return 'Bearer';
+            return i18n.t('mcpLabels.auth.bearer', { ns: 'aiAgent' });
         default:
-            return 'No auth';
+            return i18n.t('mcpLabels.auth.none', { ns: 'aiAgent' });
     }
 };
 
@@ -20,14 +21,16 @@ export const getMcpConnectionStatusLabel = (
 ) => {
     switch (mcpServer.connectionStatus) {
         case 'connected':
-            return 'Connected';
+            return i18n.t('mcpLabels.status.connected', { ns: 'aiAgent' });
         case 'connecting':
-            return 'Connecting';
+            return i18n.t('mcpLabels.status.connecting', { ns: 'aiAgent' });
         case 'error':
-            return 'Reconnect required';
+            return i18n.t('mcpLabels.status.reconnectRequired', {
+                ns: 'aiAgent',
+            });
         case 'not_connected':
         default:
-            return 'Not connected';
+            return i18n.t('mcpLabels.status.notConnected', { ns: 'aiAgent' });
     }
 };
 

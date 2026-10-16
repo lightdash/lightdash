@@ -37,6 +37,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import {
     classifyFieldValueSearchError,
@@ -233,6 +234,7 @@ const FilterStringAutoComplete: FC<Props> = ({
     comboboxProps,
     ...rest
 }) => {
+    const { t } = useTranslation('filters');
     const getUiString = useUiStrings();
     // The "(null)" option is only meaningful for multi-value filters.
     const showNull = !!showNullOption && !singleValue;
@@ -474,14 +476,19 @@ const FilterStringAutoComplete: FC<Props> = ({
                         size="xs"
                         w="100%"
                         readOnly
-                        value={`${values.length.toLocaleString()} values selected`}
+                        value={t('inputs.valuesSelected', {
+                            count: values.length,
+                            formattedCount: values.length.toLocaleString(),
+                        })}
                         disabled={disabled}
                         rightSectionPointerEvents="all"
                         rightSection={
                             disabled ? null : (
-                                <Tooltip label="Edit filter values">
+                                <Tooltip label={t('inputs.editFilterValues')}>
                                     <ActionIcon
-                                        aria-label="Edit filter values"
+                                        aria-label={t(
+                                            'inputs.editFilterValues',
+                                        )}
                                         onMouseDown={(event) =>
                                             event.preventDefault()
                                         }
@@ -509,7 +516,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                                 values.length > 0 || disabled
                                     ? undefined
                                     : manualEntryOnly
-                                      ? 'Type a value and press Enter'
+                                      ? t('inputs.typeValueAndPressEnter')
                                       : placeholder
                             }
                             disabled={disabled}
@@ -646,7 +653,14 @@ const FilterStringAutoComplete: FC<Props> = ({
                                             className={classes.moreValuesPill}
                                             role="button"
                                             tabIndex={0}
-                                            aria-label={`Manage ${hiddenCount.toLocaleString()} more filter values`}
+                                            aria-label={t(
+                                                'inputs.manageMoreValues',
+                                                {
+                                                    count: hiddenCount,
+                                                    formattedCount:
+                                                        hiddenCount.toLocaleString(),
+                                                },
+                                            )}
                                             onMouseDown={(event) => {
                                                 event.preventDefault();
                                                 event.stopPropagation();
@@ -664,7 +678,11 @@ const FilterStringAutoComplete: FC<Props> = ({
                                                 }
                                             }}
                                         >
-                                            +{hiddenCount.toLocaleString()} more
+                                            {t('inputs.moreValues', {
+                                                count: hiddenCount,
+                                                formattedCount:
+                                                    hiddenCount.toLocaleString(),
+                                            })}
                                         </Pill>
                                     );
                                 }
@@ -681,7 +699,12 @@ const FilterStringAutoComplete: FC<Props> = ({
                                         disabled={disabled}
                                         onRemove={remove}
                                         removeButtonProps={{
-                                            'aria-label': `Remove ${label}`,
+                                            'aria-label': t(
+                                                'inputs.removeValue',
+                                                {
+                                                    value: label,
+                                                },
+                                            ),
                                             'aria-hidden': false,
                                             onMouseDown: (event) =>
                                                 event.preventDefault(),

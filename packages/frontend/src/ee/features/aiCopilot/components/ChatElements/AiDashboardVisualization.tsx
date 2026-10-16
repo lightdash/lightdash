@@ -19,6 +19,7 @@ import {
 } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { useAgentMaxWidth } from '../../hooks/useAgentMaxWidth';
@@ -46,6 +47,7 @@ export const AiDashboardVisualization: FC<Props> = memo(
         message,
         showCloseButton = true,
     }) => {
+        const { t } = useTranslation('aiCopilotChat');
         const dispatch = useAiAgentStoreDispatch();
         const { breakpoints } = useMantineTheme();
         const isMobile = useAgentMaxWidth(768);
@@ -53,7 +55,7 @@ export const AiDashboardVisualization: FC<Props> = memo(
         if (!dashboardConfig?.visualizations) {
             return (
                 <Text c="red" size="sm">
-                    Invalid dashboard configuration
+                    {t('dashboardViz.invalidConfig')}
                 </Text>
             );
         }
@@ -104,10 +106,12 @@ export const AiDashboardVisualization: FC<Props> = memo(
                                 dashboardConfig={dashboardConfig}
                             />
                             {showCloseButton && (
-                                <Tooltip label="Close preview">
+                                <Tooltip label={t('dashboardViz.closePreview')}>
                                     <ActionIcon
                                         size="sm"
-                                        aria-label="Close preview"
+                                        aria-label={t(
+                                            'dashboardViz.closePreview',
+                                        )}
                                         onClick={() => dispatch(clearPreview())}
                                     >
                                         <MantineIcon icon={IconX} />

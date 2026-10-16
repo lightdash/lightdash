@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
+import { useTranslation } from 'react-i18next';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
 import MantineIcon from '../../common/MantineIcon';
 import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/utils';
@@ -36,64 +37,74 @@ const CredentialsItem: FC<
     credentials,
     setWarehouseCredentialsToBeDeleted,
     setWarehouseCredentialsToBeEdited,
-}) => (
-    <Table.Tr>
-        <Table.Td>
-            <Text fw={500}>{credentials.name}</Text>
-        </Table.Td>
-        <Table.Td>{getWarehouseLabel(credentials.credentials.type)}</Table.Td>
-        <Table.Td>
-            {credentials.project ? (
-                <Group gap="xs" wrap="nowrap">
-                    <Text size="sm">{credentials.project.name}</Text>
-                    {credentials.project.type === ProjectType.PREVIEW && (
-                        <Badge size="xs" color="orange">
-                            Preview
-                        </Badge>
-                    )}
-                </Group>
-            ) : (
-                <Text size="sm" c="dimmed">
-                    All projects
-                </Text>
-            )}
-        </Table.Td>
-        <Table.Td w="1%">
-            <Menu position="bottom-end">
-                <Menu.Target>
-                    <ActionIcon variant="transparent" size="sm">
-                        <MantineIcon icon={IconDots} />
-                    </ActionIcon>
-                </Menu.Target>
-                <Menu.Dropdown>
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconEdit} />}
-                        onClick={() =>
-                            setWarehouseCredentialsToBeEdited(credentials)
-                        }
-                    >
-                        Edit
-                    </Menu.Item>
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconTrash} />}
-                        color="red"
-                        onClick={() =>
-                            setWarehouseCredentialsToBeDeleted(credentials)
-                        }
-                    >
-                        Delete
-                    </Menu.Item>
-                </Menu.Dropdown>
-            </Menu>
-        </Table.Td>
-    </Table.Tr>
-);
+}) => {
+    const { t } = useTranslation('userSettings');
+    return (
+        <Table.Tr>
+            <Table.Td>
+                <Text fw={500}>{credentials.name}</Text>
+            </Table.Td>
+            <Table.Td>
+                {getWarehouseLabel(credentials.credentials.type)}
+            </Table.Td>
+            <Table.Td>
+                {credentials.project ? (
+                    <Group gap="xs" wrap="nowrap">
+                        <Text size="sm">{credentials.project.name}</Text>
+                        {credentials.project.type === ProjectType.PREVIEW && (
+                            <Badge size="xs" color="orange">
+                                {t(
+                                    'myWarehouseConnectionsPanel.credentialsTable.previewBadge',
+                                )}
+                            </Badge>
+                        )}
+                    </Group>
+                ) : (
+                    <Text size="sm" c="dimmed">
+                        {t(
+                            'myWarehouseConnectionsPanel.credentialsTable.allProjects',
+                        )}
+                    </Text>
+                )}
+            </Table.Td>
+            <Table.Td w="1%">
+                <Menu position="bottom-end">
+                    <Menu.Target>
+                        <ActionIcon variant="transparent" size="sm">
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconEdit} />}
+                            onClick={() =>
+                                setWarehouseCredentialsToBeEdited(credentials)
+                            }
+                        >
+                            {t('actions.edit', { ns: 'common' })}
+                        </Menu.Item>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            color="red"
+                            onClick={() =>
+                                setWarehouseCredentialsToBeDeleted(credentials)
+                            }
+                        >
+                            {t('actions.delete', { ns: 'common' })}
+                        </Menu.Item>
+                    </Menu.Dropdown>
+                </Menu>
+            </Table.Td>
+        </Table.Tr>
+    );
+};
 
 export const CredentialsTable: FC<CredentialsTableProps> = ({
     credentials,
     setWarehouseCredentialsToBeEdited,
     setWarehouseCredentialsToBeDeleted,
 }) => {
+    const { t } = useTranslation('userSettings');
     return (
         <Paper className={tableStyles.paper}>
             <Table
@@ -101,9 +112,21 @@ export const CredentialsTable: FC<CredentialsTableProps> = ({
             >
                 <Table.Thead>
                     <Table.Tr>
-                        <Table.Th>Name</Table.Th>
-                        <Table.Th>Warehouse</Table.Th>
-                        <Table.Th>Project</Table.Th>
+                        <Table.Th>
+                            {t(
+                                'myWarehouseConnectionsPanel.credentialsTable.columns.name',
+                            )}
+                        </Table.Th>
+                        <Table.Th>
+                            {t(
+                                'myWarehouseConnectionsPanel.credentialsTable.columns.warehouse',
+                            )}
+                        </Table.Th>
+                        <Table.Th>
+                            {t(
+                                'myWarehouseConnectionsPanel.credentialsTable.columns.project',
+                            )}
+                        </Table.Th>
                         <Table.Th></Table.Th>
                     </Table.Tr>
                 </Table.Thead>

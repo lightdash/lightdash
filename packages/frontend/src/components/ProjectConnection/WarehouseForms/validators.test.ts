@@ -15,7 +15,7 @@ import {
 } from './defaultValues';
 import {
     createWarehouseValueValidators,
-    SSH_TUNNEL_PUBLIC_KEY_REQUIRED_MESSAGE,
+    getSshTunnelPublicKeyRequiredMessage,
     warehouseValueValidators,
 } from './validators';
 
@@ -37,10 +37,10 @@ describe.each([
         (_form, validate) => {
             const values = formValues({ ...defaults, useSshTunnel: true });
             expect(validate('', values)).toBe(
-                SSH_TUNNEL_PUBLIC_KEY_REQUIRED_MESSAGE,
+                getSshTunnelPublicKeyRequiredMessage(),
             );
             expect(validate('   ', values)).toBe(
-                SSH_TUNNEL_PUBLIC_KEY_REQUIRED_MESSAGE,
+                getSshTunnelPublicKeyRequiredMessage(),
             );
         },
     );

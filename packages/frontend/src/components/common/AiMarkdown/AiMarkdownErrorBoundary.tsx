@@ -5,6 +5,7 @@ import {
     type PropsWithChildren,
     type ReactNode,
 } from 'react';
+import i18n from '../../../i18n/i18n';
 
 type Props = PropsWithChildren<{
     fallback?: ReactNode;
@@ -30,7 +31,7 @@ export class AiMarkdownErrorBoundary extends Component<Props, State> {
             return (
                 this.props.fallback ?? (
                     <Text size="xs" c="dimmed">
-                        Couldn&apos;t render this message.
+                        {i18n.t('aiMarkdown.renderFailed', { ns: 'commonUi' })}
                     </Text>
                 )
             );

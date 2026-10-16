@@ -28,7 +28,9 @@ import {
     IconPlayerSkipForward,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../../../components/common/PolymorphicGroupButton';
 import { isMergeable } from './pullRequestActions';
@@ -81,43 +83,43 @@ const READINESS: Record<
     {
         color: DefaultMantineColor;
         icon: TablerIcon | null; // null → spinner (still evaluating)
-        title: string;
+        titleKey: string;
     }
 > = {
     [CiMergeState.READY]: {
         color: 'green',
         icon: IconCircleCheck,
-        title: 'Ready to merge',
+        titleKey: 'ci.readiness.ready',
     },
     [CiMergeState.UNSTABLE]: {
         color: 'yellow',
         icon: IconAlertTriangle,
-        title: 'Mergeable',
+        titleKey: 'ci.readiness.mergeable',
     },
     [CiMergeState.BLOCKED]: {
         color: 'red',
         icon: IconCircleX,
-        title: 'Merge blocked',
+        titleKey: 'ci.readiness.blocked',
     },
     [CiMergeState.CONFLICTS]: {
         color: 'red',
         icon: IconAlertTriangle,
-        title: 'Merge conflicts',
+        titleKey: 'ci.readiness.conflicts',
     },
     [CiMergeState.BEHIND]: {
         color: 'yellow',
         icon: IconClock,
-        title: 'Out of date',
+        titleKey: 'ci.readiness.behind',
     },
     [CiMergeState.DRAFT]: {
         color: 'ldGray.6',
         icon: IconCircleMinus,
-        title: 'Draft',
+        titleKey: 'ci.readiness.draft',
     },
     [CiMergeState.UNKNOWN]: {
         color: 'ldGray.6',
         icon: null,
-        title: 'Checking merge status',
+        titleKey: 'ci.readiness.unknown',
     },
 };
 
@@ -131,18 +133,18 @@ const StateIcon: FC<{ state: CiCheckState }> = ({ state }) => {
 
 // One quiet phrase describing the checks at a glance, prioritising whatever
 // needs attention: failures first, then in-flight runs, else "all passed".
-const summariseChecks = (checks: CiCheck[]): string => {
+const summariseChecks = (checks: CiCheck[], t: TFunction): string => {
     const count = (state: CiCheckState) =>
         checks.filter((c) => c.state === state).length;
     const failed = count(CiCheckState.FAILURE);
     const pending = count(CiCheckState.PENDING);
     if (failed > 0) {
-        return `${failed} failing check${failed > 1 ? 's' : ''}`;
+        return t('ci.failingChecks', { count: failed });
     }
     if (pending > 0) {
-        return `${pending} check${pending > 1 ? 's' : ''} running`;
+        return t('ci.runningChecks', { count: pending });
     }
-    return `All ${checks.length} checks passed`;
+    return t('ci.allPassed', { count: checks.length });
 };
 
 const CheckRow: FC<{ check: CiCheck }> = ({ check }) => (
@@ -183,6 +185,7 @@ export const PullRequestCiChecks: FC<{
     ciChecks: CiChecks | null;
     hasMergeAction?: boolean;
 }> = ({ prUrl, ciChecks, hasMergeAction = false }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const [expanded, setExpanded] = useState(false);
 
     if (!ciChecks || ciChecks.checks.length === 0) {
@@ -196,15 +199,19 @@ export const PullRequestCiChecks: FC<{
         icon: TablerIcon;
         title: string;
     } | null = ciChecks.merged
-        ? { color: 'green', icon: IconGitMerge, title: 'Merged' }
+        ? { color: 'green', icon: IconGitMerge, title: t('ci.merged') }
         : ciChecks.state === 'closed'
           ? {
                 color: 'ldGray.6',
                 icon: IconGitPullRequestClosed,
-                title: 'Closed',
+                title: t('ci.closed'),
             }
           : null;
-    const { color, icon, title } = terminal ?? READINESS[ciChecks.mergeState];
+    const readiness = READINESS[ciChecks.mergeState];
+    const { color, icon, title } = terminal ?? {
+        ...readiness,
+        title: t(readiness.titleKey),
+    };
     const showTitle =
         !ciChecks.merged && !(hasMergeAction && isMergeable(ciChecks));
 
@@ -236,8 +243,8 @@ export const PullRequestCiChecks: FC<{
                         )}
                         <Text size="xs" c="dimmed">
                             {showTitle
-                                ? `· ${summariseChecks(ciChecks.checks)}`
-                                : summariseChecks(ciChecks.checks)}
+                                ? `· ${summariseChecks(ciChecks.checks, t)}`
+                                : summariseChecks(ciChecks.checks, t)}
                         </Text>
                     </Group>
                 </UnstyledButton>
@@ -248,7 +255,7 @@ export const PullRequestCiChecks: FC<{
                     size="xs"
                     c="dimmed"
                 >
-                    View all
+                    {t('ci.viewAll')}
                 </Anchor>
             </Group>
 

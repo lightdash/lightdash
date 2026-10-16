@@ -9,6 +9,7 @@ import {
 } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { useCallback, type FC, type PropsWithChildren } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     explorerActions,
     selectItemDetailModal,
@@ -25,28 +26,32 @@ import { ItemDetailMarkdown } from './ItemDetailPreview';
 const CopyableInput: FC<{ label: string; value: string }> = ({
     label,
     value,
-}) => (
-    <TextInput
-        label={label}
-        value={value}
-        readOnly
-        size="xs"
-        onFocus={(e) => e.currentTarget.select()}
-        rightSection={
-            <CopyActionIcon
-                value={value}
-                tooltipPosition="left"
-                size="xs"
-                aria-label={`Copy ${label}`}
-            />
-        }
-    />
-);
+}) => {
+    const { t } = useTranslation('explorer');
+    return (
+        <TextInput
+            label={label}
+            value={value}
+            readOnly
+            size="xs"
+            onFocus={(e) => e.currentTarget.select()}
+            rightSection={
+                <CopyActionIcon
+                    value={value}
+                    tooltipPosition="left"
+                    size="xs"
+                    aria-label={t('itemDetail.copyValue', { label })}
+                />
+            }
+        />
+    );
+};
 
 /**
  * Provider for a shared modal to display details about tree items
  */
 export const ItemDetailProvider: FC<PropsWithChildren<{}>> = ({ children }) => {
+    const { t } = useTranslation('explorer');
     const dispatch = useExplorerDispatch();
     const itemDetail = useExplorerSelector(selectItemDetailModal);
 
@@ -100,12 +105,12 @@ export const ItemDetailProvider: FC<PropsWithChildren<{}>> = ({ children }) => {
                 <Stack gap="xs">
                     <SimpleGrid cols={2} spacing="xs">
                         <CopyableInput
-                            label="Model name"
+                            label={t('itemDetail.modelName')}
                             value={metadata.name}
                         />
                         {metadata.dbtPackageName && (
                             <CopyableInput
-                                label="dbt package"
+                                label={t('itemDetail.dbtPackage')}
                                 value={metadata.dbtPackageName}
                             />
                         )}
@@ -114,13 +119,13 @@ export const ItemDetailProvider: FC<PropsWithChildren<{}>> = ({ children }) => {
                         <SimpleGrid cols={2} spacing="xs">
                             {metadata.ymlPath && (
                                 <CopyableInput
-                                    label="YAML file"
+                                    label={t('itemDetail.yamlFile')}
                                     value={metadata.ymlPath}
                                 />
                             )}
                             {metadata.sqlPath && (
                                 <CopyableInput
-                                    label="SQL file"
+                                    label={t('itemDetail.sqlFile')}
                                     value={metadata.sqlPath}
                                 />
                             )}
@@ -128,7 +133,7 @@ export const ItemDetailProvider: FC<PropsWithChildren<{}>> = ({ children }) => {
                     )}
                     {itemDetail.description && (
                         <Input.Wrapper
-                            label="Description"
+                            label={t('itemDetail.description')}
                             size="xs"
                             w="100%"
                             miw={0}
@@ -153,8 +158,13 @@ export const ItemDetailProvider: FC<PropsWithChildren<{}>> = ({ children }) => {
         if (itemDetail.description) {
             return <ItemDetailMarkdown source={itemDetail.description} />;
         }
-        return <Text c="gray">No description available.</Text>;
-    }, [itemDetail.description, itemDetail.itemType, itemDetail.tableMetadata]);
+        return <Text c="gray">{t('itemDetail.noDescription')}</Text>;
+    }, [
+        itemDetail.description,
+        itemDetail.itemType,
+        itemDetail.tableMetadata,
+        t,
+    ]);
 
     return (
         <>

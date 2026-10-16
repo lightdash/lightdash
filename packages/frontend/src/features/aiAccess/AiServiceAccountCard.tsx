@@ -24,6 +24,7 @@ import {
 } from '@lightdash/common';
 import { Alert, Anchor, Button, Group, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
@@ -76,22 +77,22 @@ const AiServiceAccountRemoveModal = ({
     loading: boolean;
     onClose: () => void;
     onConfirm: () => void;
-}) => (
-    <MantineModal
-        opened={opened}
-        title="Remove shared agent account"
-        variant="delete"
-        confirmLabel="Remove"
-        confirmLoading={loading}
-        onClose={onClose}
-        onConfirm={onConfirm}
-    >
-        <Text size="sm">
-            Remove this shared agent account? Agent queries are refused if your
-            organization requires it.
-        </Text>
-    </MantineModal>
-);
+}) => {
+    const { t } = useTranslation('aiAccess');
+    return (
+        <MantineModal
+            opened={opened}
+            title={t('serviceAccountCard.removeTitle')}
+            variant="delete"
+            confirmLabel={t('actions.remove', { ns: 'common' })}
+            confirmLoading={loading}
+            onClose={onClose}
+            onConfirm={onConfirm}
+        >
+            <Text size="sm">{t('serviceAccountCard.removeBody')}</Text>
+        </MantineModal>
+    );
+};
 
 const AiServiceAccountTestFeedback = ({
     result,
@@ -103,27 +104,30 @@ const AiServiceAccountTestFeedback = ({
     error: ApiError | null;
     observation: AiServiceAccountTestResult | null;
     warehouseType: AiServiceAccountConnection['type'];
-}) => (
-    <>
-        {result && !result.ok && (
-            <Alert color="red" role="alert">
-                {result.message}
-            </Alert>
-        )}
-        {error && (
-            <Alert color="red" role="alert">
-                {error.error.message}
-            </Alert>
-        )}
-        {warehouseType !== WarehouseTypes.BIGQUERY &&
-            observation?.ok &&
-            (error || (result && !result.ok)) && (
-                <Text size="sm" c="dimmed">
-                    The account above is from the last successful check.
-                </Text>
+}) => {
+    const { t } = useTranslation('aiAccess');
+    return (
+        <>
+            {result && !result.ok && (
+                <Alert color="red" role="alert">
+                    {result.message}
+                </Alert>
             )}
-    </>
-);
+            {error && (
+                <Alert color="red" role="alert">
+                    {error.error.message}
+                </Alert>
+            )}
+            {warehouseType !== WarehouseTypes.BIGQUERY &&
+                observation?.ok &&
+                (error || (result && !result.ok)) && (
+                    <Text size="sm" c="dimmed">
+                        {t('serviceAccountCard.lastSuccessfulCheck')}
+                    </Text>
+                )}
+        </>
+    );
+};
 
 const AiServiceAccountSummary = ({
     projectUuid,
@@ -147,6 +151,7 @@ const AiServiceAccountSummary = ({
         verification: AiServiceAccountTestResult | null,
     ) => void;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const remove = useDeleteAiServiceAccount(projectUuid);
     const test = useTestAiServiceAccount(projectUuid);
     const [confirmation, setConfirmation] = useState(false);
@@ -185,7 +190,7 @@ const AiServiceAccountSummary = ({
                             )
                         }
                     >
-                        Test
+                        {t('serviceAccountCard.test')}
                     </Button>
                     {onReplace !== null && (
                         <>
@@ -197,7 +202,7 @@ const AiServiceAccountSummary = ({
                                     onReplace();
                                 }}
                             >
-                                Replace
+                                {t('serviceAccountCard.replace')}
                             </Button>
                             <Button
                                 variant="subtle"
@@ -205,7 +210,7 @@ const AiServiceAccountSummary = ({
                                 disabled={busy}
                                 onClick={() => setConfirmation(true)}
                             >
-                                Remove
+                                {t('actions.remove', { ns: 'common' })}
                             </Button>
                         </>
                     )}
@@ -266,6 +271,7 @@ const AiServiceAccountSettingsContent = ({
     ) => void;
     onEdit: () => void;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const status = getAiServiceAccountStatus({
         rule: { ...rule, warehouseType },
         slot,
@@ -279,10 +285,10 @@ const AiServiceAccountSettingsContent = ({
                 component={Link}
                 to={getProjectAgentIdentitySettingsPath(upstreamProjectUuid)}
                 size="sm"
-            >
-                the parent project
-            </Anchor>
-        ) : null;
+            />
+        ) : (
+            <span />
+        );
     const missingRequiredParent =
         upstreamProjectUuid !== null &&
         !slot &&
@@ -299,8 +305,14 @@ const AiServiceAccountSettingsContent = ({
                                   ...status.alert,
                                   message: (
                                       <>
-                                          {status.alert.message} Ask an admin to
-                                          add one on {parentLink}.
+                                          {status.alert.message}{' '}
+                                          <Trans
+                                              t={t}
+                                              i18nKey="serviceAccountCard.askAdminParent"
+                                              components={{
+                                                  anchor: parentLink,
+                                              }}
+                                          />
                                       </>
                                   ),
                               }
@@ -321,14 +333,17 @@ const AiServiceAccountSettingsContent = ({
             ) : upstreamProjectUuid !== null ? (
                 !missingRequiredParent && (
                     <Text size="sm">
-                        The parent project has no shared agent account. Add one
-                        on {parentLink}.
+                        <Trans
+                            t={t}
+                            i18nKey="serviceAccountCard.parentHasNone"
+                            components={{ anchor: parentLink }}
+                        />
                     </Text>
                 )
             ) : (
                 <Group>
                     <Button variant="filled" onClick={onEdit}>
-                        Add shared agent account
+                        {t('serviceAccountCard.add')}
                     </Button>
                 </Group>
             )}
@@ -493,6 +508,7 @@ const AiServiceAccountSettings = ({
     upstreamProjectUuid: string | null;
     connection: AiServiceAccountConnection;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const settings = useOrganizationAgentIdentitySettings();
     const status = useAiServiceAccount(projectUuid);
     const rule = settings.data?.rules.find(
@@ -502,7 +518,7 @@ const AiServiceAccountSettings = ({
     if (settings.isError || status.isError || !rule || !status.data)
         return (
             <InlineErrorState
-                message="Could not load the shared agent account."
+                message={t('serviceAccountCard.loadError')}
                 onRetry={() => {
                     void settings.refetch();
                     void status.refetch();

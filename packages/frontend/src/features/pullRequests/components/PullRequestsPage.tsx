@@ -26,6 +26,7 @@ import {
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useEffect, useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { CategoryBadge } from '../../../components/common/CategoryBadge/CategoryBadge';
 import {
@@ -41,6 +42,7 @@ import {
     threadReviewRootCauseLabels,
 } from '../../../ee/features/aiCopilot/components/Admin/threadReviewContext';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
+import { getDayjsLocale } from '../../../i18n/dateLocale';
 import { usePullRequestsTable } from '../hooks/usePullRequestsTable';
 import { type PullRequestRow } from '../types';
 import {
@@ -62,12 +64,7 @@ type Props = { projectUuid: string };
 /** State filter values, including a virtual "all" that applies no filter. */
 type StateFilter = 'open' | 'merged' | 'closed' | 'all';
 
-const STATE_FILTER_OPTIONS: { label: string; value: StateFilter }[] = [
-    { label: 'Open', value: 'open' },
-    { label: 'Merged', value: 'merged' },
-    { label: 'Closed', value: 'closed' },
-    { label: 'All', value: 'all' },
-];
+const STATE_FILTERS: StateFilter[] = ['open', 'merged', 'closed', 'all'];
 
 /** A PR's live state can be null (resolution failed); those show only under "all". */
 const matchesStateFilter = (
@@ -89,6 +86,7 @@ const matchesStateFilter = (
 };
 
 const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
+    const { t } = useTranslation('app');
     const {
         rows,
         totalResults,
@@ -129,7 +127,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
         () => [
             {
                 accessorKey: 'title',
-                header: 'Pull request',
+                header: t('pullRequests.columns.pullRequest'),
                 enableSorting: false,
                 size: 620,
                 Cell: ({ row }) => {
@@ -161,9 +159,14 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                             <Stack gap={2} className={classes.title}>
                                 {liveLookupFailed ? (
                                     <Tooltip
-                                        label={`Couldn't load this pull request from ${getProviderLabel(
-                                            pr.provider,
-                                        )}. It may have been deleted, or access was revoked.`}
+                                        label={t(
+                                            'pullRequests.loadFailedTooltip',
+                                            {
+                                                provider: getProviderLabel(
+                                                    pr.provider,
+                                                ),
+                                            },
+                                        )}
                                         openDelay={300}
                                         maw={420}
                                     >
@@ -179,7 +182,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                                 c="red"
                                                 truncate
                                             >
-                                                Couldn't load pull request
+                                                {t('pullRequests.loadFailed')}
                                             </Text>
                                         </Group>
                                     </Tooltip>
@@ -202,16 +205,34 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                     openDelay={300}
                                 >
                                     <Text fz="xs" c="dimmed" truncate span>
-                                        opened {dayjs(pr.createdAt).fromNow()}
                                         {pr.author ? (
-                                            <>
-                                                {' by '}
-                                                <Text span fw={600} fz="xs">
-                                                    {pr.author.name}
-                                                </Text>
-                                            </>
+                                            <Trans
+                                                t={t}
+                                                i18nKey="pullRequests.openedBy"
+                                                values={{
+                                                    time: dayjs(pr.createdAt)
+                                                        .locale(
+                                                            getDayjsLocale(),
+                                                        )
+                                                        .fromNow(),
+                                                    name: pr.author.name,
+                                                }}
+                                                components={{
+                                                    author: (
+                                                        <Text
+                                                            span
+                                                            fw={600}
+                                                            fz="xs"
+                                                        />
+                                                    ),
+                                                }}
+                                            />
                                         ) : (
-                                            ''
+                                            t('pullRequests.opened', {
+                                                time: dayjs(pr.createdAt)
+                                                    .locale(getDayjsLocale())
+                                                    .fromNow(),
+                                            })
                                         )}
                                     </Text>
                                 </Tooltip>
@@ -224,7 +245,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                     >
                                         <Group gap="xs" wrap="wrap">
                                             <Text fz="xs" fw={600} c="dimmed">
-                                                Fixes review:
+                                                {t('pullRequests.fixesReview')}
                                             </Text>
                                             <Tooltip
                                                 label={
@@ -272,7 +293,9 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                                     variant="subtle"
                                                     color="gray"
                                                 >
-                                                    View issue
+                                                    {t(
+                                                        'pullRequests.viewIssue',
+                                                    )}
                                                 </Button>
                                             )}
                                             {threadPreviewTarget && (
@@ -286,7 +309,9 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                                         )
                                                     }
                                                 >
-                                                    View thread
+                                                    {t(
+                                                        'pullRequests.viewThread',
+                                                    )}
                                                 </Button>
                                             )}
                                             <Button
@@ -298,7 +323,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                                 variant="subtle"
                                                 color="gray"
                                             >
-                                                View PR
+                                                {t('pullRequests.viewPr')}
                                             </Button>
                                         </Group>
                                     </Stack>
@@ -310,7 +335,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
             },
             {
                 id: 'source',
-                header: 'Source',
+                header: t('pullRequests.columns.source'),
                 enableSorting: false,
                 size: 140,
                 Cell: ({ row }) => (
@@ -322,7 +347,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                 ),
             },
         ],
-        [],
+        [t],
     );
 
     const table = useContentTable({
@@ -347,9 +372,12 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
             return (
                 <Group gap="two" wrap="nowrap" className={classes.rowActions}>
                     {threadPath !== null && threadTarget ? (
-                        <Tooltip label="Preview thread" openDelay={300}>
+                        <Tooltip
+                            label={t('pullRequests.previewThread')}
+                            openDelay={300}
+                        >
                             <ActionIcon
-                                aria-label="Preview thread"
+                                aria-label={t('pullRequests.previewThread')}
                                 onClick={() => setPreviewTarget(threadTarget)}
                             >
                                 <MantineIcon icon={IconMessageCircle} />
@@ -357,7 +385,9 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                         </Tooltip>
                     ) : null}
                     <Tooltip
-                        label={`View on ${getProviderLabel(pr.provider)}`}
+                        label={t('pullRequests.viewOn', {
+                            provider: getProviderLabel(pr.provider),
+                        })}
                         openDelay={300}
                     >
                         <ActionIcon
@@ -365,9 +395,9 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                             href={pr.prUrl}
                             target="_blank"
                             rel="noreferrer"
-                            aria-label={`View pull request on ${getProviderLabel(
-                                pr.provider,
-                            )}`}
+                            aria-label={t('pullRequests.viewPrOn', {
+                                provider: getProviderLabel(pr.provider),
+                            })}
                         >
                             <MantineIcon icon={IconExternalLink} />
                         </ActionIcon>
@@ -388,14 +418,18 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
         renderTopToolbar: () => (
             <Group justify="space-between" align="center" px="md" py="sm">
                 <Text fz="xs" c="dimmed">
-                    {filteredRows.length}
-                    {stateFilter === 'all' ? '' : ` ${stateFilter}`} shown
+                    {t(`pullRequests.shown.${stateFilter}`, {
+                        count: filteredRows.length,
+                    })}
                 </Text>
                 <SegmentedControl
                     size="xs"
                     value={stateFilter}
                     onChange={(value) => setStateFilter(value as StateFilter)}
-                    data={STATE_FILTER_OPTIONS}
+                    data={STATE_FILTERS.map((value) => ({
+                        value,
+                        label: t(`pullRequests.filters.${value}`),
+                    }))}
                 />
             </Group>
         ),
@@ -403,13 +437,15 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
             <Group justify="center" px="md" py="sm">
                 {isFetchingNextPage ? (
                     <Text fz="xs" c="dimmed">
-                        Loading more...
+                        {t('pullRequests.loadingMore')}
                     </Text>
                 ) : (
                     <Text fz="xs" c="dimmed">
                         {hasNextPage
-                            ? 'Scroll for more'
-                            : `All ${totalResults} loaded`}
+                            ? t('pullRequests.scrollForMore')
+                            : t('pullRequests.allLoaded', {
+                                  count: totalResults,
+                              })}
                     </Text>
                 )}
             </Group>
@@ -424,11 +460,10 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                             color="ldGray.5"
                         />
                         <Text size="sm" c="dimmed">
-                            No pull requests yet.
+                            {t('pullRequests.empty')}
                         </Text>
                         <Text size="xs" c="dimmed" ta="center" maw={360}>
-                            Changes proposed by AI agents and the in-app editors
-                            will appear here once a pull request is opened.
+                            {t('pullRequests.emptyDescription')}
                         </Text>
                     </Stack>
                 </Center>
@@ -436,8 +471,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                 <Center p="xl">
                     <Stack gap="xs" align="center">
                         <Text size="sm" c="dimmed">
-                            No {stateFilter} pull requests in the loaded
-                            results.
+                            {t(`pullRequests.noneForFilter.${stateFilter}`)}
                         </Text>
                         <Text
                             size="xs"
@@ -445,7 +479,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                             className={classes.clearFilter}
                             onClick={() => setStateFilter('all')}
                         >
-                            Show all
+                            {t('pullRequests.showAll')}
                         </Text>
                     </Stack>
                 </Center>
@@ -458,13 +492,13 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
 
     return (
         <Stack gap="md">
-            <Title order={5}>Pull requests</Title>
+            <Title order={5}>{t('pullRequests.title')}</Title>
 
             {error ? (
                 <Alert
                     icon={<MantineIcon icon={IconAlertCircle} />}
                     color="red"
-                    title="Failed to load pull requests"
+                    title={t('pullRequests.loadListFailed')}
                 >
                     {error.error.message}
                 </Alert>

@@ -8,6 +8,7 @@ import { SegmentedControl, Select, Stack, Text } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconLink } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../components/common/Callout';
 import MantineModal from '../../components/common/MantineModal';
 import { useChartSummariesV2 } from '../../hooks/useChartSummariesV2';
@@ -38,6 +39,7 @@ const DocumentSavedChartPickerModal: FC<Props> = ({
     onLink,
     onCopy,
 }) => {
+    const { t } = useTranslation('documents');
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
@@ -79,7 +81,7 @@ const DocumentSavedChartPickerModal: FC<Props> = ({
                 ),
             );
         } catch {
-            setCopyError("This chart couldn't be loaded. Try linking it.");
+            setCopyError(t('savedChartPicker.copyFailed'));
             setIsCopying(false);
         }
     };
@@ -88,20 +90,22 @@ const DocumentSavedChartPickerModal: FC<Props> = ({
         <MantineModal
             opened
             onClose={onClose}
-            title="Add a saved chart"
+            title={t('savedChartPicker.title')}
             icon={IconLink}
             size="lg"
             onConfirm={() => void submit()}
             confirmLabel={
-                mode === 'copy' && canCopy ? 'Copy chart' : 'Link chart'
+                mode === 'copy' && canCopy
+                    ? t('savedChartPicker.copyChart')
+                    : t('savedChartPicker.linkChart')
             }
             confirmDisabled={!selected}
             confirmLoading={isCopying}
         >
             <Stack gap="md">
                 <Select
-                    label="Chart"
-                    placeholder="Search saved charts"
+                    label={t('savedChartPicker.chartLabel')}
+                    placeholder={t('savedChartPicker.searchPlaceholder')}
                     searchable
                     data-autofocus
                     searchValue={search}
@@ -109,7 +113,9 @@ const DocumentSavedChartPickerModal: FC<Props> = ({
                     // Search runs on the server
                     filter={({ options }) => options}
                     nothingFoundMessage={
-                        isFetching ? 'Searching…' : 'No saved charts found'
+                        isFetching
+                            ? t('savedChartPicker.searching')
+                            : t('savedChartPicker.noneFound')
                     }
                     data={charts.map((chart) => ({
                         value: chart.uuid,
@@ -122,27 +128,30 @@ const DocumentSavedChartPickerModal: FC<Props> = ({
                 {selected && (
                     <Text size="xs" c="dimmed">
                         {selected.source === ChartSourceType.SQL
-                            ? 'SQL chart'
-                            : 'Chart'}{' '}
-                        in {selected.space.name}
+                            ? t('savedChartPicker.sqlChartInSpace', {
+                                  space: selected.space.name,
+                              })
+                            : t('savedChartPicker.chartInSpace', {
+                                  space: selected.space.name,
+                              })}
                     </Text>
                 )}
                 <SegmentedControl
                     value={mode}
                     onChange={(value) => setMode(value as Mode)}
                     data={[
-                        { value: 'link', label: 'Link' },
+                        { value: 'link', label: t('savedChartPicker.link') },
                         {
                             value: 'copy',
-                            label: 'Copy',
+                            label: t('savedChartPicker.copy'),
                             disabled: selected !== undefined && !canCopy,
                         },
                     ]}
                 />
                 <Text size="sm" c="dimmed">
                     {mode === 'link'
-                        ? 'Shows the saved chart as it is now, and updates when it changes. Readers need access to the chart.'
-                        : 'Adds a copy you can edit in this document. Changes to the saved chart won’t show here.'}
+                        ? t('savedChartPicker.linkHelp')
+                        : t('savedChartPicker.copyHelp')}
                 </Text>
                 {copyError && <Callout variant="danger" title={copyError} />}
             </Stack>

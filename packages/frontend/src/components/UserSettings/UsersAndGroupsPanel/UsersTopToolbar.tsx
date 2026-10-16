@@ -8,6 +8,7 @@ import {
 } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 
 type UsersTopToolbarProps = GroupProps & {
@@ -17,6 +18,7 @@ type UsersTopToolbarProps = GroupProps & {
 
 export const UsersTopToolbar: FC<UsersTopToolbarProps> = memo(
     ({ search, setSearch, ...props }) => {
+        const { t } = useTranslation('userSettings');
         const theme = useMantineTheme();
 
         return (
@@ -27,14 +29,22 @@ export const UsersTopToolbar: FC<UsersTopToolbarProps> = memo(
                 {...props}
             >
                 <Group gap="xs" wrap="nowrap" flex={1} miw={0}>
-                    <Tooltip label="Search by name, email, or role">
+                    <Tooltip
+                        label={t(
+                            'usersAndGroupsPanel.usersTopToolbar.searchTooltip',
+                        )}
+                    >
                         <TextInput
                             data-testid="org-users-search-input"
                             size="xs"
                             type="search"
-                            aria-label="Search users by name, email, or role"
+                            aria-label={t(
+                                'usersAndGroupsPanel.usersTopToolbar.searchPlaceholder',
+                            )}
                             variant="default"
-                            placeholder="Search users by name, email, or role"
+                            placeholder={t(
+                                'usersAndGroupsPanel.usersTopToolbar.searchPlaceholder',
+                            )}
                             value={search ?? ''}
                             leftSection={
                                 <MantineIcon
@@ -47,7 +57,9 @@ export const UsersTopToolbar: FC<UsersTopToolbarProps> = memo(
                             rightSection={
                                 search && (
                                     <ActionIcon
-                                        aria-label="Clear search"
+                                        aria-label={t(
+                                            'usersAndGroupsPanel.usersTopToolbar.clearSearch',
+                                        )}
                                         onClick={() => setSearch('')}
                                         variant="transparent"
                                         size="xs"

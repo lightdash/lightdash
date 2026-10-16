@@ -8,6 +8,7 @@ import {
 import { ActionIcon, Button, Text, Tooltip } from '@mantine/core';
 import { IconLock, IconX } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getConditionalRuleLabel } from '../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -20,6 +21,7 @@ type Props = {
 
 const LockedFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
     const getUiString = useUiStrings();
+    const { t } = useTranslation('dashboardFilters');
     const summary = useMemo(
         () =>
             getConditionalRuleLabel(
@@ -59,7 +61,7 @@ const LockedFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
                             onClick={onRemove}
                             size="xs"
                             radius="xl"
-                            aria-label="Remove filter"
+                            aria-label={t('controls.editor.removeFilter')}
                         >
                             <MantineIcon size="sm" icon={IconX} />
                         </ActionIcon>

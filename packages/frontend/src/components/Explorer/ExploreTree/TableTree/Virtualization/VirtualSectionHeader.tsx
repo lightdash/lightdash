@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import { Button, Group, Text, ActionIcon, Tooltip } from '@mantine/core';
 import { IconCode, IconPlus } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     explorerActions,
     selectAdditionalMetrics,
@@ -29,6 +30,7 @@ interface VirtualSectionHeaderProps {
 const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
     item,
 }) => {
+    const { t } = useTranslation('explorer');
     const { label, color, depth, tableName, treeSection, helpButton } =
         item.data;
     const projectUuid = useProjectUuid();
@@ -152,7 +154,9 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
             <Group gap="xs">
                 {showAddButton && (
                     <Tooltip
-                        label="Add a custom dimension with SQL"
+                        label={t(
+                            'exploreTree.sectionHeader.addCustomDimension',
+                        )}
                         position="left"
                     >
                         <Button
@@ -165,13 +169,15 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
                             data-tour-anchor="add-custom-dimension"
                             data-tour-hint="Add a custom dimension"
                         >
-                            Add
+                            {t('actions.add', { ns: 'common' })}
                         </Button>
                     </Tooltip>
                 )}
 
                 {showWriteBackCustomMetrics && (
-                    <Tooltip label="Write back custom metrics">
+                    <Tooltip
+                        label={t('exploreTree.sectionHeader.writeBackMetrics')}
+                    >
                         <ActionIcon
                             onClick={handleWriteBackCustomMetrics}
                             data-testid="VirtualSectionHeader/WriteBackCustomMetricsButton"
@@ -182,7 +188,11 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
                 )}
 
                 {showWriteBackCustomDimensions && (
-                    <Tooltip label="Write back custom dimensions">
+                    <Tooltip
+                        label={t(
+                            'exploreTree.sectionHeader.writeBackDimensions',
+                        )}
+                    >
                         <ActionIcon
                             onClick={handleWriteBackCustomDimensions}
                             data-testid="VirtualSectionHeader/WriteBackCustomDimensionsButton"

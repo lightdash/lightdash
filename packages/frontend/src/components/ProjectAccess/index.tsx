@@ -2,6 +2,7 @@ import { FeatureFlags } from '@lightdash/common';
 import { Stack, Tabs } from '@mantine/core';
 import { IconUser, IconUsersGroup } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ProjectGroupAccess } from '../../features/projectGroupAccess';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
@@ -13,6 +14,7 @@ interface ProjectUserAccessProps {
 }
 
 const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
+    const { t } = useTranslation('roles');
     const { user } = useApp();
     const userGroupsFeatureFlagQuery = useServerFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
@@ -34,7 +36,7 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
                                 <MantineIcon icon={IconUser} size="sm" />
                             }
                         >
-                            Users
+                            {t('projectAccess.tabs.users')}
                         </Tabs.Tab>
                         <Tabs.Tab
                             value="groups"
@@ -42,7 +44,7 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
                                 <MantineIcon icon={IconUsersGroup} size="sm" />
                             }
                         >
-                            Groups
+                            {t('projectAccess.tabs.groups')}
                         </Tabs.Tab>
                     </Tabs.List>
                 )}

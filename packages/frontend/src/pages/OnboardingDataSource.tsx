@@ -9,7 +9,9 @@ import {
     Text,
     Title,
 } from '@mantine/core';
+import { type TFunction } from 'i18next';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import AboutFooter from '../components/AboutFooter';
 import { DocumentTitle } from '../components/common/DocumentTitle';
@@ -51,14 +53,14 @@ const orderedWarehouses = WAREHOUSE_ORDER.map((key) =>
     WarehouseTypeLabels.find((warehouse) => warehouse.key === key),
 ).filter((warehouse) => warehouse !== undefined);
 
-const POPULAR_WAREHOUSES: { key: WarehouseTypes; subtitle: string }[] = [
+const POPULAR_WAREHOUSES: { key: WarehouseTypes; subtitleKey: string }[] = [
     {
         key: WarehouseTypes.BIGQUERY,
-        subtitle: 'Sign in with Google to connect',
+        subtitleKey: 'onboardingDataSource.signInWithGoogle',
     },
     {
         key: WarehouseTypes.SNOWFLAKE,
-        subtitle: 'Connect with SSO',
+        subtitleKey: 'onboardingDataSource.connectWithSso',
     },
 ];
 
@@ -66,10 +68,8 @@ const popularKeys = new Set<SelectedWarehouse>(
     POPULAR_WAREHOUSES.map((warehouse) => warehouse.key),
 );
 
-const BIGQUERY_SERVICE_ACCOUNT_SUBTITLE = 'Connect with a service account';
-
-const getPopularWarehouses = (isGoogleSsoAvailable: boolean) =>
-    POPULAR_WAREHOUSES.map(({ key, subtitle }) => {
+const getPopularWarehouses = (isGoogleSsoAvailable: boolean, t: TFunction) =>
+    POPULAR_WAREHOUSES.map(({ key, subtitleKey }) => {
         const label = WarehouseTypeLabels.find(
             (warehouse) => warehouse.key === key,
         )?.label;
@@ -81,8 +81,8 @@ const getPopularWarehouses = (isGoogleSsoAvailable: boolean) =>
             label,
             subtitle:
                 key === WarehouseTypes.BIGQUERY && !isGoogleSsoAvailable
-                    ? BIGQUERY_SERVICE_ACCOUNT_SUBTITLE
-                    : subtitle,
+                    ? t('onboardingDataSource.connectWithServiceAccount')
+                    : t(subtitleKey),
         };
     }).filter((warehouse) => warehouse !== undefined);
 
@@ -117,12 +117,14 @@ const SectionHeader: FC<{ title: string; hint?: string }> = ({
 );
 
 const DataSourcePicker: FC = () => {
+    const { t } = useTranslation('pages');
     const navigate = useNavigate();
     const { track } = useTracking();
     const { health } = useApp();
     const { data: organization } = useOrganization();
     const popularWarehouses = getPopularWarehouses(
         health.data?.auth.google.enabled ?? false,
+        t,
     );
 
     const handleSelect = (
@@ -145,15 +147,15 @@ const DataSourcePicker: FC = () => {
         <Box className={classes.column}>
             <Stack align="center" gap="xs">
                 <Title order={1} ta="center">
-                    Add a data source
+                    {t('onboardingDataSource.title')}
                 </Title>
                 <Text size="md" c="dimmed" ta="center">
-                    Connect your warehouse so your agents can query your data.
+                    {t('onboardingDataSource.subtitle')}
                 </Text>
             </Stack>
 
             <Stack gap="md">
-                <SectionHeader title="Most popular" />
+                <SectionHeader title={t('onboardingDataSource.mostPopular')} />
                 <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
                     {popularWarehouses.map((warehouse) => (
                         <Paper
@@ -181,7 +183,9 @@ const DataSourcePicker: FC = () => {
             </Stack>
 
             <Stack gap="md">
-                <SectionHeader title="All warehouses" />
+                <SectionHeader
+                    title={t('onboardingDataSource.allWarehouses')}
+                />
                 <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="md">
                     {allWarehouses.map((warehouse) => (
                         <Paper
@@ -262,6 +266,7 @@ const OtherWarehouseConnect: FC = () => {
 };
 
 const OnboardingDataSourceContent: FC = () => {
+    const { t } = useTranslation('pages');
     const { warehouse } = useParams<{ warehouse?: string }>();
 
     const selectedWarehouse =
@@ -273,7 +278,7 @@ const OnboardingDataSourceContent: FC = () => {
 
     return (
         <Box className={classes.page}>
-            <DocumentTitle title="Add a data source" />
+            <DocumentTitle title={t('onboardingDataSource.title')} />
             {selectedWarehouse ? (
                 <WarehouseConnect selectedWarehouse={selectedWarehouse} />
             ) : warehouse === OTHER_ROUTE_PARAM ? (

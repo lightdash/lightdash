@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -43,6 +44,7 @@ export const useContentDraftReview = (
 
 export const useWriteBackDraftMutation = (projectUuid: string | undefined) => {
     const { showToastSuccess, showToastError } = useToaster();
+    const { t } = useTranslation('contentAsCode');
     const queryClient = useQueryClient();
     return useMutation<ContentDraftSummary, ApiError, string>(
         (draftUuid) =>
@@ -58,10 +60,10 @@ export const useWriteBackDraftMutation = (projectUuid: string | undefined) => {
                     projectUuid,
                 ]);
                 showToastSuccess({
-                    title: 'Draft written back to the repo',
+                    title: t('toasts.writtenBack'),
                     action: draft.prUrl
                         ? {
-                              children: 'Open pull request',
+                              children: t('toasts.openPullRequest'),
                               icon: IconArrowRight,
                               onClick: () => {
                                   window.open(draft.prUrl!, '_blank');
@@ -72,7 +74,7 @@ export const useWriteBackDraftMutation = (projectUuid: string | undefined) => {
             },
             onError: (error) => {
                 showToastError({
-                    title: 'Failed to write back draft',
+                    title: t('toasts.writeBackFailed'),
                     subtitle: error.error.message,
                 });
             },
@@ -82,6 +84,7 @@ export const useWriteBackDraftMutation = (projectUuid: string | undefined) => {
 
 export const useDismissDraftMutation = (projectUuid: string | undefined) => {
     const { showToastSuccess, showToastError } = useToaster();
+    const { t } = useTranslation('contentAsCode');
     const queryClient = useQueryClient();
     return useMutation<undefined, ApiError, string>(
         (draftUuid) =>
@@ -96,11 +99,11 @@ export const useDismissDraftMutation = (projectUuid: string | undefined) => {
                     'content-drafts',
                     projectUuid,
                 ]);
-                showToastSuccess({ title: 'Draft dismissed' });
+                showToastSuccess({ title: t('toasts.dismissed') });
             },
             onError: (error) => {
                 showToastError({
-                    title: 'Failed to dismiss draft',
+                    title: t('toasts.dismissFailed'),
                     subtitle: error.error.message,
                 });
             },
@@ -126,6 +129,7 @@ export const useDraftStaleness = (
 
 export const useRebaseDraftMutation = (projectUuid: string | undefined) => {
     const { showToastSuccess, showToastError } = useToaster();
+    const { t } = useTranslation('contentAsCode');
     const queryClient = useQueryClient();
     return useMutation<
         ContentDraftSummary,
@@ -153,12 +157,12 @@ export const useRebaseDraftMutation = (projectUuid: string | undefined) => {
                     queryClient.invalidateQueries(['saved_query']),
                 ]);
                 showToastSuccess({
-                    title: 'Draft updated to the latest version',
+                    title: t('toasts.updated'),
                 });
             },
             onError: (error) => {
                 showToastError({
-                    title: 'Failed to update draft',
+                    title: t('toasts.updateFailed'),
                     subtitle: error.error.message,
                 });
             },
@@ -168,6 +172,7 @@ export const useRebaseDraftMutation = (projectUuid: string | undefined) => {
 
 export const useReopenDraftMutation = (projectUuid: string | undefined) => {
     const { showToastSuccess, showToastError } = useToaster();
+    const { t } = useTranslation('contentAsCode');
     const queryClient = useQueryClient();
     return useMutation<ContentDraftSummary, ApiError, string>(
         (draftUuid) =>
@@ -186,11 +191,11 @@ export const useReopenDraftMutation = (projectUuid: string | undefined) => {
                     queryClient.invalidateQueries(['saved_dashboard_query']),
                     queryClient.invalidateQueries(['saved_query']),
                 ]);
-                showToastSuccess({ title: 'Draft reopened' });
+                showToastSuccess({ title: t('toasts.reopened') });
             },
             onError: (error) => {
                 showToastError({
-                    title: 'Failed to reopen draft',
+                    title: t('toasts.reopenFailed'),
                     subtitle: error.error.message,
                 });
             },

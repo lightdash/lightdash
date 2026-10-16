@@ -1,5 +1,6 @@
 import { Select } from '@mantine/core';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import MantineModal from '../../../components/common/MantineModal';
 import { useExplores } from '../../../hooks/useExplores';
@@ -28,6 +29,7 @@ const ChartTypePreviewTableModal: FC<Props> = ({
     onClose,
     onSelectTable,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const navigate = useNavigate();
     const { track } = useTracking();
     const [tableName, setTableName] = useState<string | null>(null);
@@ -40,8 +42,8 @@ const ChartTypePreviewTableModal: FC<Props> = ({
         <MantineModal
             opened
             onClose={onClose}
-            title="Preview in explorer"
-            confirmLabel="Open in explorer"
+            title={t('detail.previewInExplorer')}
+            confirmLabel={t('previewTable.openInExplorer')}
             confirmDisabled={tableName === null}
             onConfirm={() => {
                 if (tableName === null) return;
@@ -59,9 +61,9 @@ const ChartTypePreviewTableModal: FC<Props> = ({
             }}
         >
             <Select
-                label="Table"
-                description="Choose the table to preview this chart type with."
-                placeholder="Select a table"
+                label={t('previewTable.table')}
+                description={t('previewTable.description')}
+                placeholder={t('testInputs.selectTable')}
                 searchable
                 data={options}
                 value={tableName}

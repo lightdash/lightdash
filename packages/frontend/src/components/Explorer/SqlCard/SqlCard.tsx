@@ -17,6 +17,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     explorerActions,
     selectIsSqlExpanded,
@@ -51,6 +52,7 @@ const LazyRenderedSql = lazy(() =>
 );
 
 const SqlCard: FC<SqlCardProps> = memo((props) => {
+    const { t } = useTranslation('explorer');
     const { projectUuid, warehouseConnectionUuid } = props;
     const { hovered, ref: headingRef } = useHover();
     const [selectedView, setSelectedView] = useState<SqlViewType>('query');
@@ -102,7 +104,7 @@ const SqlCard: FC<SqlCardProps> = memo((props) => {
         <CollapsableCard
             isVisualizationCard
             headingRef={headingRef}
-            title="SQL"
+            title={t('sqlCard.title')}
             isOpen={sqlIsOpen}
             onToggle={() => toggleExpandedSection(ExplorerSection.SQL)}
             disabled={!unsavedChartVersionTableName}
@@ -141,8 +143,8 @@ const SqlCard: FC<SqlCardProps> = memo((props) => {
                     <CopyActionIcon
                         value={formattedSql}
                         icon={IconClipboard}
-                        copyLabel="Copy SQL"
-                        copiedLabel="Copied to clipboard"
+                        copyLabel={t('sqlCard.copySql')}
+                        copiedLabel={t('sqlCard.copied')}
                         tooltipPosition="right"
                     />
                 ) : undefined
@@ -155,9 +157,12 @@ const SqlCard: FC<SqlCardProps> = memo((props) => {
                             <SegmentedControl
                                 size="xs"
                                 data={[
-                                    { label: 'Base Query', value: 'query' },
                                     {
-                                        label: 'Chart Query',
+                                        label: t('sqlCard.baseQuery'),
+                                        value: 'query',
+                                    },
+                                    {
+                                        label: t('sqlCard.chartQuery'),
                                         value: 'pivotQuery',
                                     },
                                 ]}
@@ -195,9 +200,11 @@ const SqlCard: FC<SqlCardProps> = memo((props) => {
         >
             {cannotViewSqlAuthoredFields ? (
                 <Box p="sm">
-                    <Callout variant="info" title="SQL preview unavailable">
-                        This chart contains custom SQL fields that you don't
-                        have permission to view.
+                    <Callout
+                        variant="info"
+                        title={t('sqlCard.previewUnavailable.title')}
+                    >
+                        {t('sqlCard.previewUnavailable.description')}
                     </Callout>
                 </Box>
             ) : (

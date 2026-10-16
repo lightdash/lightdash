@@ -9,6 +9,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     explorerActions,
     selectColumnOrder,
@@ -47,6 +48,7 @@ import { ResultsViewMode } from './types';
 import { useGroupedResultsAvailability } from './useGroupedResultsAvailability';
 
 const ResultsCard: FC = memo(() => {
+    const { t } = useTranslation('explorer');
     const projectUuid = useProjectUuid();
 
     // View mode state for switching between results and grouped results
@@ -148,7 +150,7 @@ const ResultsCard: FC = memo(() => {
 
     return (
         <CollapsableCard
-            title="Results"
+            title={t('resultsCard.title')}
             isOpen={resultsIsOpen}
             onToggle={toggleCard}
             disabled={!tableName}
@@ -204,11 +206,15 @@ const ResultsCard: FC = memo(() => {
                                 size="xs"
                                 data={[
                                     {
-                                        label: 'Results',
+                                        label: t(
+                                            'resultsCard.viewModes.results',
+                                        ),
                                         value: ResultsViewMode.RESULTS,
                                     },
                                     {
-                                        label: 'Chart results',
+                                        label: t(
+                                            'resultsCard.viewModes.chartResults',
+                                        ),
                                         value: ResultsViewMode.GROUPED,
                                     },
                                 ]}

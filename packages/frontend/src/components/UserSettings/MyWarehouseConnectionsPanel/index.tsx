@@ -5,6 +5,7 @@ import {
 import { Anchor, Button, Text } from '@mantine/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useUserWarehouseCredentials } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
@@ -15,6 +16,7 @@ import { DeleteCredentialsModal } from './DeleteCredentialsModal';
 import { EditCredentialsModal } from './EditCredentialsModal';
 
 export const MyWarehouseConnectionsPanel = () => {
+    const { t } = useTranslation('userSettings');
     const { data: credentials } = useUserWarehouseCredentials();
     const defaultCredentials = credentials?.filter(
         ({ purpose }) => purpose !== UserWarehouseCredentialPurpose.AI,
@@ -29,32 +31,35 @@ export const MyWarehouseConnectionsPanel = () => {
 
     const personalConnectionsCallout = (
         <Text c="dimmed" fz="xs">
-            These credentials are only used for projects that require user
-            credentials -{' '}
-            <Anchor
-                role="button"
-                href="https://docs.lightdash.com/references/personal-warehouse-connections"
-                target="_blank"
-                rel="noreferrer"
-                fz="xs"
-            >
-                learn more
-            </Anchor>
-            .
+            <Trans
+                t={t}
+                i18nKey="myWarehouseConnectionsPanel.page.callout"
+                components={{
+                    docsLink: (
+                        <Anchor
+                            role="button"
+                            href="https://docs.lightdash.com/references/personal-warehouse-connections"
+                            target="_blank"
+                            rel="noreferrer"
+                            fz="xs"
+                        />
+                    ),
+                }}
+            />
         </Text>
     );
 
     return (
         <SettingsPage
-            title="My warehouse connections"
-            description="Manage your personal warehouse credentials."
+            title={t('myWarehouseConnectionsPanel.page.title')}
+            description={t('myWarehouseConnectionsPanel.page.description')}
             actions={
                 <Button
                     size="xs"
                     leftSection={<MantineIcon icon={IconPlus} />}
                     onClick={() => setIsCreatingCredentials(true)}
                 >
-                    Add credentials
+                    {t('myWarehouseConnectionsPanel.page.addCredentials')}
                 </Button>
             }
         >
@@ -74,8 +79,12 @@ export const MyWarehouseConnectionsPanel = () => {
             ) : (
                 <SettingsEmptyState
                     icon={IconDatabaseCog}
-                    title="No warehouse connections"
-                    description="Add personal credentials for projects that require them."
+                    title={t(
+                        'myWarehouseConnectionsPanel.page.emptyState.title',
+                    )}
+                    description={t(
+                        'myWarehouseConnectionsPanel.page.emptyState.description',
+                    )}
                 >
                     {personalConnectionsCallout}
                 </SettingsEmptyState>

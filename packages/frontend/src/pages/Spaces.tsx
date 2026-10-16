@@ -3,6 +3,7 @@ import { ContentType, FeatureFlags, LightdashMode } from '@lightdash/common';
 import { Group, Stack, Button } from '@mantine/core';
 import { IconFolderPlus, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
@@ -21,6 +22,7 @@ import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 import styles from './Spaces.module.css';
 
 const Spaces: FC = () => {
+    const { t } = useTranslation('spaces');
     const projectUuid = useProjectUuid()!;
 
     const { user, health } = useApp();
@@ -93,7 +95,7 @@ const Spaces: FC = () => {
     return (
         <FavoritesProvider projectUuid={projectUuid}>
             <Page
-                title="Spaces"
+                title={t('spacesPage.title')}
                 withCenteredRoot
                 withCenteredContent
                 withXLargePaddedContent
@@ -103,8 +105,8 @@ const Spaces: FC = () => {
                     <Group justify="space-between">
                         <PageBreadcrumbs
                             items={[
-                                { to: '/home', title: 'Home' },
-                                { title: 'Spaces', active: true },
+                                { to: '/home', title: t('spacesPage.home') },
+                                { title: t('spacesPage.title'), active: true },
                             ]}
                         />
 
@@ -125,7 +127,7 @@ const Spaces: FC = () => {
                                     data-tour-anchor="add-space"
                                     data-tour-hint="Click Add"
                                 >
-                                    Add
+                                    {t('actions.add', { ns: 'common' })}
                                 </Button>
                             )}
                         </Group>
@@ -158,7 +160,7 @@ const Spaces: FC = () => {
                             enableBottomToolbar={false}
                             enableRowSelection={false}
                             emptyState={{
-                                title: 'Nothing has been shared with you yet.',
+                                title: t('spacesPage.sharedWithMeEmpty'),
                             }}
                         />
                     ) : (
@@ -191,8 +193,10 @@ const Spaces: FC = () => {
                             projectUuid={projectUuid}
                             parentSpaceUuid={null}
                             actionType={ActionType.CREATE}
-                            title="Create new space"
-                            confirmButtonLabel="Create"
+                            title={t('spacesPage.createNewSpace')}
+                            confirmButtonLabel={t('actions.create', {
+                                ns: 'common',
+                            })}
                             icon={IconFolderPlus}
                             onClose={() => setIsCreateModalOpen(false)}
                         />

@@ -2,6 +2,7 @@ import { deepEqual, type SemanticChartAsCode } from '@lightdash/common';
 import { Button, Group, Stack, TextInput } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Provider } from 'react-redux';
 import { useBeforeUnload } from 'react-router';
 import MantineModal from '../../components/common/MantineModal';
@@ -39,10 +40,11 @@ type ChartForm = UseFormReturnType<{ name: string; description: string }>;
 const CHART_FORM_ID = 'document-chart-editor-form';
 
 const CancelChartEditing = () => {
+    const { t } = useTranslation('documents');
     const { requestClose } = useMantineModalClose();
     return (
         <Button variant="default" onClick={requestClose}>
-            Cancel
+            {t('actions.cancel', { ns: 'common' })}
         </Button>
     );
 };
@@ -59,6 +61,7 @@ const EditorSession = ({
     onBackToTables: () => void;
     form: ChartForm;
 }) => {
+    const { t } = useTranslation('documents');
     useExplorerQueryEffects();
     const version = useExplorerSelector(selectUnsavedChartVersionForSave);
     const isValidQuery = useExplorerSelector(selectIsValidQuery);
@@ -91,7 +94,11 @@ const EditorSession = ({
         <MantineModal
             opened
             fullScreen
-            title={isEditing ? 'Edit chart' : 'Add chart'}
+            title={
+                isEditing
+                    ? t('chartEditor.editTitle')
+                    : t('chartEditor.addTitle')
+            }
             onClose={onClose}
             confirmBeforeClose={dirty}
             cancelLabel={false}
@@ -107,7 +114,7 @@ const EditorSession = ({
                         data-tour-anchor="document-chart-apply"
                         data-tour-hint="Click Apply to Document"
                     >
-                        Apply to Document
+                        {t('chartEditor.apply')}
                     </Button>
                 </Group>
             }
@@ -147,7 +154,7 @@ const EditorSession = ({
                         <form id={CHART_FORM_ID} onSubmit={applyChart}>
                             <Group align="end">
                                 <TextInput
-                                    label="Chart name"
+                                    label={t('chartEditor.nameLabel')}
                                     // Typed anchor for scope walkthroughs (data-tour-via)
                                     data-tour-anchor="document-chart-name"
                                     data-tour-hint="Name the chart"
@@ -156,7 +163,7 @@ const EditorSession = ({
                                     {...form.getInputProps('name')}
                                 />
                                 <TextInput
-                                    label="Description"
+                                    label={t('chartEditor.descriptionLabel')}
                                     {...form.getInputProps('description')}
                                 />
                                 <RefreshButton />
@@ -169,11 +176,11 @@ const EditorSession = ({
             {confirmTableChange && (
                 <MantineModal
                     opened
-                    title="Change chart table?"
-                    description="Changing tables clears the current chart query and configuration. The chart name and description will be kept."
+                    title={t('chartEditor.changeTable.title')}
+                    description={t('chartEditor.changeTable.description')}
                     onClose={() => setConfirmTableChange(null)}
-                    cancelLabel="Keep editing"
-                    confirmLabel="Change table"
+                    cancelLabel={t('chartEditor.changeTable.keepEditing')}
+                    confirmLabel={t('chartEditor.changeTable.confirm')}
                     onConfirm={confirmTableChange}
                 />
             )}

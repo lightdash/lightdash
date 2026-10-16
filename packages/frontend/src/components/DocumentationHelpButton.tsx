@@ -6,6 +6,7 @@ import {
 } from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useIsEmbedded from '../ee/providers/Embed/useIsEmbedded';
 import MantineIcon, { type MantineIconProps } from './common/MantineIcon';
 
@@ -20,12 +21,13 @@ const DocumentationHelpButton: FC<Props> = ({
     tooltipProps,
     ...anchorProps
 }) => {
+    const { t } = useTranslation('app');
     const isEmbedded = useIsEmbedded();
     if (isEmbedded) return null;
 
     return (
         <Tooltip
-            label="Open documentation"
+            label={t('documentationHelpButton.tooltip')}
             position="top"
             maw={350}
             {...tooltipProps}

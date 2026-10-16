@@ -22,6 +22,7 @@ import {
 } from '@mantine/core';
 import { IconAlertTriangle, IconCheck, IconCopy } from '@tabler/icons-react';
 import { useEffect, useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 import {
     useMintWarehouseConnectCode,
@@ -78,29 +79,38 @@ const readValidStoredCode = (): {
 const CopyableCommand: FC<{ command: string; onCopy?: () => void }> = ({
     command,
     onCopy,
-}) => (
-    <Group gap="xs" align="flex-start" wrap="nowrap">
-        <Code block flex={1} miw={0}>
-            {command}
-        </Code>
-        <CopyButton value={command}>
-            {({ copied, copy }) => (
-                <Tooltip label={copied ? 'Copied' : 'Copy'}>
-                    <ActionIcon
-                        color={copied ? 'green' : 'gray'}
-                        onClick={() => {
-                            copy();
-                            onCopy?.();
-                        }}
-                        aria-label="Copy command"
+}) => {
+    const { t } = useTranslation('projectConnection');
+    return (
+        <Group gap="xs" align="flex-start" wrap="nowrap">
+            <Code block flex={1} miw={0}>
+                {command}
+            </Code>
+            <CopyButton value={command}>
+                {({ copied, copy }) => (
+                    <Tooltip
+                        label={
+                            copied
+                                ? t('warehouseFields.copied')
+                                : t('warehouseFields.copy')
+                        }
                     >
-                        <MantineIcon icon={copied ? IconCheck : IconCopy} />
-                    </ActionIcon>
-                </Tooltip>
-            )}
-        </CopyButton>
-    </Group>
-);
+                        <ActionIcon
+                            color={copied ? 'green' : 'gray'}
+                            onClick={() => {
+                                copy();
+                                onCopy?.();
+                            }}
+                            aria-label={t('warehouseFields.copyCommand')}
+                        >
+                            <MantineIcon icon={copied ? IconCheck : IconCopy} />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
+            </CopyButton>
+        </Group>
+    );
+};
 
 type Props = {
     account: string;
@@ -132,11 +142,14 @@ const twoLineOption = (
     </Group>
 );
 
-const defaultBadge = (
-    <Badge size="xs" color="blue">
-        Your Snowflake default
-    </Badge>
-);
+const DefaultBadge: FC = () => {
+    const { t } = useTranslation('projectConnection');
+    return (
+        <Badge size="xs" color="blue">
+            {t('warehouseFields.snowflakeDefault')}
+        </Badge>
+    );
+};
 
 const SnowflakeCliSsoPanel: FC<Props> = ({
     account,
@@ -144,6 +157,7 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
     connectedCredentials,
     onDeposited,
 }) => {
+    const { t } = useTranslation('projectConnection');
     const { health } = useApp();
     const { track } = useTracking();
     const { pathname } = useLocation();
@@ -295,10 +309,10 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                 option.label,
                 databaseMeta.get(option.value)?.comment ?? null,
                 option.value === connectedCredentials.database ? (
-                    defaultBadge
+                    <DefaultBadge />
                 ) : option.value === recommendedDatabase ? (
                     <Badge size="xs" color="green">
-                        Recommended · largest
+                        {t('warehouseFields.recommendedLargest')}
                     </Badge>
                 ) : null,
             );
@@ -310,10 +324,10 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
             const meta = warehouseMeta.get(option.value);
             const badge =
                 option.value === connectedCredentials.warehouse ? (
-                    defaultBadge
+                    <DefaultBadge />
                 ) : option.value === recommendedWarehouse ? (
                     <Badge size="xs" color="green">
-                        Recommended · cheapest
+                        {t('warehouseFields.recommendedCheapest')}
                     </Badge>
                 ) : null;
             return twoLineOption(
@@ -326,30 +340,33 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
             twoLineOption(
                 option.label,
                 null,
-                defaultRoleNames.has(option.value) ? defaultBadge : null,
+                defaultRoleNames.has(option.value) ? <DefaultBadge /> : null,
             );
         return (
             <Stack gap="md">
                 <Alert
                     color="green"
                     icon={<MantineIcon icon={IconCheck} />}
-                    title={`Connected as ${connectedCredentials.user} ✓`}
+                    title={t('warehouseFields.connectedAs', {
+                        user: connectedCredentials.user,
+                    })}
                 >
                     <Text size="sm">
-                        Choose where Lightdash should query, then deploy your
-                        project to finish.
+                        {t('warehouseFields.cliSsoChooseWhere')}
                     </Text>
                 </Alert>
                 <Select
-                    label="Database"
-                    description="Where your data lives. You can add more later."
+                    label={t('warehouseFields.database')}
+                    description={t(
+                        'warehouseFields.databaseOnboardingDescription',
+                    )}
                     data={withCurrentValue(
                         (inventory?.databases ?? []).map((d) => d.name),
                         warehouseValues?.database,
                     )}
                     renderOption={renderDatabaseOption}
                     searchable
-                    nothingFoundMessage="No databases match"
+                    nothingFoundMessage={t('warehouseFields.noDatabasesMatch')}
                     required
                     disabled={disabled}
                     {...form.getInputProps('warehouse.database')}
@@ -360,36 +377,40 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                     }}
                 />
                 <Select
-                    label="Warehouse"
-                    description="The compute Snowflake uses to run queries. A small one is fine for BI."
+                    label={t('warehouseFields.warehouse')}
+                    description={t(
+                        'warehouseFields.snowflakeWarehouseOnboardingDescription',
+                    )}
                     data={withCurrentValue(
                         (inventory?.warehouses ?? []).map((w) => w.name),
                         warehouseValues?.warehouse,
                     )}
                     renderOption={renderWarehouseOption}
                     searchable
-                    nothingFoundMessage="No warehouses match"
+                    nothingFoundMessage={t('warehouseFields.noWarehousesMatch')}
                     required
                     disabled={disabled}
                     {...form.getInputProps('warehouse.warehouse')}
                 />
                 <Select
-                    label="Role"
-                    description="Controls what Lightdash can see. A read-only role is best."
+                    label={t('warehouseFields.role')}
+                    description={t('warehouseFields.roleOnboardingDescription')}
                     data={withCurrentValue(
                         (inventory?.roles ?? []).map((r) => r.name),
                         warehouseValues?.role,
                     )}
                     renderOption={renderRoleOption}
                     searchable
-                    nothingFoundMessage="No roles match"
+                    nothingFoundMessage={t('warehouseFields.noRolesMatch')}
                     clearable
                     disabled={disabled}
                     {...form.getInputProps('warehouse.role')}
                 />
                 <Autocomplete
-                    label="Schema"
-                    description="We'll start with this schema — you can add more later."
+                    label={t('warehouseFields.schema')}
+                    description={t(
+                        'warehouseFields.schemaOnboardingDescription',
+                    )}
                     data={schemaOptions}
                     rightSection={<Combobox.Chevron />}
                     rightSectionPointerEvents="none"
@@ -409,10 +430,7 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
     return (
         <Stack gap="md">
             <Text size="sm" c="dimmed">
-                The quickest, most secure way to connect. Run these two commands
-                in your terminal — our CLI signs you into Snowflake in your
-                browser and sets up a secure, revocable connection for you, with
-                no credentials to copy by hand.
+                {t('warehouseFields.cliSsoIntro')}
             </Text>
 
             {!code ? (
@@ -422,11 +440,11 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                         disabled={disabled || !account}
                         onClick={() => void handleGenerate()}
                     >
-                        Generate connect code
+                        {t('warehouseFields.generateConnectCode')}
                     </Button>
                     {!account && (
                         <Text size="xs" c="dimmed">
-                            Enter your account above to generate a code.
+                            {t('warehouseFields.cliSsoEnterAccount')}
                         </Text>
                     )}
                 </Group>
@@ -435,7 +453,7 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                     {!isDev && (
                         <Stack gap="xs">
                             <Text size="sm" fw={500}>
-                                1. Install the CLI
+                                {t('warehouseFields.cliSsoInstallStep')}
                             </Text>
                             <CopyableCommand
                                 command={SNOWFLAKE_CLI_INSTALL_COMMAND}
@@ -445,8 +463,8 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                     <Stack gap="xs">
                         <Text size="sm" fw={500}>
                             {isDev
-                                ? 'Connect with SSO (dev CLI — run from the repo root)'
-                                : '2. Connect with SSO'}
+                                ? t('warehouseFields.cliSsoDevTitle')
+                                : t('warehouseFields.cliSsoConnectStep')}
                         </Text>
                         <CopyableCommand
                             command={connectCommand}
@@ -462,8 +480,10 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                     <Group gap="xs">
                         <Text size="xs" c="dimmed">
                             {isExpired
-                                ? 'Code expired'
-                                : `Code expires in ${secondsRemaining ?? 0}s`}
+                                ? t('warehouseFields.codeExpired')
+                                : t('warehouseFields.codeExpiresIn', {
+                                      seconds: secondsRemaining ?? 0,
+                                  })}
                         </Text>
                         <Button
                             variant="subtle"
@@ -471,7 +491,7 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                             loading={mint.isLoading}
                             onClick={() => void handleGenerate()}
                         >
-                            Generate new code
+                            {t('warehouseFields.generateNewCode')}
                         </Button>
                     </Group>
 
@@ -479,7 +499,7 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                         <Group gap="xs">
                             <Loader size="xs" />
                             <Text size="sm" c="dimmed">
-                                Waiting for the CLI to finish signing in…
+                                {t('warehouseFields.cliSsoWaiting')}
                             </Text>
                         </Group>
                     )}
@@ -488,9 +508,9 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                         <Alert
                             color="red"
                             icon={<MantineIcon icon={IconAlertTriangle} />}
-                            title="Connection code no longer valid"
+                            title={t('warehouseFields.connectionCodeInvalid')}
                         >
-                            Generate a new code and try again.
+                            {t('warehouseFields.generateNewCodeHint')}
                         </Alert>
                     )}
                 </Stack>

@@ -1,10 +1,12 @@
 import { Group, Stack, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSchedulerFormContext } from '../schedulerFormContext';
 import { getNextRuns } from './nextRuns';
 import classes from './SchedulerDeliveryModal.module.css';
 
 export const SchedulerNextRuns: FC = () => {
+    const { t } = useTranslation('scheduler');
     const form = useSchedulerFormContext();
     const { cron, timezone } = form.values;
 
@@ -15,7 +17,9 @@ export const SchedulerNextRuns: FC = () => {
     return (
         <div className={classes.previewNextRuns}>
             <Stack gap="xs">
-                <span className={classes.previewLabel}>Next runs</span>
+                <span className={classes.previewLabel}>
+                    {t('nextRuns.title')}
+                </span>
                 <Stack gap={4}>
                     {runs.map((run) => (
                         <Group
@@ -35,8 +39,8 @@ export const SchedulerNextRuns: FC = () => {
                 </Stack>
                 <Text size="xs" c="dimmed">
                     {timezone
-                        ? `Times shown in ${timezone}`
-                        : 'Times shown in project timezone'}
+                        ? t('nextRuns.timesShownIn', { timezone })
+                        : t('nextRuns.timesShownInProject')}
                 </Text>
             </Stack>
         </div>

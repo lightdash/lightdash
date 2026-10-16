@@ -2,6 +2,7 @@ import { type LightdashUser } from '@lightdash/common';
 import { Anchor, Button, PinInput, Stack, Text } from '@mantine/core';
 import { isNotEmpty, useForm } from '@mantine/form';
 import { useCallback, useEffect, useRef, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import useToaster from '../../../hooks/toaster/useToaster';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -15,12 +16,13 @@ const LoginWithEmailOtp: FC<{
     disabled?: boolean;
     onSuccess: (user: LightdashUser) => void;
 }> = ({ email, disabled, onSuccess }) => {
+    const { t } = useTranslation('auth');
     const { showToastApiError, showToastSuccess } = useToaster();
     const { track } = useTracking();
 
     const form = useForm<{ passcode: string }>({
         initialValues: { passcode: '' },
-        validate: { passcode: isNotEmpty('This field is required.') },
+        validate: { passcode: isNotEmpty(t('otp.required')) },
     });
 
     const { mutate: requestCode, isLoading: isRequesting } =
@@ -32,12 +34,12 @@ const LoginWithEmailOtp: FC<{
                 onSuccess: onRequestSuccess,
                 onError: ({ error }) =>
                     showToastApiError({
-                        title: `Failed to send a code to ${email}`,
+                        title: t('otp.sendFailed', { email }),
                         apiError: error,
                     }),
             });
         },
-        [requestCode, email, showToastApiError],
+        [requestCode, email, showToastApiError, t],
     );
 
     const requestedRef = useRef(false);
@@ -86,15 +88,18 @@ const LoginWithEmailOtp: FC<{
     return (
         <Stack gap="md">
             <Text c="ldGray.8" fz="sm">
-                We've emailed a 6-digit code to{' '}
-                <Text span fw={500} fz="sm" c="ldGray.8">
-                    {email}
-                </Text>
-                . Enter it below to sign in.
+                <Trans
+                    t={t}
+                    i18nKey="otp.sentTo"
+                    values={{ email }}
+                    components={{
+                        email: <Text span fw={500} fz="sm" c="ldGray.8" />,
+                    }}
+                />
             </Text>
             <Stack gap="xs" align="center">
                 <PinInput
-                    aria-label="One-time password"
+                    aria-label={t('otp.inputLabel')}
                     name="passcode"
                     length={6}
                     oneTimeCode
@@ -117,7 +122,7 @@ const LoginWithEmailOtp: FC<{
                 onClick={() => submitCode(form.values.passcode)}
                 data-cy="signin-button"
             >
-                Sign in
+                {t('otp.signIn')}
             </Button>
             <Anchor
                 fz="sm"
@@ -133,12 +138,12 @@ const LoginWithEmailOtp: FC<{
                     form.reset();
                     requestCodeForEmail(() => {
                         showToastSuccess({
-                            title: `We've sent a new code to ${email}`,
+                            title: t('otp.resent', { email }),
                         });
                     });
                 }}
             >
-                Resend code
+                {t('otp.resend')}
             </Anchor>
         </Stack>
     );

@@ -1,6 +1,7 @@
 import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
 import { type ModalProps } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useColorPalettes,
     useCreateColorPalette,
@@ -29,6 +30,7 @@ const DEFAULT_COLOR_PALETTE = {
 };
 
 export const CreatePaletteModal: FC<Props> = ({ opened, onClose }) => {
+    const { t } = useTranslation('userSettings');
     const { data: palettes = [] } = useColorPalettes();
     const createColorPalette = useCreateColorPalette();
 
@@ -52,8 +54,10 @@ export const CreatePaletteModal: FC<Props> = ({ opened, onClose }) => {
                 name: '',
                 colors: DEFAULT_COLOR_PALETTE.colors,
             }}
-            title="Create new palette"
-            submitButtonText="Create palette"
+            title={t('appearanceSettingsPanel.createPaletteModal.title')}
+            submitButtonText={t(
+                'appearanceSettingsPanel.createPaletteModal.submit',
+            )}
             existingPaletteNames={palettes.map((p) => p.name)}
         />
     );

@@ -7,6 +7,7 @@ import {
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal, {
@@ -103,6 +104,7 @@ const ChartList: FC<ChartListProps> = ({
 };
 
 export const MetricChartUsageModal: FC<Props> = ({ opened, onClose }) => {
+    const { t } = useTranslation('metricsCatalog');
     const { track } = useTracking();
     const userUuid = useAppSelector(
         (state) => state.metricsCatalog.user?.userUuid,
@@ -141,7 +143,7 @@ export const MetricChartUsageModal: FC<Props> = ({ opened, onClose }) => {
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Metric Usage"
+            title={t('chartUsageModal.title')}
             icon={IconDeviceAnalytics}
             cancelLabel={false}
             size="xl"
@@ -149,11 +151,11 @@ export const MetricChartUsageModal: FC<Props> = ({ opened, onClose }) => {
             <Stack gap="sm">
                 {isLoading ? (
                     <Text size="sm" c="dimmed">
-                        Loading...
+                        {t('chartUsageModal.loading')}
                     </Text>
                 ) : !analytics || analytics.charts.length === 0 ? (
                     <Text size="sm" c="dimmed">
-                        No charts found using this metric
+                        {t('chartUsageModal.empty')}
                     </Text>
                 ) : (
                     <ChartList

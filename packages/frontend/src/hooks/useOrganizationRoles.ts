@@ -10,6 +10,7 @@ import {
     useQueryClient,
     type UseQueryResult,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import useApp from '../providers/App/useApp';
 import useToaster from './toaster/useToaster';
@@ -73,6 +74,7 @@ export const useOrganizationRoleAssignments = () => {
 export const useUpsertOrganizationUserRoleAssignmentMutation = () => {
     const { user } = useApp();
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation(
@@ -95,12 +97,12 @@ export const useUpsertOrganizationUserRoleAssignmentMutation = () => {
                 await queryClient.invalidateQueries(['organization_users']);
                 await queryClient.refetchQueries(['user']);
                 showToastSuccess({
-                    title: 'Success! User role updated.',
+                    title: t('useOrganizationRoles.successUserRoleUpdated'),
                 });
             },
             onError: ({ error }: { error: any }) => {
                 showToastApiError({
-                    title: "Failed to update user's role",
+                    title: t('useOrganizationRoles.failedToUpdateUserSRole'),
                     apiError: error,
                 });
             },

@@ -3,6 +3,7 @@ import {
     type ApiError,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import { downloadImageUrl } from '../components/common/ChartDownload/chartDownloadUtils';
 import useToaster from './toaster/useToaster';
@@ -28,6 +29,7 @@ const exportSavedChartImage = async ({
 
 /** Export a saved chart image, download it, and report failures to the user. */
 export const useSavedChartImageExport = () => {
+    const { t } = useTranslation('app');
     const { showToastError } = useToaster();
 
     return useMutation<string, ApiError, ExportSavedChartImageArgs>({
@@ -37,7 +39,9 @@ export const useSavedChartImageExport = () => {
             return imageUrl;
         },
         onError: () => {
-            showToastError({ title: 'Unable to download chart image' });
+            showToastError({
+                title: t('useSavedChartImageExport.unableToDownloadChartImage'),
+            });
         },
     });
 };

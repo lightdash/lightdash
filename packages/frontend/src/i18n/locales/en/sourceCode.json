@@ -1,0 +1,51 @@
+{
+    "unsavedChanges": {
+        "title": "Unsaved changes",
+        "description": "You have unsaved changes. Are you sure you want to discard them?",
+        "discard": "Discard changes"
+    },
+    "createPullRequest": {
+        "title": "Create Pull Request",
+        "defaultTitle": "Update from branch {{branch}}",
+        "defaultDescription": "This pull request contains changes made via the Lightdash source code editor.",
+        "titleRequired": "Title is required",
+        "titleLabel": "Title",
+        "titlePlaceholder": "e.g., Add new metric to orders model",
+        "fromBranch": "From branch",
+        "descriptionLabel": "Description",
+        "descriptionPlaceholder": "Describe your changes..."
+    },
+    "createBranch": {
+        "title": "Create new branch",
+        "submit": "Create branch",
+        "nameRequired": "Branch name is required",
+        "nameInvalid": "Branch name can only contain letters, numbers, dashes, underscores, dots, and slashes",
+        "nameLabel": "Branch name",
+        "namePlaceholder": "e.g., feature/my-changes",
+        "createFrom": "Create from"
+    },
+    "toolbar": {
+        "modified": "(modified)",
+        "selectFile": "Select a file to view",
+        "readOnly": "Read-only (protected branch)",
+        "createPullRequest": "Create Pull Request"
+    },
+    "branchSelector": {
+        "placeholder": "Select branch",
+        "createBranch": "Create branch"
+    },
+    "sidebar": {
+        "title": "Source Code",
+        "description": "Browse and edit your project files"
+    },
+    "fileTree": {
+        "selectBranch": "Select a branch to view files",
+        "loading": "Loading files...",
+        "loadFailed": "Failed to load files",
+        "empty": "No files found"
+    },
+    "editorPane": {
+        "loadingFile": "Loading file...",
+        "selectFile": "Select a file from the sidebar"
+    }
+}

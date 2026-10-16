@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Group, Loader, Text } from '@mantine/core';
 import { forwardRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import AppIframePreview, {
     type AppIframePreviewHandle,
 } from '../AppIframePreview';
@@ -86,6 +87,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
         },
         ref,
     ) => {
+        const { t } = useTranslation('apps');
         const {
             data: token,
             isLoading,
@@ -108,7 +110,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 <Group gap="sm" p="md" justify="center">
                     <Loader size="sm" />
                     <Text size="sm" c="dimmed">
-                        Loading preview...
+                        {t('preview.loading')}
                     </Text>
                 </Group>
             );
@@ -117,10 +119,12 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
         if (visibleError) {
             return (
                 <Text c="red" p="md" size="sm">
-                    Failed to load preview:{' '}
-                    {visibleError instanceof Error
-                        ? visibleError.message
-                        : 'Unknown error'}
+                    {t('preview.loadFailed', {
+                        message:
+                            visibleError instanceof Error
+                                ? visibleError.message
+                                : t('common.unknownError'),
+                    })}
                 </Text>
             );
         }

@@ -39,6 +39,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import {
     explorerActions,
@@ -79,6 +80,7 @@ const NavItemIcon = ({
     isMissing?: boolean;
     item: Item | AdditionalMetric;
 }) => {
+    const { t } = useTranslation('explorer');
     const { data: tzSupportFlag } = useServerFeatureFlag(
         FeatureFlags.EnableTimezoneSupport,
     );
@@ -94,23 +96,21 @@ const NavItemIcon = ({
             return {
                 pinIcon: null,
                 tooltip: isDate
-                    ? "Calendar date, shifts with the chart's timezone"
-                    : "Timestamp, shifts with the chart's timezone",
+                    ? t('exploreTree.timezone.dateShifts')
+                    : t('exploreTree.timezone.timestampShifts'),
             };
         }
         // TZ-immune dims are "pinned" — a calendar/clock-pin by display type.
         return isDate
             ? {
                   pinIcon: IconCalendarPin,
-                  tooltip:
-                      "Calendar date, not affected by the chart's timezone",
+                  tooltip: t('exploreTree.timezone.dateUnaffected'),
               }
             : {
                   pinIcon: IconClockPin,
-                  tooltip:
-                      "Timestamp shown as stored, not affected by the chart's timezone",
+                  tooltip: t('exploreTree.timezone.timestampUnaffected'),
               };
-    }, [isMissing, tzSupportEnabled, item]);
+    }, [isMissing, tzSupportEnabled, item, t]);
 
     if (isMissing) {
         return <MantineIcon icon={IconAlertTriangle} color="ldGray.7" />;
@@ -168,6 +168,7 @@ type Props = {
 };
 
 const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
+    const { t } = useTranslation('explorer');
     const itemsMap = useTableTree((context) => {
         return context.itemsMap;
     });
@@ -555,7 +556,12 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                     onClick={handleDropdownClick}
                                 >
                                     {isMissing ? (
-                                        `This field from '${item.table}' table is no longer available`
+                                        t(
+                                            'exploreTree.node.fieldNoLongerAvailable',
+                                            {
+                                                table: item.table,
+                                            },
+                                        )
                                     ) : (
                                         <ItemDetailPreview
                                             onViewDescription={
@@ -568,7 +574,9 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                 </HoverCard.Dropdown>
                             </HoverCard>
                             {isDashboardMetric && (
-                                <Tooltip label="Only available in this dashboard">
+                                <Tooltip
+                                    label={t('exploreTree.node.dashboardOnly')}
+                                >
                                     <Badge
                                         size="xs"
                                         radius="sm"
@@ -583,7 +591,12 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                             {isTruncated && (
                                 <Tooltip
                                     maw={300}
-                                    label={`Located ${truncatedActualDepth} levels deep`}
+                                    label={t(
+                                        'exploreTree.node.locatedLevelsDeep',
+                                        {
+                                            count: truncatedActualDepth,
+                                        },
+                                    )}
                                 >
                                     <MantineIcon
                                         icon={IconHierarchyOff}
@@ -596,8 +609,8 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                 <Tooltip
                                     label={
                                         isFiltered
-                                            ? 'This field is filtered'
-                                            : 'Click here to add filter'
+                                            ? t('exploreTree.node.isFiltered')
+                                            : t('exploreTree.node.addFilter')
                                     }
                                 >
                                     <ActionIcon onClick={handleFilterClick}>
@@ -609,7 +622,11 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                 </Tooltip>
                             )}
                             {showDeleteAction && (
-                                <Tooltip label="Delete custom metric">
+                                <Tooltip
+                                    label={t(
+                                        'exploreTree.node.deleteCustomMetric',
+                                    )}
+                                >
                                     <ActionIcon onClick={handleDeleteClick}>
                                         <MantineIcon
                                             icon={IconTrash}
@@ -619,7 +636,9 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                 </Tooltip>
                             )}
                             {isField(item) && item.hidden ? (
-                                <Tooltip label="This field has been hidden in the dbt project. It's recommend to remove it from the query">
+                                <Tooltip
+                                    label={t('exploreTree.node.hiddenInDbt')}
+                                >
                                     <MantineIcon
                                         icon={IconAlertTriangle}
                                         color="yellow.9"

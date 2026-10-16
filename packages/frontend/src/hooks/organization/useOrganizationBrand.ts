@@ -5,6 +5,7 @@ import {
     type UpdateOrganizationBrandRequest,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -34,6 +35,7 @@ const fetchOrganizationBrand = async (data: UpdateOrganizationBrandRequest) =>
  * user can review and edit before saving).
  */
 export const useFetchOrganizationBrand = () => {
+    const { t } = useTranslation('app');
     const { showToastApiError } = useToaster();
     return useMutation<
         OrganizationBrand,
@@ -43,7 +45,7 @@ export const useFetchOrganizationBrand = () => {
         mutationKey: ['organization_brand_fetch'],
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to fetch brand',
+                title: t('useOrganizationBrand.failedToFetchBrand'),
                 apiError: error,
             });
         },
@@ -82,6 +84,7 @@ export const useSaveOrganizationBrand = (
     options: { showSuccessToast: boolean } = { showSuccessToast: true },
 ) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         OrganizationBrand | null,
@@ -92,12 +95,14 @@ export const useSaveOrganizationBrand = (
         onSuccess: (brand) => {
             queryClient.setQueryData(['organization_brand'], brand);
             if (options.showSuccessToast) {
-                showToastSuccess({ title: 'Brand appearance saved' });
+                showToastSuccess({
+                    title: t('useOrganizationBrand.brandAppearanceSaved'),
+                });
             }
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to save brand',
+                title: t('useOrganizationBrand.failedToSaveBrand'),
                 apiError: error,
             });
         },

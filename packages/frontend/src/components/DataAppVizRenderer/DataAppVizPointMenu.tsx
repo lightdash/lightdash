@@ -3,6 +3,7 @@ import { Box, Menu, Portal } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import useToaster from '../../hooks/toaster/useToaster';
 import MantineIcon from '../common/MantineIcon';
@@ -38,6 +39,7 @@ const DataAppVizPointMenu: FC<Props> = ({
     showFilters,
     trackingData,
 }) => {
+    const { t } = useTranslation('visualization');
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
 
@@ -51,7 +53,7 @@ const DataAppVizPointMenu: FC<Props> = ({
     const handleCopy = () => {
         if (state.copyValue !== undefined) {
             clipboard.copy(state.copyValue);
-            showToastSuccess({ title: 'Copied to clipboard!' });
+            showToastSuccess({ title: t('contextMenu.copiedToClipboard') });
         }
         onClose();
     };
@@ -96,7 +98,7 @@ const DataAppVizPointMenu: FC<Props> = ({
                             leftSection={<MantineIcon icon={IconCopy} />}
                             onClick={handleCopy}
                         >
-                            Copy value
+                            {t('contextMenu.copyValue')}
                         </Menu.Item>
                     )}
                     {showUnderlyingData && metricQuery && (

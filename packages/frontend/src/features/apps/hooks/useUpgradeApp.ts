@@ -4,6 +4,7 @@ import {
     type UpgradeAppRequestBody,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -24,6 +25,7 @@ const upgradeApp = ({ projectUuid, appUuid, body }: UpgradeAppParams) =>
 
 export const useUpgradeApp = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('apps');
     const { showToastApiError } = useToaster();
     return useMutation<UpgradeAppResult, ApiError, UpgradeAppParams>({
         mutationFn: upgradeApp,
@@ -36,7 +38,7 @@ export const useUpgradeApp = () => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to upgrade app',
+                title: t('toasts.upgradeFailed'),
                 apiError: error,
             });
         },

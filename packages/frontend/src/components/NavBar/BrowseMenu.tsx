@@ -31,6 +31,7 @@ import {
     IconPuzzle,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { ReviewRequestsMenuItem } from '../../ee/features/contentReview';
 import { useChartTypesEnabled } from '../../features/chartTypes/hooks/useChartTypesEnabled';
@@ -94,6 +95,7 @@ const getFavoriteItemIcon = (item: ResourceViewItem) => {
 };
 
 const BrowseMenu: FC<Props> = ({ projectUuid }) => {
+    const { t } = useTranslation('navigation');
     const menuProps = useNavBarMenuProps();
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
@@ -147,7 +149,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
         >
             <Menu.Target>
                 <Button
-                    aria-label="Browse"
+                    aria-label={t('browse.label')}
                     variant="default"
                     size="xs"
                     fz="sm"
@@ -159,7 +161,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     data-tour-nav="browse"
                     data-tour-hint="Click Browse"
                 >
-                    Browse
+                    {t('browse.label')}
                 </Button>
             </Menu.Target>
 
@@ -183,7 +185,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     data-tour-then='[data-tour-anchor="space-row"][data-tour-value="Training"]'
                     data-tour-docs="explore/search.mdx#browsing-instead-of-searching:p3:1"
                 >
-                    All Spaces
+                    {t('browse.allSpaces')}
                 </Menu.Item>
 
                 <Menu.Item
@@ -193,7 +195,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     data-tour-nav="all-dashboards"
                     data-tour-hint="Open All dashboards"
                 >
-                    All dashboards
+                    {t('browse.allDashboards')}
                 </Menu.Item>
 
                 <Menu.Item
@@ -203,7 +205,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     data-tour-nav="all-charts"
                     data-tour-hint="Open All saved charts"
                 >
-                    All saved charts
+                    {t('browse.allCharts')}
                 </Menu.Item>
 
                 {documentsFlag.data?.enabled && !documentsFlag.isError && (
@@ -214,7 +216,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                         data-tour-nav="all-documents"
                         data-tour-hint="Open All documents"
                     >
-                        All documents
+                        {t('browse.allDocuments')}
                     </Menu.Item>
                 )}
 
@@ -227,7 +229,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                         data-tour-nav="all-apps"
                         data-tour-hint="Open All data apps"
                     >
-                        All data apps
+                        {t('browse.allDataApps')}
                     </Menu.Item>
                 )}
 
@@ -237,7 +239,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                         to={`/projects/${projectUrlIdentifier}/chart-studio`}
                         leftSection={<MantineIcon icon={IconPuzzle} />}
                     >
-                        Chart Studio
+                        {t('browse.chartStudio')}
                     </Menu.Item>
                 )}
 
@@ -250,7 +252,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 {hasFavorites ? (
                     <>
                         <Menu.Divider />
-                        <Menu.Label>Favorites</Menu.Label>
+                        <Menu.Label>{t('browse.favorites')}</Menu.Label>
                         <ScrollArea
                             scrollbars="y"
                             classNames={{
@@ -298,7 +300,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                             onClick={() => setSpacesExpanded((prev) => !prev)}
                         >
                             <Text fz="xs" fw={500} c="dimmed">
-                                Spaces
+                                {t('browse.spaces')}
                             </Text>
                             <MantineIcon
                                 color="dimmed"

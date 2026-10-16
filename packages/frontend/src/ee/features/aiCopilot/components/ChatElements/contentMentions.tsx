@@ -38,6 +38,7 @@ import {
 } from '../../../../../components/common/SuggestionList/SuggestionList';
 import suggestionStyles from '../../../../../components/common/SuggestionList/SuggestionList.module.css';
 import TruncatedText from '../../../../../components/common/TruncatedText';
+import i18n from '../../../../../i18n/i18n';
 import styles from './AgentChatInput.module.css';
 import {
     FILE_MENTION_CONTENT_TYPE,
@@ -138,14 +139,20 @@ const isRepositoryMentionItem = (
 
 // Keyed by group string (content groups + the file group) so the suggestion
 // list can label every section it renders.
-const groupLabels: Record<string, string> = {
-    thread: 'Already mentioned',
-    current: 'Current page',
-    dashboardTile: 'Dashboard tiles',
-    search: 'Search results',
-    [FILE_MENTION_GROUP]: 'Files',
-    [REPOSITORY_MENTION_GROUP]: 'Repositories',
-};
+const getGroupLabels = (): Record<string, string> => ({
+    thread: i18n.t('contentMentions.groups.thread', { ns: 'aiCopilotChat' }),
+    current: i18n.t('contentMentions.groups.current', { ns: 'aiCopilotChat' }),
+    dashboardTile: i18n.t('contentMentions.groups.dashboardTile', {
+        ns: 'aiCopilotChat',
+    }),
+    search: i18n.t('contentMentions.groups.search', { ns: 'aiCopilotChat' }),
+    [FILE_MENTION_GROUP]: i18n.t('contentMentions.groups.files', {
+        ns: 'aiCopilotChat',
+    }),
+    [REPOSITORY_MENTION_GROUP]: i18n.t('contentMentions.groups.repositories', {
+        ns: 'aiCopilotChat',
+    }),
+});
 
 // The project's file list is the same for every keystroke in a thread, so fetch
 // it once per project and filter client-side. Errors (non-GitHub project, no
@@ -383,7 +390,12 @@ export const contextItemsToContentMentionSuggestions = (
         if (item.type === 'chart') {
             return {
                 id: `${group}:chart:${item.chartUuid}`,
-                label: item.displayName ?? item.chartSlug ?? 'Chart',
+                label:
+                    item.displayName ??
+                    item.chartSlug ??
+                    i18n.t('contentMentions.chartFallback', {
+                        ns: 'aiCopilotChat',
+                    }),
                 contentType: ContentType.CHART,
                 uuid: item.chartUuid,
                 slug: item.chartSlug,
@@ -395,7 +407,12 @@ export const contextItemsToContentMentionSuggestions = (
         if (item.type === 'dashboard') {
             return {
                 id: `${group}:dashboard:${item.dashboardUuid}`,
-                label: item.displayName ?? item.dashboardSlug ?? 'Dashboard',
+                label:
+                    item.displayName ??
+                    item.dashboardSlug ??
+                    i18n.t('contentMentions.dashboardFallback', {
+                        ns: 'aiCopilotChat',
+                    }),
                 contentType: ContentType.DASHBOARD,
                 uuid: item.dashboardUuid,
                 slug: item.dashboardSlug,
@@ -533,9 +550,14 @@ export const getContentMentionEmptyMessage = (query: string) => {
     const remainingChars =
         MIN_CONTENT_SEARCH_QUERY_LENGTH - query.trim().length;
 
-    if (remainingChars <= 0) return 'No content found';
-    if (remainingChars === 1) return 'Type 1 more character to search content';
-    return `Type ${remainingChars} more characters to search content`;
+    if (remainingChars <= 0)
+        return i18n.t('contentMentions.noContentFound', {
+            ns: 'aiCopilotChat',
+        });
+    return i18n.t('contentMentions.typeMoreToSearch', {
+        ns: 'aiCopilotChat',
+        count: remainingChars,
+    });
 };
 
 const renderFileMentionItem = (
@@ -562,7 +584,7 @@ const renderFileMentionItem = (
                         {name}
                     </TruncatedText>
                     <Text size="xs" c="dimmed" truncate>
-                        {dir || groupLabels[FILE_MENTION_GROUP]}
+                        {dir || getGroupLabels()[FILE_MENTION_GROUP]}
                     </Text>
                 </div>
             </Group>
@@ -610,9 +632,13 @@ const renderRepositoryMentionItem = (
                     <Badge
                         ml="auto"
                         size="xs"
-                        title="The coding agent can't open a pull request on this repository"
+                        title={i18n.t('contentMentions.readOnlyRepoTitle', {
+                            ns: 'aiCopilotChat',
+                        })}
                     >
-                        Read-only
+                        {i18n.t('contentMentions.readOnly', {
+                            ns: 'aiCopilotChat',
+                        })}
                     </Badge>
                 )}
             </Group>
@@ -635,7 +661,7 @@ const renderContentMentionItem = (
         item.contentType,
         item.chartKind ?? null,
     );
-    const detail = item.spaceName ?? groupLabels[item.group];
+    const detail = item.spaceName ?? getGroupLabels()[item.group];
 
     return (
         <PolymorphicGroupButton
@@ -795,7 +821,7 @@ const generateContentMentionSuggestion = ({
                         renderItem: renderContentMentionItem,
                         getGroupKey: (item: AnyMentionSuggestionItem) =>
                             item.group,
-                        groupLabels,
+                        groupLabels: getGroupLabels(),
                         emptyMessage: getContentMentionEmptyMessage(
                             props.query,
                         ),
@@ -826,7 +852,7 @@ const generateContentMentionSuggestion = ({
                     renderItem: renderContentMentionItem,
                     getGroupKey: (item: ContentMentionSuggestionItem) =>
                         item.group,
-                    groupLabels,
+                    groupLabels: getGroupLabels(),
                     emptyMessage: getContentMentionEmptyMessage(props.query),
                 });
                 popup?.setProps({

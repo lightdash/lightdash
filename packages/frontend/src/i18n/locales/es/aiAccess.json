@@ -1,0 +1,557 @@
+{
+    "capabilityChoices": {
+        "ariaLabel": "Qué pueden hacer los agentes",
+        "current": "Actual",
+        "descriptions": {
+            "person": "Los agentes pueden hacer todo lo que puede hacer la persona.",
+            "read": "Buscar contenido, consultar datos y exportar resultados. Los agentes no cambian nada.",
+            "custom": "Todo empieza activado. Desmarca lo que los agentes no deben hacer."
+        },
+        "createAndEditOff": "× Crear y editar contenido",
+        "moreOff_one": "× {{count}} más",
+        "moreOff_other": "× {{count}} más",
+        "rawSqlNote": "El SQL directo se ejecuta con los permisos de almacén de datos de la persona."
+    },
+    "permissionChoices": {
+        "person": "Igual que la persona",
+        "read": "Leer y consultar",
+        "custom": "Personalizado",
+        "savedGroupFallback": "Un grupo guardado"
+    },
+    "capabilityGroups": {
+        "readAndQuery": "Leer y consultar",
+        "changes": "Cambios"
+    },
+    "capabilities": {
+        "readDiscover": {
+            "label": "Leer y descubrir",
+            "description": "Buscar y leer proyectos, modelos de datos, gráficos y paneles.",
+            "pageDescription": "Buscar y leer proyectos, modelos de datos, contenido y resultados existentes."
+        },
+        "query": {
+            "label": "Consultar datos",
+            "description": "Ejecutar consultas a través de los modelos de datos.",
+            "pageDescription": "Ejecutar consultas a través de los modelos de datos."
+        },
+        "export": {
+            "label": "Exportar resultados",
+            "description": "Descargar resultados de consultas y exportar contenido.",
+            "pageDescription": "Descargar resultados, renderizar gráficos y exportar contenido."
+        },
+        "rawSql": {
+            "label": "SQL directo",
+            "description": "Ejecutar SQL directamente.",
+            "pageDescription": "Inspeccionar tablas del almacén de datos y escribir o ejecutar SQL directamente."
+        },
+        "contentWrite": {
+            "label": "Crear y editar contenido",
+            "description": "Crear o cambiar gráficos, paneles y espacios.",
+            "pageDescription": "Gráficos, paneles, documentos y apps de datos. No incluye acceso ni compartir."
+        },
+        "delete": {
+            "label": "Eliminar contenido",
+            "description": "Eliminar gráficos, paneles y otro contenido.",
+            "pageDescription": "Eliminar contenido, archivos y objetos."
+        },
+        "publish": {
+            "label": "Publicar y compartir",
+            "description": "Publicar contenido, compartirlo y configurar envíos.",
+            "pageDescription": "Publicar, compartir y programar envíos."
+        },
+        "deployUpload": {
+            "label": "Desplegar y subir",
+            "description": "Desplegar cambios del proyecto y subir contenido."
+        },
+        "dbtWriteback": {
+            "label": "Escribir en dbt",
+            "description": "Escribir cambios de vuelta en archivos de dbt."
+        },
+        "administration": {
+            "label": "Administración",
+            "description": "Usar las acciones administrativas disponibles para los agentes."
+        },
+        "externalTools": {
+            "label": "Herramientas externas",
+            "description": "Llamar a herramientas conectadas mediante servicios externos."
+        }
+    },
+    "capabilityMatrix": {
+        "role": "Rol",
+        "columnTooltip": "{{label}}: {{description}}",
+        "cellAriaLabel": "{{role}}: {{capability}}",
+        "columns": {
+            "read": "Leer",
+            "query": "Consultar",
+            "export": "Exportar",
+            "rawSql": "SQL directo",
+            "contentWrite": "Crear / editar",
+            "delete": "Eliminar",
+            "publish": "Publicar",
+            "deploy": "Desplegar",
+            "dbt": "dbt",
+            "admin": "Admin",
+            "externalTools": "Herramientas externas"
+        }
+    },
+    "capabilitySwitches": {
+        "readAndQuery": "LEER Y CONSULTAR",
+        "makeChanges": "HACER CAMBIOS",
+        "developerTitle": "Desarrollo y administración",
+        "developerDescription": "Desplegar y subir, cambios en el repositorio Git (dbt), administración, herramientas externas.",
+        "allOn": "Todo activado.",
+        "allOff": "Todo desactivado.",
+        "countOn_one": "{{count}} activado.",
+        "countOn_other": "{{count}} activados.",
+        "perRoleTitle": "Límites distintos por rol",
+        "advanced": "Avanzado",
+        "sameRoles": "Hoy todos los roles tienen lo mismo.",
+        "differentRoles": "Hoy los roles tienen límites distintos.",
+        "limitsApply": "Estos límites se aplican a todos los roles, incluidos los personalizados. Una persona nunca obtiene más que sus propios permisos.",
+        "customRolesNote": "Los roles personalizados mantienen sus propios permisos de agentes. <anchor>Roles personalizados</anchor>",
+        "turnedOff": "Los agentes están desactivados para todos."
+    },
+    "identity": {
+        "marked_person": {
+            "label": "La persona",
+            "description": "Obtiene el acceso de la persona que pregunta, así que el almacén de datos no puede limitar a los agentes por separado.",
+            "tooltip": "los agentes se ejecutan como la persona que pregunta, con su acceso.",
+            "inlineLabel": "la persona"
+        },
+        "agent_sign_in": {
+            "label": "El inicio de sesión de agente de la persona",
+            "description": "Las personas inician sesión una vez, así Snowflake puede limitar a los agentes.",
+            "shortLabel": "Inicio de sesión de agente",
+            "tooltip": "los agentes se ejecutan con el inicio de sesión de agente de cada persona.",
+            "inlineLabel": "el inicio de sesión de agente de la persona"
+        },
+        "ai_service_account": {
+            "label": "Una cuenta de agente compartida",
+            "description": "Una cuenta por proyecto, añadida por un administrador del proyecto.",
+            "shortLabel": "Cuenta compartida",
+            "tooltip": "los agentes se ejecutan con la cuenta de agente compartida de cada proyecto.",
+            "inlineLabel": "una cuenta de agente compartida"
+        },
+        "state": {
+            "current": "Actual",
+            "settingUp": "Configurando"
+        }
+    },
+    "groupAdmission": {
+        "title": "Quién puede usar agentes",
+        "everyone": "Todos aquellos cuyo rol permite la IA",
+        "everyoneDescription": "Cualquiera con un rol que permita la IA puede usar agentes.",
+        "onlyGroups": "Solo estos grupos",
+        "onlyGroupsDescription": "Las personas deben pertenecer al menos a uno de estos grupos. Su rol también debe permitir la IA.",
+        "groups": "Grupos",
+        "chooseGroups": "Elige grupos...",
+        "chooseAtLeastOne": "Elige al menos un grupo.",
+        "noGroups": "No hay grupos disponibles",
+        "membersOnlyNote": "Solo los miembros de estos grupos pueden usar Ask AI, el agente de Slack, los clientes MCP y la CLI.",
+        "allDeleted": "Nadie puede usar agentes. Todos los grupos elegidos se han eliminado.",
+        "unavailable": "Los grupos no están disponibles. La restricción de grupo guardada sigue aplicándose.",
+        "allowEveryone": "Permitir a todos"
+    },
+    "identityChip": {
+        "missingTitle_one": "{{count}} proyecto no tiene cuenta de agente compartida",
+        "missingTitle_other": "{{count}} proyectos no tienen cuenta de agente compartida",
+        "missingDescription_one": "Los agentes se rechazan en él hasta que un administrador del proyecto añada una.",
+        "missingDescription_other": "Los agentes se rechazan en ellos hasta que un administrador del proyecto añada una.",
+        "missingStatus_one": "{{warehouse}}: {{count}} proyecto no tiene cuenta de agente compartida",
+        "missingStatus_other": "{{warehouse}}: {{count}} proyectos no tienen cuenta de agente compartida",
+        "allHaveAccounts": "Todos los proyectos de {{warehouse}} tienen una cuenta de agente compartida.",
+        "signInVerified": "Inicio de sesión de agente de Snowflake verificado",
+        "signInNeedsAttention": "El inicio de sesión de agente de Snowflake requiere atención",
+        "saving": "Guardando la identidad de {{warehouse}}",
+        "label": "{{warehouse}}: los agentes se ejecutan como {{identity}}.",
+        "labelEditable": "{{warehouse}}: los agentes se ejecutan como {{identity}}. Cambiar.",
+        "tooltip": "{{warehouse}}: {{tooltip}}",
+        "tooltipEditable": "{{warehouse}}: {{tooltip}} Haz clic para cambiar.",
+        "agentsRunAs": "Los agentes de {{warehouse}} se ejecutan como",
+        "choiceWithState": {
+            "current": "{{label}}, actual",
+            "settingUp": "{{label}}, configurando"
+        },
+        "setupNeeded": "Requiere configuración",
+        "savedChoice": "Opción guardada",
+        "hideSetup": "Ocultar configuración",
+        "viewSetup": "Ver configuración"
+    },
+    "listJoiner": " y ",
+    "learnMore": "Más información",
+    "ruleConfirm": {
+        "sharedAccount": {
+            "title": "¿Usar una cuenta de agente compartida para {{warehouse}}?",
+            "body": "Los agentes en {{warehouse}} se ejecutarán con la cuenta de agente compartida de cada proyecto, no como la persona que pregunta.",
+            "confirm": "Usar una cuenta de agente compartida"
+        },
+        "markedPerson": {
+            "title": "¿Ejecutar los agentes como la persona en {{warehouse}}?",
+            "body": "Los agentes tendrán el mismo acceso a {{warehouse}} que la persona que pregunta. Tu almacén de datos no puede limitar las consultas de los agentes por separado.",
+            "confirm": "Ejecutar como la persona"
+        },
+        "checking": "Comprobando cuentas de agente compartidas",
+        "checkFailed": "No se pudo comprobar qué proyectos tienen una cuenta de agente compartida.",
+        "missingPrefix_one": "{{count}} proyecto aún no tiene cuenta de agente compartida:",
+        "missingPrefix_other": "{{count}} proyectos aún no tienen cuenta de agente compartida:",
+        "andMore_one": " y {{count}} más",
+        "andMore_other": " y {{count}} más",
+        "missingSuffix_one": "Los agentes dejan de funcionar en él hasta que un administrador del proyecto añada una.",
+        "missingSuffix_other": "Los agentes dejan de funcionar en ellos hasta que un administrador del proyecto añada una."
+    },
+    "settingsPage": {
+        "loadError": "No se pudo cargar la configuración de los agentes.",
+        "organizationSettings": "Configuración de la organización",
+        "title": "Agentes",
+        "description": "Como quién se ejecutan los agentes y qué pueden hacer. Los agentes son Ask AI, el agente de Slack, los clientes MCP y la CLI."
+    },
+    "reviewModal": {
+        "title": "Revisar cambios en los permisos de los agentes",
+        "saveChanges": "Guardar cambios",
+        "stops": "DETIENE",
+        "turnedOffTitle": "Los agentes están desactivados para todos",
+        "turnedOffDescription": "Nadie puede usar Ask AI, el agente de Slack, los clientes MCP ni la CLI. Las personas pueden seguir trabajando por sí mismas.",
+        "stopsForAgents": "<strong>{{names}}</strong> para los agentes",
+        "stopsDescription": "Para todos los roles, incluidos los personalizados. Las personas pueden seguir haciéndolo por sí mismas.",
+        "allows": "PERMITE",
+        "allowsDescription": "Se eliminan estos límites. Los permisos propios de cada persona siguen aplicándose.",
+        "roleStops": "DETIENE: {{names}}",
+        "roleAllows": "PERMITE: {{names}}",
+        "roleDescription": "Otros roles, incluidos los personalizados, pueden seguir permitiendo estas acciones dentro de los límites generales.",
+        "who": "QUIÉN",
+        "everyoneCanUse": "Todos aquellos cuyo rol permite la IA pueden usar agentes",
+        "onlyMembersCanUse": "Solo los miembros de <strong>{{groups}}</strong> pueden usar agentes",
+        "othersLoseAccess": "Las demás personas pierden el acceso a Ask AI, el agente de Slack, los clientes MCP y la CLI.",
+        "modeLegacy": "Los agentes vuelven a seguir los permisos de cada persona.",
+        "modeLimits": "Los límites de los agentes están activados.",
+        "footnote": "Los agentes nunca obtienen más acceso que la persona. Los tokens de acceso personal no están limitados."
+    },
+    "permissionsSection": {
+        "title": "Permisos",
+        "description": "Qué pueden hacer los agentes por una persona. Los agentes nunca obtienen más de lo que tiene la persona.",
+        "conflictTitle": "Los permisos de los agentes han cambiado",
+        "conflictDescription": "Alguien cambió los permisos guardados. Tus cambios sin guardar siguen visibles. Recarga los permisos más recientes para descartarlos.",
+        "reloadLatest": "Recargar lo más reciente",
+        "mcpLabel": "Agentes a través de MCP",
+        "mcpDescription": "Los clientes MCP pueden usar los agentes de esta organización y su contexto. El acceso de cada agente sigue aplicándose.",
+        "patNote": "Los tokens de acceso personal no están limitados. Un agente que usa el token de una persona tiene el acceso de esa persona.",
+        "noChanges": "Sin cambios",
+        "unsavedChanges_one": "{{count}} cambio sin guardar",
+        "unsavedChanges_other": "{{count}} cambios sin guardar",
+        "discard": "Descartar",
+        "reviewAndSave": "Revisar y guardar"
+    },
+    "setupStep": {
+        "step": "Paso {{number}}",
+        "stepDone": "Paso {{number}} completado"
+    },
+    "serviceAccountCard": {
+        "removeTitle": "Quitar cuenta de agente compartida",
+        "removeBody": "¿Quitar esta cuenta de agente compartida? Las consultas de los agentes se rechazarán si tu organización la requiere.",
+        "lastSuccessfulCheck": "La cuenta anterior corresponde a la última comprobación correcta.",
+        "test": "Probar",
+        "replace": "Sustituir",
+        "askAdminParent": "Pide a un administrador que añada una en <anchor>el proyecto principal</anchor>.",
+        "parentHasNone": "El proyecto principal no tiene cuenta de agente compartida. Añade una en <anchor>el proyecto principal</anchor>.",
+        "add": "Añadir cuenta de agente compartida",
+        "loadError": "No se pudo cargar la cuenta de agente compartida."
+    },
+    "serviceAccountDetails": {
+        "tested": "Probada el {{date}}.",
+        "added": "Añadida el {{date}}.",
+        "usesFromProject": "Usa la cuenta de agente compartida de <anchor>{{project}}</anchor>.",
+        "usesFromParent": "Usa la cuenta de agente compartida del proyecto principal.",
+        "signsInAs": "Inicia sesión como {{principal}}",
+        "notTested": "Aún no se ha probado. Selecciona Probar para ver como quién inicia sesión.",
+        "methods": {
+            "userPassword": "Usuario y contraseña",
+            "accessKeys": "Claves de acceso",
+            "keyFile": "Archivo de claves",
+            "keyPair": "Par de claves",
+            "clientIdSecret": "ID y secreto de cliente"
+        }
+    },
+    "serviceAccountStatus": {
+        "parentWarning": "Esta vista previa no puede leer la cuenta de agente compartida del proyecto principal. Pide a un administrador de {{project}} que la sustituya.",
+        "parentWarningGeneric": "Esta vista previa no puede leer la cuenta de agente compartida del proyecto principal. Pide a un administrador del proyecto principal que la sustituya.",
+        "refusedPreviewWithWarning": "Los agentes se rechazan en esta vista previa. {{warning}}",
+        "refusedPreview": "Los agentes se rechazan en esta vista previa hasta que el proyecto principal tenga una cuenta de agente compartida para esta conexión.",
+        "refusedProject": "Los agentes se rechazan en este proyecto hasta que añadas una cuenta de agente compartida.",
+        "requiredMessage": "Los agentes de este proyecto se ejecutan con esta cuenta. La regla de la organización para {{warehouse}} lo exige.",
+        "agentSignInMessage": "Los agentes de este proyecto usan el inicio de sesión de agente de cada persona para Snowflake. Lo decide la regla de la organización.",
+        "personCredentialsMessage": "Los agentes de este proyecto usan las credenciales de {{warehouse}} de cada persona. Lo decide la regla de la organización.",
+        "unreadable": "No se puede leer la cuenta de agente compartida. Sustitúyela.",
+        "badge": {
+            "inUse": "En uso",
+            "notInUse": "Sin uso"
+        }
+    },
+    "serviceAccountForm": {
+        "title": "Cuenta de agente compartida",
+        "testAndSave": "Probar y guardar",
+        "userDescription": {
+            "trino": "El inicio de sesión de Trino para los agentes",
+            "clickhouse": "El usuario de ClickHouse para los agentes",
+            "redshift": "El usuario de base de datos de Redshift para los agentes",
+            "postgres": "El rol de inicio de sesión de Postgres para los agentes"
+        }
+    },
+    "setupGuide": {
+        "createTitle": "Crea la cuenta en {{warehouse}}",
+        "grantTitle": "Concédele solo los datos que los agentes pueden leer",
+        "addTitle": "Añádela aquí y selecciona Probar",
+        "copySql": "Copiar SQL",
+        "copyCommands": "Copiar comandos",
+        "grantOnlyVisible": "Concede solo los datos que cualquier usuario de agentes puede ver.",
+        "addUserHelp": "Introduce el usuario ai_agents y su contraseña, y selecciona Probar."
+    },
+    "athenaSetup": {
+        "createWorkgroup": "Crea un grupo de trabajo de Athena y una ubicación de resultados en S3 para los agentes.",
+        "iamUser": "Usa un usuario de IAM dedicado para los agentes, solo con los permisos que necesitan, y rota sus claves con regularidad. Las claves de un rol asumido caducan en horas y Lightdash aún no puede renovarlas, así que los agentes se rechazarían hasta que pegues claves nuevas.",
+        "permissionPolicy": "Política de permisos",
+        "copyPermissionPolicy": "Copiar política de permisos",
+        "attachPolicy": "Asocia esta política al usuario de IAM. Las claves KMS y los catálogos entre cuentas requieren permisos adicionales.",
+        "roleTrustPolicy": "Política de confianza del rol (opcional)",
+        "roleInstead": "Si rotas las claves automáticamente, puedes usar un rol de IAM. Asocia la política de permisos al rol y usa esta política de confianza. El llamante de confianza también necesita permiso para asumir el rol.",
+        "copyRoleTrustPolicy": "Copiar política de confianza del rol",
+        "lakeFormationAdmin": "Ejecútalo como administrador de Lake Formation. Usa el ARN del usuario de IAM, o el ARN del rol y no el de la sesión. Repite para cada tabla permitida.",
+        "lakeFormationGrant": "Concesión de Lake Formation",
+        "copyLakeFormationGrant": "Copiar concesión de Lake Formation",
+        "dataFilter": "Para limitar filas o columnas, concede un filtro de datos. Otras concesiones sobre la tabla pueden seguir permitiendo más.",
+        "filteredTableGrant": "Concesión de tabla filtrada",
+        "copyFilteredTableGrant": "Copiar concesión de tabla filtrada",
+        "addHelp": "Añade las claves de acceso, el grupo de trabajo y la ubicación de resultados. Probar comprueba la identidad de AWS y ejecuta una consulta sencilla."
+    },
+    "athenaForm": {
+        "accessKeyId": "ID de clave de acceso",
+        "secretAccessKey": "Clave de acceso secreta",
+        "sessionToken": "Token de sesión (opcional)",
+        "workGroup": "Grupo de trabajo de los agentes",
+        "s3StagingDir": "Ubicación de resultados en S3",
+        "s3DataDir": "Ubicación de datos en S3 (opcional)"
+    },
+    "bigquerySetup": {
+        "grantDataViewer": "Concede Data Viewer en cada conjunto de datos que los agentes pueden leer.",
+        "bytesDefault": "Las consultas de los agentes usan el máximo de bytes facturados de la conexión. Define un límite para agentes en la configuración de conexión del proyecto.",
+        "bytesUnlimited": "Las consultas de los agentes no tienen máximo de bytes facturados. Cámbialo en la configuración de conexión del proyecto.",
+        "bytesLimited": "Las consultas de los agentes están limitadas a {{bytes}} bytes facturados. Cámbialo en la configuración de conexión del proyecto.",
+        "addHelp": "Crea una clave JSON para la cuenta, súbela aquí y selecciona Probar."
+    },
+    "clickhouseSetup": {
+        "createUser": "Ejecútalo como un usuario con permiso CREATE USER. Sustituye el marcador de la contraseña. readonly = 2 mantiene las consultas en solo lectura y permite los ajustes de consulta que necesitan los agentes.",
+        "grant": "Concede SELECT sobre la base de datos del proyecto o limita la concesión a tablas concretas. La política de filas es una plantilla. Sustituye la tabla y la condición antes de ejecutarla. Los agentes de todos comparten el acceso de esta cuenta.",
+        "addHelp": "Introduce el usuario ai_agents y su contraseña, y selecciona Probar y guardar."
+    },
+    "databricksSetup": {
+        "create": "Crea una entidad de servicio y un secreto OAuth en la consola de cuentas de Databricks. Añádela al área de trabajo y dale CAN USE sobre el almacén SQL.",
+        "grant": "Sustituye los marcadores y repite SELECT para cada tabla o vista permitida. Los filtros de filas y las máscaras de columnas de Unity Catalog se aplican a esta entidad. Concede solo los datos que cualquier usuario de agentes puede ver.",
+        "addHelp": "Usa el ID de aplicación de la entidad de servicio como ID de cliente."
+    },
+    "postgresSetup": {
+        "createRole": "Ejecútalo como superusuario o con un rol con CREATEROLE. Elige una contraseña segura para este rol de inicio de sesión independiente.",
+        "grant": "Concede solo los datos que cualquier usuario de agentes puede ver. Ejecuta ALTER DEFAULT PRIVILEGES con cada rol que crea tablas. Se aplica a las tablas nuevas de ese rol.",
+        "rls": "Sustituye los marcadores de la tabla y la condición. La seguridad a nivel de fila no se aplica a superusuarios, roles con BYPASSRLS ni al propietario de la tabla salvo que se active FORCE ROW LEVEL SECURITY.",
+        "columns": "Para ocultar columnas sensibles, sustituye las concesiones SELECT de toda la tabla por concesiones de columnas como GRANT SELECT (col_a, col_b). Una concesión de toda la tabla sigue permitiendo todas las columnas."
+    },
+    "redshiftSetup": {
+        "createUser": "Ejecútalo como superusuario o con un usuario con CREATE USER. Usa una contraseña de 8 a 64 caracteres con mayúsculas, minúsculas y un número. Usa caracteres ASCII. Excluye espacios, comillas, barras invertidas, barras y @.",
+        "grant": "Ejecútalo en la base de datos del proyecto. Sustituye los marcadores. Repite ALTER DEFAULT PRIVILEGES para cada propietario de tablas. Concede acceso a tablas futuras.",
+        "policies": "Estas políticas de RLS y enmascaramiento son plantillas. Sustituye la tabla, la columna, el tipo y la condición. Ajusta los tipos de máscara a la columna.",
+        "warning": "No des a ai_agents derechos de superusuario, IGNORE RLS ni sys:secadmin. Revisa las concesiones heredadas y PUBLIC. Todos comparten el acceso de esta cuenta. Revisa la configuración y los límites de las políticas para tablas externas y compartidas."
+    },
+    "trinoSetup": {
+        "createTitle": "Crea o elige el inicio de sesión de Trino",
+        "grantTitle": "Limita lo que puede leer el inicio de sesión",
+        "addTitle": "Introduce el usuario y la contraseña",
+        "noCreateUser": "Trino no tiene CREATE USER. Pide a un administrador que añada un usuario al archivo de contraseñas o a LDAP. Activa la autenticación por contraseña sobre HTTPS. Sin ella, Trino no comprueba la contraseña.",
+        "starburst": "En Starburst Galaxy, crea una cuenta de servicio con un rol restringido. Usa su nombre de usuario y la contraseña generada para iniciar sesión con autenticación básica.",
+        "fileAccessTitle": "Control de acceso basado en archivo (rules.json)",
+        "fileAccess": "Define access-control.name=file y apunta security.config-file a rules.json. Combina estas reglas por encima de las reglas más generales. Las reglas se evalúan de arriba abajo; gana la primera coincidencia. Usa el usuario efectivo que muestra Probar si tu autenticador asigna el inicio de sesión a otro usuario.",
+        "copyRules": "Copiar rules.json",
+        "replacePlaceholders": "Sustituye los marcadores de usuario, tabla y política. Los campos filter y columns son opcionales: quítalos o indica un filtro de filas y una expresión de máscara de columna con el tipo de columna correcto. Los nombres en las reglas son literales regex; escapa los caracteres regex en las sustituciones.",
+        "sqlRolesTitle": "Roles y concesiones SQL",
+        "sqlRoles": "Usa esta alternativa solo con un control de acceso del sistema que admita roles y concesiones SQL. Los roles de conector, como los de Hive, necesitan IN \"<catalog>\" en CREATE ROLE y en la concesión del rol. Revisa las concesiones heredadas y públicas.",
+        "addHelp": "Introduce el usuario y la contraseña, y selecciona Probar. Todos los que usan agentes comparten el acceso de este inicio de sesión. Probar comprueba el inicio de sesión, no cada concesión."
+    },
+    "databricksForm": {
+        "clientId": "ID de cliente",
+        "clientIdDescription": "El ID de aplicación de la entidad de servicio",
+        "clientSecret": "Secreto de cliente"
+    },
+    "identitySection": {
+        "title": "Identidad",
+        "noWarehouses": "Aún no hay almacenes de datos en uso."
+    },
+    "projectIdentity": {
+        "notAvailable": "La identidad de agentes no está disponible para este almacén de datos."
+    },
+    "snowflakeClient": {
+        "unreadableSecret": "No se pudo leer el secreto de cliente guardado. Sustitúyelo para usar el inicio de sesión de agente.",
+        "accountUrl": "URL de la cuenta de Snowflake",
+        "accountUrlDescription": "A partir de ella deducimos las direcciones de inicio de sesión y de tokens.",
+        "clientIdPlaceholder": "OAUTH_CLIENT_ID de la consulta anterior",
+        "clientSecretPlaceholder": "OAUTH_CLIENT_SECRET de la consulta anterior",
+        "secretHint": "Se guarda cifrado para tu organización. Solo los administradores de la organización pueden sustituirlo; nunca se vuelve a mostrar.",
+        "secretSaved": "Secreto de cliente guardado",
+        "replaceClient": "Sustituir cliente"
+    },
+    "snowflakeServiceAccountSetup": {
+        "serviceAgent": "Usa TYPE = SERVICE_AGENT para que Snowflake marque estas sesiones como sesiones de agente.",
+        "repeatSelect": "Repite SELECT para cada tabla que los agentes pueden leer.",
+        "addHelp": "Añade la clave privada, el rol y el almacén del usuario, y selecciona Probar."
+    },
+    "snowflakeSetup": {
+        "step1": "Copia y ejecuta en Snowflake",
+        "copyIntegrationSql": "Copiar SQL de integración",
+        "step2": "Añade los datos de tu cuenta y cliente de Snowflake",
+        "missingLicence": "Falta: licencia Enterprise",
+        "step3": "Verificar",
+        "verifyIntegration": "Verificar integración",
+        "verifyDescription": "Comprueba que la integración existe y que marca las sesiones como sesiones de agente.",
+        "checkStatus": {
+            "passed": "Correcto",
+            "failed": "Fallido",
+            "notChecked": "Sin comprobar"
+        },
+        "myAgentIdentity": "Mi identidad de agente",
+        "statusVerified": "Verificada · integración de agentes de Snowflake",
+        "statusNeedsAttention": "La integración de agentes de Snowflake requiere atención",
+        "statusChecking": "Comprobando la integración de agentes de Snowflake",
+        "checkedAgo": " · comprobada {{ago}}",
+        "loadError": "No se pudo cargar la configuración de Snowflake.",
+        "compactConfirm": "La integración de agentes de Snowflake está configurada. ¿Activar el inicio de sesión de agente? Se pedirá conectarse a quienes no hayan conectado su agente.",
+        "untilVerified": "Hasta que se verifique, los agentes siguen ejecutándose como cada usuario. Una vez verificada, se pedirá conectarse a quienes no hayan conectado su agente.",
+        "turnOn": "Activar",
+        "turnOnTitle": "Activar el inicio de sesión de agente",
+        "setupTitle": "Configurar la integración de agentes de Snowflake",
+        "notActiveYet": "Aún no está activo",
+        "runOnce": "Ejecuta esto una vez en Snowflake como ACCOUNTADMIN. Permite que las personas inicien sesión con su agente como ellas mismas.",
+        "verifyError": "No se pudo verificar la integración de agentes de Snowflake. Inténtalo de nuevo."
+    },
+    "snowflakeForm": {
+        "enterUser": "Introduce un usuario.",
+        "enterRole": "Introduce un rol.",
+        "enterWarehouse": "Introduce un almacén.",
+        "enterPem": "Introduce una clave privada PEM.",
+        "chooseFile": "Elige un archivo .p8 o .pem.",
+        "readError": "No se pudo leer el archivo de clave privada.",
+        "checkingAndSaving": "Comprobando y guardando…",
+        "privateKey": "Clave privada",
+        "privateKeyInput": "Entrada de clave privada",
+        "uploadFile": "Subir archivo",
+        "pasteKey": "Pegar clave",
+        "passphrase": "Frase de contraseña (opcional)",
+        "role": "Rol",
+        "warehouse": "Almacén"
+    },
+    "userPasswordForm": {
+        "user": "Usuario",
+        "password": "Contraseña"
+    },
+    "toasts": {
+        "identitySaved": "Identidad de agentes guardada.",
+        "identityUpdateFailed": "No se pudo actualizar la configuración de identidad de agentes.",
+        "serviceAccountSaved": "Cuenta de agente compartida guardada.",
+        "serviceAccountSaveFailed": "No se pudo guardar la cuenta de agente compartida.",
+        "serviceAccountRemoved": "Cuenta de agente compartida quitada.",
+        "serviceAccountRemoveFailed": "No se pudo quitar la cuenta de agente compartida.",
+        "serviceAccountTestFailed": "No se pudo probar la cuenta de agente compartida.",
+        "snowflakeClientSaved": "Cliente de Snowflake guardado.",
+        "permissionsSaveFailed": "No se pudieron guardar los permisos de los agentes.",
+        "permissionsReloadFailed": "No se pudieron recargar los permisos de los agentes."
+    },
+    "agentConnections": {
+        "duration": {
+            "day_one": "{{count}} día",
+            "day_other": "{{count}} días",
+            "hour_one": "{{count}} hora",
+            "hour_other": "{{count}} horas",
+            "minute_one": "{{count}} minuto",
+            "minute_other": "{{count}} minutos",
+            "second_one": "{{count}} segundo",
+            "second_other": "{{count}} segundos",
+            "separator": ", "
+        },
+        "warehouseStep": {
+            "noConnection": "No se creó ninguna conexión.",
+            "saved": "Tu conexión se ha guardado.",
+            "setUpLater": "Aún puedes configurar los inicios de sesión de almacén para más adelante.",
+            "signInToRun": "Inicia sesión para ejecutar consultas en estos almacenes de datos.",
+            "heading": "Conecta tus almacenes de datos",
+            "cancelledHeading": "Aprobación cancelada",
+            "nextStep": "Vuelve a tu terminal.",
+            "returnToCli": "Volver a la CLI",
+            "defer": "Hacerlo más tarde",
+            "loading": "Cargando inicios de sesión de almacén",
+            "loadingSignIn": "Cargando inicio de sesión de almacén",
+            "checking": "Comprobando inicio de sesión de almacén",
+            "error": "No se pudo cargar el inicio de sesión de almacén.",
+            "administrator": "Pide a un administrador que configure el inicio de sesión de agente",
+            "ready": "Listo",
+            "signIn": "Iniciar sesión"
+        },
+        "actionRow": {
+            "deleteWarning": "El agente no puede restaurar el contenido eliminado.",
+            "publishWarning": "Otras personas verán lo que publique el agente.",
+            "availableIn_one": "Disponible en {{offered}} de {{count}} proyecto seleccionado",
+            "availableIn_other": "Disponible en {{offered}} de {{count}} proyectos seleccionados",
+            "blockedReason": "{{name}}: {{reason}}",
+            "whyLimited": "Por qué está limitado"
+        },
+        "revoke": {
+            "title": "¿Revocar esta conexión?",
+            "confirm": "Revocar",
+            "description": "Su credencial dejará de funcionar. Los inicios de sesión de almacén seguirán conectados."
+        },
+        "approval": {
+            "selectionChanged": "Tus permisos han cambiado. Revisa la selección y vuelve a aprobar.",
+            "outOfDate": "Esta revisión está desactualizada. Revísala de nuevo.",
+            "loading": "Cargando aprobación",
+            "title": "Conecta tu agente de la CLI",
+            "requestName": "{{name}} · CLI",
+            "projects": "Proyectos",
+            "actions": "Acciones",
+            "expires": "Caduca {{duration}} después de la aprobación",
+            "longerThanUsual": "Más de las 24 horas habituales",
+            "approve": "Aprobar",
+            "invalidLink": "A este enlace de aprobación le falta una solicitud válida."
+        },
+        "table": {
+            "reasons": {
+                "personPermission": "Tus permisos en este proyecto no permiten esta acción.",
+                "agentPolicy": "Esta acción está desactivada para los agentes.",
+                "projectAccess": "Ya no tienes acceso a este proyecto.",
+                "notSupported": "Esta acción no está disponible para conexiones.",
+                "agentIdentityDisabled": "Los agentes están desactivados.",
+                "unavailable": "No disponible en este momento."
+            },
+            "whyNameLimited": "Por qué {{name}} está limitado",
+            "projectUnavailable": "El proyecto ya no está disponible",
+            "mayReturn": "Puede volver si cambian tus permisos.",
+            "checkingRestrictions": "Comprobando restricciones",
+            "hideDetails": "Ocultar detalles",
+            "showDetails": "Mostrar detalles",
+            "collapse": "Contraer {{name}}",
+            "expand": "Expandir {{name}}",
+            "summary": "CLI · {{projects}} · {{actions}}",
+            "projectCount_one": "{{count}} proyecto",
+            "projectCount_other": "{{count}} proyectos",
+            "actionCount_one": "{{count}} acción",
+            "actionCount_other": "{{count}} acciones",
+            "neverUsed": "Nunca usada",
+            "status": {
+                "active": "Activa",
+                "expired": "Caducada",
+                "revoked": "Revocada",
+                "invalid": "No válida"
+            },
+            "approved": "Aprobada",
+            "loading": "Cargando conexiones de agentes",
+            "headings": {
+                "connection": "Conexión",
+                "expires": "Caduca",
+                "lastUsed": "Último uso",
+                "status": "Estado"
+            }
+        }
+    }
+}

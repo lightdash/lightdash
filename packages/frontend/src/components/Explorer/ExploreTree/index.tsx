@@ -21,6 +21,7 @@ import {
     useTransition,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     selectActiveFields,
     selectAdditionalMetrics,
@@ -82,6 +83,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     hideSelectedFields = false,
     customMetricSourceId,
 }) => {
+    const { t } = useTranslation('explorer');
     const explorerAdditionalMetrics = useExplorerSelector(
         selectAdditionalMetrics,
     );
@@ -325,7 +327,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                         />
                     ) : search ? (
                         <ActionIcon
-                            aria-label="Clear search"
+                            aria-label={t('exploreTree.clearSearch')}
                             onMouseDown={(event) => event.preventDefault()}
                             onClick={handleClearSearch}
                         >
@@ -333,7 +335,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                         </ActionIcon>
                     ) : null
                 }
-                placeholder="Search metrics + dimensions"
+                placeholder={t('exploreTree.searchPlaceholder')}
                 value={search}
                 onChange={handleSearchChange}
                 data-testid="ExploreTree/SearchInput"

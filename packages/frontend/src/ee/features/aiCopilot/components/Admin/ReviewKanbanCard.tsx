@@ -2,6 +2,7 @@ import { type AiAgentReviewItemSummary } from '@lightdash/common';
 import { Badge, Box, Button, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconBolt, IconLayoutColumns, IconRefresh } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -33,21 +34,21 @@ type Props = {
 
 // Live status shown in place of "Open workspace" while the fix is still being
 // built; null once the workspace is genuinely openable.
-const getWorkspaceActivityLabel = (
+const getWorkspaceActivityLabelKey = (
     item: AiAgentReviewItemSummary,
 ): string | null => {
     if (
         item.prWritebackStatus === 'queued' ||
         item.prWritebackStatus === 'running'
     ) {
-        return 'Writing fix…';
+        return 'reviews.card.writingFix';
     }
     switch (item.remediation?.status) {
         case 'queued':
         case 'running':
-            return 'Building…';
+            return 'reviews.card.building';
         case 'pr_open':
-            return 'Compiling…';
+            return 'reviews.card.compiling';
         default:
             return null;
     }
@@ -55,6 +56,7 @@ const getWorkspaceActivityLabel = (
 
 // ts-unused-exports:disable-next-line
 export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const createWriteback = useCreateAiAgentReviewItemWriteback();
     const updateStatus = useUpdateAiAgentReviewItemStatus();
     const [previewOpen, setPreviewOpen] = useState(false);
@@ -76,7 +78,8 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
     const workspaceHref = `/generalSettings/ai/issues/${encodeURIComponent(
         item.fingerprint,
     )}`;
-    const activityLabel = getWorkspaceActivityLabel(item);
+    const activityLabelKey = getWorkspaceActivityLabelKey(item);
+    const activityLabel = activityLabelKey ? t(activityLabelKey) : null;
 
     return (
         <Box
@@ -111,7 +114,7 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                     variant="default"
                                     w="fit-content"
                                 >
-                                    Example
+                                    {t('reviews.card.example')}
                                 </Badge>
                             )}
                             <Text
@@ -138,11 +141,10 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                             )}
                             <Tooltip
                                 position="top"
-                                label={`First seen ${formatReviewDate(
-                                    item.firstSeenAt,
-                                )} · last seen ${formatReviewDate(
-                                    item.lastSeenAt,
-                                )}`}
+                                label={t('reviews.card.seenRange', {
+                                    first: formatReviewDate(item.firstSeenAt),
+                                    last: formatReviewDate(item.lastSeenAt),
+                                })}
                             >
                                 <Text
                                     fz="xs"
@@ -206,11 +208,13 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                             icon={IconLayoutColumns}
                                             size={13}
                                         />
-                                        <Text fz="xs">Workspace</Text>
+                                        <Text fz="xs">
+                                            {t('reviews.card.workspace')}
+                                        </Text>
                                     </Box>
                                 ) : (
                                     <Tooltip
-                                        label="Open workspace"
+                                        label={t('reviews.card.openWorkspace')}
                                         openDelay={300}
                                     >
                                         <Box
@@ -225,7 +229,9 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                                 icon={IconLayoutColumns}
                                                 size={13}
                                             />
-                                            <Text fz="xs">Workspace</Text>
+                                            <Text fz="xs">
+                                                {t('reviews.card.workspace')}
+                                            </Text>
                                         </Box>
                                     </Tooltip>
                                 ))}
@@ -275,7 +281,9 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                         }
                                     }}
                                 >
-                                    {isRetry ? 'Retry fix' : 'Start fix'}
+                                    {isRetry
+                                        ? t('reviews.card.retryFix')
+                                        : t('reviews.card.startFix')}
                                 </Button>
                             )}
                             {!isExample && (

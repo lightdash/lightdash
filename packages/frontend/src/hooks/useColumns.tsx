@@ -71,6 +71,7 @@ import {
 import provenanceStyles from '../features/mergeQuery/components/MergeColumnProvenance.module.css';
 import { useMergeSafe } from '../features/mergeQuery/context/useMerge';
 import { getMergeFieldProvenance } from '../features/mergeQuery/utils/getMergeFieldProvenance';
+import i18n from '../i18n/i18n';
 import { canHaveWarehouseTotal } from '../utils/canHaveWarehouseTotal';
 import { getFieldColors } from '../utils/fieldColors';
 import { TableCellBar } from './TableCellBar';
@@ -384,7 +385,9 @@ const formatImageCell = (
             return (
                 <BrokenImageCell
                     imageUrl={processedUrl}
-                    error={`Invalid image protocol`}
+                    error={i18n.t('useColumns.invalidImageProtocol', {
+                        ns: 'app',
+                    })}
                 />
             );
         }
@@ -868,7 +871,9 @@ export const useColumns = (): TableColumn[] => {
                         header: () => (
                             <Group gap="two">
                                 <Tooltip
-                                    label="This field was not found in the dbt project."
+                                    label={i18n.t('useColumns.fieldNotFound', {
+                                        ns: 'app',
+                                    })}
                                     position="top"
                                 >
                                     <MantineIcon

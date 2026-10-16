@@ -22,6 +22,7 @@ import {
 } from '@mantine/core';
 import { IconCode } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FieldIcon from '../../../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ItemDetailPreview } from '../../../../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
@@ -51,6 +52,7 @@ const MetricDimensionItem: FC<{
     const projectUuid = useProjectUuid();
     const { user } = useApp();
     const { track } = useTracking();
+    const { t } = useTranslation('aiCopilotChat');
     const [isCodeIconHovered, setIsCodeIconHovered] = useState(false);
 
     // If it's a custom metric, use it directly, otherwise get from fieldsMap
@@ -153,7 +155,7 @@ const MetricDimensionItem: FC<{
                             <Tooltip
                                 openDelay={200}
                                 position="top"
-                                label="Write back to project"
+                                label={t('fieldItem.writeBack')}
                                 offset={5}
                             >
                                 <ActionIcon
@@ -211,10 +213,15 @@ const MetricDimensionItem: FC<{
                             {fieldName}
                         </Text>
                         <Text fz="xs" c="dimmed">
-                            Field ID: {fieldId}
+                            {t('fieldItem.fieldId', { fieldId })}
                         </Text>
                         <Text fz="xs" c="dimmed">
-                            Type: {type}
+                            {t('fieldItem.type', {
+                                type:
+                                    type === 'metric'
+                                        ? t('fieldItem.types.metric')
+                                        : t('fieldItem.types.dimension'),
+                            })}
                         </Text>
                     </Box>
                 )}

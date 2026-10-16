@@ -24,6 +24,7 @@ import {
     type Icon,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useTracking from '../../../../providers/Tracking/useTracking';
@@ -45,8 +46,8 @@ const isSkippableActionKey = (key: HomepageRecommendedActionKey): boolean =>
 
 type ActionDefinition = {
     icon: Icon;
-    title: string;
-    subtitle: string;
+    titleKey: string;
+    subtitleKey: string;
 };
 
 const ACTION_DEFINITIONS: Record<
@@ -55,23 +56,23 @@ const ACTION_DEFINITIONS: Record<
 > = {
     'connect-warehouse': {
         icon: IconDatabase,
-        title: 'Connect a data warehouse',
-        subtitle: 'Query your data directly',
+        titleKey: 'checklist.actions.connectWarehouse.title',
+        subtitleKey: 'checklist.actions.connectWarehouse.subtitle',
     },
     'add-semantic-layer': {
         icon: IconActivity,
-        title: 'Add a semantic layer',
-        subtitle: 'Answers grounded in your business definitions',
+        titleKey: 'checklist.actions.addSemanticLayer.title',
+        subtitleKey: 'checklist.actions.addSemanticLayer.subtitle',
     },
     'connect-source-control': {
         icon: IconGitBranch,
-        title: 'Set up your dbt',
-        subtitle: 'Deploy with the CLI or connect your repo',
+        titleKey: 'checklist.actions.connectSourceControl.title',
+        subtitleKey: 'checklist.actions.connectSourceControl.subtitle',
     },
     'connect-slack': {
         icon: IconBrandSlack,
-        title: 'Connect Slack',
-        subtitle: 'Ask Aurora from your channels',
+        titleKey: 'checklist.actions.connectSlack.title',
+        subtitleKey: 'checklist.actions.connectSlack.subtitle',
     },
 };
 
@@ -108,8 +109,10 @@ const ActionRow: FC<{
     className,
     isBehind,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const { track } = useTracking();
     const definition = ACTION_DEFINITIONS[actionKey];
+    const title = t(definition.titleKey);
     const rowClassName = [
         styles.actionRow,
         status.isComplete ? styles.actionRowDone : null,
@@ -149,22 +152,22 @@ const ActionRow: FC<{
                             : styles.rowTitle
                     }
                 >
-                    {definition.title}
+                    {title}
                 </Box>
                 <Box className={styles.rowSubtitle}>
                     {status.isComplete
                         ? status.annotation
                         : isSkipped
-                          ? 'Skipped'
-                          : definition.subtitle}
+                          ? t('checklist.skipped')
+                          : t(definition.subtitleKey)}
                 </Box>
             </Box>
             {!status.isComplete && isSkipped && (
-                <Tooltip label="Restore this step">
+                <Tooltip label={t('checklist.restoreStep')}>
                     <ActionIcon
                         className={styles.skipButton}
                         size="sm"
-                        aria-label={`Restore ${definition.title}`}
+                        aria-label={t('checklist.restoreAria', { title })}
                         onClick={() => onRestore(actionKey)}
                     >
                         <MantineIcon icon={IconArrowBackUp} size={14} />
@@ -194,11 +197,11 @@ const ActionRow: FC<{
                         {status.ctaLabel}
                     </Button>
                     {isSkippableActionKey(actionKey) && (
-                        <Tooltip label="Skip this step">
+                        <Tooltip label={t('checklist.skipStep')}>
                             <ActionIcon
                                 className={styles.skipButton}
                                 size="sm"
-                                aria-label={`Skip ${definition.title}`}
+                                aria-label={t('checklist.skipAria', { title })}
                                 onClick={() => onSkip(actionKey)}
                             >
                                 <MantineIcon icon={IconX} size={14} />
@@ -218,11 +221,14 @@ const ActionRow: FC<{
 export const RecommendedActionsChecklistPlaceholder: FC<{
     actionCount: number;
 }> = ({ actionCount }) => {
+    const { t } = useTranslation('homepageBuilder');
     if (actionCount === 0) return null;
     return (
         <Stack gap={8} className={styles.checklistRoot}>
             <Box className={styles.headerRow}>
-                <span className={classes.sectionTitle}>Finish setting up</span>
+                <span className={classes.sectionTitle}>
+                    {t('checklist.title')}
+                </span>
             </Box>
             <Box
                 className={`${styles.cardStack} ${stackHeightClass(
@@ -238,6 +244,7 @@ export const RecommendedActionsChecklistPlaceholder: FC<{
 export const RecommendedActionsChecklist: FC<{
     actions: RecommendedActionsState;
 }> = ({ actions }) => {
+    const { t } = useTranslation('homepageBuilder');
     const { track, data: trackingData } = useTracking();
     const isTrackingReady = !!trackingData.rudder;
     const {
@@ -360,13 +367,15 @@ export const RecommendedActionsChecklist: FC<{
     return (
         <Stack gap={8} className={styles.checklistRoot}>
             <Box className={styles.headerRow}>
-                <span className={classes.sectionTitle}>Finish setting up</span>
+                <span className={classes.sectionTitle}>
+                    {t('checklist.title')}
+                </span>
                 <Box className={styles.headerControls}>
                     {showArrows && (
                         <>
                             <ActionIcon
                                 size="sm"
-                                aria-label="Previous step"
+                                aria-label={t('checklist.previousStep')}
                                 onClick={() => {
                                     impressionTriggerRef.current = 'manual';
                                     setCarouselIndex(
@@ -379,7 +388,7 @@ export const RecommendedActionsChecklist: FC<{
                             </ActionIcon>
                             <ActionIcon
                                 size="sm"
-                                aria-label="Next step"
+                                aria-label={t('checklist.nextStep')}
                                 onClick={() => {
                                     impressionTriggerRef.current = 'manual';
                                     setCarouselIndex(

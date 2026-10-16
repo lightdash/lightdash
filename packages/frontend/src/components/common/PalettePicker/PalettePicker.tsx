@@ -9,6 +9,7 @@ import {
 } from '@mantine/core';
 import { IconMoon, IconSun } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import EChartsReact, { type EChartsOption } from '../../EChartsReactWrapper';
 import MantineIcon from '../MantineIcon';
 import classes from './PalettePicker.module.css';
@@ -61,36 +62,39 @@ const SwatchInline: FC<{
 const PaletteOptionRow: FC<{ name: string; swatches: SwatchSet | null }> = ({
     name,
     swatches,
-}) => (
-    <Group gap="sm" wrap="nowrap" className={classes.row}>
-        <Text size="xs" className={classes.name}>
-            {name}
-        </Text>
-        {swatches && (
-            <Group gap={4} wrap="nowrap" className={classes.swatches}>
-                <SwatchInline
-                    icon={IconSun}
-                    label="Light mode"
-                    colors={swatches.colors}
-                    limit={SWATCH_LIMIT}
-                />
-                {swatches.darkColors && swatches.darkColors.length > 0 && (
-                    <>
-                        <Text size="xs" c="ldGray.3">
-                            /
-                        </Text>
-                        <SwatchInline
-                            icon={IconMoon}
-                            label="Dark mode"
-                            colors={swatches.darkColors}
-                            limit={SWATCH_LIMIT}
-                        />
-                    </>
-                )}
-            </Group>
-        )}
-    </Group>
-);
+}) => {
+    const { t } = useTranslation('commonUi');
+    return (
+        <Group gap="sm" wrap="nowrap" className={classes.row}>
+            <Text size="xs" className={classes.name}>
+                {name}
+            </Text>
+            {swatches && (
+                <Group gap={4} wrap="nowrap" className={classes.swatches}>
+                    <SwatchInline
+                        icon={IconSun}
+                        label={t('palettePicker.lightMode')}
+                        colors={swatches.colors}
+                        limit={SWATCH_LIMIT}
+                    />
+                    {swatches.darkColors && swatches.darkColors.length > 0 && (
+                        <>
+                            <Text size="xs" c="ldGray.3">
+                                /
+                            </Text>
+                            <SwatchInline
+                                icon={IconMoon}
+                                label={t('palettePicker.darkMode')}
+                                colors={swatches.darkColors}
+                                limit={SWATCH_LIMIT}
+                            />
+                        </>
+                    )}
+                </Group>
+            )}
+        </Group>
+    );
+};
 
 const MiniBarChart: FC<{ colors: string[]; theme: 'light' | 'dark' }> = ({
     colors,
@@ -131,28 +135,38 @@ const MiniBarChart: FC<{ colors: string[]; theme: 'light' | 'dark' }> = ({
     );
 };
 
-const SelectedPalettePreview: FC<{ swatches: SwatchSet }> = ({ swatches }) => (
-    <Group gap="xs" grow align="stretch" wrap="nowrap">
-        <Tooltip label="Light mode" position="top">
-            <Stack gap={4} className={classes.miniChartCardLight}>
-                <Group gap={4} justify="center">
-                    <MantineIcon icon={IconSun} size={12} color="gray" />
-                </Group>
-                <MiniBarChart colors={swatches.colors} theme="light" />
-            </Stack>
-        </Tooltip>
-        {swatches.darkColors && swatches.darkColors.length > 0 && (
-            <Tooltip label="Dark mode" position="top">
-                <Stack gap={4} className={classes.miniChartCardDark}>
+const SelectedPalettePreview: FC<{ swatches: SwatchSet }> = ({ swatches }) => {
+    const { t } = useTranslation('commonUi');
+    return (
+        <Group gap="xs" grow align="stretch" wrap="nowrap">
+            <Tooltip label={t('palettePicker.lightMode')} position="top">
+                <Stack gap={4} className={classes.miniChartCardLight}>
                     <Group gap={4} justify="center">
-                        <MantineIcon icon={IconMoon} size={12} color="dimmed" />
+                        <MantineIcon icon={IconSun} size={12} color="gray" />
                     </Group>
-                    <MiniBarChart colors={swatches.darkColors} theme="dark" />
+                    <MiniBarChart colors={swatches.colors} theme="light" />
                 </Stack>
             </Tooltip>
-        )}
-    </Group>
-);
+            {swatches.darkColors && swatches.darkColors.length > 0 && (
+                <Tooltip label={t('palettePicker.darkMode')} position="top">
+                    <Stack gap={4} className={classes.miniChartCardDark}>
+                        <Group gap={4} justify="center">
+                            <MantineIcon
+                                icon={IconMoon}
+                                size={12}
+                                color="dimmed"
+                            />
+                        </Group>
+                        <MiniBarChart
+                            colors={swatches.darkColors}
+                            theme="dark"
+                        />
+                    </Stack>
+                </Tooltip>
+            )}
+        </Group>
+    );
+};
 
 export const PalettePicker: FC<Props> = ({
     value,
@@ -166,8 +180,12 @@ export const PalettePicker: FC<Props> = ({
     size = 'xs',
     showPreview = true,
 }) => {
+    const { t } = useTranslation('commonUi');
     const data = [
-        { value: INHERIT_VALUE, label: `Inherit from ${parentLabel}` },
+        {
+            value: INHERIT_VALUE,
+            label: t('palettePicker.inheritFrom', { parentLabel }),
+        },
         ...palettes.map((palette) => ({
             value: palette.colorPaletteUuid,
             label: palette.name,

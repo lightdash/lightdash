@@ -2,6 +2,7 @@ import { type Space } from '@lightdash/common';
 import { Box, Stack, TextInput } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSpace } from '../../../hooks/useSpaces';
 import InheritanceToggleCards from '../ShareSpaceModal/InheritanceToggleCards';
 import { type InheritanceType } from '../ShareSpaceModal/ShareSpaceModalUtils';
@@ -21,6 +22,7 @@ const CreateSpaceModalContent: FC<CreateSpaceModalContentProps> = ({
     inheritanceValue,
     onInheritanceChange,
 }) => {
+    const { t } = useTranslation('modals');
     const isNestedSpace = !!parentSpaceUuid;
     const { data: parentSpace } = useSpace(
         projectUuid,
@@ -32,8 +34,8 @@ const CreateSpaceModalContent: FC<CreateSpaceModalContentProps> = ({
         <Stack>
             <TextInput
                 {...form.getInputProps('name')}
-                label="Enter a memorable name for your space"
-                placeholder="eg. KPIs"
+                label={t('spaceAction.nameLabel')}
+                placeholder={t('spaceAction.namePlaceholder')}
                 // Walkthrough: a typed step; the card offers a name.
                 data-tour-anchor="space-name"
                 data-tour-input="true"
@@ -41,7 +43,11 @@ const CreateSpaceModalContent: FC<CreateSpaceModalContentProps> = ({
                 data-tour-suggest="Customer Success"
                 description={
                     isNestedSpace
-                        ? `This space will have the same access as "${parentSpace?.name ?? 'the parent space'}". You can change this later.`
+                        ? parentSpace?.name
+                            ? t('spaceAction.inheritsAccessFrom', {
+                                  parentName: parentSpace.name,
+                              })
+                            : t('spaceAction.inheritsAccessFromParent')
                         : undefined
                 }
             />

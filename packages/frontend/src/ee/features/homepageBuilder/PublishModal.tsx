@@ -25,7 +25,9 @@ import {
     IconWorld,
     IconWorldCheck,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useRef, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -38,15 +40,15 @@ import {
     useUpdateGroupPriorities,
 } from './hooks/useProjectHomepage';
 import classes from './PublishModal.module.css';
-import { RESOLUTION_STEPS } from './resolution';
+import { getResolutionSteps } from './resolution';
 
-const ROLE_DESCRIPTIONS: Record<ProjectMemberRole, string> = {
-    [ProjectMemberRole.VIEWER]: 'Read-only consumers of dashboards',
+const ROLE_DESCRIPTION_KEYS: Record<ProjectMemberRole, string> = {
+    [ProjectMemberRole.VIEWER]: 'publish.roleDescriptions.viewer',
     [ProjectMemberRole.INTERACTIVE_VIEWER]:
-        'Can explore data behind the dashboards',
-    [ProjectMemberRole.EDITOR]: 'Builds charts and dashboards',
-    [ProjectMemberRole.DEVELOPER]: 'Works on the data model itself',
-    [ProjectMemberRole.ADMIN]: 'Full control of the project',
+        'publish.roleDescriptions.interactiveViewer',
+    [ProjectMemberRole.EDITOR]: 'publish.roleDescriptions.editor',
+    [ProjectMemberRole.DEVELOPER]: 'publish.roleDescriptions.developer',
+    [ProjectMemberRole.ADMIN]: 'publish.roleDescriptions.admin',
 };
 
 const segmentedLabel = (icon: typeof IconWorld, label: string) => (
@@ -68,25 +70,23 @@ const initialModeFor = (ownAssignments: HomepageAssignment[]): AudienceMode => {
     return 'everyone';
 };
 
-const pluralise = (count: number, noun: string) =>
-    `${count} ${noun}${count === 1 ? '' : 's'}`;
-
 const confirmLabelFor = (
+    t: TFunction,
     mode: AudienceMode,
     groupCount: number,
     roleCount: number,
 ): string => {
     switch (mode) {
         case 'everyone':
-            return 'Publish to everyone';
+            return t('publish.confirm.everyone');
         case 'groups':
             return groupCount > 0
-                ? `Publish to ${pluralise(groupCount, 'group')}`
-                : 'Publish';
+                ? t('publish.confirm.groups', { count: groupCount })
+                : t('publish.confirm.publish');
         case 'roles':
             return roleCount > 0
-                ? `Publish to ${pluralise(roleCount, 'role')}`
-                : 'Publish';
+                ? t('publish.confirm.roles', { count: roleCount })
+                : t('publish.confirm.publish');
         default:
             return assertUnreachable(mode, 'Unknown audience mode');
     }
@@ -116,16 +116,16 @@ const DraftAnnouncementsCallout: FC<{
     draftCount: number;
     queuedSlackCount: number;
 }> = ({ draftCount, queuedSlackCount }) => {
+    const { t } = useTranslation('homepageBuilder');
     if (draftCount === 0) return null;
     return (
         <Callout variant="warning">
             <Text size="sm">
-                Publishing will also make{' '}
-                {pluralise(draftCount, 'draft announcement')} live
                 {queuedSlackCount > 0
-                    ? ' and send queued Slack notifications'
-                    : ''}
-                .
+                    ? t('publish.draftAnnouncementsWithSlack', {
+                          count: draftCount,
+                      })
+                    : t('publish.draftAnnouncements', { count: draftCount })}
             </Text>
         </Callout>
     );
@@ -148,6 +148,7 @@ type Props = {
 // time the modal is opened, seeded from that session's real assignments.
 export const PublishModal: FC<Props> = (props) => {
     const { opened, onClose, projectUuid } = props;
+    const { t } = useTranslation('homepageBuilder');
     const { data: groups } = useOrganizationGroups({}, { enabled: opened });
     const { data: assignments, isInitialLoading: assignmentsLoading } =
         useHomepageAssignments(projectUuid, { enabled: opened });
@@ -165,7 +166,7 @@ export const PublishModal: FC<Props> = (props) => {
             <MantineModal
                 opened={opened}
                 onClose={onClose}
-                title="Publish homepage"
+                title={t('publish.title')}
                 icon={IconSend}
                 size="lg"
             />
@@ -201,6 +202,7 @@ const PublishModalBody: FC<BodyProps> = ({
     assignments,
     reorderGroups,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const draftAnnouncements = useDraftAnnouncementCounts(projectUuid);
     const ownAssignments = assignments.filter(
         (assignment) => assignment.homepageUuid === homepageUuid,
@@ -237,7 +239,9 @@ const PublishModalBody: FC<BodyProps> = ({
 
     const elsewhereBadge = (assignment: HomepageAssignment | undefined) =>
         assignment && assignment.homepageUuid !== homepageUuid ? (
-            <MiniPill>now on {assignment.homepageName}</MiniPill>
+            <MiniPill>
+                {t('publish.nowOn', { name: assignment.homepageName })}
+            </MiniPill>
         ) : null;
 
     const movePriority = (groupUuid: string, direction: -1 | 1) => {
@@ -262,16 +266,19 @@ const PublishModalBody: FC<BodyProps> = ({
     };
 
     const confirmLabel = confirmLabelFor(
+        t,
         mode,
         selectedGroups.length,
         selectedRoles.length,
     );
 
+    const resolutionSteps = getResolutionSteps();
+
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Publish homepage"
+            title={t('publish.title')}
             icon={IconSend}
             size="lg"
             onConfirm={handlePublish}
@@ -284,11 +291,14 @@ const PublishModalBody: FC<BodyProps> = ({
         >
             <Stack gap="md">
                 <Text size="sm" c="dimmed">
-                    Choose who lands on{' '}
-                    <Text span fw={600} c="inherit">
-                        {homepageName}
-                    </Text>{' '}
-                    when they open this project.
+                    <Trans
+                        t={t}
+                        i18nKey="publish.chooseWho"
+                        values={{ name: homepageName }}
+                        components={{
+                            name: <Text span fw={600} c="inherit" />,
+                        }}
+                    />
                 </Text>
                 <SegmentedControl
                     fullWidth
@@ -299,15 +309,24 @@ const PublishModalBody: FC<BodyProps> = ({
                     data={[
                         {
                             value: 'everyone',
-                            label: segmentedLabel(IconWorld, 'Everyone'),
+                            label: segmentedLabel(
+                                IconWorld,
+                                t('publish.modes.everyone'),
+                            ),
                         },
                         {
                             value: 'groups',
-                            label: segmentedLabel(IconUsersGroup, 'By group'),
+                            label: segmentedLabel(
+                                IconUsersGroup,
+                                t('publish.modes.groups'),
+                            ),
                         },
                         {
                             value: 'roles',
-                            label: segmentedLabel(IconShieldCheck, 'By role'),
+                            label: segmentedLabel(
+                                IconShieldCheck,
+                                t('publish.modes.roles'),
+                            ),
                         },
                     ]}
                 />
@@ -322,12 +341,15 @@ const PublishModalBody: FC<BodyProps> = ({
                                 className={classes.infoPanelIcon}
                             />
                             <Text size="sm" c="ldGray.7" lh={1.5}>
-                                This becomes the{' '}
-                                <Text span fw={600} c="inherit">
-                                    starting point
-                                </Text>{' '}
-                                everyone lands on — unless a group they’re in
-                                has its own homepage.
+                                <Trans
+                                    t={t}
+                                    i18nKey="publish.everyoneInfo"
+                                    components={{
+                                        strong: (
+                                            <Text span fw={600} c="inherit" />
+                                        ),
+                                    }}
+                                />
                             </Text>
                         </Group>
                     </Box>
@@ -376,7 +398,7 @@ const PublishModalBody: FC<BodyProps> = ({
                             ))}
                             {groups.length === 0 && (
                                 <Text size="sm" c="dimmed" p="sm">
-                                    No groups in this organization yet.
+                                    {t('publish.noGroups')}
                                 </Text>
                             )}
                         </div>
@@ -390,10 +412,10 @@ const PublishModalBody: FC<BodyProps> = ({
                                     c="dimmed"
                                     mb={4}
                                 >
-                                    If someone’s in more than one group
+                                    {t('publish.priority.title')}
                                 </Text>
                                 <Text fz={12.5} c="dimmed" lh={1.45} mb={10}>
-                                    The higher-ranked group’s homepage wins.
+                                    {t('publish.priority.description')}
                                 </Text>
                                 <Stack gap={6}>
                                     {groupAssignments.map(
@@ -417,16 +439,23 @@ const PublishModalBody: FC<BodyProps> = ({
                                                         {assignment.groupName}
                                                     </Text>
                                                     <Text fz={11.5} c="dimmed">
-                                                        →{' '}
-                                                        {
-                                                            assignment.homepageName
-                                                        }
+                                                        {t(
+                                                            'publish.priority.target',
+                                                            {
+                                                                name: assignment.homepageName,
+                                                            },
+                                                        )}
                                                     </Text>
                                                 </Box>
                                                 <ActionIcon
                                                     size="sm"
                                                     disabled={index === 0}
-                                                    aria-label={`Move ${assignment.groupName} up`}
+                                                    aria-label={t(
+                                                        'publish.priority.moveUp',
+                                                        {
+                                                            name: assignment.groupName,
+                                                        },
+                                                    )}
                                                     onClick={() =>
                                                         assignment.groupUuid &&
                                                         movePriority(
@@ -446,7 +475,12 @@ const PublishModalBody: FC<BodyProps> = ({
                                                         groupAssignments.length -
                                                             1
                                                     }
-                                                    aria-label={`Move ${assignment.groupName} down`}
+                                                    aria-label={t(
+                                                        'publish.priority.moveDown',
+                                                        {
+                                                            name: assignment.groupName,
+                                                        },
+                                                    )}
                                                     onClick={() =>
                                                         assignment.groupUuid &&
                                                         movePriority(
@@ -499,7 +533,7 @@ const PublishModalBody: FC<BodyProps> = ({
                                             {ProjectMemberRoleLabels[role]}
                                         </Text>
                                         <Text fz="xs" c="dimmed">
-                                            {ROLE_DESCRIPTIONS[role]}
+                                            {t(ROLE_DESCRIPTION_KEYS[role])}
                                         </Text>
                                     </Box>
                                     {elsewhereBadge(assignmentByRole.get(role))}
@@ -507,7 +541,7 @@ const PublishModalBody: FC<BodyProps> = ({
                             ))}
                         </div>
                         <Text fz="xs" c="dimmed" lh={1.45}>
-                            A group assignment always wins over a role.
+                            {t('publish.groupWinsOverRole')}
                         </Text>
                     </>
                 )}
@@ -516,12 +550,12 @@ const PublishModalBody: FC<BodyProps> = ({
 
                 <Group gap={7} p="10px 12px" className={classes.resolvesBar}>
                     <Text fz={11.5} fw={500} c="ldGray.5">
-                        Resolves:
+                        {t('publish.resolves')}
                     </Text>
-                    {RESOLUTION_STEPS.map((step, index) => (
+                    {resolutionSteps.map((step, index) => (
                         <Group key={step} gap={7} wrap="nowrap">
                             <MiniPill>{step}</MiniPill>
-                            {index < RESOLUTION_STEPS.length - 1 && (
+                            {index < resolutionSteps.length - 1 && (
                                 <MantineIcon
                                     icon={IconChevronRight}
                                     size={12}

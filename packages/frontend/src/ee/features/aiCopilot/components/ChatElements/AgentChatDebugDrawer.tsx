@@ -20,6 +20,7 @@ import {
     IconChevronRight,
 } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import CodeBlock from '../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
@@ -61,6 +62,7 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
     agentUuid,
     projectUuid,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const artifact = artifacts?.[artifacts.length - 1];
     const [expandedToolCalls, setExpandedToolCalls] = useState<
         Record<string, boolean>
@@ -102,7 +104,7 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                         <MantineIcon icon={IconBug} size="sm" />
                     </Paper>
                     <Text fw={500} size="md">
-                        Debug
+                        {t('debug.title')}
                     </Text>
                 </Group>
             }
@@ -140,7 +142,7 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                             className={classes.sectionHeader}
                         >
                             <Text fw={500} size="sm" c="dark">
-                                Configuration
+                                {t('debug.configuration')}
                             </Text>
                         </Group>
                         <ScrollArea.Autosize
@@ -162,7 +164,7 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                             ) : (
                                 <Box p="md" className={classes.centerText}>
                                     <Text size="sm" c="dimmed" fs="italic">
-                                        Cannot display configuration
+                                        {t('debug.cannotDisplayConfiguration')}
                                     </Text>
                                 </Box>
                             )}
@@ -178,7 +180,9 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                             className={classes.sectionHeader}
                         >
                             <Text fw={500} size="sm" c="dark">
-                                Tool Calls ({toolCalls.length})
+                                {t('debug.toolCalls', {
+                                    count: toolCalls.length,
+                                })}
                             </Text>
                         </Group>
                         <Stack gap="sm" mb="xl">
@@ -229,14 +233,18 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                                                         }
                                                     >
                                                         {toolCall.toolName ||
-                                                            'Unknown'}
+                                                            t('state.unknown', {
+                                                                ns: 'common',
+                                                            })}
                                                     </Text>
                                                     {isError && (
                                                         <Badge
                                                             color="red"
                                                             size="xs"
                                                         >
-                                                            Error
+                                                            {t('state.error', {
+                                                                ns: 'common',
+                                                            })}
                                                         </Badge>
                                                     )}
                                                 </Group>
@@ -253,7 +261,9 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                                                             c="dark"
                                                             mb="xs"
                                                         >
-                                                            Arguments
+                                                            {t(
+                                                                'debug.arguments',
+                                                            )}
                                                         </Text>
                                                         <CodeBlock
                                                             code={argsJson}
@@ -278,8 +288,9 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                                                             c="dimmed"
                                                             fs="italic"
                                                         >
-                                                            Cannot display
-                                                            arguments
+                                                            {t(
+                                                                'debug.cannotDisplayArguments',
+                                                            )}
                                                         </Text>
                                                     </Box>
                                                 )}
@@ -307,7 +318,7 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                             className={classes.emptyStateIcon}
                         />
                         <Text c="dimmed" size="sm">
-                            No debug information available
+                            {t('debug.empty')}
                         </Text>
                     </Box>
                 )}

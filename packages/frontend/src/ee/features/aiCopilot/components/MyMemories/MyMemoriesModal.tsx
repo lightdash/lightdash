@@ -9,6 +9,7 @@ import {
 } from '@mantine/core';
 import { IconNotebook, IconSearch } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -28,36 +29,42 @@ type MyMemoriesModalProps = {
     projectUuid: string;
 };
 
-const getCitationLabel = (citedCount: number) =>
-    citedCount === 0 ? 'never cited' : `${citedCount.toLocaleString()}× cited`;
-
 const MemoryListRow: FC<{
     memory: AiAgentUserMemoryItem;
     isSelected: boolean;
     onSelect: () => void;
-}> = ({ memory, isSelected, onSelect }) => (
-    <UnstyledButton
-        type="button"
-        className={styles.row}
-        data-selected={isSelected || undefined}
-        onClick={onSelect}
-    >
-        <Box className={styles.rowDot} />
-        <Box miw={0}>
-            <Text className={styles.rowTitle} lineClamp={2}>
-                {memory.title}
-            </Text>
-            <Text className={styles.rowMeta}>
-                {getCitationLabel(memory.citedCount)}
-            </Text>
-        </Box>
-    </UnstyledButton>
-);
+}> = ({ memory, isSelected, onSelect }) => {
+    const { t } = useTranslation('aiAgent');
+    return (
+        <UnstyledButton
+            type="button"
+            className={styles.row}
+            data-selected={isSelected || undefined}
+            onClick={onSelect}
+        >
+            <Box className={styles.rowDot} />
+            <Box miw={0}>
+                <Text className={styles.rowTitle} lineClamp={2}>
+                    {memory.title}
+                </Text>
+                <Text className={styles.rowMeta}>
+                    {memory.citedCount === 0
+                        ? t('myMemories.neverCited')
+                        : t('myMemories.cited', {
+                              count: memory.citedCount,
+                              formatted: memory.citedCount.toLocaleString(),
+                          })}
+                </Text>
+            </Box>
+        </UnstyledButton>
+    );
+};
 
 const MemoryDetailPane: FC<{
     projectUuid: string;
     memory: AiAgentUserMemoryItem;
 }> = ({ projectUuid, memory }) => {
+    const { t } = useTranslation('aiAgent');
     const memoryQuery = useMyAiAgentMemory({ projectUuid, slug: memory.slug });
 
     return (
@@ -90,7 +97,7 @@ const MemoryDetailPane: FC<{
                 ) : memoryQuery.isError ? (
                     <Box p="xl">
                         <InlineErrorState
-                            message="Unable to load this memory."
+                            message={t('memory.loadFailed')}
                             onRetry={() => void memoryQuery.refetch()}
                         />
                     </Box>
@@ -107,6 +114,7 @@ export const MyMemoriesModal: FC<MyMemoriesModalProps> = ({
     onClose,
     projectUuid,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const [search, setSearch] = useState('');
     const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
     const { data: project } = useProject(projectUuid);
@@ -135,7 +143,7 @@ export const MyMemoriesModal: FC<MyMemoriesModalProps> = ({
     } else if (memoriesQuery.isError) {
         content = (
             <InlineErrorState
-                message="Unable to load your memories."
+                message={t('myMemories.loadFailed')}
                 onRetry={() => void memoriesQuery.refetch()}
             />
         );
@@ -143,11 +151,10 @@ export const MyMemoriesModal: FC<MyMemoriesModalProps> = ({
         content = (
             <Stack gap="xs" className={styles.emptyState}>
                 <Text size="sm" fw={500}>
-                    No memories yet
+                    {t('myMemories.empty')}
                 </Text>
                 <Text size="sm" c="dimmed">
-                    The agents haven't saved any memories from your threads in
-                    this project yet.
+                    {t('myMemories.emptyDescription')}
                 </Text>
             </Stack>
         );
@@ -158,7 +165,7 @@ export const MyMemoriesModal: FC<MyMemoriesModalProps> = ({
                     <Box className={styles.search}>
                         <TextInput
                             size="xs"
-                            placeholder="Search memories"
+                            placeholder={t('myMemories.search')}
                             value={search}
                             onChange={(event) =>
                                 setSearch(event.currentTarget.value)
@@ -182,7 +189,7 @@ export const MyMemoriesModal: FC<MyMemoriesModalProps> = ({
                             ))
                         ) : (
                             <Text size="xs" c="dimmed" p="sm">
-                                No memories match your search.
+                                {t('myMemories.noMatches')}
                             </Text>
                         )}
                     </Stack>
@@ -209,10 +216,12 @@ export const MyMemoriesModal: FC<MyMemoriesModalProps> = ({
             size="80rem"
             modalBodyProps={{ px: 0, py: 0 }}
             bodyScrollAreaMaxHeight="70vh"
-            title="My memories"
-            subtitle={`What the agents learned from your conversations in ${
-                project?.name ?? 'this project'
-            }. Only you and your organization's admins can see these.`}
+            title={t('myMemories.title')}
+            subtitle={
+                project?.name
+                    ? t('myMemories.subtitle', { project: project.name })
+                    : t('myMemories.subtitleThisProject')
+            }
         >
             {content}
         </MantineModal>

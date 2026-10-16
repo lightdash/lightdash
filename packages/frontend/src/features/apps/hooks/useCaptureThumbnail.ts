@@ -1,7 +1,9 @@
 import { isApiError } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import useToaster from '../../../hooks/toaster/useToaster';
+import i18n from '../../../i18n/i18n';
 import {
     refreshAppThumbnailQueries,
     useAppThumbnailUpload,
@@ -24,11 +26,12 @@ const getErrorMessage = (err: unknown) =>
         ? err.error.message
         : err instanceof Error
           ? err.message
-          : 'Unknown error';
+          : i18n.t('common.unknownError', { ns: 'apps' });
 
 /** Captures the live preview and saves it as the thumbnail of the version on screen. */
 export const useCaptureThumbnail = ({ app, capture }: Args) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('apps');
     const { showToastSuccess, showToastError } = useToaster();
     const { mutateAsync: uploadThumbnail } = useAppThumbnailUpload();
     const [isCapturing, setIsCapturing] = useState(false);
@@ -47,10 +50,10 @@ export const useCaptureThumbnail = ({ app, capture }: Args) => {
                 appUuid,
                 change: 'captured',
             });
-            showToastSuccess({ title: 'Thumbnail updated' });
+            showToastSuccess({ title: t('toasts.thumbnailUpdated') });
         } catch (err) {
             showToastError({
-                title: 'Failed to capture thumbnail',
+                title: t('toasts.thumbnailCaptureFailed'),
                 subtitle: getErrorMessage(err),
             });
         } finally {
@@ -65,6 +68,7 @@ export const useCaptureThumbnail = ({ app, capture }: Args) => {
         queryClient,
         showToastSuccess,
         showToastError,
+        t,
     ]);
 
     return { captureThumbnail, isCapturing };

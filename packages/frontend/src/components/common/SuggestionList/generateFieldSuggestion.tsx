@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { Group, Text } from '@mantine/core';
 import { type MentionOptions } from '@tiptap/extension-mention';
+import i18n from '../../../i18n/i18n';
 import FieldIcon from '../Filters/FieldIcon';
 import { PolymorphicGroupButton } from '../PolymorphicGroupButton';
 import { createFieldSuggestionMatch } from './findFieldSuggestionMatch';
@@ -24,11 +25,16 @@ export type FieldSuggestionItem = {
 
 type FieldSuggestionGroup = 'dimensions' | 'metrics' | 'tableCalcs';
 
-const FIELD_SUGGESTION_GROUP_LABELS: Record<FieldSuggestionGroup, string> = {
-    dimensions: 'Dimensions',
-    metrics: 'Metrics',
-    tableCalcs: 'Table calculations',
-};
+const getFieldSuggestionGroupLabels = (): Record<
+    FieldSuggestionGroup,
+    string
+> => ({
+    dimensions: i18n.t('suggestionList.groups.dimensions', { ns: 'commonUi' }),
+    metrics: i18n.t('suggestionList.groups.metrics', { ns: 'commonUi' }),
+    tableCalcs: i18n.t('suggestionList.groups.tableCalculations', {
+        ns: 'commonUi',
+    }),
+});
 
 const GROUP_ORDER: FieldSuggestionGroup[] = [
     'dimensions',
@@ -80,7 +86,7 @@ export const generateFieldSuggestion = (
             },
             getGroupKey: (item) =>
                 getFieldSuggestionGroup((item as FieldSuggestionItem).item),
-            groupLabels: FIELD_SUGGESTION_GROUP_LABELS,
+            groupLabels: getFieldSuggestionGroupLabels(),
             renderItem: (item, isSelected, onClick) => (
                 <PolymorphicGroupButton
                     onClick={onClick}
@@ -98,7 +104,7 @@ export const generateFieldSuggestion = (
                     </Group>
                 </PolymorphicGroupButton>
             ),
-            emptyMessage: 'No fields found',
+            emptyMessage: i18n.t('suggestionList.noFields', { ns: 'commonUi' }),
         }),
         allowSpaces: true,
         findSuggestionMatch: createFieldSuggestionMatch(

@@ -2,6 +2,7 @@ import { UNASSIGNED_OWNER, type CatalogOwner } from '@lightdash/common';
 import { Text } from '@mantine/core';
 import { IconUser } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FilterFacet, {
     type FilterFacetOption,
 } from '../../../../components/common/FilterFacet';
@@ -16,19 +17,11 @@ type OwnersFilterProps = {
 const getOwnerDisplayName = (owner: CatalogOwner) =>
     `${owner.firstName} ${owner.lastName}`;
 
-const UNASSIGNED_OPTION: FilterFacetOption = {
-    value: UNASSIGNED_OWNER,
-    label: (
-        <Text fz="xs" fw={500}>
-            Unassigned
-        </Text>
-    ),
-};
-
 const OwnersFilter: FC<OwnersFilterProps> = ({
     selectedOwners,
     setSelectedOwners,
 }) => {
+    const { t } = useTranslation('metricsCatalog');
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -50,29 +43,37 @@ const OwnersFilter: FC<OwnersFilterProps> = ({
                 value: owner.userUuid,
                 label: getOwnerDisplayName(owner),
             }));
-        return search ? ownerOptions : [...ownerOptions, UNASSIGNED_OPTION];
-    }, [owners, searchValue]);
+        const unassignedOption: FilterFacetOption = {
+            value: UNASSIGNED_OWNER,
+            label: (
+                <Text fz="xs" fw={500}>
+                    {t('filters.owners.unassigned')}
+                </Text>
+            ),
+        };
+        return search ? ownerOptions : [...ownerOptions, unassignedOption];
+    }, [owners, searchValue, t]);
 
     return (
         <FilterFacet
-            label="Owners"
+            label={t('filters.owners.label')}
             icon={IconUser}
             options={options}
             selected={selectedOwners}
             onChange={setSelectedOwners}
-            tooltipLabel="Filter metrics by owner"
+            tooltipLabel={t('filters.owners.tooltip')}
             loading={isLoading}
             clearable
             emptyLabel={
                 searchValue
-                    ? 'No owners match your search.'
-                    : 'No owners configured yet. Add spotlight.owner in your metric or model YAML to assign owners.'
+                    ? t('filters.owners.noMatch')
+                    : t('filters.owners.empty')
             }
             searchValue={searchValue}
             onSearchChange={
                 (owners?.length ?? 0) > 5 ? setSearchValue : undefined
             }
-            searchPlaceholder="Search owners..."
+            searchPlaceholder={t('filters.owners.searchPlaceholder')}
         />
     );
 };

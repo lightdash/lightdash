@@ -1,30 +1,33 @@
 import { Anchor, Box, Stack } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 
-const getFailureReason = (error: string): string => {
+const getFailureReason = (error: string, t: TFunction): string => {
     switch (error) {
         case 'not_agent_session':
-            return 'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for agents.';
+            return t('agentConnected.errors.notAgentSession');
         case 'no_refresh_token':
-            return 'Snowflake did not return a refresh token. Try again.';
+            return t('agentConnected.errors.noRefreshToken');
         case 'license_required':
-            return 'An enterprise licence is required.';
+            return t('agentConnected.errors.licenseRequired');
         default:
-            return 'The sign-in did not complete. Try again.';
+            return t('agentConnected.errors.default');
     }
 };
 
 const AgentConnected = () => {
+    const { t } = useTranslation('pages');
     const [searchParams] = useSearchParams();
     const error = searchParams.get('error');
 
     return (
         <>
-            <DocumentTitle title="Agent connection" />
+            <DocumentTitle title={t('agentConnected.documentTitle')} />
             <Stack>
                 <Box mx="auto" my="lg">
                     <LightdashLogo />
@@ -32,21 +35,21 @@ const AgentConnected = () => {
                 {error !== null ? (
                     <SuboptimalState
                         icon={IconAlertCircle}
-                        title="Agent connection failed."
-                        description={getFailureReason(error)}
+                        title={t('agentConnected.failed')}
+                        description={getFailureReason(error, t)}
                         action={
                             <Anchor
                                 component={Link}
                                 to="/generalSettings/myAgentConnections"
                             >
-                                Try again from My agent identity
+                                {t('agentConnected.tryAgain')}
                             </Anchor>
                         }
                     />
                 ) : (
                     <SuboptimalState
-                        title="Agent connected."
-                        description="Go back to your client and run that again."
+                        title={t('agentConnected.connected')}
+                        description={t('agentConnected.connectedDescription')}
                     />
                 )}
             </Stack>

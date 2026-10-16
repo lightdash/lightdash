@@ -1,6 +1,7 @@
 import { Button } from '@mantine/core';
 import { IconRefresh } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useExplorerQuery } from '../../hooks/useExplorerQuery';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
@@ -8,6 +9,7 @@ import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 
 const PivotRerunState: FC = () => {
+    const { t } = useTranslation('visualization');
     const { isLoading, fetchResults } = useExplorerQuery();
     const { track } = useTracking();
 
@@ -19,8 +21,8 @@ const PivotRerunState: FC = () => {
     return (
         <SuboptimalState
             icon={IconRefresh}
-            title="Run query to see your pivot table"
-            description="You've changed the pivot configuration. Re-run the query to load the pivoted results."
+            title={t('table.pivotRerun.title')}
+            description={t('table.pivotRerun.description')}
             action={
                 <Button
                     size="xs"
@@ -28,7 +30,7 @@ const PivotRerunState: FC = () => {
                     loading={isLoading}
                     onClick={onClick}
                 >
-                    Run query
+                    {t('table.pivotRerun.runQuery')}
                 </Button>
             }
         />

@@ -1,6 +1,7 @@
 import { Box } from '@mantine/core';
 import { IconHammer } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ReasoningHistoryRow } from '../../../ee/features/aiCopilot/components/ChatElements/ToolCalls/LiveActivityCard';
 import {
     hasVersionNarration,
@@ -15,6 +16,7 @@ type Props = {
 
 /** The shared Reasoning/Activity presentation for live and persisted builds. */
 const AppVersionNarration: FC<Props> = ({ narration, isLive, className }) => {
+    const { t } = useTranslation('apps');
     if (!hasVersionNarration(narration)) return null;
 
     return (
@@ -30,7 +32,7 @@ const AppVersionNarration: FC<Props> = ({ narration, isLive, className }) => {
                     texts={narration.activity}
                     isLive={isLive}
                     icon={IconHammer}
-                    label="Activity"
+                    label={t('narration.activity')}
                 />
             )}
         </Box>

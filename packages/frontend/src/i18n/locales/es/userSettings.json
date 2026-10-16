@@ -1,0 +1,1222 @@
+{
+    "accessTokensPanel": {
+        "title": "Tokens de acceso personal",
+        "description": "Crea y revoca tokens usados para acceder a la API de Lightdash.",
+        "generateNewToken": "Generar nuevo token",
+        "emptyState": {
+            "title": "No hay tokens de acceso personal",
+            "description": "Genera tu primer token para autenticarte con la API de Lightdash."
+        },
+        "expireOptions": {
+            "noExpiration": "Sin caducidad",
+            "days_one": "{{count}} día",
+            "days_other": "{{count}} días"
+        },
+        "createTokenModal": {
+            "generatedTitle": "Tu token se ha generado",
+            "newTitle": "Nuevo token",
+            "generate": "Generar token",
+            "descriptionLabel": "¿Para qué es este token?",
+            "descriptionPlaceholder": "Descripción",
+            "expiration": "Caducidad",
+            "token": "Token",
+            "cliAuthCode": "Código de autenticación de la CLI",
+            "expiresOn": "Este token caducará el {{date}}.",
+            "copyWarning": "Asegúrate de copiar tu token de acceso personal ahora. ¡No podrás volver a verlo!"
+        },
+        "tokensTable": {
+            "columns": {
+                "description": "Descripción",
+                "expirationDate": "Fecha de caducidad",
+                "lastUsedAt": "Último uso"
+            },
+            "noExpirationDate": "Sin fecha de caducidad",
+            "lastRotatedAt": "Rotado por última vez el {{date}}",
+            "done": "Listo",
+            "menu": {
+                "copyTokenUuid": "Copiar UUID del token",
+                "rotateToken": "Rotar token"
+            },
+            "deleteModal": {
+                "title": "Eliminar token",
+                "resourceType": "token"
+            },
+            "copyModal": {
+                "title": "UUID del token",
+                "titleWithDescription": "UUID del token \"{{description}}\"",
+                "whatIsUuidTitle": "¿Qué es el UUID de un token?",
+                "whatIsUuidDescription": "El UUID es un identificador único de tu token, usado para rotarlo mediante la CLI <help/>. <strong>No</strong> es el valor de tu token de acceso personal.",
+                "learnAboutRotation": "Más información sobre la rotación de tokens",
+                "copyUuid": "Copiar UUID",
+                "copied": "¡Copiado!"
+            },
+            "rotate": {
+                "successTitle": "¡Token rotado correctamente!",
+                "oldTokenInvalid": "Tu token anterior ya no es válido.",
+                "newToken": "Nuevo token",
+                "copyNowTitle": "Asegúrate de copiar tu nuevo token ahora",
+                "copyNowDescription": "¡No podrás volver a verlo! Tu token anterior ya no es válido.",
+                "rotatingTitle": "Rotando el token \"{{description}}\"",
+                "rotatingDescription": "Esto generará un nuevo token e invalidará el actual. Debes especificar una nueva fecha de caducidad.",
+                "newExpiration": "Nueva caducidad",
+                "submit": "Rotar token"
+            }
+        }
+    },
+    "allowedDomainsPanel": {
+        "roles": {
+            "orgEditor": "Editor de la organización",
+            "orgEditorDescription": "Tiene acceso de edición en todos los proyectos de la organización",
+            "orgInteractiveViewer": "Visualizador interactivo de la organización",
+            "orgInteractiveViewerDescription": "Tiene acceso interactivo en todos los proyectos de la organización",
+            "orgViewer": "Visualizador de la organización",
+            "orgViewerDescription": "Tiene acceso de visualización en todos los proyectos de la organización",
+            "orgMember": "Miembro de la organización",
+            "orgMemberDescription": "Tiene acceso de visualización solo a los proyectos seleccionados",
+            "projectEditor": "Editor",
+            "projectEditorDescription": "Tiene acceso de edición en este proyecto",
+            "projectInteractiveViewer": "Visualizador interactivo",
+            "projectInteractiveViewerDescription": "Tiene acceso interactivo en este proyecto",
+            "projectViewer": "Visualizador",
+            "projectViewerDescription": "Tiene acceso de visualización en este proyecto"
+        },
+        "validation": {
+            "domainEmpty": "El dominio no puede estar vacío",
+            "projectRequired": "El proyecto es obligatorio",
+            "invalidDomain": "{{domain}} no es un dominio de correo válido, p. ej. lightdash.com"
+        },
+        "allowedEmailDomains": "Dominios de correo permitidos",
+        "domainsPlaceholder": "P. ej. lightdash.com",
+        "addDomain": "Añadir el dominio {{domain}}",
+        "defaultRole": "Rol predeterminado",
+        "defaultRolePlaceholder": "Visualizador de la organización",
+        "projectAccess": "Acceso a proyectos",
+        "projectName": "Nombre del proyecto",
+        "projectRole": "Rol en el proyecto",
+        "noMoreProjects": "No hay más proyectos para añadir",
+        "addProject": "Añadir proyecto"
+    },
+    "appearanceSettingsPanel": {
+        "title": "Apariencia",
+        "description": "Personaliza la marca de la organización y las paletas de colores usadas en gráficos y visualizaciones.",
+        "addPalette": "Añadir paleta",
+        "customOverrideName": "Paleta personalizada forzada",
+        "createPaletteModal": {
+            "title": "Crear nueva paleta",
+            "submit": "Crear paleta"
+        },
+        "editPaletteModal": {
+            "title": "Editar paleta \"{{name}}\"",
+            "submit": "Guardar cambios"
+        },
+        "deletePaletteModal": {
+            "title": "Eliminar paleta de colores",
+            "confirm": "¿Seguro que quieres eliminar la paleta de colores \"{{name}}\"?",
+            "cannotBeUndone": "Esta acción no se puede deshacer."
+        },
+        "paletteItem": {
+            "uuidCopied": "UUID de la paleta copiado al portapapeles",
+            "lightMode": "Modo claro",
+            "darkMode": "Modo oscuro",
+            "readOnlyTooltip": "Esta paleta es de solo lectura. Se ha configurado como la paleta de colores forzada de tu organización. Mientras esté configurada, no puedes actualizar, editar ni eliminar esta paleta.",
+            "override": "Forzada",
+            "useThisTheme": "Usar este tema",
+            "active": "Activa",
+            "actions": "Acciones de la paleta",
+            "copyUuid": "Copiar UUID",
+            "editPalette": "Editar paleta",
+            "deletePalette": "Eliminar paleta"
+        },
+        "paletteModal": {
+            "nameLabel": "Nombre de la paleta",
+            "namePlaceholder": "Introduce un nombre único",
+            "lightMode": "Modo claro",
+            "darkMode": "Modo oscuro",
+            "showAllColors": "Mostrar todos los colores",
+            "showFewerColors": "Mostrar menos colores",
+            "validation": {
+                "nameTooShort": "El nombre debe tener al menos 3 caracteres",
+                "nameNotUnique": "El nombre debe ser único",
+                "invalidColors": "Colores no válidos",
+                "invalidDarkColors": "Colores oscuros no válidos"
+            }
+        },
+        "chartPreview": {
+            "barSeries": "Barra {{number}}",
+            "lineSeries": "Línea {{number}}",
+            "categoriesSeries": "Categorías",
+            "categoryItem": "Categoría {{number}}",
+            "colorsCategory": "Colores",
+            "months": {
+                "jan": "Ene",
+                "feb": "Feb",
+                "mar": "Mar",
+                "apr": "Abr",
+                "may": "May"
+            }
+        },
+        "brandPreview": {
+            "title": "Resumen de ingresos",
+            "subtitle": "Rendimiento en todos los canales este trimestre.",
+            "totalRevenue": "Ingresos totales",
+            "vsLastQuarter": "{{change}} respecto al trimestre anterior",
+            "weeklyTrend": "Tendencia semanal",
+            "revenueByChannel": "Ingresos por canal",
+            "revenueShare": "Reparto de ingresos"
+        },
+        "brandAppearance": {
+            "title": "Apariencia de marca",
+            "description": "Tu marca puede usarse para generar paletas de colores.",
+            "domainLabel": "Dominio de la marca",
+            "fetchBrandTooltip": "Obtener la marca desde este dominio",
+            "fetchBrandAriaLabel": "Obtener la marca desde el dominio",
+            "brandColors": "Colores de marca",
+            "brandColorsDescription": "Los colores se detectan automáticamente a partir de tu marca. Edita cualquier valor.",
+            "removeColor": "Quitar color",
+            "addColor": "Añadir color",
+            "chartPalette": "Paleta de gráficos",
+            "chartPaletteDescription": "Amplía los colores de tu marca a una paleta de gráficos completa.",
+            "generatePalette": "Generar paleta",
+            "paletteModalTitle": "Paleta de gráficos a partir de tu marca",
+            "preview": "Vista previa",
+            "unsavedChanges": "Cambios sin guardar",
+            "revert": "Revertir",
+            "saveChanges": "Guardar cambios"
+        }
+    },
+    "corsSettingsPanel": {
+        "allowedOrigins": {
+            "label": "Orígenes permitidos",
+            "description": "El modo origen acepta orígenes exactos o *.example.com. El modo regex (.*) acepta un patrón y coincide automáticamente con el origen completo.",
+            "originPlaceholder": "https://app.example.com o *.example.com"
+        },
+        "switchToOriginMode": "Cambiar a modo origen",
+        "switchToRegexMode": "Cambiar a modo regex",
+        "removeOrigin": "Eliminar origen CORS",
+        "noOrigins": "No hay orígenes CORS configurados.",
+        "addOrigin": "Añadir origen",
+        "validation": {
+            "useOriginMode": "Usa el modo origen para orígenes exactos, o escapa los puntos de la regex como https:\\/\\/lightdash\\.com.",
+            "unique": "Los orígenes CORS permitidos deben ser únicos."
+        }
+    },
+    "defaultProjectPanel": {
+        "projectLabel": "Nombre del proyecto",
+        "placeholder": "Ningún proyecto seleccionado"
+    },
+    "deleteOrganizationPanel": {
+        "unnamedOrganization": "Organización sin nombre",
+        "deleteButton": "Eliminar '{{name}}'",
+        "modal": {
+            "title": "¿Eliminar “{{name}}”?",
+            "confirmLabel": "Eliminar organización de forma permanente",
+            "description": "Esto elimina de forma permanente todos los proyectos, el contenido guardado, los usuarios y las cuentas de servicio de esta organización. Se cerrará tu sesión. Esta acción no se puede deshacer.",
+            "typeToConfirm": "Escribe {{text}} para confirmar",
+            "noNameHint": "Esta organización no tiene nombre, así que usa {{text}} en su lugar."
+        }
+    },
+    "deleteProjectPanel": {
+        "deleteModal": {
+            "title": "Eliminar proyecto",
+            "titlePlayground": "Eliminar entorno de práctica",
+            "playgroundWarning": "Este es el entorno de práctica que Learn creó para tu organización. Al eliminarlo se elimina también la copia de cada alumno, y Learn volverá a pedir a un administrador que lo habilite.",
+            "typeNameToConfirm": "Escribe el nombre de este proyecto para confirmar. Esta acción no se puede deshacer."
+        },
+        "bulkModal": {
+            "title": "Eliminar proyectos en bloque",
+            "aboutToDelete": "Estás a punto de eliminar:",
+            "activeProject": "Proyecto activo <bold>\"{{name}}\"</bold>",
+            "activePreviewProject": "Proyecto de vista previa activo <bold>\"{{name}}\"</bold>",
+            "projectCount_one": "<bold>{{count}}</bold> proyecto",
+            "projectCount_other": "<bold>{{count}}</bold> proyectos",
+            "previewProjectCount_one": "<bold>{{count}}</bold> proyecto de vista previa",
+            "previewProjectCount_other": "<bold>{{count}}</bold> proyectos de vista previa",
+            "typeToConfirm": "Escribe <bold>\"{{text}}\"</bold> para confirmar. Esta acción no se puede deshacer."
+        }
+    },
+    "emailWhitelabel": {
+        "status": {
+            "pending": "Verificación pendiente",
+            "verified": "Verificado",
+            "enabled": "Habilitado",
+            "failed": "Verificación fallida"
+        },
+        "dnsTable": {
+            "type": "Tipo",
+            "nameHost": "Nombre / Host",
+            "value": "Valor",
+            "status": "Estado",
+            "fullRecordName": "Nombre completo del registro: {{name}}",
+            "verified": "Verificado",
+            "pending": "Pendiente"
+        },
+        "setupForm": {
+            "sendingDomain": "Dominio de envío",
+            "sendingDomainDescription": "Recomendamos un subdominio como reports.yourcompany.com para aislarlo de la reputación de tu correo principal.",
+            "fromAddress": "Dirección del remitente",
+            "fromAddressDescription": "Debe ser una dirección del dominio de envío.",
+            "fromName": "Nombre del remitente",
+            "fromNameDescription": "Nombre visible opcional que se muestra en el encabezado From.",
+            "fromNamePlaceholder": "Informes de tu empresa",
+            "submit": "Configurar dominio"
+        },
+        "configuredView": {
+            "sendFromDomain": "Enviar desde este dominio",
+            "instructions": "Los correos de informes se enviarán desde <b>{{email}}</b>. Añade los registros DNS siguientes en tu proveedor de DNS y luego verifica. Ambos registros deben verificarse antes de poder habilitar el envío.",
+            "cloudflareTooltip": "Cloudflare usa proxy en los registros CNAME por defecto, lo que impide la verificación. Edita el registro Return-Path en Cloudflare y cambia el estado del proxy (nube naranja) a “Solo DNS”; nunca se verificará mientras esté en proxy.",
+            "cloudflareHint": "¿Usas Cloudflare? Configura el registro Return-Path como Solo DNS.",
+            "removeDomain": "Eliminar dominio",
+            "verified": "Verificado",
+            "verifyDnsRecords": "Verificar registros DNS"
+        },
+        "panel": {
+            "title": "Dominio de envío de correo",
+            "description": "Envía los correos de informes desde tu propio dominio en lugar de una dirección de Lightdash.",
+            "fallbackNotice": "Hasta que tu dominio esté verificado y habilitado, los correos se envían desde Lightdash con tu dirección como respuesta."
+        }
+    },
+    "exportingPanel": {
+        "daysSuffix": " días",
+        "channels": {
+            "email": "Correo electrónico",
+            "slack": "Slack",
+            "msteams": "Microsoft Teams",
+            "googlechat": "Google Chat"
+        },
+        "linkExpiry": {
+            "label": "Caducidad del enlace de descarga",
+            "description": "Cuánto tiempo siguen siendo válidos los enlaces de descarga de una entrega programada antes de caducar."
+        },
+        "perChannel": {
+            "label": "Establecer una caducidad diferente para canales específicos",
+            "description": "Si está desactivado, todos los canales usan la caducidad indicada arriba.",
+            "inputAriaLabel": "Caducidad del enlace de {{channel}}",
+            "inheritsPlaceholder_one": "Hereda {{count}} día",
+            "inheritsPlaceholder_other": "Hereda {{count}} días",
+            "clearTooltip": "Borrar: heredar la caducidad indicada arriba"
+        }
+    },
+    "githubSettingsPanel": {
+        "description": "Instalar la app de GitHub permite que Lightdash acceda a tus repositorios de GitHub y cree pull requests.",
+        "noRepositories": "Tu integración de GitHub no tiene acceso a ningún repositorio.",
+        "repositoriesAccess_one": "Tu integración de GitHub tiene acceso al siguiente repositorio ({{count}}):",
+        "repositoriesAccess_other": "Tu integración de GitHub tiene acceso a los siguientes repositorios ({{count}}):",
+        "reinstall": "Reinstalar",
+        "install": "Instalar",
+        "pendingApproval": "Aprobación pendiente",
+        "pendingApprovalTooltip": "Un administrador de tu organización de GitHub debe aprobar la instalación de esta app. Debería haber recibido un correo de GitHub con una \"Request to install lightdash\".",
+        "pendingToast": {
+            "title": "Instalación de la app de GitHub pendiente",
+            "subtitle": "La app de GitHub está esperando la autorización de un administrador de GitHub."
+        }
+    },
+    "githubUserSettingsPanel": {
+        "title": "Mi cuenta de GitHub",
+        "description": "Vincula tu cuenta personal de GitHub para que los commits y pull requests creados por Lightdash figuren como tuyos. Sin una cuenta vinculada, los crea el bot de Lightdash.",
+        "unlink": "Desvincular",
+        "connect": "Conectar cuenta de GitHub"
+    },
+    "gitlabSettingsPanel": {
+        "description": "Conecta tu cuenta de GitLab para habilitar la escritura de cambios y crear merge requests directamente desde Lightdash.",
+        "noProjects": "Tu integración de GitLab no tiene acceso a ningún proyecto.",
+        "projectsAccess": "Tu integración de GitLab tiene acceso a los siguientes proyectos:",
+        "reconnect": "Reconectar",
+        "install": "Instalar"
+    },
+    "impersonationPanel": {
+        "title": "Habilitar la suplantación de usuarios",
+        "description": "Permite que los administradores de la organización suplanten a otros usuarios para ver Lightdash desde su perspectiva.",
+        "credentialsWarning": "Si el proyecto requiere que los usuarios proporcionen sus propias credenciales del warehouse, las consultas se ejecutan con las <bold>credenciales personales del warehouse</bold> del usuario suplantado (incluidas las credenciales respaldadas por SSO)."
+    },
+    "inviteLinkExpirationPanel": {
+        "label": "Caducidad del enlace de invitación",
+        "description": "Se aplica a los nuevos enlaces de invitación de la organización. Los enlaces existentes no cambian.",
+        "days_one": "{{count}} día",
+        "days_other": "{{count}} días"
+    },
+    "leaveOrganizationPanel": {
+        "unnamedOrganization": "Organización sin nombre",
+        "leaveButton": "Abandonar '{{name}}'",
+        "onlyMemberHint": "Eres el único miembro. Para salir, elimina de forma permanente esta organización y su contenido.",
+        "onlyAdminHint": "Eres el único administrador. Añade o asciende a otro administrador antes de salir. Para eliminar este espacio de trabajo, elimina la organización.",
+        "modal": {
+            "title": "¿Abandonar “{{name}}”?",
+            "confirmLabel": "Abandonar",
+            "description": "Perderás el acceso a todos los proyectos de esta organización y se cerrará tu sesión. La organización y su contenido seguirán disponibles para los demás miembros.",
+            "typeToConfirm": "Escribe {{text}} para confirmar"
+        }
+    },
+    "lightdashAnalyticsPanel": {
+        "title": "Analítica de Lightdash",
+        "description": "Explora el uso de IA y la actividad de consultas de tu organización.",
+        "loadingProject": "Cargando proyecto de analítica",
+        "project": {
+            "title": "Tu proyecto de analítica",
+            "createTitle": "Crea tu proyecto de analítica",
+            "description": "Abre tu proyecto dedicado para explorar el uso de IA y los eventos de consultas.",
+            "createDescription": "Crea un proyecto dedicado con modelos integrados de uso de IA y eventos de consultas. No es necesario configurar ninguna conexión.",
+            "createdAt": "Creado el {{date}}"
+        },
+        "actions": {
+            "explore": "Explorar"
+        },
+        "sync": {
+            "button": "Sincronizar contenido",
+            "newContentAriaLabel": "Nuevo contenido de analítica disponible",
+            "tooltip": "Actualiza los dashboards y gráficos integrados, reemplazando las modificaciones que les hayas hecho. Los dashboards personalizados y las copias se conservan. Duplica los dashboards integrados para conservar tus cambios.",
+            "tooltipWithUpdates": "Hay nuevo contenido de analítica disponible. Sincroniza para actualizar tus modelos y dashboards. Actualiza los dashboards y gráficos integrados, reemplazando las modificaciones que les hayas hecho. Los dashboards personalizados y las copias se conservan. Duplica los dashboards integrados para conservar tus cambios."
+        },
+        "dashboards": {
+            "title": "Dashboards",
+            "loading": "Cargando dashboards",
+            "updatedAt": "Actualizado el {{date}}",
+            "empty": "Aún no hay dashboards. Guarda un dashboard en tu proyecto de analítica y vuelve a cargar esta página para verlo aquí."
+        },
+        "errors": {
+            "loadProject": "No se pudo cargar el proyecto de analítica",
+            "createProject": "No se pudo crear el proyecto de analítica",
+            "syncContent": "No se pudo sincronizar el contenido de analítica",
+            "loadDashboards": "No se pudieron cargar los dashboards",
+            "deleteProject": "No se pudo eliminar el proyecto de analítica"
+        },
+        "deleteModal": {
+            "title": "¿Eliminar el proyecto de analítica?",
+            "description": "Esto elimina de forma permanente el proyecto de analítica y sus gráficos y dashboards guardados. Los eventos de uso recopilados en el almacenamiento no se eliminan. Puedes crear un nuevo proyecto de analítica después."
+        }
+    },
+    "limitsPanel": {
+        "queryRows": {
+            "label": "Máximo de filas por consulta",
+            "description": "El número máximo de filas que puede devolver una consulta o exportación para tu organización. Hasta {{max}}."
+        },
+        "csvCells": {
+            "label": "Máximo de celdas CSV / Excel",
+            "description": "El número máximo de celdas (filas × columnas) que puede contener una exportación CSV o Excel. Hasta {{max}}."
+        }
+    },
+    "myAgentConnectionsPanel": {
+        "page": {
+            "title": "Mi identidad de agente",
+            "tabs": {
+                "connections": "Conexiones de agentes",
+                "warehouses": "Inicios de sesión en almacenes de datos"
+            }
+        },
+        "warehouseAgentSignInsPanel": {
+            "description": "Consulta con qué identidad se ejecutan tus agentes en cada almacén de datos. Algunos almacenes requieren que inicies sesión una vez.",
+            "loadError": "No se pudo cargar tu identidad de agente.",
+            "emptyState": {
+                "title": "Tus agentes se ejecutan como tú",
+                "description": "Los agentes usan tu propio acceso al almacén de datos. No hay nada que configurar."
+            }
+        },
+        "aiServiceAccountConnectionCard": {
+            "description": "Los agentes de los proyectos de {{warehouseName}} se ejecutan con una cuenta de agente compartida que configuró tu administrador. Solo leen lo que esa cuenta puede leer. Tu propio acceso no cambia."
+        },
+        "snowflakeAgentConnectionCard": {
+            "status": {
+                "unavailable": "No disponible",
+                "notConnected": "No conectado",
+                "connected": "Conectado",
+                "expired": "Caducado",
+                "failing": "Con errores"
+            },
+            "connectedUntil": "Tu inicio de sesión de agente dura hasta el {{date}}.",
+            "expiredOn": "Tu inicio de sesión de agente en Snowflake terminó el {{date}}. Vuelve a iniciar sesión para seguir usando agentes en proyectos de Snowflake.",
+            "expired": "Tu inicio de sesión de agente en Snowflake terminó. Vuelve a iniciar sesión para seguir usando agentes en proyectos de Snowflake.",
+            "unavailable": "El inicio de sesión de agentes aún no está configurado. Pide a un administrador que termine la configuración de Snowflake.",
+            "notConnected": "Tus agentes no pueden ejecutarse en proyectos de Snowflake hasta que te conectes. Tarda unos 30 segundos.",
+            "disconnect": "Desconectar",
+            "signInAgain": "Volver a iniciar sesión",
+            "connectAgent": "Conectar agente",
+            "popupBlocked": "Tu navegador bloqueó la ventana de inicio de sesión de Snowflake. Permite las ventanas emergentes para este sitio e inténtalo de nuevo."
+        }
+    },
+    "myAppsPanel": {
+        "title": "Mis apps",
+        "description": "Gestiona las apps de datos a las que puedes acceder y editar.",
+        "columns": {
+            "name": "Nombre",
+            "project": "Proyecto",
+            "space": "Espacio",
+            "status": "Estado",
+            "created": "Creada"
+        },
+        "noVersions": "sin versiones",
+        "menu": {
+            "previewLatest": "Ver última versión",
+            "continueBuilding": "Seguir construyendo",
+            "rename": "Renombrar",
+            "moveToSpace": "Mover a espacio",
+            "addToSpace": "Añadir a espacio"
+        },
+        "emptyState": {
+            "noApps": "Aún no has creado ninguna app",
+            "noProductionApps": "No hay apps en proyectos de producción",
+            "switchToAllProjects": "Cambia a Todos los proyectos para incluir apps de proyectos de vista previa.",
+            "entityName": "apps"
+        },
+        "search": {
+            "placeholder": "Buscar apps...",
+            "tooltip": "Buscar por app, proyecto o espacio"
+        },
+        "projectScope": {
+            "ariaLabel": "Ámbito de proyectos de las apps",
+            "production": "Producción",
+            "all": "Todos los proyectos"
+        },
+        "filterByProject": "Filtrar apps por proyecto"
+    },
+    "myWarehouseConnectionsPanel": {
+        "page": {
+            "title": "Mis conexiones de almacén de datos",
+            "description": "Gestiona tus credenciales personales del almacén de datos.",
+            "addCredentials": "Añadir credenciales",
+            "callout": "Estas credenciales solo se usan en proyectos que requieren credenciales de usuario - <docsLink>más información</docsLink>.",
+            "emptyState": {
+                "title": "No hay conexiones de almacén de datos",
+                "description": "Añade credenciales personales para los proyectos que las requieran."
+            }
+        },
+        "warehouseSsoButton": {
+            "signInWith": "Iniciar sesión con {{providerName}}",
+            "googleLogoAlt": "Logotipo de Google"
+        },
+        "editCredentialsModal": {
+            "title": "Editar credenciales",
+            "nameLabel": "Nombre"
+        },
+        "createCredentialsModal": {
+            "title": "Añadir nuevas credenciales",
+            "nameLabel": "Nombre",
+            "warehouseLabel": "Almacén de datos"
+        },
+        "deleteCredentialsModal": {
+            "title": "Eliminar credenciales",
+            "resourceType": "credenciales"
+        },
+        "credentialsTable": {
+            "columns": {
+                "name": "Nombre",
+                "warehouse": "Almacén de datos",
+                "project": "Proyecto"
+            },
+            "previewBadge": "Vista previa",
+            "allProjects": "Todos los proyectos"
+        },
+        "validation": {
+            "athenaAccessKeyIdRequired": "Introduce tu ID de clave de acceso de AWS.",
+            "athenaSecretAccessKeyRequired": "Introduce la clave de acceso secreta de AWS para este ID de clave de acceso.",
+            "snowflakeUserRequired": "Introduce tu nombre de usuario o correo electrónico de Snowflake.",
+            "snowflakePrivateKeyRequired": "Sube tu archivo de clave privada de Snowflake.",
+            "snowflakePasswordRequired": "Introduce tu contraseña de Snowflake."
+        },
+        "warehouseFormInputs": {
+            "authenticationTypeLabel": "Tipo de autenticación",
+            "usernameLabel": "Usuario/correo electrónico",
+            "passwordLabel": "Contraseña",
+            "privateKeyFileLabel": "Archivo de clave privada",
+            "privateKeyFileDescription": "Sube tu clave privada .p8 de Snowflake.",
+            "privateKeyFilePlaceholder": "Elegir archivo...",
+            "privateKeyPassphraseLabel": "Frase de contraseña de la clave privada",
+            "privateKeyPassphraseDescription": "Frase de contraseña opcional para claves privadas cifradas.",
+            "personalAccessTokenLabel": "Token de acceso personal",
+            "personalAccessTokenDescription": "Crea un token de acceso personal en la configuración de usuario de Databricks.",
+            "redshiftAuth": {
+                "usernamePassword": "Usuario y contraseña",
+                "iamCli": "AWS IAM (credenciales de CLI)"
+            },
+            "redshiftIam": {
+                "openFromProjectTooltip": "Abre esto desde un proyecto de Redshift para iniciar sesión con AWS",
+                "askAdminTooltip": "Pide a un administrador que configure AWS IAM Identity Center en la conexión del proyecto de Redshift",
+                "browserSignInUnavailable": "El inicio de sesión en el navegador está disponible desde un proyecto que tenga configurado AWS IAM Identity Center.",
+                "askAdmin": "Pide a un administrador que configure AWS IAM Identity Center en la conexión del proyecto de Redshift.",
+                "databaseUserLabel": "Usuario de base de datos",
+                "databaseUserDescription": "Opcional. Déjalo en blanco para usar la identidad de IAM como usuario de la base de datos de Redshift.",
+                "alert": {
+                    "pasteCredentials": "Pega credenciales temporales de AWS generadas desde tu terminal. Para AWS SSO, inicia sesión primero y luego exporta las credenciales.",
+                    "namedProfile": "Para un perfil de SSO con nombre, añade <code>--profile your-profile</code>.",
+                    "advancedOptions": "O usa las opciones avanzadas para proporcionar un rol de IAM que Lightdash pueda asumir."
+                },
+                "accessKeyIdLabel": "ID de clave de acceso de AWS",
+                "accessKeyIdDescription": "Pega AWS_ACCESS_KEY_ID del comando de exportación.",
+                "secretAccessKeyLabel": "Clave de acceso secreta de AWS",
+                "secretAccessKeyDescription": "Pega AWS_SECRET_ACCESS_KEY del comando de exportación.",
+                "sessionTokenLabel": "Token de sesión de AWS",
+                "sessionTokenDescription": "Pega AWS_SESSION_TOKEN. Obligatorio para AWS SSO y credenciales temporales.",
+                "advancedOptions": "Opciones avanzadas de IAM",
+                "assumeRoleArnLabel": "ARN del rol a asumir",
+                "assumeRoleArnDescription": "Opcional. Rol de IAM que se asumirá antes de solicitar credenciales de Redshift.",
+                "assumeRoleExternalIdLabel": "ID externo del rol a asumir",
+                "assumeRoleExternalIdDescription": "Opcional. Solo es obligatorio cuando la política de confianza del rol de IAM lo requiere."
+            },
+            "athena": {
+                "accessKeyIdLabel": "ID de clave de acceso de AWS",
+                "secretAccessKeyLabel": "Clave de acceso secreta de AWS",
+                "keepSecretAccessKey": "Déjalo en blanco para conservar la clave de acceso secreta actual."
+            },
+            "motherDuck": {
+                "tokenLabel": "Token de acceso de MotherDuck",
+                "tokenDescription": "Crea un token de acceso en la configuración de MotherDuck."
+            }
+        }
+    },
+    "oauthClientsPanel": {
+        "title": "Aplicaciones OAuth",
+        "description": "Registra aplicaciones que autentican usuarios a través de Lightdash.",
+        "registerNew": "Registrar nueva aplicación",
+        "emptyState": {
+            "title": "No hay aplicaciones OAuth",
+            "description": "Registra una aplicación OAuth para que apps externas autentiquen usuarios mediante Lightdash."
+        },
+        "form": {
+            "applicationName": "Nombre de la aplicación",
+            "applicationNamePlaceholder": "Mi app",
+            "redirectUri": "URI de redirección",
+            "redirectUriDescription": "Una URI por línea para varias URIs de redirección",
+            "nameRequired": "El nombre es obligatorio",
+            "redirectUriRequired": "Se requiere al menos una URI de redirección",
+            "invalidUri": "URI no válida: {{uri}}"
+        },
+        "createModal": {
+            "title": "Registrar nueva aplicación OAuth",
+            "registeredTitle": "Aplicación registrada",
+            "submit": "Registrar aplicación",
+            "clientId": "ID de cliente",
+            "clientSecret": "Secreto de cliente",
+            "copySecretWarning": "Asegúrate de copiar el secreto de cliente ahora. ¡No podrás volver a verlo!"
+        },
+        "editModal": {
+            "title": "Editar aplicación OAuth",
+            "submit": "Guardar cambios"
+        },
+        "table": {
+            "columns": {
+                "name": "Nombre",
+                "clientId": "ID de cliente",
+                "redirectUris": "URIs de redirección",
+                "created": "Creada"
+            },
+            "deleteModal": {
+                "title": "Eliminar {{name}}",
+                "resourceType": "aplicación OAuth"
+            }
+        }
+    },
+    "organizationPanel": {
+        "nameLabel": "Nombre de la organización"
+    },
+    "organizationSso": {
+        "ssoPanel": {
+            "logoAlt": "Logotipo de {{provider}}",
+            "enabled": "Habilitado",
+            "notConfigured": "No configurado",
+            "editConfiguration": "Editar configuración",
+            "hideConfiguration": "Ocultar configuración",
+            "setUp": "Configurar {{provider}}",
+            "applicationCredentials": "Credenciales de la aplicación",
+            "advanced": "Avanzado",
+            "discovery": "Descubrimiento",
+            "passwordSignIn": "Inicio de sesión con contraseña",
+            "allowPassword": "Permitir el inicio de sesión con contraseña a los usuarios que coincidan con este método",
+            "allowPasswordDescription": "Si se desmarca, los usuarios cuyo dominio de correo coincida con el descubrimiento de {{provider}} no verán el campo de contraseña. Regla flexible: si algún método coincidente permite contraseña, se muestra.",
+            "issuerUrl": "URL del emisor",
+            "clientId": "ID de cliente",
+            "clientSecret": "Secreto de cliente",
+            "keepExistingSecret": "Déjalo en blanco para conservar el secreto existente",
+            "clientSecretPlaceholder": "Valor del secreto de cliente de {{provider}}",
+            "removeConfiguration": "Eliminar configuración",
+            "saveChanges": "Guardar cambios",
+            "enable": "Habilitar {{provider}}",
+            "removeModalTitle": "Eliminar la configuración de {{provider}}",
+            "removeModalBody": "Tras eliminar esta configuración, los usuarios de esta organización ya no podrán iniciar sesión con {{provider}} mediante la configuración por organización.",
+            "validation": {
+                "clientIdRequired": "El ID de cliente es obligatorio",
+                "clientSecretRequired": "El secreto de cliente es obligatorio",
+                "issuerRequired": "El emisor es obligatorio",
+                "domainsRequired": "Añade al menos un dominio cuando la restricción esté activada"
+            }
+        },
+        "genericOidc": {
+            "description": "Inicio de sesión único mediante un proveedor genérico de OpenID Connect. Los usuarios cuyo correo coincida con la lista de descubrimiento verán un botón \"Iniciar sesión con OpenID Connect\"; el SSO a nivel de instancia se suprime para esos usuarios.",
+            "discoveryUrl": "URL del documento de descubrimiento",
+            "discoveryUrlDescription": "La URL del documento de descubrimiento OIDC de tu proveedor de identidad.",
+            "discoveryUrlRequired": "La URL del documento de descubrimiento es obligatoria",
+            "clientIdDescription": "Desde la configuración de la aplicación de tu proveedor de identidad.",
+            "clientSecretDescription": "El secreto de cliente de tu proveedor de identidad.",
+            "scopes": "Ámbitos",
+            "scopesPlaceholder": "Opcional — por defecto openid profile email",
+            "scopesDescription": "Ámbitos OAuth separados por espacios que se solicitarán."
+        },
+        "okta": {
+            "description": "Inicio de sesión único mediante Okta. Los usuarios cuyo correo coincida con la lista de descubrimiento verán un botón \"Iniciar sesión con Okta\"; el SSO a nivel de instancia se suprime para esos usuarios.",
+            "domain": "Dominio de Okta",
+            "domainDescription": "El dominio de tu organización en Okta (sin https://).",
+            "domainRequired": "El dominio de Okta es obligatorio",
+            "issuerDescription": "La URL del emisor OAuth de tu aplicación de Okta.",
+            "clientIdDescription": "Desde la configuración General de la aplicación de Okta.",
+            "clientSecretDescription": "El secreto de cliente de la aplicación de Okta.",
+            "authorizationServerId": "ID del servidor de autorización",
+            "authorizationServerIdPlaceholder": "Opcional — para servidores de autorización personalizados",
+            "authorizationServerIdDescription": "Configúralo solo si usas un servidor de autorización personalizado de Okta (API Access Management).",
+            "extraScopes": "Ámbitos adicionales",
+            "extraScopesPlaceholder": "Opcional — separados por espacios, p. ej. groups",
+            "extraScopesDescription": "Ámbitos OAuth adicionales solicitados junto con openid, profile y email."
+        },
+        "oneLogin": {
+            "description": "Inicio de sesión único mediante OneLogin. Los usuarios cuyo correo coincida con la lista de descubrimiento verán un botón \"Iniciar sesión con OneLogin\"; el SSO a nivel de instancia se suprime para esos usuarios.",
+            "issuerDescription": "La URL del emisor OIDC de OneLogin.",
+            "clientIdDescription": "Desde la configuración de SSO de la aplicación de OneLogin.",
+            "clientSecretDescription": "El secreto de cliente de la aplicación de OneLogin."
+        },
+        "azureAd": {
+            "description": "Inicio de sesión único mediante Azure AD. Los usuarios cuyo correo coincida con la lista de descubrimiento verán un botón \"Iniciar sesión con Microsoft\"; el SSO a nivel de instancia se suprime para esos usuarios.",
+            "applicationId": "ID de la aplicación (cliente)",
+            "tenantId": "ID del directorio (inquilino)",
+            "tenantIdRequired": "El ID del inquilino es obligatorio",
+            "overviewDescription": "Desde la página de información general de la aplicación de Azure AD.",
+            "clientSecretDescription": "El valor del secreto de Azure AD (no el ID del secreto)."
+        },
+        "google": {
+            "description": "Inicio de sesión único con Google usando la aplicación de Google compartida de Lightdash, sin necesidad de credenciales. Los usuarios cuyo correo coincida con la lista de descubrimiento verán un botón \"Iniciar sesión con Google\".",
+            "usingDefaults": "Usando valores predeterminados",
+            "hiddenTitle": "Google está oculto al iniciar sesión",
+            "hiddenBody": "Has configurado otros proveedores de SSO para tu organización, así que se encargan del inicio de sesión de tus dominios y Google no se muestra. Configura Google aquí si también quieres ofrecerlo junto a ellos.",
+            "onByDefaultTitle": "El inicio de sesión con Google está activado por defecto",
+            "onByDefaultBody": "El inicio de sesión con Google está disponible por defecto usando la aplicación de Google compartida de Lightdash. Crea una configuración aquí para restringirlo a dominios de correo concretos o para desactivar el inicio de sesión con contraseña.",
+            "allowPasswordDescription": "Si se desmarca, los usuarios cuyo dominio de correo coincida no verán el campo de contraseña. Regla flexible: si algún método coincidente permite contraseña, se muestra.",
+            "removeModalBody": "Tras eliminar esta configuración, el inicio de sesión con Google de esta organización vuelve al valor predeterminado de la instancia."
+        },
+        "missingDomainsWarning": {
+            "title": "{{provider}} aún no está activo",
+            "body": "Los usuarios no pueden iniciar sesión con {{provider}} hasta que esta organización tenga un dominio de correo verificado.",
+            "hint": "Verifica primero un dominio; después, los usuarios con direcciones de correo coincidentes podrán dirigirse a este proveedor.",
+            "tooltip": "El enrutamiento de SSO se basa en dominios de correo verificados.",
+            "addVerifiedDomain": "Añadir dominio verificado"
+        },
+        "domainsField": {
+            "restrict": "Restringir a dominios verificados concretos",
+            "restrictDescription": "Si está desactivado, todos los dominios verificados de tu organización se dirigen a {{provider}}.",
+            "selectLabel": "Dominios verificados para este método",
+            "selectDescription": "Solo los usuarios cuyo dominio de correo coincida con uno de estos verán {{provider}}.",
+            "cannotBeUsed": "{{provider}} no se puede usar hasta que verifiques un dominio en <link>Dominios verificados</link>.",
+            "selectPlaceholder": "Selecciona dominios verificados",
+            "allDomainsRoute": "Todos los dominios verificados de tu organización se dirigen a {{provider}}: <b>{{domains}}</b>",
+            "cannotBeUsedYet": "{{provider}} aún no se puede usar. Verifica un dominio en <link>Dominios verificados</link> para que los usuarios puedan iniciar sesión con este proveedor."
+        },
+        "accountLinking": {
+            "title": "Vinculación de cuentas",
+            "description": "Controla si los inicios de sesión únicos se vinculan automáticamente a cuentas existentes.",
+            "linkAcrossProviders": "Vincular identidades SSO entre proveedores",
+            "linkAcrossProvidersDescription": "Cuando un usuario inicia sesión con un nuevo proveedor de SSO, vincularlo a una cuenta existente que ya usa otro proveedor con el mismo correo.",
+            "linkByEmail": "Vincular inicios de sesión SSO a cuentas existentes por correo",
+            "linkByEmailDescription": "Vincular un inicio de sesión SSO a una cuenta existente que tenga el mismo correo principal verificado, independientemente de cómo se creó esa cuenta."
+        }
+    },
+    "organizationWarehouseCredentialsPanel": {
+        "page": {
+            "title": "Credenciales del almacén de datos",
+            "description": "Gestiona las credenciales compartidas disponibles en toda tu organización.",
+            "addCredentials": "Añadir credenciales",
+            "emptyState": {
+                "title": "No hay credenciales del almacén de datos",
+                "description": "Añade credenciales compartidas para los proyectos de tu organización."
+            }
+        },
+        "createCredentialsModal": {
+            "title": "Añadir nuevas credenciales",
+            "saveCredentials": "Guardar credenciales"
+        },
+        "editCredentialsModal": {
+            "title": "Editar credenciales"
+        },
+        "deleteCredentialsModal": {
+            "title": "Eliminar credenciales",
+            "resourceType": "credenciales"
+        },
+        "credentialsTable": {
+            "columns": {
+                "name": "Nombre",
+                "description": "Descripción",
+                "warehouse": "Almacén de datos"
+            }
+        },
+        "snowflakeCredentialsForm": {
+            "nameLabel": "Nombre",
+            "descriptionLabel": "Descripción",
+            "descriptionPlaceholder": "Descripción opcional",
+            "accountLabel": "Cuenta",
+            "accountPlaceholder": "tu-cuenta",
+            "accountDescription": "Es el identificador de la cuenta de Snowflake",
+            "authenticationTypeLabel": "Tipo de autenticación",
+            "authenticationTypeDescription": "Elige cómo autenticarte con tu almacén de datos.",
+            "databaseLabel": "Base de datos",
+            "databasePlaceholder": "tu-base-de-datos",
+            "databaseDescription": "Es el nombre de la base de datos",
+            "warehouseLabel": "Almacén de datos",
+            "warehousePlaceholder": "tu-almacen",
+            "warehouseDescription": "Es el nombre del almacén de datos",
+            "schemaLabel": "Esquema",
+            "schemaPlaceholder": "tu-esquema",
+            "schemaDescription": "Es el nombre del esquema",
+            "overrideLabel": "Usar siempre este almacén de datos",
+            "overrideDescription": "Si se activa, este almacén de datos se usará siempre para las consultas",
+            "requireUserCredentialsLabel": "Exigir que los usuarios proporcionen sus propias credenciales",
+            "clientSessionKeepAliveLabel": "Mantener activa la sesión del cliente",
+            "clientSessionKeepAliveDescription": "Sirve para mantener activas las sesiones de Snowflake más allá del límite habitual de 4 horas. Puedes ver más detalles en la <docsLink>documentación de dbt</docsLink>.",
+            "queryTagLabel": "Etiqueta de consulta",
+            "queryTagDescription": "Es el parámetro de etiquetas de consulta de Snowflake. Puedes ver más detalles en la <docsLink>documentación de dbt</docsLink>.",
+            "accessUrlLabel": "URL de Snowflake personalizada",
+            "accessUrlDescription": "Normalmente Lightdash se conecta a una URL predeterminada: account.snowflakecomputing.com. Si quieres sobrescribirla (p. ej., para el servidor de dbt), puedes indicar aquí una URL personalizada completa.",
+            "startOfWeekLabel": "Inicio de la semana",
+            "startOfWeekPlaceholder": "Automático",
+            "startOfWeekDescription": "Se tendrá en cuenta al usar el intervalo de tiempo 'WEEK'",
+            "timeoutSecondsLabel": "Tiempo de espera en segundos",
+            "timeoutSecondsDescription": "Define el tiempo máximo de ejecución de las consultas. Si una consulta tarda más que este tiempo, Snowflake la cancelará.",
+            "advancedOptions": "Opciones de configuración avanzadas",
+            "daysOfWeek": {
+                "monday": "Lunes",
+                "tuesday": "Martes",
+                "wednesday": "Miércoles",
+                "thursday": "Jueves",
+                "friday": "Viernes",
+                "saturday": "Sábado",
+                "sunday": "Domingo"
+            }
+        }
+    },
+    "passwordPanel": {
+        "currentPassword": {
+            "label": "Contraseña actual",
+            "placeholder": "Introduce tu contraseña..."
+        },
+        "newPassword": {
+            "label": "Nueva contraseña",
+            "placeholder": "Introduce tu nueva contraseña..."
+        },
+        "validation": {
+            "currentPasswordRequired": "La contraseña actual es obligatoria"
+        },
+        "toasts": {
+            "updateSuccess": "Tu contraseña se ha actualizado",
+            "updateFailed": "No se pudo actualizar la contraseña"
+        }
+    },
+    "profilePanel": {
+        "firstName": "Nombre",
+        "lastName": "Apellidos",
+        "email": "Correo electrónico",
+        "emailVerified": "Este correo electrónico ha sido verificado",
+        "emailNotVerified": "Este correo electrónico no ha sido verificado. <verifyLink>Haz clic aquí para verificarlo</verifyLink>.",
+        "timezone": {
+            "label": "Zona horaria predeterminada",
+            "description": "Se usa para mostrar los resultados de consultas de gráficos fijados a la zona horaria del usuario. Déjalo vacío para usar la zona horaria del proyecto.",
+            "placeholder": "Predeterminada del proyecto"
+        },
+        "validation": {
+            "invalidTimezone": "Zona horaria no válida"
+        },
+        "toasts": {
+            "updateSuccess": "¡Listo! Los datos del usuario se han actualizado.",
+            "updateFailed": "No se pudieron actualizar los datos del usuario"
+        },
+        "avatarSettings": {
+            "chooseColor": "Elegir color",
+            "chooseAvatarColor": "Elegir color del avatar",
+            "avatarColor": "Color del avatar",
+            "modes": {
+                "gradient": "Degradado",
+                "solid": "Sólido"
+            },
+            "shuffleGradient": "Cambiar estilo del degradado",
+            "presets": "Ajustes predefinidos de Lightdash",
+            "noColor": "Sin color (predeterminado)",
+            "useDefaultAvatar": "Usar avatar predeterminado",
+            "useGradientColor": "Usar el color de avatar {{name}}",
+            "gradients": {
+                "lilac": "lila",
+                "blush": "rubor",
+                "amethyst": "amatista",
+                "sunrise": "amanecer",
+                "slate": "pizarra",
+                "pearl": "perla"
+            },
+            "apply": "Aplicar",
+            "upload": "Subir",
+            "removePhoto": "Quitar foto",
+            "removePhotoTooltipColor": "Tu avatar volverá al color que elegiste",
+            "removePhotoTooltipDefault": "Tu avatar volverá al estilo predeterminado",
+            "toasts": {
+                "uploadFailed": "No se pudo subir el avatar",
+                "updateColorFailed": "No se pudo actualizar el color del avatar",
+                "removeFailed": "No se pudo quitar la foto del avatar"
+            }
+        }
+    },
+    "projectManagementPanel": {
+        "title": "Todos los proyectos",
+        "description": "Gestiona proyectos, conexiones, accesos y el ciclo de vida de los proyectos.",
+        "createProject": "Crear proyecto",
+        "copy": {
+            "copied": "¡Copiado!",
+            "clickToCopy": "Haz clic para copiar"
+        },
+        "table": {
+            "selectAll": "Seleccionar todos los proyectos",
+            "columns": {
+                "name": "Nombre",
+                "warehouse": "Almacén de datos",
+                "createdBy": "Creado por",
+                "created": "Creado",
+                "expires": "Caduca"
+            }
+        },
+        "badges": {
+            "current": "Actual",
+            "preview": "Vista previa",
+            "playground": "Entorno de práctica"
+        },
+        "menu": {
+            "settings": "Configuración",
+            "copyUuid": "Copiar UUID del proyecto",
+            "cliReference": "Referencia de la CLI"
+        },
+        "toolbar": {
+            "searchTooltip": "Buscar por nombre de proyecto",
+            "searchAriaLabel": "Buscar proyectos",
+            "searchPlaceholder": "Buscar proyectos...",
+            "warehouseFilterTooltip": "Filtrar por almacén de datos",
+            "warehouseFilter": "Almacén de datos",
+            "warehouseFilterHeading": "Filtrar por almacén de datos:",
+            "creatorFilterTooltip": "Filtrar por creador",
+            "creatorFilter": "Creado por",
+            "creatorFilterHeading": "Filtrar por creador:",
+            "clearFilters": "Borrar todos los filtros",
+            "selectedCount_one": "{{count}} seleccionado",
+            "selectedCount_other": "{{count}} seleccionados"
+        },
+        "typeFilter": {
+            "all": "Todos",
+            "allTooltip": "Mostrar todos los proyectos",
+            "default": "Proyectos",
+            "defaultTooltip": "Mostrar solo proyectos estándar",
+            "preview": "Vista previa",
+            "previewTooltip": "Mostrar solo proyectos de vista previa",
+            "training": "Formación",
+            "trainingTooltip": "Mostrar solo el entorno de práctica creado por Learn"
+        },
+        "cliModal": {
+            "title": "Referencia de la CLI: {{name}}",
+            "setActive": "Establecer como proyecto activo",
+            "deploy": "Desplegar en este proyecto",
+            "startPreview": "Iniciar una vista previa desde este proyecto",
+            "validate": "Validar este proyecto",
+            "projectUuid": "UUID del proyecto"
+        }
+    },
+    "slackSettingsPanel": {
+        "addedToWorkspace": "Añadido al espacio de trabajo de Slack:",
+        "description": "Compartir en Slack te permite desplegar vistas previas de URLs de Lightdash y programar entregas a personas o canales específicos de tu espacio de trabajo de Slack.",
+        "viewDocs": "Ver documentación",
+        "reinstall": "Reinstalar",
+        "addToSlack": "Añadir a Slack",
+        "validation": {
+            "channelRequired": "El canal es obligatorio",
+            "invalidUrl": "Introduce una URL válida",
+            "urlTooLong": "La URL debe tener 2048 caracteres o menos",
+            "projectRequired": "Debes seleccionar un proyecto",
+            "invalidProject": "Proyecto no válido",
+            "slackChannelRequired": "Debes seleccionar un canal de Slack",
+            "tagEmpty": "La etiqueta no puede estar vacía"
+        },
+        "notificationChannel": {
+            "label": "Selecciona un canal de notificaciones",
+            "tooltip": "Elige un canal al que enviar notificaciones cada vez que falle una entrega programada. Debes añadir esta app de Slack a este canal para habilitar las notificaciones",
+            "placeholder": "Selecciona un canal"
+        },
+        "botAvatar": {
+            "title": "Avatar del bot de Slack",
+            "profilePhotoUrl": "URL de la foto de perfil"
+        },
+        "configuration": {
+            "title": "Configuración",
+            "linkPreviews": {
+                "title": "Vistas previas de enlaces",
+                "description": "Publica vistas previas de gráficos y dashboards cuando se compartan enlaces de Lightdash. Las vistas previas se ejecutan como el usuario que instaló la app."
+            },
+            "aiAgents": {
+                "title": "Agentes de IA en Slack",
+                "description": "Permite que las personas hablen con agentes de IA desde Slack."
+            },
+            "threadAccessConsent": {
+                "title": "Consentimiento de acceso a hilos para agentes de IA",
+                "description": "Permite que los agentes lean mensajes anteriores de un hilo cuando se menciona al bot en él."
+            },
+            "oauthRequirement": {
+                "title": "Requisito de OAuth para agentes de IA",
+                "description": "Las personas deben iniciar sesión con OAuth primero, para que las solicitudes se ejecuten con sus propios permisos."
+            },
+            "linksOnly": {
+                "title": "Solo enlaces, sin datos en Slack",
+                "description": "Nunca publica resultados de consultas en Slack. Las personas abren los resultados en Lightdash."
+            },
+            "automaticChannelLinking": {
+                "title": "Vinculación automática de canales",
+                "description": "Mencionar al bot en un canal nuevo vincula un agente a él."
+            }
+        },
+        "multiAgentChannel": {
+            "title": "Canal multiagente",
+            "tooltip": "Selecciona un canal donde los usuarios puedan interactuar con cualquier agente de IA (excepto los de proyectos de vista previa). Cuando los usuarios inicien un hilo en este canal, verán un desplegable para elegir qué agente usar.",
+            "description": "Lightdash elige automáticamente el mejor agente.",
+            "placeholder": "Selecciona un canal (opcional)",
+            "conflictTitle": "Canal ya en uso por un agente de IA",
+            "conflictDescription_one": "Establecer este canal como canal multiagente sobrescribirá la configuración de canal del siguiente agente:",
+            "conflictDescription_other": "Establecer este canal como canal multiagente sobrescribirá la configuración de canal de los siguientes agentes:",
+            "allowAllProjects": "Permitir que aparezcan los agentes de todos los proyectos"
+        },
+        "projectSelect": {
+            "label": "Filtrar agentes por proyecto",
+            "placeholder": "Selecciona proyectos",
+            "empty": "No se encontraron proyectos",
+            "deletedProject": "Proyecto eliminado",
+            "deletedProjectTooltip": "Este proyecto ha sido eliminado"
+        },
+        "missingScopes": {
+            "description": "A la app de Slack instalada le faltan permisos para algunas funciones. Reinstala la integración de Slack para concederlos.",
+            "features": {
+                "scheduledDeliveries": "Entregas programadas",
+                "customAppProfile": "Foto de perfil personalizada de la app",
+                "linkUnfurling": "Vistas previas de enlaces",
+                "writebackReactions": "Confirmaciones de escritura",
+                "aiAgent": "Agentes de IA"
+            }
+        }
+    },
+    "socialLoginsPanel": {
+        "toasts": {
+            "authenticationFailed": "No se pudo autenticar"
+        }
+    },
+    "supportImpersonationPanel": {
+        "title": "Permitir que el soporte de Lightdash suplante a usuarios",
+        "description": "Cuando está habilitado, el equipo de soporte de Lightdash puede suplantar a usuarios de tu organización mientras ayuda con una solicitud de soporte, para reproducir problemas desde tu perspectiva sin pedir permiso cada vez. Puedes desactivarlo en cualquier momento."
+    },
+    "userAttributesPanel": {
+        "title": {
+            "userAndGroupAttributes": "Atributos de usuarios y grupos",
+            "userAttributes": "Atributos de usuario"
+        },
+        "description": "Define metadatos de la organización usados para el acceso a datos y la personalización.",
+        "addAttribute": "Añadir atributo",
+        "table": {
+            "attributeName": "Nombre del atributo",
+            "userCount_one": "{{count}} usuario",
+            "userCount_other": "{{count}} usuarios",
+            "groupCount_one": "{{count}} grupo",
+            "groupCount_other": "{{count}} grupos",
+            "noSearchResults": "Ningún atributo coincide con tu búsqueda.",
+            "empty": "Todavía no hay atributos de usuario definidos. <br/> Para aprender a definir atributos de usuario, consulta nuestra <docsLink>documentación</docsLink>."
+        },
+        "deleteModal": {
+            "title": "Eliminar atributo de usuario",
+            "resourceType": "atributo de usuario"
+        },
+        "topToolbar": {
+            "searchPlaceholder": "Buscar atributos..."
+        },
+        "userAttributeModal": {
+            "addTitle": "Añadir atributo de usuario",
+            "updateTitle": "Actualizar atributo de usuario",
+            "validation": {
+                "invalidName": "Nombre de atributo no válido. El nombre solo puede contener letras minúsculas, '_' o números y no puede empezar por un número",
+                "duplicateName": "Ya existe un atributo con el mismo nombre",
+                "duplicatedUsers": "Usuarios duplicados",
+                "userValueRequired": "Cada usuario debe tener al menos un valor",
+                "duplicatedGroups": "Grupos duplicados",
+                "groupValueRequired": "Cada grupo debe tener al menos un valor"
+            },
+            "nameLabel": "Nombre del atributo",
+            "namePlaceholder": "P. ej. user_country",
+            "descriptionLabel": "Descripción",
+            "descriptionPlaceholder": "P. ej. El país desde el que el usuario consulta los datos.",
+            "defaultValue": "Valor predeterminado",
+            "defaultValueTooltip": "Este será el valor predeterminado del atributo si no se asigna ningún otro valor al usuario o grupo.",
+            "assignToUsers": "Asignar a usuarios",
+            "userEmail": "Correo del usuario",
+            "userEmailPlaceholder": "P. ej. test@lightdash.com",
+            "values": "Valores",
+            "valuesPlaceholder": "P. ej. US (pulsa Intro para añadir)",
+            "addUser": "Añadir usuario",
+            "assignToGroups": "Asignar a grupos",
+            "groupName": "Nombre del grupo",
+            "groupNamePlaceholder": "P. ej. Marketing, Producto",
+            "addGroup": "Añadir grupo"
+        }
+    },
+    "usersAndGroupsPanel": {
+        "title": {
+            "usersAndGroups": "Usuarios y grupos",
+            "userManagement": "Gestión de usuarios"
+        },
+        "description": "Gestiona los miembros de la organización, sus roles y la pertenencia a grupos.",
+        "rolesDocumentation": "Documentación de roles",
+        "addUser": "Añadir usuario",
+        "addGroup": "Añadir grupo",
+        "tabs": {
+            "users": "Usuarios",
+            "groups": "Grupos"
+        },
+        "usersTable": {
+            "columns": {
+                "user": "Usuario",
+                "role": "Rol",
+                "groups": "Grupos"
+            },
+            "systemRoles": "Roles del sistema",
+            "customRoles": "Roles personalizados",
+            "inactive": "Inactivo",
+            "pending": "Pendiente",
+            "linkExpired": "Enlace caducado",
+            "groupCount_one": "{{count}} grupo",
+            "groupCount_other": "{{count}} grupos",
+            "userGroups": "Grupos del usuario:",
+            "loadingMore": "Cargando más...",
+            "scrollForMore": "Desplázate para ver más usuarios",
+            "allLoaded": "Todos los usuarios cargados",
+            "loadedCount": "({{fetched}} de {{total}} cargados)"
+        },
+        "usersTopToolbar": {
+            "searchTooltip": "Buscar por nombre, correo electrónico o rol",
+            "searchPlaceholder": "Buscar usuarios por nombre, correo electrónico o rol",
+            "clearSearch": "Borrar búsqueda"
+        },
+        "usersActionMenu": {
+            "sendNewInvite": "Enviar nueva invitación",
+            "getNewLink": "Obtener nuevo enlace",
+            "impersonateUser": "Suplantar usuario",
+            "deleteUser": "Eliminar usuario",
+            "deleteConfirm": "¿Seguro que quieres eliminar este usuario?",
+            "checkingContent": "Comprobando el contenido de este usuario...",
+            "scheduledDeliveryCount_one": "{{count}} entrega programada",
+            "scheduledDeliveryCount_other": "{{count}} entregas programadas",
+            "projectCount_one": "{{count}} proyecto",
+            "projectCount_other": "{{count}} proyectos",
+            "dashboardCount_one": "{{count}} dashboard",
+            "dashboardCount_other": "{{count}} dashboards",
+            "ownsSchedulers": "Este usuario es propietario de {{deliveries}} en {{projects}}.",
+            "ownsDashboards": "Este usuario es propietario de {{dashboards}} en {{projects}}.",
+            "showDetails": "Mostrar detalles",
+            "hideDetails": "Ocultar detalles",
+            "projectDeliveries_one": "• {{projectName}}: {{count}} entrega",
+            "projectDeliveries_other": "• {{projectName}}: {{count}} entregas",
+            "projectDashboards_one": "• {{projectName}}: {{count}} dashboard",
+            "projectDashboards_other": "• {{projectName}}: {{count}} dashboards",
+            "deleteAllSchedulers": "Eliminar todas las entregas programadas",
+            "reassignSchedulers": "Reasignar a otro usuario",
+            "newOwner": "Nuevo propietario",
+            "gsheetsTransferNote": "Solo puedes transferir la propiedad de una sincronización de Google Sheets a un usuario con una conexión de Google activa.",
+            "leaveDashboardsUnowned": "Dejar los dashboards sin propietario",
+            "transferDashboards": "Transferir la propiedad a otro usuario",
+            "newDashboardOwner": "Nuevo propietario de los dashboards",
+            "noOwnedContent": "Este usuario no tiene entregas programadas ni dashboards."
+        },
+        "confirmAdminSelfDowngradeModal": {
+            "title": "¿Rebajar tu rol?",
+            "description": "No puedes deshacer esta acción. Otro administrador tendrá que gestionar tu rol por ti.",
+            "confirm": "Rebajar rol"
+        },
+        "inviteSuccess": {
+            "emailSent_one": "¡Acabamos de enviar a <b>{{email}}</b> un correo con su invitación! También puedes compartir con esta persona su enlace de invitación para unirse a tu organización. Este enlace caducará en {{count}} día.",
+            "emailSent_other": "¡Acabamos de enviar a <b>{{email}}</b> un correo con su invitación! También puedes compartir con esta persona su enlace de invitación para unirse a tu organización. Este enlace caducará en {{count}} días.",
+            "shareLink_one": "Comparte este enlace con <b>{{email}}</b> para que pueda unirse a tu organización. Este enlace caducará en {{count}} día.",
+            "shareLink_other": "Comparte este enlace con <b>{{email}}</b> para que pueda unirse a tu organización. Este enlace caducará en {{count}} días.",
+            "closeAlert": "Cerrar alerta"
+        },
+        "invitesModal": {
+            "title": "Añadir usuario",
+            "sendInvite": "Enviar invitación",
+            "generateInvite": "Generar invitación",
+            "emailLabel": "Introduce el correo electrónico del usuario",
+            "selectRole": "Selecciona un rol",
+            "roles": {
+                "member": "miembro",
+                "viewer": "lector",
+                "interactiveViewer": "lector interactivo",
+                "editor": "editor",
+                "developer": "desarrollador",
+                "admin": "administrador"
+            },
+            "expirationNote_one": "Los nuevos enlaces de invitación caducan tras {{count}} día. Puedes cambiarlo en la configuración general.",
+            "expirationNote_other": "Los nuevos enlaces de invitación caducan tras {{count}} días. Puedes cambiarlo en la configuración general."
+        },
+        "createGroupModal": {
+            "nameRequired": "El nombre del grupo es obligatorio",
+            "editingTitle": "Editando {{name}}",
+            "createGroup": "Crear grupo",
+            "nameLabel": "Nombre del grupo",
+            "namePlaceholder": "Nombre del nuevo grupo",
+            "membersLabel": "Miembros del grupo",
+            "membersPlaceholder": "Añade usuarios a este grupo",
+            "noUsersFound": "No se encontraron usuarios"
+        },
+        "groupsActionMenu": {
+            "editGroup": "Editar grupo",
+            "deleteGroup": "Eliminar grupo",
+            "resourceType": "grupo"
+        },
+        "groupsTopToolbar": {
+            "searchTooltip": "Buscar por nombre, miembros o correo de los miembros",
+            "searchPlaceholder": "Buscar grupos por nombre, miembros o correo de los miembros"
+        },
+        "groupsTable": {
+            "columns": {
+                "group": "Grupo",
+                "members": "Miembros"
+            },
+            "memberCount_one": "{{count}} miembro",
+            "memberCount_other": "{{count}} miembros",
+            "noMembers": "Sin miembros",
+            "loadingMore": "Cargando más...",
+            "scrollForMore": "Desplázate para ver más grupos",
+            "allLoaded": "Todos los grupos cargados",
+            "loadedCount": "({{fetched}} de {{total}} cargados)"
+        }
+    },
+    "verifiedDomains": {
+        "panel": {
+            "title": "Dominios verificados",
+            "description": "Verifica los dominios que posee tu organización y dirígelos a tus proveedores de SSO.",
+            "addDomain": "Añadir dominio",
+            "verifyOwnershipWith": "Verificar la propiedad con",
+            "email": "Correo electrónico",
+            "soon": "Pronto",
+            "dns": "DNS (registro TXT)",
+            "emptyTitle": "No hay dominios verificados",
+            "emptyDescription": "Añade un dominio antes de dirigir el inicio de sesión a un proveedor de SSO.",
+            "verified": "Verificado",
+            "removeModalTitle": "Eliminar dominio verificado",
+            "removeModalBody": "Al eliminar <b>{{domain}}</b> dejará de dirigirse a cualquier proveedor de SSO. Puedes volver a verificarlo más adelante."
+        },
+        "addModal": {
+            "codeExpired": "Tu código ha caducado. Reenvía un nuevo correo de verificación.",
+            "maxAttempts": "Ese código no coincide. Has agotado todos tus intentos; reenvía un nuevo código.",
+            "codeMismatch": "Ese código no coincide con el que te enviamos. Inténtalo de nuevo.",
+            "domainRequired": "Introduce un dominio",
+            "verifyTitle": "Verificar {{domain}}",
+            "addTitle": "Añadir dominio",
+            "resendCode": "Reenviar código",
+            "verifyDomain": "Verificar dominio",
+            "sendCode": "Enviar código de verificación",
+            "enterCode": "Introduce el código de 6 dígitos que enviamos a <b>{{email}}</b> para verificar <b>{{domain}}</b>.",
+            "codeAriaLabel": "Código de verificación del dominio",
+            "expiredTitle": "Tu código de verificación ha caducado.",
+            "expiredBody": "Reenvía un nuevo código para continuar.",
+            "expiresIn": "El código caduca en {{minutes}}:{{seconds}}",
+            "domain": "Dominio",
+            "domainDescription": "El dominio que posee tu organización.",
+            "sendCodeTo": "Enviar código a",
+            "sendCodeToDescription": "Una dirección de correo de este dominio."
+        }
+    }
+}

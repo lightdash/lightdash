@@ -1,5 +1,6 @@
 import { type ApiError } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -23,6 +24,7 @@ const deleteConnectionSample = async ({
 export const useDeleteConnectionSample = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('sync');
     return useMutation<undefined, ApiError, DeleteSampleParams>({
         mutationFn: deleteConnectionSample,
         onSuccess: async (_data, variables) => {
@@ -33,11 +35,13 @@ export const useDeleteConnectionSample = () => {
                     variables.connectionUuid,
                 ],
             });
-            showToastSuccess({ title: 'Sample deleted' });
+            showToastSuccess({
+                title: t('externalConnections.toasts.sampleDeleted'),
+            });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to delete sample',
+                title: t('externalConnections.toasts.sampleDeleteFailed'),
                 apiError: error,
             });
         },

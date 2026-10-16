@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { Button, PasswordInput, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../components/common/MantineModal';
 import { useSaveAiServiceAccount, useTestAiServiceAccount } from './api';
 
@@ -23,6 +24,7 @@ export const DatabricksAiServiceAccountForm = ({
         verification: AiServiceAccountTestResult | null,
     ) => void;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const form = useForm({
         initialValues: { oauthClientId: '', oauthClientSecret: '' },
     });
@@ -51,12 +53,12 @@ export const DatabricksAiServiceAccountForm = ({
     return (
         <MantineModal
             opened
-            title="Shared agent account"
+            title={t('serviceAccountForm.title')}
             onClose={() => {
                 if (!busy) close();
             }}
             cancelDisabled={busy}
-            confirmLabel="Test and save"
+            confirmLabel={t('serviceAccountForm.testAndSave')}
             confirmDisabled={!valid || busy}
             confirmLoading={save.isLoading}
             onConfirm={() => {
@@ -82,14 +84,14 @@ export const DatabricksAiServiceAccountForm = ({
                     loading={test.isLoading}
                     onClick={() => test.mutate({ credentials })}
                 >
-                    Test
+                    {t('serviceAccountCard.test')}
                 </Button>
             }
         >
             <Stack gap="sm">
                 <TextInput
-                    label="Client ID"
-                    description="The service principal's application ID"
+                    label={t('databricksForm.clientId')}
+                    description={t('databricksForm.clientIdDescription')}
                     required
                     disabled={busy}
                     value={form.values.oauthClientId}
@@ -98,7 +100,7 @@ export const DatabricksAiServiceAccountForm = ({
                     }
                 />
                 <PasswordInput
-                    label="Client secret"
+                    label={t('databricksForm.clientSecret')}
                     required
                     autoComplete="new-password"
                     disabled={busy}
@@ -110,7 +112,9 @@ export const DatabricksAiServiceAccountForm = ({
                 {test.data && (
                     <Text size="sm" role={test.data.ok ? 'status' : 'alert'}>
                         {test.data.ok && test.data.principal
-                            ? `Signs in as ${test.data.principal}`
+                            ? t('serviceAccountDetails.signsInAs', {
+                                  principal: test.data.principal,
+                              })
                             : test.data.message}
                     </Text>
                 )}

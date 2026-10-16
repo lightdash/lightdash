@@ -27,6 +27,7 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { IconArrowsShuffle, IconPencil } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useAvatarDeleteMutation,
@@ -72,6 +73,7 @@ const modeForValue = (value: UserAvatarColorValue | null): CustomMode =>
     value && isSolidColorString(value) ? 'solid' : 'gradient';
 
 const AvatarSettings: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { user } = useApp();
     const { showToastError } = useToaster();
     const uploadMutation = useAvatarUploadMutation();
@@ -95,7 +97,7 @@ const AvatarSettings: FC = () => {
         uploadMutation.mutate(file, {
             onError: (error) => {
                 showToastError({
-                    title: 'Failed to upload avatar',
+                    title: t('profilePanel.avatarSettings.toasts.uploadFailed'),
                     subtitle: error?.error?.message ?? undefined,
                 });
             },
@@ -149,7 +151,9 @@ const AvatarSettings: FC = () => {
                 onSuccess: () => close(),
                 onError: (error) => {
                     showToastError({
-                        title: 'Failed to update avatar color',
+                        title: t(
+                            'profilePanel.avatarSettings.toasts.updateColorFailed',
+                        ),
                         subtitle: error?.error?.message ?? undefined,
                     });
                 },
@@ -168,10 +172,12 @@ const AvatarSettings: FC = () => {
             withArrow
         >
             <Popover.Target>
-                <Tooltip label="Choose color">
+                <Tooltip label={t('profilePanel.avatarSettings.chooseColor')}>
                     <button
                         type="button"
-                        aria-label="Choose avatar color"
+                        aria-label={t(
+                            'profilePanel.avatarSettings.chooseAvatarColor',
+                        )}
                         className={classes.avatarEditWrapper}
                         onClick={handleToggle}
                     >
@@ -193,7 +199,7 @@ const AvatarSettings: FC = () => {
             <Popover.Dropdown>
                 <Stack gap="sm">
                     <Text size="xs" c="dimmed" fw={500}>
-                        Avatar color
+                        {t('profilePanel.avatarSettings.avatarColor')}
                     </Text>
                     <SegmentedControl
                         fullWidth
@@ -201,8 +207,18 @@ const AvatarSettings: FC = () => {
                         value={mode}
                         onChange={handleModeChange}
                         data={[
-                            { label: 'Gradient', value: 'gradient' },
-                            { label: 'Solid', value: 'solid' },
+                            {
+                                label: t(
+                                    'profilePanel.avatarSettings.modes.gradient',
+                                ),
+                                value: 'gradient',
+                            },
+                            {
+                                label: t(
+                                    'profilePanel.avatarSettings.modes.solid',
+                                ),
+                                value: 'solid',
+                            },
                         ]}
                     />
                     <ColorPicker
@@ -221,18 +237,22 @@ const AvatarSettings: FC = () => {
                             }
                             onClick={handleShuffleVibe}
                         >
-                            Shuffle gradient style
+                            {t('profilePanel.avatarSettings.shuffleGradient')}
                         </Button>
                     )}
                     <Stack gap={6}>
                         <Text size="xs" c="dimmed" fw={500}>
-                            Lightdash presets
+                            {t('profilePanel.avatarSettings.presets')}
                         </Text>
                         <Group gap="xs" wrap="nowrap">
-                            <Tooltip label="No color (default)">
+                            <Tooltip
+                                label={t('profilePanel.avatarSettings.noColor')}
+                            >
                                 <button
                                     type="button"
-                                    aria-label="Use default avatar"
+                                    aria-label={t(
+                                        'profilePanel.avatarSettings.useDefaultAvatar',
+                                    )}
                                     className={
                                         !previewValue
                                             ? `${classes.swatchButton} ${classes.swatchSelected}`
@@ -244,10 +264,22 @@ const AvatarSettings: FC = () => {
                                 </button>
                             </Tooltip>
                             {USER_AVATAR_GRADIENT_IDS.map((gradientId) => (
-                                <Tooltip key={gradientId} label={gradientId}>
+                                <Tooltip
+                                    key={gradientId}
+                                    label={t(
+                                        `profilePanel.avatarSettings.gradients.${gradientId}`,
+                                    )}
+                                >
                                     <button
                                         type="button"
-                                        aria-label={`Use ${gradientId} avatar color`}
+                                        aria-label={t(
+                                            'profilePanel.avatarSettings.useGradientColor',
+                                            {
+                                                name: t(
+                                                    `profilePanel.avatarSettings.gradients.${gradientId}`,
+                                                ),
+                                            },
+                                        )}
                                         className={
                                             gradientId === previewValue
                                                 ? `${classes.swatchButton} ${classes.swatchSelected}`
@@ -271,14 +303,14 @@ const AvatarSettings: FC = () => {
                     </Stack>
                     <Group justify="flex-end" gap="xs">
                         <Button variant="subtle" size="xs" onClick={close}>
-                            Cancel
+                            {t('actions.cancel', { ns: 'common' })}
                         </Button>
                         <Button
                             size="xs"
                             loading={updateUserMutation.isLoading}
                             onClick={handleApply}
                         >
-                            Apply
+                            {t('profilePanel.avatarSettings.apply')}
                         </Button>
                     </Group>
                 </Stack>
@@ -311,7 +343,7 @@ const AvatarSettings: FC = () => {
                         loading={uploadMutation.isLoading}
                         {...fileProps}
                     >
-                        Upload
+                        {t('profilePanel.avatarSettings.upload')}
                     </Button>
                 )}
             </FileButton>
@@ -319,8 +351,12 @@ const AvatarSettings: FC = () => {
                 <Tooltip
                     label={
                         avatarGradient
-                            ? 'Your avatar will go back to your chosen color'
-                            : 'Your avatar will go back to the default style'
+                            ? t(
+                                  'profilePanel.avatarSettings.removePhotoTooltipColor',
+                              )
+                            : t(
+                                  'profilePanel.avatarSettings.removePhotoTooltipDefault',
+                              )
                     }
                 >
                     <Button
@@ -332,7 +368,9 @@ const AvatarSettings: FC = () => {
                             deleteMutation.mutate(undefined, {
                                 onError: (error) => {
                                     showToastError({
-                                        title: 'Failed to remove avatar photo',
+                                        title: t(
+                                            'profilePanel.avatarSettings.toasts.removeFailed',
+                                        ),
                                         subtitle:
                                             error?.error?.message ?? undefined,
                                     });
@@ -340,7 +378,7 @@ const AvatarSettings: FC = () => {
                             })
                         }
                     >
-                        Remove photo
+                        {t('profilePanel.avatarSettings.removePhoto')}
                     </Button>
                 </Tooltip>
             )}

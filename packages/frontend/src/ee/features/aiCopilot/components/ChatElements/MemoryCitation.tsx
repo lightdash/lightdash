@@ -12,6 +12,7 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useAiAgentMemory } from '../../hooks/useAiAgentMemory';
@@ -27,6 +28,7 @@ export const MemoryCitation = ({
     id,
     'data-memory-index': memoryIndex,
 }: MemoryCitationProps) => {
+    const { t } = useTranslation('aiCopilotChat');
     const [hasOpened, setHasOpened] = useState(false);
     const [detailsOpened, { open: openDetails, close: closeDetails }] =
         useDisclosure(false);
@@ -55,9 +57,15 @@ export const MemoryCitation = ({
                         type="button"
                         className={styles.marker}
                         aria-label={
-                            slug ? `Show memory ${slug}` : 'Show memory'
+                            slug
+                                ? t('memory.showWithSlug', { slug })
+                                : t('memory.show')
                         }
-                        title={slug ? `Memory: ${slug}` : 'Memory'}
+                        title={
+                            slug
+                                ? t('memory.titleWithSlug', { slug })
+                                : t('memory.title')
+                        }
                         onClick={() => {
                             setHasOpened(true);
                             openDetails();
@@ -90,24 +98,25 @@ export const MemoryCitation = ({
                             <Divider />
                             <Group justify="space-between" wrap="nowrap">
                                 <Text size="xs" c="dimmed">
-                                    Saved{' '}
-                                    {new Date(
-                                        memoryQuery.data.generatedAt,
-                                    ).toLocaleDateString()}
+                                    {t('memory.saved', {
+                                        date: new Date(
+                                            memoryQuery.data.generatedAt,
+                                        ).toLocaleDateString(),
+                                    })}
                                 </Text>
                                 <UnstyledButton
                                     type="button"
                                     className={styles.detailsButton}
                                     onClick={openDetails}
                                 >
-                                    View memory
+                                    {t('memory.view')}
                                     <IconArrowRight size={12} />
                                 </UnstyledButton>
                             </Group>
                         </Stack>
                     ) : (
                         <Text size="sm" c="dimmed">
-                            Memory details unavailable
+                            {t('memory.unavailable')}
                         </Text>
                     )}
                 </HoverCard.Dropdown>

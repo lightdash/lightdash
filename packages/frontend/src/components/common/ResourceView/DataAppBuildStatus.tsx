@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { Badge, Loader, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 
 type DataAppBuildStatusProps = {
     latestVersionNumber: number | null;
@@ -16,6 +17,7 @@ const DataAppBuildStatus: FC<DataAppBuildStatusProps> = ({
     latestVersionStatus,
     latestReadyVersionNumber,
 }) => {
+    const { t } = useTranslation('resourceView');
     if (
         latestVersionNumber === null ||
         latestVersionStatus === null ||
@@ -26,12 +28,19 @@ const DataAppBuildStatus: FC<DataAppBuildStatusProps> = ({
 
     const previewLabel =
         latestReadyVersionNumber === null
-            ? 'No preview yet'
-            : `Preview v${latestReadyVersionNumber}`;
+            ? t('dataAppBuildStatus.noPreviewYet')
+            : t('dataAppBuildStatus.previewVersion', {
+                  version: latestReadyVersionNumber,
+              });
     const tooltipLabel =
         latestReadyVersionNumber === null
-            ? `Version ${latestVersionNumber} is building. A preview will be available when it is ready.`
-            : `Version ${latestVersionNumber} is building. Preview opens the latest ready version, v${latestReadyVersionNumber}.`;
+            ? t('dataAppBuildStatus.buildingNoPreviewTooltip', {
+                  version: latestVersionNumber,
+              })
+            : t('dataAppBuildStatus.buildingWithPreviewTooltip', {
+                  version: latestVersionNumber,
+                  readyVersion: latestReadyVersionNumber,
+              });
 
     return (
         <Tooltip label={tooltipLabel} position="top-start" maw={320}>
@@ -42,7 +51,10 @@ const DataAppBuildStatus: FC<DataAppBuildStatusProps> = ({
                 leftSection={<Loader size={8} color="blue.6" />}
                 aria-label={tooltipLabel}
             >
-                {`Building v${latestVersionNumber} · ${previewLabel}`}
+                {t('dataAppBuildStatus.badge', {
+                    version: latestVersionNumber,
+                    preview: previewLabel,
+                })}
             </Badge>
         </Tooltip>
     );

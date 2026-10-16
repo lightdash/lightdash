@@ -5,6 +5,7 @@ import {
 import { Button, Group, Loader, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useHealth from '../../../hooks/health/useHealth';
 import {
     useOrganizationSettings,
@@ -28,6 +29,7 @@ const LimitsForm: FC<{
     queryRowsCap: number;
     csvCellsCap: number;
 }> = ({ settings, queryRowsCap, csvCellsCap }) => {
+    const { t } = useTranslation('userSettings');
     const update = useUpdateOrganizationSettings();
 
     // The API returns effective numbers (org override resolved against the env),
@@ -54,8 +56,10 @@ const LimitsForm: FC<{
         <form onSubmit={handleSubmit}>
             <Stack gap="lg">
                 <NumberInput
-                    label="Maximum query rows"
-                    description={`The most rows a single query or export can return for your organization. Up to ${queryRowsCap.toLocaleString()}.`}
+                    label={t('limitsPanel.queryRows.label')}
+                    description={t('limitsPanel.queryRows.description', {
+                        max: queryRowsCap.toLocaleString(),
+                    })}
                     min={1}
                     max={queryRowsCap}
                     clampBehavior="strict"
@@ -65,8 +69,10 @@ const LimitsForm: FC<{
                     {...form.getInputProps('queryLimit')}
                 />
                 <NumberInput
-                    label="Maximum CSV / Excel cells"
-                    description={`The most cells (rows × columns) a CSV or Excel export can contain. Up to ${csvCellsCap.toLocaleString()}.`}
+                    label={t('limitsPanel.csvCells.label')}
+                    description={t('limitsPanel.csvCells.description', {
+                        max: csvCellsCap.toLocaleString(),
+                    })}
                     min={1}
                     max={csvCellsCap}
                     clampBehavior="strict"
@@ -81,7 +87,7 @@ const LimitsForm: FC<{
                         loading={update.isLoading}
                         disabled={isUnchanged}
                     >
-                        Save
+                        {t('actions.save', { ns: 'common' })}
                     </Button>
                 </Group>
             </Stack>

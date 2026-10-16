@@ -26,6 +26,7 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import { useOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -54,14 +55,7 @@ import {
     useSnowflakeCliSsoMode,
 } from './SnowflakeCliSsoModeContext';
 import SnowflakeCliSsoPanel from './SnowflakeCliSsoPanel';
-import {
-    CLI_SSO_LABEL,
-    EXTERNAL_BROWSER_LABEL,
-    getSsoLabel,
-    NONE_LABEL,
-    PASSWORD_LABEL,
-    PRIVATE_KEY_LABEL,
-} from './util';
+import { getSsoLabel } from './util';
 import styles from './WarehouseButtons.module.css';
 
 const CLI_SSO_OPTION_VALUE = 'cli-sso';
@@ -70,6 +64,7 @@ export const SnowflakeSchemaInput: FC<{
     disabled: boolean;
     description?: ReactNode;
 }> = ({ disabled, description }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
     const isCliSsoMode = useSnowflakeCliSsoMode();
     if (isCliSsoMode) {
@@ -78,8 +73,8 @@ export const SnowflakeSchemaInput: FC<{
     return (
         <TextInput
             name="warehouse.schema"
-            label="Schema"
-            description={description ?? 'This is the schema name.'}
+            label={t('warehouseFields.schema')}
+            description={description ?? t('warehouseFields.schemaDescription')}
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
@@ -92,6 +87,7 @@ const SnowflakeSSOInput: FC<{
     disabled: boolean;
     openLoginPopup: () => void;
 }> = ({ isAuthenticated, disabled, openLoginPopup }) => {
+    const { t } = useTranslation('projectConnection');
     if (isAuthenticated) return null;
 
     return (
@@ -105,7 +101,7 @@ const SnowflakeSSOInput: FC<{
             leftSection={getWarehouseIcon(WarehouseTypes.SNOWFLAKE, 'sm')}
             className={styles.signInButton}
         >
-            Sign in with Snowflake
+            {t('warehouseFields.signInSnowflake')}
         </Button>
     );
 };
@@ -113,20 +109,20 @@ const SnowflakeSSOInput: FC<{
 const RequireUserCredentialsField: FC<{ disabled: boolean }> = ({
     disabled,
 }) => {
+    const { t } = useTranslation('projectConnection');
     const { isProjectExtraConnection } = useProjectFormContext();
     const form = useFormContext();
     if (isProjectExtraConnection) {
         return (
             <Text size="sm" c="dimmed">
-                Require users to provide their own credentials follows the
-                primary connection.
+                {t('warehouseFields.requireUserCredentialsFollowsPrimary')}
             </Text>
         );
     }
     return (
         <BooleanSwitch
             name="warehouse.requireUserCredentials"
-            label="Require users to provide their own credentials"
+            label={t('warehouseFields.requireUserCredentials')}
             defaultChecked={SnowflakeDefaultValues.requireUserCredentials}
             disabled={disabled}
             {...form.getInputProps('warehouse.requireUserCredentials', {
@@ -139,6 +135,7 @@ const RequireUserCredentialsField: FC<{ disabled: boolean }> = ({
 const SnowflakeForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const { t } = useTranslation('projectConnection');
     const [isOpen, toggleOpen] = useToggle(false);
     const {
         savedProject,
@@ -247,21 +244,21 @@ const SnowflakeForm: FC<{
               },
               {
                   value: SnowflakeAuthenticationType.PRIVATE_KEY,
-                  label: PRIVATE_KEY_LABEL,
+                  label: t('warehouseAuth.privateKeyAuth'),
               },
               {
                   value: SnowflakeAuthenticationType.PASSWORD,
-                  label: PASSWORD_LABEL,
+                  label: t('warehouseAuth.passwordAuth'),
               },
           ]
         : [
               {
                   value: SnowflakeAuthenticationType.PRIVATE_KEY,
-                  label: PRIVATE_KEY_LABEL,
+                  label: t('warehouseAuth.privateKeyAuth'),
               },
               {
                   value: SnowflakeAuthenticationType.PASSWORD,
-                  label: PASSWORD_LABEL,
+                  label: t('warehouseAuth.passwordAuth'),
               },
           ];
 
@@ -272,7 +269,7 @@ const SnowflakeForm: FC<{
             ? [
                   {
                       value: CLI_SSO_OPTION_VALUE,
-                      label: CLI_SSO_LABEL,
+                      label: t('warehouseAuth.cliSsoAuth'),
                   },
               ]
             : []),
@@ -280,7 +277,7 @@ const SnowflakeForm: FC<{
             ? [
                   {
                       value: SnowflakeAuthenticationType.EXTERNAL_BROWSER,
-                      label: EXTERNAL_BROWSER_LABEL,
+                      label: t('warehouseAuth.externalBrowserAuth'),
                   },
               ]
             : []),
@@ -294,7 +291,7 @@ const SnowflakeForm: FC<{
             ? [
                   {
                       value: SnowflakeAuthenticationType.NONE,
-                      label: NONE_LABEL,
+                      label: t('warehouseAuth.noneAuth'),
                   },
               ]
             : []),
@@ -347,18 +344,24 @@ const SnowflakeForm: FC<{
                                 );
                             }
                         }}
-                        label="Credentials source"
-                        description="Choose whether to use organization-level credentials or configure new credentials"
+                        label={t('warehouseFields.credentialsSource')}
+                        description={t(
+                            'warehouseFields.credentialsSourceDescription',
+                        )}
                     >
                         <Stack mt="xs">
                             <Radio
                                 value="org"
-                                label="Use organization credentials"
+                                label={t(
+                                    'warehouseFields.useOrganizationCredentials',
+                                )}
                                 disabled={disabled}
                             />
                             <Radio
                                 value="manual"
-                                label="Configure new credentials"
+                                label={t(
+                                    'warehouseFields.configureNewCredentials',
+                                )}
                                 disabled={disabled}
                             />
                         </Stack>
@@ -367,9 +370,11 @@ const SnowflakeForm: FC<{
                 {useOrgCredentials && snowflakeOrgCredentials.length > 0 && (
                     <Select
                         allowDeselect={false}
-                        label="Organization credentials"
-                        description="Select which organization credentials to use for this project"
-                        placeholder="Select credentials"
+                        label={t('warehouseFields.organizationCredentials')}
+                        description={t(
+                            'warehouseFields.organizationCredentialsDescription',
+                        )}
+                        placeholder={t('warehouseFields.selectCredentials')}
                         data={snowflakeOrgCredentials.map((cred) => ({
                             value: cred.organizationWarehouseCredentialsUuid,
                             label: cred.name,
@@ -392,12 +397,12 @@ const SnowflakeForm: FC<{
                     <>
                         <TextInput
                             name="warehouse.account"
-                            label="Account"
+                            label={t('warehouseFields.account')}
                             placeholder="xy12345.eu-west-2.aws"
                             description={
                                 isCliSsoMode && cliSsoCredentials !== null
-                                    ? 'Your CLI SSO connection is bound to this account.'
-                                    : 'This is the account to connect to.'
+                                    ? t('warehouseFields.accountBoundToCliSso')
+                                    : t('warehouseFields.accountDescription')
                             }
                             required
                             {...form.getInputProps('warehouse.account')}
@@ -433,12 +438,14 @@ const SnowflakeForm: FC<{
                                         value as SnowflakeAuthenticationType,
                                     );
                                 }}
-                                label="Authentication Type"
+                                label={t('warehouseFields.authenticationType')}
                                 description={
                                     isSsoEnabled &&
                                     isLoadingAuth ? null : isAuthenticated ? (
                                         <Text mt="0" c="gray" fs="xs">
-                                            You are connected to Snowflake,{' '}
+                                            {t('warehouseFields.connectedTo', {
+                                                warehouse: 'Snowflake',
+                                            })}{' '}
                                             <Anchor
                                                 inherit
                                                 href="#"
@@ -446,11 +453,15 @@ const SnowflakeForm: FC<{
                                                     openLoginPopup();
                                                 }}
                                             >
-                                                Click here to reauthenticate.
+                                                {t(
+                                                    'warehouseFields.reauthenticate',
+                                                )}
                                             </Anchor>
                                         </Text>
                                     ) : (
-                                        'Choose how to authenticate with your data warehouse.'
+                                        t(
+                                            'warehouseFields.authenticationDescription',
+                                        )
                                     )
                                 }
                                 data={authOptions}
@@ -459,7 +470,11 @@ const SnowflakeForm: FC<{
                                 w={isAuthenticated ? '90%' : '100%'}
                             />
                             {isAuthenticated && (
-                                <Tooltip label="You are connected to Snowflake">
+                                <Tooltip
+                                    label={t(
+                                        'warehouseFields.connectedSnowflake',
+                                    )}
+                                >
                                     <Group mt="40px">
                                         <MantineIcon
                                             icon={IconCheck}
@@ -487,8 +502,12 @@ const SnowflakeForm: FC<{
                                         <>
                                             <TextInput
                                                 name="warehouse.user"
-                                                label="User"
-                                                description="This is the database user name."
+                                                label={t(
+                                                    'warehouseFields.user',
+                                                )}
+                                                description={t(
+                                                    'warehouseFields.userDescription',
+                                                )}
                                                 required={requireSecrets}
                                                 {...form.getInputProps(
                                                     'warehouse.user',
@@ -502,8 +521,12 @@ const SnowflakeForm: FC<{
                                             />
                                             <TextInput
                                                 name="warehouse.role"
-                                                label="Role"
-                                                description="This is the role to assume when running queries as the specified user."
+                                                label={t(
+                                                    'warehouseFields.role',
+                                                )}
+                                                description={t(
+                                                    'warehouseFields.roleDescription',
+                                                )}
                                                 {...form.getInputProps(
                                                     'warehouse.role',
                                                 )}
@@ -515,9 +538,9 @@ const SnowflakeForm: FC<{
                                 {isNoneAuth ? (
                                     <>
                                         <Text size="sm" c="dimmed">
-                                            No project-level credentials will be
-                                            used. Users must provide their own
-                                            credentials to connect.
+                                            {t(
+                                                'warehouseFields.noProjectCredentials',
+                                            )}
                                         </Text>
                                         <RequireUserCredentialsField
                                             disabled={disabled}
@@ -531,26 +554,31 @@ const SnowflakeForm: FC<{
                                             {...form.getInputProps(
                                                 'warehouse.privateKey',
                                             )}
-                                            label="Private Key File"
+                                            label={t(
+                                                'warehouseFields.privateKeyFile',
+                                            )}
                                             placeholder={
                                                 !requireSecrets
                                                     ? '**************'
-                                                    : 'Choose file...'
+                                                    : t(
+                                                          'warehouseFields.chooseFile',
+                                                      )
                                             }
                                             description={
-                                                <>
-                                                    This is the .p8 private key
-                                                    file. You can see{' '}
-                                                    <Anchor
-                                                        inherit
-                                                        target="_blank"
-                                                        href="https://docs.snowflake.com/en/user-guide/key-pair-auth#generate-the-private-key"
-                                                        rel="noreferrer"
-                                                    >
-                                                        how to create a key here
-                                                    </Anchor>
-                                                    .
-                                                </>
+                                                <Trans
+                                                    t={t}
+                                                    i18nKey="warehouseFields.privateKeyFileDescription"
+                                                    components={{
+                                                        docsLink: (
+                                                            <Anchor
+                                                                inherit
+                                                                target="_blank"
+                                                                href="https://docs.snowflake.com/en/user-guide/key-pair-auth#generate-the-private-key"
+                                                                rel="noreferrer"
+                                                            />
+                                                        ),
+                                                    }}
+                                                />
                                             }
                                             required={requireSecrets}
                                             accept=".p8"
@@ -603,8 +631,12 @@ const SnowflakeForm: FC<{
 
                                         <PasswordInput
                                             name="warehouse.privateKeyPass"
-                                            label="Private Key Passphrase"
-                                            description="Optional passphrase for encrypted private keys"
+                                            label={t(
+                                                'warehouseFields.privateKeyPassphrase',
+                                            )}
+                                            description={t(
+                                                'warehouseFields.privateKeyPassphraseDescription',
+                                            )}
                                             {...form.getInputProps(
                                                 'warehouse.privateKeyPass',
                                             )}
@@ -628,17 +660,20 @@ const SnowflakeForm: FC<{
                                 ) : authenticationType ===
                                   SnowflakeAuthenticationType.EXTERNAL_BROWSER ? (
                                     <Text size="sm" c="dimmed">
-                                        External browser authentication is
-                                        configured. Authentication will occur
-                                        through your default browser when
-                                        connecting to Snowflake.
+                                        {t(
+                                            'warehouseFields.externalBrowserConfigured',
+                                        )}
                                     </Text>
                                 ) : (
                                     <>
                                         <PasswordInput
                                             name="warehouse.password"
-                                            label="Password"
-                                            description="This is the database user password."
+                                            label={t(
+                                                'warehouseFields.password',
+                                            )}
+                                            description={t(
+                                                'warehouseFields.passwordDescription',
+                                            )}
                                             required={requireSecrets}
                                             placeholder={
                                                 disabled || !requireSecrets
@@ -655,8 +690,10 @@ const SnowflakeForm: FC<{
 
                                 <TextInput
                                     name="warehouse.database"
-                                    label="Database"
-                                    description="This is the database name."
+                                    label={t('warehouseFields.database')}
+                                    description={t(
+                                        'warehouseFields.databaseNameDescription',
+                                    )}
                                     required
                                     {...form.getInputProps(
                                         'warehouse.database',
@@ -665,8 +702,10 @@ const SnowflakeForm: FC<{
                                 />
                                 <TextInput
                                     name="warehouse.warehouse"
-                                    label="Warehouse"
-                                    description="This is the warehouse name."
+                                    label={t('warehouseFields.warehouse')}
+                                    description={t(
+                                        'warehouseFields.warehouseDescription',
+                                    )}
                                     required
                                     {...form.getInputProps(
                                         'warehouse.warehouse',
@@ -682,9 +721,11 @@ const SnowflakeForm: FC<{
                                         },
                                     )}
                                     documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse"
-                                    label="Always use this warehouse"
-                                    onLabel="Yes"
-                                    offLabel="No"
+                                    label={t(
+                                        'warehouseFields.alwaysUseWarehouse',
+                                    )}
+                                    onLabel={t('state.yes', { ns: 'common' })}
+                                    offLabel={t('state.no', { ns: 'common' })}
                                     disabled={disabled}
                                 />
 
@@ -698,27 +739,31 @@ const SnowflakeForm: FC<{
 
                                         <BooleanSwitch
                                             name="warehouse.clientSessionKeepAlive"
-                                            label="Keep client session alive"
+                                            label={t(
+                                                'warehouseFields.keepClientSessionAlive',
+                                            )}
                                             description={
-                                                <>
-                                                    This is intended to keep
-                                                    Snowflake sessions alive
-                                                    beyond the typical 4 hour
-                                                    timeout limit You can see
-                                                    more details in{' '}
-                                                    <Anchor
-                                                        inherit
-                                                        target="_blank"
-                                                        href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive"
-                                                        rel="noreferrer"
-                                                    >
-                                                        dbt documentation
-                                                    </Anchor>
-                                                    .
-                                                </>
+                                                <Trans
+                                                    t={t}
+                                                    i18nKey="warehouseFields.keepClientSessionAliveDescription"
+                                                    components={{
+                                                        docsLink: (
+                                                            <Anchor
+                                                                inherit
+                                                                target="_blank"
+                                                                href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive"
+                                                                rel="noreferrer"
+                                                            />
+                                                        ),
+                                                    }}
+                                                />
                                             }
-                                            onLabel="Yes"
-                                            offLabel="No"
+                                            onLabel={t('state.yes', {
+                                                ns: 'common',
+                                            })}
+                                            offLabel={t('state.no', {
+                                                ns: 'common',
+                                            })}
                                             disabled={disabled}
                                             {...form.getInputProps(
                                                 'warehouse.clientSessionKeepAlive',
@@ -733,40 +778,36 @@ const SnowflakeForm: FC<{
                                             {...form.getInputProps(
                                                 'warehouse.queryTag',
                                             )}
-                                            label="Query tag"
+                                            label={t(
+                                                'warehouseFields.queryTag',
+                                            )}
                                             description={
-                                                <>
-                                                    This is Snowflake query tags
-                                                    parameter. You can see more
-                                                    details in{' '}
-                                                    <Anchor
-                                                        inherit
-                                                        target="_blank"
-                                                        href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#query_tag"
-                                                        rel="noreferrer"
-                                                    >
-                                                        dbt documentation
-                                                    </Anchor>
-                                                    .
-                                                </>
+                                                <Trans
+                                                    t={t}
+                                                    i18nKey="warehouseFields.queryTagDescription"
+                                                    components={{
+                                                        docsLink: (
+                                                            <Anchor
+                                                                inherit
+                                                                target="_blank"
+                                                                href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#query_tag"
+                                                                rel="noreferrer"
+                                                            />
+                                                        ),
+                                                    }}
+                                                />
                                             }
                                             disabled={disabled}
                                         />
 
                                         <TextInput
                                             name="warehouse.accessUrl"
-                                            label="Snowflake URL override"
-                                            description={
-                                                <>
-                                                    Usually this instance would
-                                                    connect to a default url:
-                                                    account.snowflakecomputing.com.
-                                                    If you'd like to override
-                                                    this (e.g. for the dbt
-                                                    server) you can specify a
-                                                    full custom URL here.
-                                                </>
-                                            }
+                                            label={t(
+                                                'warehouseFields.snowflakeUrlOverride',
+                                            )}
+                                            description={t(
+                                                'warehouseFields.snowflakeUrlOverrideDescription',
+                                            )}
                                             disabled={disabled}
                                             {...form.getInputProps(
                                                 'warehouse.accessUrl',
@@ -781,10 +822,18 @@ const SnowflakeForm: FC<{
                                         />
                                         <BooleanSwitch
                                             name="warehouse.disableTimestampConversion"
-                                            label="Disable timestamp conversion to UTC"
-                                            description="When disabled, the connection will skip converting timestamps to UTC. This can improve performance but requires your data to already be in UTC format."
-                                            onLabel="Yes"
-                                            offLabel="No"
+                                            label={t(
+                                                'warehouseFields.disableTimestampConversion',
+                                            )}
+                                            description={t(
+                                                'warehouseFields.disableTimestampConversionDescription',
+                                            )}
+                                            onLabel={t('state.yes', {
+                                                ns: 'common',
+                                            })}
+                                            offLabel={t('state.no', {
+                                                ns: 'common',
+                                            })}
                                             disabled={disabled}
                                             {...form.getInputProps(
                                                 'warehouse.disableTimestampConversion',
@@ -796,11 +845,19 @@ const SnowflakeForm: FC<{
                                             {...form.getInputProps(
                                                 'warehouse.timeoutSeconds',
                                             )}
-                                            label="Timeout in seconds"
+                                            label={t(
+                                                'warehouseFields.timeoutSeconds',
+                                            )}
                                             defaultValue={
                                                 SnowflakeDefaultValues.timeoutSeconds
                                             }
-                                            description="Sets the maximum execution time for queries. If a query takes longer than this timeout, Snowflake will cancel it. This uses Snowflake's STATEMENT_TIMEOUT_IN_SECONDS session parameter."
+                                            description={
+                                                <p>
+                                                    {t(
+                                                        'warehouseFields.snowflakeTimeoutDescription',
+                                                    )}
+                                                </p>
+                                            }
                                             disabled={disabled}
                                         />
                                     </Stack>
@@ -809,7 +866,7 @@ const SnowflakeForm: FC<{
                                     isSectionOpen={isOpen}
                                     onClick={toggleOpen}
                                 >
-                                    Advanced configuration options
+                                    {t('dbtSettings.advancedOptions')}
                                 </FormCollapseButton>
                             </>
                         )}

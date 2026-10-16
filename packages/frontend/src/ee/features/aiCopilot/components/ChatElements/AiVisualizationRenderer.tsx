@@ -29,6 +29,7 @@ import {
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SeriesContextMenu } from '../../../../../components/Explorer/VisualizationCard/SeriesContextMenu';
 import LightdashVisualization from '../../../../../components/LightdashVisualization';
@@ -117,6 +118,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
             enabled: !isEmbed,
         },
     );
+    const { t } = useTranslation('aiCopilotChat');
     const { colorScheme } = useMantineColorScheme();
 
     const colorPalette = useMemo(() => {
@@ -407,13 +409,19 @@ export const AiVisualizationRenderer: FC<Props> = ({
                                 >
                                     {[
                                         fieldsCount > 0
-                                            ? `Fields ${fieldsCount}`
+                                            ? t('vizDetails.fields', {
+                                                  count: fieldsCount,
+                                              })
                                             : null,
                                         filtersCount > 0
-                                            ? `Filters ${filtersCount}`
+                                            ? t('vizDetails.filters', {
+                                                  count: filtersCount,
+                                              })
                                             : null,
                                         parametersCount > 0
-                                            ? `Parameters ${parametersCount}`
+                                            ? t('vizDetails.parameters', {
+                                                  count: parametersCount,
+                                              })
                                             : null,
                                     ]
                                         .filter(Boolean)

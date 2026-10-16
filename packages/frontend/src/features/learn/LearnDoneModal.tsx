@@ -1,5 +1,6 @@
 import { Box, Button, Group, Stack, Text } from '@mantine/core';
 import { type FC, useMemo } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import MantineModal from '../../components/common/MantineModal';
 import { lessonScopesFor, tourFor } from '../scopeTours/tourFor';
 import { useLearnAvailability } from './availability';
@@ -31,6 +32,7 @@ export const LearnDoneModal: FC<Props> = ({
     onNext,
     opening = false,
 }) => {
+    const { t } = useTranslation('learn');
     const { isOpen } = useLearnAvailability();
     const catalogue = useMemo(
         () => buildLearnCatalogue().filter(isOpen),
@@ -66,7 +68,7 @@ export const LearnDoneModal: FC<Props> = ({
             opened
             onClose={onBack}
             title={tour?.title ?? scope}
-            subtitle="Module complete"
+            subtitle={t('done.subtitle')}
             size="lg"
             role="alertdialog"
             withCloseButton={false}
@@ -79,7 +81,7 @@ export const LearnDoneModal: FC<Props> = ({
                         disabled={opening}
                         data-learn-back
                     >
-                        Back to library
+                        {t('done.backToLibrary')}
                     </Button>
                     {next && (
                         <Button
@@ -88,7 +90,7 @@ export const LearnDoneModal: FC<Props> = ({
                             loading={opening}
                             onClick={() => onNext(next.scope)}
                         >
-                            Next: {next.title}
+                            {t('done.next', { title: next.title })}
                         </Button>
                     )}
                 </Group>
@@ -101,11 +103,12 @@ export const LearnDoneModal: FC<Props> = ({
                     mt={4}
                     data-learn-progress={`${doneCount}/${available.length}`}
                 >
-                    You finished every step. Modules{' '}
-                    <b>
-                        {doneCount} of {available.length}
-                    </b>{' '}
-                    complete.
+                    <Trans
+                        t={t}
+                        i18nKey="done.progress"
+                        values={{ done: doneCount, total: available.length }}
+                        components={{ b: <b /> }}
+                    />
                 </Text>
                 {next ? (
                     <Box
@@ -114,7 +117,7 @@ export const LearnDoneModal: FC<Props> = ({
                         data-learn-next={next.scope}
                     >
                         <span className={styles.overline}>
-                            Recommended next
+                            {t('done.recommendedNext')}
                         </span>
                         <h2>{next.title}</h2>
                         <p>{next.blurb}</p>
@@ -125,12 +128,11 @@ export const LearnDoneModal: FC<Props> = ({
                         className={styles.focusCard}
                         data-learn-all-done
                     >
-                        <span className={styles.overline}>Recommendation</span>
-                        <h2>Every available walkthrough is complete</h2>
-                        <p>
-                            There is nothing left to recommend. Start any
-                            walkthrough again from the library.
-                        </p>
+                        <span className={styles.overline}>
+                            {t('done.recommendation')}
+                        </span>
+                        <h2>{t('done.allCompleteTitle')}</h2>
+                        <p>{t('done.allCompleteBody')}</p>
                     </Box>
                 )}
             </Stack>

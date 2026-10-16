@@ -4,6 +4,7 @@ import {
     type LearnCommandStatus,
 } from '@lightdash/common';
 import { useEffect, useState } from 'react';
+import i18n from '../../../i18n/i18n';
 import { getCommandOutput } from '../api';
 import { sanitizeTerminalText } from '../terminalText';
 
@@ -92,7 +93,9 @@ export const useCommandOutput = (
                     ...prev,
                     error:
                         (e as ApiError).error?.message ??
-                        'Could not read the command output',
+                        i18n.t('terminal.errors.readOutputFailed', {
+                            ns: 'learn',
+                        }),
                 }));
                 stopped = true;
                 clearInterval(timer);

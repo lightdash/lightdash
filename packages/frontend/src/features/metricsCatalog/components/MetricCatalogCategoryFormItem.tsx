@@ -21,6 +21,7 @@ import {
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconCode, IconDots, IconTrash } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
@@ -42,6 +43,7 @@ const EditPopover: FC<EditPopoverProps> = ({
     onOpenChange,
 }) => {
     const getUiString = useUiStrings();
+    const { t } = useTranslation('metricsCatalog');
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -128,7 +130,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                         className={styles.editorHeader}
                     >
                         <Text size="xs" fw={500} c="dimmed">
-                            Edit category
+                            {t('categoryFormItem.editCategory')}
                         </Text>
                         <CloseButton
                             mod="touch-dismiss"
@@ -139,7 +141,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                         />
                     </Group>
                     <TextInput
-                        placeholder="Category name"
+                        placeholder={t('categoryFormItem.namePlaceholder')}
                         aria-label={getUiString('metrics.categoryName')}
                         size="xs"
                         w="100%"
@@ -170,7 +172,7 @@ const EditPopover: FC<EditPopoverProps> = ({
 
                     <Group justify="space-between">
                         <Tooltip
-                            label="Delete this tag permanently"
+                            label={t('categoryFormItem.deleteTooltip')}
                             openDelay={200}
                             maw={250}
                             fz="xs"
@@ -194,7 +196,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                         </Tooltip>
 
                         <Button size="compact-xs" onClick={handleSave}>
-                            Save
+                            {t('categoryFormItem.save')}
                         </Button>
                     </Group>
                 </Stack>
@@ -217,6 +219,7 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
     canEdit,
 }) => {
     const { ref: hoverRef, hovered } = useHover<HTMLDivElement>();
+    const { t } = useTranslation('metricsCatalog');
 
     return (
         <Group
@@ -260,7 +263,7 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                     position="top"
                     openDelay={200}
                     fz="xs"
-                    label="This category was created in the .yml config and its properties cannot be edited"
+                    label={t('categoryFormItem.yamlNotEditable')}
                 >
                     <Box
                         p="xxs"

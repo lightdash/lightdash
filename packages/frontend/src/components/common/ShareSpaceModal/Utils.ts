@@ -1,3 +1,5 @@
+import i18n from '../../../i18n/i18n';
+
 export const getUserNameOrEmail = (
     userUuid: string | undefined,
     firstName: string | undefined,
@@ -6,7 +8,9 @@ export const getUserNameOrEmail = (
     isInternal: boolean,
 ) => {
     if (isInternal) {
-        return firstName || 'Service account';
+        return (
+            firstName || i18n.t('shareSpace.serviceAccount', { ns: 'modals' })
+        );
     } else if (firstName && lastName) {
         return `${firstName} ${lastName}`;
     } else if (email) {

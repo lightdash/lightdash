@@ -1,6 +1,7 @@
 import { type AiAgentJevDecision } from '@lightdash/common';
 import { Badge, Stack, Text, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { formatDurationMs } from '../../utils/responseTiming';
 import { describeJevDecision } from './jevDecision';
 
@@ -8,6 +9,7 @@ export const JevDecisionIndicator: FC<{
     decision: AiAgentJevDecision;
     name: string;
 }> = ({ decision, name }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const { applied, badge, title, description, reasonCode } =
         describeJevDecision(decision, name);
     return (
@@ -21,7 +23,9 @@ export const JevDecisionIndicator: FC<{
                     </Text>
                     <Text fz="xs">{description}</Text>
                     <Text fz="xs" c="dimmed">
-                        Decided in {formatDurationMs(decision.latencyMs)}
+                        {t('battle.jev.decidedIn', {
+                            duration: formatDurationMs(decision.latencyMs),
+                        })}
                         {reasonCode ? ` · ${reasonCode}` : ''}
                     </Text>
                 </Stack>

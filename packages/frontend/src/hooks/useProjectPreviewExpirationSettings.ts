@@ -4,6 +4,7 @@ import {
     type UpdatePreviewExpirationProjectSettings,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 
@@ -38,6 +39,7 @@ const updatePreviewExpirationSettings = async (
 
 export const useUpdatePreviewExpirationSettings = (projectUuid: string) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
 
     return useMutation<
@@ -48,13 +50,17 @@ export const useUpdatePreviewExpirationSettings = (projectUuid: string) => {
         mutationKey: ['preview_expiration_settings_update', projectUuid],
         onSuccess: async () => {
             showToastSuccess({
-                title: 'Preview expiration settings updated',
+                title: t(
+                    'useProjectPreviewExpirationSettings.previewExpirationSettingsUpdated',
+                ),
             });
             await queryClient.invalidateQueries(queryKey(projectUuid));
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update preview expiration settings',
+                title: t(
+                    'useProjectPreviewExpirationSettings.failedToUpdatePreviewExpirationSettings',
+                ),
                 apiError: error,
             });
         },

@@ -9,6 +9,7 @@ import {
 import { Alert, Anchor, Box, Button, Flex, Card } from '@mantine/core';
 import { IconExclamationCircle, IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import {
     useProject,
     useTestWarehouseConnectionMutation,
@@ -39,6 +40,7 @@ const UpdateProjectConnection: FC<{
     projectUuid: string;
     project: Project;
 }> = ({ projectUuid, project }) => {
+    const { t } = useTranslation('projectConnection');
     const { user, health } = useApp();
     const ability = useAbilityContext();
     const {
@@ -144,18 +146,22 @@ const UpdateProjectConnection: FC<{
                 <Alert
                     color="orange"
                     icon={<MantineIcon icon={IconExclamationCircle} />}
-                    title="Developer previews are temporary Lightdash projects where settings cannot be changed."
+                    title={t('updateProject.previewTitle')}
                 >
-                    Read docs{' '}
-                    <Anchor
-                        inherit
-                        href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview"
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        here
-                    </Anchor>{' '}
-                    to know more.
+                    <Trans
+                        t={t}
+                        i18nKey="updateProject.previewDocs"
+                        components={{
+                            docsLink: (
+                                <Anchor
+                                    inherit
+                                    href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                />
+                            ),
+                        }}
+                    />
                 </Alert>
             )}
             <form onSubmit={form.onSubmit(handleSubmit, handleError)}>
@@ -202,10 +208,11 @@ const UpdateProjectConnection: FC<{
                                     target="_blank"
                                     href={`/generalSettings/projectManagement/${projectUuid}/compilationHistory`}
                                 >
-                                    Last compiled at{' '}
-                                    {new Date(
-                                        latestCompilationLog.createdAt,
-                                    ).toLocaleString()}
+                                    {t('updateProject.lastCompiledAt', {
+                                        date: new Date(
+                                            latestCompilationLog.createdAt,
+                                        ).toLocaleString(),
+                                    })}
                                 </Button>
                             )}
                         </Box>
@@ -216,7 +223,7 @@ const UpdateProjectConnection: FC<{
                                 disabled={isDisabled || isTestingConnection}
                                 onClick={handleTestConnection}
                             >
-                                Test connection
+                                {t('updateProject.testConnection')}
                             </Button>
                             {showSaveCredentials && (
                                 <Button
@@ -225,7 +232,7 @@ const UpdateProjectConnection: FC<{
                                     disabled={isDisabled}
                                     onClick={handleSaveCredentials}
                                 >
-                                    Save credentials
+                                    {t('updateProject.saveCredentials')}
                                 </Button>
                             )}
                             <Button
@@ -235,8 +242,8 @@ const UpdateProjectConnection: FC<{
                             >
                                 {project.dbtConnection?.type ===
                                 DbtProjectType.NONE
-                                    ? 'Save and test'
-                                    : 'Test & deploy project'}
+                                    ? t('updateProject.saveAndTest')
+                                    : t('createProject.testAndDeploy')}
                             </Button>
                         </Flex>
                     </Card>

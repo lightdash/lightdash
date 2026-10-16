@@ -13,6 +13,7 @@ import {
     WorkerPoolContextProvider,
 } from '@pierre/diffs/react';
 import { type CSSProperties, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
@@ -30,6 +31,7 @@ export const ReviewPrDiffContent: FC<Props> = ({
     isLoading,
     maxHeight = '70vh',
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const colorScheme = useComputedColorScheme('light');
 
     // Pierre's <Virtualizer> IS the scroll viewport its virtualizer tracks —
@@ -58,8 +60,9 @@ export const ReviewPrDiffContent: FC<Props> = ({
             <Stack gap="md">
                 {diff.truncated && (
                     <Text fz="xs" c="dimmed">
-                        Showing the first {diff.files.length} changed files —
-                        open the PR for the full change set.
+                        {t('reviews.prDiff.truncated', {
+                            count: diff.files.length,
+                        })}
                     </Text>
                 )}
                 {diff.files.map((file) => (

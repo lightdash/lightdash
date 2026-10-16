@@ -21,7 +21,8 @@ import {
     IconChevronUp,
     IconViewfinder,
 } from '@tabler/icons-react';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type FC, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types';
 import MantineIcon from '../MantineIcon';
 import { PolymorphicGroupButton } from '../PolymorphicGroupButton';
@@ -47,7 +48,28 @@ type TabGroup = {
     ineligible: TilePreAggregateStatus[];
 };
 
+const FieldLabel: FC<{
+    fieldId: string;
+    showTooltip: boolean;
+    children?: ReactNode;
+}> = ({ fieldId, showTooltip, children }) =>
+    showTooltip ? (
+        <Tooltip
+            label={fieldId}
+            position="top"
+            openDelay={150}
+            classNames={{ tooltip: classes.fieldIdTooltip }}
+        >
+            <Text span fz="xs" className={classes.fieldLabelHover}>
+                {children}
+            </Text>
+        </Tooltip>
+    ) : (
+        <>{children}</>
+    );
+
 function TileDetail({ tile }: { tile: TilePreAggregateStatus }) {
+    const { t } = useTranslation('modals');
     if (tile.hit && tile.preAggregateName) {
         return (
             <Text fz="xs" className={classes.tileDetail}>
@@ -75,21 +97,19 @@ function TileDetail({ tile }: { tile: TilePreAggregateStatus }) {
             tile.reasonFieldLabel !== null && tile.reasonFieldLabel !== fieldId;
         return (
             <Text fz="xs" className={classes.tileDetail}>
-                {reasonLabel}:{' '}
-                {showTooltip ? (
-                    <Tooltip
-                        label={fieldId}
-                        position="top"
-                        openDelay={150}
-                        classNames={{ tooltip: classes.fieldIdTooltip }}
-                    >
-                        <Text span fz="xs" className={classes.fieldLabelHover}>
-                            {fieldDisplay}
-                        </Text>
-                    </Tooltip>
-                ) : (
-                    fieldDisplay
-                )}
+                <Trans
+                    t={t}
+                    i18nKey="dashboard.preAggAudit.reasonWithField"
+                    values={{ reason: reasonLabel, field: fieldDisplay }}
+                    components={{
+                        field: (
+                            <FieldLabel
+                                fieldId={fieldId}
+                                showTooltip={showTooltip}
+                            />
+                        ),
+                    }}
+                />
             </Text>
         );
     }
@@ -143,6 +163,7 @@ function TileList({
 }
 
 function IneligibleSection({ tiles }: { tiles: TilePreAggregateStatus[] }) {
+    const { t } = useTranslation('modals');
     const [open, { toggle }] = useDisclosure(false);
 
     if (tiles.length === 0) return null;
@@ -155,7 +176,9 @@ function IneligibleSection({ tiles }: { tiles: TilePreAggregateStatus[] }) {
                     color="ldGray.5"
                 />
                 <Text fz="xs" className={classes.tileDetail}>
-                    {tiles.length} without pre-aggregates
+                    {t('dashboard.preAggAudit.withoutPreAggregates', {
+                        count: tiles.length,
+                    })}
                 </Text>
             </PolymorphicGroupButton>
             <Collapse expanded={open}>
@@ -202,6 +225,7 @@ function GroupContent({
     group: TabGroup;
     onClick: (uuid: string) => void;
 }) {
+    const { t } = useTranslation('modals');
     const hasHits = group.hits.length > 0;
     const hasMisses = group.misses.length > 0;
 
@@ -210,7 +234,9 @@ function GroupContent({
             {hasHits && (
                 <Stack gap={2}>
                     <Badge size="xs" color="green">
-                        {group.hits.length} hit
+                        {t('dashboard.preAggAudit.hits', {
+                            count: group.hits.length,
+                        })}
                     </Badge>
                     <TileList tiles={group.hits} onClick={onClick} />
                 </Stack>
@@ -218,7 +244,9 @@ function GroupContent({
             {hasMisses && (
                 <Stack gap={2}>
                     <Badge size="xs" color="red">
-                        {group.misses.length} miss
+                        {t('dashboard.preAggAudit.misses', {
+                            count: group.misses.length,
+                        })}
                     </Badge>
                     <TileList tiles={group.misses} onClick={onClick} />
                 </Stack>
@@ -236,6 +264,7 @@ export function PreAggregateAuditDrawer({
     dashboardTabs,
     onSwitchTab,
 }: Props) {
+    const { t } = useTranslation('modals');
     const hasTabs = dashboardTabs.length > 1;
 
     const tabGroups = useMemo(() => {
@@ -269,11 +298,17 @@ export function PreAggregateAuditDrawer({
 
         const orphans = grouped[NONE_KEY];
         if (orphans && orphans.length > 0) {
-            result.push(buildTabGroup(orphans, undefined, 'Other'));
+            result.push(
+                buildTabGroup(
+                    orphans,
+                    undefined,
+                    t('dashboard.preAggAudit.otherTab'),
+                ),
+            );
         }
 
         return result;
-    }, [statuses, hasTabs, dashboardTabs]);
+    }, [statuses, hasTabs, dashboardTabs, t]);
 
     const handleTabClick = useCallback(
         (tabUuid: string | undefined) => {
@@ -305,7 +340,7 @@ export function PreAggregateAuditDrawer({
                         />
                     </Paper>
                     <Text fw={600} fz="sm">
-                        Pre-aggregation audit
+                        {t('dashboard.preAggAudit.title')}
                     </Text>
                 </Group>
             }
@@ -367,8 +402,9 @@ export function PreAggregateAuditDrawer({
                                             group.misses.length === 0 &&
                                             group.ineligible.length === 0 ? (
                                                 <Text fz="xs" c="dimmed">
-                                                    No results yet — visit this
-                                                    tab to load tiles.
+                                                    {t(
+                                                        'dashboard.preAggAudit.noResultsYet',
+                                                    )}
                                                 </Text>
                                             ) : (
                                                 <GroupContent

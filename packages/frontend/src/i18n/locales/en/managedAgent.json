@@ -1,0 +1,396 @@
+{
+    "runSummary": {
+        "showLess": "Show less",
+        "readFullReport": "Read the full report"
+    },
+    "setup": {
+        "title": "Enable Autopilot",
+        "enable": "Enable",
+        "enableFailed": "Failed to enable Autopilot",
+        "description": "An AI agent that monitors your project's health automatically, cleaning up stale content, fixing broken charts, and surfacing insights. All actions are logged and reversible.",
+        "whatItDoes": "What it does",
+        "frequency": "Frequency",
+        "frequencyHint": "All actions are logged and reversible. Created charts go to an \"Agent Suggestions\" space for review.",
+        "schedule": {
+            "every6Hours": "Every 6 hours",
+            "every12Hours": "Every 12 hours",
+            "daily": "Daily",
+            "every2Days": "Every 2 days",
+            "weekly": "Weekly"
+        },
+        "capabilities": {
+            "staleCleanup": {
+                "title": "Stale content cleanup",
+                "detail": "Reviews stale charts, dashboards, and preview projects. Flags or deletes content according to the cleanup mode and project protections."
+            },
+            "brokenChartRepair": {
+                "title": "Broken chart repair",
+                "detail": "Detects invalid field references and automatically fixes them by creating new chart versions."
+            },
+            "contentCreation": {
+                "title": "Content creation",
+                "detail": "Explores your data model and creates useful charts in an \"Agent Suggestions\" space for review."
+            },
+            "insights": {
+                "title": "Insights",
+                "detail": "Surfaces popular content that could be pinned or made more accessible."
+            }
+        }
+    },
+    "runtime": {
+        "unavailable": "AI configuration unavailable",
+        "loadFailed": "Could not load the AI configuration.",
+        "checking": "Checking AI configuration…",
+        "runsOnOrganizationKey": "Runs on {{provider}} · {{model}} using your organization's AI key.",
+        "runsOnInstanceKey": "Runs on {{provider}} · {{model}} using the instance AI key.",
+        "tokenUsageHint": "Scheduled runs consume tokens on this key. Each run uses the current AI settings.",
+        "aiSettings": "AI settings"
+    },
+    "toolActivity": {
+        "thinking": "Thinking",
+        "working": "Autopilot is working"
+    },
+    "suggestionsAccess": {
+        "audience": {
+            "everyone": "Everyone",
+            "admins": "Admins"
+        },
+        "memberCount_one": "{{count}} member",
+        "memberCount_other": "{{count}} members",
+        "groupCount_one": "{{count}} group",
+        "groupCount_other": "{{count}} groups",
+        "restricted": "{{members}} can see suggestions.",
+        "restrictedWithGroups": "{{members}} and {{groups}} can see suggestions.",
+        "checking": "Checking who can see suggestions…",
+        "notCreated": "The \"Agent Suggestions\" space is created the first time Autopilot suggests content. This sets who can see it.",
+        "everyoneCanSee": "Everyone on this project can see suggestions.",
+        "title": "Suggestions access",
+        "badge": {
+            "everyone": "Everyone",
+            "restricted": "Restricted"
+        },
+        "manageAccess": "Manage access"
+    },
+    "relativeTime": {
+        "justNow": "just now",
+        "minutesAgo_one": "{{count}}m ago",
+        "minutesAgo_other": "{{count}}m ago",
+        "hoursAgo_one": "{{count}}h ago",
+        "hoursAgo_other": "{{count}}h ago",
+        "daysAgo_one": "{{count}}d ago",
+        "daysAgo_other": "{{count}}d ago"
+    },
+    "homeCard": {
+        "title": "Autopilot",
+        "features": {
+            "fixesBrokenCharts": "Fixes broken charts",
+            "flagsStaleContent": "Flags stale content",
+            "createsVisualizations": "Creates visualizations"
+        },
+        "schedule": {
+            "every6Hours": "6h",
+            "every12Hours": "12h",
+            "daily": "24h",
+            "every2Days": "2d",
+            "weekly": "7d"
+        },
+        "summary": {
+            "fixed_one": "{{count}} fixed",
+            "fixed_other": "{{count}} fixed",
+            "created_one": "{{count}} created",
+            "created_other": "{{count}} created",
+            "flagged_one": "{{count}} flagged",
+            "flagged_other": "{{count}} flagged",
+            "deleted_one": "{{count}} deleted",
+            "deleted_other": "{{count}} deleted",
+            "separator": ", "
+        },
+        "activeSchedule": "Active · {{schedule}}",
+        "actions_one": "{{count}} actions",
+        "actions_other": "{{count}} actions",
+        "actionsWithSummary_one": "{{count}} actions - {{summary}}",
+        "actionsWithSummary_other": "{{count}} actions - {{summary}}",
+        "monitoring": "Monitoring your project",
+        "lastAction": " · last action {{time}}",
+        "viewProgress": "View progress",
+        "getStarted": "Get started"
+    },
+    "actionTypes": {
+        "flagged_stale": {
+            "label": "Flagged stale",
+            "count_one": "{{count}} flagged stale",
+            "count_other": "{{count}} flagged stale",
+            "tooltip": "Marked as unused. Future Autopilot runs will review flagged items and clean them up."
+        },
+        "soft_deleted": {
+            "label": "Deleted",
+            "count_one": "{{count}} deleted",
+            "count_other": "{{count}} deleted"
+        },
+        "flagged_broken": {
+            "label": "Flagged broken",
+            "count_one": "{{count}} flagged broken",
+            "count_other": "{{count}} flagged broken",
+            "tooltip": "Marked as broken. Future Autopilot runs will review flagged items and attempt to fix them."
+        },
+        "flagged_slow": {
+            "label": "Flagged slow",
+            "count_one": "{{count}} flagged slow",
+            "count_other": "{{count}} flagged slow",
+            "tooltip": "Marked as slow. Future Autopilot runs will review flagged items and try to optimize them."
+        },
+        "fixed_broken": {
+            "label": "Fixed",
+            "count_one": "{{count}} fixed",
+            "count_other": "{{count}} fixed"
+        },
+        "created_content": {
+            "label": "Created",
+            "count_one": "{{count}} created",
+            "count_other": "{{count}} created"
+        },
+        "insight": {
+            "label": "Insight",
+            "count_one": "{{count}} insight",
+            "count_other": "{{count}} insights"
+        },
+        "blocked": {
+            "label": "Blocked",
+            "count_one": "{{count}} blocked",
+            "count_other": "{{count}} blocked",
+            "tooltip": "Autopilot attempted this but an admin protection stopped it. Dismiss to acknowledge."
+        }
+    },
+    "actions": {
+        "alreadyUndone": "Already undone",
+        "undoAction": "Undo action",
+        "alreadyDismissed": "Already dismissed",
+        "dismiss": "Dismiss"
+    },
+    "header": {
+        "status": {
+            "running": "Running",
+            "disabled": "Disabled"
+        },
+        "tagline": "Fixes broken charts, flags stale content, suggests new ones",
+        "runTooltip": {
+            "running": "Autopilot is running…",
+            "runNow": "Run Autopilot now",
+            "enableToRun": "Enable Autopilot to run now"
+        },
+        "settings": "Settings"
+    },
+    "details": {
+        "chartInfo": "Chart info",
+        "type": "Type",
+        "explore": "Explore",
+        "dimensions": "Dimensions",
+        "metrics": "Metrics",
+        "tableCalculations": "Table calculations",
+        "validationError": "Validation error",
+        "source": "Source",
+        "performance": "Performance",
+        "executionTime": "Execution time",
+        "seconds": "{{value}}s",
+        "context": "Context",
+        "viewChartHistory": "View full chart history",
+        "changesApplied": "Changes applied",
+        "diffUnavailable": "Diff unavailable for this fix, see chart history for details.",
+        "chartType": "Chart type",
+        "filters": "Filters",
+        "fieldsNotSurfaced": "This fix touched fields not surfaced in this view, see chart history for details.",
+        "space": "Space",
+        "lastModified": "Last modified",
+        "modifiedBy": "{{time}} by {{name}}",
+        "totalViews": "Total views",
+        "verified": "Verified",
+        "verifiedBy": "by {{name}}",
+        "deleted": "Deleted",
+        "projectMetadata": "Project metadata",
+        "project": "Project",
+        "previewProject": "Preview project",
+        "upstreamProject": "Upstream project",
+        "branch": "Branch",
+        "created": "Created",
+        "errors": {
+            "restorePermanentlyDeleted": "Could not restore. The original was permanently deleted",
+            "undoFailed": "Could not undo action",
+            "dismissFailed": "Could not dismiss action"
+        },
+        "dashboardContext": "Dashboard context",
+        "chartContext": "Chart context",
+        "reversed": {
+            "undone": "Undone {{time}} ago",
+            "undoneBy": "Undone {{time}} ago by {{name}}",
+            "dismissed": "Dismissed {{time}} ago",
+            "dismissedBy": "Dismissed {{time}} ago by {{name}}"
+        },
+        "open": {
+            "chart": "Open chart",
+            "dashboard": "Open dashboard",
+            "space": "Open space",
+            "project": "Open project"
+        },
+        "deletedByAutopilot": "Deleted by Autopilot",
+        "restore": "Restore",
+        "autoFixedByAutopilot": "Auto-fixed by Autopilot",
+        "revert": "Revert",
+        "revertUnsupported": "This fix was recorded before revert support. Restore manually via chart history.",
+        "description": "Description",
+        "agentReasoning": "Agent reasoning"
+    },
+    "settings": {
+        "updateFailed": "Failed to update Autopilot settings",
+        "title": "Autopilot settings",
+        "subtitle": "Configure how Autopilot monitors this project.",
+        "enableDescription": "Turn scheduled project health checks on or off.",
+        "schedule": "Schedule",
+        "slack": {
+            "title": "Send updates to Slack",
+            "description": "Post Autopilot health check summaries to a Slack channel after each run.",
+            "searchChannels": "Search channels...",
+            "inviteHint": "Invite Lightdash to the channel so it can post there.",
+            "connectHint": "Connect Slack to post Autopilot summaries to a channel.",
+            "openIntegrations": "Open integrations"
+        },
+        "permissions": {
+            "title": "Permissions",
+            "description": "Choose what Autopilot can do.",
+            "alwaysOn": "Always on"
+        },
+        "capabilities": {
+            "readOnly": {
+                "label": "Read content",
+                "description": "Reads project health, content usage, broken content, query history and member activity. Always on."
+            },
+            "createContent": {
+                "label": "Create content",
+                "description": "Creates suggested charts in the Agent Suggestions space."
+            },
+            "modifyExistingContent": {
+                "label": "Modify existing content",
+                "description": "Soft-deletes stale content, repairs broken charts, and reverts its own changes."
+            }
+        },
+        "spaceScope": {
+            "title": "Space scope",
+            "modeAllExcept": "Monitor all spaces except…",
+            "modeOnly": "Monitor only these spaces…",
+            "searchSpaces": "Search spaces...",
+            "apply": "Apply scope",
+            "summaryOnly_one": "Monitoring {{count}} selected space.",
+            "summaryOnly_other": "Monitoring {{count}} selected spaces.",
+            "summaryAll": "Monitoring all spaces.",
+            "summaryAllExcept_one": "Monitoring all spaces except {{count}} excluded.",
+            "summaryAllExcept_other": "Monitoring all spaces except {{count}} excluded.",
+            "onlyHint": "New spaces are not monitored until added here. Selections include child spaces.",
+            "allExceptHint": "Excluded spaces and their child spaces are invisible to Autopilot."
+        }
+    },
+    "policy": {
+        "title": "Policy",
+        "cleanupMode": "Cleanup mode",
+        "sectionDescription": {
+            "observe": "Tune the thresholds below. In observe mode they decide what Autopilot reports, not what it changes.",
+            "flag": "Tune staleness thresholds and what Autopilot flags for review.",
+            "cleanup": "Tune staleness thresholds and how aggressively Autopilot cleans up."
+        },
+        "aggression": {
+            "observe": {
+                "label": "Observe",
+                "description": "Records insights only. Never flags or deletes content."
+            },
+            "flag": {
+                "label": "Flag",
+                "description": "Flags stale and broken content for review. Never deletes."
+            },
+            "cleanup": {
+                "label": "Clean up",
+                "description": "Flags first, then soft-deletes content that stays flagged past the escalation window."
+            }
+        },
+        "protectRecent": {
+            "observe": "Skip content newer than",
+            "flag": "Protect new content",
+            "cleanup": "Protect new content"
+        },
+        "staleChartsAfter": "Stale charts after",
+        "staleDashboardsAfter": "Stale dashboards after",
+        "oldPreviewsAfter": "Old previews after",
+        "flagBeforeDelete": "Flag before delete",
+        "slowQueryThreshold": "Slow query threshold",
+        "suffix": {
+            "days": " days",
+            "hours": " hours",
+            "ms": " ms"
+        },
+        "protectVerified": {
+            "title": "Protect verified content",
+            "description": "Autopilot can report on verified charts and dashboards but never changes or deletes them."
+        }
+    },
+    "runs": {
+        "triggeredBy": {
+            "cron": "Scheduled",
+            "manual": "Manual",
+            "on_enable": "Scheduled"
+        },
+        "run": "Run",
+        "failed": "Failed",
+        "noActions": "No actions",
+        "loadingActions": "Loading actions…",
+        "quietRuns_one": "{{count}} quiet run · no actions",
+        "quietRuns_other": "{{count}} quiet runs · no actions",
+        "quietRunMeta": "· {{time}} · {{trigger}}"
+    },
+    "filters": {
+        "targetTypes": {
+            "charts": "Charts",
+            "dashboards": "Dashboards",
+            "spaces": "Spaces",
+            "project": "Project"
+        },
+        "clearFilter": "Clear filter",
+        "selectedMore": "{{first}} +{{count}}",
+        "dateRange": {
+            "between": "{{from}} – {{to}}",
+            "from": "From {{date}}",
+            "to": "To {{date}}",
+            "label": "Date range"
+        },
+        "searchActions": "Search actions…",
+        "action": "Action",
+        "content": "Content",
+        "clear": "Clear",
+        "searching": "Searching actions…",
+        "noMatches": "No matching actions",
+        "noMatchesHint": "Try widening the date range or clearing a filter."
+    },
+    "table": {
+        "action": "Action",
+        "name": "Name",
+        "message": "Message"
+    },
+    "page": {
+        "toasts": {
+            "finished": "Autopilot finished",
+            "noActionsNeeded": "No actions needed",
+            "actionsTaken_one": "{{count}} action taken",
+            "actionsTaken_other": "{{count}} actions taken",
+            "runFailed": "Autopilot run failed",
+            "unknownError": "Unknown error",
+            "runStarted": "Autopilot run started",
+            "runStartedSubtitle": "Project health checks are running in the background.",
+            "startFailed": "Failed to start Autopilot"
+        },
+        "resizeSidebar": "Resize activity sidebar",
+        "empty": {
+            "noRunsTitle": "No runs yet",
+            "offTitle": "Autopilot is off",
+            "noRunsDescription": "The first scheduled run has not happened yet. Run it now to see results sooner.",
+            "offDescription": "Turn it on in settings to start monitoring this project."
+        },
+        "loading": "Loading…",
+        "loadOlderRuns": "Load older runs"
+    }
+}

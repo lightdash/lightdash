@@ -15,6 +15,7 @@ import {
     type FC,
     type SetStateAction,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
@@ -27,6 +28,7 @@ import {
 import Context from './context';
 
 const ActiveJobProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
+    const { t } = useTranslation('app');
     const [isJobsDrawerOpen, setIsJobsDrawerOpen] = useState(false);
     const [activeJobId, setActiveJobIdState] = useState<string | undefined>();
     const [isQuietJob, setIsQuietJob] = useState(false);
@@ -81,7 +83,7 @@ const ActiveJobProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
                                 job.jobType === JobType.COMPILE_PROJECT &&
                                 (job.jobResults?.errorCount ?? 0) > 0
                                     ? {
-                                          children: 'View errors',
+                                          children: t('activeJob.viewErrors'),
                                           icon: IconArrowRight,
                                           onClick: () =>
                                               navigate(
@@ -110,7 +112,7 @@ const ActiveJobProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
                         autoClose: false,
                         withCloseButton: false,
                         action: {
-                            children: 'View log',
+                            children: t('activeJob.viewLog'),
                             icon: IconArrowRight,
                             onClick: () => setIsJobsDrawerOpen(true),
                         },
@@ -129,13 +131,14 @@ const ActiveJobProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
             isJobsDrawerOpen,
             isQuietJob,
             navigate,
+            t,
         ],
     );
 
     const toastJobError = ({ error }: ApiError) => {
         showToastApiError({
             key: TOAST_KEY_FOR_REFRESH_JOB,
-            title: 'Failed to refresh server',
+            title: t('activeJob.refreshFailed'),
             apiError: error,
         });
     };

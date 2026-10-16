@@ -27,6 +27,7 @@ import {
     type FC,
 } from 'react';
 import { type Layout } from 'react-grid-layout';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import { validate as isUuidString } from 'uuid';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
@@ -171,6 +172,7 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
     activeTab,
     exportPagedTabs,
 }) => {
+    const { t } = useTranslation('pages');
     const dashboard = useDashboardContext((c) => c.dashboard);
     const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
@@ -237,7 +239,7 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
                 {isTabEmpty ? (
                     <SuboptimalState
                         icon={IconLayoutDashboard}
-                        title="Tab is empty"
+                        title={t('minimalDashboard.tabEmpty')}
                         mt="40px"
                     />
                 ) : tabGroups ? (
@@ -250,7 +252,7 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
                             group.tiles.length === 0 ? (
                                 <SuboptimalState
                                     icon={IconLayoutDashboard}
-                                    title="Tab is empty"
+                                    title={t('minimalDashboard.tabEmpty')}
                                     mt="40px"
                                 />
                             ) : (
@@ -319,6 +321,7 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
 };
 
 const MinimalDashboard: FC = () => {
+    const { t } = useTranslation('pages');
     const { dashboardUuid, tabUuid } = useParams();
     const projectUuid = useProjectUuid();
     const projectUrlIdentifier =
@@ -590,17 +593,17 @@ const MinimalDashboard: FC = () => {
     }
 
     if (!dashboard) {
-        return <span>Loading...</span>;
+        return <span>{t('common.loading')}</span>;
     }
 
     if (schedulerUuid && !scheduler) {
-        return <span>Loading...</span>;
+        return <span>{t('common.loading')}</span>;
     }
 
     // Paged export must still mount one page container per resolved tab
     // (page-count invariant), so tile-less dashboards render empty-tab pages.
     if (dashboard.tiles.length === 0 && !exportPagedTabs) {
-        return <span>No tiles</span>;
+        return <span>{t('minimalDashboard.noTiles')}</span>;
     }
 
     // In paged export the tabGroups branch renders a per-tab header + "Tab is
@@ -643,6 +646,7 @@ const MinimalDashboard: FC = () => {
 };
 
 const MinimalDashboardRoute: FC = () => {
+    const { t } = useTranslation('pages');
     const { projectUuid: projectIdentifier } = useParams();
     const isProjectUuid = isUuidString(projectIdentifier ?? '');
     const projectsQuery = useProjects({
@@ -678,7 +682,9 @@ const MinimalDashboardRoute: FC = () => {
                 <Text>
                     {projectsQuery.error?.error.message ??
                         projectQuery.error?.error.message ??
-                        `Cannot find project: ${projectIdentifier}`}
+                        t('minimalSavedExplorer.projectNotFound', {
+                            project: projectIdentifier,
+                        })}
                 </Text>
                 <ScreenshotReadyIndicator
                     tilesTotal={1}

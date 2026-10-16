@@ -26,6 +26,7 @@ import {
 import { IconExclamationCircle, IconX } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { memo, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -90,6 +91,7 @@ const AiArtifactPanelContent: FC<
         variant = 'floating',
         fastDecisions,
     }) => {
+        const { t } = useTranslation('aiCopilotChat');
         const dispatch = useAiAgentStoreDispatch();
         const { data: health } = useHealth();
 
@@ -302,7 +304,7 @@ const AiArtifactPanelContent: FC<
             return (
                 <Box className={styles.floatingPanel} p="md">
                     <InlineErrorState
-                        message="Could not load this chart."
+                        message={t('artifact.chartLoadFailed')}
                         onRetry={() => {
                             if (artifactError) void refetchArtifact();
                             if (threadError) void refetchThread();
@@ -313,14 +315,16 @@ const AiArtifactPanelContent: FC<
         }
         if (isArtifactLoading || (fastDecisions ? isThreadLoading : !message)) {
             return fastDecisions ? (
-                <EmptyStateLoader title="Loading artifact…" />
+                <EmptyStateLoader title={t('artifact.loadingArtifact')} />
             ) : (
                 <Box {...ChatElementsUtils.centeredElementProps} p="md">
                     <Center className={styles.loading}>
                         <Loader
                             type="dots"
                             color="gray"
-                            delayedMessage="Loading artifact..."
+                            delayedMessage={t(
+                                'artifact.loadingArtifactDelayed',
+                            )}
                         />
                     </Center>
                 </Box>
@@ -335,7 +339,7 @@ const AiArtifactPanelContent: FC<
             (artifactData.artifactType === 'chart' && !artifactData.chartConfig)
         ) {
             return fastDecisions ? (
-                <InlineErrorState message="This artifact is unavailable." />
+                <InlineErrorState message={t('artifact.unavailable')} />
             ) : (
                 <Box {...ChatElementsUtils.centeredElementProps} p="md">
                     <Stack gap="xs" align="center" justify="center">
@@ -344,7 +348,7 @@ const AiArtifactPanelContent: FC<
                             color="gray"
                         />
                         <Text size="xs" c="dimmed" ta="center">
-                            Failed to load artifact. Please try again.
+                            {t('artifact.loadFailed')}
                         </Text>
                     </Stack>
                 </Box>
@@ -380,7 +384,9 @@ const AiArtifactPanelContent: FC<
                     artifactUuid={artifact.artifactUuid}
                     versionUuid={artifact.versionUuid}
                     canEdit={canEditThread}
-                    title={artifactData.title ?? 'Composer query results'}
+                    title={
+                        artifactData.title ?? t('artifact.composerResultsTitle')
+                    }
                     description={artifactData.description ?? null}
                     config={composerConfig}
                     run={composerRun}
@@ -422,7 +428,7 @@ const AiArtifactPanelContent: FC<
             return (
                 <Box className={styles.floatingPanel} p="md">
                     <InlineErrorState
-                        message="Could not load the visualization."
+                        message={t('artifact.visualizationLoadFailed')}
                         onRetry={() => {
                             if (queryExecutionHandle.error)
                                 void queryExecutionHandle.refetch();
@@ -443,13 +449,17 @@ const AiArtifactPanelContent: FC<
             return (
                 <Box className={styles.floatingPanel}>
                     {fastDecisions ? (
-                        <EmptyStateLoader title="Loading visualization…" />
+                        <EmptyStateLoader
+                            title={t('artifact.loadingVisualization')}
+                        />
                     ) : (
                         <Center className={styles.loading}>
                             <Loader
                                 type="dots"
                                 color="gray"
-                                delayedMessage="Loading visualization..."
+                                delayedMessage={t(
+                                    'artifact.loadingVisualizationDelayed',
+                                )}
                             />
                         </Center>
                     )}
@@ -458,7 +468,8 @@ const AiArtifactPanelContent: FC<
         }
 
         const title =
-            queryExecutionHandle.data.metadata.title ?? 'Untitled chart';
+            queryExecutionHandle.data.metadata.title ??
+            t('chartOptions.untitledChart');
         const description =
             queryExecutionHandle.data.metadata.description ?? null;
         const metricQuery = semanticVizQueryData?.query.metricQuery;
@@ -532,7 +543,9 @@ const AiArtifactPanelContent: FC<
                             <ActionIcon
                                 size="sm"
                                 onClick={() => dispatch(clearPreview())}
-                                aria-label="Close"
+                                aria-label={t('actions.close', {
+                                    ns: 'common',
+                                })}
                             >
                                 <MantineIcon icon={IconX} />
                             </ActionIcon>

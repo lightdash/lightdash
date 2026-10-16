@@ -1,3 +1,4 @@
+import i18n from '../../../../i18n/i18n';
 import { getPendingApprovalIds } from '../components/ChatElements/ToolCalls/utils/sqlApprovalPending';
 import { getThreadUuidFromPathname } from '../hooks/aiAgentRouting';
 import {
@@ -15,8 +16,9 @@ export const requestSqlApprovalNotificationPermission = () => {
 export const getSqlApprovalNotificationContent = (
     agentName: string | null,
 ): { title: string; body: string } => ({
-    title: 'Approval needed',
-    body: agentName || 'AI agent',
+    title: i18n.t('sqlApproval.notificationTitle', { ns: 'aiAgent' }),
+    body:
+        agentName || i18n.t('sqlApproval.defaultAgentName', { ns: 'aiAgent' }),
 });
 
 export type SqlApprovalNotificationClickAction =

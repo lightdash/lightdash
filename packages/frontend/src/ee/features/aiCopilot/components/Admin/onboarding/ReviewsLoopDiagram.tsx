@@ -9,32 +9,20 @@ import {
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import styles from './ReviewsLoopDiagram.module.css';
 
 type Step = {
     icon: TablerIcon;
-    title: string;
-    subtitle: string;
+    key: string;
 };
 
 const STEPS: Step[] = [
-    {
-        icon: IconGitPullRequest,
-        title: 'Pull request',
-        subtitle: 'opens in your repo',
-    },
-    {
-        icon: IconLayoutColumns,
-        title: 'Workspace',
-        subtitle: 'follow the fix',
-    },
-    {
-        icon: IconChecks,
-        title: 'Build and verify',
-        subtitle: 'in a preview',
-    },
-    { icon: IconGitMerge, title: 'Merge', subtitle: 'the fix is live' },
+    { icon: IconGitPullRequest, key: 'pullRequest' },
+    { icon: IconLayoutColumns, key: 'workspace' },
+    { icon: IconChecks, key: 'build' },
+    { icon: IconGitMerge, key: 'merge' },
 ];
 
 /**
@@ -42,48 +30,58 @@ const STEPS: Step[] = [
  * verify, then Merge (the payoff), plus the feedback loop. Used in the
  * first-visit tour's final step.
  */
-export const ReviewsLoopDiagram: FC = () => (
-    <Box className={styles.diagram}>
-        <Box className={styles.rail}>
-            {STEPS.map((step, index) => {
-                const isLast = index === STEPS.length - 1;
-                return (
-                    <Box
-                        key={step.title}
-                        className={
-                            isLast
-                                ? `${styles.pill} ${styles.primary}`
-                                : styles.pill
-                        }
-                    >
-                        <Box className={styles.iconRow}>
-                            <Box className={styles.iconBox}>
-                                <MantineIcon icon={step.icon} size={14} />
+export const ReviewsLoopDiagram: FC = () => {
+    const { t } = useTranslation('aiCopilotAdmin');
+    return (
+        <Box className={styles.diagram}>
+            <Box className={styles.rail}>
+                {STEPS.map((step, index) => {
+                    const isLast = index === STEPS.length - 1;
+                    return (
+                        <Box
+                            key={step.key}
+                            className={
+                                isLast
+                                    ? `${styles.pill} ${styles.primary}`
+                                    : styles.pill
+                            }
+                        >
+                            <Box className={styles.iconRow}>
+                                <Box className={styles.iconBox}>
+                                    <MantineIcon icon={step.icon} size={14} />
+                                </Box>
                             </Box>
+                            <Text className={styles.title}>
+                                {t(`onboarding.loop.${step.key}.title`)}
+                            </Text>
+                            <Text className={styles.subtitle}>
+                                {t(`onboarding.loop.${step.key}.subtitle`)}
+                            </Text>
+                            {!isLast && (
+                                <Box className={styles.chevron}>
+                                    <MantineIcon
+                                        icon={IconChevronRight}
+                                        size={9}
+                                        stroke={2.5}
+                                    />
+                                </Box>
+                            )}
                         </Box>
-                        <Text className={styles.title}>{step.title}</Text>
-                        <Text className={styles.subtitle}>{step.subtitle}</Text>
-                        {!isLast && (
-                            <Box className={styles.chevron}>
-                                <MantineIcon
-                                    icon={IconChevronRight}
-                                    size={9}
-                                    stroke={2.5}
-                                />
-                            </Box>
-                        )}
-                    </Box>
-                );
-            })}
-        </Box>
-        <Box className={styles.loop}>
-            <MantineIcon icon={IconReload} size={13} />
-            <Text span c="inherit" fw="inherit">
-                The agent picks this up{' '}
-                <Text span className={styles.loopMuted}>
-                    on its next answer.
+                    );
+                })}
+            </Box>
+            <Box className={styles.loop}>
+                <MantineIcon icon={IconReload} size={13} />
+                <Text span c="inherit" fw="inherit">
+                    <Trans
+                        t={t}
+                        i18nKey="onboarding.loop.feedback"
+                        components={{
+                            muted: <Text span className={styles.loopMuted} />,
+                        }}
+                    />
                 </Text>
-            </Text>
+            </Box>
         </Box>
-    </Box>
-);
+    );
+};

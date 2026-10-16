@@ -18,6 +18,7 @@ import {
 } from '@mantine/core';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Navigate, useLocation, useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import AuthLayout from '../components/common/AuthLayout';
@@ -47,18 +48,24 @@ const InviteExpirationText: FC<{
     expiresAt: Date;
     textAlign: 'left' | 'center';
 }> = ({ expiresAt, textAlign }) => {
+    const { t } = useTranslation('auth');
     const expirationDate = new Date(expiresAt);
 
     return (
         <Text c="dimmed" ta={textAlign} fz="sm">
-            This invite link expires on{' '}
-            <time dateTime={expirationDate.toISOString()}>
-                {expirationDate.toLocaleString(undefined, {
-                    dateStyle: 'long',
-                    timeStyle: 'short',
-                })}
-            </time>
-            .
+            <Trans
+                t={t}
+                i18nKey="invite.expiresOn"
+                values={{
+                    date: expirationDate.toLocaleString(undefined, {
+                        dateStyle: 'long',
+                        timeStyle: 'short',
+                    }),
+                }}
+                components={{
+                    time: <time dateTime={expirationDate.toISOString()} />,
+                }}
+            />
         </Text>
     );
 };
@@ -68,27 +75,28 @@ const WelcomeCard: FC<WelcomeCardProps> = ({
     expiresAt,
     setReadyToJoin,
 }) => {
+    const { t } = useTranslation('auth');
     const { data: org } = useOrganization();
     const { isNewLayout } = useAuthLayoutVariant();
     const textAlign = isNewLayout ? 'left' : 'center';
 
     const content = (
         <Stack gap="md" align={isNewLayout ? 'stretch' : 'center'}>
-            <Title order={3}>You’ve been invited!</Title>
+            <Title order={3}>{t('invite.invited')}</Title>
             {email && (
                 <Text fw="600" size="md">
                     {email}
                 </Text>
             )}
             <Text c="dimmed" ta={textAlign}>
-                {`Your teammates ${
-                    org?.name ? `at ${org.name}` : ''
-                } are using Lightdash to discover
-                    and share data insights. Join your team to start exploring
-                    your data!`}
+                {org?.name
+                    ? t('invite.teammatesAt', { name: org.name })
+                    : t('invite.teammates')}
             </Text>
             <InviteExpirationText expiresAt={expiresAt} textAlign={textAlign} />
-            <Button onClick={() => setReadyToJoin(true)}>Join your team</Button>
+            <Button onClick={() => setReadyToJoin(true)}>
+                {t('invite.joinTeam')}
+            </Button>
         </Stack>
     );
 
@@ -102,10 +110,10 @@ const WelcomeCard: FC<WelcomeCardProps> = ({
                 </Card>
             )}
             <Text c="ldGray.7" ta={textAlign} fz="sm" fw={500}>
-                {`Not ${email ? email : 'for you'}?`}
+                {email ? t('invite.notYou', { email }) : t('invite.notForYou')}
                 <br />
                 <Text c="dimmed" ta={textAlign} fz="xs" fw={500}>
-                    Ignore this invite link and contact your workspace admin.
+                    {t('invite.ignore')}
                 </Text>
             </Text>
         </>
@@ -113,14 +121,14 @@ const WelcomeCard: FC<WelcomeCardProps> = ({
 };
 
 const ErrorCard: FC<{ title: string }> = ({ title }) => {
+    const { t } = useTranslation('auth');
     const { isNewLayout } = useAuthLayoutVariant();
 
     const content = (
         <Stack gap="md" align={isNewLayout ? 'stretch' : 'center'}>
             <Title order={3}>{title}</Title>
             <Text c="ldGray.7" ta={isNewLayout ? 'left' : 'center'}>
-                Please check with the person who shared it with you to see if
-                there’s a new link available.
+                {t('invite.checkNewLink')}
             </Text>
         </Stack>
     );
@@ -134,30 +142,36 @@ const ErrorCard: FC<{ title: string }> = ({ title }) => {
     );
 };
 
-const PrivacyTermsFootnote: FC = () => (
-    <Text c="dimmed" ta="center" fz="sm" fw={500}>
-        By creating an account, you agree to
-        <br />
-        our{' '}
-        <Anchor
-            href="https://www.lightdash.com/privacy-policy"
-            target="_blank"
-            fz="sm"
-            fw={500}
-        >
-            Privacy Policy
-        </Anchor>{' '}
-        and our{' '}
-        <Anchor
-            href="https://www.lightdash.com/terms-of-service"
-            target="_blank"
-            fz="sm"
-            fw={500}
-        >
-            Terms of Service.
-        </Anchor>
-    </Text>
-);
+const PrivacyTermsFootnote: FC = () => {
+    const { t } = useTranslation('auth');
+    return (
+        <Text c="dimmed" ta="center" fz="sm" fw={500}>
+            <Trans
+                t={t}
+                i18nKey="register.termsCreate"
+                components={{
+                    br: <br />,
+                    privacy: (
+                        <Anchor
+                            href="https://www.lightdash.com/privacy-policy"
+                            target="_blank"
+                            fz="sm"
+                            fw={500}
+                        />
+                    ),
+                    terms: (
+                        <Anchor
+                            href="https://www.lightdash.com/terms-of-service"
+                            target="_blank"
+                            fz="sm"
+                            fw={500}
+                        />
+                    ),
+                }}
+            />
+        </Text>
+    );
+};
 
 interface OneClickCardProps {
     email: string;
@@ -174,6 +188,7 @@ const OneClickCard: FC<OneClickCardProps> = ({
     isLoading,
     onActivate,
 }) => {
+    const { t } = useTranslation('auth');
     const { isNewLayout } = useAuthLayoutVariant();
     const textAlign = isNewLayout ? 'left' : 'center';
 
@@ -181,13 +196,13 @@ const OneClickCard: FC<OneClickCardProps> = ({
         <Stack gap="md" align={isNewLayout ? 'stretch' : 'center'}>
             <Title order={3} ta={textAlign}>
                 {isSetupInvite
-                    ? 'You’ve been asked to help with setup'
-                    : 'You’ve been invited to Lightdash'}
+                    ? t('invite.setupTitle')
+                    : t('invite.invitedToLightdash')}
             </Title>
             <Text c="dimmed" ta={textAlign}>
                 {isSetupInvite
-                    ? 'One click and we’ll take you straight to connecting the data warehouse.'
-                    : 'One click to join your team.'}
+                    ? t('invite.oneClickSetup')
+                    : t('invite.oneClickJoin')}
             </Text>
             <InviteExpirationText expiresAt={expiresAt} textAlign={textAlign} />
             <Button
@@ -196,7 +211,7 @@ const OneClickCard: FC<OneClickCardProps> = ({
                 onClick={onActivate}
                 classNames={{ label: classes.oneClickLabel }}
             >
-                Continue as {email}
+                {t('invite.continueAs', { email })}
             </Button>
         </Stack>
     );
@@ -219,6 +234,7 @@ const createUserQuery = async (data: ActivateUserWithInviteCode) =>
     });
 
 const Invite: FC = () => {
+    const { t } = useTranslation('auth');
     const { inviteCode } = useParams<{ inviteCode: string }>();
     const { health } = useApp();
     const { isNewLayout } = useAuthLayoutVariant();
@@ -228,11 +244,11 @@ const Invite: FC = () => {
     useEffect(() => {
         if (flashMessages.data?.error) {
             showToastError({
-                title: 'Failed to authenticate',
+                title: t('login.failedToAuthenticate'),
                 subtitle: flashMessages.data.error.join('\n'),
             });
         }
-    }, [flashMessages.data, showToastError]);
+    }, [flashMessages.data, showToastError, t]);
     const { search } = useLocation();
     const { identify } = useTracking();
     const [isLinkFromEmail, setIsLinkFromEmail] = useState<boolean>(false);
@@ -262,7 +278,7 @@ const Invite: FC = () => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to create user`,
+                title: t('register.failedToCreateUser'),
                 apiError: error,
             });
         },
@@ -340,7 +356,7 @@ const Invite: FC = () => {
                     labelPosition="center"
                     label={
                         <Text c="ldGray.5" size="sm" fw={500}>
-                            OR
+                            {t('login.orUpper')}
                         </Text>
                     }
                 />
@@ -351,14 +367,11 @@ const Invite: FC = () => {
     const signupContent = (
         <>
             <Title order={3} ta={isNewLayout ? 'left' : 'center'} mb="md">
-                {isSetupInvite
-                    ? 'You’ve been asked to help with setup'
-                    : 'Sign up'}
+                {isSetupInvite ? t('invite.setupTitle') : t('login.signUp')}
             </Title>
             {isSetupInvite && (
                 <Text c="dimmed" ta={isNewLayout ? 'left' : 'center'} mb="md">
-                    Create your account and we’ll take you straight to warehouse
-                    setup.
+                    {t('invite.createAccountSetup')}
                 </Text>
             )}
             {inviteLinkQuery.data ? (
@@ -372,12 +385,12 @@ const Invite: FC = () => {
     );
 
     return (
-        <AuthLayout pageTitle="Register" withLegacyCard={false}>
+        <AuthLayout pageTitle={t('register.pageTitle')} withLegacyCard={false}>
             {inviteLinkQuery.error ? (
                 <ErrorCard
                     title={
                         inviteLinkQuery.error.error.name === 'ExpiredError'
-                            ? 'This invite link has expired 🙈'
+                            ? t('invite.expired')
                             : inviteLinkQuery.error.error.message
                     }
                 />
@@ -399,7 +412,7 @@ const Invite: FC = () => {
                                 labelPosition="center"
                                 label={
                                     <Text c="ldGray.5" size="sm" fw={500}>
-                                        OR
+                                        {t('login.orUpper')}
                                     </Text>
                                 }
                             />

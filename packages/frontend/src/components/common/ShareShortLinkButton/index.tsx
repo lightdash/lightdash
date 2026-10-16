@@ -1,6 +1,7 @@
 import { ActionIcon, Button } from '@mantine/core';
 import { IconCheck, IconLink } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 import { useAsyncClipboard } from '../../../hooks/useAsyncClipboard';
 import { useCreateShareMutation } from '../../../hooks/useShare';
@@ -11,6 +12,7 @@ const ShareShortLinkButton: FC<{
     withLabel?: boolean;
     url?: { pathname: string; search: string };
 }> = ({ disabled, url, withLabel = false }) => {
+    const { t } = useTranslation('commonUi');
     const location = useLocation();
 
     const { isLoading, mutateAsync: createShareUrl } = useCreateShareMutation();
@@ -31,19 +33,29 @@ const ShareShortLinkButton: FC<{
                 variant="subtle"
                 onClick={handleCopy}
                 disabled={isDisabled}
-                aria-label={copied ? 'Link copied' : 'Copy share link'}
+                aria-label={
+                    copied
+                        ? t('shareShortLinkButton.linkCopied')
+                        : t('shareShortLinkButton.copyShareLink')
+                }
                 leftSection={
                     <MantineIcon icon={copied ? IconCheck : IconLink} />
                 }
             >
-                {copied ? 'Copied' : 'Share'}
+                {copied
+                    ? t('feedback.copiedShort', { ns: 'common' })
+                    : t('shareShortLinkButton.share')}
             </Button>
         );
     }
 
     return (
         <ActionIcon
-            aria-label={copied ? 'Link copied' : 'Copy share link'}
+            aria-label={
+                copied
+                    ? t('shareShortLinkButton.linkCopied')
+                    : t('shareShortLinkButton.copyShareLink')
+            }
             variant="default"
             onClick={handleCopy}
             disabled={isDisabled}

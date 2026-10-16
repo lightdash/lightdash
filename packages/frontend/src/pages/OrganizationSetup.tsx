@@ -31,15 +31,17 @@ import {
     type FC,
     type FormEvent,
     useEffect,
+    useMemo,
     useRef,
     useState,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import AboutFooter from '../components/AboutFooter';
 import Callout from '../components/common/Callout';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import PageSpinner from '../components/PageSpinner';
-import { jobTitles } from '../components/UserCompletionModal/jobTitles';
+import { getJobTitleOptions } from '../components/UserCompletionModal/jobTitles';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import {
     useDetectOrganizationBrand,
@@ -145,6 +147,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     organizationHasName,
     completeMutation,
 }) => {
+    const { t } = useTranslation('pages');
     const canEnterOrganizationName =
         user.organizationName === '' && !organizationHasName;
     const emailDomain = user.email ? getEmailDomain(user.email) : '';
@@ -262,7 +265,10 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     const [step, setStep] = useState(1);
 
     const isWorkspaceStep = showWorkspaceStep && step === 1;
-    const stepLabel = isWorkspaceStep ? 'Set up your workspace' : 'About you';
+    const stepLabel = isWorkspaceStep
+        ? t('organizationSetup.stepWorkspace')
+        : t('organizationSetup.stepAboutYou');
+    const jobTitleOptions = useMemo(() => getJobTitleOptions(t), [t]);
     const displayStep = showWorkspaceStep ? step : 1;
 
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -365,7 +371,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
 
     return (
         <Box className={classes.page}>
-            <DocumentTitle title="Set up your organization" />
+            <DocumentTitle title={t('organizationSetup.documentTitle')} />
 
             <Box className={classes.body}>
                 <Box className={classes.leftPane}>
@@ -374,25 +380,29 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                             <Stack gap="lg">
                                 <Stack gap="xs">
                                     <Text size="sm" c="dimmed">
-                                        Step {displayStep} of {totalSteps} ·{' '}
-                                        {stepLabel}
+                                        {t('organizationSetup.stepOf', {
+                                            step: displayStep,
+                                            total: totalSteps,
+                                            label: stepLabel,
+                                        })}
                                     </Text>
                                     <Title
                                         order={1}
                                         fz={44}
                                         className={classes.heading}
                                     >
-                                        Name your organization
+                                        {t('organizationSetup.nameTitle')}
                                     </Title>
                                     <Text c="dimmed" size="lg">
-                                        This is how your team and your agent
-                                        will refer to your workspace.
+                                        {t('organizationSetup.nameSubtitle')}
                                     </Text>
                                 </Stack>
 
                                 <TextInput
-                                    label="Organization name"
-                                    placeholder="Acme Analytics"
+                                    label={t('organizationSetup.nameLabel')}
+                                    placeholder={t(
+                                        'organizationSetup.namePlaceholder',
+                                    )}
                                     size="md"
                                     required
                                     {...organizationNameInputProps}
@@ -422,7 +432,12 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                                             applyNameSuggestion
                                                         }
                                                     >
-                                                        {`Use "${nameSuggestion}"`}
+                                                        {t(
+                                                            'organizationSetup.useSuggestion',
+                                                            {
+                                                                name: nameSuggestion,
+                                                            },
+                                                        )}
                                                     </Button>
                                                 </Group>
                                             )}
@@ -434,19 +449,21 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
 
                                 <Stack gap="md">
                                     <Group gap="sm">
-                                        <Text fw={600}>Brand</Text>
+                                        <Text fw={600}>
+                                            {t('organizationSetup.brand')}
+                                        </Text>
                                         <Text
                                             size="xs"
                                             c="dimmed"
                                             className={classes.optionalPill}
                                         >
-                                            Optional · you can change this later
+                                            {t('organizationSetup.optional')}
                                         </Text>
                                     </Group>
 
                                     <Stack gap="xs">
                                         <Text size="sm" fw={500}>
-                                            Theme color
+                                            {t('organizationSetup.themeColor')}
                                         </Text>
                                         <Group gap="lg" align="center">
                                             <Box
@@ -482,7 +499,10 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                                         key={color}
                                                         component="button"
                                                         type="button"
-                                                        aria-label={`Select theme color ${color}`}
+                                                        aria-label={t(
+                                                            'organizationSetup.selectThemeColor',
+                                                            { color },
+                                                        )}
                                                         className={
                                                             color.toLowerCase() ===
                                                             selectedColor.toLowerCase()
@@ -511,7 +531,9 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                             !form.values.organizationName.trim()
                                         }
                                     >
-                                        Continue
+                                        {t('actions.continue', {
+                                            ns: 'common',
+                                        })}
                                     </Button>
                                 </Group>
                             </Stack>
@@ -519,25 +541,33 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                             <Stack gap="lg">
                                 <Stack gap="xs">
                                     <Text size="sm" c="dimmed">
-                                        Step {displayStep} of {totalSteps} ·{' '}
-                                        {stepLabel}
+                                        {t('organizationSetup.stepOf', {
+                                            step: displayStep,
+                                            total: totalSteps,
+                                            label: stepLabel,
+                                        })}
                                     </Text>
                                     <Title
                                         order={1}
                                         fz={44}
                                         className={classes.heading}
                                     >
-                                        Tell us about you
+                                        {t('organizationSetup.aboutTitle')}
                                     </Title>
                                     <Text c="dimmed" size="lg">
-                                        This helps us tailor Lightdash for you.
+                                        {t('organizationSetup.aboutSubtitle')}
                                     </Text>
                                 </Stack>
 
                                 <Select
-                                    label="What's your role?"
-                                    data={jobTitles}
-                                    placeholder="Select your role"
+                                    label={t('userCompletion.role', {
+                                        ns: 'app',
+                                    })}
+                                    data={jobTitleOptions}
+                                    placeholder={t(
+                                        'userCompletion.rolePlaceholder',
+                                        { ns: 'app' },
+                                    )}
                                     size="md"
                                     required
                                     {...form.getInputProps('jobTitle')}
@@ -545,8 +575,14 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
 
                                 {canEnterOrganizationName && (
                                     <TextInput
-                                        label="How did you hear about us?"
-                                        placeholder="Google, a colleague, a podcast..."
+                                        label={t(
+                                            'userCompletion.howDidYouHear',
+                                            { ns: 'app' },
+                                        )}
+                                        placeholder={t(
+                                            'userCompletion.howDidYouHearPlaceholder',
+                                            { ns: 'app' },
+                                        )}
                                         size="md"
                                         required
                                         {...form.getInputProps(
@@ -558,7 +594,13 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                 <Stack gap="xs">
                                     {canEnableEmailDomainAccess && (
                                         <Checkbox
-                                            label={`Allow users with @${emailDomain} to join the organization as a viewer`}
+                                            label={t(
+                                                'userCompletion.allowDomain',
+                                                {
+                                                    ns: 'app',
+                                                    domain: emailDomain,
+                                                },
+                                            )}
                                             {...form.getInputProps(
                                                 'enableEmailDomainAccess',
                                                 { type: 'checkbox' },
@@ -567,7 +609,10 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     )}
 
                                     <Checkbox
-                                        label="Keep me updated on new Lightdash features"
+                                        label={t(
+                                            'userCompletion.marketingOptIn',
+                                            { ns: 'app' },
+                                        )}
                                         {...form.getInputProps(
                                             'isMarketingOptedIn',
                                             { type: 'checkbox' },
@@ -577,7 +622,10 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     {health.mode !==
                                         LightdashMode.CLOUD_BETA && (
                                         <Checkbox
-                                            label="Anonymize my usage data"
+                                            label={t(
+                                                'userCompletion.anonymize',
+                                                { ns: 'app' },
+                                            )}
                                             {...form.getInputProps(
                                                 'isTrackingAnonymized',
                                                 { type: 'checkbox' },
@@ -594,7 +642,9 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                             size="md"
                                             onClick={() => setStep(1)}
                                         >
-                                            Back
+                                            {t('actions.back', {
+                                                ns: 'common',
+                                            })}
                                         </Button>
                                     )}
                                     <Button
@@ -603,7 +653,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                         loading={completeMutation.isLoading}
                                         disabled={!form.values.jobTitle}
                                     >
-                                        Finish
+                                        {t('organizationSetup.finish')}
                                     </Button>
                                 </Group>
                             </Stack>

@@ -1,0 +1,263 @@
+{
+    "actions": {
+        "copyLink": "Copy document link",
+        "menu": "Document actions",
+        "share": "Share",
+        "unpinFromHomepage": "Unpin from homepage",
+        "pinToHomepage": "Pin to homepage",
+        "changeOwner": "Change owner",
+        "assignOwner": "Assign owner",
+        "duplicate": "Duplicate",
+        "removeVerification": "Remove verification",
+        "verify": "Verify",
+        "requestReview": "Request review",
+        "promoteRequiresUpstream": "You must enable first an upstream project in settings > Data ops",
+        "promote": "Promote document",
+        "versionHistory": "Version history",
+        "viewAsCode": "View as code",
+        "exportPdf": "Export PDF"
+    },
+    "editor": {
+        "nameLabel": "Document name",
+        "namePlaceholder": "Untitled document",
+        "controls": "Editing controls",
+        "cancelEditing": "Cancel editing",
+        "addChart": "Add chart",
+        "addSavedChart": "Add saved chart",
+        "save": "Save document",
+        "actionsUnavailable": "Document actions are unavailable while editing",
+        "editingBadge": "Editing",
+        "newerVersionSaved": "A newer version of this document was saved while you were editing. Saving will fail, so copy any text you want to keep, then cancel and reopen the editor to load the latest version.",
+        "conflict": "This document changed while you were editing. Your changes have not been saved. Copy any text you want to keep, then cancel and reopen the editor to load the latest version.",
+        "loadingChartEditor": "Loading chart editor",
+        "loadingSavedCharts": "Loading saved charts",
+        "discard": {
+            "title": "Discard unsaved changes?",
+            "keepEditing": "Keep editing",
+            "confirm": "Discard changes",
+            "body": "Your changes to this Document have not been saved."
+        },
+        "bodyAriaLabel": "Document body",
+        "bodyPlaceholder": "Write something, or type '/' for blocks…",
+        "openMention": "Open {{name}}",
+        "dragToMove": "Drag to move"
+    },
+    "chartEditor": {
+        "editTitle": "Edit chart",
+        "addTitle": "Add chart",
+        "apply": "Apply to Document",
+        "nameLabel": "Chart name",
+        "descriptionLabel": "Description",
+        "changeTable": {
+            "title": "Change chart table?",
+            "description": "Changing tables clears the current chart query and configuration. The chart name and description will be kept.",
+            "keepEditing": "Keep editing",
+            "confirm": "Change table"
+        }
+    },
+    "savedChartPicker": {
+        "copyFailed": "This chart couldn't be loaded. Try linking it.",
+        "title": "Add a saved chart",
+        "copyChart": "Copy chart",
+        "linkChart": "Link chart",
+        "chartLabel": "Chart",
+        "searchPlaceholder": "Search saved charts",
+        "searching": "Searching…",
+        "noneFound": "No saved charts found",
+        "sqlChartInSpace": "SQL chart in {{space}}",
+        "chartInSpace": "Chart in {{space}}",
+        "link": "Link",
+        "copy": "Copy",
+        "linkHelp": "Shows the saved chart as it is now, and updates when it changes. Readers need access to the chart.",
+        "copyHelp": "Adds a copy you can edit in this document. Changes to the saved chart won’t show here."
+    },
+    "form": {
+        "nameRequired": "Enter a document name",
+        "nameLabel": "Document name",
+        "descriptionLabel": "Description",
+        "loadingSpaces": "Loading spaces"
+    },
+    "create": {
+        "title": "Create document",
+        "namePlaceholder": "eg. Weekly revenue review",
+        "descriptionPlaceholder": "A few words to give your team some context",
+        "noWritableSpaces": "You do not have permission to create documents in any space in this project.",
+        "spaceLegend": "Space"
+    },
+    "duplicate": {
+        "defaultName": "Copy of {{name}}",
+        "title": "Duplicate document",
+        "submit": "Create duplicate",
+        "destinationSpace": "Destination space"
+    },
+    "versionComparison": {
+        "parts": {
+            "title": "Title",
+            "description": "Description",
+            "explore": "Explore",
+            "chartType": "Chart type",
+            "dimensions": "Dimensions",
+            "metrics": "Metrics",
+            "filters": "Filters",
+            "sorts": "Sorts",
+            "rowLimit": "Row limit",
+            "tableCalculations": "Table calculations",
+            "customFields": "Custom fields",
+            "visualization": "Visualization",
+            "tableSettings": "Table settings",
+            "parameters": "Parameters",
+            "merge": "Merge",
+            "querySettings": "Query settings",
+            "sql": "SQL",
+            "connection": "Connection",
+            "querySource": "Query source",
+            "chartDefinition": "Chart definition"
+        },
+        "unsupportedChartName": "Chart from a newer version",
+        "noTextChanges": "No text changes.",
+        "textChanges": "Text changes",
+        "unchangedLines_one": "{{count}} unchanged line",
+        "unchangedLines_other": "{{count}} unchanged lines",
+        "line": {
+            "added": "added: {{text}}",
+            "removed": "removed: {{text}}",
+            "unchanged": "unchanged: {{text}}"
+        },
+        "status": {
+            "added": "Added",
+            "removed": "Removed",
+            "changed": "Changed",
+            "moved": "Moved"
+        },
+        "changedParts": "Changed: {{parts}}",
+        "movedPosition": "Moved from position {{from}} to {{to}}",
+        "noCharts": "No charts.",
+        "noChartChanges": "No chart changes.",
+        "chartAriaLabel": "{{status}}: {{name}}",
+        "unchangedCharts_one": "{{count}} unchanged chart",
+        "unchangedCharts_other": "{{count}} unchanged charts",
+        "sameContent": "These versions have the same content.",
+        "text": "Text",
+        "charts": "Charts"
+    },
+    "linkedChart": {
+        "badgeTooltip": "Shows the saved chart live",
+        "badge": "Linked",
+        "open": "Open chart",
+        "openAriaLabel": "Open linked chart",
+        "defaultTitle": "Linked chart",
+        "loading": "Loading linked chart",
+        "noAccess": "You don't have access to this chart.",
+        "unavailable": "This chart is no longer available."
+    },
+    "versionList": {
+        "loading": "Loading versions",
+        "loadFailed": "Version history could not be loaded.",
+        "ariaLabel": "Document versions",
+        "title": "Version history",
+        "versionAriaLabel": "Version {{number}}, saved {{timestamp}} by {{author}}",
+        "current": "Current",
+        "loadOlder": "Load older versions"
+    },
+    "byline": {
+        "unknownUser": "Unknown user",
+        "personalTooltip": "Only its creator and admins can see this document until it's saved to a space",
+        "personal": "Personal",
+        "createdBy": "Created by",
+        "ownedBy": "Owned by {{name}}"
+    },
+    "chart": {
+        "resourceLimit": "This chart exceeds the warehouse query limit.",
+        "loadFailed": "The live data for this chart could not be loaded.",
+        "loading": "Loading live chart data",
+        "draftNoExploreAccess": "You need Explore access to preview this unsaved chart.",
+        "draftExploreLoadFailed": "The explore for this chart could not be loaded.",
+        "exploreFromHere": "Explore from here",
+        "openInSqlRunner": "Open in SQL Runner"
+    },
+    "owner": {
+        "title": "Document owner",
+        "description": "The owner is accountable for this document. Assigning an owner does not change who can view or edit it.",
+        "label": "Owner",
+        "placeholder": "Assign an owner..."
+    },
+    "saveToSpace": {
+        "title": "Save to a space",
+        "description": "Everyone with access to the space will be able to see this document.",
+        "createSpaceConfirm": "Create space & save",
+        "button": "Save to space"
+    },
+    "asCode": {
+        "resourceLabel": "document"
+    },
+    "linkingChartCallout": {
+        "softDelete_one": "This chart is linked from {{count}} document. They'll show it as unavailable until it's restored:",
+        "softDelete_other": "This chart is linked from {{count}} documents. They'll show it as unavailable until it's restored:",
+        "hardDelete_one": "This chart is linked from {{count}} document. They'll show it as unavailable:",
+        "hardDelete_other": "This chart is linked from {{count}} documents. They'll show it as unavailable:"
+    },
+    "renderer": {
+        "empty": "This document is empty."
+    },
+    "report": {
+        "contents": "Contents",
+        "summary": "Summary",
+        "contentsAriaLabel": "Report contents"
+    },
+    "slashCommands": {
+        "table": {
+            "label": "Table",
+            "description": "Rows and columns"
+        },
+        "chart": {
+            "label": "Chart",
+            "description": "Query the semantic layer"
+        },
+        "savedChart": {
+            "label": "Saved chart",
+            "description": "Link or copy a chart saved in a Space"
+        }
+    },
+    "unsupported": {
+        "chart": {
+            "drag": "Drag chart",
+            "remove": "Remove chart",
+            "ariaLabel": "Unsupported chart",
+            "message": "This chart was added in a newer version and can't be shown here."
+        },
+        "block": {
+            "drag": "Drag block",
+            "remove": "Remove block",
+            "ariaLabel": "Unsupported block",
+            "message": "This block was added in a newer version and can't be shown here."
+        }
+    },
+    "savedChartNode": {
+        "titleLabel": "Title in this document",
+        "editTitle": "Edit title in this document",
+        "titlePlaceholder": "The chart's own title",
+        "useChartTitle": "Use the chart's title",
+        "apply": "Apply",
+        "drag": "Drag linked chart",
+        "remove": "Remove linked chart"
+    },
+    "chartNode": {
+        "dragHint": "Drag, or press ↑ ↓, to move",
+        "drag": "Drag chart {{name}}",
+        "edit": "Edit chart",
+        "readOnly": "This chart type is read-only",
+        "editNamed": "Edit chart {{name}}",
+        "remove": "Remove chart",
+        "removeNamed": "Remove chart {{name}}"
+    },
+    "exportPdf": {
+        "inProgress": "{{name}} is being exported. This might take a few seconds.",
+        "missingUrl": "Missing file url for {{name}}",
+        "somethingWentWrong": "Something went wrong",
+        "partialFailure_one": "{{name}} was exported with {{count}} failed chart.",
+        "partialFailure_other": "{{name}} was exported with {{count}} failed charts.",
+        "partialFailureSubtitle": "Charts that could not load show an error in the PDF.",
+        "success": "Success! {{name}} was exported.",
+        "failed": "Failed to export {{name}}"
+    }
+}

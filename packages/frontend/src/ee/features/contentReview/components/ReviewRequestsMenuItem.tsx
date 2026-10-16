@@ -2,6 +2,7 @@ import { getContentReviewRequestsPath } from '@lightdash/common';
 import { Badge, Menu } from '@mantine/core';
 import { IconSend } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useContentReviewAvailability } from '../hooks/useContentReviewAvailability';
@@ -14,6 +15,7 @@ type Props = {
 // Browse menu entry for the review queue, with how many requests are waiting
 // on the viewer
 const ReviewRequestsMenuItem: FC<Props> = ({ projectUuid }) => {
+    const { t } = useTranslation('eeMisc');
     const { isAvailable } = useContentReviewAvailability();
     const { data: pendingCount = 0 } = usePendingContentReviewCount(
         projectUuid,
@@ -33,7 +35,7 @@ const ReviewRequestsMenuItem: FC<Props> = ({ projectUuid }) => {
                 ) : null
             }
         >
-            Review requests
+            {t('contentReview.reviewRequests')}
         </Menu.Item>
     );
 };

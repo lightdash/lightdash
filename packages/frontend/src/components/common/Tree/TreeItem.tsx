@@ -14,6 +14,7 @@ import {
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../MantineIcon';
 import classes from './TreeItem.module.css';
 
@@ -46,6 +47,7 @@ const TreeItem: React.FC<Props> = ({
     onClick,
     onClickExpand,
 }) => {
+    const { t } = useTranslation('commonUi');
     const stringLabel = useMemo(() => {
         if (typeof label === 'string') {
             return label;
@@ -104,7 +106,10 @@ const TreeItem: React.FC<Props> = ({
         >
             {!isRoot && hasChildren ? (
                 <ActionIcon
-                    aria-label={`${expanded ? 'Collapse' : 'Expand'} ${stringLabel}`}
+                    aria-label={t(
+                        expanded ? 'tree.collapseItem' : 'tree.expandItem',
+                        { label: stringLabel },
+                    )}
                     aria-expanded={expanded}
                     className={classes.actionIcon}
                     onClick={(e) => {
@@ -168,10 +173,7 @@ const TreeItem: React.FC<Props> = ({
 
     if (restricted) {
         return (
-            <Tooltip
-                label="You do not have access to this space"
-                position="top-start"
-            >
+            <Tooltip label={t('tree.noSpaceAccess')} position="top-start">
                 {content}
             </Tooltip>
         );

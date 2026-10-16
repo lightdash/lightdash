@@ -6,6 +6,7 @@ import {
 import { Button, Group, Paper, Select, Stack, Text } from '@mantine/core';
 import { useMemo, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { getLinkCandidates, getLinkKey } from './linkCandidates';
@@ -29,6 +30,7 @@ type RowProps = {
 };
 
 const LinkRow: FC<RowProps> = ({ tile, prompt, fieldsByTile, label }) => {
+    const { t } = useTranslation('dashboardFilters');
     const { updateFilter, dismissLink } = useControlsSidebar();
     const { rule, candidates } = prompt;
     const [chosen, setChosen] = useState<string | null>(
@@ -42,8 +44,8 @@ const LinkRow: FC<RowProps> = ({ tile, prompt, fieldsByTile, label }) => {
             </Text>
             <Select
                 size="xs"
-                aria-label={`Field for ${filterLabel} on this tile`}
-                placeholder="Select a field"
+                aria-label={t('controls.link.fieldFor', { label: filterLabel })}
+                placeholder={t('controls.link.selectField')}
                 allowDeselect={false}
                 comboboxProps={{ withinPortal: true }}
                 value={chosen}
@@ -67,14 +69,14 @@ const LinkRow: FC<RowProps> = ({ tile, prompt, fieldsByTile, label }) => {
                         );
                     }}
                 >
-                    Apply
+                    {t('controls.link.apply')}
                 </Button>
                 <Button
                     size="compact-xs"
                     variant="subtle"
                     onClick={() => dismissLink(tile.uuid, rule.id)}
                 >
-                    Skip
+                    {t('controls.link.skip')}
                 </Button>
             </Group>
         </Stack>
@@ -82,6 +84,7 @@ const LinkRow: FC<RowProps> = ({ tile, prompt, fieldsByTile, label }) => {
 };
 
 export const LinkPrompts: FC = () => {
+    const { t } = useTranslation('dashboardFilters');
     const { isSidebarOpen, newTileUuids, dismissedLinks } =
         useControlsSidebar();
     const { mode } = useParams<{ mode?: string }>();
@@ -155,9 +158,9 @@ export const LinkPrompts: FC = () => {
                         >
                             <Stack gap="sm">
                                 <Text fz="xs" c="dimmed">
-                                    {rows.length === 1
-                                        ? 'This tile can use a filter'
-                                        : 'This tile can use these filters'}
+                                    {t('controls.link.tileCanUse', {
+                                        count: rows.length,
+                                    })}
                                 </Text>
                                 {rows.map((prompt) => (
                                     <LinkRow

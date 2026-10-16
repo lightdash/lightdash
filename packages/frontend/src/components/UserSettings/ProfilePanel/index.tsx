@@ -16,8 +16,10 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconAlertCircle, IconCircleCheck } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
-import { useEffect, useState, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
@@ -26,28 +28,32 @@ import {
 } from '../../../hooks/useEmailVerification';
 import { useUserUpdateMutation } from '../../../hooks/user/useUserUpdateMutation';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { LanguageSwitcher } from '../../../i18n/LanguageSwitcher';
 import { VerifyEmailModal } from '../../../pages/VerifyEmail';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import TimeZonePicker from '../../common/TimeZonePicker';
 import AvatarSettings from './AvatarSettings';
 
-const validationSchema = z.object({
-    firstName: getUserNameSchema(),
-    lastName: getUserNameSchema(),
-    email: getEmailSchema().or(z.undefined()),
-    timezone: z
-        .string()
-        .nullable()
-        .refine(
-            (value) => value === null || isValidTimezone(value),
-            'Invalid timezone',
-        ),
-});
+const getValidationSchema = (t: TFunction) =>
+    z.object({
+        firstName: getUserNameSchema(),
+        lastName: getUserNameSchema(),
+        email: getEmailSchema().or(z.undefined()),
+        timezone: z
+            .string()
+            .nullable()
+            .refine(
+                (value) => value === null || isValidTimezone(value),
+                t('profilePanel.validation.invalidTimezone'),
+            ),
+    });
 
-type FormValues = z.infer<typeof validationSchema>;
+type FormValues = z.infer<ReturnType<typeof getValidationSchema>>;
 
 const ProfilePanel: FC = () => {
+    const { t } = useTranslation('userSettings');
+    const validationSchema = useMemo(() => getValidationSchema(t), [t]);
     const {
         user: { data: userData, isLoading: isLoadingUser },
         health,
@@ -100,12 +106,12 @@ const ProfilePanel: FC = () => {
         useUserUpdateMutation({
             onSuccess: () => {
                 showToastSuccess({
-                    title: 'Success! User details were updated.',
+                    title: t('profilePanel.toasts.updateSuccess'),
                 });
             },
             onError: ({ error }: ApiError) => {
                 showToastApiError({
-                    title: 'Failed to update user details',
+                    title: t('profilePanel.toasts.updateFailed'),
                     apiError: error,
                 });
             },
@@ -134,8 +140,8 @@ const ProfilePanel: FC = () => {
                 <AvatarSettings />
 
                 <TextInput
-                    placeholder="First name"
-                    label="First name"
+                    placeholder={t('profilePanel.firstName')}
+                    label={t('profilePanel.firstName')}
                     type="text"
                     required
                     disabled={isLoading}
@@ -143,8 +149,8 @@ const ProfilePanel: FC = () => {
                 />
 
                 <TextInput
-                    placeholder="Last name"
-                    label="Last name"
+                    placeholder={t('profilePanel.lastName')}
+                    label={t('profilePanel.lastName')}
                     type="text"
                     required
                     disabled={isLoading}
@@ -152,8 +158,8 @@ const ProfilePanel: FC = () => {
                 />
 
                 <TextInput
-                    placeholder="Email"
-                    label="Email"
+                    placeholder={t('profilePanel.email')}
+                    label={t('profilePanel.email')}
                     type="email"
                     required
                     disabled={isLoading}
@@ -166,7 +172,7 @@ const ProfilePanel: FC = () => {
                     {...form.getInputProps('email')}
                     rightSection={
                         isEmailServerConfigured && data?.isVerified ? (
-                            <Tooltip label="This e-mail has been verified">
+                            <Tooltip label={t('profilePanel.emailVerified')}>
                                 <MantineIcon
                                     size="lg"
                                     icon={IconCircleCheck}
@@ -185,19 +191,25 @@ const ProfilePanel: FC = () => {
                     description={
                         isEmailServerConfigured && !data?.isVerified ? (
                             <Text c="dimmed">
-                                This email has not been verified.{' '}
-                                <Anchor
-                                    component="span"
-                                    onClick={() => {
-                                        if (!data?.otp) {
-                                            sendVerificationEmail();
-                                        }
-                                        setShowVerifyEmailModal(true);
+                                <Trans
+                                    t={t}
+                                    i18nKey="profilePanel.emailNotVerified"
+                                    components={{
+                                        verifyLink: (
+                                            <Anchor
+                                                component="span"
+                                                onClick={() => {
+                                                    if (!data?.otp) {
+                                                        sendVerificationEmail();
+                                                    }
+                                                    setShowVerifyEmailModal(
+                                                        true,
+                                                    );
+                                                }}
+                                            />
+                                        ),
                                     }}
-                                >
-                                    Click here to verify it
-                                </Anchor>
-                                .
+                                />
                             </Text>
                         ) : null
                     }
@@ -205,23 +217,25 @@ const ProfilePanel: FC = () => {
 
                 {timezoneSupportEnabled && (
                     <TimeZonePicker
-                        label="Default timezone"
-                        description="Used to render query results for charts pinned to the viewer timezone. Leave empty to fall back to the project timezone."
+                        label={t('profilePanel.timezone.label')}
+                        description={t('profilePanel.timezone.description')}
                         variant="default"
                         maw="100%"
                         size="sm"
                         searchable
                         clearable
-                        placeholder="Project default"
+                        placeholder={t('profilePanel.timezone.placeholder')}
                         disabled={isLoading}
                         {...form.getInputProps('timezone')}
                     />
                 )}
 
+                <LanguageSwitcher />
+
                 <Flex justify="flex-end" gap="sm">
                     {form.isDirty() && !isUpdatingUser && (
                         <Button variant="outline" onClick={() => form.reset()}>
-                            Cancel
+                            {t('actions.cancel', { ns: 'common' })}
                         </Button>
                     )}
                     <Button
@@ -229,7 +243,7 @@ const ProfilePanel: FC = () => {
                         loading={isLoading}
                         disabled={!form.isDirty()}
                     >
-                        Update
+                        {t('actions.update', { ns: 'common' })}
                     </Button>
                 </Flex>
 

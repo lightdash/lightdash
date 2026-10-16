@@ -7,16 +7,30 @@ import {
     IconChartDots,
     IconChartLine,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../common/MantineIcon';
 
-const CHART_TYPE_OPTIONS = [
-    { value: CartesianSeriesType.BAR, label: 'Bar', icon: IconChartBar },
-    { value: CartesianSeriesType.LINE, label: 'Line', icon: IconChartLine },
-    { value: CartesianSeriesType.AREA, label: 'Area', icon: IconChartArea },
+const getChartTypeOptions = (t: TFunction) => [
+    {
+        value: CartesianSeriesType.BAR,
+        label: t('series.chartType.bar'),
+        icon: IconChartBar,
+    },
+    {
+        value: CartesianSeriesType.LINE,
+        label: t('series.chartType.line'),
+        icon: IconChartLine,
+    },
+    {
+        value: CartesianSeriesType.AREA,
+        label: t('series.chartType.area'),
+        icon: IconChartArea,
+    },
     {
         value: CartesianSeriesType.SCATTER,
-        label: 'Scatter',
+        label: t('series.chartType.scatter'),
         icon: IconChartDots,
     },
 ];
@@ -33,26 +47,32 @@ export const ChartTypeSelect: FC<Props> = ({
     showMixed,
     showLabel = true,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const options = useMemo(
         () => [
-            ...CHART_TYPE_OPTIONS,
+            ...getChartTypeOptions(t),
             ...(showMixed
-                ? [{ value: 'mixed', label: 'Mixed', icon: IconChartAreaLine }]
+                ? [
+                      {
+                          value: 'mixed',
+                          label: t('series.chartType.mixed'),
+                          icon: IconChartAreaLine,
+                      },
+                  ]
                 : []),
         ],
-        [showMixed],
+        [showMixed, t],
     );
 
     const selectedChartIcon = useMemo(
-        () =>
-            CHART_TYPE_OPTIONS.find((type) => type.value === chartValue)?.icon,
-        [chartValue],
+        () => options.find((type) => type.value === chartValue)?.icon,
+        [chartValue, options],
     );
 
     return (
         <Select
             allowDeselect={false}
-            label={showLabel && 'Type'}
+            label={showLabel && t('series.chartType.type')}
             value={chartValue}
             data={options}
             onChange={onChange}

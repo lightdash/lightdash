@@ -6,12 +6,15 @@ import {
 } from '@lightdash/common';
 import { Anchor, Box } from '@mantine/core';
 import dayjs from 'dayjs';
+import { type TFunction } from 'i18next';
 import { useMemo, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import { useOrgUsersByUuid } from '../../../../../hooks/useOrganizationUsers';
 import { useAiAgentReviewItemActivity } from '../../hooks/useAiAgentAdmin';
 import styles from './RemediationActivityTimeline.module.css';
+import { reviewPriorityLabels } from './reviewItemDetails';
 
 const LIVE_POLL_INTERVAL_MS = 5_000;
 // Writeback streams step messages, so poll faster while it runs.
@@ -45,44 +48,51 @@ type TimelineRow = {
     tone?: TimelineTone;
 };
 
-const humanizeStatus = (status: string) => status.replaceAll('_', ' ');
-
 const issueEventRow = (
     event: Extract<AiAgentReviewActivityEvent, { kind: 'issue' }>,
+    t: TFunction,
 ): Pick<TimelineRow, 'label' | 'meta' | 'tone'> => {
     switch (event.eventType) {
         case 'created':
-            return { label: 'Issue opened', meta: null };
+            return { label: t('timeline.issueOpened'), meta: null };
         case 'status_changed':
             return {
-                label: `Status changed to ${humanizeStatus(event.payload.to)}`,
+                label: t('timeline.statusChanged', {
+                    status: t(`threadsTable.reviewStatus.${event.payload.to}`),
+                }),
                 meta: event.payload.from
-                    ? `from ${humanizeStatus(event.payload.from)}`
+                    ? t('timeline.statusFrom', {
+                          status: t(
+                              `threadsTable.reviewStatus.${event.payload.from}`,
+                          ),
+                      })
                     : null,
             };
         case 'assignee_changed':
             return {
-                label: event.payload.toUserUuid ? 'Assigned' : 'Unassigned',
+                label: event.payload.toUserUuid
+                    ? t('timeline.assigned')
+                    : t('timeline.unassigned'),
                 meta: null,
             };
         case 'recurred':
             return {
-                label: 'Recurred — seen again',
+                label: t('timeline.recurred'),
                 meta: null,
                 tone: 'attention',
             };
         case 'priority_changed':
             return {
-                label: 'Priority changed',
-                meta: `${event.payload.from} → ${event.payload.to}`,
+                label: t('timeline.priorityChanged'),
+                meta: `${reviewPriorityLabels[event.payload.from]} → ${reviewPriorityLabels[event.payload.to]}`,
             };
         case 'comment_added':
             return {
-                label: 'Comment added',
+                label: t('timeline.commentAdded'),
                 meta: truncate(event.payload.body, 160),
             };
         default:
-            return { label: 'Updated', meta: null };
+            return { label: t('timeline.updated'), meta: null };
     }
 };
 
@@ -98,6 +108,7 @@ const buildThreadPath = (
 const eventRow = (
     event: AiAgentReviewRemediationEvent,
     reviewItem: AiAgentReviewItemSummary,
+    t: TFunction,
 ): Pick<TimelineRow, 'label' | 'meta' | 'tone'> => {
     const remediation = reviewItem.remediation;
     switch (event.eventType) {
@@ -110,13 +121,17 @@ const eventRow = (
                   )
                 : null;
             return {
-                label: 'Finding opened',
+                label: t('timeline.findingOpened'),
                 meta: (
                     <>
                         {event.payload.excerpt
-                            ? `“${truncate(event.payload.excerpt)}”`
+                            ? t('timeline.quotedExcerpt', {
+                                  excerpt: truncate(event.payload.excerpt),
+                              })
                             : null}
-                        {event.payload.excerpt ? ' — from the ' : 'From the '}
+                        {event.payload.excerpt
+                            ? t('timeline.fromThe')
+                            : t('timeline.fromTheStart')}
                         {threadPath ? (
                             <Anchor
                                 component={Link}
@@ -124,10 +139,10 @@ const eventRow = (
                                 className={styles.metaLink}
                                 inherit
                             >
-                                source thread
+                                {t('timeline.sourceThread')}
                             </Anchor>
                         ) : (
-                            'source thread'
+                            t('timeline.sourceThread')
                         )}
                     </>
                 ),
@@ -143,14 +158,14 @@ const eventRow = (
                       }`
                     : '';
             return {
-                label: 'Writeback ran',
-                meta: files ? `Edited ${files}${counts}` : null,
+                label: t('timeline.writebackRan'),
+                meta: files ? t('timeline.edited', { files, counts }) : null,
                 tone: 'progress',
             };
         }
         case 'pr_opened':
             return {
-                label: 'Pull request opened',
+                label: t('timeline.prOpened'),
                 tone: 'pr',
                 meta: (
                     <Anchor
@@ -160,14 +175,16 @@ const eventRow = (
                         inherit
                     >
                         {event.payload.prNumber
-                            ? `View PR #${event.payload.prNumber}`
-                            : 'View PR'}
+                            ? t('timeline.viewPrNumber', {
+                                  number: event.payload.prNumber,
+                              })
+                            : t('timeline.viewPr')}
                     </Anchor>
                 ),
             };
         case 'pr_updated':
             return {
-                label: 'Pull request updated',
+                label: t('timeline.prUpdated'),
                 tone: 'pr',
                 meta: event.payload.prUrl ? (
                     <Anchor
@@ -176,12 +193,16 @@ const eventRow = (
                         className={styles.metaLink}
                         inherit
                     >
-                        View PR
+                        {t('timeline.viewPr')}
                     </Anchor>
                 ) : null,
             };
         case 'preview_compiled':
-            return { label: 'Preview compiled', meta: null, tone: 'progress' };
+            return {
+                label: t('timeline.previewCompiled'),
+                meta: null,
+                tone: 'progress',
+            };
         case 'verification_completed': {
             const threadPath = buildThreadPath(
                 remediation?.previewProjectUuid ?? null,
@@ -189,7 +210,7 @@ const eventRow = (
                 event.payload.previewThreadUuid,
             );
             return {
-                label: 'Fix verified',
+                label: t('timeline.fixVerified'),
                 tone: 'success',
                 meta: threadPath ? (
                     <Anchor
@@ -198,46 +219,51 @@ const eventRow = (
                         className={styles.metaLink}
                         inherit
                     >
-                        Open verification thread
+                        {t('timeline.openVerificationThread')}
                     </Anchor>
                 ) : null,
             };
         }
         case 'pr_merged':
-            return { label: 'Pull request merged', meta: null, tone: 'pr' };
+            return { label: t('timeline.prMerged'), meta: null, tone: 'pr' };
         case 'pr_closed':
-            return { label: 'Pull request closed', meta: null };
+            return { label: t('timeline.prClosed'), meta: null };
         case 'resolved':
-            return { label: 'Resolved', meta: null, tone: 'success' };
+            return {
+                label: t('timeline.resolved'),
+                meta: null,
+                tone: 'success',
+            };
         case 'failed':
             return {
-                label: 'Failed',
+                label: t('timeline.failed'),
                 meta: event.payload.errorMessage,
                 tone: 'danger',
             };
         default:
-            return { label: 'Updated', meta: null };
+            return { label: t('timeline.updated'), meta: null };
     }
 };
 
 const liveRow = (
     liveState: AiAgentReviewRemediationLiveState,
     writebackProgress: string | null,
+    t: TFunction,
 ): TimelineRow => ({
     key: `live-${liveState}`,
     label:
         liveState === 'writeback'
-            ? 'Writeback running'
+            ? t('timeline.live.writeback')
             : liveState === 'compiling'
-              ? 'Compiling preview'
-              : 'Verifying fix',
+              ? t('timeline.live.compiling')
+              : t('timeline.live.verifying'),
     meta:
         liveState === 'writeback'
-            ? (writebackProgress ?? 'Editing the dbt project…')
+            ? (writebackProgress ?? t('timeline.live.writebackMeta'))
             : liveState === 'compiling'
-              ? 'Building the preview project from the PR branch…'
-              : 'Re-running the original question in the preview…',
-    when: 'now',
+              ? t('timeline.live.compilingMeta')
+              : t('timeline.live.verifyingMeta'),
+    when: t('timeline.live.now'),
     state: 'live',
     author: null,
 });
@@ -247,6 +273,7 @@ type Props = {
 };
 
 export const RemediationActivityTimeline: FC<Props> = ({ reviewItem }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const usersByUuid = useOrgUsersByUuid();
     const { data } = useAiAgentReviewItemActivity(reviewItem.fingerprint, {
         // Poll only while a step is in flight — settled feeds are static.
@@ -281,8 +308,8 @@ export const RemediationActivityTimeline: FC<Props> = ({ reviewItem }) => {
             previous = dayjs(event.occurredAt).toDate();
             const base =
                 event.kind === 'issue'
-                    ? issueEventRow(event)
-                    : eventRow(event, reviewItem);
+                    ? issueEventRow(event, t)
+                    : eventRow(event, reviewItem, t);
             return {
                 key: event.uuid,
                 when,
@@ -292,9 +319,9 @@ export const RemediationActivityTimeline: FC<Props> = ({ reviewItem }) => {
             };
         });
         return data.liveState
-            ? [...eventRows, liveRow(data.liveState, data.liveMessage)]
+            ? [...eventRows, liveRow(data.liveState, data.liveMessage, t)]
             : eventRows;
-    }, [data, reviewItem, usersByUuid]);
+    }, [data, reviewItem, usersByUuid, t]);
 
     if (rows.length === 0) {
         return null;

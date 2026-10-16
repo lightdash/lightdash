@@ -15,6 +15,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     getRowDims,
     isFieldSubtotalGroupingLevel,
@@ -84,6 +85,7 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
     syncFreezeWith,
     hideFreezeToggle = false,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const { pivotDimensions, visualizationConfig, resultsData } =
         useVisualizationContext();
 
@@ -149,10 +151,10 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
                 opened={isShowTooltipVisible}
                 label={
                     isSubtotalGroupingLevel
-                        ? "Cannot hide while it's a subtotal grouping level"
+                        ? t('table.column.cannotHideSubtotal')
                         : isColumnVisible(fieldId)
-                          ? 'Hide column'
-                          : 'Show column'
+                          ? t('table.column.hideColumn')
+                          : t('table.column.showColumn')
                 }
             >
                 <Box
@@ -192,7 +194,9 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
                     position="top"
                     opened={isFreezeTooltipVisible}
                     label={
-                        isFrozenForDisplay ? 'Unfreeze column' : 'Freeze column'
+                        isFrozenForDisplay
+                            ? t('table.column.unfreezeColumn')
+                            : t('table.column.freezeColumn')
                     }
                 >
                     <Box
@@ -218,7 +222,7 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
             ) : null}
 
             {columnWidth !== undefined ? (
-                <Tooltip position="top" label="Reset column width to auto">
+                <Tooltip position="top" label={t('table.column.resetWidth')}>
                     <Group
                         gap={2}
                         wrap="nowrap"

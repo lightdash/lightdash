@@ -1,6 +1,7 @@
 import { ChartKind } from '@lightdash/common';
 import { Box, Group, Stack, SegmentedControl } from '@mantine/core';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 import { getChartIcon } from '../../common/ResourceIcon/utils';
 import EChartsReactComponent, {
@@ -49,6 +50,7 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
     colors,
     backgroundColor,
 }) => {
+    const { t } = useTranslation('userSettings');
     const AVAILABLE_VISUALIZATIONS = [
         {
             value: ChartKind.VERTICAL_BAR,
@@ -83,7 +85,9 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
 
         const series = Array.from({ length: seriesCount }, (_, index) => ({
             type: 'bar',
-            name: `Bar ${index + 1}`,
+            name: t('appearanceSettingsPanel.chartPreview.barSeries', {
+                number: index + 1,
+            }),
             data: [Math.floor(Math.random() * 50) + 50],
             itemStyle: {
                 color: colors[index % colors.length],
@@ -105,7 +109,9 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
             },
             xAxis: {
                 type: 'category',
-                data: ['Colors'],
+                data: [
+                    t('appearanceSettingsPanel.chartPreview.colorsCategory'),
+                ],
                 axisLabel: { show: false },
                 axisLine: { show: false },
                 axisTick: { show: false },
@@ -124,7 +130,7 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
             },
             series: series,
         };
-    }, [colors]);
+    }, [colors, t]);
 
     const getLineChartOptions = useCallback(() => {
         const seriesCount = 10;
@@ -142,7 +148,13 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
             },
             xAxis: {
                 type: 'category',
-                data: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+                data: [
+                    t('appearanceSettingsPanel.chartPreview.months.jan'),
+                    t('appearanceSettingsPanel.chartPreview.months.feb'),
+                    t('appearanceSettingsPanel.chartPreview.months.mar'),
+                    t('appearanceSettingsPanel.chartPreview.months.apr'),
+                    t('appearanceSettingsPanel.chartPreview.months.may'),
+                ],
                 axisLabel: { show: false },
                 axisLine: { show: false },
                 axisTick: { show: false },
@@ -160,7 +172,9 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
                 },
             },
             series: Array.from({ length: seriesCount }, (_, index) => ({
-                name: `Line ${index + 1}`,
+                name: t('appearanceSettingsPanel.chartPreview.lineSeries', {
+                    number: index + 1,
+                }),
                 type: 'line',
                 stack: undefined,
                 data: [
@@ -180,7 +194,7 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
                 symbolSize: 6,
             })),
         };
-    }, [colors]);
+    }, [colors, t]);
 
     const getPieChartOptions = useCallback(() => {
         const seriesCount = 10;
@@ -194,7 +208,9 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
             },
             series: [
                 {
-                    name: 'Categories',
+                    name: t(
+                        'appearanceSettingsPanel.chartPreview.categoriesSeries',
+                    ),
                     type: 'pie',
                     avoidLabelOverlap: false,
                     itemStyle: {
@@ -214,7 +230,10 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
                     },
                     data: Array.from({ length: seriesCount }, (_, index) => ({
                         value: 100 - index * 5, // Descending values for better visualization
-                        name: `Category ${index + 1}`,
+                        name: t(
+                            'appearanceSettingsPanel.chartPreview.categoryItem',
+                            { number: index + 1 },
+                        ),
                         itemStyle: {
                             color: colors[index % colors.length],
                         },
@@ -222,7 +241,7 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
                 },
             ],
         };
-    }, [colors]);
+    }, [colors, t]);
 
     const chartOptions = useMemo(() => getChartOptions(), [getChartOptions]);
     const lineChartOptions = useMemo(

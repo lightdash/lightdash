@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     explorerActions,
     selectParameters,
@@ -24,7 +25,7 @@ import {
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { getUniqueTableCalculationName } from '../../../features/tableCalculation/utils';
-import { TemplateTypeLabels } from '../../../features/tableCalculation/utils/templateFormatting';
+import { getTemplateTypeLabel } from '../../../features/tableCalculation/utils/templateFormatting';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { generateTableCalculationTemplate } from './tableCalculationTemplateGenerator';
@@ -33,8 +34,6 @@ type Props = {
     item: Metric;
     onCalculationCreated?: (tableCalculation: TableCalculation) => void;
 };
-
-// Use shared template labels from utilities
 
 const getFormatForQuickCalculation = (
     templateType: TableCalculationTemplateType,
@@ -128,6 +127,7 @@ const QuickCalculationMenuOptions: FC<Props> = ({
     item,
     onCalculationCreated,
 }) => {
+    const { t } = useTranslation('explorer');
     const dispatch = useExplorerDispatch();
     const { track } = useTracking();
 
@@ -151,8 +151,10 @@ const QuickCalculationMenuOptions: FC<Props> = ({
     const handleQuickCalculation = (
         templateType: TableCalculationTemplateType,
     ) => {
-        const displayName = TemplateTypeLabels[templateType];
-        const name = `${displayName} of ${item.label}`;
+        const name = t('quickCalculations.calculationName', {
+            calculation: getTemplateTypeLabel(templateType),
+            field: item.label,
+        });
         const uniqueName = getUniqueTableCalculationName(
             name,
             tableCalculations,
@@ -185,18 +187,17 @@ const QuickCalculationMenuOptions: FC<Props> = ({
 
     return (
         <>
-            <Menu.Label>Add quick calculation</Menu.Label>
+            <Menu.Label>{t('quickCalculations.title')}</Menu.Label>
 
             {Object.values(TableCalculationTemplateType).map((templateType) => {
                 if (!isCalculationAvailable(templateType, item)) return null;
 
-                const displayName = TemplateTypeLabels[templateType];
                 return (
                     <Menu.Item
                         key={templateType}
                         onClick={() => handleQuickCalculation(templateType)}
                     >
-                        {displayName}
+                        {getTemplateTypeLabel(templateType)}
                     </Menu.Item>
                 );
             })}

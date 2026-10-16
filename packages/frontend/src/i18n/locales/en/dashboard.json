@@ -1,0 +1,259 @@
+{
+    "tabs": {
+        "tabName": "Tab name",
+        "tabNamePlaceholder": "Name your tab",
+        "addModal": {
+            "title": "Add new tab"
+        },
+        "editModal": {
+            "title": "Edit your tab"
+        },
+        "duplicateModal": {
+            "title": "Duplicate Tab",
+            "confirm": "Create duplicate",
+            "copyOf": "Copy of {{name}}",
+            "nameRequired": "Tab name is required",
+            "nameTooLong": "Tab name must be at most 255 characters"
+        },
+        "menu": {
+            "rename": "Rename Tab",
+            "duplicate": "Duplicate Tab",
+            "show": "Show Tab",
+            "hide": "Hide Tab",
+            "remove": "Remove Tab",
+            "safelyRemove": "Safely Remove Tab"
+        },
+        "deleteModal": {
+            "title": "Remove tab",
+            "transfer": "Transfer",
+            "deleteTiles": "Delete tiles",
+            "question": "What would you like to do with the tiles in this tab before removing it?",
+            "deleteAllOption": "Delete all tiles in this tab",
+            "transferAllOption": "Transfer all tiles to another tab",
+            "pickTabPlaceholder": "Pick a tab",
+            "schedulersWarningTitle": "Warning: Scheduled deliveries affected",
+            "schedulersUsedBy_one": "This tab is currently used by <bold>{{count}}</bold> scheduled delivery:",
+            "schedulersUsedBy_other": "This tab is currently used by <bold>{{count}}</bold> scheduled deliveries:",
+            "confirmDelete_one": "Are you sure you want to delete the tab <bold>\"{{name}}\"</bold> and its <bold>{{count}}</bold> tile?",
+            "confirmDelete_other": "Are you sure you want to delete the tab <bold>\"{{name}}\"</bold> and its <bold>{{count}}</bold> tiles?",
+            "alsoDeletesCharts_one": "On save, this action will also permanently delete the following chart that was created from within it:",
+            "alsoDeletesCharts_other": "On save, this action will also permanently delete the following charts that were created from within it:",
+            "toastTransferred_one": "Tab \"{{name}}\" was removed and {{count}} tile was successfully transferred.",
+            "toastTransferred_other": "Tab \"{{name}}\" was removed and {{count}} tiles were successfully transferred.",
+            "toastDeleted_one": "Tab \"{{name}}\" was removed and {{count}} tile deleted.",
+            "toastDeleted_other": "Tab \"{{name}}\" was removed and {{count}} tiles deleted."
+        },
+        "limit": {
+            "title": "Tab limit reached",
+            "subtitle": "You've reached the maximum of {{max}} tabs per dashboard. Consider creating a new dashboard.",
+            "tooltip": "Maximum {{max}} tabs per dashboard. Consider creating a new dashboard."
+        },
+        "addNewTab": "Add a new tab",
+        "newTab": "New tab"
+    },
+    "tileForms": {
+        "title": "Title",
+        "titlePlaceholder": "Tile title",
+        "showTileFrame": "Show tile frame",
+        "headingText": "Heading text",
+        "headingTextPlaceholder": "Enter heading text",
+        "showDivider": "Display a divider below the heading",
+        "loomUrl": "Loom url",
+        "loomUrlPlaceholder": "e.g https://www.loom.com/share/1234567890",
+        "dataApp": {
+            "label": "Data app",
+            "description": "Only apps that were moved to a space can be added to a dashboard.",
+            "loading": "Loading apps...",
+            "placeholder": "Pick a data app",
+            "nothingFound": "No matching data apps",
+            "loadFailed": "Failed to load apps"
+        },
+        "moveToTab": {
+            "title": "Move tile to another tab",
+            "confirm": "Move",
+            "selectLabel": "Select tab to move this tile to",
+            "noTabs": "No tabs available"
+        },
+        "validation": {
+            "invalidLoomUrl": "Loom url not valid",
+            "required": "Required field",
+            "titleOrContentRequired": "Title or content is required"
+        },
+        "editTitle": {
+            "markdown": "Edit markdown tile",
+            "loom": "Edit loom tile",
+            "heading": "Edit heading tile",
+            "dataApp": "Edit data app tile",
+            "savedChart": "Edit saved_chart tile",
+            "sqlChart": "Edit sql_chart tile"
+        },
+        "addTitle": {
+            "markdown": "Add markdown tile",
+            "loom": "Add loom tile",
+            "heading": "Add heading tile",
+            "dataApp": "Add data app tile"
+        },
+        "editContent": {
+            "title": "Edit tile content",
+            "selectChart": "Select chart"
+        },
+        "searchPlaceholder": "Search...",
+        "noChartsFound": "No charts found",
+        "loadMore": "Load more",
+        "addCharts": {
+            "title": "Add saved charts",
+            "selectLabel": "Select the charts you want to add to this dashboard",
+            "alreadyAdded": "This chart has already been added to this dashboard"
+        }
+    },
+    "chartEditor": {
+        "openChartPage": "Open chart page",
+        "prepareMetricRemovalFailed": "Failed to prepare metric removal",
+        "customMetricRemoved": "Custom metric removed from this dashboard",
+        "customMetricRemoveFailed": "Failed to remove custom metric",
+        "editNameDescription": "Edit name and description",
+        "versionHistory": "Version history",
+        "versions": "Versions",
+        "tablesTitle": "Tables"
+    },
+    "tile": {
+        "exportImage": "Export Image",
+        "exportData": "Export Data",
+        "editChart": "Edit chart",
+        "duplicate": "Duplicate",
+        "copyLink": "Copy link to tile",
+        "moveToAnotherTab": "Move to another tab",
+        "deleteChart": "Delete chart",
+        "removeTile": "Remove tile",
+        "viewChart": "View chart",
+        "verifiedBy": "Verified by {{name}}",
+        "verified": "Verified",
+        "queryError": "Error running query",
+        "downloadData": "Download data",
+        "cannotEditInSpace": "Cannot edit chart belonging to space: <bold>{{spaceName}}</bold>",
+        "noEditPermission": "You do not have permission to edit this chart",
+        "duplicatedSuccess": "Chart duplicated and added at the bottom of this dashboard",
+        "parameters": "Parameters",
+        "filters": {
+            "isAnyValue": "is any value",
+            "dashboardFiltersApplied_one": "Dashboard filter applied:",
+            "dashboardFiltersApplied_other": "Dashboard filters applied:",
+            "chartFilters_one": "Chart filter:",
+            "chartFilters_other": "Chart filters:",
+            "overriddenByDashboard": "(overridden by dashboard)",
+            "unknownField": "Tried to reference field with unknown id: {{fieldId}}"
+        },
+        "finishEditingToUseActions": "Finish editing dashboard to use these actions",
+        "customDimensionsWarning": "This chart contains custom dimensions, you will not be able to run custom SQL on explore.",
+        "moveToSpace": "Move to space",
+        "rebuildPreAggregate": "Rebuild pre-aggregate",
+        "duplicateChart": "Duplicate chart",
+        "copyValue": "Copy value",
+        "deletedChart": "Deleted chart",
+        "chartDeleted": "This chart has been deleted."
+    },
+    "executionInfo": {
+        "rows": "Rows",
+        "source": {
+            "label": "Source",
+            "resultCache": "Result cache",
+            "warehousePreAggregateFailed": "Warehouse (pre-aggregate failed)",
+            "duckdbPreAggregate": "DuckDB pre-aggregate",
+            "externalPreAggregate": "External pre-aggregate",
+            "warehouse": "Warehouse"
+        },
+        "queue": "Queue",
+        "execution": "Execution",
+        "network": "Network",
+        "total": "Total"
+    },
+    "emptyState": {
+        "startBuilding": "Start building your dashboard!",
+        "dashboardEmpty": "Dashboard is empty.",
+        "addTilesToTab": "Add tiles to this tab",
+        "tabEmpty": "Tab is empty",
+        "noSavedCharts": "You haven’t saved any charts yet.",
+        "runQuery": "Run a query"
+    },
+    "addTile": {
+        "addTile": "Add tile",
+        "tiles": "Tiles",
+        "savedChart": "Saved chart",
+        "newChart": "New chart",
+        "newChartInPlace": "Build a new chart and add it to this dashboard",
+        "newChartExclusive": "Charts generated from here are exclusive to this dashboard",
+        "dataApp": "Data app",
+        "markdown": "Markdown",
+        "loom": "Loom video",
+        "elements": "Elements",
+        "tab": "Tab",
+        "heading": "Heading",
+        "addTab": "Add tab",
+        "tileLimitReached": "This tab has reached the {{max}}-tile limit. Add a new tab to continue adding tiles.",
+        "allLimitsReached": "Maximum limits reached: {{maxTiles}} tiles per tab, {{maxTabs}} tabs per dashboard."
+    },
+    "dataAppTile": {
+        "filtersAvailableCount_one": "{{count}} dashboard filter available to this Data App",
+        "filtersAvailableCount_other": "{{count}} dashboard filters available to this Data App",
+        "filtersAvailableHeading_one": "Dashboard filter available to this Data App:",
+        "filtersAvailableHeading_other": "Dashboard filters available to this Data App:",
+        "isAnyValue": "is any value",
+        "continueBuilding": "Continue building",
+        "notAvailable": {
+            "title": "Data app not available",
+            "preview": "Data apps aren't duplicated into preview environments yet. You can however edit or remove the tile itself.",
+            "deleted": "This data app no longer exists. Edit the tile to pick another app."
+        },
+        "noAccess": {
+            "title": "No access",
+            "description": "You don't have permission to view this data app."
+        },
+        "noReadyVersion": {
+            "title": "No ready version",
+            "description": "This data app hasn't finished building yet."
+        },
+        "loadFailed": "Failed to load app"
+    },
+    "sqlChartTile": {
+        "editSqlChart": "Edit SQL chart",
+        "deleted": "This SQL chart has been deleted.",
+        "fetchError": "Error fetching chart",
+        "deletedTitle": "Deleted SQL chart"
+    },
+    "dateZoom": {
+        "removeDefault": "Remove default",
+        "setAsDefault": "Set as default",
+        "granularities": "Granularities",
+        "custom": "Custom",
+        "granularity": "Granularity",
+        "resetToDefault": "Reset to default",
+        "configure": "Configure",
+        "hiddenFromViewers": "Hidden from viewers. Click to show.",
+        "visibleToViewers": "Visible to viewers. Click to hide.",
+        "toggleVisibility": "Toggle zoom control visibility for viewers",
+        "defaultControlName": "Date zoom",
+        "addDateZoom": "Add date zoom",
+        "config": {
+            "standard": "Standard",
+            "untitledChart": "Untitled chart",
+            "inControl": "In {{name}}",
+            "followsVia": "Follows the selected granularity via",
+            "dateField": "Date field",
+            "expandTab": "Expand tab",
+            "collapseTab": "Collapse tab",
+            "selectedOfTotal": "({{selected}} of {{total}} selected)",
+            "settingsTab": "Settings",
+            "chartTilesTab": "Chart tiles",
+            "controlName": "Control name",
+            "controlNamePlaceholder": "e.g. Revenue zoom",
+            "defaultGranularity": "Default granularity",
+            "selectAtLeastOne": "Select at least one chart",
+            "targeting_one": "Targeting {{count}} chart",
+            "targeting_other": "Targeting {{count}} charts",
+            "editCharts": "Edit charts",
+            "noEligibleTiles": "No chart tiles with a date dimension to zoom.",
+            "selectAll": "Select all",
+            "saveChanges": "Save changes"
+        }
+    }
+}

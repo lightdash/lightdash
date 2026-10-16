@@ -1,4 +1,5 @@
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router';
 import AuthLayout from '../components/common/AuthLayout';
 import PageSpinner from '../components/PageSpinner';
@@ -6,6 +7,7 @@ import useApp from '../providers/App/useApp';
 import { PasswordRecoveryForm } from './PasswordRecoveryForm';
 
 const PasswordRecovery: FC = () => {
+    const { t } = useTranslation('auth');
     const { health } = useApp();
 
     if (health.isInitialLoading) {
@@ -17,7 +19,7 @@ const PasswordRecovery: FC = () => {
     }
 
     return (
-        <AuthLayout pageTitle="Recover password">
+        <AuthLayout pageTitle={t('passwordRecovery.pageTitle')}>
             <PasswordRecoveryForm />
         </AuthLayout>
     );

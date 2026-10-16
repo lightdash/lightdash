@@ -32,7 +32,9 @@ import {
     IconEyeCheck,
     IconGitPullRequest,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useMemo, useState, type CSSProperties, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
@@ -50,18 +52,18 @@ import { draftFieldLabel } from '../utils/draftFieldLabel';
 import classes from './ContentReviewPage.module.css';
 import staleClasses from './DraftStalePanel.module.css';
 
-const timeAgo = (date: Date | string): string => {
+const timeAgo = (t: TFunction, date: Date | string): string => {
     const seconds = Math.max(
         0,
         Math.round((Date.now() - new Date(date).getTime()) / 1000),
     );
-    if (seconds < 60) return 'just now';
+    if (seconds < 60) return t('review.timeAgo.justNow');
     const minutes = Math.round(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
+    if (minutes < 60) return t('review.timeAgo.minutes', { count: minutes });
     const hours = Math.round(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
+    if (hours < 24) return t('review.timeAgo.hours', { count: hours });
     const days = Math.round(hours / 24);
-    if (days < 7) return `${days}d ago`;
+    if (days < 7) return t('review.timeAgo.days', { count: days });
     return new Date(date).toLocaleDateString();
 };
 
@@ -98,19 +100,20 @@ const changeStats = (
 };
 
 const writebackLabel = (
+    t: TFunction,
     status: ContentDraftSummary['writebackStatus'],
 ): string => {
     switch (status) {
         case 'merged':
-            return 'PR merged';
+            return t('review.writeback.merged');
         case 'closed':
-            return 'PR closed';
+            return t('review.writeback.closed');
         case 'error':
-            return 'Write-back failed';
+            return t('review.writeback.error');
         case 'pending':
         case 'open':
         case null:
-            return 'PR opened';
+            return t('review.writeback.opened');
         default:
             return assertUnreachable(
                 status,
@@ -119,17 +122,21 @@ const writebackLabel = (
     }
 };
 
-const rowMeta = (draft: ContentDraftSummary): string => {
-    const author = draft.authorName ?? 'Unknown author';
-    const when = timeAgo(draft.updatedAt);
+const rowMeta = (t: TFunction, draft: ContentDraftSummary): string => {
+    const author = draft.authorName ?? t('review.unknownAuthor');
+    const when = timeAgo(t, draft.updatedAt);
     switch (draft.status) {
         case 'written_back':
-            return `${writebackLabel(draft.writebackStatus)} · ${author} · ${when}`;
+            return t('review.rowMetaWrittenBack', {
+                status: writebackLabel(t, draft.writebackStatus),
+                author,
+                when,
+            });
         case 'dismissed':
-            return `Dismissed · ${author} · ${when}`;
+            return t('review.rowMetaDismissed', { author, when });
         case 'open':
         default:
-            return `${author} · ${when}`;
+            return t('review.rowMeta', { author, when });
     }
 };
 
@@ -147,55 +154,59 @@ const DraftRow: FC<{
     draft: ContentDraftSummary;
     isActive: boolean;
     onSelect: () => void;
-}> = ({ draft, isActive, onSelect }) => (
-    <UnstyledButton
-        onClick={onSelect}
-        className={classes.row}
-        data-active={isActive}
-    >
-        <Group gap="sm" wrap="nowrap">
-            <Avatar size={26} radius="xl" color="gray" variant="light">
-                <Text size="10px" fw={600}>
-                    {initials(draft.authorName)}
-                </Text>
-            </Avatar>
-            <Stack gap={1} flex={1} miw={0}>
-                <Group gap={6} wrap="nowrap">
-                    <Text size="sm" fw={isActive ? 600 : 500} truncate>
-                        {draft.slug}
+}> = ({ draft, isActive, onSelect }) => {
+    const { t } = useTranslation('contentAsCode');
+    return (
+        <UnstyledButton
+            onClick={onSelect}
+            className={classes.row}
+            data-active={isActive}
+        >
+            <Group gap="sm" wrap="nowrap">
+                <Avatar size={26} radius="xl" color="gray" variant="light">
+                    <Text size="10px" fw={600}>
+                        {initials(draft.authorName)}
                     </Text>
-                    {draft.stale ? (
-                        <Badge size="xs" color="yellow">
-                            Behind repo
-                        </Badge>
-                    ) : null}
-                </Group>
-                <Text size="xs" c="dimmed" truncate>
-                    {rowMeta(draft)}
-                </Text>
-            </Stack>
-        </Group>
-    </UnstyledButton>
-);
+                </Avatar>
+                <Stack gap={1} flex={1} miw={0}>
+                    <Group gap={6} wrap="nowrap">
+                        <Text size="sm" fw={isActive ? 600 : 500} truncate>
+                            {draft.slug}
+                        </Text>
+                        {draft.stale ? (
+                            <Badge size="xs" color="yellow">
+                                {t('review.behindRepoBadge')}
+                            </Badge>
+                        ) : null}
+                    </Group>
+                    <Text size="xs" c="dimmed" truncate>
+                        {rowMeta(t, draft)}
+                    </Text>
+                </Stack>
+            </Group>
+        </UnstyledButton>
+    );
+};
 
 const ReviewPlaceholder: FC<{
     active: ContentDraftSummary | undefined;
     error: ApiError | null;
     onDismiss: (draftUuid: string) => void;
 }> = ({ active, error, onDismiss }) => {
+    const { t } = useTranslation('contentAsCode');
     if (!active || !error) {
         return (
             <Box mt="xl">
                 <Text c="dimmed" ta="center">
-                    Select a draft to review
+                    {t('review.selectDraft')}
                 </Text>
             </Box>
         );
     }
     const title =
         error.error.statusCode === 404
-            ? `This draft's ${active.contentType} no longer exists.`
-            : "This draft couldn't be loaded.";
+            ? t('review.contentMissing', { context: active.contentType })
+            : t('review.loadFailed');
     return (
         <Stack mt="xl" gap={4} align="center">
             <Text ta="center">{title}</Text>
@@ -211,7 +222,7 @@ const ReviewPlaceholder: FC<{
                     variant="default"
                     onClick={() => onDismiss(active.uuid)}
                 >
-                    Dismiss draft
+                    {t('review.dismissDraft')}
                 </Button>
             ) : null}
         </Stack>
@@ -223,6 +234,7 @@ type ContentReviewPageProps = {
 };
 
 const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
+    const { t } = useTranslation('contentAsCode');
     const colorScheme = useComputedColorScheme('light');
     const { data: drafts } = useContentDrafts(projectUuid);
     const [selectedUuid, setSelectedUuid] = useState<string | undefined>();
@@ -279,11 +291,9 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                     >
                         <MantineIcon icon={IconEyeCheck} size="lg" />
                     </ThemeIcon>
-                    <Text fw={600}>All clear</Text>
+                    <Text fw={600}>{t('review.allClear')}</Text>
                     <Text size="sm" c="dimmed" ta="center" maw={360}>
-                        When editors save unpublished changes to managed charts
-                        or dashboards, their drafts land here for you to review
-                        and write back to the repo.
+                        {t('review.emptyDescription')}
                     </Text>
                 </Stack>
             </Center>
@@ -298,7 +308,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                         {openDrafts.length > 0 && (
                             <Stack gap={4}>
                                 <SectionLabel
-                                    label="Awaiting review"
+                                    label={t('review.awaitingReview')}
                                     count={openDrafts.length}
                                 />
                                 {openDrafts.map((draft) => (
@@ -315,7 +325,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                         )}
                         {historyDrafts.length > 0 && (
                             <Stack gap={4}>
-                                <SectionLabel label="History" />
+                                <SectionLabel label={t('review.history')} />
                                 {historyDrafts.map((draft) => (
                                     <DraftRow
                                         key={draft.uuid}
@@ -348,9 +358,12 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                 </Text>
                                 <Group gap={6}>
                                     <Text size="xs" c="dimmed">
-                                        Draft by{' '}
-                                        {active.authorName ?? 'unknown'} ·
-                                        updated {timeAgo(active.updatedAt)}
+                                        {t('review.draftBy', {
+                                            author:
+                                                active.authorName ??
+                                                t('review.unknown'),
+                                            when: timeAgo(t, active.updatedAt),
+                                        })}
                                         {stats
                                             ? ` · +${stats.added} −${stats.removed}`
                                             : ''}
@@ -367,7 +380,9 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                         underline="always"
                                     >
                                         <Group gap={2} display="inline-flex">
-                                            Open {active.contentType}
+                                            {t('review.open', {
+                                                context: active.contentType,
+                                            })}
                                             <MantineIcon
                                                 icon={IconExternalLink}
                                                 size="sm"
@@ -389,7 +404,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                             />
                                         }
                                     >
-                                        View pull request
+                                        {t('review.viewPullRequest')}
                                     </Button>
                                 ) : active.status === 'open' ? (
                                     <>
@@ -408,16 +423,15 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                                         )
                                                     }
                                                 >
-                                                    Dismiss
+                                                    {t('review.dismiss')}
                                                 </Button>
                                             </Popover.Target>
                                             <Popover.Dropdown>
                                                 <Stack gap="xs">
                                                     <Text size="sm" maw={220}>
-                                                        Dismiss this draft? The
-                                                        author's changes stay
-                                                        unpublished and won't
-                                                        reach the repo.
+                                                        {t(
+                                                            'review.dismissConfirm',
+                                                        )}
                                                     </Text>
                                                     <Button
                                                         size="xs"
@@ -431,7 +445,9 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                                             );
                                                         }}
                                                     >
-                                                        Dismiss draft
+                                                        {t(
+                                                            'review.dismissDraft',
+                                                        )}
                                                     </Button>
                                                 </Stack>
                                             </Popover.Dropdown>
@@ -439,8 +455,23 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                         <Tooltip
                                             label={
                                                 review.staleness
-                                                    ? `The repo changed ${review.staleness.changedFields.join(', ')} since this draft started. The author has to update it first.`
-                                                    : `Opens this ${active.contentType}'s pull request with the draft's content`
+                                                    ? t('review.staleTooltip', {
+                                                          fields: review.staleness.changedFields
+                                                              .map((field) =>
+                                                                  draftFieldLabel(
+                                                                      field,
+                                                                      true,
+                                                                  ),
+                                                              )
+                                                              .join(', '),
+                                                      })
+                                                    : t(
+                                                          'review.writeBackTooltip',
+                                                          {
+                                                              context:
+                                                                  active.contentType,
+                                                          },
+                                                      )
                                             }
                                             w={300}
                                         >
@@ -460,7 +491,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                                     writeBack(active.uuid)
                                                 }
                                             >
-                                                Write back to repo
+                                                {t('review.writeBack')}
                                             </Button>
                                         </Tooltip>
                                     </>
@@ -473,13 +504,11 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                     <Group gap={8} wrap="nowrap">
                                         <span className={staleClasses.dot} />
                                         <Text size="sm" fw={600}>
-                                            Behind the repo
+                                            {t('review.behindTitle')}
                                         </Text>
                                     </Group>
                                     <Text size="sm" c="dimmed">
-                                        The repo published past the version this
-                                        draft started from. The author has to
-                                        update it before it can be written back.
+                                        {t('review.behindDescription')}
                                     </Text>
                                     {(stalenessDetails?.changes ?? []).map(
                                         (change) => (
@@ -489,9 +518,13 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                                         change.field,
                                                     )}
                                                 </Text>
-                                                : repo {change.repo}
+                                                {t('review.changeRepo', {
+                                                    change: change.repo,
+                                                })}
                                                 {change.mine
-                                                    ? `; this draft ${change.mine}`
+                                                    ? t('review.changeMine', {
+                                                          change: change.mine,
+                                                      })
                                                     : ''}
                                             </Text>
                                         ),

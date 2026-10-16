@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { Box, Grid, Group, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { NumberInput } from '../../common/NumberInput';
@@ -22,6 +23,7 @@ import classes from './DndList.module.css';
 import { DraggablePortalHandler } from './DraggablePortalHandler';
 
 export const Layout: React.FC = () => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig, itemsMap } = useVisualizationContext();
 
     if (!isTreemapVisualizationConfig(visualizationConfig)) return null;
@@ -103,10 +105,12 @@ export const Layout: React.FC = () => {
             <Config>
                 <Config.Section>
                     <Group gap="xs">
-                        <Config.Heading>Dimension hierarchy</Config.Heading>
+                        <Config.Heading>
+                            {t('treemap.layout.dimensionHierarchy')}
+                        </Config.Heading>
                         <Tooltip
                             maw={350}
-                            label="Drag and drop your dimensions to order them hierarchically."
+                            label={t('treemap.layout.dimensionHierarchyHelp')}
                         >
                             <MantineIcon
                                 icon={IconHelpCircle}
@@ -143,10 +147,12 @@ export const Layout: React.FC = () => {
             <Config>
                 <Config.Section>
                     <Group gap="xs">
-                        <Config.Heading>Size metric</Config.Heading>
+                        <Config.Heading>
+                            {t('treemap.layout.sizeMetric')}
+                        </Config.Heading>
                         <Tooltip
                             maw={350}
-                            label="Determines how large each block is."
+                            label={t('treemap.layout.sizeMetricHelp')}
                         >
                             <MantineIcon
                                 icon={IconHelpCircle}
@@ -158,7 +164,7 @@ export const Layout: React.FC = () => {
                     </Group>
                     <Group>
                         <FieldSelect<Metric | TableCalculation>
-                            placeholder="Select metric"
+                            placeholder={t('treemap.layout.selectMetric')}
                             disabled={numericMetrics.length === 0}
                             item={selectedSizeMetric}
                             items={numericMetrics}
@@ -181,10 +187,12 @@ export const Layout: React.FC = () => {
             <Config>
                 <Config.Section>
                     <Group gap="xs">
-                        <Config.Heading>Color metric</Config.Heading>
+                        <Config.Heading>
+                            {t('treemap.layout.colorMetric')}
+                        </Config.Heading>
                         <Tooltip
                             maw={350}
-                            label="Dynamically set the color of the nodes based on a metric. If not set, the treemap will use a default color scheme."
+                            label={t('treemap.layout.colorMetricHelp')}
                         >
                             <MantineIcon
                                 icon={IconHelpCircle}
@@ -202,7 +210,7 @@ export const Layout: React.FC = () => {
                     {useDynamicColors ? (
                         <Stack gap="xs">
                             <FieldSelect<Metric | TableCalculation>
-                                placeholder="Select metric"
+                                placeholder={t('treemap.layout.selectMetric')}
                                 disabled={numericMetrics.length === 0}
                                 item={selectedColorMetric}
                                 items={numericMetrics}
@@ -220,7 +228,9 @@ export const Layout: React.FC = () => {
                             />
                             <Grid align="center" gap="xs">
                                 <Grid.Col span={3}>
-                                    <Config.Label>Min color</Config.Label>
+                                    <Config.Label>
+                                        {t('treemap.layout.minColor')}
+                                    </Config.Label>
                                 </Grid.Col>
                                 <Grid.Col span={1}>
                                     <ColorSelector
@@ -232,7 +242,9 @@ export const Layout: React.FC = () => {
                                 </Grid.Col>
                                 <Grid.Col span={8}>
                                     <Group gap="xs" justify="flex-end">
-                                        <Config.Label>Threshold</Config.Label>
+                                        <Config.Label>
+                                            {t('treemap.layout.threshold')}
+                                        </Config.Label>
                                         <NumberInput
                                             size="xs"
                                             value={startColorThreshold}
@@ -242,12 +254,16 @@ export const Layout: React.FC = () => {
                                             hideControls={true}
                                             decimalScale={2}
                                             fixedDecimalScale
-                                            placeholder="Auto (per-level)"
+                                            placeholder={t(
+                                                'treemap.layout.thresholdPlaceholder',
+                                            )}
                                         />
                                     </Group>
                                 </Grid.Col>
                                 <Grid.Col span={3}>
-                                    <Config.Label>Max color</Config.Label>
+                                    <Config.Label>
+                                        {t('treemap.layout.maxColor')}
+                                    </Config.Label>
                                 </Grid.Col>
                                 <Grid.Col span={1}>
                                     <ColorSelector
@@ -264,7 +280,9 @@ export const Layout: React.FC = () => {
                                         gap="xs"
                                         justify="flex-end"
                                     >
-                                        <Config.Label>Threshold</Config.Label>
+                                        <Config.Label>
+                                            {t('treemap.layout.threshold')}
+                                        </Config.Label>
                                         <NumberInput
                                             size="xs"
                                             value={endColorThreshold}
@@ -274,7 +292,9 @@ export const Layout: React.FC = () => {
                                             hideControls={true}
                                             decimalScale={2}
                                             fixedDecimalScale
-                                            placeholder="Auto (per-level)"
+                                            placeholder={t(
+                                                'treemap.layout.thresholdPlaceholder',
+                                            )}
                                         />
                                     </Group>
                                 </Grid.Col>

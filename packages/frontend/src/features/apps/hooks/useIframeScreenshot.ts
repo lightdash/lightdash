@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
+import i18n from '../../../i18n/i18n';
 
 const SCREENSHOT_TIMEOUT_MS = 30_000;
 
@@ -49,7 +50,9 @@ export function useIframeScreenshot(
             }
 
             if (!(blob instanceof Blob)) {
-                request.reject(new Error('Screenshot response missing blob'));
+                request.reject(
+                    new Error(i18n.t('screenshot.missingBlob', { ns: 'apps' })),
+                );
                 return;
             }
 
@@ -63,7 +66,9 @@ export function useIframeScreenshot(
     const captureScreenshot = useCallback(async (): Promise<File> => {
         const iframe = iframeRef.current;
         if (!iframe?.contentWindow) {
-            throw new Error('Iframe not available');
+            throw new Error(
+                i18n.t('screenshot.iframeUnavailable', { ns: 'apps' }),
+            );
         }
 
         const id = crypto.randomUUID();
@@ -71,7 +76,9 @@ export function useIframeScreenshot(
         const blob = await new Promise<Blob>((resolve, reject) => {
             const timer = setTimeout(() => {
                 pending.current.delete(id);
-                reject(new Error('Screenshot timed out'));
+                reject(
+                    new Error(i18n.t('screenshot.timedOut', { ns: 'apps' })),
+                );
             }, SCREENSHOT_TIMEOUT_MS);
 
             pending.current.set(id, { resolve, reject, timer });

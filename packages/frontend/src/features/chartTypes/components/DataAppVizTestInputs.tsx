@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Group, Select, Stack, Text } from '@mantine/core';
 import { useId, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FieldSelect from '../../../components/common/FieldSelect';
 import DataAppVizFieldGuidance, {
     DataAppVizFieldHelp,
@@ -23,6 +24,7 @@ type Props = {
 /** Explore picker + one field select per declared slot, feeding the test
  *  context's mapping. */
 const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
+    const { t } = useTranslation('chartTypes');
     const guidanceIdPrefix = useId();
     const {
         exploreName,
@@ -38,8 +40,8 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
         <Stack gap="xs">
             <Select
                 size="xs"
-                label="Test with data"
-                placeholder="Select a table"
+                label={t('testInputs.testWithData')}
+                placeholder={t('testInputs.selectTable')}
                 searchable
                 data={exploreOptions}
                 value={exploreName}
@@ -109,7 +111,9 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
                                         selectedIds={selectedIds}
                                         describedBy={guidanceId}
                                         addDisabled={items.length === 0}
-                                        emptyPlaceholder={`You need at least one ${poolKeyForSlot(field)} in the selected table`}
+                                        emptyPlaceholder={t(
+                                            `testInputs.needAtLeastOne.${poolKeyForSlot(field)}`,
+                                        )}
                                         onChange={(ids) =>
                                             setField(field.name, ids)
                                         }
@@ -135,7 +139,12 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
                                             size="xs"
                                             aria-label={field.label}
                                             aria-describedby={guidanceId}
-                                            placeholder={`Select ${field.label.toLowerCase()}`}
+                                            placeholder={t(
+                                                'testInputs.selectField',
+                                                {
+                                                    label: field.label.toLowerCase(),
+                                                },
+                                            )}
                                             disabled={items.length === 0}
                                             item={selectedItem}
                                             items={items}

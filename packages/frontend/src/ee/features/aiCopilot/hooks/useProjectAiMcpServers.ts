@@ -23,6 +23,7 @@ import {
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 
 export const PROJECT_AI_MCP_SERVERS_KEY = 'projectAiMcpServers';
@@ -265,7 +266,7 @@ const openOAuthPopup = async ({
         window.open('', 'mcp-oauth-popup', 'width=600,height=700');
 
     if (!oauthPopupWindow) {
-        throw new Error('Failed to open popup window');
+        throw new Error(i18n.t('mcp.errors.popupFailed', { ns: 'aiAgent' }));
     }
 
     oauthPopupWindow.location.href = authorizationUrl;
@@ -280,10 +281,10 @@ const openOAuthPopup = async ({
     }
 
     if (result === 'error') {
-        throw new Error('Authentication failed');
+        throw new Error(i18n.t('mcp.errors.authFailed', { ns: 'aiAgent' }));
     }
 
-    throw new Error('Authentication timed out');
+    throw new Error(i18n.t('mcp.errors.authTimedOut', { ns: 'aiAgent' }));
 };
 
 export const useProjectAiMcpServers = (
@@ -303,7 +304,7 @@ export const useProjectAiMcpServers = (
         enabled: !isEmbed && !!projectUuid && options?.enabled !== false,
         onError: (error) => {
             showToastApiError({
-                title: 'Failed to fetch MCP servers',
+                title: i18n.t('toasts.mcp.fetchFailed', { ns: 'aiAgent' }),
                 apiError: error.error,
             });
             options?.onError?.(error);
@@ -330,7 +331,9 @@ export const useAgentAiMcpServers = (
             options?.enabled !== false,
         onError: (error) => {
             showToastApiError({
-                title: 'Failed to fetch agent MCP servers',
+                title: i18n.t('toasts.mcp.fetchAgentServersFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error.error,
             });
             options?.onError?.(error);
@@ -366,7 +369,7 @@ export const useAgentAiMcpServerTools = (
         ...options,
         onError: (error) => {
             showToastApiError({
-                title: 'Failed to fetch MCP tools',
+                title: i18n.t('toasts.mcp.fetchToolsFailed', { ns: 'aiAgent' }),
                 apiError: error.error,
             });
             options?.onError?.(error);
@@ -386,7 +389,7 @@ export const useProjectCreateAiMcpServerMutation = (projectUuid: string) => {
         mutationFn: (data) => createProjectAiMcpServer(projectUuid, data),
         onSuccess: async (result) => {
             showToastSuccess({
-                title: 'MCP server created successfully',
+                title: i18n.t('toasts.mcp.created', { ns: 'aiAgent' }),
             });
             queryClient.setQueryData(
                 [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
@@ -411,7 +414,7 @@ export const useProjectCreateAiMcpServerMutation = (projectUuid: string) => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to create MCP server',
+                title: i18n.t('toasts.mcp.createFailed', { ns: 'aiAgent' }),
                 apiError: error,
             });
         },
@@ -432,14 +435,18 @@ export const useUpdateAiMcpServerCredentialMutation = (projectUuid: string) => {
                 bearerToken,
             }),
         onSuccess: async () => {
-            showToastSuccess({ title: 'Token updated' });
+            showToastSuccess({
+                title: i18n.t('toasts.mcp.tokenUpdated', { ns: 'aiAgent' }),
+            });
             await queryClient.invalidateQueries({
                 queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update token',
+                title: i18n.t('toasts.mcp.tokenUpdateFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -475,7 +482,7 @@ export const useRenameAiMcpServerMutation = (projectUuid: string) => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to rename MCP server',
+                title: i18n.t('toasts.mcp.renameFailed', { ns: 'aiAgent' }),
                 apiError: error,
             });
         },
@@ -490,12 +497,14 @@ export const useDeleteAiMcpServerMutation = (projectUuid: string) => {
         mutationFn: (mcpServerUuid) =>
             deleteProjectAiMcpServer(projectUuid, mcpServerUuid),
         onSuccess: async () => {
-            showToastSuccess({ title: 'MCP server deleted' });
+            showToastSuccess({
+                title: i18n.t('toasts.mcp.deleted', { ns: 'aiAgent' }),
+            });
             await invalidateMcpServerLists(queryClient, projectUuid);
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to delete MCP server',
+                title: i18n.t('toasts.mcp.deleteFailed', { ns: 'aiAgent' }),
                 apiError: error,
             });
         },
@@ -532,8 +541,11 @@ export const useConnectGithubMcpServerMutation = (projectUuid: string) => {
         mutationFn: (body) => connectGithubMcpServer(projectUuid, body),
         onSuccess: async (result) => {
             showToastSuccess({
-                title: 'GitHub connected',
-                subtitle: `${result.name} is ready to use with your agents.`,
+                title: i18n.t('toasts.mcp.githubConnected', { ns: 'aiAgent' }),
+                subtitle: i18n.t('toasts.mcp.readyToUse', {
+                    ns: 'aiAgent',
+                    name: result.name,
+                }),
             });
             await queryClient.invalidateQueries({
                 queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
@@ -544,7 +556,9 @@ export const useConnectGithubMcpServerMutation = (projectUuid: string) => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to connect GitHub',
+                title: i18n.t('toasts.mcp.githubConnectFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -559,8 +573,11 @@ export const useConnectGithubMcpServerAppMutation = (projectUuid: string) => {
         mutationFn: () => connectGithubMcpServerApp(projectUuid),
         onSuccess: async (result) => {
             showToastSuccess({
-                title: 'GitHub connected',
-                subtitle: `${result.name} is ready to use with your agents.`,
+                title: i18n.t('toasts.mcp.githubConnected', { ns: 'aiAgent' }),
+                subtitle: i18n.t('toasts.mcp.readyToUse', {
+                    ns: 'aiAgent',
+                    name: result.name,
+                }),
             });
             await queryClient.invalidateQueries({
                 queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
@@ -571,7 +588,9 @@ export const useConnectGithubMcpServerAppMutation = (projectUuid: string) => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to connect GitHub',
+                title: i18n.t('toasts.mcp.githubConnectFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -596,7 +615,9 @@ export const useRefreshAiMcpServerToolsMutation = (projectUuid: string) => {
         onSuccess: async (_, variables) => {
             if (variables.showSuccessToast) {
                 showToastSuccess({
-                    title: 'MCP tools refreshed',
+                    title: i18n.t('toasts.mcp.toolsRefreshed', {
+                        ns: 'aiAgent',
+                    }),
                 });
             }
 
@@ -636,7 +657,9 @@ export const useRefreshAiMcpServerToolsMutation = (projectUuid: string) => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to refresh MCP tools',
+                title: i18n.t('toasts.mcp.refreshToolsFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -672,7 +695,7 @@ export const useStartMcpOAuthConnectionMutation = (projectUuid: string) => {
         },
         onSuccess: async () => {
             showToastSuccess({
-                title: 'MCP account connected successfully',
+                title: i18n.t('toasts.mcp.accountConnected', { ns: 'aiAgent' }),
             });
             await queryClient.invalidateQueries({
                 queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
@@ -685,16 +708,18 @@ export const useStartMcpOAuthConnectionMutation = (projectUuid: string) => {
         onError: (error) => {
             if (isApiError(error)) {
                 showToastApiError({
-                    title: 'Authentication failed',
+                    title: i18n.t('mcp.errors.authFailed', { ns: 'aiAgent' }),
                     apiError: error.error,
                 });
                 return;
             }
 
             showToastError({
-                title: 'Authentication failed',
+                title: i18n.t('mcp.errors.authFailed', { ns: 'aiAgent' }),
                 subtitle:
-                    error instanceof Error ? error.message : 'Please try again',
+                    error instanceof Error
+                        ? error.message
+                        : i18n.t('toasts.generic.tryAgain', { ns: 'aiAgent' }),
             });
         },
     });
@@ -723,7 +748,9 @@ export const useDisconnectMcpOAuthConnectionMutation = (
         },
         onSuccess: async () => {
             showToastSuccess({
-                title: 'MCP account disconnected',
+                title: i18n.t('toasts.mcp.accountDisconnected', {
+                    ns: 'aiAgent',
+                }),
             });
             await queryClient.invalidateQueries({
                 queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
@@ -735,8 +762,10 @@ export const useDisconnectMcpOAuthConnectionMutation = (
         },
         onError: (error) => {
             showToastError({
-                title: 'Failed to disconnect MCP account',
-                subtitle: error.message || 'Please try again',
+                title: i18n.t('toasts.mcp.disconnectFailed', { ns: 'aiAgent' }),
+                subtitle:
+                    error.message ||
+                    i18n.t('toasts.generic.tryAgain', { ns: 'aiAgent' }),
             });
         },
     });
@@ -828,7 +857,9 @@ export const useUpdateAgentAiMcpServerToolsMutation = (
                     )?.previousTools,
                 );
                 showToastApiError({
-                    title: 'Failed to update MCP tools',
+                    title: i18n.t('toasts.mcp.updateToolsFailed', {
+                        ns: 'aiAgent',
+                    }),
                     apiError: error,
                 });
             },

@@ -15,6 +15,7 @@ import {
     type UseInfiniteQueryOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
@@ -119,6 +120,7 @@ const createGroupQuery = async (data: CreateGroup) =>
 
 export const useGroupCreateMutation = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<GroupWithMembers, ApiError, CreateGroup>(
         (data) => createGroupQuery(data),
@@ -129,12 +131,12 @@ export const useGroupCreateMutation = () => {
                 await queryClient.invalidateQueries(['organization_users']);
 
                 showToastSuccess({
-                    title: `Success! Group was created.`,
+                    title: t('useOrganizationGroups.successGroupWasCreated'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to create group`,
+                    title: t('useOrganizationGroups.failedToCreateGroup'),
                     apiError: error,
                 });
             },
@@ -156,6 +158,7 @@ const updateGroupQuery = async (
 
 export const useGroupUpdateMutation = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         Group,
@@ -167,12 +170,14 @@ export const useGroupUpdateMutation = () => {
             await queryClient.invalidateQueries(['organization_groups']);
             await queryClient.invalidateQueries(['organization_users']);
             showToastSuccess({
-                title: `Success! Group '${group.name}' was updated.`,
+                title: t('useOrganizationGroups.successGroupWasUpdated', {
+                    name: group.name,
+                }),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to update group`,
+                title: t('useOrganizationGroups.failedToUpdateGroup'),
                 apiError: error,
             });
         },
@@ -188,6 +193,7 @@ const deleteGroupQuery = async (data: Group) =>
 
 export const useGroupDeleteMutation = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<Group, ApiError, Group>(
         (data) => deleteGroupQuery(data),
@@ -198,12 +204,14 @@ export const useGroupDeleteMutation = () => {
                 await queryClient.invalidateQueries(['organization_users']);
 
                 showToastSuccess({
-                    title: `Success! Group '${deletedGroup.name}' was deleted.`,
+                    title: t('useOrganizationGroups.successGroupWasDeleted', {
+                        name: deletedGroup.name,
+                    }),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to delete group`,
+                    title: t('useOrganizationGroups.failedToDeleteGroup'),
                     apiError: error,
                 });
             },

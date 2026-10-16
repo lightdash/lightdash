@@ -11,6 +11,7 @@ import {
     IconUsers,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
 import useHealth from '../../hooks/health/useHealth';
@@ -21,6 +22,7 @@ import MantineIcon from '../common/MantineIcon';
 import { useNavBarMenuProps } from './NavBarPortalContext';
 
 const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
+    const { t } = useTranslation('navigation');
     const menuProps = useNavBarMenuProps();
     const health = useHealth();
     const { user } = useApp();
@@ -41,7 +43,7 @@ const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
     if (helpMenuUrl) {
         return (
             <Button
-                aria-label="Help"
+                aria-label={t('help.label')}
                 variant="default"
                 size="xs"
                 component="a"
@@ -50,7 +52,7 @@ const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                 rel="noopener noreferrer"
             >
                 <MantineIcon icon={IconHelp} />
-                {withLabel && ' Help'}
+                {withLabel && ` ${t('help.label')}`}
             </Button>
         );
     }
@@ -64,9 +66,13 @@ const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
             {...menuProps}
         >
             <Menu.Target>
-                <Button aria-label="Help" variant="default" size="xs">
+                <Button
+                    aria-label={t('help.label')}
+                    variant="default"
+                    size="xs"
+                >
                     <MantineIcon icon={IconHelp} />
-                    {withLabel && ' Help'}
+                    {withLabel && ` ${t('help.label')}`}
                 </Button>
             </Menu.Target>
 
@@ -75,8 +81,8 @@ const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                     component="a"
                     href="https://docs.lightdash.com/"
                     target="_blank"
-                    title="Ask the docs"
-                    description="Chat with the Lightdash docs AI assistant"
+                    title={t('help.docs.title')}
+                    description={t('help.docs.description')}
                     icon={IconBook}
                 />
 
@@ -84,8 +90,8 @@ const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                     <LargeMenuItem
                         component={Link}
                         to="/generalSettings/roadmap"
-                        title="Roadmap"
-                        description="Explore what we're building and track feature requests"
+                        title={t('help.roadmap.title')}
+                        description={t('help.roadmap.description')}
                         icon={IconRoad}
                     />
                 )}
@@ -101,8 +107,8 @@ const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                                 showIntercom();
                             }
                         }}
-                        title="Talk to support"
-                        description="Drop us a message with product questions or feedback"
+                        title={t('help.support.title')}
+                        description={t('help.support.description')}
                         icon={IconMessages}
                     />
                 )}
@@ -111,8 +117,8 @@ const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                     component="a"
                     href="https://join.slack.com/t/lightdash-community/shared_invite/zt-2wgtavou8-VRhwXI%7EQbjCAHQs0WBac3w"
                     target="_blank"
-                    title="Join the Slack community"
-                    description="Get advice share best practices with other users."
+                    title={t('help.slack.title')}
+                    description={t('help.slack.description')}
                     icon={IconUsers}
                 />
 
@@ -122,15 +128,15 @@ const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                         onClick={() => {
                             modals.open({
                                 id: 'support-drawer',
-                                title: 'Share with Lightdash Support',
+                                title: t('help.report.modalTitle'),
                                 size: 'lg',
                                 children: <SupportDrawerContent />,
                                 yOffset: 100,
                                 zIndex: 1000,
                             });
                         }}
-                        title="Report an issue"
-                        description="Share a detailed report with Lightdash support"
+                        title={t('help.report.title')}
+                        description={t('help.report.description')}
                         icon={IconSos}
                     />
                 )}

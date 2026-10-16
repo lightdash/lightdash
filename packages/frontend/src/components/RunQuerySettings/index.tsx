@@ -11,6 +11,7 @@ import {
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconChevronDown, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import ChartTimezoneSelect from '../common/ChartTimezoneSelect';
 import MantineIcon from '../common/MantineIcon';
 import AutoFetchResultsSwitch from './AutoFetchResultsSwitch';
@@ -52,6 +53,7 @@ const RunQuerySettings: FC<Props> = memo(
         isQueryRunning = false,
         onCancelQuery,
     }) => {
+        const { t } = useTranslation('explorer');
         const [opened, { open, close }] = useDisclosure(false);
         const mouseDownInsideRef = useRef(false);
         const handleClickOutside = useCallback(() => {
@@ -98,7 +100,7 @@ const RunQuerySettings: FC<Props> = memo(
             >
                 <Popover.Target>
                     <Tooltip
-                        label="Cancel query"
+                        label={t('runQuerySettings.cancelQuery')}
                         position="bottom"
                         disabled={!showCancel}
                     >
@@ -114,7 +116,9 @@ const RunQuerySettings: FC<Props> = memo(
                             }
                             className={classes.attached}
                             aria-label={
-                                showCancel ? 'Cancel query' : 'Query settings'
+                                showCancel
+                                    ? t('runQuerySettings.cancelQuery')
+                                    : t('runQuerySettings.querySettings')
                             }
                             {...targetProps}
                         >
@@ -163,7 +167,7 @@ const RunQuerySettings: FC<Props> = memo(
                         />
                         {showTimezoneSetting && onTimezoneChange && (
                             <ChartTimezoneSelect
-                                label="Timezone"
+                                label={t('runQuerySettings.timezone')}
                                 value={timezone}
                                 onChange={onTimezoneChange}
                                 w="100%"

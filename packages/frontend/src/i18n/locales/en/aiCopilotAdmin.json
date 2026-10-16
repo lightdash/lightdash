@@ -1,0 +1,1433 @@
+{
+    "battle": {
+        "jev": {
+            "editKinds": {
+                "chartType": "chart type",
+                "filterValues": "filter",
+                "filterPeriod": "date range",
+                "addField": "breakdown",
+                "sort": "sort",
+                "removeFilter": "filter removal",
+                "filterNumber": "threshold filter",
+                "filterBoolean": "yes/no filter",
+                "filterText": "text match",
+                "filterBlank": "blank filter",
+                "acknowledgement": "quick reply",
+                "showQuery": "query summary",
+                "downloadHelp": "download help",
+                "addMetric": "metric addition",
+                "removeMetric": "metric removal",
+                "swapMetric": "metric swap",
+                "removeField": "breakdown removal",
+                "swapField": "breakdown swap",
+                "changeGrain": "time grain change",
+                "clearFilters": "clear filters",
+                "clearSort": "clear sort",
+                "stack": "stack",
+                "unstack": "unstack",
+                "swapAxes": "swap axes",
+                "splitSeries": "split series",
+                "compound": "multi-step edit",
+                "undo": "undo",
+                "renameDocument": "Document rename",
+                "renameChart": "chart rename",
+                "removeChart": "chart removal",
+                "moveChart": "chart move"
+            },
+            "defaultEdit": "edit",
+            "agentBadge": "Agent · {{badge}}",
+            "applied": {
+                "badge": "{{name}} · {{edit}}",
+                "title": "{{name}} applied the {{edit}}",
+                "description": "{{name}} made the change directly, so the agent model never ran and spent no tokens."
+            },
+            "routed": {
+                "badge": "new question",
+                "title": "New question for the agent",
+                "description": "{{name}} read this as a new question rather than a change to the current chart, so the agent answered it."
+            },
+            "clarify": {
+                "badge": "{{name}} · clarifying question",
+                "title": "{{name}} asked which one you meant",
+                "description": "The request fit more than one option about equally, so {{name}} offered the choices instead of guessing. The agent model did not run."
+            },
+            "unresolved": {
+                "badge": "{{name}} unsure",
+                "title": "{{name}} was not confident",
+                "description": "{{name}} looked for a direct chart edit but was not sure enough to apply one, so the agent took over."
+            },
+            "instantReply": {
+                "badge": "{{name}} · {{edit}}",
+                "title": "{{name}} answered directly",
+                "description": "This was a small follow-up {{name}} could answer from the chart itself, so the agent model did not run."
+            },
+            "unavailable": {
+                "badge": "{{name}} unavailable",
+                "title": "{{name}} did not answer",
+                "description": "{{name}} did not respond in time, so the agent handled the turn as usual."
+            },
+            "handedOff": {
+                "title": "{{name}} passed the {{edit}} to the agent",
+                "description": "{{name}} worked out the {{edit}} but it needed more than a direct edit, so the agent finished it."
+            },
+            "decidedIn": "Decided in {{duration}}"
+        },
+        "tokens": {
+            "agent": "{{count}} agent",
+            "decision": "{{count}} {{name}}",
+            "total": "{{parts}} tokens"
+        },
+        "pane": {
+            "status": {
+                "streaming": "Streaming",
+                "failed": "Failed",
+                "waiting": "Waiting"
+            },
+            "defaultModel": "Default model",
+            "queued": "{{count}} queued",
+            "firstToken": "first token {{value}}",
+            "open": "Open"
+        },
+        "setup": {
+            "battleMode": "Battle mode",
+            "types": {
+                "speed": "Speed features",
+                "decisions": "JEV vs Luna",
+                "models": "Models"
+            },
+            "vs": "vs",
+            "descriptions": {
+                "speed": "Same prompt and model. A uses the complete JEV fast path; B is the baseline. Replies continue both threads side by side.",
+                "decisions": "Same prompt and model. A makes fast decisions with JEV; B makes them with OpenAI Luna. Replies continue both threads side by side.",
+                "models": "Your prompt is sent to both models in separate threads. Replies continue both sides with timing and token usage."
+            }
+        }
+    },
+    "evals": {
+        "status": {
+            "completed": "Completed",
+            "failed": "Errored",
+            "running": "Running",
+            "assessing": "Assessing",
+            "pending": "Pending"
+        },
+        "assessment": {
+            "notApplicable": "N/A",
+            "passed": "Passed",
+            "failed": "Failed",
+            "title": "Evaluation Assessment",
+            "expectedResponse": "Expected Response"
+        },
+        "runDetails": {
+            "columns": {
+                "prompt": "Prompt",
+                "evalStatus": "Eval Status",
+                "assessment": "Assessment"
+            },
+            "promptFallback": "Prompt {{number}}",
+            "backToEvaluation": "← Back to Evaluation",
+            "runNotFound": "Evaluation run not found",
+            "runOverview": "Run Overview",
+            "started": "Started {{date}}",
+            "completed": "Completed {{date}}",
+            "duration": "Duration: {{duration}}",
+            "completedCount": "{{done}} / {{total}} completed",
+            "noResults": "No results available for this run."
+        },
+        "form": {
+            "validation": {
+                "titleRequired": "Title is required",
+                "questionEmpty": "Question cannot be empty",
+                "questionRequired": "At least one question is required"
+            },
+            "createTitle": "Create Evaluation",
+            "editTitle": "Edit Evaluation",
+            "createSubmit": "Create Evaluation",
+            "saveChanges": "Save Changes",
+            "title": "Title",
+            "titlePlaceholder": "Enter evaluation title",
+            "description": "Description",
+            "descriptionPlaceholder": "Enter evaluation description (optional)",
+            "questions": "Questions",
+            "addQuestion": "Add Question",
+            "promptPlaceholder": "Enter your prompt",
+            "prompt": "Prompt",
+            "expectedResponse": "Expected Response"
+        },
+        "detail": {
+            "notFound": "Evaluation not found",
+            "testPrompts": "Test Prompts",
+            "created": "Created {{date}}",
+            "invalidPrompt": "Invalid prompt configuration"
+        },
+        "threadReference": {
+            "loading": "Loading thread reference...",
+            "failed": "Failed to load thread reference",
+            "noPrompt": "No prompt found"
+        },
+        "layout": {
+            "evaluations": "Evaluations",
+            "evaluation": "Evaluation",
+            "run": "Run {{id}}",
+            "descriptions": {
+                "list": "Test your AI agent with predefined prompts and measure its performance across different scenarios.",
+                "detail": "Test your AI agent with predefined prompts and analyze its performance across multiple scenarios.",
+                "run": "View detailed results and performance metrics for this evaluation run."
+            },
+            "runEvaluation": "Run Evaluation",
+            "createEvaluation": "Create Evaluation"
+        },
+        "runs": {
+            "columns": {
+                "runId": "Run ID",
+                "runStatus": "Run Status",
+                "assessment": "Assessment",
+                "created": "Created",
+                "duration": "Duration"
+            },
+            "running": "Running",
+            "noAssessments": "No assessments available",
+            "started": "Started {{date}}",
+            "completed": "Completed {{date}}",
+            "previousRuns": "Previous Runs",
+            "emptyTitle": "No evaluation runs yet",
+            "emptyDescription": "Run this evaluation to see the results and performance metrics."
+        }
+    },
+    "memories": {
+        "status": {
+            "active": "Active",
+            "superseded": "Superseded",
+            "retired": "Retired",
+            "promoted": "Promoted"
+        },
+        "scope": {
+            "user": "Personal",
+            "project": "Project-wide"
+        }
+    },
+    "filters": {
+        "scope": {
+            "label": "Scope",
+            "tooltip": "Filter memories by scope",
+            "empty": "No scopes available."
+        },
+        "status": {
+            "label": "Status",
+            "tooltip": "Filter memories by status",
+            "empty": "No statuses available."
+        },
+        "feedback": {
+            "all": "All",
+            "allTooltip": "Show all threads",
+            "positive": "Show only threads with positive feedback",
+            "negative": "Show only threads with negative feedback"
+        },
+        "projects": {
+            "label": "Project",
+            "defaultTooltip": "Filter threads by project",
+            "noMatch": "No projects match your search.",
+            "empty": "No projects available.",
+            "withAgentsOnly": "Showing projects with agents only",
+            "searchPlaceholder": "Search projects..."
+        },
+        "agents": {
+            "label": "Agent",
+            "tooltip": "Filter threads by AI agent",
+            "tooltipFiltered": "Filter threads by AI agent (filtered by selected projects)",
+            "noMatch": "No agents match your search.",
+            "empty": "No agents available.",
+            "searchPlaceholder": "Search agents...",
+            "fromSelectedProjects": "Showing agents from selected projects only"
+        },
+        "users": {
+            "label": "User",
+            "tooltip": "Filter by user",
+            "searchPlaceholder": "Search users...",
+            "empty": "No users found."
+        },
+        "source": {
+            "all": "All",
+            "allTooltip": "All sources",
+            "webApp": "Web app threads",
+            "slack": "Slack threads",
+            "api": "API threads"
+        },
+        "search": {
+            "tooltip": "Search current view"
+        }
+    },
+    "memoryProvenance": {
+        "title": "Memory provenance",
+        "nominationReason": "Nomination reason",
+        "nominatedBy": "Nominated by",
+        "unknownUser": "Unknown user",
+        "viewSource": "View source memory",
+        "sourceUnavailable": "Source memory unavailable"
+    },
+    "verifiedArtifacts": {
+        "title": "Verified Answers",
+        "description": "Manage verified charts and dashboards that the AI agent can reference in conversations.",
+        "columns": {
+            "title": "Title",
+            "verifiedBy": "Verified By",
+            "verifiedAt": "Verified Date",
+            "references": "References",
+            "actions": "Actions"
+        },
+        "untitled": "Untitled",
+        "remove": "Remove from verified answers",
+        "viewArtifact": "View artifact",
+        "loadingMore": "Loading more...",
+        "scrollForMore": "Scroll for more results",
+        "allLoaded": "All results loaded",
+        "loadedOf": "({{loaded}} of {{total}} loaded)",
+        "loadedCount": "({{count}})",
+        "emptyTitle": "No verified answers yet",
+        "emptyDescription": "Verified answers will appear here once you mark them as verified in conversations.",
+        "unverifyTitle": "Remove from verified answers?",
+        "unverifyDescription": "This answer will no longer be used as a reference in future conversations. You can verify it again later.",
+        "artifact": "Artifact",
+        "viewVerifiedAnswer": "View verified answer"
+    },
+    "mcp": {
+        "status": {
+            "success": "success",
+            "error": "error"
+        },
+        "detail": {
+            "title": "Tool call",
+            "time": "Time",
+            "user": "User",
+            "userWithEmail": "{{name}} ({{email}})",
+            "project": "Project",
+            "agent": "Agent",
+            "duration": "Duration",
+            "direction": "Direction",
+            "outbound": "Agent → external MCP server",
+            "inbound": "External client → Lightdash MCP server",
+            "mcpServer": "MCP server",
+            "deletedServer": "Deleted MCP server",
+            "client": "Client",
+            "userAgent": "User agent",
+            "protocol": "Protocol",
+            "auth": "Auth",
+            "thread": "Thread",
+            "session": "Session",
+            "error": "Error",
+            "arguments": "Arguments"
+        },
+        "toolbar": {
+            "all": "All",
+            "success": "Success",
+            "errors": "Errors",
+            "clearAllFilters": "Clear all filters",
+            "loading": "Loading...",
+            "countOf": "{{current}} of {{total}} tool calls",
+            "count": "{{total}} tool calls"
+        },
+        "overview": {
+            "calls": "Calls",
+            "success": "Success",
+            "errors": "Errors",
+            "topTools": "Top tools",
+            "activeAgents": "Active agents",
+            "noAgent": "No agent",
+            "callCount_one": "{{formatted}} call",
+            "callCount_other": "{{formatted}} calls",
+            "recentErrors": "Recent errors",
+            "noErrors": "No errors in this period",
+            "unknownError": "Unknown error",
+            "loadError": "Couldn't load activity stats.",
+            "noMatches": "No tool calls match the current filters.",
+            "noCalls": "No MCP tool calls in the last 90 days."
+        },
+        "table": {
+            "noSessionId": "No session ID",
+            "deletedServer": "Deleted MCP server",
+            "unknown": "Unknown",
+            "columns": {
+                "time": "Time",
+                "tool": "Tool",
+                "user": "User",
+                "project": "Project",
+                "agent": "Agent",
+                "client": "Client",
+                "status": "Status",
+                "duration": "Duration"
+            },
+            "notReported": "not reported",
+            "errorCount_one": "{{count}} error",
+            "errorCount_other": "{{count}} errors",
+            "loadingMore": "Loading more...",
+            "scrollForMore": "Scroll for more results",
+            "allLoaded": "All results loaded",
+            "loadedOf": "({{loaded}} of {{total}} loaded)",
+            "loadedCount": "({{count}})"
+        }
+    },
+    "reviews": {
+        "lanes": {
+            "needsTriage": "Needs triage",
+            "todo": "To Do",
+            "inProgress": "In Progress",
+            "done": "Done"
+        },
+        "rootCauses": {
+            "semanticLayer": "Semantic layer",
+            "projectContext": "Project context",
+            "agentConfiguration": "Agent config",
+            "productCapability": "Product",
+            "runtimeReliability": "Runtime",
+            "feedbackQuality": "Feedback",
+            "notAFailure": "Not failure",
+            "ambiguous": "Ambiguous"
+        },
+        "rootCauseJudged": {
+            "semanticLayer": "Review agent judged this as semantic layer.",
+            "projectContext": "Review agent judged this as project context.",
+            "agentConfiguration": "Review agent judged this as agent config.",
+            "productCapability": "Review agent judged this as product.",
+            "runtimeReliability": "Review agent judged this as runtime.",
+            "feedbackQuality": "Review agent judged this as feedback.",
+            "notAFailure": "Review agent judged this as not failure.",
+            "ambiguous": "Review agent judged this as ambiguous."
+        },
+        "priorities": {
+            "urgent": "Urgent",
+            "high": "High",
+            "medium": "Medium",
+            "low": "Low",
+            "none": "No priority"
+        },
+        "blockedReasons": {
+            "reviewsDisabled": "Issues are not enabled for this organization",
+            "unsupportedRootCause": "No writeback strategy for this root cause",
+            "missingProject": "No project is linked to this issue",
+            "missingAgent": "No agent is linked to this issue",
+            "missingProjectContextEntry": "No project context entry was generated",
+            "projectContextDisabled": "Project context is not enabled",
+            "insufficientSourceCodeAccess": "You do not have permission to modify source code",
+            "unsupportedSourceControl": "Project is not connected to GitHub, GitLab or Bitbucket Cloud",
+            "bitbucketTokenMissing": "Configure the project Bitbucket API token",
+            "gitAppNotInstalled": "Git app is not installed",
+            "missingWritebackConfig": "Writeback runtime is not configured",
+            "pullRequestOpen": "A pull request is already open",
+            "sourceThreadWritebackExists": "The agent already opened a pull request in the source thread",
+            "terminalState": "Issue is already closed",
+            "writebackInProgress": "Writeback is already in progress"
+        },
+        "blockedReasonDescriptions": {
+            "unsupportedSourceControl": "Connect this project to GitHub, GitLab or Bitbucket Cloud so Lightdash can open a pull request that fixes issues like this for you.",
+            "reviewsDisabled": "Turn on Issues for your organization to let agents file and fix issues automatically.",
+            "bitbucketTokenMissing": "Configure the project Bitbucket API token",
+            "gitAppNotInstalled": "Install the Lightdash app on your repository so it can open pull requests.",
+            "projectContextDisabled": "Enable project context so Lightdash can propose updates to your project knowledge.",
+            "insufficientSourceCodeAccess": "Ask a project admin for permission to manage source code before creating a pull request.",
+            "missingWritebackConfig": "Ask an admin to configure the writeback runtime to enable automatic fixes."
+        },
+        "actions": {
+            "updateSemanticYaml": "Update semantic layer",
+            "updateAgentInstructions": "Update instructions",
+            "addKnowledgeDocument": "Add knowledge doc",
+            "enableDataAccess": "Enable data access",
+            "enableSqlMode": "Enable SQL mode",
+            "enableSelfImprovement": "Enable self-improvement",
+            "configureMcpServer": "Configure MCP",
+            "adjustExploreTags": "Adjust explore tags",
+            "updateAccess": "Update access",
+            "routeToProductWork": "Route to product",
+            "requestMoreEvidence": "Needs more evidence",
+            "createSkill": "Create skill",
+            "noAction": "No action"
+        },
+        "relative": {
+            "justNow": "just now",
+            "minutesAgo": "{{count}}m ago",
+            "hoursAgo": "{{count}}h ago",
+            "daysAgo": "{{count}}d ago"
+        },
+        "details": {
+            "triageTitle": "Triage correction signal",
+            "triageWhy": "Could be a real failure or a normal change in user intent.",
+            "manualWhy": "Manually filed issue.",
+            "proposedSkill": "{{why}}\n\nProposed skill `/{{name}}`: {{description}}",
+            "contextUpdates": "Updates project context: {{content}}",
+            "contextAdds": "Adds project context: {{content}}",
+            "contextObjects": " Objects: {{objects}}.",
+            "review": "Review",
+            "triageNextStep": "Review the backing thread before deciding whether this is actionable.",
+            "noActionSuggested": "No action suggested."
+        },
+        "assignee": {
+            "unknownUser": "Unknown user",
+            "you": "{{name}} (you)",
+            "unassigned": "Unassigned"
+        },
+        "card": {
+            "writingFix": "Writing fix…",
+            "building": "Building…",
+            "compiling": "Compiling…",
+            "example": "Example",
+            "seenRange": "First seen {{first}} · last seen {{last}}",
+            "workspace": "Workspace",
+            "openWorkspace": "Open workspace",
+            "retryFix": "Retry fix",
+            "startFix": "Start fix"
+        },
+        "assigneeMenu": {
+            "assignedTo": "Assigned to {{name}}",
+            "assignUser": "Assign user",
+            "assign": "Assign",
+            "searchPeople": "Search people",
+            "noPeople": "No people",
+            "unassign": "Unassign"
+        },
+        "priorityMenu": {
+            "ariaLabel": "Priority: {{priority}}"
+        },
+        "validation": {
+            "loading": "Loading validation results…",
+            "none": "No validation errors found",
+            "count_one": "{{count}} validation error",
+            "count_other": "{{count}} validation errors",
+            "unnamed": "Unnamed",
+            "seeMore": "See more",
+            "modalTitle": "Validator"
+        },
+        "prDiff": {
+            "title": "Pull request changes",
+            "truncated": "Showing the first {{count}} changed files — open the PR for the full change set."
+        },
+        "statuses": {
+            "triage": "Triage",
+            "open": "Open",
+            "in_progress": "In progress",
+            "resolved": "Resolved",
+            "dismissed": "Dismissed",
+            "duplicate": "Duplicate"
+        }
+    },
+    "agentsTable": {
+        "columns": {
+            "name": "Agent Name",
+            "project": "Project",
+            "tags": "Tags",
+            "integrations": "Integrations",
+            "access": "Access",
+            "created": "Created"
+        },
+        "unknownProject": "Unknown Project",
+        "noTags": "No tags",
+        "moreTags": "+{{count}} more",
+        "none": "None",
+        "channelNotCached": "Channel not cached yet. If this is a private channel, add the integration to the channel manually",
+        "noRestrictions": "No restrictions",
+        "chat": "Chat",
+        "searchPlaceholder": "Search agents",
+        "filterByProject": "Filter agents by project",
+        "hidePreviewProjects": "Hide preview projects",
+        "clearAllFilters": "Clear all filters",
+        "loading": "Loading...",
+        "count_one": "{{count}} agent",
+        "count_other": "{{count}} agents"
+    },
+    "threadsTable": {
+        "createdFrom": {
+            "slack": "Slack",
+            "webApp": "Web",
+            "api": "API",
+            "evals": "Evals",
+            "scheduler": "Scheduler",
+            "dataApp": "Data app"
+        },
+        "columns": {
+            "thread": "Thread",
+            "agent": "Agent",
+            "project": "Project",
+            "user": "User",
+            "source": "Source",
+            "prompts": "Prompts",
+            "feedback": "Feedback",
+            "warnings": "Warnings",
+            "created": "Created"
+        },
+        "untitled": "Untitled Thread",
+        "clean": "Clean",
+        "findings_one": "{{count}} finding",
+        "findings_other": "{{count}} findings",
+        "activeCount": "{{count}} active",
+        "reviewStatus": {
+            "triage": "triage",
+            "open": "open",
+            "in_progress": "in progress",
+            "resolved": "resolved",
+            "dismissed": "dismissed",
+            "duplicate": "duplicate"
+        },
+        "loadingMore": "Loading more...",
+        "scrollForMore": "Scroll for more results",
+        "allLoaded": "All results loaded",
+        "loadedOf": "({{loaded}} of {{total}} loaded)",
+        "loadedCount": "({{count}})",
+        "downloadDump": "Download debug dump",
+        "deleteThread": "Delete thread",
+        "dumpModal": {
+            "title": "Download thread debug dump",
+            "confirm": "Download",
+            "body": "The dump includes prompts, agent responses and agent configuration. Query results and sensitive tool outputs are redacted, but responses may still quote data.",
+            "warning": "Before sharing: review the file and confirm you are comfortable with its contents."
+        },
+        "deleteModal": {
+            "title": "Delete thread",
+            "description": "The whole conversation and everything derived from it will be permanently deleted. This action cannot be undone."
+        }
+    },
+    "topToolbar": {
+        "searchPlaceholder": "Search threads by title",
+        "hidePreviewProjects": "Hide preview projects",
+        "clearAllFilters": "Clear all filters",
+        "loading": "Loading...",
+        "countOf": "{{current}} of {{total}} threads",
+        "count": "{{total}} threads"
+    },
+    "memoriesTable": {
+        "never": "Never",
+        "loadingMore": "Loading more...",
+        "scrollForMore": "Scroll for more results",
+        "allLoaded": "All results loaded",
+        "columns": {
+            "memory": "Memory",
+            "status": "Status",
+            "project": "Project",
+            "agent": "Agent",
+            "user": "User",
+            "cited": "Cited",
+            "generated": "Generated"
+        },
+        "deletedAgent": "Deleted agent",
+        "unknown": "Unknown",
+        "searchPlaceholder": "Search memories",
+        "filterByProject": "Filter memories by project",
+        "clearAllFilters": "Clear all filters",
+        "loading": "Loading...",
+        "countOf_one": "{{loaded}} of {{count}} memory",
+        "countOf_other": "{{loaded}} of {{count}} memories"
+    },
+    "evalsTable": {
+        "columns": {
+            "eval": "Eval",
+            "agent": "Agent",
+            "project": "Project",
+            "prompts": "Prompts",
+            "latestRun": "Latest run",
+            "created": "Created"
+        },
+        "neverRun": "Never run",
+        "entityName": "evals",
+        "emptyTitle": "No evals yet",
+        "emptyDescription": "Create one from an agent's Evals tab to benchmark its answers.",
+        "searchPlaceholder": "Search evals by title",
+        "hidePreviewProjects": "Hide preview projects",
+        "clearAllFilters": "Clear all filters",
+        "loading": "Loading...",
+        "countOf": "{{current}} of {{total}} evals",
+        "count": "{{total}} evals",
+        "loadingMore": "Loading more...",
+        "scrollForMore": "Scroll for more results",
+        "allLoaded": "All results loaded",
+        "loadedOf": "({{loaded}} of {{total}} loaded)",
+        "loadedCount": "({{count}})"
+    },
+    "reviewActions": {
+        "openingPr": "Opening pull request…",
+        "createSkillTooltip": "Review the drafted skill and save it to this agent",
+        "createSkill": "Create skill",
+        "accept": "Accept",
+        "dismiss": "Dismiss",
+        "openWorkspace": "Open workspace",
+        "viewPr": "View PR",
+        "createPrTooltip": "Open a pull request against the connected project (runs in the background, may take a few minutes)",
+        "createPr": "Create PR",
+        "showError": "Show writeback error"
+    },
+    "markResolved": {
+        "title": "Resolve issue",
+        "description": "Resolving marks this issue as done and closes its remediation.",
+        "descriptionWithPr": "Resolving marks this issue as done and closes its remediation. Merge the pull request first, or resolve without merging.",
+        "mergeAndResolve": "Merge PR & mark resolved",
+        "resolveWithoutMerging": "Mark resolved without merging",
+        "resolve": "Mark resolved"
+    },
+    "contextWriteback": {
+        "viewPr": "View PR",
+        "openPr": "Looks good, open PR",
+        "title": "Open project context PR",
+        "close": "Close",
+        "cancel": "Cancel",
+        "failedTitle": "Couldn’t open the PR",
+        "failedDescription": "The writeback failed. You can try again.",
+        "openedTitle": "Pull request opened",
+        "openedDescription": "The project context change is ready to review on GitHub.",
+        "opening": "Opening pull request…",
+        "backgroundNote": "Runs in the background, safe to close.",
+        "computing": "Computing the change…",
+        "previewError": "Couldn’t compute the change preview. You can still open the PR and review it on GitHub.",
+        "upgradesV2": "This PR also upgrades your project context file to v2 — more performance improvements coming soon.",
+        "sandboxNote": "This change runs in a sandbox, so the diff shows up on the pull request itself."
+    },
+    "contextDiff": {
+        "updatesEntry": "Updates entry",
+        "addsEntry": "Adds entry"
+    },
+    "workspaceSummary": {
+        "verdictReady": "Verdict ready",
+        "verifying": "Verifying the fix…",
+        "noVerdict": "No verdict yet",
+        "label": "Workspace",
+        "open": "Open workspace"
+    },
+    "evidence": {
+        "sources": {
+            "userPrompt": "User",
+            "assistantAnswer": "Assistant",
+            "nextUserPrompt": "User reply",
+            "conversationContext": "Context",
+            "toolCall": "Tool call",
+            "toolResult": "Tool result",
+            "agentConfig": "Config"
+        }
+    },
+    "fieldsModal": {
+        "changes": {
+            "added": "Added",
+            "labelChanged": "Updated",
+            "removed": "Removed"
+        },
+        "createChart": "Create chart",
+        "title": "Fields",
+        "empty": "No field changes between this preview and its upstream project."
+    },
+    "addToEval": {
+        "selectRequired": "Please select an evaluation",
+        "nameRequired": "Please enter an evaluation name",
+        "title": "Add Prompt to Evaluation Set",
+        "newEvaluation": "New Evaluation",
+        "createDescription": "Create a new evaluation set and add the prompt to it.",
+        "addDescription": "Add this prompt to an existing evaluation set.",
+        "createAndAdd": "Create & Add",
+        "loading": "Loading evaluations...",
+        "selectLabel": "Select Evaluation",
+        "selectPlaceholder": "Choose an evaluation set",
+        "nameLabel": "Evaluation Name",
+        "namePlaceholder": "Enter evaluation name"
+    },
+    "evalPreview": {
+        "openEval": "Open eval",
+        "close": "Close eval preview",
+        "agent": "Agent",
+        "project": "Project",
+        "latestRun": "Latest run",
+        "neverRun": "Never run",
+        "prompts": "Prompts ({{count}})",
+        "promptUnavailable": "Prompt no longer available",
+        "expected": "Expected: {{response}}"
+    },
+    "workspaceThread": {
+        "placeholder": "Ask {{agentName}} to refine the PR…"
+    },
+    "analyticsEmbed": {
+        "loadError": "Unable to load analytics dashboard",
+        "iframeTitle": "Analytics Dashboard"
+    },
+    "timeline": {
+        "issueOpened": "Issue opened",
+        "statusChanged": "Status changed to {{status}}",
+        "statusFrom": "from {{status}}",
+        "assigned": "Assigned",
+        "unassigned": "Unassigned",
+        "recurred": "Recurred — seen again",
+        "priorityChanged": "Priority changed",
+        "commentAdded": "Comment added",
+        "updated": "Updated",
+        "findingOpened": "Finding opened",
+        "quotedExcerpt": "“{{excerpt}}”",
+        "fromThe": " — from the ",
+        "fromTheStart": "From the ",
+        "sourceThread": "source thread",
+        "writebackRan": "Writeback ran",
+        "edited": "Edited {{files}}{{counts}}",
+        "prOpened": "Pull request opened",
+        "viewPrNumber": "View PR #{{number}}",
+        "viewPr": "View PR",
+        "prUpdated": "Pull request updated",
+        "previewCompiled": "Preview compiled",
+        "fixVerified": "Fix verified",
+        "openVerificationThread": "Open verification thread",
+        "prMerged": "Pull request merged",
+        "prClosed": "Pull request closed",
+        "resolved": "Resolved",
+        "failed": "Failed",
+        "live": {
+            "writeback": "Writeback running",
+            "compiling": "Compiling preview",
+            "verifying": "Verifying fix",
+            "writebackMeta": "Editing the dbt project…",
+            "compilingMeta": "Building the preview project from the PR branch…",
+            "verifyingMeta": "Re-running the original question in the preview…",
+            "now": "now"
+        }
+    },
+    "verification": {
+        "checksFailing": "{{count}} failing",
+        "checksRunning": "{{count}} running",
+        "checksPassed": "{{count}} passed",
+        "verified": "Verified",
+        "title": "Verification",
+        "pullRequestNumber": "Pull request #{{number}}",
+        "pullRequest": "Pull request",
+        "changes": "Changes",
+        "checks": "Checks",
+        "fields": "Fields",
+        "validator": "Validator",
+        "whereFlagged": "Where it was flagged",
+        "retryQuestion": "Retry question",
+        "backToIssues": "Back to issues",
+        "markDone": "Mark as done"
+    },
+    "workspace": {
+        "badges": {
+            "waitingForBuild": "Waiting for build",
+            "buildingPreview": "Building preview",
+            "testing": "Testing",
+            "stale": "Stale — retest",
+            "verdictReady": "Verdict ready",
+            "failed": "Failed",
+            "openingPr": "Opening PR"
+        },
+        "testTheFix": "Test the fix",
+        "breadcrumbs": {
+            "askAi": "Ask AI",
+            "issues": "Issues",
+            "workspace": "Workspace"
+        },
+        "noWorkspace": "No remediation workspace for this issue yet. Open a pull request from the issues board first.",
+        "previewEnvironment": "Preview environment",
+        "buildTheFix": "Build the fix",
+        "buildFixAgent": "Build fix",
+        "projectSuffix": "· {{name}}",
+        "testAgain": "Test again",
+        "verificationAgent": "Verification",
+        "waiting": {
+            "writeback": "Waiting for the pull request to open…",
+            "compiling": "Building the preview environment…",
+            "verifying": "Running verification in the preview…",
+            "idle": "The verdict appears here once the preview is ready."
+        },
+        "viewPr": "View PR",
+        "resolve": "Resolve",
+        "deterministicFix": "Deterministic fix",
+        "deterministicFixNote": "· Project context, written without a build conversation",
+        "changes": "Changes",
+        "fileCount_one": "{{count}} file",
+        "fileCount_other": "{{count}} files",
+        "previewEnvironmentName": "Preview environment · {{name}}",
+        "drawerDescription": "We spun up a <b>throwaway copy</b> of your project with this fix applied. <b>{{agentName}}</b> re-runs the original question against it, so you can see whether the answer is right <b>before you merge</b>. <b>Nothing here touches production.</b>",
+        "yourAgent": "Your agent"
+    },
+    "issueModal": {
+        "issue": "Issue",
+        "seenRange": "{{first}} – {{last}}",
+        "recurs": "Recurs {{count}}×",
+        "description": "Description",
+        "activity": "Activity",
+        "evidence": "Evidence",
+        "readConversation": "Read full conversation",
+        "noExcerpts": "No excerpts were captured — open the full conversation to see what triggered this.",
+        "properties": "Issue properties",
+        "status": "Status",
+        "priority": "Priority",
+        "assignee": "Assignee",
+        "agent": "Agent",
+        "project": "Project",
+        "seen": "Seen",
+        "linear": "Linear",
+        "openInLinear": "Open in Linear",
+        "jira": "Jira",
+        "openInJira": "Open in Jira",
+        "pullRequest": "Pull request",
+        "viewPr": "View PR",
+        "conversation": "Conversation",
+        "openInTab": "Open in tab"
+    },
+    "threadPreview": {
+        "showLess": "Show less",
+        "showMore": "Show more",
+        "seenRange": "{{first}} - {{last}}",
+        "seenTooltip": "First seen {{first}}. Last seen {{last}}.",
+        "recurrence": "{{count}} times",
+        "reviewDetails": "Review details",
+        "threadPreview": "Thread preview",
+        "openThread": "Open Thread",
+        "openFullThread": "Open full thread",
+        "openAgentSettings": "Open Agent Settings",
+        "openAgentSettingsAria": "Open agent settings",
+        "close": "Close thread preview",
+        "details": "Details",
+        "whyFlagged": "Why flagged",
+        "validation": "Validation",
+        "project": "Project",
+        "unknownProject": "Unknown project",
+        "seen": "Seen",
+        "recurrenceLabel": "Recurrence",
+        "recurrenceTooltip": "Findings grouped into this item across threads",
+        "detail": "Detail",
+        "activity": "Activity",
+        "commentPlaceholder": "Add a comment",
+        "comment": "Comment",
+        "issues": "Issues",
+        "viewIssue": "View issue",
+        "linear": "Linear",
+        "viewPr": "View PR",
+        "evidence": "Evidence"
+    },
+    "board": {
+        "unknownProject": "Unknown project",
+        "unknownAgent": "Unknown agent",
+        "searchPlaceholder": "Search issues",
+        "project": "Project",
+        "noProjects": "No projects in current view",
+        "filterByProject": "Filter by project",
+        "agent": "Agent",
+        "noAgents": "No agents in current view",
+        "filterByAgent": "Filter by agent",
+        "cause": "Cause",
+        "noCauses": "No root causes in current view",
+        "filterByCause": "Filter by root cause",
+        "status": "Status",
+        "noStatuses": "No statuses in current view",
+        "filterByStatus": "Filter by status",
+        "assignee": "Assignee",
+        "noAssignees": "No assignees in current view",
+        "filterByAssignee": "Filter by assignee",
+        "noIssues": "No issues",
+        "showLess": "Show less",
+        "showAll": "Show all ({{count}})"
+    },
+    "reviewsTable": {
+        "signals": {
+            "normalRefinement": "Normal refinement",
+            "implicitCorrection": "Implicit correction",
+            "explicitDispute": "Explicit dispute",
+            "retryAfterFailure": "Retry after failure",
+            "outputShapeCorrection": "Output correction",
+            "newQuestion": "New question",
+            "acceptanceOrContinuation": "Accepted",
+            "productCapabilityRequest": "Capability request",
+            "humanIntervention": "Human intervention",
+            "standingInstruction": "Standing instruction",
+            "ambiguous": "Ambiguous"
+        },
+        "rootCauseHelp": {
+            "semanticLayer": "A metric, field, or model was missing or off",
+            "projectContext": "The agent didn’t know something about your data",
+            "agentConfiguration": "Its instructions or setup got in the way",
+            "productCapability": "The agent can’t do this yet",
+            "runtimeReliability": "Something broke or timed out",
+            "feedbackQuality": "The judge’s read needs a second look",
+            "notAFailure": "Nothing wrong, it answered fine",
+            "ambiguous": "Not clear, worth a look"
+        },
+        "findingPending": "Finding pending",
+        "signalOnly": "Signal only",
+        "signalWhyFallback": "The judge reviewed this turn but did not promote it into an issue.",
+        "reviewFinding": "Review finding",
+        "noAdminAction": "No admin action",
+        "clickToCollapse": "Click to collapse",
+        "clickToExpand": "Click to expand",
+        "suggestedStep": "Suggested next step: {{step}}",
+        "conceptHelp": "A <b>turn</b> is one question and answer. When a turn shows a clear issue, it becomes a <b>finding</b> so you can review it here and decide what to fix next.",
+        "whatWentWrong": "What went wrong",
+        "fixableHere": " · fixable here",
+        "unknownProject": "Unknown project",
+        "unknownAgent": "Unknown agent",
+        "loading": "Loading…",
+        "countIssues_one": "{{count}} issue",
+        "countIssues_other": "{{count}} issues",
+        "countTurns_one": "{{count}} turn",
+        "countTurns_other": "{{count}} turns",
+        "countOfIssues_one": "{{visible}} of {{count}} issue",
+        "countOfIssues_other": "{{visible}} of {{count}} issues",
+        "countOfTurns_one": "{{visible}} of {{count}} turn",
+        "countOfTurns_other": "{{visible}} of {{count}} turns",
+        "helper": "Issues are items worth attention. Click a row to inspect details and thread context.",
+        "searchPlaceholder": "Search issues",
+        "issues": "Issues",
+        "project": "Project",
+        "noProjects": "No projects in current view",
+        "filterByProject": "Filter by project",
+        "agent": "Agent",
+        "noAgents": "No agents in current view",
+        "filterByAgent": "Filter by agent",
+        "cause": "Cause",
+        "noCauses": "No root causes in current view",
+        "filterByCause": "Filter by root cause",
+        "status": "Status",
+        "noStatuses": "No statuses in current view",
+        "filterByStatus": "Filter by status",
+        "assignee": "Assignee",
+        "noAssignees": "No assignees in current view",
+        "filterByAssignee": "Filter by assignee",
+        "clearFilters": "Clear filters",
+        "selectedCount": "{{count}} selected",
+        "dismissIssues": "Dismiss issues",
+        "clear": "Clear",
+        "columns": {
+            "cause": "Cause",
+            "finding": "Finding",
+            "action": "Action",
+            "result": "Result",
+            "signal": "Signal",
+            "turn": "Turn",
+            "agent": "Agent",
+            "reviewed": "Reviewed"
+        },
+        "example": "Example",
+        "createPr": "Create PR",
+        "confidence": {
+            "high": "high confidence",
+            "medium": "medium confidence",
+            "low": "low confidence"
+        },
+        "noResponse": "No response captured",
+        "openThreadPreview": "Open AI thread preview",
+        "emptyTitle": "No issues yet",
+        "emptyDescription": "When an agent answer looks wrong, it shows up here.",
+        "entityName": "issues"
+    },
+    "onboarding": {
+        "examples": {
+            "todo": {
+                "title": "No metric for weekly active users",
+                "description": "Someone asked for weekly active users. There was no metric for it, so the agent estimated."
+            },
+            "inProgress": {
+                "title": "Agent didn’t know what “active user” means",
+                "description": "Someone asked for active users. The agent guessed instead of using your definition."
+            },
+            "done": {
+                "title": "Revenue excluded refunds",
+                "description": "Someone asked for revenue. The agent left out refunds, so the number was too high."
+            }
+        },
+        "tour": {
+            "intro": {
+                "title": "Start here",
+                "body": "These are answers your agents probably got wrong. We group them by what caused them, and you work them left to right."
+            },
+            "card": {
+                "title": "Each card is one finding",
+                "body": "Click a card to inspect the thread and the suggested fix. Semantic layer and Project context are the kinds you can usually fix from here."
+            },
+            "pr": {
+                "title": "Open a pull request",
+                "body": "When a fix is ready, Start opens a pull request in your repo. The card moves to In Progress and tracks the PR."
+            },
+            "workspace": {
+                "title": "Follow the fix",
+                "body": "Open the workspace to watch the fix come together and pick up where it left off."
+            },
+            "inProgress": {
+                "title": "Build and verify",
+                "body": "In the workspace the fix builds in a throwaway preview, then your agent re-answers the original question to check it actually worked."
+            },
+            "afterMerge": {
+                "title": "What happens after you merge",
+                "body": "Merge and the card lands in Done. The agent uses the fix on its next answer:"
+            }
+        },
+        "loop": {
+            "pullRequest": {
+                "title": "Pull request",
+                "subtitle": "opens in your repo"
+            },
+            "workspace": {
+                "title": "Workspace",
+                "subtitle": "follow the fix"
+            },
+            "build": {
+                "title": "Build and verify",
+                "subtitle": "in a preview"
+            },
+            "merge": {
+                "title": "Merge",
+                "subtitle": "the fix is live"
+            },
+            "feedback": "The agent picks this up <muted>on its next answer.</muted>"
+        }
+    },
+    "settings": {
+        "issues": {
+            "title": "Issues",
+            "description": "An actionable queue of data issues from AI findings and human asks. Semantic layer fixes open a pull request; project context fixes add guidance your agents read before answering.",
+            "newIssue": "New issue",
+            "board": "Board",
+            "table": "Table",
+            "takeTour": "Take the tour"
+        },
+        "agents": {
+            "title": "Agents",
+            "description": "Manage the AI agents available across your organization.",
+            "newAgent": "New Agent"
+        },
+        "evals": {
+            "title": "Evals",
+            "description": "Monitor agent evaluations across your organization."
+        },
+        "disabledAlert": {
+            "title": "Ask AI features are currently disabled for all users",
+            "body": "Re-enable them from <anchor>Ask AI · General</anchor> so users can interact with agents again."
+        },
+        "memories": {
+            "title": "Memories",
+            "description": "Audit what your AI agents have learned across projects.",
+            "deprecatedTitle": "AI agent memories are deprecated",
+            "deprecatedBody": "Add durable project knowledge to <anchor>project context</anchor> instead. Existing memories below remain available to review."
+        },
+        "connect": {
+            "title": "Connect",
+            "description": "Connect your AI tools to Lightdash using MCP."
+        },
+        "geography": {
+            "jp": "Japan",
+            "us": "United States",
+            "eu": "Europe",
+            "apac": "Asia-Pacific",
+            "global": "Global"
+        },
+        "threads": {
+            "title": "Threads",
+            "description": "Review AI conversations across your organization.",
+            "insights": "Insights",
+            "newThread": "New Thread",
+            "insightsModalTitle": "AI Agents Insights"
+        },
+        "mcpActivity": {
+            "title": "MCP analytics",
+            "description": "Monitor MCP tool calls and investigate errors across your organization.",
+            "last90Days": "Last 90 days",
+            "overviewAria": "MCP activity overview"
+        },
+        "general": {
+            "systemDefault": "System default",
+            "title": "Ask AI",
+            "description": "Configure organization-wide AI features, providers, and defaults.",
+            "agentBehaviour": "Agent behaviour",
+            "agentBehaviourDescription": "Applies on every surface.",
+            "aiRouter": "AI Router",
+            "aiRouterDescription": "Route user questions to the best agent automatically.",
+            "defaultModel": "Default AI model",
+            "defaultModelDescription": "Choose the model and reasoning default for new AI agent chats. Users can still change it in each chat.",
+            "highReasoning": "High reasoning by default",
+            "highReasoningDescription": "Start new chats with high reasoning enabled for the selected model.",
+            "providers": "Providers & keys",
+            "providersDescription": "Your own keys take precedence over the instance keys.",
+            "quality": "Quality & review",
+            "reviewTurns": "Review AI agent turns",
+            "reviewTurnsDescription": "Process every agent turn to surface semantic layer gaps, project context improvements, and admin recommendations. For connected projects, Lightdash can suggest pull requests that improve context and semantic definitions.",
+            "seeIssues": " See issues in <anchor>Ask AI > Issues</anchor>.",
+            "reviewsPaused": "Paused — your AI provider key can’t run the review model (Claude Haiku). Reviews run on your own key, so they resume when it has access."
+        },
+        "surfaces": {
+            "visibility": "Visibility",
+            "freeTrial": "Free trial",
+            "description": "Where agents can be reached. Per-agent access still applies on every surface.",
+            "lightdashUi": "Lightdash UI",
+            "lightdashUiDescription": "Homepage card, navbar action, and agent chat.",
+            "dataApps": "Data apps",
+            "dataAppsDescription": "AI analysis inside data apps is configured under <anchor>Data apps · AI analysis</anchor>.",
+            "slack": "Slack",
+            "slackConnected": "@mentions and the multi-agent channel.",
+            "slackDisconnected": "Slack isn't connected. Add the integration in Integrations → Slack first."
+        },
+        "dataAppModels": {
+            "title": "Data Apps models",
+            "description": "Which models users can pick when building a Data App. Data Apps run the Claude CLI, which picks the latest model in each tier — so these are set separately from Ask AI models. Apps already built with a hidden model keep working.",
+            "lockedTooltip": "At least one model must stay available",
+            "ariaLabel": "Data Apps {{model}}"
+        },
+        "retention": {
+            "title": "Thread retention",
+            "description": "Automatically delete agent threads after a period of inactivity. Agents can shorten this window but not extend it.",
+            "confirmTitle": "Reduce thread retention?",
+            "confirmLabel": "Reduce retention",
+            "confirmBody": "Threads inactive for longer than {{window}} will be permanently deleted across all agents in this organization, starting within the hour. This cannot be undone.",
+            "counting": "Counting affected threads…",
+            "threadCount_one": "{{count}} thread",
+            "threadCount_other": "{{count}} threads",
+            "agentCount_one": "{{count}} agent",
+            "agentCount_other": "{{count}} agents",
+            "willBeDeleted": "{{threads}} across {{agents}} will be deleted"
+        },
+        "reviewNotifications": {
+            "slackTitle": "Slack notifications",
+            "slackDescription": "Post to a Slack channel when a review run surfaces findings that need review. Assignment notifications are always sent as a direct message and in the in-app bell.",
+            "slackAria": "Post AI review findings to Slack",
+            "slackChannel": "Slack channel",
+            "selectChannel": "Select a channel"
+        },
+        "routing": {
+            "savedAgo": "Saved {{timeAgo}}",
+            "confirmLeave": "You have unsaved routing instructions. Are you sure you want to leave without saving?",
+            "confirmSwitch": "You have unsaved routing instructions. Are you sure you want to switch projects without saving?",
+            "save": "Save instructions",
+            "title": "Routing instructions",
+            "description": "Tell the router how to direct questions for a project. For example, send billing questions to a specific agent. Type @ to tag an agent. Rules guide the router but never override an agent's access restrictions.",
+            "project": "Project",
+            "selectProject": "Select a project",
+            "noProjects": "No projects available to configure.",
+            "tooFewAgents": "This project has fewer than two accessible agents, so the router won't run here yet. You can still prepare instructions.",
+            "placeholder": "e.g. Route billing and invoicing questions to @Finance Agent. Type @ to tag an agent.",
+            "editorAria": "Routing instructions"
+        },
+        "providers": {
+            "gatewayLabel": "Custom base URL",
+            "gatewayDescription": "Optional. Send requests for this key to a proxy or gateway that speaks this provider's API. Model names are passed through unchanged.",
+            "gatewayError": "Enter an http(s) URL without credentials, query parameters or a fragment",
+            "active": "Active",
+            "availableAria": "{{label}} available to users",
+            "setKey": "Set key",
+            "askAiModels": "Ask AI models",
+            "askAiModelsAria": "{{label}} Ask AI models",
+            "allModels": "All models",
+            "lockedNote": "Disabled while your organization uses another provider key — {{label}} models can't be selected, so AI agents never fall back to the instance's {{label}} key. Add your own {{label}} API key to make these models available.",
+            "instanceKeyNote": "AI agents using {{label}} models currently run on the instance's default key. Add your organization's {{label}} key — or turn off availability above — to keep all AI agent usage on your own keys.",
+            "title": "AI providers & models",
+            "description": "Use your organization's own Anthropic, Google Gemini, or OpenAI API key for AI features, and control which models users can pick. Keys are stored encrypted and never shown again after saving; when set, they take precedence over the instance-level keys. Agents already using a hidden model keep working — it just can't be selected again.",
+            "orgKeysTitle_one": "AI agents run on your organization's API key",
+            "orgKeysTitle_other": "AI agents run on your organization's API keys",
+            "orgKeysBody_one": "Agent responses and background agent tasks (thread titles, suggestions, summaries) use the key configured below — never the instance's default keys.",
+            "orgKeysBody_other": "Agent responses and background agent tasks (thread titles, suggestions, summaries) use the keys configured below — never the instance's default keys.",
+            "autopilotNote": "Autopilot setup shows which provider, model, and key it uses. Scheduled runs can make multiple model calls and incur usage on that key."
+        },
+        "bedrock": {
+            "title": "Amazon Bedrock credentials",
+            "addCredential": "Add credential",
+            "description": "Each credential pins Ask AI to one AWS region. Projects can select a credential; anything without a project — Slack routing, thread titles — uses the default.",
+            "empty": "No Bedrock credentials yet.",
+            "default": "default",
+            "legacySummary": "{{hint}} · {{count}} model(s) · configured before named credentials",
+            "convert": "Convert to managed credential",
+            "credentialSummary": "{{region}} · inference in {{geography}} · {{hint}} · {{count}} model(s)",
+            "credentialActions": "Credential actions",
+            "actionsFor": "Actions for {{label}}",
+            "makeDefault": "Make default",
+            "unreadable": "{{count}} credential(s) cannot be read with the current encryption secret. AI requests pinned to them fail rather than falling back to another region, so replace each one with a complete configuration.",
+            "replace": "Replace",
+            "onlyProviderNote": "While Bedrock is configured it is the only provider Ask AI uses, so agents pinned to another provider stop working until you repoint them. Verified-answer semantic search and AI repository editing are unavailable, because both would send content outside these regions."
+        },
+        "bedrockModal": {
+            "regions": {
+                "apNortheast1": "Asia Pacific (Tokyo)",
+                "apNortheast3": "Asia Pacific (Osaka)",
+                "euCentral1": "Europe (Frankfurt)",
+                "euWest1": "Europe (Ireland)",
+                "usEast1": "US East (N. Virginia)",
+                "usWest2": "US West (Oregon)"
+            },
+            "geographyNotes": {
+                "jp": "Requests stay in Japan (Tokyo and Osaka inference profiles).",
+                "us": "Requests may be served by any US region.",
+                "eu": "Requests may be served by any European region.",
+                "apac": "Requests may be served by any Asia-Pacific region, across countries.",
+                "global": "Requests may be served by any supported region worldwide."
+            },
+            "validation": {
+                "name": "Enter a name",
+                "apiKey": "Enter a Bedrock API key",
+                "region": "Select an AWS region",
+                "models": "Select at least one model"
+            },
+            "replaceTitle": "Replace credential",
+            "editTitle": "Edit credential",
+            "addTitle": "Add Bedrock credential",
+            "addCredential": "Add credential",
+            "replaceNote": "The stored configuration cannot be read, so every field must be re-entered.",
+            "intro": "Use a Bedrock API key, not an AWS access key pair. The region you pick decides where inference runs, so enable these models in that region of your AWS account.",
+            "name": "Name",
+            "namePlaceholder": "Japan (Tokyo)",
+            "nameDescription": "How projects refer to this credential.",
+            "region": "AWS region",
+            "selectRegion": "Select a region",
+            "regionOption": "{{label}} — {{value}}",
+            "geography": "Inference geography",
+            "geographyDescription": "Where Amazon Bedrock may process requests — the region above only receives them.",
+            "selectRegionFirst": "Select a region first",
+            "apiKey": "Bedrock API key",
+            "keepKey": "Leave blank to keep the saved key.",
+            "allowedModels": "Allowed models",
+            "allowedModelsAria": "Bedrock allowed models",
+            "selectModel": "Select a model"
+        },
+        "linear": {
+            "logoAlt": "Linear",
+            "clientIdLabel": "Linear OAuth client ID",
+            "clientIdPlaceholder": "Paste the client ID from Linear",
+            "reconnectLinear": "Reconnect Linear",
+            "connectLinear": "Connect Linear",
+            "title": "Linear issues",
+            "reconnectRequired": "Reconnect required",
+            "connected": "Connected",
+            "connectedDescription": "New findings create a Linear issue automatically. Existing open findings can be exported below. Each issue links both ways; status is not synced.",
+            "disconnectedDescription": "Send review findings to Linear as issues. Each issue links both ways. Status is not synced.",
+            "connectedTo": "Connected to {{name}} ({{key}}).",
+            "toggleAria": "Create Linear issues for AI review findings",
+            "step1Title": "Create a Linear app",
+            "step1Description": "Opens Linear with the callback already filled in. Private app, no client secret.",
+            "createApp": "Create Linear app",
+            "step2Title": "Paste the client ID and connect",
+            "step2Description": "Use the public client ID from the app you just created.",
+            "reconnectTitle": "Reconnect Linear to keep exporting issues",
+            "reconnectDescription": "The saved app can no longer create issues. Create a new private app or reconnect with the same client ID.",
+            "allProjects": "All projects",
+            "allProjectsDescription": "Findings from every project, including ones created later.",
+            "projects": "Projects",
+            "loadingProjects": "Loading projects",
+            "selectProjects": "Select projects",
+            "team": "Linear team",
+            "loadingTeams": "Loading teams",
+            "selectTeam": "Select a team",
+            "project": "Linear project",
+            "projectDescription": "Optional. Issues without a project still go to the selected team.",
+            "optionalProject": "Optional project",
+            "backfill": "Create issues for existing findings",
+            "reconnect": "Reconnect"
+        },
+        "jira": {
+            "logoAlt": "Jira",
+            "title": "Jira issues",
+            "selectSite": "Select site",
+            "connected": "Connected",
+            "description": "Send review findings to Jira automatically. Existing open findings can be exported below; status is not synced.",
+            "connectedTo": "Connected to {{name}} ({{url}}).",
+            "toggleAria": "Create Jira issues for AI review findings",
+            "step1Title": "Create an Atlassian OAuth 2.0 app",
+            "step1Description": "In the developer console create an OAuth 2.0 integration. Under Permissions add the Jira API and tick the classic scopes read:jira-work and write:jira-work. Under Authorization set this callback URL.",
+            "copyCallback": "Copy callback URL",
+            "openConsole": "Open Atlassian developer console",
+            "step2Title": "Paste the client ID and secret",
+            "step2Description": "Both are on the app's Settings page. The secret is stored encrypted and only used for this organization. Connecting opens Atlassian: sign in there with an account that has Jira on the site you want to use, or Atlassian shows Access denied.",
+            "clientId": "Client ID",
+            "clientSecret": "Client secret",
+            "connectJira": "Connect Jira",
+            "site": "Jira site",
+            "siteDescription": "Choose the site that will receive review issues.",
+            "loadingSites": "Loading sites",
+            "allProjects": "All projects",
+            "allProjectsDescription": "Findings from every Lightdash project, including ones created later.",
+            "lightdashProjects": "Lightdash projects",
+            "loadingProjects": "Loading projects",
+            "selectProjects": "Select projects",
+            "project": "Jira project",
+            "selectProject": "Select a project",
+            "issueType": "Jira issue type",
+            "loadingIssueTypes": "Loading issue types",
+            "selectIssueType": "Select an issue type",
+            "backfill": "Create issues for existing findings",
+            "reconnect": "Reconnect"
+        },
+        "deepResearch": {
+            "fields": {
+                "maxSteps": {
+                    "label": "Maximum steps",
+                    "description": "The maximum number of model steps the coordinator may take in a deep research run."
+                },
+                "maxToolCalls": {
+                    "label": "Maximum tool calls",
+                    "description": "The maximum number of tool calls across a deep research run."
+                },
+                "maxWarehouseQueries": {
+                    "label": "Maximum warehouse queries",
+                    "description": "The maximum number of warehouse queries across a deep research run."
+                },
+                "maxTokens": {
+                    "label": "Maximum tokens",
+                    "description": "The maximum total model tokens consumed across a deep research run."
+                },
+                "deadlineMinutes": {
+                    "label": "Time limit (minutes)",
+                    "description": "The wall-clock limit for a deep research run before it stops and reports what it has."
+                }
+            },
+            "runLimits": "Run limits",
+            "runLimitsDescription": "Ceilings applied to every deep research run in your organization. A run that reaches any of these limits stops and reports what it has.",
+            "rawSql": "Allow raw SQL",
+            "rawSqlDescription": "Let Deep Research run raw SQL when the initiating user has SQL Runner permission. Disable to keep investigations on governed explores and metrics.",
+            "title": "Deep research",
+            "description": "Configure organization-wide data access and safety limits for deep research runs.",
+            "tryAgain": "Try again"
+        },
+        "mcpGeneral": {
+            "title": "General",
+            "description": "Configure how MCP (Model Context Protocol) clients access Lightdash agents and content.",
+            "tryAgain": "Try again",
+            "enableAgents": "Enable agents over MCP",
+            "enableAgentsDescription": "Make agent tools and context available to MCP clients. Per-agent access still applies.",
+            "on": "On",
+            "off": "Off",
+            "changeOnAgentsPage": "Change on the Agents page",
+            "allowWrites": "Allow content changes via MCP",
+            "allowWritesDescription": "Let MCP clients create and edit charts and dashboards in this organization. Disable to prevent unintended changes to managed content; reading content over MCP stays available either way, and individual users are still bound by their existing permissions."
+        },
+        "mcpInstall": {
+            "steps": {
+                "claudeDesktop": {
+                    "s1": "In Claude Desktop, open Customize → Connectors and choose Add custom connector.",
+                    "s2": "Name it Lightdash and paste this server URL. Remote connectors need a publicly reachable HTTPS URL.",
+                    "s3": "Add the connector, then sign in to Lightdash and approve access."
+                },
+                "claudeCode": {
+                    "s1": "Run this command in your terminal.",
+                    "s2": "In Claude Code, run <code>/mcp</code>, select Lightdash, then choose Authenticate."
+                },
+                "codex": {
+                    "s1": "Add the server and start sign-in from your terminal.",
+                    "s3": "Start a new Codex session to use the Lightdash tools."
+                },
+                "cursor": {
+                    "s1": "Add this server to your project’s <code>.cursor/mcp.json</code>.",
+                    "s2": "Open Cursor Settings → MCP & Integrations and connect Lightdash."
+                },
+                "vscode": {
+                    "s1": "Add this server to your project’s <code>.vscode/mcp.json</code>.",
+                    "s2": "Run <code>MCP: List Servers</code> from the Command Palette, select Lightdash, and start it.",
+                    "s3": "Sign in to Lightdash when prompted, then use the tools in Copilot agent mode."
+                },
+                "other": {
+                    "s1": "Add a remote MCP server and choose Streamable HTTP as the transport.",
+                    "s2": "Name it Lightdash and paste this server URL.",
+                    "s3": "Choose OAuth authentication, sign in to Lightdash, and approve access."
+                },
+                "signInBrowser": "Sign in to Lightdash in your browser and approve access."
+            },
+            "otherClients": "Other clients",
+            "title": "Client setup",
+            "description": "Connect your AI tools to Lightdash. Choose a client to get started.",
+            "clientsAria": "MCP clients",
+            "copyLabel": "Copy {{client}} configuration",
+            "moreDetails": "For more details, see the <anchor>{{client}} MCP documentation</anchor>.",
+            "permissions": "Connections use your Lightdash permissions. <anchor>Read the Lightdash MCP guide</anchor>."
+        },
+        "projectRegion": {
+            "notEnabled": "Custom AI providers are not enabled for this organization.",
+            "noCredentials": "No AI provider credentials are configured for this organization yet. An organization admin can add them in Organization settings → Ask AI.",
+            "pinNotServed": "Custom AI providers are not enabled for this organization, so this project's pinned credential is not being served — AI features are unavailable in this project. Clear the pin, or enable custom providers.",
+            "label": "AI provider credential",
+            "description": "Where this project's Ask AI requests are processed.",
+            "orgDefaultWith": "Organization default — {{label}} ({{region}})",
+            "orgDefault": "Organization default",
+            "credentialOption": "{{label}} — {{region}}",
+            "coverage": "This covers Ask AI, agent conversations and generated content in this project. It cannot cover Slack agent routing, which asks a model which project a message belongs to before any project is known — that call uses the organization default."
+        }
+    }
+}

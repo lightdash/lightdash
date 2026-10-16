@@ -6,6 +6,7 @@ import {
     type WarehouseTablesCatalog,
 } from '@lightdash/common';
 import Fuse from 'fuse.js';
+import i18n from '../../../../i18n/i18n';
 
 export type SchemaTablesMap = WarehouseTablesCatalog[string][string];
 
@@ -338,7 +339,12 @@ export const buildRecentWarehouseRows = ({
     });
     if (rows.length === 0) return [];
     return [
-        { type: 'section', id: RECENT_SECTION_ID, depth: 0, label: 'Recent' },
+        {
+            type: 'section',
+            id: RECENT_SECTION_ID,
+            depth: 0,
+            label: i18n.t('tables.recent', { ns: 'sqlRunner' }),
+        },
         ...rows,
         { type: 'section', id: ALL_SECTION_ID, depth: 0, label: allLabel },
     ];
@@ -711,7 +717,9 @@ export const buildWarehouseTreeRows = ({
                           listedDatabase: '',
                           message:
                               connection.listingError ??
-                              'Failed to load databases',
+                              i18n.t('tree.failedToLoadDatabases', {
+                                  ns: 'sqlRunner',
+                              }),
                           forbidden: connection.listingForbidden ?? false,
                       },
                   ]

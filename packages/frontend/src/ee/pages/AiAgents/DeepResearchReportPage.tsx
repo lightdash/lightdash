@@ -1,6 +1,7 @@
 import { getDocumentUrl } from '@lightdash/common';
 import { Button, Center } from '@mantine/core';
 import { IconFileOff } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import ErrorState from '../../../components/common/ErrorState';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
@@ -10,6 +11,7 @@ import { DeepResearchReport } from '../../features/aiCopilot/components/DeepRese
 import { useDeepResearchReport } from '../../features/aiCopilot/hooks/useDeepResearch';
 
 const DeepResearchReportPage = () => {
+    const { t } = useTranslation('eeMisc');
     const { runUuid } = useParams();
     const projectUuid = useProjectUuid();
     const navigate = useNavigate();
@@ -49,17 +51,17 @@ const DeepResearchReportPage = () => {
                     icon={IconFileOff}
                     title={
                         run.isReportExpired
-                            ? 'This report is no longer available'
-                            : 'This report is not ready yet'
+                            ? t('agents.deepResearch.expiredTitle')
+                            : t('agents.deepResearch.notReadyTitle')
                     }
                     description={
                         run.isReportExpired
-                            ? 'Deep Research reports are available for 30 days.'
-                            : 'Return to the conversation to check its progress.'
+                            ? t('agents.deepResearch.expiredDescription')
+                            : t('agents.deepResearch.notReadyDescription')
                     }
                     action={
                         <Button variant="default" onClick={backToChat}>
-                            Back to chat
+                            {t('agents.deepResearch.backToChat')}
                         </Button>
                     }
                 />

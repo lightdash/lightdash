@@ -1,5 +1,6 @@
 import { Group, Switch, TextInput } from '@mantine/core';
 import { useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export const AxisMinMax: FC<Props> = ({ label, min, max, setMin, setMax }) => {
+    const { t } = useTranslation('vizConfig');
     const [isAuto, toggleAuto] = useToggle(!(min || max));
     const { track } = useTracking();
 
@@ -45,17 +47,17 @@ export const AxisMinMax: FC<Props> = ({ label, min, max, setMin, setMax }) => {
             />
             {!isAuto && (
                 <Group wrap="nowrap" gap="xs">
-                    <Config.Label>Min</Config.Label>
+                    <Config.Label>{t('axes.min')}</Config.Label>
                     <TextInput
                         size="xs"
-                        placeholder="Min"
+                        placeholder={t('axes.min')}
                         defaultValue={min || undefined}
                         onBlur={(e) => setMin(e.currentTarget.value)}
                     />
-                    <Config.Label>Max</Config.Label>
+                    <Config.Label>{t('axes.max')}</Config.Label>
                     <TextInput
                         size="xs"
-                        placeholder="Max"
+                        placeholder={t('axes.max')}
                         defaultValue={max || undefined}
                         onBlur={(e) => setMax(e.currentTarget.value)}
                     />

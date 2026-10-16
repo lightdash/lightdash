@@ -17,6 +17,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAuthoringEnabled';
@@ -39,13 +40,18 @@ type Props = {
 const VerifiedBadge: FC<{ verification: ContentVerificationInfo }> = ({
     verification,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const verifiedDate = new Date(verification.verifiedAt).toLocaleDateString();
 
     return (
         <Tooltip
             maw={300}
             position="bottom"
-            label={`Verified by ${verification.verifiedBy.firstName} ${verification.verifiedBy.lastName} on ${verifiedDate}`}
+            label={t('savedChartPreview.verifiedBy', {
+                firstName: verification.verifiedBy.firstName,
+                lastName: verification.verifiedBy.lastName,
+                date: verifiedDate,
+            })}
         >
             <Box component="span" lh={0} c="green.6">
                 <MantineIcon icon={IconCircleCheckFilled} size={16} />
@@ -55,6 +61,7 @@ const VerifiedBadge: FC<{ verification: ContentVerificationInfo }> = ({
 };
 
 export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const authoringEnabled = useContentAuthoringEnabled();
     const dispatch = useAiAgentStoreDispatch();
     const ability = useAbilityContext();
@@ -84,7 +91,7 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
         <ActionIcon
             size="sm"
             onClick={() => dispatch(clearPreview())}
-            aria-label="Close"
+            aria-label={t('actions.close', { ns: 'common' })}
         >
             <MantineIcon icon={IconX} />
         </ActionIcon>
@@ -96,7 +103,7 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
                 <Center className={artifactStyles.loading}>
                     <Stack gap="xs" align="center">
                         <Text size="xs" c="dimmed" ta="center">
-                            Failed to load chart. Please try again.
+                            {t('savedChartPreview.loadFailed')}
                         </Text>
                         {closeButton}
                     </Stack>
@@ -113,7 +120,7 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
                         <Loader
                             type="dots"
                             color="gray"
-                            delayedMessage="Loading chart..."
+                            delayedMessage={t('savedChartPreview.loading')}
                         />
                         {closeButton}
                     </Stack>
@@ -146,10 +153,14 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
                         {hasExploreAction && (
                             <Menu position="bottom-end">
                                 <Menu.Target>
-                                    <Tooltip label="More options">
+                                    <Tooltip
+                                        label={t('dataAppPreview.moreOptions')}
+                                    >
                                         <ActionIcon
                                             size="sm"
-                                            aria-label="More options"
+                                            aria-label={t(
+                                                'dataAppPreview.moreOptions',
+                                            )}
                                         >
                                             <MantineIcon icon={IconDots} />
                                         </ActionIcon>
@@ -170,7 +181,7 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
                                                 />
                                             }
                                         >
-                                            Explore from here
+                                            {t('chartOptions.exploreFromHere')}
                                         </Menu.Item>
                                     ) : (
                                         <Menu.Item
@@ -185,7 +196,7 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
                                                 />
                                             }
                                         >
-                                            Explore from here
+                                            {t('chartOptions.exploreFromHere')}
                                         </Menu.Item>
                                     )}
                                 </Menu.Dropdown>

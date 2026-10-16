@@ -10,6 +10,7 @@ import {
 import { Button } from '@mantine/core';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
@@ -30,6 +31,7 @@ export const HomepageContentPanel: FC<Props> = ({
     projectUuid,
     projectUrlIdentifier,
 }) => {
+    const { t } = useTranslation('home');
     const authoringEnabled = useContentAuthoringEnabled();
     const MAX_NUMBER_OF_ITEMS_IN_PANEL = 10;
     const navigate = useNavigate();
@@ -92,26 +94,26 @@ export const HomepageContentPanel: FC<Props> = ({
             tabs={[
                 {
                     id: 'most-popular',
-                    name: 'Most popular',
+                    name: t('contentPanel.mostPopular'),
                     filter: (item) =>
                         'category' in item &&
                         item.category === ResourceItemCategory.MOST_POPULAR,
                 },
                 {
                     id: 'recently-updated',
-                    name: 'Recently updated',
+                    name: t('contentPanel.recentlyUpdated'),
                     filter: (item) =>
                         'category' in item &&
                         item.category === ResourceItemCategory.RECENTLY_UPDATED,
                 },
                 {
                     id: 'verified',
-                    name: 'Verified',
+                    name: t('contentPanel.verified'),
                     filter: (item: ResourceViewItem) =>
                         'category' in item &&
                         item.category === ResourceItemCategory.VERIFIED,
                     emptyStateProps: {
-                        title: 'No verified content yet',
+                        title: t('contentPanel.noVerifiedContent'),
                         description: undefined,
                         action: undefined,
                     },
@@ -124,7 +126,7 @@ export const HomepageContentPanel: FC<Props> = ({
             headerProps={
                 allItems.length === 0
                     ? {
-                          title: 'Charts and Dashboards',
+                          title: t('contentPanel.chartsAndDashboards'),
                           action: (
                               <MantineLinkButton
                                   size="compact-sm"
@@ -132,7 +134,7 @@ export const HomepageContentPanel: FC<Props> = ({
                                   target="_blank"
                                   href="https://docs.lightdash.com/get-started/exploring-data/intro"
                               >
-                                  Learn
+                                  {t('contentPanel.learn')}
                               </MantineLinkButton>
                           ),
                       }
@@ -141,10 +143,10 @@ export const HomepageContentPanel: FC<Props> = ({
             emptyStateProps={{
                 icon: <MantineIcon icon={IconChartBar} size={30} />,
                 title: userCanCreateCharts
-                    ? 'Feels a little bit empty over here'
-                    : 'No items added yet',
+                    ? t('contentPanel.emptyTitle')
+                    : t('contentPanel.noItems'),
                 description: userCanCreateCharts
-                    ? 'get started by creating some charts'
+                    ? t('contentPanel.emptyDescription')
                     : undefined,
                 action:
                     !isDemo && userCanCreateCharts ? (
@@ -155,7 +157,7 @@ export const HomepageContentPanel: FC<Props> = ({
                             }
                             onClick={handleCreateChart}
                         >
-                            Create chart
+                            {t('contentPanel.createChart')}
                         </Button>
                     ) : undefined,
             }}

@@ -1,5 +1,6 @@
 import { Anchor, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { SlackStates } from '../types';
 
 type Props = {
@@ -11,39 +12,49 @@ export const SchedulerFormSlackError: FC<Props> = ({
     slackState,
     missingScopes,
 }) => {
+    const { t } = useTranslation('scheduler');
     if (slackState === SlackStates.NO_SLACK) {
         return (
             <>
-                <Text pb="sm">No Slack integration found</Text>
+                <Text pb="sm">{t('slackError.noIntegration')}</Text>
                 <Text>
-                    To create a slack scheduled delivery, you need to
-                    <Anchor
-                        target="_blank"
-                        href="https://docs.lightdash.com/self-host/customize-deployment/configure-a-slack-app-for-lightdash"
-                    >
-                        {' '}
-                        setup Slack{' '}
-                    </Anchor>
-                    for your instance
+                    <Trans
+                        t={t}
+                        i18nKey="slackError.setupSlack"
+                        components={{
+                            anchor: (
+                                <Anchor
+                                    target="_blank"
+                                    href="https://docs.lightdash.com/self-host/customize-deployment/configure-a-slack-app-for-lightdash"
+                                />
+                            ),
+                        }}
+                    />
                 </Text>
             </>
         );
     } else if (slackState === SlackStates.MISSING_SCOPES) {
         return (
             <>
-                <Text pb="sm">Slack integration is missing permissions</Text>
+                <Text pb="sm">{t('slackError.missingPermissions')}</Text>
                 <Text pb="sm">
-                    Scheduled deliveries need the Slack scopes{' '}
-                    <Text span fw={600}>
-                        {missingScopes.join(', ')}
-                    </Text>
-                    .
+                    <Trans
+                        t={t}
+                        i18nKey="slackError.missingScopes"
+                        values={{ scopes: missingScopes.join(', ') }}
+                        components={{ scopes: <Text span fw={600} /> }}
+                    />
                 </Text>
                 <Text>
-                    <Anchor href="/generalSettings/integrations">
-                        Reinstall the Slack integration
-                    </Anchor>{' '}
-                    for your organization to grant them.
+                    <Trans
+                        t={t}
+                        i18nKey="slackError.reinstall"
+                        components={{
+                            anchor: (
+                                <Anchor href="/generalSettings/integrations" />
+                            ),
+                        }}
+                    />
                 </Text>
             </>
         );

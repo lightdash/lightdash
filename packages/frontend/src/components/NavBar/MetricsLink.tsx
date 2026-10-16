@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import { Button, Menu } from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { useProject } from '../../hooks/useProject';
 import useApp from '../../providers/App/useApp';
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export const MetricsLink: FC<Props> = ({ projectUuid, asMenu }) => {
+    const { t } = useTranslation('navigation');
     const { user } = useApp();
     const navigate = useNavigate();
     const { data: project } = useProject(projectUuid);
@@ -68,14 +70,14 @@ export const MetricsLink: FC<Props> = ({ projectUuid, asMenu }) => {
                 data-tour-nav="metrics"
                 data-tour-hint="Open Metrics"
             >
-                Metrics
+                {t('metrics')}
             </Menu.Item>
         );
     }
 
     return (
         <Button
-            aria-label="Metrics"
+            aria-label={t('metrics')}
             variant="default"
             size="xs"
             fz="sm"
@@ -84,7 +86,7 @@ export const MetricsLink: FC<Props> = ({ projectUuid, asMenu }) => {
             data-tour-nav="metrics"
             data-tour-hint="Open Metrics"
         >
-            Metrics
+            {t('metrics')}
         </Button>
     );
 };

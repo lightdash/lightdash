@@ -1,6 +1,7 @@
 import { type AiAgentSummary } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { useEffect, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     openPanel,
     type LauncherDockItem,
@@ -32,6 +33,7 @@ export const LauncherDock: FC<Props> = ({
     agentsUpdatedAt,
     selectedAgent,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const dispatch = useAiAgentStoreDispatch();
     const { abort } = useAiAgentThreadStreamAbortController();
     const { dock, removeItem } = useLauncherDock(projectUuid);
@@ -123,8 +125,8 @@ export const LauncherDock: FC<Props> = ({
                 <Box
                     component="button"
                     type="button"
-                    title="Ask AI Agent"
-                    aria-label="Ask AI Agent"
+                    title={t('askAiAgent')}
+                    aria-label={t('askAiAgent')}
                     className={`${styles.dockTab} ${styles.dockIconTab} ${isPanelOpen && !activeThreadId ? styles.dockTabActive : ''}`}
                     onClick={handleNewThread}
                 >

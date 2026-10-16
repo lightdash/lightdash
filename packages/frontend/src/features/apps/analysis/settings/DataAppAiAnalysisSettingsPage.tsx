@@ -21,6 +21,7 @@ import {
     type Icon,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import Callout from '../../../../components/common/Callout';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -37,6 +38,7 @@ import {
     useAiOrganizationAdminSettings,
     useUpdateAiOrganizationSettings,
 } from '../../../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
+import i18n from '../../../../i18n/i18n';
 
 const SettingRow: FC<{
     icon: Icon;
@@ -65,47 +67,17 @@ const SettingRow: FC<{
 
 type LimitField = {
     key: keyof DataAppAnalysisLimits;
-    label: string;
-    description: string;
     /** Empty means no cap. */
     nullable: boolean;
 };
 
+// Labels and descriptions live under `aiAnalysisSettings.limits.fields.<key>`.
 const LIMIT_FIELDS: LimitField[] = [
-    {
-        key: 'dailyDetectCap',
-        label: 'Analyses per day',
-        description:
-            'Model runs of the analysis across all apps and viewers in your organization per UTC day. Stored analyses of identical results are reused and do not count. Leave empty for no cap.',
-        nullable: true,
-    },
-    {
-        key: 'dailyInvestigateCap',
-        label: 'Investigations per day',
-        description:
-            'Agent investigations across all apps and viewers in your organization per UTC day. Leave empty for no cap.',
-        nullable: true,
-    },
-    {
-        key: 'dailyPromptCap',
-        label: 'Prompts per day',
-        description:
-            'Answers to in-app AI prompts across all apps and viewers in your organization per UTC day. Leave empty for no cap.',
-        nullable: true,
-    },
-    {
-        key: 'investigateMaxSteps',
-        label: 'Maximum steps per investigation',
-        description: 'Model steps the agent may take before it must answer.',
-        nullable: false,
-    },
-    {
-        key: 'investigateMaxWarehouseQueries',
-        label: 'Maximum warehouse queries per investigation',
-        description:
-            'Queries the agent may run; when reached it explains what it found so far and the result is marked partial.',
-        nullable: false,
-    },
+    { key: 'dailyDetectCap', nullable: true },
+    { key: 'dailyInvestigateCap', nullable: true },
+    { key: 'dailyPromptCap', nullable: true },
+    { key: 'investigateMaxSteps', nullable: false },
+    { key: 'investigateMaxWarehouseQueries', nullable: false },
 ];
 
 type LimitsFormValues = Record<keyof DataAppAnalysisLimits, number | ''>;
@@ -135,12 +107,15 @@ const toLimits = (values: LimitsFormValues): DataAppAnalysisLimits => ({
 
 // Per-run limits must hold a value; only the daily caps may be left empty.
 const requiredLimit = (value: number | '') =>
-    value === '' ? 'Enter a value of 1 or more' : null;
+    value === ''
+        ? i18n.t('aiAnalysisSettings.limits.required', { ns: 'apps' })
+        : null;
 
 const LimitsForm: FC<{
     initialLimits: DataAppAnalysisLimits;
     disabled: boolean;
 }> = ({ initialLimits, disabled }) => {
+    const { t } = useTranslation('apps');
     const updateSettings = useUpdateAiOrganizationSettings();
     const initialValues = toFormValues(initialLimits);
     const form = useForm({
@@ -160,13 +135,14 @@ const LimitsForm: FC<{
     return (
         <SettingsGridCard>
             <Box>
-                <Title order={5}>Limits</Title>
+                <Title order={5}>{t('aiAnalysisSettings.limits.title')}</Title>
                 <Text c="dimmed" fz="xs">
-                    Caps on how much AI analysis your organization can run. On
-                    Lightdash's AI key the daily caps cannot exceed{' '}
-                    {DATA_APP_ANALYSIS_DEFAULT_LIMITS.dailyDetectCap} analyses
-                    and {DATA_APP_ANALYSIS_DEFAULT_LIMITS.dailyInvestigateCap}{' '}
-                    investigations; on your own key they apply as set.
+                    {t('aiAnalysisSettings.limits.description', {
+                        analyses:
+                            DATA_APP_ANALYSIS_DEFAULT_LIMITS.dailyDetectCap,
+                        investigations:
+                            DATA_APP_ANALYSIS_DEFAULT_LIMITS.dailyInvestigateCap,
+                    })}
                 </Text>
             </Box>
             <form onSubmit={handleSubmit}>
@@ -174,9 +150,17 @@ const LimitsForm: FC<{
                     {LIMIT_FIELDS.map((field) => (
                         <NumberInput
                             key={field.key}
-                            label={field.label}
-                            description={field.description}
-                            placeholder={field.nullable ? 'No cap' : undefined}
+                            label={t(
+                                `aiAnalysisSettings.limits.fields.${field.key}.label`,
+                            )}
+                            description={t(
+                                `aiAnalysisSettings.limits.fields.${field.key}.description`,
+                            )}
+                            placeholder={
+                                field.nullable
+                                    ? t('aiAnalysisSettings.limits.noCap')
+                                    : undefined
+                            }
                             min={1}
                             allowDecimal={false}
                             allowNegative={false}
@@ -191,7 +175,7 @@ const LimitsForm: FC<{
                                 variant="outline"
                                 onClick={() => form.setValues(initialValues)}
                             >
-                                Cancel
+                                {t('actions.cancel', { ns: 'common' })}
                             </Button>
                         )}
                         <Button
@@ -199,7 +183,7 @@ const LimitsForm: FC<{
                             disabled={disabled || isUnchanged}
                             loading={updateSettings.isLoading}
                         >
-                            Save
+                            {t('actions.save', { ns: 'common' })}
                         </Button>
                     </Group>
                 </Stack>
@@ -209,6 +193,7 @@ const LimitsForm: FC<{
 };
 
 export const DataAppAiAnalysisSettingsPage: FC = () => {
+    const { t } = useTranslation('apps');
     const { data: settings, isInitialLoading } =
         useAiOrganizationAdminSettings();
     const { mutate: updateSettings, isLoading: isUpdating } =
@@ -221,8 +206,8 @@ export const DataAppAiAnalysisSettingsPage: FC = () => {
 
     return (
         <SettingsPage
-            title="AI analysis"
-            description="Let viewers analyse what a data app shows and investigate notable data points."
+            title={t('aiAnalysisSettings.title')}
+            description={t('aiAnalysisSettings.description')}
             actions={
                 <SettingsPageDocumentationLink href="https://docs.lightdash.com/data-apps/ai-analysis" />
             }
@@ -234,19 +219,25 @@ export const DataAppAiAnalysisSettingsPage: FC = () => {
             ) : (
                 <Stack gap="md">
                     {!aiOn && (
-                        <Callout variant="warning" title="AI is not enabled">
+                        <Callout
+                            variant="warning"
+                            title={t('aiAnalysisSettings.aiOff.title')}
+                        >
                             <Text fz="xs">
-                                AI analysis needs Ask AI enabled for the
-                                organization. Turn it on under{' '}
-                                <Text
-                                    span
-                                    component={Link}
-                                    to="/generalSettings/ai/general"
-                                    td="underline"
-                                >
-                                    Ask AI · General
-                                </Text>
-                                .
+                                <Trans
+                                    t={t}
+                                    i18nKey="aiAnalysisSettings.aiOff.body"
+                                    components={{
+                                        link: (
+                                            <Text
+                                                span
+                                                component={Link}
+                                                to="/generalSettings/ai/general"
+                                                td="underline"
+                                            />
+                                        ),
+                                    }}
+                                />
                             </Text>
                         </Callout>
                     )}
@@ -254,8 +245,10 @@ export const DataAppAiAnalysisSettingsPage: FC = () => {
                         <Stack gap="md">
                             <SettingRow
                                 icon={IconSparkles}
-                                name="AI analysis"
-                                description="Lets viewers analyse the current view of any data app. Sends query results a viewer already has access to, to your configured AI provider."
+                                name={t('aiAnalysisSettings.enable.name')}
+                                description={t(
+                                    'aiAnalysisSettings.enable.description',
+                                )}
                                 checked={analysisOn}
                                 disabled={isUpdating || !aiOn}
                                 onChange={(checked) =>
@@ -267,8 +260,10 @@ export const DataAppAiAnalysisSettingsPage: FC = () => {
                             <Divider />
                             <SettingRow
                                 icon={IconPlayerPlay}
-                                name="Analyse automatically on load"
-                                description="Default for apps: run the analysis when a viewer opens an app, without a click. Stored analyses of identical results are reused."
+                                name={t('aiAnalysisSettings.auto.name')}
+                                description={t(
+                                    'aiAnalysisSettings.auto.description',
+                                )}
                                 checked={
                                     settings.dataAppAutoAnalysisEnabled ?? false
                                 }
@@ -282,8 +277,10 @@ export const DataAppAiAnalysisSettingsPage: FC = () => {
                             <Divider />
                             <SettingRow
                                 icon={IconMessageChatbot}
-                                name="Continue investigations in Ask AI"
-                                description="Lets viewers carry an investigation on as an Ask AI thread. The thread stays read-only. Off keeps viewers at the explanation."
+                                name={t('aiAnalysisSettings.continue.name')}
+                                description={t(
+                                    'aiAnalysisSettings.continue.description',
+                                )}
                                 checked={
                                     settings.dataAppContinueInAskAiEnabled ??
                                     true

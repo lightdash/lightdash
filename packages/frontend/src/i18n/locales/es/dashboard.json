@@ -1,0 +1,259 @@
+{
+    "tabs": {
+        "tabName": "Nombre de la pestaña",
+        "tabNamePlaceholder": "Ponle nombre a tu pestaña",
+        "addModal": {
+            "title": "Añadir nueva pestaña"
+        },
+        "editModal": {
+            "title": "Editar tu pestaña"
+        },
+        "duplicateModal": {
+            "title": "Duplicar pestaña",
+            "confirm": "Crear duplicado",
+            "copyOf": "Copia de {{name}}",
+            "nameRequired": "El nombre de la pestaña es obligatorio",
+            "nameTooLong": "El nombre de la pestaña debe tener como máximo 255 caracteres"
+        },
+        "menu": {
+            "rename": "Renombrar pestaña",
+            "duplicate": "Duplicar pestaña",
+            "show": "Mostrar pestaña",
+            "hide": "Ocultar pestaña",
+            "remove": "Eliminar pestaña",
+            "safelyRemove": "Eliminar pestaña de forma segura"
+        },
+        "deleteModal": {
+            "title": "Eliminar pestaña",
+            "transfer": "Transferir",
+            "deleteTiles": "Eliminar tiles",
+            "question": "¿Qué quieres hacer con los tiles de esta pestaña antes de eliminarla?",
+            "deleteAllOption": "Eliminar todos los tiles de esta pestaña",
+            "transferAllOption": "Transferir todos los tiles a otra pestaña",
+            "pickTabPlaceholder": "Elige una pestaña",
+            "schedulersWarningTitle": "Aviso: entregas programadas afectadas",
+            "schedulersUsedBy_one": "Esta pestaña se usa actualmente en <bold>{{count}}</bold> entrega programada:",
+            "schedulersUsedBy_other": "Esta pestaña se usa actualmente en <bold>{{count}}</bold> entregas programadas:",
+            "confirmDelete_one": "¿Seguro que quieres eliminar la pestaña <bold>\"{{name}}\"</bold> y su <bold>{{count}}</bold> tile?",
+            "confirmDelete_other": "¿Seguro que quieres eliminar la pestaña <bold>\"{{name}}\"</bold> y sus <bold>{{count}}</bold> tiles?",
+            "alsoDeletesCharts_one": "Al guardar, esta acción también eliminará de forma permanente el siguiente gráfico creado desde ella:",
+            "alsoDeletesCharts_other": "Al guardar, esta acción también eliminará de forma permanente los siguientes gráficos creados desde ella:",
+            "toastTransferred_one": "Se eliminó la pestaña \"{{name}}\" y se transfirió {{count}} tile correctamente.",
+            "toastTransferred_other": "Se eliminó la pestaña \"{{name}}\" y se transfirieron {{count}} tiles correctamente.",
+            "toastDeleted_one": "Se eliminó la pestaña \"{{name}}\" y {{count}} tile.",
+            "toastDeleted_other": "Se eliminó la pestaña \"{{name}}\" y {{count}} tiles."
+        },
+        "limit": {
+            "title": "Límite de pestañas alcanzado",
+            "subtitle": "Has alcanzado el máximo de {{max}} pestañas por dashboard. Considera crear un nuevo dashboard.",
+            "tooltip": "Máximo {{max}} pestañas por dashboard. Considera crear un nuevo dashboard."
+        },
+        "addNewTab": "Añadir una nueva pestaña",
+        "newTab": "Nueva pestaña"
+    },
+    "tileForms": {
+        "title": "Título",
+        "titlePlaceholder": "Título del tile",
+        "showTileFrame": "Mostrar marco del tile",
+        "headingText": "Texto del encabezado",
+        "headingTextPlaceholder": "Introduce el texto del encabezado",
+        "showDivider": "Mostrar un separador bajo el encabezado",
+        "loomUrl": "URL de Loom",
+        "loomUrlPlaceholder": "p. ej. https://www.loom.com/share/1234567890",
+        "dataApp": {
+            "label": "App de datos",
+            "description": "Solo se pueden añadir a un dashboard las apps que se hayan movido a un espacio.",
+            "loading": "Cargando apps...",
+            "placeholder": "Elige una app de datos",
+            "nothingFound": "No hay apps de datos que coincidan",
+            "loadFailed": "No se pudieron cargar las apps"
+        },
+        "moveToTab": {
+            "title": "Mover tile a otra pestaña",
+            "confirm": "Mover",
+            "selectLabel": "Selecciona la pestaña a la que mover este tile",
+            "noTabs": "No hay pestañas disponibles"
+        },
+        "validation": {
+            "invalidLoomUrl": "La URL de Loom no es válida",
+            "required": "Campo obligatorio",
+            "titleOrContentRequired": "El título o el contenido es obligatorio"
+        },
+        "editTitle": {
+            "markdown": "Editar tile de markdown",
+            "loom": "Editar tile de Loom",
+            "heading": "Editar tile de encabezado",
+            "dataApp": "Editar tile de app de datos",
+            "savedChart": "Editar tile de gráfico guardado",
+            "sqlChart": "Editar tile de gráfico SQL"
+        },
+        "addTitle": {
+            "markdown": "Añadir tile de markdown",
+            "loom": "Añadir tile de Loom",
+            "heading": "Añadir tile de encabezado",
+            "dataApp": "Añadir tile de app de datos"
+        },
+        "editContent": {
+            "title": "Editar contenido del tile",
+            "selectChart": "Seleccionar gráfico"
+        },
+        "searchPlaceholder": "Buscar...",
+        "noChartsFound": "No se encontraron gráficos",
+        "loadMore": "Cargar más",
+        "addCharts": {
+            "title": "Añadir gráficos guardados",
+            "selectLabel": "Selecciona los gráficos que quieres añadir a este dashboard",
+            "alreadyAdded": "Este gráfico ya se ha añadido a este dashboard"
+        }
+    },
+    "chartEditor": {
+        "openChartPage": "Abrir página del gráfico",
+        "prepareMetricRemovalFailed": "No se pudo preparar la eliminación de la métrica",
+        "customMetricRemoved": "Métrica personalizada eliminada de este dashboard",
+        "customMetricRemoveFailed": "No se pudo eliminar la métrica personalizada",
+        "editNameDescription": "Editar nombre y descripción",
+        "versionHistory": "Historial de versiones",
+        "versions": "Versiones",
+        "tablesTitle": "Tablas"
+    },
+    "tile": {
+        "exportImage": "Exportar imagen",
+        "exportData": "Exportar datos",
+        "editChart": "Editar gráfico",
+        "duplicate": "Duplicar",
+        "copyLink": "Copiar enlace al tile",
+        "moveToAnotherTab": "Mover a otra pestaña",
+        "deleteChart": "Eliminar gráfico",
+        "removeTile": "Quitar tile",
+        "viewChart": "Ver gráfico",
+        "verifiedBy": "Verificado por {{name}}",
+        "verified": "Verificado",
+        "queryError": "Error al ejecutar la consulta",
+        "downloadData": "Descargar datos",
+        "cannotEditInSpace": "No se puede editar un gráfico que pertenece al espacio: <bold>{{spaceName}}</bold>",
+        "noEditPermission": "No tienes permiso para editar este gráfico",
+        "duplicatedSuccess": "Gráfico duplicado y añadido al final de este dashboard",
+        "parameters": "Parámetros",
+        "filters": {
+            "isAnyValue": "es cualquier valor",
+            "dashboardFiltersApplied_one": "Filtro del dashboard aplicado:",
+            "dashboardFiltersApplied_other": "Filtros del dashboard aplicados:",
+            "chartFilters_one": "Filtro del gráfico:",
+            "chartFilters_other": "Filtros del gráfico:",
+            "overriddenByDashboard": "(reemplazado por el dashboard)",
+            "unknownField": "Se intentó referenciar un campo con id desconocido: {{fieldId}}"
+        },
+        "finishEditingToUseActions": "Termina de editar el dashboard para usar estas acciones",
+        "customDimensionsWarning": "Este gráfico contiene dimensiones personalizadas; no podrás ejecutar SQL personalizado en explorar.",
+        "moveToSpace": "Mover a espacio",
+        "rebuildPreAggregate": "Reconstruir preagregado",
+        "duplicateChart": "Duplicar gráfico",
+        "copyValue": "Copiar valor",
+        "deletedChart": "Gráfico eliminado",
+        "chartDeleted": "Este gráfico se ha eliminado."
+    },
+    "executionInfo": {
+        "rows": "Filas",
+        "source": {
+            "label": "Origen",
+            "resultCache": "Caché de resultados",
+            "warehousePreAggregateFailed": "Warehouse (falló el preagregado)",
+            "duckdbPreAggregate": "Preagregado de DuckDB",
+            "externalPreAggregate": "Preagregado externo",
+            "warehouse": "Warehouse"
+        },
+        "queue": "Cola",
+        "execution": "Ejecución",
+        "network": "Red",
+        "total": "Total"
+    },
+    "emptyState": {
+        "startBuilding": "¡Empieza a construir tu dashboard!",
+        "dashboardEmpty": "El dashboard está vacío.",
+        "addTilesToTab": "Añade tiles a esta pestaña",
+        "tabEmpty": "La pestaña está vacía",
+        "noSavedCharts": "Todavía no has guardado ningún gráfico.",
+        "runQuery": "Ejecutar una consulta"
+    },
+    "addTile": {
+        "addTile": "Añadir tile",
+        "tiles": "Tiles",
+        "savedChart": "Gráfico guardado",
+        "newChart": "Nuevo gráfico",
+        "newChartInPlace": "Crea un gráfico nuevo y añádelo a este dashboard",
+        "newChartExclusive": "Los gráficos creados desde aquí son exclusivos de este dashboard",
+        "dataApp": "App de datos",
+        "markdown": "Markdown",
+        "loom": "Vídeo de Loom",
+        "elements": "Elementos",
+        "tab": "Pestaña",
+        "heading": "Encabezado",
+        "addTab": "Añadir pestaña",
+        "tileLimitReached": "Esta pestaña ha alcanzado el límite de {{max}} tiles. Añade una pestaña nueva para seguir añadiendo tiles.",
+        "allLimitsReached": "Límites máximos alcanzados: {{maxTiles}} tiles por pestaña, {{maxTabs}} pestañas por dashboard."
+    },
+    "dataAppTile": {
+        "filtersAvailableCount_one": "{{count}} filtro del dashboard disponible para esta app de datos",
+        "filtersAvailableCount_other": "{{count}} filtros del dashboard disponibles para esta app de datos",
+        "filtersAvailableHeading_one": "Filtro del dashboard disponible para esta app de datos:",
+        "filtersAvailableHeading_other": "Filtros del dashboard disponibles para esta app de datos:",
+        "isAnyValue": "es cualquier valor",
+        "continueBuilding": "Seguir construyendo",
+        "notAvailable": {
+            "title": "App de datos no disponible",
+            "preview": "Las apps de datos todavía no se duplican en los entornos de preview. Aun así, puedes editar o quitar el tile.",
+            "deleted": "Esta app de datos ya no existe. Edita el tile para elegir otra app."
+        },
+        "noAccess": {
+            "title": "Sin acceso",
+            "description": "No tienes permiso para ver esta app de datos."
+        },
+        "noReadyVersion": {
+            "title": "Sin versión lista",
+            "description": "Esta app de datos aún no ha terminado de construirse."
+        },
+        "loadFailed": "No se pudo cargar la app"
+    },
+    "sqlChartTile": {
+        "editSqlChart": "Editar gráfico SQL",
+        "deleted": "Este gráfico SQL se ha eliminado.",
+        "fetchError": "Error al obtener el gráfico",
+        "deletedTitle": "Gráfico SQL eliminado"
+    },
+    "dateZoom": {
+        "removeDefault": "Quitar predeterminado",
+        "setAsDefault": "Establecer como predeterminado",
+        "granularities": "Granularidades",
+        "custom": "Personalizado",
+        "granularity": "Granularidad",
+        "resetToDefault": "Restablecer valor predeterminado",
+        "configure": "Configurar",
+        "hiddenFromViewers": "Oculto para los lectores. Haz clic para mostrar.",
+        "visibleToViewers": "Visible para los lectores. Haz clic para ocultar.",
+        "toggleVisibility": "Alternar la visibilidad del control de zoom para los lectores",
+        "defaultControlName": "Zoom de fecha",
+        "addDateZoom": "Añadir zoom de fecha",
+        "config": {
+            "standard": "Estándar",
+            "untitledChart": "Gráfico sin título",
+            "inControl": "En {{name}}",
+            "followsVia": "Sigue la granularidad seleccionada mediante",
+            "dateField": "Campo de fecha",
+            "expandTab": "Expandir pestaña",
+            "collapseTab": "Contraer pestaña",
+            "selectedOfTotal": "({{selected}} de {{total}} seleccionados)",
+            "settingsTab": "Configuración",
+            "chartTilesTab": "Tiles de gráficos",
+            "controlName": "Nombre del control",
+            "controlNamePlaceholder": "p. ej. Zoom de ingresos",
+            "defaultGranularity": "Granularidad predeterminada",
+            "selectAtLeastOne": "Selecciona al menos un gráfico",
+            "targeting_one": "Se aplica a {{count}} gráfico",
+            "targeting_other": "Se aplica a {{count}} gráficos",
+            "editCharts": "Editar gráficos",
+            "noEligibleTiles": "No hay tiles de gráficos con una dimensión de fecha a la que aplicar zoom.",
+            "selectAll": "Seleccionar todo",
+            "saveChanges": "Guardar cambios"
+        }
+    }
+}

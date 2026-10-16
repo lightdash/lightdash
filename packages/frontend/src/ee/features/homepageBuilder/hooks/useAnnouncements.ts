@@ -6,6 +6,7 @@ import {
     type UpdateAnnouncementRequest,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 
@@ -54,6 +55,7 @@ export const useAnnouncements = (
 
 export const useCreateAnnouncement = (projectUuid: string) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('homepageBuilder');
     const { showToastApiError } = useToaster();
     return useMutation<
         ProjectAnnouncement,
@@ -73,7 +75,7 @@ export const useCreateAnnouncement = (projectUuid: string) => {
             ]),
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to post announcement',
+                title: t('toasts.postAnnouncementFailed'),
                 apiError: error,
             }),
     });
@@ -81,6 +83,7 @@ export const useCreateAnnouncement = (projectUuid: string) => {
 
 export const useUpdateAnnouncement = (projectUuid: string) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('homepageBuilder');
     const { showToastApiError } = useToaster();
     return useMutation<
         ProjectAnnouncement,
@@ -100,7 +103,7 @@ export const useUpdateAnnouncement = (projectUuid: string) => {
             ]),
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to update announcement',
+                title: t('toasts.updateAnnouncementFailed'),
                 apiError: error,
             }),
     });
@@ -108,6 +111,7 @@ export const useUpdateAnnouncement = (projectUuid: string) => {
 
 export const useDeleteAnnouncement = (projectUuid: string) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('homepageBuilder');
     const { showToastApiError } = useToaster();
     return useMutation<undefined, ApiError, string>({
         mutationFn: (announcementUuid) =>
@@ -123,13 +127,14 @@ export const useDeleteAnnouncement = (projectUuid: string) => {
             ]),
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to delete announcement',
+                title: t('toasts.deleteAnnouncementFailed'),
                 apiError: error,
             }),
     });
 };
 
 export const useUploadAnnouncementImage = (projectUuid: string) => {
+    const { t } = useTranslation('homepageBuilder');
     const { showToastApiError } = useToaster();
     return useMutation<{ url: string }, ApiError, File>({
         mutationFn: (file) =>
@@ -141,7 +146,7 @@ export const useUploadAnnouncementImage = (projectUuid: string) => {
             }),
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to upload image',
+                title: t('toasts.uploadImageFailed'),
                 apiError: error,
             }),
     });

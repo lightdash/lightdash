@@ -17,6 +17,7 @@ import {
     IconUpload,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useApp from '../../../providers/App/useApp';
@@ -44,6 +45,7 @@ export const ExternalSourceExploreMenu: FC<Props> = ({
     canMergeAnotherQuery,
     onAddMergeSource,
 }) => {
+    const { t } = useTranslation('sync');
     const navigate = useNavigate();
     const { user } = useApp();
     const canManage =
@@ -71,7 +73,7 @@ export const ExternalSourceExploreMenu: FC<Props> = ({
             <Menu withArrow offset={-2}>
                 <Menu.Target>
                     <ActionIcon
-                        aria-label="External source actions"
+                        aria-label={t('externalSources.menu.ariaLabel')}
                         variant="transparent"
                     >
                         <MantineIcon icon={IconDots} />
@@ -84,7 +86,7 @@ export const ExternalSourceExploreMenu: FC<Props> = ({
                             onClick={onAddMergeSource}
                         >
                             <Text fz="xs" fw={500}>
-                                Merge another query
+                                {t('externalSources.menu.mergeAnotherQuery')}
                             </Text>
                         </Menu.Item>
                     )}
@@ -100,7 +102,7 @@ export const ExternalSourceExploreMenu: FC<Props> = ({
                                     onClick={replaceHandlers.open}
                                 >
                                     <Text fz="xs" fw={500}>
-                                        Replace file
+                                        {t('externalSources.menu.replaceFile')}
                                     </Text>
                                 </Menu.Item>
                             )}
@@ -118,7 +120,9 @@ export const ExternalSourceExploreMenu: FC<Props> = ({
                                         }
                                     >
                                         <Text fz="xs" fw={500}>
-                                            Refresh from Google Sheets
+                                            {t(
+                                                'externalSources.menu.refreshFromSheets',
+                                            )}
                                         </Text>
                                     </Menu.Item>
                                     <Menu.Item
@@ -134,7 +138,9 @@ export const ExternalSourceExploreMenu: FC<Props> = ({
                                         }
                                     >
                                         <Text fz="xs" fw={500}>
-                                            Reconnect Google account
+                                            {t(
+                                                'externalSources.menu.reconnectGoogle',
+                                            )}
                                         </Text>
                                     </Menu.Item>
                                 </>
@@ -144,7 +150,7 @@ export const ExternalSourceExploreMenu: FC<Props> = ({
                                 onClick={renameHandlers.open}
                             >
                                 <Text fz="xs" fw={500}>
-                                    Rename table
+                                    {t('externalSources.menu.renameTable')}
                                 </Text>
                             </Menu.Item>
                             <Menu.Item
@@ -154,7 +160,7 @@ export const ExternalSourceExploreMenu: FC<Props> = ({
                                 onClick={() => setPreviewRef(sourceRef)}
                             >
                                 <Text fz="xs" fw={500}>
-                                    View source details
+                                    {t('externalSources.menu.viewDetails')}
                                 </Text>
                             </Menu.Item>
                             <Menu.Divider />
@@ -164,7 +170,7 @@ export const ExternalSourceExploreMenu: FC<Props> = ({
                                 onClick={deleteHandlers.open}
                             >
                                 <Text fz="xs" fw={500}>
-                                    Delete
+                                    {t('actions.delete', { ns: 'common' })}
                                 </Text>
                             </Menu.Item>
                         </>

@@ -16,6 +16,7 @@ import {
     IconChevronRight,
 } from '@tabler/icons-react';
 import { useId, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -27,20 +28,12 @@ import {
     type AgentConnectionStatus,
 } from './types';
 
-const statusLabels = {
-    active: 'Active',
-    expired: 'Expired',
-    revoked: 'Revoked',
-} as const;
 const restrictionReasons = new Map([
-    [
-        'person_permission',
-        'Your permissions in this project do not allow this action.',
-    ],
-    ['agent_policy', 'This action is turned off for agents.'],
-    ['project_access', 'You no longer have access to this project.'],
-    ['not_supported', 'This action is not available for connections.'],
-    ['agent_identity_disabled', 'Agents are turned off.'],
+    ['person_permission', 'personPermission'],
+    ['agent_policy', 'agentPolicy'],
+    ['project_access', 'projectAccess'],
+    ['not_supported', 'notSupported'],
+    ['agent_identity_disabled', 'agentIdentityDisabled'],
 ]);
 const restorableReasons = new Set([
     'person_permission',
@@ -54,10 +47,13 @@ const RestrictedAction = ({
 }: {
     action: EffectiveProject['capabilities'][number];
 }) => {
+    const { t } = useTranslation('aiAccess');
     const descriptionId = useId();
-    const reason =
-        restrictionReasons.get(action.reason ?? '') ??
-        'Not available right now.';
+    const reason = t(
+        `agentConnections.table.reasons.${
+            restrictionReasons.get(action.reason ?? '') ?? 'unavailable'
+        }`,
+    );
     const name = getAgentCapabilityName(action.capability);
     return (
         <Group gap="xs">
@@ -70,7 +66,9 @@ const RestrictedAction = ({
             >
                 <ActionIcon
                     size="xs"
-                    aria-label={`Why ${name} is limited`}
+                    aria-label={t('agentConnections.table.whyNameLimited', {
+                        name,
+                    })}
                     aria-describedby={descriptionId}
                 >
                     <MantineIcon
@@ -92,6 +90,7 @@ const ProjectRestrictions = ({
     project: EffectiveProject;
     approved: AgentConnectionRecord['approvedProjects'][number] | undefined;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const approvedCapabilities = new Set(approved?.approvedCapabilities);
     const restricted = project.capabilities.filter(
         (action) =>
@@ -101,7 +100,8 @@ const ProjectRestrictions = ({
     return (
         <Stack gap="xs">
             <Text fw={500}>
-                {approved?.name ?? 'Project no longer available'}
+                {approved?.name ??
+                    t('agentConnections.table.projectUnavailable')}
             </Text>
             {restricted.map((action) => (
                 <RestrictedAction key={action.capability} action={action} />
@@ -110,14 +110,12 @@ const ProjectRestrictions = ({
                 restorableReasons.has(action.reason ?? ''),
             ) && (
                 <Text size="xs" c="dimmed">
-                    May return if your permissions change.
+                    {t('agentConnections.table.mayReturn')}
                 </Text>
             )}
         </Stack>
     );
 };
-const count = (value: number, noun: string) =>
-    `${value} ${noun}${value === 1 ? '' : 's'}`;
 
 const ConnectionRestrictions = ({
     status,
@@ -126,6 +124,7 @@ const ConnectionRestrictions = ({
     status: ReturnType<typeof useAgentConnectionStatus>;
     connection: AgentConnectionRecord;
 }) => {
+    const { t } = useTranslation('aiAccess');
     if (status.isError)
         return (
             <InlineErrorState
@@ -134,7 +133,11 @@ const ConnectionRestrictions = ({
             />
         );
     if (status.isInitialLoading)
-        return <EmptyStateLoader title="Checking restrictions" />;
+        return (
+            <EmptyStateLoader
+                title={t('agentConnections.table.checkingRestrictions')}
+            />
+        );
     if (!status.data) return null;
     return (
         <Stack gap="sm">
@@ -156,6 +159,7 @@ const ConnectionRow = ({
 }: {
     connection: AgentConnectionRecord;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const [expanded, setExpanded] = useState(false);
     const [revoking, setRevoking] = useState(false);
     const active =
@@ -177,12 +181,24 @@ const ConnectionRow = ({
                 <Table.Td>
                     <Group gap="xs" wrap="nowrap">
                         <Tooltip
-                            label={expanded ? 'Hide details' : 'Show details'}
+                            label={
+                                expanded
+                                    ? t('agentConnections.table.hideDetails')
+                                    : t('agentConnections.table.showDetails')
+                            }
                             events={{ hover: true, focus: true, touch: false }}
                         >
                             <ActionIcon
                                 variant="subtle"
-                                aria-label={`${expanded ? 'Collapse' : 'Expand'} ${connection.name}`}
+                                aria-label={
+                                    expanded
+                                        ? t('agentConnections.table.collapse', {
+                                              name: connection.name,
+                                          })
+                                        : t('agentConnections.table.expand', {
+                                              name: connection.name,
+                                          })
+                                }
                                 aria-expanded={expanded}
                                 aria-controls={`restrictions-${connection.grantUuid}`}
                                 onClick={() => setExpanded((value) => !value)}
@@ -199,12 +215,19 @@ const ConnectionRow = ({
                         <Stack gap={0}>
                             <Text fw={500}>{connection.name}</Text>
                             <Text size="xs" c="dimmed">
-                                CLI ·{' '}
-                                {count(
-                                    connection.approvedProjects.length,
-                                    'project',
-                                )}{' '}
-                                · {count(actions.length, 'action')}
+                                {t('agentConnections.table.summary', {
+                                    projects: t(
+                                        'agentConnections.table.projectCount',
+                                        {
+                                            count: connection.approvedProjects
+                                                .length,
+                                        },
+                                    ),
+                                    actions: t(
+                                        'agentConnections.table.actionCount',
+                                        { count: actions.length },
+                                    ),
+                                })}
                             </Text>
                         </Stack>
                     </Group>
@@ -224,15 +247,17 @@ const ConnectionRow = ({
                                 value={connection.lastUsedAt}
                             />
                         ) : (
-                            'Never used'
+                            t('agentConnections.table.neverUsed')
                         )}
                     </Text>
                 </Table.Td>
                 <Table.Td>
                     <Badge variant="light" color={active ? 'green' : 'gray'}>
                         {connection.limitsStatus === 'invalid'
-                            ? 'Invalid'
-                            : statusLabels[connection.status]}
+                            ? t('agentConnections.table.status.invalid')
+                            : t(
+                                  `agentConnections.table.status.${connection.status}`,
+                              )}
                     </Badge>
                 </Table.Td>
                 <Table.Td ta="right">
@@ -243,7 +268,7 @@ const ConnectionRow = ({
                             size="compact-sm"
                             onClick={() => setRevoking(true)}
                         >
-                            Revoke
+                            {t('agentConnections.revoke.confirm')}
                         </Button>
                     )}
                 </Table.Td>
@@ -256,7 +281,9 @@ const ConnectionRow = ({
                                 <Group key={project.projectUuid} gap="xs">
                                     <Text size="sm" fw={500}>
                                         {project.name ??
-                                            'Project no longer available'}
+                                            t(
+                                                'agentConnections.table.projectUnavailable',
+                                            )}
                                     </Text>
                                     {project.approvedCapabilities.map(
                                         (capability) => (
@@ -274,7 +301,7 @@ const ConnectionRow = ({
                                 </Group>
                             ))}
                             <Text size="xs" c="dimmed">
-                                Approved{' '}
+                                {t('agentConnections.table.approved')}{' '}
                                 <ConnectionTimestamp
                                     value={connection.approvedAt}
                                 />
@@ -300,6 +327,7 @@ const ConnectionRow = ({
 };
 
 export const AgentConnectionsTable = () => {
+    const { t } = useTranslation('aiAccess');
     const query = useAgentConnections({
         refetchOnMount: false,
         retryOnMount: false,
@@ -312,21 +340,22 @@ export const AgentConnectionsTable = () => {
             />
         );
     if (!query.data)
-        return <EmptyStateLoader title="Loading agent connections" />;
+        return <EmptyStateLoader title={t('agentConnections.table.loading')} />;
     return (
         <Table.ScrollContainer minWidth={600}>
             <Table>
                 <Table.Thead>
                     <Table.Tr>
-                        {[
-                            'Connection',
-                            'Expires',
-                            'Last used',
-                            'Status',
-                            '',
-                        ].map((heading) => (
-                            <Table.Th key={heading}>{heading}</Table.Th>
-                        ))}
+                        {['connection', 'expires', 'lastUsed', 'status'].map(
+                            (heading) => (
+                                <Table.Th key={heading}>
+                                    {t(
+                                        `agentConnections.table.headings.${heading}`,
+                                    )}
+                                </Table.Th>
+                            ),
+                        )}
+                        <Table.Th />
                     </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>

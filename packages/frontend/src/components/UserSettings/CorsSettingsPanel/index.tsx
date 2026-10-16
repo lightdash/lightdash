@@ -18,6 +18,7 @@ import { useForm } from '@mantine/form';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useOrganizationSettings,
     useUpdateOrganizationSettings,
@@ -59,6 +60,7 @@ const getNextInputValue = (
 const CorsSettingsForm: FC<{ settings: OrganizationSettings }> = ({
     settings,
 }) => {
+    const { t } = useTranslation('userSettings');
     const update = useUpdateOrganizationSettings();
 
     const initial = {
@@ -107,25 +109,37 @@ const CorsSettingsForm: FC<{ settings: OrganizationSettings }> = ({
                                 <TextInput
                                     w="100%"
                                     label={
-                                        index === 0 ? 'Allowed origins' : null
+                                        index === 0
+                                            ? t(
+                                                  'corsSettingsPanel.allowedOrigins.label',
+                                              )
+                                            : null
                                     }
                                     description={
                                         index === 0
-                                            ? 'Origin mode accepts exact origins or *.example.com. Regex mode (.*) accepts a pattern and matches the whole origin automatically.'
+                                            ? t(
+                                                  'corsSettingsPanel.allowedOrigins.description',
+                                              )
                                             : null
                                     }
                                     placeholder={
                                         isRegex
                                             ? 'https:\\/\\/.*\\.example\\.com'
-                                            : 'https://app.example.com or *.example.com'
+                                            : t(
+                                                  'corsSettingsPanel.allowedOrigins.originPlaceholder',
+                                              )
                                     }
                                     rightSectionWidth={44}
                                     rightSection={
                                         <Tooltip
                                             label={
                                                 isRegex
-                                                    ? 'Switch to origin mode'
-                                                    : 'Switch to regex mode'
+                                                    ? t(
+                                                          'corsSettingsPanel.switchToOriginMode',
+                                                      )
+                                                    : t(
+                                                          'corsSettingsPanel.switchToRegexMode',
+                                                      )
                                             }
                                         >
                                             <ActionIcon
@@ -139,8 +153,12 @@ const CorsSettingsForm: FC<{ settings: OrganizationSettings }> = ({
                                                 }
                                                 aria-label={
                                                     isRegex
-                                                        ? 'Switch to origin mode'
-                                                        : 'Switch to regex mode'
+                                                        ? t(
+                                                              'corsSettingsPanel.switchToOriginMode',
+                                                          )
+                                                        : t(
+                                                              'corsSettingsPanel.switchToRegexMode',
+                                                          )
                                                 }
                                                 onClick={() => {
                                                     const type: CorsAllowedDomainInputType =
@@ -170,7 +188,9 @@ const CorsSettingsForm: FC<{ settings: OrganizationSettings }> = ({
                                     type="button"
                                     color="red"
                                     mb={form.errors[fieldPath] ? 'xl' : 0}
-                                    aria-label="Remove CORS origin"
+                                    aria-label={t(
+                                        'corsSettingsPanel.removeOrigin',
+                                    )}
                                     onClick={() =>
                                         form.removeListItem(
                                             'corsAllowedDomains',
@@ -185,7 +205,7 @@ const CorsSettingsForm: FC<{ settings: OrganizationSettings }> = ({
                     })}
                     {form.values.corsAllowedDomains.length === 0 && (
                         <Text c="dimmed" fz="sm">
-                            No CORS origins configured.
+                            {t('corsSettingsPanel.noOrigins')}
                         </Text>
                     )}
                     <Group justify="flex-start">
@@ -200,7 +220,7 @@ const CorsSettingsForm: FC<{ settings: OrganizationSettings }> = ({
                                 )
                             }
                         >
-                            Add origin
+                            {t('corsSettingsPanel.addOrigin')}
                         </Button>
                     </Group>
                 </Stack>
@@ -210,7 +230,7 @@ const CorsSettingsForm: FC<{ settings: OrganizationSettings }> = ({
                         loading={update.isLoading}
                         disabled={isUnchanged}
                     >
-                        Save
+                        {t('actions.save', { ns: 'common' })}
                     </Button>
                 </Group>
             </Stack>

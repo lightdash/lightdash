@@ -12,6 +12,7 @@ import {
 import { IconCheck, IconCopy, IconDownload } from '@tabler/icons-react';
 import { type PieSeriesOption } from 'echarts';
 import React, { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { copyImageToClipboard } from '../../../utils/copyImageToClipboard';
 import {
@@ -118,6 +119,7 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     chartName,
     unavailableOptions,
 }) => {
+    const { t } = useTranslation('commonUi');
     const [isCopied, setIsCopied] = useState(false);
     const [type, setType] = useState<DownloadType>(DownloadType.PNG);
     const { showToastError } = useToaster();
@@ -127,7 +129,7 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     const onDownload = useCallback(async () => {
         const chartInstance = getChartInstance();
         if (!chartInstance) {
-            showToastError({ title: 'Unable to download chart image' });
+            showToastError({ title: t('chartDownload.downloadFailed') });
             return;
         }
         const { needsWorkaround, updatedOptions, originalOptions } =
@@ -184,7 +186,7 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
             }
         } catch (e) {
             console.error(`Unable to download ${type} from chart`, e);
-            showToastError({ title: 'Unable to download chart image' });
+            showToastError({ title: t('chartDownload.downloadFailed') });
         } finally {
             // rollback workaround
             if (needsWorkaround) {
@@ -197,12 +199,13 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
         type,
         isBackgroundTransparent,
         showToastError,
+        t,
     ]);
 
     const onCopyToClipboard = useCallback(async () => {
         const chartInstance = getChartInstance();
         if (!chartInstance) {
-            showToastError({ title: 'Unable to copy chart image' });
+            showToastError({ title: t('chartDownload.copyFailed') });
             return;
         }
 
@@ -223,13 +226,13 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
             }, 1000);
         } catch (e) {
             console.error('Unable to copy chart to clipboard:', e);
-            showToastError({ title: 'Unable to copy chart image' });
+            showToastError({ title: t('chartDownload.copyFailed') });
         }
-    }, [getChartInstance, isBackgroundTransparent, showToastError]);
+    }, [getChartInstance, isBackgroundTransparent, showToastError, t]);
 
     return (
         <Stack>
-            <Text fw={500}>Options</Text>
+            <Text fw={500}>{t('chartDownload.options')}</Text>
             <Select
                 size="xs"
                 id="download-type"
@@ -256,15 +259,25 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                         setIsBackgroundTransparent(value === 'Transparent')
                     }
                     data={[
-                        { value: 'Opaque', label: 'Opaque' },
-                        { value: 'Transparent', label: 'Transparent' },
+                        {
+                            value: 'Opaque',
+                            label: t('chartDownload.opaque'),
+                        },
+                        {
+                            value: 'Transparent',
+                            label: t('chartDownload.transparent'),
+                        },
                     ]}
                 />
             )}
             <Group gap="xs" justify="flex-end">
                 <Tooltip
                     color={isCopied ? 'teal' : undefined}
-                    label={isCopied ? 'Copied!' : 'Copy to clipboard'}
+                    label={
+                        isCopied
+                            ? t('feedback.copied', { ns: 'common' })
+                            : t('chartDownload.copyToClipboard')
+                    }
                 >
                     <ActionIcon
                         size="md"
@@ -282,7 +295,7 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                     leftSection={<MantineIcon icon={IconDownload} />}
                     onClick={onDownload}
                 >
-                    Download
+                    {t('actions.download', { ns: 'common' })}
                 </Button>
             </Group>
         </Stack>

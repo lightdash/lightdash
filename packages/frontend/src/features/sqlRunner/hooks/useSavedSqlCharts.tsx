@@ -14,6 +14,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -93,6 +94,7 @@ export const useCreateSqlChartMutation = (
         ) => void | Promise<void>;
     } = {},
 ) => {
+    const { t } = useTranslation('sqlRunner');
     const { showToastSuccess, showToastApiError } = useToaster();
     const navigate = useNavigate();
 
@@ -110,12 +112,12 @@ export const useCreateSqlChartMutation = (
                 }
 
                 showToastSuccess({
-                    title: `Success! SQL chart created`,
+                    title: t('toasts.chartCreated'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to create chart`,
+                    title: t('toasts.createFailed'),
                     apiError: error,
                 });
             },
@@ -129,6 +131,7 @@ export const useUpdateSqlChartMutation = (
     slug: string,
 ) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('sqlRunner');
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<
@@ -157,12 +160,12 @@ export const useUpdateSqlChartMutation = (
                 ]);
                 await queryClient.invalidateQueries(['content']);
                 showToastSuccess({
-                    title: `Success! SQL chart updated`,
+                    title: t('toasts.chartUpdated'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to update chart`,
+                    title: t('toasts.updateFailed'),
                     apiError: error,
                 });
             },
@@ -205,6 +208,7 @@ export const useDeleteSqlChartMutation = (
     const navigate = useNavigate();
     const { health } = useApp();
     const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
+    const { t } = useTranslation('sqlRunner');
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<{ savedSqlUuid: string }, ApiError>(
@@ -217,10 +221,10 @@ export const useDeleteSqlChartMutation = (
                 await queryClient.invalidateQueries(['deletedContent']);
 
                 showToastSuccess({
-                    title: `Success! SQL chart deleted`,
+                    title: t('toasts.chartDeleted'),
                     action: isSoftDeleteEnabled
                         ? {
-                              children: 'Go to recently deleted',
+                              children: t('toasts.goToRecentlyDeleted'),
                               icon: IconArrowRight,
                               onClick: () =>
                                   navigate(
@@ -232,7 +236,7 @@ export const useDeleteSqlChartMutation = (
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to delete chart`,
+                    title: t('toasts.deleteFailed'),
                     apiError: error,
                 });
             },
@@ -241,6 +245,7 @@ export const useDeleteSqlChartMutation = (
 };
 
 export const usePromoteSqlChartMutation = (projectUuid: string) => {
+    const { t } = useTranslation('sqlRunner');
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<SqlChart, ApiError, string>(
@@ -249,9 +254,9 @@ export const usePromoteSqlChartMutation = (projectUuid: string) => {
             mutationKey: ['sqlRunner', 'promoteSqlChart', projectUuid],
             onSuccess: (data) => {
                 showToastSuccess({
-                    title: `Success! SQL chart promoted.`,
+                    title: t('toasts.chartPromoted'),
                     action: {
-                        children: 'Open chart',
+                        children: t('toasts.openChart'),
                         icon: IconArrowRight,
                         onClick: () => {
                             window.open(
@@ -264,7 +269,7 @@ export const usePromoteSqlChartMutation = (projectUuid: string) => {
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to promote SQL chart`,
+                    title: t('toasts.promoteFailed'),
                     apiError: error,
                 });
             },
@@ -273,6 +278,7 @@ export const usePromoteSqlChartMutation = (projectUuid: string) => {
 };
 
 export const usePromoteSqlChartDiffMutation = (projectUuid: string) => {
+    const { t } = useTranslation('sqlRunner');
     const { showToastApiError } = useToaster();
 
     return useMutation<PromotionChanges, ApiError, string>(
@@ -282,7 +288,7 @@ export const usePromoteSqlChartDiffMutation = (projectUuid: string) => {
             mutationKey: ['sqlRunner', 'promoteSqlChartDiff', projectUuid],
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to get diff from SQL chart`,
+                    title: t('toasts.promoteDiffFailed'),
                     apiError: error,
                 });
             },

@@ -14,6 +14,7 @@
  */
 import { Anchor } from '@mantine/core';
 import { Fragment, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import classes from './ChatMessageContent.module.css';
 
 // Capture: tag, optional "text", optional @loc.
@@ -107,6 +108,7 @@ const TextWithBreaks: FC<{ value: string }> = ({ value }) => {
 };
 
 const ChatMessageContent: FC<{ content: string }> = ({ content }) => {
+    const { t } = useTranslation('apps');
     const segments = parse(content);
     if (segments.length === 0) return null;
     return (
@@ -135,7 +137,11 @@ const ChatMessageContent: FC<{ content: string }> = ({ content }) => {
                     <span
                         key={i}
                         className={classes.elementPill}
-                        title={seg.loc ? `Source: ${seg.loc}` : undefined}
+                        title={
+                            seg.loc
+                                ? t('elementRef.source', { loc: seg.loc })
+                                : undefined
+                        }
                     >
                         {inner}
                     </span>

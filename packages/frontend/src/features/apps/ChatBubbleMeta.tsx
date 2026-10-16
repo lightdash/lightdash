@@ -2,6 +2,7 @@ import { Badge, Group, Text, Tooltip } from '@mantine/core';
 import { IconEye } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
 import classes from './ChatBubbleMeta.module.css';
@@ -50,6 +51,7 @@ const ChatBubbleMeta: FC<Props> = ({
     version,
     className,
 }) => {
+    const { t } = useTranslation('apps');
     const timeAgo = useTimeAgo(timestamp);
     // Only user bubbles split (name left, timestamp right) — that pattern
     // anchors the sender's name to the bubble edge. Assistant bubbles keep
@@ -82,7 +84,7 @@ const ChatBubbleMeta: FC<Props> = ({
                         position="top-start"
                         fz="xs"
                         offset={2}
-                        label="Preview this version"
+                        label={t('chat.previewVersion')}
                     >
                         <Badge
                             size="sm"

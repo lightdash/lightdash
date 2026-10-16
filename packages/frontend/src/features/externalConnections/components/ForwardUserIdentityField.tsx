@@ -1,5 +1,6 @@
 import { Switch } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
     value: boolean;
@@ -11,12 +12,15 @@ export const ForwardUserIdentityField: FC<Props> = ({
     value,
     onChange,
     disabled,
-}) => (
-    <Switch
-        label="Forward viewer identity"
-        description="Share the viewer's email and Lightdash user ID, when available, together with the app, organization, and project IDs. Enable only for a service you trust with this information."
-        checked={value}
-        onChange={(event) => onChange(event.currentTarget.checked)}
-        disabled={disabled}
-    />
-);
+}) => {
+    const { t } = useTranslation('sync');
+    return (
+        <Switch
+            label={t('externalConnections.forwardIdentity.label')}
+            description={t('externalConnections.forwardIdentity.description')}
+            checked={value}
+            onChange={(event) => onChange(event.currentTarget.checked)}
+            disabled={disabled}
+        />
+    );
+};

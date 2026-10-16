@@ -1,7 +1,9 @@
 import { assertUnreachable } from '@lightdash/common';
 import { Button, Group, Loader, Text, UnstyledButton } from '@mantine/core';
 import { IconChartBar, IconChevronDown, IconTable } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import classes from './DataSourceChip.module.css';
 import DataSourcePicker from './DataSourcePicker';
@@ -24,16 +26,20 @@ type ChipState = {
     retry: (() => void) | null;
 };
 
-const savedChartLabel = (attached: AttachedSavedChart): string => {
+const savedChartLabel = (
+    t: TFunction,
+    attached: AttachedSavedChart,
+): string => {
     switch (attached.status) {
         case 'running':
-            return `${attached.chartName} · running query`;
+            return t('chip.running', { name: attached.chartName });
         case 'error':
-            return `${attached.chartName} · query failed`;
-        case 'ready': {
-            const rowCount = attached.rowCount ?? 0;
-            return `${attached.chartName} · ${rowCount} ${rowCount === 1 ? 'row' : 'rows'}`;
-        }
+            return t('chip.failed', { name: attached.chartName });
+        case 'ready':
+            return t('chip.ready', {
+                name: attached.chartName,
+                count: attached.rowCount ?? 0,
+            });
         default:
             return assertUnreachable(
                 attached.status,
@@ -51,6 +57,7 @@ const DataSourceChip: FC<Props> = ({
     exploreSource,
     disabled,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const [pickerOpened, setPickerOpened] = useState(false);
     if (!savedChartSource && !exploreSource) return null;
 
@@ -61,7 +68,7 @@ const DataSourceChip: FC<Props> = ({
         savedChart && savedChartSource
             ? {
                   icon: IconChartBar,
-                  label: savedChartLabel(savedChart),
+                  label: savedChartLabel(t, savedChart),
                   isRunning: savedChart.status === 'running',
                   retry:
                       savedChart.status === 'error'
@@ -95,7 +102,9 @@ const DataSourceChip: FC<Props> = ({
                     <UnstyledButton
                         className={classes.chip}
                         disabled={disabled}
-                        aria-label={`Preview data: ${chip.label}`}
+                        aria-label={t('chip.previewData', {
+                            label: chip.label,
+                        })}
                         onClick={togglePicker}
                     >
                         <Group gap={4} wrap="nowrap" miw={0}>
@@ -127,14 +136,14 @@ const DataSourceChip: FC<Props> = ({
                     >
                         <MantineIcon icon={IconChartBar} size={12} />
                         <Text fz="xs" fw={500} span>
-                            Add preview data
+                            {t('chip.addPreviewData')}
                         </Text>
                     </UnstyledButton>
                 )}
             </DataSourcePicker>
             {chip?.retry && (
                 <Button variant="subtle" size="compact-xs" onClick={chip.retry}>
-                    Try again
+                    {t('upgrade.tryAgain')}
                 </Button>
             )}
         </Group>

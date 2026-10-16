@@ -28,6 +28,7 @@ import {
     type ReactNode,
     type RefAttributes,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useScroll } from 'react-use';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { CELL_HEIGHT, SMALL_TEXT_LENGTH } from './constants';
@@ -404,11 +405,12 @@ const BaseCell = (
             const isSelected = selectedCell === cellId;
 
             const { showToastSuccess } = useToaster();
+            const { t } = useTranslation('common');
 
             const handleCopy = useCallback(() => {
                 clipboard.copy(withValue === undefined ? '' : withValue);
-                showToastSuccess({ title: 'Copied to clipboard!' });
-            }, [clipboard, withValue, showToastSuccess]);
+                showToastSuccess({ title: t('feedback.copiedToClipboard') });
+            }, [clipboard, withValue, showToastSuccess, t]);
 
             useEffect(() => {
                 const handleKeyDown = getHotkeyHandler([['mod+C', handleCopy]]);

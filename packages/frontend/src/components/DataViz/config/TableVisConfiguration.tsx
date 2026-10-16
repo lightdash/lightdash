@@ -2,6 +2,7 @@ import { type VizColumn } from '@lightdash/common';
 import { ActionIcon, ScrollArea, TextInput } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,
@@ -16,6 +17,7 @@ import {
 } from '../store/tableVisSlice';
 
 const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
+    const { t } = useTranslation('dataViz');
     const dispatch = useVizDispatch();
 
     const columnsConfig = useVizSelector(
@@ -37,7 +39,7 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
         >
             <Config>
                 <Config.Section>
-                    <Config.Heading>Column labels</Config.Heading>
+                    <Config.Heading>{t('table.columnLabels')}</Config.Heading>
 
                     {Object.keys(columnsConfig).map((reference) => {
                         const fieldType = columns?.find(
@@ -58,7 +60,9 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
                                 rightSectionPointerEvents="all"
                                 rightSection={
                                     <ActionIcon
-                                        aria-label="Toggle column visibility"
+                                        aria-label={t(
+                                            'table.toggleColumnVisibility',
+                                        )}
                                         onMouseDown={(event) =>
                                             event.preventDefault()
                                         }

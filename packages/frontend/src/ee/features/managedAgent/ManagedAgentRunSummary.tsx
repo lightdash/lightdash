@@ -1,5 +1,6 @@
 import { Anchor, Stack } from '@mantine/core';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AiMarkdown } from '../../../components/common/AiMarkdown';
 import classes from './ManagedAgentActivityPage.module.css';
 import { splitRunSummary } from './utils/runSummaryMarkdown';
@@ -7,6 +8,7 @@ import { splitRunSummary } from './utils/runSummaryMarkdown';
 export const ManagedAgentRunSummary: FC<{ summary: string }> = ({
     summary,
 }) => {
+    const { t } = useTranslation('managedAgent');
     const [expanded, setExpanded] = useState(false);
     const { lead, full } = splitRunSummary(summary);
     const hasMore = full !== lead;
@@ -25,7 +27,9 @@ export const ManagedAgentRunSummary: FC<{ summary: string }> = ({
                     underline="always"
                     onClick={() => setExpanded((value) => !value)}
                 >
-                    {expanded ? 'Show less' : 'Read the full report'}
+                    {expanded
+                        ? t('runSummary.showLess')
+                        : t('runSummary.readFullReport')}
                 </Anchor>
             )}
         </Stack>

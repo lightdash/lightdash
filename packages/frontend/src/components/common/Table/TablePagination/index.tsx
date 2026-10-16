@@ -1,5 +1,6 @@
 import { Text, SegmentedControl } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import PaginateControl from '../../PaginateControl';
 import { DEFAULT_PAGE_SIZE } from '../constants';
 import { TableFooter } from '../Table.styles';
@@ -9,11 +10,14 @@ interface ResultCountProps {
     count: number;
 }
 
-export const ResultCount: FC<ResultCountProps> = ({ count }) => (
-    <Text ml="auto" fz="xs">
-        {count === 0 ? null : count === 1 ? '1 result' : `${count} results`}
-    </Text>
-);
+export const ResultCount: FC<ResultCountProps> = ({ count }) => {
+    const { t } = useTranslation('table');
+    return (
+        <Text ml="auto" fz="xs">
+            {count === 0 ? null : t('pagination.resultCount', { count })}
+        </Text>
+    );
+};
 
 const TablePagination: FC = () => {
     const {
@@ -24,14 +28,15 @@ const TablePagination: FC = () => {
         isInfiniteScrollEnabled,
         setIsInfiniteScrollEnabled,
     } = useTableContext();
+    const { t } = useTranslation('table');
 
     return (
         <TableFooter>
             {pagination?.show && data.length > DEFAULT_PAGE_SIZE && (
                 <SegmentedControl
                     data={[
-                        { label: 'Pages', value: 'pages' },
-                        { label: 'Scroll', value: 'scroll' },
+                        { label: t('pagination.pages'), value: 'pages' },
+                        { label: t('pagination.scroll'), value: 'scroll' },
                     ]}
                     value={isInfiniteScrollEnabled ? 'scroll' : 'pages'}
                     onChange={(value) => {

@@ -5,6 +5,7 @@ import {
     ProjectRoleOrder,
 } from '@lightdash/common';
 import { type ProjectUserWithRole } from '../../hooks/useProjectUsersWithRoles';
+import i18n from '../../i18n/i18n';
 
 export interface AgentUserAccessOption {
     userUuid: string;
@@ -14,8 +15,6 @@ export interface AgentUserAccessOption {
     email: string;
     roleLabel: string;
 }
-
-const CUSTOM_ROLE_LABEL = 'Custom role';
 
 /** How a user is named in the picker: full name, or email when unnamed. */
 export const getAgentUserLabel = (user: {
@@ -60,6 +59,6 @@ export const getAgentUserAccessOption = (
         email: user.email,
         roleLabel: hasInteractiveSystemRole
             ? ProjectMemberRoleLabels[highestRole.role]
-            : CUSTOM_ROLE_LABEL,
+            : i18n.t('agentAccess.customRole', { ns: 'eeMisc' }),
     };
 };

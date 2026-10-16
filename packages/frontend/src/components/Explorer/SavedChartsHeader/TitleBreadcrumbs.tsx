@@ -1,6 +1,7 @@
 import { ActionIcon, Anchor, Group, Text, Tooltip } from '@mantine/core';
 import { IconFolder } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
@@ -31,6 +32,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
     dashboardSlug,
     dashboardName,
 }) => {
+    const { t } = useTranslation('explorer');
     const projectRoute = useOptionalProjectRoute();
     const spacesQuery = useSpaceSummaries(projectUuid, true);
     const canAccessSpace =
@@ -49,10 +51,16 @@ export const TitleBreadCrumbs: FC<Props> = ({
                             position="bottom"
                             label={
                                 <Text fz="xs">
-                                    Space:{' '}
-                                    <Text span fz="xs" fw="bold">
-                                        {spaceName}
-                                    </Text>
+                                    <Trans
+                                        t={t}
+                                        i18nKey="titleBreadcrumbs.space"
+                                        values={{ name: spaceName }}
+                                        components={{
+                                            name: (
+                                                <Text span fz="xs" fw="bold" />
+                                            ),
+                                        }}
+                                    />
                                 </Text>
                             }
                         >
@@ -102,10 +110,14 @@ export const TitleBreadCrumbs: FC<Props> = ({
                         position="bottom"
                         label={
                             <Text fz="xs">
-                                Dashboard:{' '}
-                                <Text span fz="xs" fw="bold">
-                                    {dashboardName}
-                                </Text>
+                                <Trans
+                                    t={t}
+                                    i18nKey="titleBreadcrumbs.dashboard"
+                                    values={{ name: dashboardName }}
+                                    components={{
+                                        name: <Text span fz="xs" fw="bold" />,
+                                    }}
+                                />
                             </Text>
                         }
                     >

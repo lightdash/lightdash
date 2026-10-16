@@ -26,6 +26,7 @@ import {
 import { useForm } from '@mantine/form';
 import { IconTool } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useExplores } from '../../../hooks/useExplores';
 import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import Callout from '../../common/Callout';
@@ -48,6 +49,7 @@ export const FixValidationErrorModal: FC<Props> = ({
     allValidationErrors,
     onClose,
 }) => {
+    const { t } = useTranslation('projectSettings');
     const { mutate: renameChart } = useRenameChart();
     const { mutate: previewRename, isLoading: isPreviewLoading } =
         usePreviewRename();
@@ -208,7 +210,7 @@ export const FixValidationErrorModal: FC<Props> = ({
     return (
         <MantineModal
             size="lg"
-            title="Fix validation error"
+            title={t('validatorFix.chartModal.title')}
             icon={IconTool}
             opened={!!validationError}
             onClose={handleClose}
@@ -219,9 +221,11 @@ export const FixValidationErrorModal: FC<Props> = ({
                             variant="default"
                             onClick={() => setPreviewData(null)}
                         >
-                            Back
+                            {t('actions.back', { ns: 'common' })}
                         </Button>
-                        <Button onClick={executeRename}>Confirm rename</Button>
+                        <Button onClick={executeRename}>
+                            {t('validatorFix.chartModal.confirmRename')}
+                        </Button>
                     </Group>
                 ) : (
                     <Button
@@ -230,41 +234,49 @@ export const FixValidationErrorModal: FC<Props> = ({
                         disabled={newName === ''}
                         loading={isPreviewLoading}
                     >
-                        {fixAll ? 'Preview changes' : 'Rename'}
+                        {fixAll
+                            ? t('validatorFix.chartModal.previewChanges')
+                            : t('validatorFix.common.rename')}
                     </Button>
                 )
             }
         >
             <Text fz="sm">
-                Fix{' '}
-                <Text span fz="sm">
-                    {validationError.source}
-                </Text>{' '}
-                error:{' '}
-                <Anchor
-                    href={getLinkToResource(
-                        validationError,
-                        validationError.projectUuid,
-                    )}
-                    target="_blank"
-                >
-                    <Text span fz="sm">
-                        {' '}
-                        {validationError?.name}
-                    </Text>
-                </Anchor>
+                <Trans
+                    t={t}
+                    i18nKey="validatorFix.chartModal.fixError"
+                    values={{ name: validationError.name }}
+                    components={{
+                        link: (
+                            <Anchor
+                                href={getLinkToResource(
+                                    validationError,
+                                    validationError.projectUuid,
+                                )}
+                                target="_blank"
+                                fz="sm"
+                            />
+                        ),
+                    }}
+                />
             </Text>
 
             {previewData ? (
                 <Stack>
                     <Callout
                         variant="warning"
-                        title={`This will rename "${oldName || fieldName}" to "${newName}" in ${totalPreviewChanges} resource(s) across the project.`}
+                        title={t('validatorFix.chartModal.previewWarning', {
+                            from: oldName || fieldName,
+                            to: newName,
+                            count: totalPreviewChanges,
+                        })}
                     >
                         {previewData.charts.length > 0 && (
                             <>
                                 <Text fw={600} fz="xs" mt="xs">
-                                    Charts ({previewData.charts.length})
+                                    {t('validatorFix.chartModal.chartsCount', {
+                                        count: previewData.charts.length,
+                                    })}
                                 </Text>
                                 <ScrollArea.Autosize mah="150px" scrollbars="y">
                                     <List size="xs">
@@ -280,7 +292,13 @@ export const FixValidationErrorModal: FC<Props> = ({
                         {previewData.dashboards.length > 0 && (
                             <>
                                 <Text fw={600} fz="xs" mt="xs">
-                                    Dashboards ({previewData.dashboards.length})
+                                    {t(
+                                        'validatorFix.chartModal.dashboardsCount',
+                                        {
+                                            count: previewData.dashboards
+                                                .length,
+                                        },
+                                    )}
                                 </Text>
                                 <ScrollArea.Autosize mah="150px" scrollbars="y">
                                     <List size="xs">
@@ -295,20 +313,23 @@ export const FixValidationErrorModal: FC<Props> = ({
                         )}
                         {previewData.alerts.length > 0 && (
                             <Text fz="xs" mt="xs">
-                                + {previewData.alerts.length} alert(s)
+                                {t('validatorFix.chartModal.alertsCount', {
+                                    count: previewData.alerts.length,
+                                })}
                             </Text>
                         )}
                         {previewData.dashboardSchedulers.length > 0 && (
                             <Text fz="xs" mt="xs">
-                                + {previewData.dashboardSchedulers.length}{' '}
-                                scheduled delivery(ies)
+                                {t('validatorFix.chartModal.schedulersCount', {
+                                    count: previewData.dashboardSchedulers
+                                        .length,
+                                })}
                             </Text>
                         )}
                     </Callout>
                     {totalPreviewChanges === 0 && (
                         <Text fz="sm" c="dimmed">
-                            No other resources will be affected. The rename will
-                            only apply to the current chart.
+                            {t('validatorFix.chartModal.noOtherResources')}
                         </Text>
                     )}
                 </Stack>
@@ -316,7 +337,7 @@ export const FixValidationErrorModal: FC<Props> = ({
                 <>
                     <Callout
                         variant="info"
-                        title="You can rename the missing dimension by renaming the affected field or model using the drop down below."
+                        title={t('validatorFix.chartModal.info')}
                     />
 
                     <form id={FIX_VALIDATION_FORM_ID} onSubmit={handleConfirm}>
@@ -348,11 +369,11 @@ export const FixValidationErrorModal: FC<Props> = ({
                                 <Group>
                                     <Radio
                                         value={RenameType.FIELD}
-                                        label="Field"
+                                        label={t('validatorFix.common.field')}
                                     />
                                     <Radio
                                         value={RenameType.MODEL}
-                                        label="Model"
+                                        label={t('validatorFix.common.model')}
                                     />
                                 </Group>
                             </Radio.Group>
@@ -360,13 +381,20 @@ export const FixValidationErrorModal: FC<Props> = ({
                                 <Stack>
                                     <TextInput
                                         disabled
-                                        label="Old field"
+                                        label={t(
+                                            'validatorFix.common.oldField',
+                                        )}
                                         defaultValue={fieldName}
                                         value={oldName}
                                     />
                                     <Tooltip
                                         disabled={!isErrorFields}
-                                        label={`Could not find any fields on explore ${savedQuery?.tableName}. Perhaps you want to replace the model instead?`}
+                                        label={t(
+                                            'validatorFix.common.noFieldsOnExplore',
+                                            {
+                                                table: savedQuery?.tableName,
+                                            },
+                                        )}
                                     >
                                         <div>
                                             <Select
@@ -387,8 +415,12 @@ export const FixValidationErrorModal: FC<Props> = ({
                                                 disabled={isErrorFields}
                                                 searchable
                                                 value={newName || null}
-                                                label="New field"
-                                                placeholder={`Select a field to rename to`}
+                                                label={t(
+                                                    'validatorFix.common.newField',
+                                                )}
+                                                placeholder={t(
+                                                    'validatorFix.common.selectFieldPlaceholder',
+                                                )}
                                                 onChange={(e) => {
                                                     if (e) setNewName(e);
                                                 }}
@@ -399,8 +431,12 @@ export const FixValidationErrorModal: FC<Props> = ({
                             ) : renameType === RenameType.MODEL ? (
                                 <Stack>
                                     <TextInput
-                                        label="Old model"
-                                        placeholder="Enter the table name (e.g., customers)"
+                                        label={t(
+                                            'validatorFix.common.oldModel',
+                                        )}
+                                        placeholder={t(
+                                            'validatorFix.chartModal.oldModelPlaceholder',
+                                        )}
                                         value={oldName}
                                         onChange={(e) =>
                                             setOldName(e.currentTarget.value)
@@ -410,25 +446,23 @@ export const FixValidationErrorModal: FC<Props> = ({
                                         savedQuery?.tableName &&
                                         oldName !== savedQuery.tableName && (
                                             <Text size="xs" c="dimmed">
-                                                The field{' '}
-                                                <Text
-                                                    span
-                                                    ff="monospace"
-                                                    size="xs"
-                                                >
-                                                    {fieldName}
-                                                </Text>{' '}
-                                                doesn't belong to the base model
-                                                for chart:{' '}
-                                                <Text
-                                                    span
-                                                    ff="monospace"
-                                                    size="xs"
-                                                >
-                                                    {savedQuery.tableName}
-                                                </Text>
-                                                . Verify the old model name is
-                                                correct before renaming.
+                                                <Trans
+                                                    t={t}
+                                                    i18nKey="validatorFix.chartModal.fieldNotInBaseModel"
+                                                    values={{
+                                                        field: fieldName,
+                                                        model: savedQuery.tableName,
+                                                    }}
+                                                    components={{
+                                                        code: (
+                                                            <Text
+                                                                span
+                                                                ff="monospace"
+                                                                size="xs"
+                                                            />
+                                                        ),
+                                                    }}
+                                                />
                                             </Text>
                                         )}
                                     <Select
@@ -450,8 +484,12 @@ export const FixValidationErrorModal: FC<Props> = ({
                                         required
                                         searchable
                                         value={newName || null}
-                                        label="New model"
-                                        placeholder={`Select a model to rename to`}
+                                        label={t(
+                                            'validatorFix.common.newModel',
+                                        )}
+                                        placeholder={t(
+                                            'validatorFix.common.selectModelPlaceholder',
+                                        )}
                                         onChange={(e) => {
                                             if (e) setNewName(e);
                                         }}
@@ -466,12 +504,17 @@ export const FixValidationErrorModal: FC<Props> = ({
                             {totalOcurrences > 1 ? (
                                 <Tooltip
                                     position="left"
-                                    label="Check this to rename all occurrences of this field in other charts and dashboards."
+                                    label={t(
+                                        'validatorFix.common.fixAllTooltip',
+                                    )}
                                 >
                                     <Box>
                                         <Checkbox
                                             size="xs"
-                                            label={`Fix all occurrences (${totalOcurrences})`}
+                                            label={t(
+                                                'validatorFix.common.fixAllOccurrences',
+                                                { count: totalOcurrences },
+                                            )}
                                             checked={fixAll}
                                             onChange={(e) =>
                                                 setFixAll(
@@ -483,8 +526,10 @@ export const FixValidationErrorModal: FC<Props> = ({
                                 </Tooltip>
                             ) : (
                                 <Text fz="xs" c="ldGray.7">
-                                    This {renameType} is not used in any other
-                                    charts.
+                                    {t(
+                                        'validatorFix.chartModal.notUsedElsewhere',
+                                        { context: renameType },
+                                    )}
                                 </Text>
                             )}
                         </Stack>

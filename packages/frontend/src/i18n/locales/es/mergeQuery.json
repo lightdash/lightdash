@@ -1,0 +1,126 @@
+{
+    "labels": {
+        "firstData": "Primeros datos",
+        "combinedData": "Datos combinados",
+        "chooseDataToCombine": "Elige los datos que quieres combinar",
+        "firstTable": "Primera tabla",
+        "secondTable": "Segunda tabla",
+        "thisQuery": "esta consulta",
+        "otherQuery": "la otra consulta",
+        "theSecondTable": "la segunda tabla",
+        "theJoinKey": "la clave de unión",
+        "and": "Y"
+    },
+    "setupProgress": {
+        "chooseTable": {
+            "title": "Elige una tabla",
+            "description": "Selecciona los datos que quieres combinar con esta consulta."
+        },
+        "selectFields": {
+            "title": "Selecciona campos",
+            "metricAndDimension": "Añade una métrica y una dimensión para hacer la correspondencia.",
+            "dimension": "Añade una dimensión para hacer la correspondencia.",
+            "metric": "Añade al menos una métrica."
+        },
+        "matchQueries": {
+            "title": "Relaciona las consultas",
+            "description": "Elige los campos correspondientes en la relación."
+        },
+        "review": {
+            "title": "Revisa la relación",
+            "description": "Comprueba qué conservar y ejecuta la consulta combinada."
+        }
+    },
+    "provenance": {
+        "firstResult": "Primer resultado",
+        "secondResult": "Segundo resultado",
+        "from": "De {{source}}",
+        "sharedJoinKey": "Clave de unión compartida: {{labels}}",
+        "calculated": "Calculado tras combinar ambas consultas"
+    },
+    "setup": {
+        "addMetricFrom": "Añade al menos una métrica de {{label}}",
+        "pickJoinFields": "Elige un campo de cada consulta para unirlas",
+        "cannotJoin": "Estas consultas no se pueden unir por ese campo",
+        "fieldInOneQuery": "Un campo solo está en una de las consultas"
+    },
+    "sidebar": {
+        "selectDataAndFields": "Selecciona datos y campos",
+        "chooseFields": "Elige campos",
+        "selectedCount": "{{count}} seleccionados",
+        "removeCombinedData": "Quitar datos combinados",
+        "firstSuffix": "{{label}} · Primera",
+        "secondSuffix": "{{label}} · Segunda",
+        "selectedForResult": "Seleccionados para el resultado · {{count}}",
+        "dataSources": "Fuentes de datos"
+    },
+    "sourceTree": {
+        "backToFields": "Volver a los campos",
+        "changeTable": "Cambiar tabla"
+    },
+    "readOnlyBar": {
+        "keep": "Conservar {{label}}",
+        "matchesOnly": "Solo coincidencias",
+        "keepAllRows": "Conservar todas las filas",
+        "matchedOn": "Relacionado por <bold>{{keys}}</bold> · {{keep}}",
+        "runFailed": "No se pudo ejecutar la combinación"
+    },
+    "relationshipCard": {
+        "title": "Relación"
+    },
+    "joinTypes": {
+        "inner": "Interna",
+        "left": "Izquierda",
+        "fullOuter": "Externa completa",
+        "innerHelp": "Unión interna · Solo los valores de {{field}} presentes tanto en {{thisQuery}} como en {{otherQuery}}. Se descarta todo lo que no coincide.",
+        "leftHelp": "Unión izquierda · Solo los valores de {{field}} presentes en {{thisQuery}}. Se descarta lo que solo aparece en {{otherQuery}}.",
+        "fullOuterHelp": "Unión externa completa · Todos los valores de {{field}} de cualquiera de las consultas. Cuando un lado no tiene coincidencia, sus columnas quedan vacías.",
+        "optionAriaLabel": "{{label}}: {{help}}"
+    },
+    "joinBar": {
+        "joinType": "Tipo de unión",
+        "matchSummary": "relaciona <bold>{{thisQuery}}</bold> y <bold>{{otherQuery}}</bold> por un campo compartido",
+        "joinedOnSummary": "unidas por <bold>{{keys}}</bold> · <bold>{{keep}}</bold>",
+        "done": "Listo",
+        "edit": "Editar",
+        "joinConditions": "Condiciones de unión",
+        "suggested": "Sugerencia:",
+        "useSuggestion": "Usar sugerencia",
+        "joinFieldAriaLabel": "Campo de unión de {{label}}",
+        "chooseField": "Elige un campo",
+        "removeJoinCondition": "Quitar condición de unión {{index}}",
+        "addJoinCondition": "Añadir condición de unión",
+        "emptySource": "Las columnas de {{emptyLabel}} están vacías en todas las filas: su consulta no devolvió filas que coincidan con {{otherLabel}} por {{field}}.",
+        "fanOut_one": "{{split}} está desglosada por {{fields}}, que {{other}} no tiene. Al combinarlas se repetirían las filas de {{other}} una vez por valor. Quítalo, selecciónalo en ambas consultas y únelas por él",
+        "fanOut_other": "{{split}} está desglosada por {{fields}}, que {{other}} no tiene. Al combinarlas se repetirían las filas de {{other}} una vez por valor. Quítalos, selecciónalos en ambas consultas y únelas por ellos",
+        "fanOutRepeat": ", o <anchor>repite los valores de {{other}} en cada fila de {{split}}</anchor>",
+        "fieldsSeparator": " y ",
+        "repeating": "Los valores de {{repeating}} se repiten en cada fila de {{other}} con el mismo {{field}}. Sus columnas no tienen totales aquí.",
+        "stopRepeating": "Dejar de repetir",
+        "somethingWentWrong": "Algo salió mal"
+    },
+    "filtersCard": {
+        "noFilters": "Sin filtros",
+        "activeCount": "{{count}} activos",
+        "title": "Filtros",
+        "activeFilters_one": "{{count}} filtro activo",
+        "activeFilters_other": "{{count}} filtros activos",
+        "sharedFiltersHint": "Los filtros sobre un campo coincidente se aplican a ambas consultas. Los demás filtros se quedan en su consulta."
+    },
+    "tableCalculation": {
+        "idExists": "El ID de cálculo de tabla \"{{name}}\" ya existe.",
+        "formulaTooLong": "La fórmula debe tener {{max}} caracteres o menos",
+        "unknownFields_one": "Campo combinado desconocido: {{fields}}",
+        "unknownFields_other": "Campos combinados desconocidos: {{fields}}",
+        "invalidFormula": "Fórmula no válida",
+        "nameRequired": "El nombre es obligatorio",
+        "editTitle": "Editar cálculo de tabla",
+        "createTitle": "Crear cálculo de tabla",
+        "saveChanges": "Guardar cambios",
+        "createFormula": "Crear fórmula",
+        "formula": "Fórmula",
+        "name": "Nombre",
+        "deleteTitle": "Eliminar cálculo de tabla",
+        "resourceType": "cálculo de tabla"
+    }
+}

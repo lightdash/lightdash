@@ -1,0 +1,560 @@
+{
+    "cronInput": {
+        "cronExpression": "Cron expression",
+        "at": "at",
+        "mondayToFridayAt": "Monday to Friday at",
+        "atMinute": "at minute",
+        "minuteOutOfRange": "Must be between 0 and 59",
+        "onDay": "on day",
+        "on": "on",
+        "frequency": {
+            "hourly": "Hourly",
+            "daily": "Daily",
+            "weekdays": "Weekdays",
+            "weekly": "Weekly",
+            "monthly": "Monthly",
+            "custom": "Custom"
+        },
+        "weekDays": {
+            "sunday": "Sunday",
+            "monday": "Monday",
+            "tuesday": "Tuesday",
+            "wednesday": "Wednesday",
+            "thursday": "Thursday",
+            "friday": "Friday",
+            "saturday": "Saturday"
+        }
+    },
+    "runStatus": {
+        "completed": "Completed",
+        "partialFailure": "Partial failure",
+        "failed": "Failed",
+        "running": "Running",
+        "scheduled": "Scheduled"
+    },
+    "taskName": {
+        "slackTargets_one": "Slack ({{count}} target)",
+        "slackTargets_other": "Slack ({{count}} targets)",
+        "slackNotifications": "Slack Notifications",
+        "emailTargets_one": "Email ({{count}} target)",
+        "emailTargets_other": "Email ({{count}} targets)",
+        "emailNotifications": "Email Notifications",
+        "msTeamsTargets_one": "MS Teams ({{count}} target)",
+        "msTeamsTargets_other": "MS Teams ({{count}} targets)",
+        "msTeamsNotifications": "MS Teams Notifications",
+        "googleChatTargets_one": "Google Chat ({{count}} target)",
+        "googleChatTargets_other": "Google Chat ({{count}} targets)",
+        "googleChatNotifications": "Google Chat Notifications"
+    },
+    "schedulersView": {
+        "refreshSuccess": "Scheduled deliveries refreshed successfully",
+        "myScheduledDeliveries": "My scheduled deliveries",
+        "myScheduledDeliveriesDescription": "Review and manage deliveries scheduled across your projects.",
+        "refresh": "Refresh",
+        "title": "Scheduled Deliveries",
+        "refreshTooltip": "Click to refresh the status of the scheduled deliveries",
+        "tabs": {
+            "allSchedulers": "All schedulers",
+            "runHistory": "Run history"
+        }
+    },
+    "toolbar": {
+        "schedulerLabel": "Scheduler:",
+        "clearAllFilters": "Clear all filters",
+        "selectedCount_one": "{{count}} selected",
+        "selectedCount_other": "{{count}} selected",
+        "reassignOwner": "Reassign owner"
+    },
+    "destinations": {
+        "slack": "Slack",
+        "email": "Email",
+        "msTeams": "MS Teams",
+        "googleChat": "Google Chat",
+        "microsoftTeams": "Microsoft Teams"
+    },
+    "formats": {
+        "csv": ".csv",
+        "xlsx": ".xlsx",
+        "image": "Image",
+        "googleSheets": "Google Sheets",
+        "pdf": "PDF"
+    },
+    "filters": {
+        "owner": {
+            "label": "Owner",
+            "tooltip": "Filter by user who owns the scheduler",
+            "searchPlaceholder": "Search users…",
+            "empty": "No users found"
+        },
+        "destination": {
+            "label": "Destination",
+            "tooltip": "Filter by destination type",
+            "empty": "No destinations configured."
+        },
+        "resourceType": {
+            "showAll": "Show all schedulers",
+            "all": "All",
+            "showCharts": "Show only chart schedulers",
+            "showDashboards": "Show only dashboard schedulers"
+        },
+        "search": {
+            "tooltip": "Search by scheduler name",
+            "placeholder": "Search schedulers by name"
+        },
+        "format": {
+            "label": "Format",
+            "tooltip": "Filter schedulers by format"
+        },
+        "status": {
+            "label": "Status",
+            "tooltip": "Filter runs by status",
+            "completed": "Completed",
+            "partialFailure": "Partial Failure",
+            "failed": "Failed",
+            "running": "Running",
+            "scheduled": "Scheduled"
+        }
+    },
+    "reassignOwnerModal": {
+        "title_one": "Reassign owner for \"{{count}} scheduled delivery\"",
+        "title_other": "Reassign owner for \"{{count}} scheduled deliveries\"",
+        "reassign": "Reassign",
+        "description_one": "Select a new owner for the selected scheduled delivery. The new owner will be responsible for managing it.",
+        "description_other": "Select a new owner for the selected scheduled deliveries. The new owner will be responsible for managing them.",
+        "newOwner": "New owner",
+        "gsheetsNote": "You can only transfer ownership of a Google Sheets sync to a user with an active Google connection."
+    },
+    "actionMenu": {
+        "editSchedule": "Edit schedule",
+        "goToChart": "Go to chart",
+        "goToDashboard": "Go to dashboard",
+        "sendNow": "Send now",
+        "viewAsCode": "View as code",
+        "reassignOwner": "Reassign owner",
+        "deleteSchedule": "Delete schedule"
+    },
+    "schedulersTable": {
+        "columns": {
+            "name": "Name",
+            "owner": "Owner",
+            "project": "Project",
+            "lastRun": "Last Run",
+            "destinations": "Destinations",
+            "frequency": "Frequency",
+            "created": "Created"
+        },
+        "format": {
+            "csv": "CSV",
+            "xlsx": "XLSX"
+        },
+        "scheduleType": "Schedule type:",
+        "createdBy": "Created by:",
+        "notAvailable": "n/a",
+        "unknown": "Unknown",
+        "noRunsYet": "No runs yet",
+        "lastRun": "Last run: {{time}}",
+        "logCounts": "{{completed}} completed, {{failed}} failed",
+        "clickToViewRunHistory": "Click to view run history",
+        "emailWithSeparator": "Email,",
+        "noDestinations": "No destinations"
+    },
+    "logsTable": {
+        "columns": {
+            "name": "Name",
+            "status": "Status",
+            "scheduled": "Scheduled",
+            "start": "Start"
+        },
+        "status": {
+            "completedSuccessfully": "Completed successfully",
+            "failed": "Failed",
+            "partialFailure": "Partial failure",
+            "running": "Running",
+            "scheduled": "Scheduled"
+        },
+        "loadingRunHistory": "Loading run history"
+    },
+    "runDetails": {
+        "summary": {
+            "jobsCompleted_one": "{{count}} job completed",
+            "jobsCompleted_other": "{{count}} jobs completed",
+            "jobsFailed_one": "{{count}} job failed",
+            "jobsFailed_other": "{{count}} jobs failed",
+            "jobsPartiallyFailed_one": "{{count}} job partially failed",
+            "jobsPartiallyFailed_other": "{{count}} jobs partially failed",
+            "chartsFailedToExport_one": "{{count}} chart failed to export",
+            "chartsFailedToExport_other": "{{count}} charts failed to export",
+            "separator": ", ",
+            "allJobsCompleted_one": "{{count}} job completed successfully",
+            "allJobsCompleted_other": "{{count}} jobs completed successfully",
+            "allJobsFailed": "All jobs failed",
+            "jobsTotal": "Jobs ({{count}})"
+        },
+        "timing": {
+            "started": "started",
+            "completed": "completed",
+            "failed": "failed",
+            "duration": "duration"
+        },
+        "partialFailure": {
+            "noRecipients": "No recipients configured for this scheduled delivery",
+            "aiSummaryFailed": "AI summary could not be generated",
+            "didNotRun": "did not run in this delivery",
+            "queriesDropped_one": "{{count}} query was dropped from capture (limit {{limit}})",
+            "queriesDropped_other": "{{count}} queries were dropped from capture (limit {{limit}})"
+        },
+        "partialFailureMessage": {
+            "failingCharts_one": "{{count}} failing chart",
+            "failingCharts_other": "{{count}} failing charts",
+            "failingQueries_one": "{{count}} failing query",
+            "failingQueries_other": "{{count}} failing queries",
+            "missingRecipients": "missing recipients",
+            "issues_one": "{{count}} issue",
+            "issues_other": "{{count}} issues",
+            "completedWith": "Completed with {{issues}}",
+            "and": " and "
+        },
+        "jobFailed": "Job failed",
+        "completedSuccessfully": "Completed successfully",
+        "generateFormat": "Generate {{format}}",
+        "batchDelivered": "{{succeeded}}/{{total}} delivered successfully",
+        "format": {
+            "excel": "Excel"
+        },
+        "chart": "Chart",
+        "dashboard": "Dashboard",
+        "createdBy": "Created by",
+        "scheduled": "Scheduled",
+        "started": "Started",
+        "noJobsFound": "No jobs found"
+    },
+    "toasts": {
+        "created": "Success! Scheduled delivery was created.",
+        "createFailed": "Failed to create scheduled delivery",
+        "deleted": "Success! Scheduled delivery was deleted",
+        "deleteFailed": "Failed to delete scheduled delivery",
+        "reassigned_one": "Successfully reassigned {{count}} scheduled delivery",
+        "reassigned_other": "Successfully reassigned {{count}} scheduled deliveries",
+        "reassignFailed": "Failed to reassign scheduled delivery owner",
+        "updated": "Success! Scheduled delivery was updated.",
+        "updateFailed": "Failed to update scheduled delivery",
+        "jobFailed": "Job failed",
+        "processingDelivery": "Processing Scheduled delivery...",
+        "thresholdNotMet": "Threshold not met. No notification was sent.",
+        "sentSuccessfully": "Scheduled delivery sent successfully",
+        "sendFailed": "Failed to send scheduled delivery",
+        "pollingError": "Error polling job status",
+        "processingJob": "Processing job...",
+        "noJobId": "No job ID returned from server",
+        "aiSettingsSaveFailed": "Failed to save the AI settings for this delivery"
+    },
+    "form": {
+        "createAlert": "Create alert",
+        "createSchedule": "Create schedule",
+        "validation": {
+            "nameRequired": "Name is required",
+            "customLimitInteger": "Custom limit must be an integer",
+            "requirementGroupsUnmet": "Set a value for at least one filter in each requirement group",
+            "requiredFiltersMissing": "Required filters must have values",
+            "alertFieldRequired": "Alert field is required",
+            "selectedTabsEmpty": "Selected tabs should not be empty",
+            "instructionsRequired": "Instructions are required"
+        }
+    },
+    "confirmSendNow": {
+        "title": "Send “{{name}}” now?",
+        "description": {
+            "scheduled": "This will trigger the scheduled delivery immediately. It will not change or affect the configured schedule or future deliveries.",
+            "alert": "This will evaluate the alert and send it immediately if the threshold is met. It will not change or affect the configured schedule."
+        }
+    },
+    "deleteModal": {
+        "title": "Delete scheduled delivery",
+        "resourceType": "scheduled delivery",
+        "description": "This action is permanent and cannot be undone.",
+        "loading": "Loading scheduler"
+    },
+    "confirmPause": {
+        "title": "Pause \"{{name}}\"?",
+        "pause": "Pause"
+    },
+    "runsHistoryModal": {
+        "title": "Run history – {{name}}"
+    },
+    "schedulerModal": {
+        "loadRunDetailsFailed": "Failed to load run details",
+        "alerts": "Alerts",
+        "scheduledDeliveries": "Scheduled deliveries",
+        "closeAriaLabel": "Close scheduled deliveries"
+    },
+    "sections": {
+        "alert": {
+            "label": "Alert conditions",
+            "description": "Fire only when your data crosses a threshold."
+        },
+        "setup": {
+            "label": "Setup"
+        },
+        "data": {
+            "label": "Data & format"
+        },
+        "message": {
+            "label": "Message"
+        },
+        "ai": {
+            "label": "AI agent",
+            "description": "An agent reads this and writes a short summary, delivered at the top of every email and Slack message."
+        },
+        "groups": {
+            "delivery": "Delivery",
+            "content": "Content"
+        },
+        "navAriaLabel": "Delivery section"
+    },
+    "createOrEdit": {
+        "blocked": {
+            "nameAlert": "Give your alert a name",
+            "nameDelivery": "Give your delivery a name",
+            "pickAlertField": "Pick an alert field",
+            "missingRequiredFilters": "Some required filters are missing values",
+            "completeRequired": "Complete the required fields"
+        },
+        "subtitle": {
+            "editing": "editing",
+            "newAlert": "new alert",
+            "newSchedule": "new schedule",
+            "separator": " · "
+        },
+        "titleAlert": "Alert",
+        "titleScheduled": "Scheduled delivery",
+        "closeAriaLabel": "Close scheduled delivery",
+        "previewAndNextRuns": "Preview and next runs",
+        "sendOnceNow": "Send once now"
+    },
+    "slackError": {
+        "noIntegration": "No Slack integration found",
+        "setupSlack": "To create a slack scheduled delivery, you need to <anchor>setup Slack</anchor> for your instance",
+        "missingPermissions": "Slack integration is missing permissions",
+        "missingScopes": "Scheduled deliveries need the Slack scopes <scopes>{{scopes}}</scopes>.",
+        "reinstall": "<anchor>Reinstall the Slack integration</anchor> for your organization to grant them."
+    },
+    "emailInput": {
+        "placeholder": "Enter email addresses",
+        "invalidEmail": "'{{email}}' doesn't appear to be an email address",
+        "noIntegration": "No Email integration found.",
+        "setupSmtp": "To create an email scheduled delivery, you need to add <anchor>SMTP environment variables</anchor> to your Lightdash instance"
+    },
+    "slackInput": {
+        "placeholder": "Search slack channels"
+    },
+    "googleChatInput": {
+        "placeholder": "Enter Google Chat webhook URLs",
+        "help": "<anchor>Create a webhook</anchor> in Google Chat to get a URL."
+    },
+    "msTeamsInput": {
+        "placeholder": "Enter Microsoft Teams Workflow or webhook URLs",
+        "help": "<anchor>Create a Workflow</anchor> in Microsoft Teams to get a URL."
+    },
+    "aiInput": {
+        "title": "AI-enhanced message",
+        "subtitle": "Writes the delivery message from your data on every send.",
+        "instructions": "Instructions",
+        "agentLabel": "AI agent (optional)",
+        "agentDescription": "Uses the agent's tools and context."
+    },
+    "filterItem": {
+        "isAnyValue": "is any value",
+        "invalidFilter": "Invalid filter",
+        "unknownField": "Tried to reference field with unknown id:",
+        "removeInvalidFilter": "Remove invalid filter",
+        "appliesToTiles": "Applies to: {{tiles}}",
+        "appliesToCount_one": "Applies to {{count}} tile",
+        "appliesToCount_other": "Applies to {{count}} tiles",
+        "resetFilter": "Reset filter",
+        "doneEditing": "Done editing",
+        "editFilter": "Edit filter",
+        "removeFilter": "Remove filter",
+        "unsavedChanges": "Unsaved changes",
+        "readdFilterTooltip": "Re-add filter to override it for this delivery",
+        "readdFilter": "Re-add filter"
+    },
+    "chartFilters": {
+        "loading": "Loading chart filters...",
+        "readOnlyNotice": "Adjusting these filters for a delivery needs explore access to the project. The delivery uses the chart's saved filters.",
+        "allRequired": "All required filters must have values",
+        "usesChartDefault": "Uses chart default",
+        "removeTooltip": "Remove filter — the delivery will use the chart default",
+        "orphanNotice": "The following filters are applied to this scheduled delivery but no longer exist in the chart",
+        "empty": "No filters defined for this chart."
+    },
+    "dashboardFilters": {
+        "loading": "Loading dashboard filters...",
+        "differsFromDashboard": "Differs from the dashboard",
+        "revertToDashboard": "Revert to the dashboard value",
+        "usesDashboardDefault": "Uses dashboard default",
+        "removeTooltip": "Remove filter — the delivery will use the dashboard default",
+        "orphanNotice": "The following filters are applied to this scheduled delivery but no longer exist in the dashboard",
+        "empty": "No filters defined for this dashboard."
+    },
+    "parameters": {
+        "noValueSet": "No value set",
+        "resetTooltip": "Reset parameter back to dashboard default",
+        "loading": "Loading parameters...",
+        "empty": "No parameters defined for this project."
+    },
+    "setup": {
+        "recipients": "Recipients",
+        "name": "Name",
+        "namePlaceholderAlert": "Name your alert",
+        "namePlaceholderDelivery": "Name your delivery",
+        "checkFrequency": "Check frequency",
+        "frequency": "Frequency",
+        "checkFrequencyDescription": "How often Lightdash checks your data for changes. You are only notified when the conditions are met.",
+        "timezone": "Timezone",
+        "timezonePlaceholder": "Project default",
+        "timezonePlaceholderWithOffset": "Project default (UTC {{offset}})"
+    },
+    "nextRuns": {
+        "title": "Next runs",
+        "timesShownIn": "Times shown in {{timezone}}",
+        "timesShownInProject": "Times shown in project timezone"
+    },
+    "message": {
+        "includeLink": "Include link to Lightdash",
+        "includeLinkDescription": "Recipients can open this in Lightdash.",
+        "plainText": "Send as plain text",
+        "plainTextDescription": "Emails arrive as plain text with the file attached — no Lightdash branding, buttons or footer. Your message below is the whole body. Slack and webhook deliveries are unaffected.",
+        "plainTextDisabled": "You must have at least one email recipient to send as plain text",
+        "body": "Message body",
+        "aiFallback": "AI writes the message on every send; this text is only used if AI generation fails.",
+        "placeholder": "Add a note for recipients..."
+    },
+    "thresholdOperators": {
+        "greaterThan": "is greater than",
+        "lessThan": "is less than",
+        "increasedBy": "increased by",
+        "decreasedBy": "decreased by"
+    },
+    "alert": {
+        "field": "Alert field",
+        "noNumericFields": "No numeric fields available. You must have at least one numeric metric or calculation to set an alert.",
+        "condition": "Condition",
+        "threshold": "Threshold",
+        "notifyOnce": "Notify me only once",
+        "notifyAlways": "You will be notified at the specified frequency whenever the threshold conditions are met",
+        "filters": "Filters",
+        "parameters": "Parameters"
+    },
+    "detail": {
+        "parameterOperator": "is",
+        "showLess": "Show less",
+        "andMore_one": "and {{count}} more",
+        "andMore_other": "and {{count}} more",
+        "alert": "Alert",
+        "notifiesOnce": "Notifies only once",
+        "filterCount_one": "{{count}} filter",
+        "filterCount_other": "{{count}} filters",
+        "parameterCount_one": "{{count}} parameter",
+        "parameterCount_other": "{{count}} parameters"
+    },
+    "customWidth": {
+        "tablet": "Tablet ({{width}}px)",
+        "laptop": "Laptop Screen ({{width}}px)",
+        "externalMonitor": "External Monitor ({{width}}px)",
+        "tv": "TV Screen ({{width}}px)",
+        "largeMonitor": "Large Monitor ({{width}}px)",
+        "ultraWide": "Ultra-wide Monitor ({{width}}px)"
+    },
+    "preview": {
+        "aiSummary": "AI summary",
+        "title": "Preview",
+        "regenerate": "Regenerate",
+        "defaultName": "Your scheduled delivery",
+        "generate": "Generate preview",
+        "renderWidth": "Render width"
+    },
+    "alertSummary": {
+        "emailRecipients_one": "{{count}} email recipient",
+        "emailRecipients_other": "{{count}} email recipients",
+        "slackChannels_one": "{{count}} Slack channel",
+        "slackChannels_other": "{{count}} Slack channels",
+        "teamsWebhooks_one": "{{count}} Teams webhook",
+        "teamsWebhooks_other": "{{count}} Teams webhooks",
+        "googleChatWebhooks_one": "{{count}} Google Chat webhook",
+        "googleChatWebhooks_other": "{{count}} Google Chat webhooks",
+        "listWithLast": "{{list}} and {{last}}",
+        "listSeparator": ", ",
+        "title": "Alert summary",
+        "firesWhen": "Fires when…",
+        "empty": "Pick an alert field and threshold to see the condition here.",
+        "notifiedVia": "You'll be notified via {{destinations}}.",
+        "addRecipient": "Add a recipient to get notified."
+    },
+    "csvOptions": {
+        "values": "Values",
+        "formatted": "Formatted",
+        "raw": "Raw",
+        "layout": "Layout",
+        "layoutHelp": "Applies to cartesian charts with pivoted dimensions. Grouped keeps the chart's column structure; Flat returns the raw rows from the query.",
+        "grouped": "Grouped",
+        "flat": "Flat",
+        "limit": "Limit",
+        "resultsInTable": "Results in Table",
+        "allResults": "All Results",
+        "custom": "Custom...",
+        "cellsLimit": "Results are limited to {{limit}} cells for each file",
+        "rerunWithoutLimit": "Queries that hit their row limit are re-run without a limit at delivery time — this may be slower.",
+        "xlsxOutput": "XLSX output",
+        "xlsxOutputHelp": "Separate files puts each dashboard tile in its own XLSX file inside a ZIP. Single workbook puts each tile on its own sheet in one XLSX file.",
+        "separateFiles": "Separate files (ZIP)",
+        "singleWorkbook": "Single workbook",
+        "formattingOptions": "Formatting options"
+    },
+    "dataFormat": {
+        "appQueryCountNone": "No data queries detected in the current view. Apps set up for full-data deliveries may still capture data — if none runs, the delivery fails.",
+        "appQueryCount_one": "{{count}} data query detected in the current view — it becomes a file",
+        "appQueryCount_other": "{{count}} data queries detected in the current view — each query becomes a file",
+        "format": "Format",
+        "headlessBrowserRequired": "You must enable the <anchor>headless browser</anchor> to send images",
+        "includeAllTabs": "Include all dashboard tabs",
+        "selectTabsPlaceholder": "Select tabs to include in the delivery",
+        "includePdf": "Also include image as PDF attachment",
+        "pagePerTab": "Each tab on its own page (with dashboard and tab title)",
+        "attachDisabled": "Add an email or Slack recipient to attach the file",
+        "attachFile": "Attach the file to the delivery",
+        "attachFileDescription": "Emails get it as an attachment, Slack channels get it in the message thread",
+        "appState": "App state",
+        "sendAppState": "Send current app state",
+        "appStateImageDescription": "The delivery renders the app with this state applied (selected filters, tabs, etc.) instead of its default view.",
+        "appStateDataDescription": "Filters and selections in this state shape the delivered data. Apps set up for full-data deliveries include every tab’s data regardless of the tab selected here.",
+        "url": "URL",
+        "stateValues": "State values",
+        "key": "Key",
+        "value": "Value"
+    },
+    "list": {
+        "pauseTooltip": "Pause this delivery",
+        "resumeTooltip": "Paused. Toggle to resume",
+        "enableAriaLabel": "Enable scheduled delivery",
+        "active": "Active",
+        "paused": "Paused",
+        "runs": "Runs",
+        "lastRun": "Last run",
+        "notRunYet": "Not run yet",
+        "recipientCount_one": "{{count}} recipient",
+        "recipientCount_other": "{{count}} recipients",
+        "viewRunHistory": "View run history",
+        "pauseDescription": "This will pause the scheduled delivery. It will not run until it is enabled again.",
+        "emptyTitleAlert": "Get notified when your data crosses a threshold",
+        "emptyTitleDelivery": "Deliver this on a schedule",
+        "emptyDescriptionAlert": "Alerts check your data on a schedule and ping you by email or Slack when the condition is met.",
+        "emptyDescriptionDelivery": "Send it by email or Slack as a spreadsheet, image, or PDF, with an optional AI-written summary.",
+        "newAlert": "New alert",
+        "newDelivery": "New delivery",
+        "searchPlaceholder": "Search...",
+        "frequencyPaused": "{{frequency}} · Paused",
+        "noResults": "No results",
+        "selectAlert": "Select an alert to see its details",
+        "selectDelivery": "Select a delivery to see its details"
+    }
+}

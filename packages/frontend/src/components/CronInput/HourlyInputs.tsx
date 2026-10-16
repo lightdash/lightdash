@@ -1,5 +1,6 @@
 import { Group, Input } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { NumberInput } from '../common/NumberInput';
 import { getHourlyCronExpression, parseCronExpression } from './cronInputUtils';
 
@@ -11,6 +12,7 @@ const HourlyInputs: FC<{
     cronExpression: string;
     onChange: (value: string) => void;
 }> = ({ disabled, cronExpression, onChange }) => {
+    const { t } = useTranslation('scheduler');
     const minutes = parseCronExpression(cronExpression).minutes;
     const isOutOfRange = minutes < MIN_MINUTES || minutes > MAX_MINUTES;
 
@@ -27,7 +29,7 @@ const HourlyInputs: FC<{
 
     return (
         <Group gap="sm">
-            <Input.Label>at minute</Input.Label>
+            <Input.Label>{t('cronInput.atMinute')}</Input.Label>
             <NumberInput
                 value={minutes}
                 onChange={onMinuteChange}
@@ -36,7 +38,9 @@ const HourlyInputs: FC<{
                 min={MIN_MINUTES}
                 max={MAX_MINUTES}
                 allowDecimal={false}
-                error={isOutOfRange ? 'Must be between 0 and 59' : undefined}
+                error={
+                    isOutOfRange ? t('cronInput.minuteOutOfRange') : undefined
+                }
             />
         </Group>
     );

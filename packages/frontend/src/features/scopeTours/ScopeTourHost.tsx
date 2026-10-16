@@ -14,6 +14,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useLocation,
     useNavigate,
@@ -148,6 +149,7 @@ const ScopeTourHost: FC = () => {
     const project = projectRoute?.project ?? projectFromParam;
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
+    const { t } = useTranslation('learn');
     const { showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     const [activeScope, setActiveScope] = useState<string | null>(null);
@@ -354,7 +356,7 @@ const ScopeTourHost: FC = () => {
         onError: ({ error }) => {
             copyRequestedRef.current = false;
             showToastApiError({
-                title: 'Could not start the walkthrough',
+                title: t('walkthrough.startFailed'),
                 apiError: error,
             });
         },

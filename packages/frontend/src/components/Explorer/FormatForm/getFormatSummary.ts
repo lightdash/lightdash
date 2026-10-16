@@ -5,29 +5,33 @@ import {
     timeFrameConfigs,
     type CustomFormat,
 } from '@lightdash/common';
+import i18n from '../../../i18n/i18n';
+
+const tFormat = (key: string, options?: Record<string, unknown>): string =>
+    i18n.t(`formatSummary.${key}`, { ns: 'explorer', ...options });
 
 export const getFormatTypeLabel = (type: CustomFormatType): string => {
     switch (type) {
         case CustomFormatType.BYTES_SI:
-            return 'Bytes (SI)';
+            return tFormat('types.bytesSi');
         case CustomFormatType.BYTES_IEC:
-            return 'Bytes (IEC)';
+            return tFormat('types.bytesIec');
         case CustomFormatType.DATE:
-            return 'Date';
+            return tFormat('types.date');
         case CustomFormatType.TIMESTAMP:
-            return 'Timestamp';
+            return tFormat('types.timestamp');
         case CustomFormatType.DEFAULT:
-            return 'Default';
+            return tFormat('types.default');
         case CustomFormatType.PERCENT:
-            return 'Percent';
+            return tFormat('types.percent');
         case CustomFormatType.CURRENCY:
-            return 'Currency';
+            return tFormat('types.currency');
         case CustomFormatType.NUMBER:
-            return 'Number';
+            return tFormat('types.number');
         case CustomFormatType.ID:
-            return 'ID';
+            return tFormat('types.id');
         case CustomFormatType.CUSTOM:
-            return 'Custom';
+            return tFormat('types.custom');
         default:
             return type;
     }
@@ -43,7 +47,7 @@ const separatorExamples: Partial<Record<NumberSeparator, string>> = {
 
 const describeDecimals = (round: number | undefined): string | null => {
     if (round === undefined) return null;
-    return round === 1 ? '1 decimal' : `${round} decimals`;
+    return tFormat('decimals', { count: round });
 };
 
 // One-line, human-readable reading of a format, e.g. "Currency (USD), 2 decimals"
@@ -52,11 +56,19 @@ export const describeCustomFormat = (format: CustomFormat): string => {
     switch (format.type) {
         case CustomFormatType.CURRENCY:
             parts.push(
-                format.currency ? `Currency (${format.currency})` : 'Currency',
+                format.currency
+                    ? tFormat('currencyWithCode', { currency: format.currency })
+                    : getFormatTypeLabel(format.type),
             );
             break;
         case CustomFormatType.CUSTOM:
-            parts.push(format.custom ? `Custom (${format.custom})` : 'Custom');
+            parts.push(
+                format.custom
+                    ? tFormat('customWithExpression', {
+                          expression: format.custom,
+                      })
+                    : getFormatTypeLabel(format.type),
+            );
             break;
         default:
             parts.push(getFormatTypeLabel(format.type));
@@ -68,11 +80,13 @@ export const describeCustomFormat = (format: CustomFormat): string => {
     const separator = format.separator
         ? separatorExamples[format.separator]
         : undefined;
-    if (separator) parts.push(`separator ${separator}`);
-    if (format.prefix) parts.push(`prefix ${format.prefix}`);
-    if (format.suffix) parts.push(`suffix ${format.suffix.trim()}`);
+    if (separator) parts.push(tFormat('separator', { separator }));
+    if (format.prefix) parts.push(tFormat('prefix', { prefix: format.prefix }));
+    if (format.suffix) {
+        parts.push(tFormat('suffix', { suffix: format.suffix.trim() }));
+    }
     if (format.timeInterval) {
         parts.push(timeFrameConfigs[format.timeInterval].getLabel());
     }
-    return parts.join(', ');
+    return parts.join(tFormat('partSeparator'));
 };

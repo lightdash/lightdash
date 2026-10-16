@@ -4,9 +4,11 @@ import { useForm } from '@mantine/form';
 import { IconGitFork } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import MantineModal from '../../../components/common/MantineModal';
 import useToaster from '../../../hooks/toaster/useToaster';
+import i18n from '../../../i18n/i18n';
 import { useDuplicateApp } from '../../apps/hooks/useDuplicateApp';
 
 type Props = {
@@ -19,7 +21,12 @@ type Props = {
 };
 
 const forkSchema = z.object({
-    name: z.string().trim().min(1, { message: 'Name is required' }),
+    name: z
+        .string()
+        .trim()
+        .min(1, {
+            error: () => i18n.t('fork.nameRequired', { ns: 'chartTypes' }),
+        }),
 });
 
 type FormState = z.infer<typeof forkSchema>;
@@ -33,6 +40,7 @@ const ChartTypeForkModal: FC<Props> = ({
     defaultName,
     onForked,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const { showToastSuccess } = useToaster();
     const { mutate: duplicate, isLoading: isForking } = useDuplicateApp();
 
@@ -47,7 +55,7 @@ const ChartTypeForkModal: FC<Props> = ({
             { projectUuid, appUuid, name: data.name.trim() },
             {
                 onSuccess: (result) => {
-                    showToastSuccess({ title: 'Chart type forked' });
+                    showToastSuccess({ title: t('fork.forkedToast') });
                     onForked(result);
                 },
             },
@@ -58,9 +66,9 @@ const ChartTypeForkModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Fork to customize"
+            title={t('detail.forkToCustomize')}
             icon={IconGitFork}
-            description="Forking creates your own copy on its own version path. It won't receive registry updates."
+            description={t('fork.description')}
             actions={
                 <Button
                     disabled={!form.isValid()}
@@ -68,16 +76,16 @@ const ChartTypeForkModal: FC<Props> = ({
                     type="submit"
                     form="fork-chart-type"
                 >
-                    Fork
+                    {t('fork.fork')}
                 </Button>
             }
         >
             <form id="fork-chart-type" onSubmit={handleSubmit}>
                 <Stack>
                     <TextInput
-                        label="Name"
+                        label={t('fork.name')}
                         required
-                        placeholder="eg. Radial gauge (custom)"
+                        placeholder={t('fork.namePlaceholder')}
                         disabled={isForking}
                         {...form.getInputProps('name')}
                     />

@@ -26,6 +26,7 @@ import {
 } from '@mantine/core';
 import debounce from 'lodash/debounce';
 import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DEFAULT_MAP_COLORS } from '../../../hooks/useMapChartConfig';
 import FieldSelect from '../../common/FieldSelect';
 import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
@@ -67,6 +68,7 @@ const HexbinSizeSlider: FC<HexbinSizeSliderProps> = ({
     storedResolution,
     onCommit,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const [draftIdx, setDraftIdx] = useState<number>(() =>
         findPresetIdxByResolution(storedResolution),
     );
@@ -74,7 +76,11 @@ const HexbinSizeSlider: FC<HexbinSizeSliderProps> = ({
     return (
         <>
             <Text size="xs" mt="sm">
-                Cell scale: {HEXBIN_SIZE_PRESETS[draftIdx]?.label}
+                {t('map.display.cellScale', {
+                    size: t(
+                        `map.display.hexbinSizes.${HEXBIN_SIZE_PRESETS[draftIdx]?.key}`,
+                    ),
+                })}
             </Text>
             <Slider
                 min={0}
@@ -85,7 +91,11 @@ const HexbinSizeSlider: FC<HexbinSizeSliderProps> = ({
                 onChangeEnd={(idx) =>
                     onCommit(HEXBIN_SIZE_PRESETS[idx].resolution)
                 }
-                label={(idx) => HEXBIN_SIZE_PRESETS[idx]?.label}
+                label={(idx) =>
+                    t(
+                        `map.display.hexbinSizes.${HEXBIN_SIZE_PRESETS[idx]?.key}`,
+                    )
+                }
                 marks={HEXBIN_SIZE_PRESETS.map((_, i) => ({ value: i }))}
                 mb="md"
             />
@@ -94,6 +104,7 @@ const HexbinSizeSlider: FC<HexbinSizeSliderProps> = ({
 };
 
 export const Display: FC = memo(() => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig, itemsMap, resultsData, colorPalette } =
         useVisualizationContext();
 
@@ -167,14 +178,32 @@ export const Display: FC = memo(() => {
 
     const tileBackgroundOptions = useMemo(
         () => [
-            { value: MapTileBackground.NONE, label: 'None' },
-            { value: MapTileBackground.OPENSTREETMAP, label: 'OpenStreetMap' },
-            { value: MapTileBackground.LIGHT, label: 'Light' },
-            { value: MapTileBackground.DARK, label: 'Dark' },
-            { value: MapTileBackground.VOYAGER, label: 'Voyager (clean)' },
-            { value: MapTileBackground.SATELLITE, label: 'Satellite' },
+            {
+                value: MapTileBackground.NONE,
+                label: t('map.display.tileBackground.none'),
+            },
+            {
+                value: MapTileBackground.OPENSTREETMAP,
+                label: t('map.display.tileBackground.openStreetMap'),
+            },
+            {
+                value: MapTileBackground.LIGHT,
+                label: t('map.display.tileBackground.light'),
+            },
+            {
+                value: MapTileBackground.DARK,
+                label: t('map.display.tileBackground.dark'),
+            },
+            {
+                value: MapTileBackground.VOYAGER,
+                label: t('map.display.tileBackground.voyager'),
+            },
+            {
+                value: MapTileBackground.SATELLITE,
+                label: t('map.display.tileBackground.satellite'),
+            },
         ],
-        [],
+        [t],
     );
 
     if (!mapChartConfig) {
@@ -238,12 +267,14 @@ export const Display: FC = memo(() => {
         <Stack>
             <Config>
                 <Config.Section>
-                    <Config.Heading>Cells</Config.Heading>
+                    <Config.Heading>{t('map.display.cells')}</Config.Heading>
                     {!isHeatmap && !isHexbin && (
                         <Config.Group>
                             <FieldSelect
-                                label="Color based on"
-                                placeholder="Select field (optional)"
+                                label={t('map.display.colorBasedOn')}
+                                placeholder={t(
+                                    'map.display.selectFieldOptional',
+                                )}
                                 item={valueField}
                                 items={availableFields}
                                 onChange={(newField) =>
@@ -272,7 +303,7 @@ export const Display: FC = memo(() => {
                                 <Stack gap="xs">
                                     <Config.Group>
                                         <Config.Label>
-                                            Value based on
+                                            {t('map.display.valueBasedOn')}
                                         </Config.Label>
                                         <SegmentedControl
                                             size="xs"
@@ -280,11 +311,15 @@ export const Display: FC = memo(() => {
                                             data={[
                                                 {
                                                     value: MapHexbinValueBasis.COUNT,
-                                                    label: 'Count',
+                                                    label: t(
+                                                        'map.display.count',
+                                                    ),
                                                 },
                                                 {
                                                     value: MapHexbinValueBasis.FIELD,
-                                                    label: 'Field values',
+                                                    label: t(
+                                                        'map.display.fieldValues',
+                                                    ),
                                                 },
                                             ]}
                                             onChange={(v) => {
@@ -310,10 +345,12 @@ export const Display: FC = memo(() => {
                                         <Stack gap="xs">
                                             <Group gap="xs" wrap="nowrap">
                                                 <Config.Label>
-                                                    Field
+                                                    {t('map.display.field')}
                                                 </Config.Label>
                                                 <FieldSelect
-                                                    placeholder="Select field"
+                                                    placeholder={t(
+                                                        'map.display.selectField',
+                                                    )}
                                                     item={valueField}
                                                     items={availableFields}
                                                     onChange={(newField) =>
@@ -334,7 +371,9 @@ export const Display: FC = memo(() => {
                                             </Group>
                                             <Config.Group>
                                                 <Config.Label>
-                                                    Aggregation
+                                                    {t(
+                                                        'map.display.aggregation',
+                                                    )}
                                                 </Config.Label>
                                                 <SegmentedControl
                                                     size="xs"
@@ -342,19 +381,27 @@ export const Display: FC = memo(() => {
                                                     data={[
                                                         {
                                                             value: MapHexbinAggregation.SUM,
-                                                            label: 'Sum',
+                                                            label: t(
+                                                                'map.display.sum',
+                                                            ),
                                                         },
                                                         {
                                                             value: MapHexbinAggregation.AVG,
-                                                            label: 'Avg',
+                                                            label: t(
+                                                                'map.display.avg',
+                                                            ),
                                                         },
                                                         {
                                                             value: MapHexbinAggregation.MIN,
-                                                            label: 'Min',
+                                                            label: t(
+                                                                'map.display.min',
+                                                            ),
                                                         },
                                                         {
                                                             value: MapHexbinAggregation.MAX,
-                                                            label: 'Max',
+                                                            label: t(
+                                                                'map.display.max',
+                                                            ),
                                                         },
                                                     ]}
                                                     onChange={(v) =>
@@ -377,13 +424,17 @@ export const Display: FC = memo(() => {
                                 swatches={ECHARTS_DEFAULT_COLORS}
                                 onColorChange={setNoDataColor}
                             />
-                            <Config.Label>No data color</Config.Label>
+                            <Config.Label>
+                                {t('map.display.noDataColor')}
+                            </Config.Label>
                         </Group>
                     )}
                     {showColorRange && (
                         <Config.Group mb="xs">
                             <Stack w="100%" gap="xs">
-                                <Config.Label>Color range</Config.Label>
+                                <Config.Label>
+                                    {t('map.display.colorRange')}
+                                </Config.Label>
                                 <GradientStopsEditor
                                     colors={colors}
                                     onAddColor={addColor}
@@ -393,7 +444,7 @@ export const Display: FC = memo(() => {
                                 {isHexbin && (
                                     <>
                                         <Config.Label mt="xs">
-                                            Opacity
+                                            {t('map.display.opacity')}
                                         </Config.Label>
                                         <Slider
                                             min={0.1}
@@ -422,7 +473,9 @@ export const Display: FC = memo(() => {
                     {!showColorRange && uniqueStringValues.length > 0 && (
                         <Config.Group>
                             <Stack w="100%" gap="xs">
-                                <Config.Label>Value colors</Config.Label>
+                                <Config.Label>
+                                    {t('map.display.valueColors')}
+                                </Config.Label>
                                 <ScrollArea.Autosize mah={300}>
                                     <Stack gap="xs">
                                         {uniqueStringValues.map((val, idx) => (
@@ -468,7 +521,9 @@ export const Display: FC = memo(() => {
                         uniqueStringValues.length === 0 &&
                         !isAreaMap && (
                             <Config.Group>
-                                <Config.Label>Color</Config.Label>
+                                <Config.Label>
+                                    {t('map.display.color')}
+                                </Config.Label>
                                 <ColorSelector
                                     color={
                                         colors[Math.floor(colors.length / 2)]
@@ -487,7 +542,7 @@ export const Display: FC = memo(() => {
                     {(isScatterMap || isAreaMap) && (
                         <>
                             <Config.Label mt="xs">
-                                Data layer opacity
+                                {t('map.display.dataLayerOpacity')}
                             </Config.Label>
                             <Slider
                                 min={0.1}
@@ -510,7 +565,9 @@ export const Display: FC = memo(() => {
 
                     {isBackgroundNone && (
                         <Config.Group>
-                            <Config.Label>Background color</Config.Label>
+                            <Config.Label>
+                                {t('map.display.backgroundColor')}
+                            </Config.Label>
                             <ColorSelector
                                 color={validConfig.backgroundColor ?? '#f3f3f3'}
                                 swatches={ECHARTS_DEFAULT_COLORS}
@@ -533,7 +590,7 @@ export const Display: FC = memo(() => {
                                 <Stack gap="xs" mt="xs">
                                     <Config.Group>
                                         <Config.Label>
-                                            Show empty cells
+                                            {t('map.display.showEmptyCells')}
                                         </Config.Label>
                                         <Switch
                                             size="xs"
@@ -549,7 +606,7 @@ export const Display: FC = memo(() => {
                                     <Collapse expanded={showEmpty}>
                                         <Config.Group my="xs">
                                             <Config.Label>
-                                                Empty cell fill
+                                                {t('map.display.emptyCellFill')}
                                             </Config.Label>
                                             <ColorSelector
                                                 color={
@@ -578,18 +635,24 @@ export const Display: FC = memo(() => {
                                     </Collapse>
 
                                     <Config.Group>
-                                        <Config.Label>Cell size</Config.Label>
+                                        <Config.Label>
+                                            {t('map.display.cellSize')}
+                                        </Config.Label>
                                         <SegmentedControl
                                             size="xs"
                                             value={sizingMode}
                                             data={[
                                                 {
                                                     value: MapHexbinSizingMode.FIXED,
-                                                    label: 'Fixed',
+                                                    label: t(
+                                                        'map.display.fixed',
+                                                    ),
                                                 },
                                                 {
                                                     value: MapHexbinSizingMode.DYNAMIC,
-                                                    label: 'Dynamic',
+                                                    label: t(
+                                                        'map.display.dynamic',
+                                                    ),
                                                 },
                                             ]}
                                             onChange={(v) =>
@@ -631,10 +694,12 @@ export const Display: FC = memo(() => {
             {isScatterMap && (
                 <Config>
                     <Config.Section>
-                        <Config.Heading>Bubbles</Config.Heading>
+                        <Config.Heading>
+                            {t('map.display.bubbles')}
+                        </Config.Heading>
                         <FieldSelect
-                            label="Size based on"
-                            placeholder="Select field (optional)"
+                            label={t('map.display.sizeBasedOn')}
+                            placeholder={t('map.display.selectFieldOptional')}
                             item={sizeField}
                             items={availableFields}
                             onChange={(newField) =>
@@ -646,7 +711,9 @@ export const Display: FC = memo(() => {
                             clearable
                         />
                         <Text size="xs" c="dimmed" mt="xs" mb="xs">
-                            {hasSizeField ? 'Size range' : 'Size'}
+                            {hasSizeField
+                                ? t('map.display.sizeRange')
+                                : t('map.display.size')}
                         </Text>
                         {hasSizeField ? (
                             <RangeSlider
@@ -694,9 +761,11 @@ export const Display: FC = memo(() => {
             {isHeatmap && (
                 <Config>
                     <Config.Section>
-                        <Config.Heading>Heatmap</Config.Heading>
+                        <Config.Heading>
+                            {t('map.display.heatmap')}
+                        </Config.Heading>
                         <Text size="xs" mt="sm">
-                            Radius
+                            {t('map.display.radius')}
                         </Text>
                         <Slider
                             min={1}
@@ -714,7 +783,7 @@ export const Display: FC = memo(() => {
                             mb="md"
                         />
                         <Text size="xs" mt="sm">
-                            Blur
+                            {t('map.display.blur')}
                         </Text>
                         <Slider
                             min={0}
@@ -732,7 +801,7 @@ export const Display: FC = memo(() => {
                             mb="md"
                         />
                         <Text size="xs" mt="sm">
-                            Opacity
+                            {t('map.display.opacity')}
                         </Text>
                         <Slider
                             min={0.1}
@@ -755,9 +824,13 @@ export const Display: FC = memo(() => {
 
             <Config>
                 <Config.Section>
-                    <Config.Heading>Map extent</Config.Heading>
+                    <Config.Heading>
+                        {t('map.display.mapExtent')}
+                    </Config.Heading>
                     <Config.Group>
-                        <Config.Label>Save current map extent</Config.Label>
+                        <Config.Label>
+                            {t('map.display.saveMapExtent')}
+                        </Config.Label>
                         <Switch
                             size="xs"
                             checked={validConfig.saveMapExtent}
@@ -771,9 +844,11 @@ export const Display: FC = memo(() => {
 
             <Config>
                 <Config.Section>
-                    <Config.Heading>Legend</Config.Heading>
+                    <Config.Heading>{t('map.display.legend')}</Config.Heading>
                     <Config.Group>
-                        <Config.Label>Show legend</Config.Label>
+                        <Config.Label>
+                            {t('map.display.showLegend')}
+                        </Config.Label>
                         <Switch
                             size="xs"
                             checked={validConfig.showLegend ?? false}
@@ -787,9 +862,13 @@ export const Display: FC = memo(() => {
 
             <Config>
                 <Config.Section>
-                    <Config.Heading>Background map</Config.Heading>
+                    <Config.Heading>
+                        {t('map.display.backgroundMap')}
+                    </Config.Heading>
                     <Config.Group>
-                        <Config.Label>Light mode</Config.Label>
+                        <Config.Label>
+                            {t('map.display.lightMode')}
+                        </Config.Label>
                         <Select
                             size="xs"
                             data={tileBackgroundOptions}
@@ -805,7 +884,7 @@ export const Display: FC = memo(() => {
                         />
                     </Config.Group>
                     <Config.Group>
-                        <Config.Label>Dark mode</Config.Label>
+                        <Config.Label>{t('map.display.darkMode')}</Config.Label>
                         <Select
                             size="xs"
                             data={tileBackgroundOptions}

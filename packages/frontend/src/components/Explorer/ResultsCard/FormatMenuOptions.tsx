@@ -1,6 +1,7 @@
 import { type Dimension, type Metric } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     explorerActions,
     useExplorerDispatch,
@@ -13,6 +14,7 @@ type Props = {
 };
 
 const FormatMenuOptions: FC<Props> = ({ item }) => {
+    const { t } = useTranslation('explorer');
     const { track } = useTracking();
     const dispatch = useExplorerDispatch();
 
@@ -25,8 +27,10 @@ const FormatMenuOptions: FC<Props> = ({ item }) => {
 
     return (
         <>
-            <Menu.Label>Format</Menu.Label>
-            <Menu.Item onClick={onCreate}>Edit format</Menu.Item>
+            <Menu.Label>{t('columnHeaderMenu.format.title')}</Menu.Label>
+            <Menu.Item onClick={onCreate}>
+                {t('columnHeaderMenu.format.edit')}
+            </Menu.Item>
         </>
     );
 };

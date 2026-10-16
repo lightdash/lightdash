@@ -16,6 +16,7 @@ import {
 } from '@mantine/core';
 import { IconDots, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../../../../components/common/Callout';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import {
@@ -38,6 +39,7 @@ type Props = {
 };
 
 export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const { data, isInitialLoading } = useAiProviderCredentials();
     const createCredential = useCreateAiProviderCredential();
     const updateCredential = useUpdateAiProviderCredential();
@@ -99,20 +101,18 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
     return (
         <Stack gap="xs">
             <Group justify="space-between">
-                <Title order={6}>Amazon Bedrock credentials</Title>
+                <Title order={6}>{t('settings.bedrock.title')}</Title>
                 <Button
                     size="xs"
                     variant="light"
                     leftSection={<MantineIcon icon={IconPlus} size={14} />}
                     onClick={() => setModalState({ credential: null })}
                 >
-                    Add credential
+                    {t('settings.bedrock.addCredential')}
                 </Button>
             </Group>
             <Text c="dimmed" fz="xs">
-                Each credential pins Ask AI to one AWS region. Projects can
-                select a credential; anything without a project — Slack routing,
-                thread titles — uses the default.
+                {t('settings.bedrock.description')}
             </Text>
 
             {!isInitialLoading &&
@@ -120,7 +120,7 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                 legacyBedrock === null && (
                     <Paper variant="dotted" p="md">
                         <Text c="dimmed" fz="xs" ta="center">
-                            No Bedrock credentials yet.
+                            {t('settings.bedrock.empty')}
                         </Text>
                     </Paper>
                 )}
@@ -135,12 +135,15 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                                 <Text fz="sm" fw={500}>
                                     {legacyBedrock.region}
                                 </Text>
-                                <Badge size="sm">default</Badge>
+                                <Badge size="sm">
+                                    {t('settings.bedrock.default')}
+                                </Badge>
                             </Group>
                             <Text c="dimmed" fz="xs">
-                                {legacyBedrock.apiKeyHint} ·{' '}
-                                {legacyBedrock.allowedModels.length} model(s) ·
-                                configured before named credentials
+                                {t('settings.bedrock.legacySummary', {
+                                    hint: legacyBedrock.apiKeyHint,
+                                    count: legacyBedrock.allowedModels.length,
+                                })}
                             </Text>
                         </Stack>
                         {/* This configuration predates the credentials table,
@@ -152,7 +155,7 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                             loading={adoptLegacy.isLoading}
                             onClick={() => adoptLegacy.mutate()}
                         >
-                            Convert to managed credential
+                            {t('settings.bedrock.convert')}
                         </Button>
                     </Group>
                 </Paper>
@@ -167,25 +170,37 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                                     {credential.label}
                                 </Text>
                                 {credential.isDefault && (
-                                    <Badge size="sm">default</Badge>
+                                    <Badge size="sm">
+                                        {t('settings.bedrock.default')}
+                                    </Badge>
                                 )}
                             </Group>
                             <Text c="dimmed" fz="xs">
-                                {credential.region} · inference in{' '}
-                                {
-                                    BEDROCK_GEOGRAPHY_LABELS[
-                                        credential.inferenceGeography
-                                    ]
-                                }{' '}
-                                · {credential.apiKeyHint} ·{' '}
-                                {credential.allowedModels.length} model(s)
+                                {t('settings.bedrock.credentialSummary', {
+                                    region: credential.region,
+                                    geography:
+                                        BEDROCK_GEOGRAPHY_LABELS[
+                                            credential.inferenceGeography
+                                        ],
+                                    hint: credential.apiKeyHint,
+                                    count: credential.allowedModels.length,
+                                })}
                             </Text>
                         </Stack>
                         <Menu position="bottom-end">
                             <Menu.Target>
-                                <Tooltip label="Credential actions">
+                                <Tooltip
+                                    label={t(
+                                        'settings.bedrock.credentialActions',
+                                    )}
+                                >
                                     <ActionIcon
-                                        aria-label={`Actions for ${credential.label}`}
+                                        aria-label={t(
+                                            'settings.bedrock.actionsFor',
+                                            {
+                                                label: credential.label,
+                                            },
+                                        )}
                                     >
                                         <MantineIcon
                                             icon={IconDots}
@@ -200,7 +215,7 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                                         setModalState({ credential })
                                     }
                                 >
-                                    Edit
+                                    {t('actions.edit', { ns: 'common' })}
                                 </Menu.Item>
                                 {!credential.isDefault && (
                                     <Menu.Item
@@ -210,7 +225,7 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                                             )
                                         }
                                     >
-                                        Make default
+                                        {t('settings.bedrock.makeDefault')}
                                     </Menu.Item>
                                 )}
                                 <Menu.Item
@@ -219,7 +234,7 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                                         deleteCredential.mutate(credential.uuid)
                                     }
                                 >
-                                    Delete
+                                    {t('actions.delete', { ns: 'common' })}
                                 </Menu.Item>
                             </Menu.Dropdown>
                         </Menu>
@@ -231,11 +246,9 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                 <Callout variant="warning">
                     <Stack gap="xs">
                         <Text fz="sm">
-                            {unreadable.length} credential(s) cannot be read
-                            with the current encryption secret. AI requests
-                            pinned to them fail rather than falling back to
-                            another region, so replace each one with a complete
-                            configuration.
+                            {t('settings.bedrock.unreadable', {
+                                count: unreadable.length,
+                            })}
                         </Text>
                         {unreadable.map((item) => (
                             <Group key={item.uuid} gap="xs">
@@ -252,7 +265,7 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                                         })
                                     }
                                 >
-                                    Replace
+                                    {t('settings.bedrock.replace')}
                                 </Button>
                             </Group>
                         ))}
@@ -262,11 +275,7 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
 
             {(credentials.length > 0 || legacyBedrock !== null) && (
                 <Text c="dimmed" fz="xs">
-                    While Bedrock is configured it is the only provider Ask AI
-                    uses, so agents pinned to another provider stop working
-                    until you repoint them. Verified-answer semantic search and
-                    AI repository editing are unavailable, because both would
-                    send content outside these regions.
+                    {t('settings.bedrock.onlyProviderNote')}
                 </Text>
             )}
 

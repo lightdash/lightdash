@@ -1,5 +1,6 @@
 import { Switch, Tooltip, type MantineSize } from '@mantine/core';
 import { memo, useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     explorerActions,
     useExplorerDispatch,
@@ -9,6 +10,7 @@ import { usePreAggregateCacheEnabled } from '../../hooks/usePreAggregateCacheEna
 type Props = { size?: MantineSize };
 
 const PreAggregateCacheSwitch: FC<Props> = memo(({ size }) => {
+    const { t } = useTranslation('explorer');
     const dispatch = useExplorerDispatch();
     const [enabled, setEnabled] = usePreAggregateCacheEnabled();
 
@@ -19,13 +21,13 @@ const PreAggregateCacheSwitch: FC<Props> = memo(({ size }) => {
 
     return (
         <Tooltip
-            label="Route queries through pre-aggregate cache when available"
+            label={t('runQuerySettings.preAggregateCache.tooltip')}
             position="bottom"
             refProp="rootRef"
         >
             <Switch
                 size={size}
-                label="Use pre-aggregate cache"
+                label={t('runQuerySettings.preAggregateCache.label')}
                 checked={enabled}
                 onChange={handleToggle}
                 thumbIcon={<></>}

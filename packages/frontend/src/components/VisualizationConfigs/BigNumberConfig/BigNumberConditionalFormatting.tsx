@@ -9,6 +9,7 @@ import {
 import { Accordion } from '@mantine/core';
 import { produce } from 'immer';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -18,6 +19,7 @@ import { Config } from '../common/Config';
 import { BigNumberConditionalFormattingItem } from './BigNumberConditionalFormattingItem';
 
 export const BigNumberConditionalFormatting: FC = () => {
+    const { t } = useTranslation('vizConfig');
     const { itemsMap, visualizationConfig, colorPalette } =
         useVisualizationContext();
 
@@ -98,7 +100,11 @@ export const BigNumberConditionalFormatting: FC = () => {
         <Config>
             <Config.Section>
                 <Config.Group>
-                    <Config.Heading>Rules and Conditions</Config.Heading>
+                    <Config.Heading>
+                        {t(
+                            'bigNumber.conditionalFormatting.rulesAndConditions',
+                        )}
+                    </Config.Heading>
                     <AddButton onClick={handleAdd} />
                 </Config.Group>
                 <Accordion

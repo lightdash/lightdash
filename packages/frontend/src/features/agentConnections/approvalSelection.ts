@@ -2,6 +2,10 @@ import {
     AgentCapability,
     type AgentConnectionApprovalProject,
 } from '@lightdash/common';
+import i18n from '../../i18n/i18n';
+
+const tr = (key: string, options?: Record<string, unknown>) =>
+    i18n.t(`agentConnections.${key}`, { ns: 'aiAccess', ...options });
 
 export const getApprovalActions = (
     projects: AgentConnectionApprovalProject[],
@@ -39,7 +43,7 @@ export const getApprovalActions = (
     });
 
 export const approvalDuration = (seconds: number) => {
-    if (seconds === 86400) return '24 hours';
+    if (seconds === 86400) return tr('duration.hour', { count: 24 });
     let remaining = seconds;
     return (
         [
@@ -52,33 +56,59 @@ export const approvalDuration = (seconds: number) => {
         .flatMap(([unit, size]) => {
             const count = Math.floor(remaining / size);
             remaining %= size;
-            return count ? [`${count} ${unit}${count === 1 ? '' : 's'}`] : [];
+            return count ? [tr(`duration.${unit}`, { count })] : [];
         })
-        .join(', ');
+        .join(tr('duration.separator'));
 };
 
 // The server sends a notice while approving only records a decision.
 export const warehouseStepOutcome = (notice: string | null) =>
-    notice ? 'No connection was created.' : 'Your connection is saved.';
+    notice ? tr('warehouseStep.noConnection') : tr('warehouseStep.saved');
 
 export const warehouseStepMessage = (notice: string | null) =>
-    notice
-        ? 'You can still set up warehouse sign-ins for later.'
-        : 'Sign in to run queries on these warehouses.';
+    notice ? tr('warehouseStep.setUpLater') : tr('warehouseStep.signInToRun');
+
+const copy = (key: string) => tr(`warehouseStep.${key}`);
 
 export const warehouseStepCopy = {
-    heading: 'Connect your warehouses',
-    cancelledHeading: 'Approval cancelled',
-    cancelledMessage: 'No connection was created.',
-    nextStep: 'Return to your terminal.',
-    returnToCli: 'Return to the CLI',
-    defer: 'Do this later',
+    get heading() {
+        return copy('heading');
+    },
+    get cancelledHeading() {
+        return copy('cancelledHeading');
+    },
+    get cancelledMessage() {
+        return copy('noConnection');
+    },
+    get nextStep() {
+        return copy('nextStep');
+    },
+    get returnToCli() {
+        return copy('returnToCli');
+    },
+    get defer() {
+        return copy('defer');
+    },
     deferTo: '/generalSettings/myAgentConnections?tab=warehouses',
-    loading: 'Loading warehouse sign-ins',
-    loadingSignIn: 'Loading warehouse sign-in',
-    checking: 'Checking warehouse sign-in',
-    error: 'Could not load warehouse sign-in.',
-    administrator: 'Ask an administrator to set up agent sign-in',
-    ready: 'Ready',
-    signIn: 'Sign in',
-} as const;
+    get loading() {
+        return copy('loading');
+    },
+    get loadingSignIn() {
+        return copy('loadingSignIn');
+    },
+    get checking() {
+        return copy('checking');
+    },
+    get error() {
+        return copy('error');
+    },
+    get administrator() {
+        return copy('administrator');
+    },
+    get ready() {
+        return copy('ready');
+    },
+    get signIn() {
+        return copy('signIn');
+    },
+};

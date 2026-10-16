@@ -8,6 +8,7 @@ import {
 import { Anchor, Box, Group } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -49,6 +50,7 @@ export const DeepResearchChartTile = ({
     runUuid,
     withExploreLink = true,
 }: Props) => {
+    const { t } = useTranslation('aiAgent');
     const liveQuery = useDeepResearchChartLiveQuery({
         projectUuid,
         runUuid,
@@ -91,10 +93,12 @@ export const DeepResearchChartTile = ({
                             rel="noopener noreferrer"
                             size="xs"
                             fw={500}
-                            aria-label={`Open ${chart.title} in Explore`}
+                            aria-label={t('deepResearch.openNamedInExplore', {
+                                title: chart.title,
+                            })}
                         >
                             <Group component="span" gap={4} wrap="nowrap">
-                                Open in Explore
+                                {t('deepResearch.openInExplore')}
                                 <MantineIcon
                                     icon={IconExternalLink}
                                     size={13}
@@ -110,8 +114,8 @@ export const DeepResearchChartTile = ({
                     <InlineErrorState
                         message={
                             isResourceLimitError
-                                ? 'This chart exceeds the warehouse query limit. Open it in Explore to narrow the query.'
-                                : 'The live data for this chart could not be loaded.'
+                                ? t('deepResearch.chartLimitExceeded')
+                                : t('deepResearch.liveDataFailed')
                         }
                         onRetry={
                             isResourceLimitError
@@ -125,7 +129,9 @@ export const DeepResearchChartTile = ({
                         }
                     />
                 ) : isLoadingLive || !liveQuery.data ? (
-                    <EmptyStateLoader title="Loading live chart data" />
+                    <EmptyStateLoader
+                        title={t('deepResearch.loadingLiveData')}
+                    />
                 ) : (
                     <AiVisualizationRenderer
                         vizQueryData={liveQuery.data}

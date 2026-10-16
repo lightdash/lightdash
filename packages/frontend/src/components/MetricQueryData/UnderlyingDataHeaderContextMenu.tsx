@@ -8,6 +8,7 @@ import {
 import { ActionIcon, Flex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconDots } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import {
     getSortDirectionOrder,
     getSortIcon,
@@ -28,6 +29,7 @@ const ColumnHeaderSortMenuOptions: FC<ColumnHeaderSortMenuOptionsProps> = ({
     sorts,
     onSortChange,
 }) => {
+    const { t } = useTranslation('app');
     const itemFieldId = getItemId(item);
 
     const isSorted = (sortDirection: SortDirection) =>
@@ -57,10 +59,12 @@ const ColumnHeaderSortMenuOptions: FC<ColumnHeaderSortMenuOptionsProps> = ({
                         ]);
                     }}
                 >
-                    Sort{' '}
-                    <Text span fw={500}>
-                        {getSortLabel(item, sortDirection)}
-                    </Text>
+                    <Trans
+                        t={t}
+                        i18nKey="metricQueryData.sortBy"
+                        values={{ label: getSortLabel(item, sortDirection) }}
+                        components={{ label: <Text span fw={500} /> }}
+                    />
                 </Menu.Item>
             ))}
             {sorts.some((sort) => sort.fieldId === itemFieldId) && (
@@ -72,7 +76,7 @@ const ColumnHeaderSortMenuOptions: FC<ColumnHeaderSortMenuOptionsProps> = ({
                             onSortChange([]);
                         }}
                     >
-                        Remove sort
+                        {t('metricQueryData.removeSort')}
                     </Menu.Item>
                 </>
             )}
@@ -88,6 +92,7 @@ type UnderlyingDataHeaderContextMenuProps = HeaderProps & {
 const UnderlyingDataHeaderContextMenu: FC<
     UnderlyingDataHeaderContextMenuProps
 > = ({ header, sorts, onSortChange }) => {
+    const { t } = useTranslation('app');
     const meta = header.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
 
@@ -118,7 +123,7 @@ const UnderlyingDataHeaderContextMenu: FC<
                             variant="light"
                             color="gray"
                             bg="transparent"
-                            aria-label="Context menu"
+                            aria-label={t('metricQueryData.contextMenu')}
                         >
                             <MantineIcon icon={IconDots} />
                         </ActionIcon>

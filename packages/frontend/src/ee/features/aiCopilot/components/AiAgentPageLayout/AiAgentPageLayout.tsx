@@ -20,6 +20,7 @@ import {
     useRef,
     type PropsWithChildren,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../../../components/common/ResizableSplitter';
@@ -88,6 +89,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
     isAgentSidebarCollapsed,
     isEmbed = false,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const dispatch = useAiAgentStoreDispatch();
     const splitterRef = useRef<UseSplitterReturnValue>(null);
     const { mode: embedMode } = useEmbed();
@@ -178,7 +180,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                 // Adjacent resizing evaluates collapse before clamping to min.
                 redistribute={undefined}
                 splitterRef={splitterRef}
-                handleLabel="Resize workspace panels"
+                handleLabel={t('layout.resizePanels')}
                 classNames={{ handle: styles.resizeHandle }}
                 onCollapseChange={(index, collapsed) => {
                     if (index === 0 && Sidebar && !isMobile)
@@ -224,16 +226,18 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                                 <Tooltip
                                     label={
                                         isAgentSidebarCollapsed
-                                            ? 'Expand sidebar'
-                                            : 'Collapse sidebar'
+                                            ? t('layout.expandSidebar')
+                                            : t('layout.collapseSidebar')
                                     }
                                     position="right"
                                 >
                                     <SidebarButton
                                         aria-label={
                                             isAgentSidebarCollapsed
-                                                ? 'Expand Ask AI sidebar'
-                                                : 'Collapse Ask AI sidebar'
+                                                ? t('layout.expandAskAiSidebar')
+                                                : t(
+                                                      'layout.collapseAskAiSidebar',
+                                                  )
                                         }
                                         size="xs"
                                         leftSection={
@@ -277,7 +281,9 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                                 <Group gap="xs" wrap="nowrap" align="center">
                                     {isMobile && Sidebar && (
                                         <SidebarButton
-                                            aria-label="Open Ask AI sidebar"
+                                            aria-label={t(
+                                                'layout.openAskAiSidebar',
+                                            )}
                                             size="sm"
                                             leftSection={
                                                 <MantineIcon
@@ -330,14 +336,14 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                     withinPortal={!isSdk}
                     lockScroll={!isSdk}
                     closeButtonProps={{
-                        'aria-label': 'Close threads',
+                        'aria-label': t('layout.closeThreads'),
                         size: 44,
                     }}
                     position="left"
                     size="85%"
                     title={
                         <Text fw={600} fz="sm">
-                            Threads
+                            {t('layout.threads')}
                         </Text>
                     }
                     classNames={{

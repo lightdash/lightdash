@@ -1,5 +1,6 @@
 import { Select, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import classes from './FilterRequirements.module.css';
 
 export type SelectableFilter = {
@@ -23,35 +24,38 @@ const FilterSelect: FC<FilterSelectProps> = ({
     selectableFilters,
     placeholder,
     onSelect,
-}) => (
-    <Select
-        size="xs"
-        w={150}
-        aria-label="Add filter to rule"
-        placeholder={placeholder}
-        value={null}
-        data={selectableFilters}
-        comboboxProps={{ withinPortal: false }}
-        classNames={{ input: classes.addFilterInput }}
-        onChange={(filterId) => {
-            if (filterId) onSelect(filterId);
-        }}
-        renderOption={({ option }) => {
-            const reason = selectableFilters.find(
-                (filter) => filter.value === option.value,
-            )?.reason;
-            return (
-                <Stack gap={0}>
-                    <Text size="xs">{option.label}</Text>
-                    {reason && (
-                        <Text size="xs" c="dimmed">
-                            {reason}
-                        </Text>
-                    )}
-                </Stack>
-            );
-        }}
-    />
-);
+}) => {
+    const { t } = useTranslation('dashboardFilters');
+    return (
+        <Select
+            size="xs"
+            w={150}
+            aria-label={t('requirements.addFilterToRule')}
+            placeholder={placeholder}
+            value={null}
+            data={selectableFilters}
+            comboboxProps={{ withinPortal: false }}
+            classNames={{ input: classes.addFilterInput }}
+            onChange={(filterId) => {
+                if (filterId) onSelect(filterId);
+            }}
+            renderOption={({ option }) => {
+                const reason = selectableFilters.find(
+                    (filter) => filter.value === option.value,
+                )?.reason;
+                return (
+                    <Stack gap={0}>
+                        <Text size="xs">{option.label}</Text>
+                        {reason && (
+                            <Text size="xs" c="dimmed">
+                                {reason}
+                            </Text>
+                        )}
+                    </Stack>
+                );
+            }}
+        />
+    );
+};
 
 export default FilterSelect;

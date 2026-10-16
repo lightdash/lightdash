@@ -6,6 +6,7 @@ import { Box, Menu, useMantineColorScheme } from '@mantine/core';
 import { IconCopy } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import React, { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import rehypeExternalLinks from 'rehype-external-links';
 import { v4 as uuid4 } from 'uuid';
 import { DashboardTileComments } from '../../features/comments';
@@ -24,6 +25,7 @@ export type Props = Pick<
 };
 
 const MarkdownTile: FC<Props> = (props) => {
+    const { t } = useTranslation('dashboard');
     const { colorScheme } = useMantineColorScheme();
 
     const {
@@ -102,7 +104,7 @@ const MarkdownTile: FC<Props> = (props) => {
                         leftSection={<MantineIcon icon={IconCopy} />}
                         onClick={handleDuplicate}
                     >
-                        Duplicate
+                        {t('tile.duplicate')}
                     </Menu.Item>
                 )
             }

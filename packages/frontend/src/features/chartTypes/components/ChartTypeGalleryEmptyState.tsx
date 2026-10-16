@@ -3,6 +3,7 @@ import { FeatureFlags } from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine/core';
 import { IconPlus, IconPuzzle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
@@ -16,6 +17,7 @@ type Props = {
 };
 
 const ChartTypeGalleryEmptyState: FC<Props> = ({ projectUuid }) => {
+    const { t } = useTranslation('chartTypes');
     const { user } = useApp();
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
@@ -35,12 +37,11 @@ const ChartTypeGalleryEmptyState: FC<Props> = ({ projectUuid }) => {
             />
 
             <Text size="md" fw={600} c="ldGray.8">
-                No chart types yet
+                {t('emptyState.title')}
             </Text>
 
             <Text ta="center" fz="xs" c="dimmed" maw={400} lh={1.5}>
-                Chart types are custom visualizations you build once and reuse
-                across your project.
+                {t('emptyState.description')}
             </Text>
 
             {dataAppsEnabled && (
@@ -57,7 +58,7 @@ const ChartTypeGalleryEmptyState: FC<Props> = ({ projectUuid }) => {
                         to={chartTypeBuilderPath(projectUrlIdentifier)}
                         leftSection={<MantineIcon icon={IconPlus} size={18} />}
                     >
-                        New chart type
+                        {t('emptyState.newChartType')}
                     </Button>
                 </Can>
             )}

@@ -5,6 +5,7 @@ import {
     type Document,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useToaster from '../../hooks/toaster/useToaster';
 import { pollJobStatus } from '../scheduler/hooks/useScheduler';
@@ -27,6 +28,7 @@ const downloadFile = (url: string, fileName: string) => {
 
 /** Queues a PDF of the Document, waits for the job, then downloads the file. */
 export const useExportDocumentPdf = () => {
+    const { t } = useTranslation('documents');
     const {
         showToastInfo,
         showToastSuccess,
@@ -46,7 +48,7 @@ export const useExportDocumentPdf = () => {
             onMutate: (document) => {
                 showToastInfo({
                     key: TOAST_KEY,
-                    title: `${document.name} is being exported. This might take a few seconds.`,
+                    title: t('exportPdf.inProgress', { name: document.name }),
                     autoClose: false,
                     loading: true,
                 });
@@ -59,8 +61,10 @@ export const useExportDocumentPdf = () => {
                         if (!details?.url) {
                             showToastError({
                                 key: TOAST_KEY,
-                                title: `Missing file url for ${document.name}`,
-                                subtitle: 'Something went wrong',
+                                title: t('exportPdf.missingUrl', {
+                                    name: document.name,
+                                }),
+                                subtitle: t('exportPdf.somethingWentWrong'),
                             });
                             return;
                         }
@@ -72,21 +76,27 @@ export const useExportDocumentPdf = () => {
                         if (numFailures > 0) {
                             showToastWarning({
                                 key: TOAST_KEY,
-                                title: `${document.name} was exported with ${numFailures} failed chart(s).`,
-                                subtitle:
-                                    'Charts that could not load show an error in the PDF.',
+                                title: t('exportPdf.partialFailure', {
+                                    name: document.name,
+                                    count: numFailures,
+                                }),
+                                subtitle: t('exportPdf.partialFailureSubtitle'),
                             });
                         } else {
                             showToastSuccess({
                                 key: TOAST_KEY,
-                                title: `Success! ${document.name} was exported.`,
+                                title: t('exportPdf.success', {
+                                    name: document.name,
+                                }),
                             });
                         }
                     })
                     .catch((error: Error) => {
                         showToastError({
                             key: TOAST_KEY,
-                            title: `Failed to export ${document.name}`,
+                            title: t('exportPdf.failed', {
+                                name: document.name,
+                            }),
                             subtitle: error.message,
                         });
                     });
@@ -94,7 +104,7 @@ export const useExportDocumentPdf = () => {
             onError: ({ error }, document) => {
                 showToastApiError({
                     key: TOAST_KEY,
-                    title: `Failed to export ${document.name}`,
+                    title: t('exportPdf.failed', { name: document.name }),
                     apiError: error,
                 });
             },

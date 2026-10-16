@@ -17,6 +17,7 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Provider } from 'react-redux';
 import { Link, useNavigate } from 'react-router';
 import { CategoryBadge } from '../../../../components/common/CategoryBadge';
@@ -72,6 +73,7 @@ const AiSearchBoxInner: FC<Props> = ({
         isLoading: isLoadingUserAgentPreferences,
     } = useGetUserAgentPreferences(projectUuid);
     const aiRouterConfigQuery = useAiRouterConfig();
+    const { t } = useTranslation('eeMisc');
     const [selectedAgentUuid, setSelectedAgentUuid] = useState<string>();
     const { setPendingPrompt } = usePendingPrompt();
     const canManageAgents = useAiAgentPermission({
@@ -101,8 +103,8 @@ const AiSearchBoxInner: FC<Props> = ({
     ).length;
     const reviewsPromoLabel =
         prReadyCount > 0
-            ? 'Review issues, ship PRs, improve agents'
-            : 'Review AI issues to improve future answers';
+            ? t('aiSearch.reviewsPromoPrs')
+            : t('aiSearch.reviewsPromo');
 
     const noAgentsAvailable =
         !isLoadingAgents && (!agents || agents.length === 0);
@@ -224,10 +226,12 @@ const AiSearchBoxInner: FC<Props> = ({
                                 onSearchItemSelect={handleSearchItemSelect}
                                 placeholder={
                                     activeSelection === 'auto'
-                                        ? 'Ask AI or search your data'
+                                        ? t('aiSearch.placeholderAuto')
                                         : activeSelection
-                                          ? `Ask ${activeSelection.name} or search your data`
-                                          : 'Search your data'
+                                          ? t('aiSearch.placeholderAgent', {
+                                                name: activeSelection.name,
+                                            })
+                                          : t('aiSearch.placeholderSearch')
                                 }
                                 onHeaderClick={handleSubmit}
                                 header={
@@ -311,13 +315,11 @@ const AiSearchBoxInner: FC<Props> = ({
                                         <Group gap={2}>
                                             {isTrial && (
                                                 <Text size="xs" c="ldGray.8">
-                                                    You are trialing the AI
-                                                    Agents feature.
+                                                    {t('aiSearch.trialing')}
                                                 </Text>
                                             )}{' '}
                                             <Text size="xs" fw={500}>
-                                                Set up your first agent to get
-                                                started
+                                                {t('aiSearch.setUpFirstAgent')}
                                             </Text>
                                         </Group>
                                     </Button>
@@ -325,8 +327,7 @@ const AiSearchBoxInner: FC<Props> = ({
                                     <Group gap="xs">
                                         <AiAgentIcon size={14} />
                                         <Text size="xs" c="ldGray.8">
-                                            You are trialing the AI Agents
-                                            feature.
+                                            {t('aiSearch.trialing')}
                                         </Text>
                                     </Group>
                                 ) : null}
@@ -358,14 +359,21 @@ const AiSearchBoxInner: FC<Props> = ({
                                                 {reviewsPromoLabel}
                                             </Text>
                                             <CategoryBadge
-                                                label={`${projectReviewItems.length} open`}
+                                                label={t('aiSearch.openCount', {
+                                                    count: projectReviewItems.length,
+                                                })}
                                                 color="yellow.5"
                                                 className={
                                                     styles.reviewsPromoBadge
                                                 }
                                             />
                                             <CategoryBadge
-                                                label={`${prReadyCount} PR-ready`}
+                                                label={t(
+                                                    'aiSearch.prReadyCount',
+                                                    {
+                                                        count: prReadyCount,
+                                                    },
+                                                )}
                                                 color="green.5"
                                                 className={
                                                     styles.reviewsPromoBadge
@@ -373,7 +381,12 @@ const AiSearchBoxInner: FC<Props> = ({
                                             />
                                             {linkedPrCount > 0 && (
                                                 <CategoryBadge
-                                                    label={`${linkedPrCount} linked`}
+                                                    label={t(
+                                                        'aiSearch.linkedCount',
+                                                        {
+                                                            count: linkedPrCount,
+                                                        },
+                                                    )}
                                                     color="blue.5"
                                                     className={
                                                         styles.reviewsPromoBadge
@@ -404,7 +417,7 @@ const AiSearchBoxInner: FC<Props> = ({
                                             styles.adminSettingsButtonSection,
                                     }}
                                 >
-                                    Admin Settings
+                                    {t('aiSearch.adminSettings')}
                                 </Button>
                             )}
                         </Group>

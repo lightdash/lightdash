@@ -1,5 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
@@ -23,6 +24,7 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 
 const CreateProject: FC = () => {
+    const { t } = useTranslation('pages');
     const navigate = useNavigate();
     const { isInitialLoading: isLoadingOrganization, data: organization } =
         useOrganization();
@@ -60,7 +62,11 @@ const CreateProject: FC = () => {
 
     return (
         <ProjectFormProvider>
-            <Page title="Create project" withFixedContent withPaddedContent>
+            <Page
+                title={t('createProject.title')}
+                withFixedContent
+                withPaddedContent
+            >
                 {method && projectUuid ? (
                     <ConnectSuccess projectUuid={projectUuid} />
                 ) : (

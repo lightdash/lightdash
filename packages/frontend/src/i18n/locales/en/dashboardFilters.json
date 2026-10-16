@@ -1,0 +1,257 @@
+{
+    "controls": {
+        "editor": {
+            "clickAgainToRemove": "Click again to remove",
+            "removeFilter": "Remove filter",
+            "newFilter": "New filter",
+            "filterFallbackTitle": "Filter",
+            "selectFieldToKeep": "Select a field to keep this filter",
+            "noDefaultValue": "No default value set, so the default stays off",
+            "discardFilter": "Discard filter",
+            "discardChanges": "Discard changes",
+            "subtitle": {
+                "tabReach": " on {{applied}} of {{total}} tabs",
+                "noField": "No field yet",
+                "fieldsFilterTiles_one": "{{fieldCount}} fields · filters {{applied}} of {{count}} tile{{tabReach}}",
+                "fieldsFilterTiles_other": "{{fieldCount}} fields · filters {{applied}} of {{count}} tiles{{tabReach}}",
+                "filtersTiles_one": "Filters {{applied}} of {{count}} tile{{tabReach}}",
+                "filtersTiles_other": "Filters {{applied}} of {{count}} tiles{{tabReach}}"
+            },
+            "tabs": {
+                "fieldsAndTiles": "Fields and tiles",
+                "settings": "Settings",
+                "selectFieldFirst": "Select a field first"
+            },
+            "filterLabel": "Filter label",
+            "filterLabelPlaceholder": "Name viewers will see",
+            "suggestions": "Suggestions",
+            "moreActions": "More actions",
+            "fieldCount_one": "{{count}} field",
+            "fieldCount_other": "{{count}} fields",
+            "changedFromDefault": "Changed from the default",
+            "done": "Done",
+            "editFilter": "Edit filter"
+        },
+        "fields": {
+            "selectFieldHint": "Select the field to filter tiles by.",
+            "selectColumnHint": "Select the column to filter tiles by.",
+            "tilesFilteredBy": "Tiles are filtered by",
+            "selectToSeeTiles": "Select a field to see and change its tiles.",
+            "noOtherField": "No tile has another field this filter could use",
+            "addAnotherField": "Add another field"
+        },
+        "labelList": "{{items}} and {{last}}",
+        "fieldRow": {
+            "removeField": "Remove field",
+            "removeFieldNamed": "Remove field {{label}}",
+            "count_one": "{{table}} · {{applied}} of {{count}} tile",
+            "count_other": "{{table}} · {{applied}} of {{count}} tiles"
+        },
+        "bar": {
+            "filterUnfiltered_one": "Filter {{count}} unfiltered tile",
+            "filterUnfiltered_other": "Filter {{count}} unfiltered tiles",
+            "filterOther": "Filter the other {{count}}",
+            "filterAll": "Filter all {{count}}",
+            "filterUnfilteredName_one": "Filter {{count}} unfiltered tile by {{label}}",
+            "filterUnfilteredName_other": "Filter {{count}} unfiltered tiles by {{label}}",
+            "filterUnfilteredName_tab_one": "Filter {{count}} unfiltered tile on this tab by {{label}}",
+            "filterUnfilteredName_tab_other": "Filter {{count}} unfiltered tiles on this tab by {{label}}",
+            "filterOtherName_one": "Filter the other {{count}} tile by {{label}}",
+            "filterOtherName_other": "Filter the other {{count}} tiles by {{label}}",
+            "filterOtherName_tab_one": "Filter the other {{count}} tile on this tab by {{label}}",
+            "filterOtherName_tab_other": "Filter the other {{count}} tiles on this tab by {{label}}",
+            "filterAllName_one": "Filter all {{count}} tile by {{label}}",
+            "filterAllName_other": "Filter all {{count}} tiles by {{label}}",
+            "filterAllName_tab_one": "Filter all {{count}} tile on this tab by {{label}}",
+            "filterAllName_tab_other": "Filter all {{count}} tiles on this tab by {{label}}",
+            "replace_one": "Replace {{names}} on {{count}} tile",
+            "replace_other": "Replace {{names}} on {{count}} tiles",
+            "replaceName_one": "Replace {{names}} on {{count}} tile with {{label}}",
+            "replaceName_other": "Replace {{names}} on {{count}} tiles with {{label}}",
+            "replaceName_tab_one": "Replace {{names}} on {{count}} tile with {{label}} on this tab",
+            "replaceName_tab_other": "Replace {{names}} on {{count}} tiles with {{label}} on this tab",
+            "regionLabel": "Tiles filtered by {{label}}",
+            "noTileOnTab": "No tile on this tab has this field",
+            "noTile": "No tile has this field",
+            "onTiles_one": "on <count>{{applied}} of {{count}}</count> tile",
+            "onTiles_other": "on <count>{{applied}} of {{count}}</count> tiles",
+            "onTiles_tab_one": "on <count>{{applied}} of {{count}}</count> tile on this tab",
+            "onTiles_tab_other": "on <count>{{applied}} of {{count}}</count> tiles on this tab",
+            "clearFromTab": "Clear {{label}} from this tab",
+            "clearFromTiles": "Clear {{label}} from tiles",
+            "clear": "Clear",
+            "filterOtherTabsName": "Filter {{count}} on other tabs by {{label}}",
+            "filterOtherTabs": "Filter {{count}} on other tabs"
+        },
+        "settings": {
+            "defaultValue": "Default value",
+            "viewerAccess": "Viewer access",
+            "setValueHint": "Set a value, or the default stays off.",
+            "noDefaultHint": "No default: each tile keeps its own values until a viewer sets one."
+        },
+        "link": {
+            "fieldFor": "Field for {{label}} on this tile",
+            "selectField": "Select a field",
+            "apply": "Apply",
+            "skip": "Skip",
+            "tileCanUse_one": "This tile can use a filter",
+            "tileCanUse_other": "This tile can use these filters"
+        },
+        "tabCounts": {
+            "thisFilter": "this filter",
+            "tooltip_one": "{{applied}} of {{count}} tile on this tab is filtered by {{subject}}",
+            "tooltip_other": "{{applied}} of {{count}} tiles on this tab are filtered by {{subject}}",
+            "badge": "{{applied}} of {{total}}"
+        },
+        "tile": {
+            "thisTile": "this tile",
+            "fieldNotAvailable": "The selected field '{{fieldId}}' is not available in this tile",
+            "noUsableField": "This tile has no field this filter can use",
+            "groups": {
+                "starter": "Fields on this tile",
+                "own": "In this filter",
+                "other": "Other fields on this tile"
+            },
+            "lockedWhileEditing": "Tiles are locked while a filter is edited",
+            "filtered": "Filtered",
+            "notFiltered": "Not filtered",
+            "filterThisTile": "Filter this tile",
+            "filteredByMissing": "Filtered by a field this tile no longer has",
+            "filteredBy": "Filtered by",
+            "selectColumn": "Select a column",
+            "stopFiltering": "Stop filtering this tile",
+            "noColumnsMatch": "No columns match",
+            "noFieldsMatch": "No fields match",
+            "newFilterOn": "New filter on {{title}}",
+            "filterOn": "{{label}} on {{title}}"
+        },
+        "followUp": {
+            "filter": "Filter the other {{count}} too",
+            "filter_tab": "Filter the other {{count}} on this tab too",
+            "clear": "Clear the other {{count}} too",
+            "clear_tab": "Clear the other {{count}} on this tab too",
+            "filterName": "Filter the other {{count}} too, by {{label}}",
+            "filterName_tab": "Filter the other {{count}} on this tab too, by {{label}}",
+            "clearName": "Clear the other {{count}} too, from {{label}}",
+            "clearName_tab": "Clear the other {{count}} on this tab too, from {{label}}"
+        },
+        "viewer": {
+            "lock": "Lock",
+            "locked": "Locked",
+            "locked_everyTab": "Locked on every tab",
+            "lockedOnSome": "Locked on {{count}} of {{total}} tabs",
+            "notLocked": "Not locked: viewers can change it",
+            "notLocked_everyTab": "Not locked: viewers can change it on every tab",
+            "lockEveryTab": "Lock on every tab",
+            "lockDescription": "Viewers see the value but cannot change it.",
+            "lockPerTab": "Lock per tab",
+            "setPerTab": "Set per tab",
+            "lockedHint": "A locked filter still filters the tiles. Values from the URL or an embed are ignored.",
+            "required": "Required",
+            "requiredOr": "Required, or {{labels}}",
+            "orSeparator": " or ",
+            "notRequired": "Not required",
+            "requiredDescription": "Viewers must set this filter to load the dashboard.",
+            "notRequiredDescription": "Viewers would have to set this filter before the tiles load.",
+            "editRule": "Edit rule",
+            "orOneOfThese": "Or one of these instead"
+        },
+        "sqlColumn": "SQL column"
+    },
+    "lock": {
+        "lockFilter": "Lock filter",
+        "lockFilter_tab": "Lock filter on this tab",
+        "unlockFilter": "Unlock filter",
+        "unlockFilter_tab": "Unlock filter on this tab",
+        "readOnlyLocked": "Locked by the dashboard editor — switch to edit mode to change it"
+    },
+    "addFilter": {
+        "hiddenFromViewers": "Hidden from viewers. Click to show.",
+        "visibleToViewers": "Visible to viewers. Click to hide.",
+        "toggleVisibility": "Toggle filter visibility for viewers",
+        "resetAll": "Reset all filters"
+    },
+    "bar": {
+        "parameters": {
+            "title": "Parameters",
+            "description": "Adjust preset inputs that change how the dashboard's numbers are calculated."
+        },
+        "filters": {
+            "title": "Filters",
+            "description": "Refine your dashboard by choosing which data to see."
+        },
+        "dateZoom": {
+            "title": "Date Zoom",
+            "description": "Quickly change the date granularity of charts.",
+            "hiddenFromViewers": "Date zoom is hidden from viewers. Click to show.",
+            "hideFromViewers": "Hide date zoom from viewers",
+            "toggleVisibility": "Toggle date zoom visibility for viewers"
+        },
+        "hideFilters": "Hide filters",
+        "hide": "Hide"
+    },
+    "invalidFilter": {
+        "unknownFieldId": "Tried to reference field with unknown id:"
+    },
+    "config": {
+        "labelFor": "Label for {{label}}",
+        "preventMultiple": "Prevent selection of multiple values",
+        "allowMultiple": "Allow selection of multiple values",
+        "singleValue": "Single value",
+        "multipleValues": "Multiple values",
+        "temporaryValuesRemoved": "Temporary filter values for required filters will be removed on dashboard save",
+        "toggleOnDefault": "Toggle on to set a default filter value",
+        "toggleOffDefault": "Toggle off to leave the filter value empty, allowing users to populate it in view mode",
+        "provideDefault": "Provide default value"
+    },
+    "tileConfig": {
+        "noTilesInTab": "No tiles in this tab",
+        "noExactMatchInTab": "No tiles in this tab have an exact field match",
+        "uncheckTab": "Uncheck to turn filter off for tab '{{tabName}}'",
+        "checkTab": "Check to turn filter on for tab '{{tabName}}'",
+        "selectedOfTotal": "({{selected}} of {{total}} selected)",
+        "selectAll": "Select all",
+        "selectAllWithCount_one": "Select all ({{count}} tile selected)",
+        "selectAllWithCount_other": "Select all ({{count}} tiles selected)"
+    },
+    "requirements": {
+        "ineligible": {
+            "alreadyInRule": "Already part of a filter rule",
+            "hasDefault": "Has a default value, so the rule would always be satisfied"
+        },
+        "and": "AND",
+        "or": "OR",
+        "addFilterToRule": "Add filter to rule",
+        "changeOperatorFor": "Change operator for {{label}}",
+        "addAFilter": "+ Add a filter",
+        "addAlternative": "Add an alternative filter",
+        "sharesRule": "Shares a rule. Viewers can satisfy it by setting this or an alternative:",
+        "editRuleArrow": "Edit rule →",
+        "removeMember": "Remove {{label}}",
+        "mustSetOneOf": "Viewers must set at least one of:",
+        "mustSet": "Viewers must set:",
+        "orAnotherFilter": "+ or another filter",
+        "addFilter": "+ Add filter",
+        "deleteRule": "Delete rule",
+        "filterRules": "Filter rules",
+        "wontLoadUntilMet": "Dashboard won't load until all rules are met.",
+        "emptyDescription": "Require viewers to set filters before the dashboard loads, either individually or at least one from a set.",
+        "addAnotherRule": "Add another rule",
+        "addRule": "Add rule",
+        "noteLabel": "Note for viewers",
+        "notePlaceholder": "Explain why these filters are required, e.g. pick your region to keep this dashboard fast",
+        "tilesLockedHint": "Tiles stay locked until every rule is satisfied.",
+        "removeRuleModal": {
+            "title": "Remove filter rule?",
+            "confirm": "Remove rule",
+            "description": "This is the only filter in this rule. Removing it deletes the rule, so viewers will no longer be required to set a filter before this dashboard loads."
+        },
+        "guided": {
+            "atLeastOneOf": "At least one of",
+            "progress": "{{satisfied}} of {{total}} set",
+            "loading": "Loading your dashboard",
+            "remaining": "{{count}} more to go",
+            "ariaLabel": "Set filters to load this dashboard"
+        }
+    }
+}

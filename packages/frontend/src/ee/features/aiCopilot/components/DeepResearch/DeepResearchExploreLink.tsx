@@ -1,5 +1,6 @@
 import { Anchor, Group } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useDeepResearchChartQuery } from '../../hooks/useDeepResearch';
 import styles from './DeepResearchReport.module.css';
@@ -16,6 +17,7 @@ export const DeepResearchExploreLink = ({
     runUuid,
     queryUuid,
 }: Props) => {
+    const { t } = useTranslation('aiAgent');
     const chartQuery = useDeepResearchChartQuery({
         projectUuid,
         runUuid,
@@ -34,10 +36,12 @@ export const DeepResearchExploreLink = ({
             target="_blank"
             rel="noopener noreferrer"
             className={styles.exploreLink}
-            aria-label={`Open ${chartQuery.data.title} in Explore`}
+            aria-label={t('deepResearch.openNamedInExplore', {
+                title: chartQuery.data.title,
+            })}
         >
             <Group component="span" gap={4} wrap="nowrap">
-                Open in Explore
+                {t('deepResearch.openInExplore')}
                 <MantineIcon icon={IconExternalLink} size={13} />
             </Group>
         </Anchor>

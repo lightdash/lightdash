@@ -1,0 +1,1079 @@
+{
+    "preAggregateStatusBadge": {
+        "fallback": "La preagregación coincidió ({{name}}) pero no pudo servir. Los resultados vinieron del almacén de datos",
+        "active": "Caché de preagregación activa: {{name}}",
+        "bypassed": "Preagregación omitida por el usuario",
+        "miss": "Fallo de caché: {{reason}}"
+    },
+    "forbidden": {
+        "createProject": "O crea un proyecto nuevo.",
+        "noProjectTitle": "Tu organización aún no tiene un proyecto",
+        "noProjectDescription": "Un proyecto se conecta a tus datos. Pide a un administrador de la organización que termine de configurarlo.",
+        "noAccess": "No tienes acceso",
+        "noAccessTo": "No tienes acceso a este {{subject}}",
+        "contactAdmin": "Contacta con el administrador para solicitar acceso."
+    },
+    "jsonViewer": {
+        "copied": "Copiado"
+    },
+    "documentationHelpButton": {
+        "tooltip": "Abrir documentación"
+    },
+    "versionAutoUpdater": {
+        "title": "¡Hay una nueva versión lista para ti!",
+        "action": "Usar la nueva versión"
+    },
+    "aboutFooter": {
+        "license": {
+            "valid": "Válida",
+            "validDescription": "Las funciones Enterprise están activadas.",
+            "invalid": "No válida",
+            "invalidDescription": "La clave de licencia configurada no es válida.",
+            "none": "Sin licencia",
+            "noneDescription": "No hay ninguna clave de licencia Enterprise configurada."
+        },
+        "versionPrefix": "Lightdash - ",
+        "newVersionAria": "¡Nueva versión disponible! Abrir novedades",
+        "newVersion": "¡Nueva versión disponible!",
+        "documentation": "Documentación",
+        "aboutTitle": "Acerca de Lightdash",
+        "instanceDetails": "Detalles de la instancia.",
+        "instanceDetailsAndLicense": "Detalles de la instancia y estado de la licencia.",
+        "version": "Versión",
+        "notAvailable": "n/d",
+        "enterpriseLicense": "Licencia Enterprise"
+    },
+    "renderedSql": {
+        "compiling": "Compilando SQL",
+        "compilationError": "Error de compilación",
+        "mergeCannotCompile": "Esta combinación no se puede compilar"
+    },
+    "preAggregateAudit": {
+        "queryTypes": {
+            "explorer": "Explorador ad hoc",
+            "chart": "Gráfico guardado",
+            "dashboard": "Gráfico de panel"
+        },
+        "filters": {
+            "type": "Tipo",
+            "typeTooltip": "Filtrar por tipo de consulta",
+            "explore": "Explore",
+            "exploreTooltip": "Filtrar por explore",
+            "preAggregate": "Preagregación",
+            "preAggregateTooltip": "Filtrar por preagregación",
+            "reason": "Motivo",
+            "reasonTooltip": "Filtrar por motivo de fallo"
+        },
+        "resetFilters": "Restablecer filtros",
+        "refreshed": "Estadísticas de preagregación actualizadas",
+        "title": "Analítica de preagregaciones",
+        "description": "Supervisa el rendimiento de la caché de las preagregaciones de este proyecto. Los datos se conservan durante 3 días.",
+        "refreshStats": "Actualizar estadísticas",
+        "cacheRate": "Tasa de caché (3 días)",
+        "noData": "Sin datos",
+        "totalQueries": "Consultas totales",
+        "exploresWithPreAggregates": "Explores con preagregaciones",
+        "columns": {
+            "explore": "Explore",
+            "preAggregate": "Preagregación",
+            "chart": "Gráfico",
+            "dashboard": "Panel",
+            "cache": "Caché",
+            "missReason": "Motivo del fallo",
+            "lastSeen": "Visto por última vez"
+        },
+        "adHocQuery": "Consulta ad hoc",
+        "cached_one": "{{count}} en caché",
+        "cached_other": "{{count}} en caché",
+        "uncached_one": "{{count}} sin caché",
+        "uncached_other": "{{count}} sin caché",
+        "failed_one": "{{count}} fallida",
+        "failed_other": "{{count}} fallidas",
+        "failedTooltip": "Coincidió con una preagregación pero la ejecución falló. Los resultados se sirvieron desde el almacén de datos"
+    },
+    "preAggregateMaterializations": {
+        "definitionError": "Error de definición",
+        "externalTooltip": "Servido desde una tabla del almacén gestionada por el cliente",
+        "unknownError": "Error desconocido",
+        "status": {
+            "active": "Activa",
+            "in_progress": "Construyendo",
+            "failed": "Fallida",
+            "superseded": "Reemplazada",
+            "external": "Externa",
+            "never_materialized": "Nunca materializada"
+        },
+        "filterByStatus": "Filtrar por estado",
+        "filterByStatusLabel": "Filtrar por estado:",
+        "columns": {
+            "name": "Nombre",
+            "sourceExplore": "Explore de origen",
+            "status": "Estado",
+            "rowCount": "Número de filas",
+            "columns": "Columnas",
+            "fileSize": "Tamaño del archivo",
+            "buildTime": "Tiempo de construcción",
+            "lastMaterialized": "Última materialización",
+            "refreshSchedule": "Programación de actualización"
+        },
+        "maxRowsApplied": "Máximo de filas aplicado",
+        "customerManagedTooltip": "Las actualizaciones se gestionan fuera de Lightdash",
+        "customerManaged": "Gestionada por el cliente",
+        "manual": "Manual",
+        "rebuildOne": "Reconstruir esta preagregación",
+        "searchPlaceholder": "Buscar por nombre...",
+        "summary": "{{active}} activas, {{total}} en total",
+        "summaryExternal_one": ", {{count}} externa",
+        "summaryExternal_other": ", {{count}} externas",
+        "summaryWarnings_one": ", {{count}} advertencia",
+        "summaryWarnings_other": ", {{count}} advertencias",
+        "title": "Materializaciones de preagregaciones",
+        "description": "Resumen de todas las definiciones de preagregaciones y su estado de materialización actual.",
+        "rebuildManaged": "Reconstruir gestionadas",
+        "personalConnectionsWarning": "Las preagregaciones no son compatibles con las conexiones personales al almacén. Los resultados materializados se comparten entre todos los usuarios y pueden no coincidir con lo que cada usuario vería consultando el almacén directamente. <link>Más información</link>.",
+        "emptyTitle": "Aún no hay preagregaciones definidas",
+        "emptyDescription": "Define preagregaciones en tu YAML de dbt para servir consultas desde resultados materializados en lugar de consultar tu almacén.",
+        "rebuildModal": {
+            "title": "Reconstruir preagregaciones gestionadas",
+            "description_one": "Esto reconstruye {{count}} preagregación gestionada por Lightdash. Las definiciones externas no se modifican.",
+            "description_other": "Esto reconstruye {{count}} preagregaciones gestionadas por Lightdash. Las definiciones externas no se modifican.",
+            "duration": "Según el número de preagregaciones y el tamaño de tus datos, esto puede tardar varios minutos y consumirá recursos del almacén. Puedes seguir el progreso en la tabla de abajo.",
+            "largeTitle": "Preagregaciones grandes",
+            "largeDescription": "Algunas preagregaciones superan el umbral de filas recomendado. Al actualizar se volverán a consultar estos grandes conjuntos de datos en tu almacén."
+        }
+    },
+    "materializationDrawer": {
+        "filterBound": {
+            "toDateExcludingToday": " hasta la fecha, excluyendo hoy",
+            "toDate": " hasta la fecha",
+            "completed": "completo "
+        },
+        "columnsCount": "Columnas ({{count}})",
+        "role": "Rol de materialización",
+        "email": "Correo",
+        "attributes": "Atributos",
+        "filters": "Filtros",
+        "and": "Y",
+        "subtitle": "Detalles de la preagregación",
+        "customerManagedDescription": "Lightdash sirve las consultas coincidentes desde esta tabla del almacén, pero no la construye ni la actualiza.",
+        "externalTable": "Tabla externa",
+        "metrics": "Métricas",
+        "dimensions": "Dimensiones",
+        "timeDimension": "Dimensión de tiempo",
+        "granularity": "Granularidad",
+        "warnings": "Advertencias",
+        "lastMaterialization": "Última materialización",
+        "trigger": "Desencadenante: {{trigger}}",
+        "triggers": {
+            "compile": "Compilación del proyecto",
+            "cron": "Programada (cron)",
+            "manual": "Manual",
+            "webhook": "Webhook"
+        },
+        "materializedAt": "Materializada el: {{date}}",
+        "rows": "Filas: {{rows}}",
+        "fileSize": "Tamaño del archivo: {{size}}",
+        "buildTime": "Tiempo de construcción: {{duration}}",
+        "error": "Error"
+    },
+    "dataOps": {
+        "description": "Realiza operaciones de datos en este proyecto",
+        "promoteTitle": "Promocionar contenido",
+        "promoteDescription": "Los desarrolladores y administradores de esta organización pueden copiar contenido de este proyecto al proyecto upstream seleccionado, sobrescribiendo sus valores o creando contenido nuevo si no existe.",
+        "currentProject": "{{name}} (actual)",
+        "previewProjects": "Proyectos de vista previa",
+        "productionProjects": "Proyectos de producción",
+        "upstreamProject": "Proyecto upstream",
+        "selectProject": "Selecciona un proyecto",
+        "toast": {
+            "updated": "Proyecto actualizado",
+            "updatedSubtitle": "El proyecto upstream se actualizó correctamente",
+            "updateFailed": "No se pudo actualizar el proyecto"
+        }
+    },
+    "versionHistory": {
+        "loadingVersion": "Cargando versión...",
+        "loadVersionError": "No se pudo cargar esta versión.",
+        "loading": "Cargando...",
+        "versions": "Versiones",
+        "previewVersionFrom": "Vista previa de la versión del {{timestamp}}",
+        "updatedBy": "Actualizado por: {{name}}",
+        "currentTooltip": "Esta es la versión actual.",
+        "current": "actual",
+        "versionActions": "Acciones de la versión",
+        "restoreThisVersion": "Restaurar esta versión",
+        "selectVersion": "Selecciona una versión",
+        "restore": "Restaurar"
+    },
+    "chartHistory": {
+        "chartVersions": "Versiones del gráfico",
+        "dataFreshness": "Actualidad de los datos",
+        "dataFreshnessDescription": "La vista previa del historial de versiones cambia la configuración del gráfico, pero siempre consulta la versión más reciente de los datos",
+        "restoreTitle": "Restaurar versión del gráfico",
+        "restoreDescription": "Al restaurar esta versión del gráfico, se generará y guardará una nueva versión. Todas las versiones anteriores se conservan y pueden restaurarse en cualquier momento.",
+        "unsavedEditsDiscarded": "Se descartarán los cambios sin guardar en el editor del gráfico."
+    },
+    "jobTitles": {
+        "dataLeader": "Líder de datos/analítica (gerente, director, etc.)",
+        "dataScientist": "Científico de datos",
+        "dataAnalyst": "Analista de datos",
+        "dataEngineer": "Ingeniero de datos",
+        "analyticsEngineer": "Ingeniero de analítica",
+        "softwareEngineer": "Ingeniero de software",
+        "sales": "Ventas",
+        "marketing": "Marketing",
+        "product": "Producto",
+        "operations": "Operaciones",
+        "customerService": "Atención al cliente",
+        "student": "Estudiante",
+        "other": "Otro"
+    },
+    "userCompletion": {
+        "title": "Ya casi está...",
+        "description": "Cuéntanos un poco más sobre ti",
+        "organizationName": "Nombre de la organización",
+        "organizationNamePlaceholder": "Introduce el nombre de la empresa",
+        "role": "¿Cuál es tu rol?",
+        "rolePlaceholder": "Selecciona tu rol",
+        "howDidYouHear": "¿Cómo nos conociste?",
+        "howDidYouHearPlaceholder": "Google, un compañero, un pódcast...",
+        "allowDomain": "Permitir que los usuarios con @{{domain}} se unan a la organización como lectores",
+        "marketingOptIn": "Mantenerme informado sobre las novedades de Lightdash",
+        "anonymize": "Anonimizar mis datos de uso"
+    },
+    "metricQueryData": {
+        "copiedToClipboard": "¡Copiado al portapapeles!",
+        "copyValue": "Copiar valor",
+        "sortBy": "Ordenar <label>{{label}}</label>",
+        "removeSort": "Quitar orden",
+        "contextMenu": "Menú contextual",
+        "drillInto": "Profundizar en \"{{value}}\"",
+        "drillDown": "Profundizar",
+        "openInNewTab": "Abrir en una pestaña nueva",
+        "viewUnderlyingData": "Ver datos subyacentes",
+        "exportCsv": "Exportar CSV",
+        "exploreFromHere": "Explorar desde aquí",
+        "filterCount_one": "{{count}} filtro",
+        "filterCount_other": "{{count}} filtros",
+        "loadingUnderlyingData": "Cargando datos subyacentes",
+        "drillIntoMenu": "Profundizar en <value>{{value}}</value>"
+    },
+    "errorBoundary": {
+        "updateRequired": "Se requiere actualizar la aplicación",
+        "newVersion": "Hay una nueva versión disponible. Actualiza el navegador para cargar la última versión.",
+        "clearCache": "Si persiste tras actualizar, prueba a borrar la caché del navegador o abrir una ventana de incógnito.",
+        "refresh": "Actualizar página",
+        "somethingWentWrong": "Algo salió mal.",
+        "contactSupport": "Puedes contactar con soporte con el siguiente ID de error",
+        "errorId": "ID de error: {{eventId}}"
+    },
+    "previewScreenshot": {
+        "customWidth": "Configuración de ancho personalizado",
+        "currentView": "Vista actual ({{width}}px)",
+        "noPreview": "Aún no hay vista previa",
+        "generate": "Generar vista previa"
+    },
+    "directAccess": {
+        "roles": {
+            "viewer": "Puede ver",
+            "editor": "Puede editar",
+            "admin": "Acceso total"
+        },
+        "you": "(tú)",
+        "user": "Usuario",
+        "group": "Grupo",
+        "roleFor": "Rol de {{name}}",
+        "removeAccess": "Quitar acceso",
+        "removeAccessFor": "Quitar acceso a {{name}}",
+        "users": "Usuarios",
+        "groups": "Grupos",
+        "shareWith": "Compartir con",
+        "shareWithPlaceholder": "Selecciona usuarios o grupos con los que compartir",
+        "shareWithAria": "Selecciona un usuario o grupo con el que compartir",
+        "noMatches": "No hay usuarios ni grupos que coincidan",
+        "loadPrincipalsError": "No se pudieron cargar los usuarios y grupos. Cierra y vuelve a abrir este diálogo para reintentarlo.",
+        "roleForNew": "Rol para la nueva asignación",
+        "share": "Compartir",
+        "title": "Compartir \"{{name}}\"",
+        "removeAll": "Quitar todo el acceso",
+        "done": "Listo",
+        "dashboardRolesHint": "Puede editar permite cambiar el contenido del panel. Acceso total también permite eliminar el panel y gestionar el uso compartido. Los permisos de otros roles siguen aplicándose.",
+        "unavailableTitle": "El uso compartido no está disponible",
+        "unavailableDescription": "El uso compartido de contenido no está activado en esta organización.",
+        "loadError": "No se pudo cargar el acceso",
+        "notShared": "Aún no se ha compartido con nadie.",
+        "notSharedSpace": "Aún no se ha compartido con nadie. Las personas con acceso al espacio aún pueden verlo.",
+        "listLabel": "Acceso directo",
+        "removeOwn": "Quitar tu propio acceso",
+        "removeAllDescription": "Esto quita a todas las personas con las que se compartió \"{{name}}\". Mantendrán el acceso que tengan a través de los espacios.",
+        "removeOwnDescription": "Puedes perder el acceso a \"{{name}}\" cuando deje de estar compartido contigo.",
+        "toast": {
+            "updated": "Acceso actualizado",
+            "updateFailed": "No se pudo actualizar el acceso",
+            "removed": "Acceso quitado",
+            "removeFailed": "No se pudo quitar el acceso",
+            "allRemoved": "Se quitó todo el acceso"
+        }
+    },
+    "usePromoteChart": {
+        "successChartWasPromoted": "¡Listo! El gráfico se promocionó.",
+        "openChart": "Abrir gráfico",
+        "failedToPromoteChart": "No se pudo promocionar el gráfico",
+        "failedToGetDiffFromChart": "No se pudieron obtener las diferencias del gráfico"
+    },
+    "usePromoteDashboard": {
+        "successDashboardWasPromoted": "¡Listo! El panel se promocionó.",
+        "openDashboard": "Abrir panel",
+        "failedToPromoteDashboard": "No se pudo promocionar el panel",
+        "failedToGetDiffFromDashboard": "No se pudieron obtener las diferencias del panel"
+    },
+    "usePromoteDocument": {
+        "failedToGetDiffFromDocument": "No se pudieron obtener las diferencias del documento",
+        "successDocumentWasPromoted": "¡Listo! El documento se promocionó.",
+        "openDocument": "Abrir documento",
+        "failedToPromoteDocument": "No se pudo promocionar el documento"
+    },
+    "promotion": {
+        "toBeCreated": "Se crearán ({{count}})",
+        "toBeUpdated": "Se actualizarán ({{count}})",
+        "deleted": "Eliminados {{count}}",
+        "promoting": {
+            "chart": "Promocionando gráfico",
+            "dashboard": "Promocionando panel",
+            "document": "Promocionando documento"
+        },
+        "promote": "Promocionar",
+        "aboutToPromote": {
+            "chart": "Vas a promocionar el gráfico: \"{{name}}\"",
+            "dashboard": "Vas a promocionar el panel: \"{{name}}\"",
+            "document": "Vas a promocionar el documento: \"{{name}}\""
+        },
+        "loadingDifferences": "Cargando diferencias...",
+        "changesApplied": "Se aplicarán estos cambios:",
+        "sections": {
+            "spaces": "Espacios:",
+            "dashboards": "Paneles:",
+            "documents": "Documentos:",
+            "charts": "Gráficos:",
+            "sqlCharts": "Gráficos SQL:",
+            "dataApps": "Apps de datos:"
+        },
+        "noChanges": "No hay cambios que promocionar",
+        "onlyRecent": "Solo promocionamos el contenido que es más reciente en este proyecto."
+    },
+    "pullRequests": {
+        "sources": {
+            "customMetric": "Métrica personalizada",
+            "customDimension": "Dimensión personalizada",
+            "sqlRunner": "SQL Runner",
+            "sourceEditor": "Editor de código",
+            "aiAgent": "Agente de IA",
+            "contentAsCode": "Contenido como código"
+        },
+        "columns": {
+            "pullRequest": "Pull request",
+            "source": "Origen"
+        },
+        "loadFailedTooltip": "No se pudo cargar este pull request desde {{provider}}. Puede que se haya eliminado o que se haya revocado el acceso.",
+        "loadFailed": "No se pudo cargar el pull request",
+        "openedBy": "abierto {{time}} por <author>{{name}}</author>",
+        "opened": "abierto {{time}}",
+        "fixesReview": "Corrige la revisión:",
+        "viewIssue": "Ver incidencia",
+        "viewThread": "Ver hilo",
+        "viewPr": "Ver PR",
+        "previewThread": "Vista previa del hilo",
+        "viewOn": "Ver en {{provider}}",
+        "viewPrOn": "Ver pull request en {{provider}}",
+        "shown": {
+            "open": "{{count}} abiertos mostrados",
+            "merged": "{{count}} fusionados mostrados",
+            "closed": "{{count}} cerrados mostrados",
+            "all": "{{count}} mostrados"
+        },
+        "filters": {
+            "open": "Abiertos",
+            "merged": "Fusionados",
+            "closed": "Cerrados",
+            "all": "Todos"
+        },
+        "loadingMore": "Cargando más...",
+        "scrollForMore": "Desplázate para ver más",
+        "allLoaded": "Los {{count}} cargados",
+        "empty": "Aún no hay pull requests.",
+        "emptyDescription": "Los cambios propuestos por los agentes de IA y los editores de la app aparecerán aquí cuando se abra un pull request.",
+        "noneForFilter": {
+            "open": "No hay pull requests abiertos en los resultados cargados.",
+            "merged": "No hay pull requests fusionados en los resultados cargados.",
+            "closed": "No hay pull requests cerrados en los resultados cargados.",
+            "all": "No hay pull requests en los resultados cargados."
+        },
+        "showAll": "Mostrar todos",
+        "title": "Pull requests",
+        "loadListFailed": "No se pudieron cargar los pull requests"
+    },
+    "activeJob": {
+        "viewErrors": "Ver errores",
+        "viewLog": "Ver registro",
+        "refreshFailed": "No se pudo actualizar el servidor"
+    },
+    "dashboardProvider": {
+        "restoreParamsFailed": "No se pudieron restaurar los parámetros desde la URL",
+        "incompleteLink": "El enlace parece estar incompleto. Pide que lo vuelvan a compartir.",
+        "restoreUnsavedFiltersFailed": "No se pudieron restaurar los filtros sin guardar",
+        "restoreUnsavedFiltersFailedSubtitle": "No se pudieron cargar tus cambios de filtros anteriores",
+        "lockedFilter": "Filtro de panel bloqueado",
+        "lockedOverridesIgnored_one": "Se ignoró una anulación de filtro porque el editor del panel bloqueó ese filtro.",
+        "lockedOverridesIgnored_other": "Se ignoraron {{count}} anulaciones de filtros porque el editor del panel bloqueó esos filtros.",
+        "lockedTemporaryIgnored_one": "Se ignoró un filtro temporal porque el editor del panel lo bloqueó.",
+        "lockedTemporaryIgnored_other": "Se ignoraron {{count}} filtros temporales porque el editor del panel los bloqueó.",
+        "lockedTemporaryIgnoredOnTab_one": "Se ignoró un filtro temporal porque el editor del panel lo bloqueó en esta pestaña.",
+        "lockedTemporaryIgnoredOnTab_other": "Se ignoraron {{count}} filtros temporales porque el editor del panel los bloqueó en esta pestaña.",
+        "restoreFiltersFailed": "No se pudieron restaurar los filtros desde la URL"
+    },
+    "schedulerJobs": {
+        "unknownError": "Error desconocido",
+        "backgroundJobs": "Tareas en segundo plano",
+        "job": "Tarea",
+        "jobCompleted": "{{label}} completada",
+        "jobFailed": "{{label}} falló",
+        "jobInProgress": "{{label}} en curso...",
+        "completedOf": "{{completed}} de {{total}} completadas",
+        "jobsFailed_one": "{{count}} tarea falló",
+        "jobsFailed_other": "{{count}} tareas fallaron"
+    },
+    "supportDrawer": {
+        "success": "Listo",
+        "sent": "Solicitud de soporte enviada correctamente",
+        "includeImage": "Incluir esta imagen",
+        "screenshot": "Captura de pantalla",
+        "screenshotFailed": "No se pudo capturar la pantalla. Aun así puedes enviar tu informe con los detalles de abajo",
+        "moreDetails": "¿Hay algún otro detalle que quieras compartir?",
+        "moreDetailsPlaceholder": "Introduce más detalles",
+        "allowAccess": "Permitir que el soporte de Lightdash acceda a tu instancia",
+        "accessAgreement": "Al marcar esta casilla, aceptas dar acceso al soporte de Lightdash a tu organización durante 12 horas para investigar este problema.",
+        "logsNote": "También compartiremos tus registros de Lightdash y tus solicitudes de red recientes para ayudarnos a investigar este problema.",
+        "share": "Compartir"
+    },
+    "networkDiagnostics": {
+        "offline": "Parece que no tienes conexión. Comprueba tu conexión a internet e inténtalo de nuevo.",
+        "blocked": "El servidor es accesible, pero esta solicitud se bloqueó antes de llegar. Probablemente la interceptó un proxy corporativo, una VPN o un software de seguridad de tu red. Inténtalo desde otra red o copia el diagnóstico para tu equipo de TI.",
+        "unreachable": "No se puede acceder al servidor desde tu red en este momento. Comprueba tu conexión o VPN e inténtalo de nuevo.",
+        "intercepted": "Algo entre tú y el servidor respondió a esta solicitud con HTTP {{status}} en lugar del servidor. La interceptó un proxy, un firewall o un balanceador de carga. Inténtalo de nuevo en unos momentos o copia el diagnóstico para tu equipo de TI.",
+        "cancelled": "La solicitud se canceló antes de que respondiera el servidor."
+    },
+    "timezoneSource": {
+        "viewer": "Este gráfico sigue la zona horaria de cada usuario. Lo estás viendo en {{timezone}}.",
+        "pinned": "Este gráfico está fijado a {{timezone}} y no seguirá la zona horaria del proyecto.",
+        "project": "Este gráfico se resuelve en la zona horaria del proyecto ({{timezone}})."
+    },
+    "roleAccessWarnings": {
+        "andMore": "{{examples}} y {{count}} más",
+        "and": "y",
+        "legacyGroup": "Este usuario pertenece a un grupo <b>{{group}}</b> que tiene asignado un rol personalizado <b>{{role}}</b>.",
+        "legacyGroupHint": "Asegúrate de que el rol de la organización o del proyecto no anule los permisos del rol del grupo.",
+        "inheritsFromGroup": "El usuario hereda el rol <b>{{role}}</b> del grupo <b>{{group}}</b>.",
+        "inheritsFromOrg": "El usuario hereda el rol superior <b>{{role}}</b> de la organización.",
+        "customAndOrgRole": "Este usuario tiene asignados un rol personalizado y un rol de organización <b>{{role}}</b>.",
+        "customAndOrgRoleHint": "Asegúrate de que el rol de la organización o del grupo no anule los permisos del rol del proyecto.",
+        "organizationRoleLabel": "el rol de organización <b>{{role}}</b>",
+        "groupRoleLabel": "el grupo <b>{{group}}</b> (rol <b>{{role}}</b>)",
+        "customRoleConflict_one": "Este usuario tiene un rol personalizado, pero <sources/> le concede permisos que el rol personalizado no incluye (p. ej. <b>{{examples}}</b>).",
+        "customRoleConflict_other": "Este usuario tiene un rol personalizado, pero <sources/> le conceden permisos que el rol personalizado no incluye (p. ej. <b>{{examples}}</b>).",
+        "additiveProject": "Los permisos de organización y de grupo son acumulativos y el rol del proyecto no puede restringirlos.",
+        "customGroupConflict": "Este usuario pertenece al grupo <b>{{group}}</b>, que tiene asignado el rol personalizado <b>{{role}}</b>, pero sus otros roles le conceden permisos más allá de este (p. ej. <b>{{examples}}</b>).",
+        "additiveGroup": "Los permisos de organización y de proyecto son acumulativos y el rol del grupo no puede restringirlos."
+    },
+    "sortLabels": {
+        "dateAsc": "Antiguo-Reciente",
+        "dateDesc": "Reciente-Antiguo",
+        "booleanAsc": "Falso-Verdadero",
+        "booleanDesc": "Verdadero-Falso"
+    },
+    "fieldValidators": {
+        "required": "{{fieldName}} es obligatorio",
+        "uppercase": "{{fieldName}} debe estar en mayúsculas",
+        "noWhiteSpaces": "{{fieldName}} no debe contener espacios en blanco",
+        "gitRepository": "{{fieldName}} debe seguir el patrón \"org/project\" o \"project\"",
+        "startWithSlash": "{{fieldName}} debe empezar por \"/\"",
+        "startWithHttps": "{{fieldName}} debe empezar por \"https://\"",
+        "cronFiveValues": "{{fieldName}} solo debe tener 5 valores separados por un espacio.",
+        "cronInvalidValues": "{{fieldName}} tiene valores no válidos. Ejemplos de valores válidos: \"1\", \"1,2,3\", \"1-3\", \"*/5\" y \"*\".",
+        "cronInvalidFrequency": "{{fieldName}} tiene una frecuencia no válida; la entrada cron personalizada está limitada a una vez por hora"
+    },
+    "useOrganizationAppearance": {
+        "colorPaletteCreatedSuccessfully": "Paleta de colores creada correctamente",
+        "failedToCreateColorPalette": "No se pudo crear la paleta de colores",
+        "colorPaletteUpdatedSuccessfully": "Paleta de colores actualizada correctamente",
+        "failedToUpdateColorPalette": "No se pudo actualizar la paleta de colores",
+        "colorPaletteDeletedSuccessfully": "Paleta de colores eliminada correctamente",
+        "failedToDeleteColorPalette": "No se pudo eliminar la paleta de colores {{colorPaletteUuid}}",
+        "activeColorPaletteUpdatedSuccessfully": "Paleta de colores activa actualizada correctamente",
+        "failedToSetActiveColorPalette": "No se pudo establecer la paleta de colores activa"
+    },
+    "useDashboard": {
+        "isBeingExportedThisMightTake": "Se está exportando {{name}}. Esto puede tardar unos segundos.",
+        "wasExportedWithFailedChartS": "{{name}} se exportó con {{numFailures}} gráfico(s) con errores.",
+        "someChartsCouldNotBeExported": "Algunos gráficos no se pudieron exportar. La descarga contiene solo los correctos.",
+        "successWasExported": "¡Listo! Se exportó {{name}}.",
+        "missingFileUrlFor": "Falta la URL del archivo de {{name}}",
+        "somethingWentWrong": "Algo salió mal",
+        "failedToExport": "No se pudo exportar {{name}}",
+        "generatingPreviewFor": "Generando vista previa de {{name}}",
+        "success": "¡Listo!",
+        "dashboardDraftSavedForReview": "Borrador del panel guardado para revisión",
+        "onlyYouCanSeeTheseChanges": "Solo tú puedes ver estos cambios hasta que un revisor los escriba en el repositorio.",
+        "openDashboard": "Abrir panel",
+        "failedToUpdateDashboard": "No se pudo actualizar el panel",
+        "successDashboardWasCreated": "¡Listo! Se creó el panel.",
+        "failedToCreateDashboard": "No se pudo crear el panel",
+        "dashboardCreatedSuccessfully": "¡Panel creado correctamente!",
+        "dashboardSuccessfullyDuplicated": "¡Panel duplicado correctamente!",
+        "failedToDuplicateDashboard": "No se pudo duplicar el panel",
+        "deletedDashboardWasDeleted": "¡Eliminado! Se eliminó el panel.",
+        "goToRecentlyDeleted": "Ir a eliminados recientemente",
+        "failedToDeleteDashboard": "No se pudo eliminar el panel",
+        "successDashboardWasReverted": "¡Listo! Se revirtió el panel.",
+        "failedToRevertDashboard": "No se pudo revertir el panel",
+        "successNameUpdated": "¡Listo! Se actualizó el nombre del panel.",
+        "successUpdated": "¡Listo! Se actualizó el panel.",
+        "previewFailed": "No se pudo generar la vista previa de {{name}}"
+    },
+    "useTileLink": {
+        "linkToTileCopiedToClipboard": "¡Enlace al mosaico copiado al portapapeles!"
+    },
+    "useFavoriteMutation": {
+        "couldNotUpdateFavorite": "No se pudo actualizar el favorito",
+        "added": "Añadido a favoritos",
+        "removed": "Quitado de favoritos"
+    },
+    "useGdrive": {
+        "authenticationFailed": "La autenticación falló"
+    },
+    "useAllowedDomains": {
+        "successAllowedEmailDomainsWereUpdated": "¡Listo! Se actualizaron los dominios de correo permitidos",
+        "failedToUpdateAllowedEmailDomains": "No se pudieron actualizar los dominios de correo permitidos"
+    },
+    "useEmailWhitelabel": {
+        "sendingDomainSetUpAddThe": "Dominio de envío configurado: añade los registros DNS para verificarlo",
+        "failedToSetUpSendingDomain": "No se pudo configurar el dominio de envío",
+        "verified": "{{domain}} verificado",
+        "stillWaitingOnDns": "Aún esperando al DNS",
+        "dnsChangesCanTakeUpTo": "Los cambios de DNS pueden tardar hasta 24 horas en propagarse. Seguiremos comprobándolo y te enviaremos un correo cuando esté verificado.",
+        "failedToVerifySendingDomain": "No se pudo verificar el dominio de envío",
+        "failedToUpdateSendingDomain": "No se pudo actualizar el dominio de envío",
+        "sendingDomainRemoved": "Dominio de envío eliminado",
+        "failedToRemoveSendingDomain": "No se pudo eliminar el dominio de envío",
+        "sendingEnabled": "El envío desde tu dominio está activado",
+        "sendingDisabled": "El envío desde tu dominio está desactivado"
+    },
+    "useOrganizationBrand": {
+        "failedToFetchBrand": "No se pudo obtener la marca",
+        "brandAppearanceSaved": "Apariencia de marca guardada",
+        "failedToSaveBrand": "No se pudo guardar la marca"
+    },
+    "useOrganizationDeleteMultation": {
+        "failedToDeleteOrganization": "No se pudo eliminar la organización"
+    },
+    "useOrganizationDomainVerification": {
+        "failedToSendVerificationCode": "No se pudo enviar el código de verificación",
+        "verified": "{{domain}} verificado",
+        "failedToVerifyDomain": "No se pudo verificar el dominio",
+        "verifiedDomainRemoved": "Dominio verificado eliminado",
+        "failedToRemoveVerifiedDomain": "No se pudo eliminar el dominio verificado"
+    },
+    "useOrganizationSettings": {
+        "organizationSettingsSaved": "Configuración de la organización guardada",
+        "failedToSaveOrganizationSettings": "No se pudo guardar la configuración de la organización"
+    },
+    "useOrganizationSso": {
+        "azureAdSsoSettingsSaved": "Configuración SSO de Azure AD guardada",
+        "failedToSaveAzureAdSso": "No se pudo guardar la configuración SSO de Azure AD",
+        "azureAdSsoSettingsRemoved": "Configuración SSO de Azure AD eliminada",
+        "failedToRemoveAzureAdSso": "No se pudo eliminar la configuración SSO de Azure AD",
+        "oktaSsoSettingsSaved": "Configuración SSO de Okta guardada",
+        "failedToSaveOktaSsoSettings": "No se pudo guardar la configuración SSO de Okta",
+        "oktaSsoSettingsRemoved": "Configuración SSO de Okta eliminada",
+        "failedToRemoveOktaSsoSettings": "No se pudo eliminar la configuración SSO de Okta",
+        "oidcSsoSettingsSaved": "Configuración SSO de OIDC guardada",
+        "failedToSaveOidcSsoSettings": "No se pudo guardar la configuración SSO de OIDC",
+        "oidcSsoSettingsRemoved": "Configuración SSO de OIDC eliminada",
+        "failedToRemoveOidcSsoSettings": "No se pudo eliminar la configuración SSO de OIDC",
+        "oneloginSsoSettingsSaved": "Configuración SSO de OneLogin guardada",
+        "failedToSaveOneloginSsoSettings": "No se pudo guardar la configuración SSO de OneLogin",
+        "oneloginSsoSettingsRemoved": "Configuración SSO de OneLogin eliminada",
+        "failedToRemoveOneloginSsoSettings": "No se pudo eliminar la configuración SSO de OneLogin",
+        "googleSsoSettingsSaved": "Configuración SSO de Google guardada",
+        "failedToSaveGoogleSsoSettings": "No se pudo guardar la configuración SSO de Google",
+        "googleSsoSettingsRemoved": "Configuración SSO de Google eliminada",
+        "failedToRemoveGoogleSsoSettings": "No se pudo eliminar la configuración SSO de Google"
+    },
+    "useOrganizationUpdateMutation": {
+        "successOrganizationWasUpdated": "¡Listo! Se actualizó la organización",
+        "failedToUpdateOrganization": "No se pudo actualizar la organización"
+    },
+    "useOrganizationWarehouseCredentials": {
+        "warehouseCredentialsCreated": "Credenciales del almacén creadas",
+        "failedToCreateWarehouseCredentials": "No se pudieron crear las credenciales del almacén",
+        "warehouseCredentialsUpdated": "Credenciales del almacén actualizadas",
+        "failedToUpdateWarehouseCredentials": "No se pudieron actualizar las credenciales del almacén",
+        "warehouseCredentialsDeleted": "Credenciales del almacén eliminadas",
+        "failedToDeleteWarehouseCredentials": "No se pudieron eliminar las credenciales del almacén"
+    },
+    "useChartPinningMutation": {
+        "successChartWasPinnedToHomepage": "¡Listo! El gráfico se fijó en la página de inicio",
+        "successChartWasUnpinnedFromHomepage": "¡Listo! El gráfico se quitó de la página de inicio",
+        "failedToPinChart": "No se pudo fijar el gráfico"
+    },
+    "useDashboardPinningMutation": {
+        "successDashboardWasPinnedToHomepage": "¡Listo! El panel se fijó en la página de inicio",
+        "successDashboardWasUnpinnedFromHomepage": "¡Listo! El panel se quitó de la página de inicio",
+        "failedToPinDashboard": "No se pudo fijar el panel"
+    },
+    "useDocumentPinningMutation": {
+        "failedToPinDocument": "No se pudo fijar el documento",
+        "pinned": "¡Listo! El documento se fijó en la página de inicio",
+        "unpinned": "¡Listo! El documento se quitó de la página de inicio"
+    },
+    "usePinnedItems": {
+        "couldNotReOrderPinnedItems": "No se pudieron reordenar los elementos fijados"
+    },
+    "useSpaceMutation": {
+        "successSpaceWasPinnedToHomepage": "¡Listo! El espacio se fijó en la página de inicio",
+        "successSpaceWasUnpinnedFromHomepage": "¡Listo! El espacio se quitó de la página de inicio",
+        "failedToPinSpace": "No se pudo fijar el espacio"
+    },
+    "useSlack": {
+        "deletedSlackIntegrationWasDeleted": "¡Eliminada! Se eliminó la integración de Slack",
+        "failedToDeleteSlackIntegration": "No se pudo eliminar la integración de Slack",
+        "successSlackAppSettingsUpdated": "¡Listo! Se actualizó la configuración de la app de Slack",
+        "failedToUpdateSlackAppSettings": "No se pudo actualizar la configuración de la app de Slack"
+    },
+    "useAccessToken": {
+        "failedToCreateToken": "No se pudo crear el token",
+        "successYourTokenWasDeleted": "¡Listo! Se eliminó tu token.",
+        "failedToDeleteToken": "No se pudo eliminar el token",
+        "successYourTokenWasRotated": "¡Listo! Se rotó tu token.",
+        "failedToRotateToken": "No se pudo rotar el token"
+    },
+    "useAsyncClipboard": {
+        "linkCopiedToClipboard": "Enlace copiado al portapapeles"
+    },
+    "useContent": {
+        "goToSpace": "Ir al espacio",
+        "goToRecentlyDeleted": "Ir a eliminados recientemente",
+        "failedToMoveContent": "No se pudo mover el contenido",
+        "types": {
+            "chart": "gráfico",
+            "dashboard": "panel",
+            "space": "espacio",
+            "data_app": "app de datos",
+            "document": "documento"
+        },
+        "movedOne": "Se movió correctamente el elemento ({{type}}) a un espacio",
+        "deletedOne": "Se eliminó correctamente el elemento ({{type}}).",
+        "movedItems_one": "Se movió correctamente {{count}} elemento a un espacio",
+        "movedItems_other": "Se movieron correctamente {{count}} elementos a un espacio",
+        "deletedItems_one": "Se eliminó correctamente {{count}} elemento.",
+        "deletedItems_other": "Se eliminaron correctamente {{count}} elementos.",
+        "failedToDeleteContent": "No se pudo eliminar el contenido"
+    },
+    "useContentVerification": {
+        "chartVerified": "Gráfico verificado",
+        "failedToVerifyChart": "No se pudo verificar el gráfico",
+        "chartVerificationRemoved": "Verificación del gráfico quitada",
+        "failedToRemoveChartVerification": "No se pudo quitar la verificación del gráfico",
+        "dashboardVerified": "Panel verificado",
+        "failedToVerifyDashboard": "No se pudo verificar el panel",
+        "dataAppVerified": "App de datos verificada",
+        "failedToVerifyDataApp": "No se pudo verificar la app de datos",
+        "dataAppVerificationRemoved": "Verificación de la app de datos quitada",
+        "failedToRemoveDataAppVerification": "No se pudo quitar la verificación de la app de datos",
+        "dashboardVerificationRemoved": "Verificación del panel quitada",
+        "failedToRemoveDashboardVerification": "No se pudo quitar la verificación del panel",
+        "documentVerified": "Documento verificado",
+        "failedToVerifyDocument": "No se pudo verificar el documento",
+        "documentVerificationRemoved": "Verificación del documento quitada",
+        "failedToRemoveDocumentVerification": "No se pudo quitar la verificación del documento"
+    },
+    "useDatabricks": {
+        "authenticationFailed": "La autenticación falló"
+    },
+    "useEmailVerification": {
+        "weCouldnTSendAVerification": "No pudimos enviar un correo de verificación a tu bandeja de entrada.",
+        "successYourEMailHasBeen": "¡Listo! Tu correo se ha verificado."
+    },
+    "useExplorerRoute": {
+        "errorParsingUrl": "Error al analizar la URL",
+        "urlIsInvalidOrIncomplete": "La URL no es válida o está incompleta.{{errorMessage}}"
+    },
+    "useInviteLink": {
+        "failedToAcceptInvite": "No se pudo aceptar la invitación",
+        "failedToCreateInviteLink": "No se pudo crear el enlace de invitación",
+        "createdNewInviteLink": "Se creó un nuevo enlace de invitación"
+    },
+    "useOAuthClients": {
+        "failedToCreateOauthApplication": "No se pudo crear la aplicación OAuth",
+        "oauthApplicationUpdated": "Aplicación OAuth actualizada",
+        "failedToUpdateOauthApplication": "No se pudo actualizar la aplicación OAuth",
+        "oauthApplicationDeleted": "Aplicación OAuth eliminada",
+        "failedToDeleteOauthApplication": "No se pudo eliminar la aplicación OAuth"
+    },
+    "useOrganizationGroups": {
+        "successGroupWasCreated": "¡Listo! Se creó el grupo.",
+        "failedToCreateGroup": "No se pudo crear el grupo",
+        "successGroupWasUpdated": "¡Listo! Se actualizó el grupo '{{name}}'.",
+        "failedToUpdateGroup": "No se pudo actualizar el grupo",
+        "successGroupWasDeleted": "¡Listo! Se eliminó el grupo '{{name}}'.",
+        "failedToDeleteGroup": "No se pudo eliminar el grupo"
+    },
+    "useOrganizationRoles": {
+        "successUserRoleUpdated": "¡Listo! Se actualizó el rol del usuario.",
+        "failedToUpdateUserSRole": "No se pudo actualizar el rol del usuario"
+    },
+    "useOrganizationUsers": {
+        "successUserWasDeleted": "¡Listo! Se eliminó el usuario.",
+        "failedToDeleteUser": "No se pudo eliminar el usuario",
+        "failedToTransferDashboards": "No se pudieron transferir los paneles",
+        "failedToReassignScheduledDeliveries": "No se pudieron reasignar los envíos programados",
+        "dashboardsTransferred_one": "¡Listo! Se transfirió {{count}} panel.",
+        "dashboardsTransferred_other": "¡Listo! Se transfirieron {{count}} paneles.",
+        "deliveriesReassigned_one": "¡Listo! Se reasignó {{count}} envío programado.",
+        "deliveriesReassigned_other": "¡Listo! Se reasignaron {{count}} envíos programados."
+    },
+    "usePasswordReset": {
+        "passwordRecoveryEmailSentSuccessfully": "Correo de recuperación de contraseña enviado correctamente",
+        "failedToSendPasswordRecoveryEmail": "No se pudo enviar el correo de recuperación de contraseña",
+        "passwordUpdatedSuccessfully": "Contraseña actualizada correctamente",
+        "failedToResetPassword": "No se pudo restablecer la contraseña"
+    },
+    "usePreAggregateRefresh": {
+        "failedToRebuildPreAggregates": "No se pudieron reconstruir las preagregaciones",
+        "failedToRebuildPreAggregate": "No se pudo reconstruir la preagregación",
+        "rebuildingAll": "Reconstruyendo preagregaciones",
+        "rebuildingOne": "Reconstruyendo preagregación"
+    },
+    "useProject": {
+        "failedToUpdateProject": "No se pudo actualizar el proyecto",
+        "failedToCreateProject": "No se pudo crear el proyecto",
+        "couldNotRunTheConnectionTest": "No se pudo ejecutar la prueba de conexión",
+        "warehouseCredentialsUpdated": "Credenciales del almacén actualizadas",
+        "failedToUpdateWarehouseCredentials": "No se pudieron actualizar las credenciales del almacén",
+        "projectColorPaletteUpdated": "Paleta de colores del proyecto actualizada",
+        "failedToUpdateProjectColorPalette": "No se pudo actualizar la paleta de colores del proyecto",
+        "defaultUserSpacesUpdated": "Espacios de usuario predeterminados actualizados",
+        "failedToUpdateDefaultUserSpaces": "No se pudieron actualizar los espacios de usuario predeterminados"
+    },
+    "useProjectDbtSources": {
+        "dbtSourceAdded": "Fuente dbt añadida",
+        "failedToAddDbtSource": "No se pudo añadir la fuente dbt",
+        "dbtSourceUpdated": "Fuente dbt actualizada",
+        "failedToUpdateDbtSource": "No se pudo actualizar la fuente dbt",
+        "dbtSourceRemoved": "Fuente dbt eliminada",
+        "failedToRemoveDbtSource": "No se pudo eliminar la fuente dbt"
+    },
+    "useProjectGroupRoles": {
+        "successGroupProjectRoleAssignmentUpdated": "¡Listo! Se actualizó la asignación de rol del grupo en el proyecto.",
+        "failedToUpdateGroupProjectRole": "No se pudo actualizar la asignación de rol del grupo en el proyecto",
+        "successGroupProjectRoleAssignmentDeleted": "¡Listo! Se eliminó la asignación de rol del grupo en el proyecto.",
+        "failedToDeleteGroupProjectRole": "No se pudo eliminar la asignación de rol del grupo en el proyecto"
+    },
+    "useProjectPreview": {
+        "previewProjectCreated": "Proyecto de vista previa creado",
+        "openPreviewProject": "Abrir proyecto de vista previa",
+        "failedToCreatePreviewProject": "No se pudo crear el proyecto de vista previa",
+        "copyFailed": "No se pudo copiar el proyecto de vista previa"
+    },
+    "useProjectPreviewExpirationSettings": {
+        "previewExpirationSettingsUpdated": "Configuración de caducidad de vista previa actualizada",
+        "failedToUpdatePreviewExpirationSettings": "No se pudo actualizar la configuración de caducidad de vista previa"
+    },
+    "useProjectResultsCacheSettings": {
+        "cacheDurationUpdated": "Duración de la caché actualizada",
+        "failedToUpdateCacheDuration": "No se pudo actualizar la duración de la caché"
+    },
+    "useProjectRoles": {
+        "successUserProjectRoleAssignmentUpdated": "¡Listo! Se actualizó la asignación de rol del usuario en el proyecto.",
+        "failedToUpdateUserProjectRole": "No se pudo actualizar la asignación de rol del usuario en el proyecto",
+        "successUserProjectRoleAssignmentDeleted": "¡Listo! Se eliminó la asignación de rol del usuario en el proyecto.",
+        "failedToDeleteUserProjectRole": "No se pudo eliminar la asignación de rol del usuario en el proyecto"
+    },
+    "useProjectTablesConfiguration": {
+        "savedProjectConfiguration": "Configuración del proyecto guardada",
+        "failedToSaveTablesConfiguration": "No se pudo guardar la configuración de tablas"
+    },
+    "useProjects": {
+        "deletedProjectWasDeleted": "¡Eliminado! Se eliminó el proyecto.",
+        "failedToDeleteProject": "No se pudo eliminar el proyecto"
+    },
+    "useQueryError": {
+        "validationError": "Error de validación",
+        "invalidFieldWithValueTheTeam": "Campo no válido {{keys}} con valor {{values}}. Ya se ha notificado al equipo y lo solucionaremos pronto",
+        "unknownValidationError": "Error de validación desconocido",
+        "chartError": "Gráfico '{{chartName}}': error"
+    },
+    "useRedshiftAwsSso": {
+        "awsSignInFailed": "El inicio de sesión en AWS falló"
+    },
+    "useRefreshServer": {
+        "synced": "Sincronizado: {{tableErrors}}",
+        "errorSyncingProject": "Error al sincronizar el proyecto",
+        "steps": {
+            "done": "Completado",
+            "pending": "Pendiente",
+            "skipped": "Omitido",
+            "error": "Error",
+            "running": "En curso"
+        },
+        "create": {
+            "done": "¡Proyecto creado!",
+            "started": "Creación del proyecto pendiente",
+            "error": "Error al crear el proyecto",
+            "running": "Creando tu proyecto"
+        },
+        "sync": {
+            "done": "¡Proyecto sincronizado correctamente!",
+            "started": "Sincronización pendiente",
+            "error": "Error al sincronizar el proyecto",
+            "running": "Sincronizando el proyecto"
+        },
+        "tablesWithErrors": "{{count}} de {{total}} tablas tienen errores",
+        "connectionsFailedWithTables": "No se pudieron compilar las conexiones; {{tableErrors}}",
+        "connectionsFailed": "No se pudieron compilar las conexiones",
+        "runningStep": "Paso {{step}}/{{total}}: {{label}}"
+    },
+    "useSavedChartImageExport": {
+        "unableToDownloadChartImage": "No se pudo descargar la imagen del gráfico"
+    },
+    "useSavedDashboardFiltersOverrides": {
+        "couldNotRestoreFiltersFromUrl": "No se pudieron restaurar los filtros desde la URL",
+        "theLinkAppearsToBeIncomplete": "El enlace parece estar incompleto. Pide que lo vuelvan a compartir."
+    },
+    "useSavedQuery": {
+        "successChartWasReverted": "¡Listo! Se revirtió el gráfico.",
+        "failedToRevertChart": "No se pudo revertir el gráfico",
+        "successChartWasDeleted": "¡Listo! Se eliminó el gráfico.",
+        "goToRecentlyDeleted": "Ir a eliminados recientemente",
+        "failedToDeleteChart": "No se pudo eliminar el gráfico",
+        "openDashboard": "Abrir panel",
+        "failedToSaveChart": "No se pudo guardar el gráfico",
+        "successChartWasSaved": "¡Listo! Se guardó el gráfico.",
+        "viewChart": "Ver gráfico",
+        "canTSaveChart": "No se puede guardar el gráfico",
+        "youDonTHavePermissionTo": "No tienes permiso para crear dimensiones SQL personalizadas. Quítalas de tu gráfico para guardarlo.",
+        "openChart": "Abrir gráfico",
+        "failedToDuplicateChart": "No se pudo duplicar el gráfico",
+        "canTUpdateChart": "No se puede actualizar el gráfico",
+        "failedToUpdateChart": "No se pudo actualizar el gráfico",
+        "draftSaved": "Borrador del gráfico guardado para revisión",
+        "duplicated": "¡Gráfico duplicado correctamente!",
+        "successUpdated": "¡Listo! Se actualizó el gráfico."
+    },
+    "useSpaces": {
+        "successSpaceWasDeleted": "¡Listo! Se eliminó el espacio.",
+        "goToRecentlyDeleted": "Ir a eliminados recientemente",
+        "failedToDeleteSpace": "No se pudo eliminar el espacio",
+        "successSpaceWasUpdated": "¡Listo! Se actualizó el espacio.",
+        "failedToUpdateSpace": "No se pudo actualizar el espacio",
+        "successSpaceWasCreated": "¡Listo! Se creó el espacio.",
+        "failedToCreateSpace": "No se pudo crear el espacio",
+        "successSpaceAccessUpdated": "¡Listo! ¡Se actualizó el acceso al espacio!",
+        "failedToUpdateSpaceAccess": "No se pudo actualizar el acceso al espacio",
+        "successSpaceGroupAccessUpdated": "¡Listo! ¡Se actualizó el acceso de grupos al espacio!",
+        "failedToUpdateSpaceGroupAccess": "No se pudo actualizar el acceso de grupos al espacio"
+    },
+    "useUserAttributes": {
+        "successUserAttributeWasCreated": "¡Listo! Se creó el atributo de usuario.",
+        "failedToCreateUserAttribute": "No se pudo crear el atributo de usuario",
+        "successUserAttributeWasUpdated": "¡Listo! Se actualizó el atributo de usuario.",
+        "failedToUpdateUserAttribute": "No se pudo actualizar el atributo de usuario",
+        "successUserAttributeWasDeleted": "¡Listo! Se eliminó el atributo de usuario.",
+        "failedToDeleteUserAttribute": "No se pudo eliminar el atributo de usuario"
+    },
+    "useWarehouseConnectionSwitch": {
+        "multipleConnectionsEnabled": "Varias conexiones activadas",
+        "failedToEnableMultipleConnections": "No se pudieron activar varias conexiones"
+    },
+    "useWarehouseConnections": {
+        "credentialsPreferenceSavedSuccessfully": "Preferencia de credenciales guardada correctamente",
+        "failedToSaveCredentialsPreference": "No se pudo guardar la preferencia de credenciales",
+        "connectionAdded": "Conexión añadida",
+        "failedToAddConnection": "No se pudo añadir la conexión",
+        "connectionUpdated": "Conexión actualizada",
+        "failedToUpdateConnection": "No se pudo actualizar la conexión",
+        "connectionRenamed": "Conexión renombrada",
+        "failedToRenameConnection": "No se pudo renombrar la conexión",
+        "connectionRemoved": "Conexión eliminada"
+    },
+    "useImpersonation": {
+        "impersonationSettingsUpdated": "Configuración de suplantación actualizada",
+        "failedToUpdateImpersonationSettings": "No se pudo actualizar la configuración de suplantación"
+    },
+    "useLeaveOrganizationMutation": {
+        "failedToLeaveOrganization": "No se pudo abandonar la organización"
+    },
+    "useOpenIdentity": {
+        "deletedSocialLoginWasDeleted": "¡Eliminado! Se eliminó el inicio de sesión social.",
+        "failedToDeleteSocialLogin": "No se pudo eliminar el inicio de sesión social"
+    },
+    "useUserCompleteMutation": {
+        "failedToCompleteSetup": "No se pudo completar la configuración"
+    },
+    "useProjectUserWarehouseCredentialsPreference": {
+        "credentialsPreferenceSavedSuccessfully": "Preferencia de credenciales guardada correctamente",
+        "failedToSaveCredentialsPreference": "No se pudo guardar la preferencia de credenciales"
+    },
+    "useUserWarehouseCredentials": {
+        "successWarehouseConnectionWasCreated": "¡Listo! Se creó la conexión al almacén.",
+        "failedToCreateWarehouseConnection": "No se pudo crear la conexión al almacén",
+        "successWarehouseConnectionWasUpdated": "¡Listo! Se actualizó la conexión al almacén.",
+        "failedToUpdateWarehouseConnection": "No se pudo actualizar la conexión al almacén",
+        "successWarehouseConnectionWasDeleted": "¡Listo! Se eliminó la conexión al almacén.",
+        "failedToDeleteWarehouseConnection": "No se pudo eliminar la conexión al almacén"
+    },
+    "useValidation": {
+        "validationCompleted": "Validación completada",
+        "unableToUpdateValidation": "No se puede actualizar la validación",
+        "failedToUpdateValidation": "No se pudo actualizar la validación",
+        "validationDismissed": "Validación descartada",
+        "failedToDismissValidation": "No se pudo descartar la validación",
+        "unableToGetValidation": "No se puede obtener la validación",
+        "failedToGetValidation": "No se pudo obtener la validación"
+    },
+    "common": {
+        "pleaseTryAgain": "Inténtalo de nuevo"
+    },
+    "useSnowflake": {
+        "authenticationFailed": "La autenticación falló"
+    },
+    "useSettingsNavigation": {
+        "profile": "Perfil",
+        "myWarehouseConnections": "Mis conexiones al almacén",
+        "myAgentIdentity": "Mi identidad de agente",
+        "myScheduledDeliveries": "Mis envíos programados",
+        "myApps": "Mis apps",
+        "personalAccessTokens": "Tokens de acceso personal",
+        "general": "General",
+        "allowedEmailDomains": "Dominios de correo permitidos",
+        "defaultProject": "Proyecto predeterminado",
+        "userImpersonation": "Suplantación de usuarios",
+        "lightdashSupportAccess": "Acceso del soporte de Lightdash",
+        "dangerZone": "Zona de peligro",
+        "exporting": "Exportación",
+        "limits": "Límites",
+        "customRoles": "Roles personalizados",
+        "appearance": "Apariencia",
+        "themes": "Temas",
+        "activity": "Actividad",
+        "aiAnalysis": "Análisis con IA",
+        "dataApps": "Apps de datos",
+        "integrations": "Integraciones",
+        "oauthApplications": "Aplicaciones OAuth",
+        "verifiedDomains": "Dominios verificados",
+        "emailDomain": "Dominio de correo",
+        "singleSignOn": "Inicio de sesión único",
+        "warehouseCredentials": "Credenciales del almacén",
+        "allProjects": "Todos los proyectos",
+        "lightdashAnalytics": "Analítica de Lightdash",
+        "scimAccessTokens": "Tokens de acceso SCIM",
+        "serviceAccounts": "Cuentas de servicio",
+        "aiCredits": "Créditos de IA",
+        "threads": "Hilos",
+        "agents": "Agentes",
+        "evals": "Evaluaciones",
+        "issues": "Incidencias",
+        "memories": "Memorias",
+        "deepResearch": "Investigación profunda",
+        "askAi": "Preguntar a la IA",
+        "identity": "Identidad",
+        "permissions": "Permisos",
+        "connect": "Conectar",
+        "clientSetup": "Configuración del cliente",
+        "enableAgentsOverMcp": "Activar agentes mediante MCP",
+        "allowContentChangesViaMcp": "Permitir cambios de contenido mediante MCP",
+        "analytics": "Analítica",
+        "mcp": "MCP",
+        "roadmap": "Hoja de ruta",
+        "yourSettings": "Tu configuración",
+        "organizationSettings": "Configuración de la organización",
+        "validator": "Validador",
+        "recentlyDeleted": "Eliminados recientemente",
+        "currentProject": "Proyecto actual",
+        "connectionSettings": "Configuración de conexión",
+        "tablesConfiguration": "Configuración de tablas",
+        "agentIdentity": "Identidad de agente",
+        "agentDataScope": "Ámbito de datos del agente",
+        "aiRegion": "Región de IA",
+        "compilationHistory": "Historial de compilación",
+        "preAggregates": "Preagregaciones",
+        "materializations": "Materializaciones",
+        "resultsCaching": "Caché de resultados",
+        "parameters": "Parámetros",
+        "projectTimeZone": "Zona horaria del proyecto",
+        "previewSettings": "Configuración de vista previa",
+        "projectAccess": "Acceso al proyecto",
+        "defaultUserSpaces": "Espacios de usuario predeterminados",
+        "externalSources": "Fuentes externas",
+        "usageAnalytics": "Analítica de uso",
+        "syncsScheduledDeliveries": "Sincronizaciones y envíos programados",
+        "dataAppConnections": "Conexiones de apps de datos",
+        "metricSqlApi": "API SQL de métricas",
+        "cors": "CORS",
+        "embedConfiguration": "Configuración de inserción",
+        "verifiedContent": "Contenido verificado",
+        "reviewRequests": "Solicitudes de revisión",
+        "dataOps": "Operaciones de datos",
+        "pullRequests": "Pull requests",
+        "contentReview": "Revisión de contenido",
+        "passwordAndSocialLogins": "Contraseña e inicios de sesión sociales",
+        "password": "Contraseña",
+        "usersAndGroups": "Usuarios y grupos",
+        "userManagement": "Gestión de usuarios",
+        "userAndGroupAttributes": "Atributos de usuario y grupo",
+        "userAttributes": "Atributos de usuario"
+    },
+    "useQueryResults": {
+        "queryFailed": "La consulta falló",
+        "errorRunningQueryForChart": "Error al ejecutar la consulta del gráfico '{{chartName}}'",
+        "errorRunningQuery": "Error al ejecutar la consulta",
+        "queryCancelled": "Consulta cancelada"
+    },
+    "apiErrorDisplay": {
+        "showLess": "Mostrar menos",
+        "viewFullError": "Ver error completo",
+        "copyError": "Copiar error",
+        "copyErrorDetails": "Copiar detalles del error",
+        "copied": "Copiado",
+        "shareWithSupport": "Compartir con el soporte de Lightdash",
+        "copyDiagnostics": "Copiar diagnóstico",
+        "notifySupport": "Avisar al soporte",
+        "reauthGoogle": "Volver a autenticarse con Google",
+        "openConnectionSettings": "Abrir la configuración de conexión",
+        "contactSupport": "Contacta con soporte con la siguiente información:",
+        "errorId": "ID de error:",
+        "traceId": "ID de traza:",
+        "notAvailable": "n/d",
+        "snowflakeAuthError": "Error de autenticación de Snowflake",
+        "reauthSnowflake": "Puedes intentar volver a autenticarte con Snowflake:"
+    },
+    "multipleToast": {
+        "hideOlder": "Ocultar {{count}} anteriores",
+        "showOlder": "Mostrar {{count}} anteriores",
+        "dismissError": "Descartar error",
+        "dismissNotification": "Descartar notificación"
+    },
+    "useColumns": {
+        "invalidImageProtocol": "Protocolo de imagen no válido",
+        "fieldNotFound": "Este campo no se encontró en el proyecto dbt."
+    },
+    "aceCompleter": {
+        "tableCalculation": "Cálculo de tabla",
+        "systemVariable": "Variable del sistema",
+        "customDimension": "Dimensión personalizada",
+        "aggregate": "Agregación",
+        "row": "Fila",
+        "pivot": "Pivote",
+        "metric": "Métrica",
+        "dimension": "Dimensión"
+    }
+}

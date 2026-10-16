@@ -1,6 +1,7 @@
 import { ProjectType } from '@lightdash/common';
 import { Text, TextInput, type ModalProps } from '@mantine/core';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDeleteActiveProjectMutation } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
 import { useDeleteProjectMutation } from '../../../hooks/useProjects';
@@ -12,6 +13,7 @@ export const ProjectDeleteModal: FC<
         isCurrentProject: boolean;
     }
 > = ({ opened, onClose, projectUuid, isCurrentProject }) => {
+    const { t } = useTranslation('userSettings');
     const { isInitialLoading, data: project } = useProject(projectUuid);
     const { mutateAsync, isLoading: isDeleting } = useDeleteProjectMutation();
     const { mutate: deleteActiveProjectMutation } =
@@ -41,7 +43,9 @@ export const ProjectDeleteModal: FC<
             opened={opened}
             onClose={handleOnClose}
             title={
-                isPlayground ? 'Delete training playground' : 'Delete Project'
+                isPlayground
+                    ? t('deleteProjectPanel.deleteModal.titlePlayground')
+                    : t('deleteProjectPanel.deleteModal.title')
             }
             variant="delete"
             resourceType="project"
@@ -55,14 +59,11 @@ export const ProjectDeleteModal: FC<
         >
             {isPlayground && (
                 <Text fz="sm">
-                    This is the training playground Learn created for your
-                    organization. Deleting it removes every learner's copy with
-                    it, and Learn goes back to asking an admin to enable it.
+                    {t('deleteProjectPanel.deleteModal.playgroundWarning')}
                 </Text>
             )}
             <Text fz="sm" c="dimmed">
-                Type the name of this project to confirm. This action is not
-                reversible.
+                {t('deleteProjectPanel.deleteModal.typeNameToConfirm')}
             </Text>
 
             <TextInput

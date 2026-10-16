@@ -27,6 +27,7 @@ import {
     isAiAgentAuthorizationError,
 } from '../../../../features/aiAccess/errors';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 
 const AI_AGENT_EVALUATIONS_KEY = 'aiAgentEvaluations';
 const AI_AGENT_EVALUATION_RUNS_KEY = 'aiAgentEvaluationRuns';
@@ -120,7 +121,7 @@ export const useAiAgentEvaluations = (
 ) => {
     const handleError = useEvaluationErrorHandler(
         projectUuid,
-        'Failed to fetch evaluations',
+        i18n.t('toasts.evaluations.fetchListFailed', { ns: 'aiAgent' }),
     );
 
     return useQuery<
@@ -149,7 +150,7 @@ export const useAiAgentEvaluation = (
 ) => {
     const handleError = useEvaluationErrorHandler(
         projectUuid,
-        'Failed to fetch evaluation',
+        i18n.t('toasts.evaluations.fetchFailed', { ns: 'aiAgent' }),
     );
 
     return useQuery<ApiAiAgentEvaluationResponse['results'], ApiError>({
@@ -179,7 +180,7 @@ export const useAiAgentEvaluationRuns = (
 ) => {
     const handleError = useEvaluationErrorHandler(
         projectUuid,
-        'Failed to fetch evaluation runs',
+        i18n.t('toasts.evaluations.fetchRunsFailed', { ns: 'aiAgent' }),
     );
 
     return useQuery<
@@ -218,7 +219,7 @@ export const useAiAgentEvaluationRunResults = (
 ) => {
     const handleError = useEvaluationErrorHandler(
         projectUuid,
-        'Failed to fetch evaluation run results',
+        i18n.t('toasts.evaluations.fetchRunResultsFailed', { ns: 'aiAgent' }),
     );
 
     return useQuery<
@@ -322,7 +323,7 @@ export const useCreateEvaluation = (
 ) => {
     const handleError = useEvaluationErrorHandler(
         projectUuid,
-        'Failed to create evaluation',
+        i18n.t('toasts.evaluations.createFailed', { ns: 'aiAgent' }),
     );
     const { showToastSuccess } = useToaster();
     const queryClient = useQueryClient();
@@ -333,10 +334,13 @@ export const useCreateEvaluation = (
             createEvaluation(projectUuid!, agentUuid!, data),
         onSuccess: (result) => {
             showToastSuccess({
-                title: 'Evaluation created successfully',
+                title: i18n.t('toasts.evaluations.created', { ns: 'aiAgent' }),
                 action: showToastButton
                     ? {
-                          children: 'Go to Evaluation',
+                          children: i18n.t(
+                              'toasts.evaluations.goToEvaluation',
+                              { ns: 'aiAgent' },
+                          ),
                           icon: IconArrowRight,
                           onClick: () => {
                               void navigate(
@@ -360,7 +364,7 @@ export const useRunEvaluation = (
 ) => {
     const handleError = useEvaluationErrorHandler(
         projectUuid,
-        'Failed to run evaluation',
+        i18n.t('toasts.evaluations.runFailed', { ns: 'aiAgent' }),
     );
     const { showToastSuccess } = useToaster();
     const queryClient = useQueryClient();
@@ -370,7 +374,9 @@ export const useRunEvaluation = (
             runEvaluation(projectUuid!, agentUuid!, evalUuid),
         onSuccess: (_, evalUuid) => {
             showToastSuccess({
-                title: 'Evaluation run started successfully',
+                title: i18n.t('toasts.evaluations.runStarted', {
+                    ns: 'aiAgent',
+                }),
             });
             void queryClient.invalidateQueries({
                 queryKey: [
@@ -391,7 +397,7 @@ export const useUpdateEvaluation = (
 ) => {
     const handleError = useEvaluationErrorHandler(
         projectUuid,
-        'Failed to update evaluation',
+        i18n.t('toasts.evaluations.updateFailed', { ns: 'aiAgent' }),
     );
     const { showToastSuccess } = useToaster();
     const queryClient = useQueryClient();
@@ -406,7 +412,7 @@ export const useUpdateEvaluation = (
         }) => updateEvaluation(projectUuid!, agentUuid!, evalUuid, data),
         onSuccess: (_, { evalUuid }) => {
             showToastSuccess({
-                title: 'Evaluation updated successfully',
+                title: i18n.t('toasts.evaluations.updated', { ns: 'aiAgent' }),
             });
             void queryClient.invalidateQueries({
                 queryKey: [AI_AGENT_EVALUATIONS_KEY, projectUuid, agentUuid],
@@ -430,7 +436,7 @@ export const useAppendToEvaluation = (
 ) => {
     const handleError = useEvaluationErrorHandler(
         projectUuid,
-        'Failed to add to evaluation',
+        i18n.t('toasts.evaluations.addFailed', { ns: 'aiAgent' }),
     );
     const { showToastSuccess } = useToaster();
     const queryClient = useQueryClient();
@@ -446,9 +452,13 @@ export const useAppendToEvaluation = (
         }) => appendToEvaluation(projectUuid!, agentUuid!, evalUuid, data),
         onSuccess: (_, { evalUuid }) => {
             showToastSuccess({
-                title: 'Prompt added to evaluation successfully',
+                title: i18n.t('toasts.evaluations.promptAdded', {
+                    ns: 'aiAgent',
+                }),
                 action: {
-                    children: 'Go to Evaluation',
+                    children: i18n.t('toasts.evaluations.goToEvaluation', {
+                        ns: 'aiAgent',
+                    }),
                     icon: IconArrowRight,
                     onClick: () => {
                         void navigate(
@@ -479,7 +489,7 @@ export const useDeleteEvaluation = (
 ) => {
     const handleError = useEvaluationErrorHandler(
         projectUuid,
-        'Failed to delete evaluation',
+        i18n.t('toasts.evaluations.deleteFailed', { ns: 'aiAgent' }),
     );
     const { showToastSuccess } = useToaster();
     const queryClient = useQueryClient();
@@ -489,7 +499,7 @@ export const useDeleteEvaluation = (
             deleteEvaluation(projectUuid!, agentUuid!, evalUuid),
         onSuccess: () => {
             showToastSuccess({
-                title: 'Evaluation deleted successfully',
+                title: i18n.t('toasts.evaluations.deleted', { ns: 'aiAgent' }),
             });
             void queryClient.invalidateQueries({
                 queryKey: [AI_AGENT_EVALUATIONS_KEY, projectUuid, agentUuid],

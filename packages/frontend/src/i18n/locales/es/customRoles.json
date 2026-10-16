@@ -1,0 +1,120 @@
+{
+    "deleteModal": {
+        "assignedTitle": "El rol personalizado está asignado",
+        "title": "Eliminar rol personalizado",
+        "resourceType": "rol",
+        "inUse": "Este rol está en uso. Desasígnalo de los elementos siguientes antes de poder eliminarlo.",
+        "kinds": {
+            "serviceAccount": "Cuenta de servicio",
+            "orgMember": "Miembro de la organización",
+            "projectMember": "Miembro del proyecto",
+            "projectGroup": "Grupo del proyecto"
+        },
+        "cannotUndo": "Esta acción no se puede deshacer. Los usuarios y grupos ya no podrán usar este rol."
+    },
+    "levels": {
+        "organization": "Organización",
+        "project": "Proyecto"
+    },
+    "table": {
+        "actionsFor": "Acciones para {{name}}",
+        "name": "Nombre",
+        "description": "Descripción",
+        "type": "Tipo",
+        "created": "Creado"
+    },
+    "addRole": {
+        "button": "Añadir rol",
+        "create": "Crear rol nuevo",
+        "duplicate": "Duplicar rol existente"
+    },
+    "validation": {
+        "nameRequired": "El nombre del rol es obligatorio",
+        "nameTooShort": "El nombre del rol debe tener al menos 3 caracteres",
+        "nameIsSystemRole": "El nombre del rol no puede coincidir con un rol del sistema",
+        "scopeRequired": "Se requiere al menos un permiso"
+    },
+    "toasts": {
+        "updated": "Rol personalizado actualizado correctamente",
+        "updateFailed": "No se pudo actualizar el rol personalizado",
+        "created": "Rol personalizado creado correctamente",
+        "createFailed": "No se pudo crear el rol personalizado",
+        "deleted": "Rol personalizado eliminado correctamente",
+        "deleteFailed": "No se pudo eliminar el rol personalizado"
+    },
+    "scopeGroups": {
+        "content": "Gestión de contenido",
+        "projectManagement": "Gestión de proyectos",
+        "organizationManagement": "Gestión de la organización",
+        "data": "Acceso a datos",
+        "sharing": "Compartir y exportar",
+        "ai": "Funciones de IA",
+        "embed": "Inserción",
+        "spotlight": "Funciones de Spotlight"
+    },
+    "builder": {
+        "levelLockedAfterCreation": "El tipo de rol no se puede cambiar después de crearlo.",
+        "roleType": "Tipo de rol",
+        "roleTypeDescription": "Elige dónde se puede asignar este rol. No se puede cambiar después de crear el rol.",
+        "levels": {
+            "project": {
+                "title": "Rol de proyecto",
+                "description": "Se asigna por proyecto. Un usuario o grupo puede tener roles de proyecto distintos en proyectos distintos."
+            },
+            "organization": {
+                "title": "Rol de organización",
+                "description": "Da acceso a la configuración de administración de toda la organización. Los permisos de proyecto que añadas aquí se aplicarán a todos los proyectos."
+            }
+        },
+        "preset": "Plantilla",
+        "presetDescription": "Empieza con un rol habitual y luego personaliza su nombre, descripción y permisos.",
+        "startFromScratch": "Empezar desde cero",
+        "roleName": "Nombre del rol",
+        "roleNamePlaceholder": "p. ej., Analista financiero",
+        "descriptionPlaceholder": "Describe el propósito de este rol",
+        "showDependencyStatus_one": "Mostrar {{count}} permiso con estado de dependencia {{status}}",
+        "showDependencyStatus_other": "Mostrar {{count}} permisos con estado de dependencia {{status}}",
+        "dependencies": "dependencias",
+        "createRole": "Crear rol",
+        "saveChanges": "Guardar cambios"
+    },
+    "scopeSelector": {
+        "agentPermissions": "Permisos de agentes",
+        "deselectAll": "Deseleccionar todo",
+        "selectAll": "Seleccionar todo",
+        "dependencyCount_one": "{{selected}} / {{count}} dependencia",
+        "dependencyCount_other": "{{selected}} / {{count}} dependencias",
+        "permissions": "Permisos",
+        "selectAtLeastOne": "Selecciona al menos un permiso para este rol",
+        "searchPlaceholder": "Buscar permisos por nombre o grupo...",
+        "selectedCount": "{{selected}} de {{total}} permisos de <bold>{{level}}</bold> seleccionados",
+        "levelAdjective": {
+            "project": "proyecto",
+            "organization": "organización"
+        },
+        "orgOnlyHidden_one": "{{count}} permiso de nivel de organización está oculto aquí. Solo tiene efecto en un rol de organización asignado a nivel de organización.",
+        "orgOnlyHidden_other": "{{count}} permisos de nivel de organización están ocultos aquí. Solo tienen efecto en un rol de organización asignado a nivel de organización.",
+        "clearAll": "Borrar todo",
+        "noResults": "No se encontraron permisos que coincidan con tu búsqueda.",
+        "selectGroup": "Selecciona un grupo para ver sus permisos"
+    },
+    "page": {
+        "title": "Roles personalizados",
+        "createTitle": "Crear rol personalizado",
+        "description": "Crea conjuntos de permisos reutilizables para usuarios, grupos y cuentas de servicio.",
+        "noOrganizationRoles": "Aún no hay roles de organización.",
+        "noProjectRoles": "Aún no hay roles de proyecto.",
+        "emptyTitle": "No hay roles personalizados",
+        "emptyDescription": "Crea un rol para definir permisos reutilizables de organización o de proyecto."
+    },
+    "duplicate": {
+        "systemRoles": "Roles del sistema",
+        "customRoles": "Roles personalizados",
+        "title": "Duplicar rol",
+        "selectLabel": "Selecciona el rol que quieres duplicar",
+        "selectPlaceholder": "Elige un rol",
+        "noRoles": "No se encontraron roles",
+        "copyOf": "Copia de: {{name}}",
+        "levelLockedHint": "El tipo coincide con el del rol duplicado y no se puede cambiar."
+    }
+}

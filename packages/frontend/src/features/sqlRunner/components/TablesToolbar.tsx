@@ -18,17 +18,18 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { type TableTypeFilter } from '../utils/tableRows';
 import styles from './TablesToolbar.module.css';
 
 const TYPE_FILTER_OPTIONS: {
     value: TableTypeFilter | null;
-    label: string;
+    labelKey: string;
 }[] = [
-    { value: null, label: 'All types' },
-    { value: 'tables', label: 'Tables only' },
-    { value: 'views', label: 'Views only' },
+    { value: null, labelKey: 'tablesToolbar.allTypes' },
+    { value: 'tables', labelKey: 'tablesToolbar.tablesOnly' },
+    { value: 'views', labelKey: 'tablesToolbar.viewsOnly' },
 ];
 
 type Props = {
@@ -59,6 +60,7 @@ export const TablesToolbar: FC<Props> = ({
     onRefresh,
     isRefreshDisabled,
 }) => {
+    const { t } = useTranslation('sqlRunner');
     const searchRef = useRef<HTMLInputElement>(null);
     useHotkeys([['/', () => searchRef.current?.focus()]]);
 
@@ -81,7 +83,7 @@ export const TablesToolbar: FC<Props> = ({
                 rightSection={
                     search ? (
                         <ActionIcon
-                            aria-label="Clear search"
+                            aria-label={t('tablesToolbar.clearSearch')}
                             onMouseDown={(event) => event.preventDefault()}
                             size="xs"
                             onClick={() => onSearchChange('')}
@@ -92,7 +94,7 @@ export const TablesToolbar: FC<Props> = ({
                         <Kbd size="xs">/</Kbd>
                     )
                 }
-                placeholder="Search tables"
+                placeholder={t('tablesToolbar.searchTables')}
                 value={search}
                 onChange={(event) => onSearchChange(event.target.value)}
             />
@@ -105,11 +107,11 @@ export const TablesToolbar: FC<Props> = ({
                         offset={4}
                         color="ldGray.9"
                     >
-                        <Tooltip label="Filter and refresh">
+                        <Tooltip label={t('tablesToolbar.filterAndRefresh')}>
                             <ActionIcon
                                 variant="default"
                                 size="lg"
-                                aria-label="Filter and refresh"
+                                aria-label={t('tablesToolbar.filterAndRefresh')}
                             >
                                 <MantineIcon icon={IconFilter} />
                             </ActionIcon>
@@ -119,7 +121,7 @@ export const TablesToolbar: FC<Props> = ({
                 <Menu.Dropdown>
                     {TYPE_FILTER_OPTIONS.map((option) => (
                         <Menu.Item
-                            key={option.label}
+                            key={option.labelKey}
                             disabled={option.value !== null && !hasViews}
                             onClick={() => onTypeFilterChange(option.value)}
                             rightSection={
@@ -128,7 +130,7 @@ export const TablesToolbar: FC<Props> = ({
                                 ) : null
                             }
                         >
-                            {option.label}
+                            {t(option.labelKey)}
                         </Menu.Item>
                     ))}
                     {groupDevSchemas && (
@@ -151,7 +153,7 @@ export const TablesToolbar: FC<Props> = ({
                                     />
                                 }
                             >
-                                Group dev schemas
+                                {t('tablesToolbar.groupDevSchemas')}
                             </Menu.Item>
                         </>
                     )}
@@ -161,7 +163,7 @@ export const TablesToolbar: FC<Props> = ({
                         disabled={isRefreshDisabled}
                         onClick={onRefresh}
                     >
-                        Refresh catalog
+                        {t('tablesToolbar.refreshCatalog')}
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>

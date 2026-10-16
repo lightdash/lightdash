@@ -3,6 +3,7 @@ import { Box, LoadingOverlay } from '@mantine/core';
 import { type SerializedError } from '@reduxjs/toolkit';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BigNumberDisplay } from '../../common/BigNumber/BigNumberDisplay';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 
@@ -19,13 +20,14 @@ type Props = {
 
 const BigNumberView: FC<Props> = memo(
     ({ spec: rawSpec, isLoading, error, hasValueField }) => {
+        const { t } = useTranslation('dataViz');
         const spec = rawSpec as BigNumberSpec | undefined;
 
         if (!hasValueField) {
             return (
                 <SuboptimalState
-                    title="Incomplete chart configuration"
-                    description="You're missing a value field"
+                    title={t('view.incompleteConfig')}
+                    description={t('view.missingValueField')}
                     icon={IconAlertCircle}
                     mt="xl"
                 />
@@ -35,7 +37,7 @@ const BigNumberView: FC<Props> = memo(
         if (error && !isLoading) {
             return (
                 <SuboptimalState
-                    title="Error generating chart"
+                    title={t('view.errorGenerating')}
                     description={error.message}
                     icon={IconAlertCircle}
                     mt="xl"

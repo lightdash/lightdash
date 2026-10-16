@@ -15,6 +15,7 @@ import {
     TextInput,
 } from '@mantine/core';
 import { type FC, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ConnectionTestResult } from '../../../features/externalConnections/components/ConnectionTestResult';
 import { useTestConnectionConfig } from '../../../features/externalConnections/hooks/useTestConnectionConfig';
 import { type ConnectionTestResult as ConnectionTestResultValue } from './AddConnectionWizard';
@@ -41,6 +42,7 @@ export const WizardTestStep: FC<Props> = ({
     saveSample,
     onSaveSampleChange,
 }) => {
+    const { t } = useTranslation('settings');
     const [path, setPath] = useState(initialPath);
     const [selectedMethod, setSelectedMethod] =
         useState<ExternalConnectionMethod | null>(null);
@@ -65,7 +67,7 @@ export const WizardTestStep: FC<Props> = ({
             JSON.parse(body);
             return null;
         } catch {
-            return 'Request body must be valid JSON';
+            return t('dataAppConnections.validation.invalidRequestBody');
         }
     })();
 
@@ -73,8 +75,7 @@ export const WizardTestStep: FC<Props> = ({
         return (
             <Stack gap="md" mt="xl">
                 <Text c="dimmed" fz="sm">
-                    This image-only connection does not allow proxied requests,
-                    so there is nothing to test here.
+                    {t('dataAppConnections.test.imageOnly')}
                 </Text>
             </Stack>
         );
@@ -110,13 +111,12 @@ export const WizardTestStep: FC<Props> = ({
     return (
         <Stack gap="md" mt="xl">
             <Text c="dimmed" fz="sm">
-                Send a test request to confirm the connection works before
-                saving it. This step is optional.
+                {t('dataAppConnections.wizard.testStep.intro')}
             </Text>
 
             <Group align="flex-end" gap="xs">
                 <Select
-                    label="Method"
+                    label={t('dataAppConnections.test.method')}
                     w={110}
                     allowDeselect={false}
                     value={method}
@@ -131,8 +131,10 @@ export const WizardTestStep: FC<Props> = ({
                     data={methodOptions}
                 />
                 <TextInput
-                    label="Path"
-                    description="Relative to the base URL"
+                    label={t('dataAppConnections.test.path')}
+                    description={t(
+                        'dataAppConnections.wizard.testStep.pathDescription',
+                    )}
                     placeholder="/v1/endpoint"
                     flex={1}
                     value={path}
@@ -142,7 +144,7 @@ export const WizardTestStep: FC<Props> = ({
 
             {method !== 'GET' && (
                 <Textarea
-                    label="Request body (JSON)"
+                    label={t('dataAppConnections.test.requestBodyJson')}
                     placeholder='{"key": "value"}'
                     rows={4}
                     ff="monospace"
@@ -159,7 +161,7 @@ export const WizardTestStep: FC<Props> = ({
                     loading={testMutation.isLoading}
                     disabled={!!bodyError}
                 >
-                    Send test
+                    {t('dataAppConnections.wizard.testStep.sendTest')}
                 </Button>
             </Group>
 
@@ -168,7 +170,9 @@ export const WizardTestStep: FC<Props> = ({
                     <ConnectionTestResult response={testMutation.data} />
                     {testMutation.data.status < 300 && (
                         <Checkbox
-                            label="Save this response as an example to ground app generation"
+                            label={t(
+                                'dataAppConnections.wizard.testStep.saveSample',
+                            )}
                             checked={saveSample}
                             onChange={(e) =>
                                 onSaveSampleChange(e.currentTarget.checked)

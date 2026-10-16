@@ -23,6 +23,7 @@ import React, {
     type DragEvent,
     type FC,
 } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../../../ee/providers/Embed/useUiStrings';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
@@ -55,6 +56,7 @@ type DraggableMetricItemProps = {
 
 const DraggableMetricItem: FC<DraggableMetricItemProps> = React.memo(
     ({ node, hasYamlDrivers, onDragStart, onAddMetric }) => {
+        const { t } = useTranslation('metricsCatalog');
         const title = node.data.label;
 
         const { ref, isTruncated } = useIsTruncated();
@@ -87,9 +89,11 @@ const DraggableMetricItem: FC<DraggableMetricItemProps> = React.memo(
                             {title}
                         </Text>
                     </Tooltip>
-                    <Tooltip label={`Add ${title} to canvas`}>
+                    <Tooltip label={t('metricsSidebar.addToCanvas', { title })}>
                         <ActionIcon
-                            aria-label={`Add ${title} to canvas`}
+                            aria-label={t('metricsSidebar.addToCanvas', {
+                                title,
+                            })}
                             size="sm"
                             variant="subtle"
                             onClick={() => onAddMetric(node)}
@@ -103,7 +107,7 @@ const DraggableMetricItem: FC<DraggableMetricItemProps> = React.memo(
                     </Tooltip>
                     {hasYamlDrivers && (
                         <Tooltip
-                            label="Drivers defined in YAML"
+                            label={t('metricsSidebar.yamlDrivers')}
                             openDelay={300}
                         >
                             <MantineIcon
@@ -116,10 +120,14 @@ const DraggableMetricItem: FC<DraggableMetricItemProps> = React.memo(
                     <Tooltip
                         label={
                             <Text size="xs" fw="bold">
-                                Table:{' '}
-                                <Text span fw="normal">
-                                    {node.data.tableName}
-                                </Text>
+                                <Trans
+                                    t={t}
+                                    i18nKey="metricsSidebar.table"
+                                    values={{ table: node.data.tableName }}
+                                    components={{
+                                        value: <Text span fw="normal" />,
+                                    }}
+                                />
                             </Text>
                         }
                     >
@@ -148,6 +156,7 @@ const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(
         onAddMetric,
     }) => {
         const getUiString = useUiStrings();
+        const { t } = useTranslation('metricsCatalog');
         const [search, setSearch] = useState('');
         const visibleNodes = useMemo(() => {
             const query = search.trim().toLowerCase();
@@ -188,14 +197,14 @@ const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(
                         >
                             {nodes.length > 0 && (
                                 <Text fz="xs" c="dimmed">
-                                    {nodes.length} metric
-                                    {nodes.length !== 1 ? 's' : ''} not on
-                                    canvas
+                                    {t('metricsSidebar.notOnCanvas', {
+                                        count: nodes.length,
+                                    })}
                                 </Text>
                             )}
                             <ActionIcon
-                                title="Documentation"
-                                aria-label="Documentation"
+                                title={t('metricsSidebar.documentation')}
+                                aria-label={t('metricsSidebar.documentation')}
                                 component="a"
                                 href="https://docs.lightdash.com/guides/metrics-catalog/canvas"
                                 target="_blank"
@@ -244,7 +253,9 @@ const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(
                                                   ? getUiString(
                                                         'metrics.noMatchingMetrics',
                                                     )
-                                                  : 'All metrics are on the canvas'}
+                                                  : t(
+                                                        'metricsSidebar.allOnCanvas',
+                                                    )}
                                           </Text>
                                       )}
                                 {hasMore && (
@@ -254,7 +265,7 @@ const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(
                                         onClick={onLoadMore}
                                         loading={isLoadingMore}
                                     >
-                                        Load more
+                                        {t('metricsSidebar.loadMore')}
                                     </Button>
                                 )}
                             </Stack>

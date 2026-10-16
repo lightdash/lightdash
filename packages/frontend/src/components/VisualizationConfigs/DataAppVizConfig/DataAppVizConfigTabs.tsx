@@ -12,6 +12,7 @@ import {
 } from '@lightdash/common';
 import { Anchor, Box, Stack, Text } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
@@ -52,6 +53,7 @@ import DataAppVizUpgradeNotice from './DataAppVizUpgradeNotice';
 const NO_COLUMNS: ItemsMap = {};
 
 export const ConfigTabs: FC = memo(() => {
+    const { t } = useTranslation('vizConfig');
     const projectUuid = useProjectUuid();
     const { embedToken } = useEmbed();
     const projectRoute = useOptionalProjectRoute();
@@ -264,7 +266,8 @@ export const ConfigTabs: FC = memo(() => {
                             )}
                         </Text>
                         <Text fz="xs" c="dimmed" lh={1.5}>
-                            {dataAppViz.description || 'No description'}
+                            {dataAppViz.description ||
+                                t('dataAppViz.configTabs.noDescription')}
                         </Text>
                         {canEditSelectedType && !isInsideChartGallery && (
                             <Anchor
@@ -281,7 +284,7 @@ export const ConfigTabs: FC = memo(() => {
                                 mt={4}
                                 display="inline-block"
                             >
-                                Edit ↗
+                                {t('dataAppViz.configTabs.edit')}
                             </Anchor>
                         )}
                     </Box>
@@ -364,8 +367,7 @@ export const ConfigTabs: FC = memo(() => {
                     selectedTypeRemoved ? (
                         <Callout variant="warning" hideIcon p="xs">
                             <Text fz="xs">
-                                This chart type has been removed. Pick another
-                                chart type above.
+                                {t('dataAppViz.configTabs.typeRemoved')}
                             </Text>
                         </Callout>
                     ) : (
@@ -373,47 +375,52 @@ export const ConfigTabs: FC = memo(() => {
                     )
                 ) : isAuthoring ? (
                     <Text size="xs" c="dimmed">
-                        Describe the chart type you need. Its bindings and
-                        options appear here once the first version is ready.
+                        {t('dataAppViz.configTabs.authoringHint')}
                     </Text>
                 ) : (
                     <Text size="xs" c="dimmed">
-                        Pick a chart type above
                         {canCreateApp && dataAppsEnabled ? (
-                            <>
-                                , or create a new one in the{' '}
-                                {isInsideChartGallery && dataAppsEnabled ? (
-                                    <Anchor
-                                        component="button"
-                                        type="button"
-                                        size="xs"
-                                        onClick={() =>
-                                            dispatch(
-                                                explorerActions.startChartTypeAuthoring(
-                                                    { dataAppVizUuid: null },
-                                                ),
-                                            )
-                                        }
-                                    >
-                                        builder
-                                    </Anchor>
-                                ) : (
-                                    <Anchor
-                                        component={Link}
-                                        to={{
-                                            pathname: chartTypeBuilderPath(
-                                                projectUrlIdentifier ?? '',
-                                            ),
-                                            search: location.search,
-                                        }}
-                                        size="xs"
-                                    >
-                                        builder
-                                    </Anchor>
-                                )}
-                            </>
-                        ) : null}
-                        .
+                            <Trans
+                                t={t}
+                                i18nKey="dataAppViz.configTabs.pickTypeOrCreate"
+                                components={{
+                                    builder:
+                                        isInsideChartGallery &&
+                                        dataAppsEnabled ? (
+                                            <Anchor
+                                                component="button"
+                                                type="button"
+                                                size="xs"
+                                                onClick={() =>
+                                                    dispatch(
+                                                        explorerActions.startChartTypeAuthoring(
+                                                            {
+                                                                dataAppVizUuid:
+                                                                    null,
+                                                            },
+                                                        ),
+                                                    )
+                                                }
+                                            />
+                                        ) : (
+                                            <Anchor
+                                                component={Link}
+                                                to={{
+                                                    pathname:
+                                                        chartTypeBuilderPath(
+                                                            projectUrlIdentifier ??
+                                                                '',
+                                                        ),
+                                                    search: location.search,
+                                                }}
+                                                size="xs"
+                                            />
+                                        ),
+                                }}
+                            />
+                        ) : (
+                            t('dataAppViz.configTabs.pickTypeAbove')
+                        )}
                     </Text>
                 )}
             </Stack>

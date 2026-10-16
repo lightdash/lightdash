@@ -15,6 +15,7 @@ import {
 import { Box, Button, Divider, Group, Popover } from '@mantine/core';
 import { IconShare2, IconStack, IconTelescope } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
@@ -44,6 +45,7 @@ import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 import { getUnderlyingDataColumnOrder } from './utils';
 
 const UnderlyingDataModalContent: FC = () => {
+    const { t } = useTranslation('app');
     const authoringEnabled = useContentAuthoringEnabled();
     const projectUuid = useProjectUuid();
     const {
@@ -271,7 +273,7 @@ const UnderlyingDataModalContent: FC = () => {
 
     const modalTitle = (
         <>
-            View underlying data
+            {t('metricQueryData.viewUnderlyingData')}
             <UnderlyingDataFilterBadges
                 filterRules={
                     filterParts
@@ -301,7 +303,7 @@ const UnderlyingDataModalContent: FC = () => {
                             size="compact-sm"
                             disabled={!resultsData}
                         >
-                            Export CSV
+                            {t('metricQueryData.exportCsv')}
                         </Button>
                     </Popover.Target>
                     <Popover.Dropdown>
@@ -335,7 +337,7 @@ const UnderlyingDataModalContent: FC = () => {
                     variant="light"
                     size="compact-sm"
                 >
-                    Explore from here
+                    {t('metricQueryData.exploreFromHere')}
                 </Button>
             </Can>
         </Group>

@@ -18,6 +18,7 @@ import {
 } from '@mantine/core';
 import { IconPencil, IconSend, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal, {
@@ -37,6 +38,7 @@ import { GoogleSheetsInfoPopover } from './GoogleSheetsInfoPopover';
 import classes from './SyncModalView.module.css';
 
 const ToggleSyncEnabled: FC<{ scheduler: Scheduler }> = ({ scheduler }) => {
+    const { t } = useTranslation('sync');
     const { mutate: mutateSchedulerEnabled } =
         useSchedulersEnabledUpdateMutation(scheduler.schedulerUuid);
 
@@ -51,8 +53,8 @@ const ToggleSyncEnabled: FC<{ scheduler: Scheduler }> = ({ scheduler }) => {
                 maw={130}
                 label={
                     scheduler.enabled
-                        ? 'Toggle off to temporarily pause the sync'
-                        : 'Sync paused. Toggle on to resume'
+                        ? t('view.toggleOffTooltip')
+                        : t('view.pausedTooltip')
                 }
             >
                 <Box mr="sm">
@@ -78,19 +80,20 @@ const ToggleSyncEnabled: FC<{ scheduler: Scheduler }> = ({ scheduler }) => {
                     setSchedulerEnabled(false);
                     setIsConfirmPauseOpen(false);
                 }}
-                description="This will pause the sync. It will not run until it is enabled again."
+                description={t('view.pauseDescription')}
             />
         </>
     );
 };
 
 const SendNowButton: FC<{ schedulerUuid: string }> = ({ schedulerUuid }) => {
+    const { t } = useTranslation('sync');
     const { mutate: sendNow, isLoading } =
         useSendNowSchedulerByUuid(schedulerUuid);
     const { track } = useTracking();
 
     return (
-        <Tooltip label="Sync now">
+        <Tooltip label={t('view.syncNow')}>
             <ActionIcon
                 variant="light"
                 color="gray"
@@ -121,6 +124,7 @@ export const SyncModalView: FC<Props> = ({
     onScrollBottom,
     onClose,
 }) => {
+    const { t } = useTranslation('sync');
     const { setAction, setCurrentSchedulerUuid } = useSyncModal();
 
     const { activeProjectUuid } = useActiveProjectUuid();
@@ -133,13 +137,13 @@ export const SyncModalView: FC<Props> = ({
         <MantineModal
             opened
             onClose={onClose}
-            title="Sync with Google Sheets"
+            title={t('modal.title')}
             icon={GSheetsIcon}
             size="xl"
             leftActions={<GoogleSheetsInfoPopover />}
             actions={
                 <Button onClick={() => setAction(SyncModalAction.CREATE)}>
-                    Create
+                    {t('actions.create', { ns: 'common' })}
                 </Button>
             }
             modalBodyProps={{
@@ -224,7 +228,11 @@ export const SyncModalView: FC<Props> = ({
                                                     }
                                                 />
 
-                                                <Tooltip label="Edit">
+                                                <Tooltip
+                                                    label={t('actions.edit', {
+                                                        ns: 'common',
+                                                    })}
+                                                >
                                                     <ActionIcon
                                                         variant="light"
                                                         color="gray"
@@ -243,7 +251,11 @@ export const SyncModalView: FC<Props> = ({
                                                     </ActionIcon>
                                                 </Tooltip>
 
-                                                <Tooltip label="Delete">
+                                                <Tooltip
+                                                    label={t('actions.delete', {
+                                                        ns: 'common',
+                                                    })}
+                                                >
                                                     <ActionIcon
                                                         variant="light"
                                                         color="red"
@@ -278,11 +290,10 @@ export const SyncModalView: FC<Props> = ({
             ) : (
                 <Group justify="center" ta="center" gap="xs" my="sm" pt="md">
                     <Text fz="sm" fw={500} c="ldGray.7">
-                        This {resourceLabel} has no Syncs set up yet
+                        {t('view.emptyTitle', { context: resourceLabel })}
                     </Text>
                     <Text fz="xs" fw={400} c="dimmed">
-                        Get started by clicking 'Create new Sync' to seamlessly
-                        integrate your {resourceLabel} data with Google Sheets
+                        {t('view.emptyDescription', { context: resourceLabel })}
                     </Text>
                 </Group>
             )}

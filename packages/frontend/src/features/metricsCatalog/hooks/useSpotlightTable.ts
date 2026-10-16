@@ -7,6 +7,7 @@ import {
     type SpotlightTableConfig,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -65,6 +66,7 @@ const createSpotlightTableConfig = async ({
 export const useCreateSpotlightTableConfig = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
+    const { t } = useTranslation('metricsCatalog');
     return useMutation<
         ApiSuccessEmpty['results'],
         ApiError,
@@ -80,12 +82,12 @@ export const useCreateSpotlightTableConfig = () => {
                 queryKey: ['spotlight-table-config', projectUuid],
             });
             showToastSuccess({
-                title: 'Spotlight table config saved for everyone in this project',
+                title: t('toasts.spotlightConfigSaved'),
             });
         },
         onError: () => {
             showToastError({
-                title: 'Error saving spotlight table config',
+                title: t('toasts.spotlightConfigSaveFailed'),
             });
         },
     });

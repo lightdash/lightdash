@@ -5,6 +5,7 @@ import {
 import { Badge, Button, Group, Popover, Stack, Text } from '@mantine/core';
 import { IconClockHour4 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { LightdashUserAvatar } from '../../../../components/Avatar';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -19,6 +20,7 @@ type Props = {
 };
 
 const PendingReviewBadge: FC<Props> = ({ request }) => {
+    const { t } = useTranslation('eeMisc');
     const { user } = useApp();
     const requestedAgo = useTimeAgo(new Date(request.createdAt));
     const { mutate: cancelRequest, isLoading: isCancelling } =
@@ -41,7 +43,7 @@ const PendingReviewBadge: FC<Props> = ({ request }) => {
                     }
                     className={classes.badge}
                 >
-                    Review pending
+                    {t('contentReview.pendingBadge.label')}
                 </Badge>
             </Popover.Target>
             <Popover.Dropdown w={320} p="sm">
@@ -55,14 +57,22 @@ const PendingReviewBadge: FC<Props> = ({ request }) => {
                         </LightdashUserAvatar>
                         <Stack gap={2}>
                             <Text fz="sm" fw={500}>
-                                Waiting for review
+                                {t('contentReview.status.pending')}
                             </Text>
                             <Text fz="xs" c="dimmed">
                                 {isRequester
-                                    ? 'You'
-                                    : getUserFullName(request.requestedBy)}{' '}
-                                asked {requestedAgo}. It moves to the shared
-                                space once a reviewer approves.
+                                    ? t('contentReview.pendingBadge.youAsked', {
+                                          ago: requestedAgo,
+                                      })
+                                    : t(
+                                          'contentReview.pendingBadge.userAsked',
+                                          {
+                                              name: getUserFullName(
+                                                  request.requestedBy,
+                                              ),
+                                              ago: requestedAgo,
+                                          },
+                                      )}
                             </Text>
                         </Stack>
                     </Group>
@@ -75,7 +85,7 @@ const PendingReviewBadge: FC<Props> = ({ request }) => {
                                 loading={isCancelling}
                                 onClick={() => cancelRequest(request.uuid)}
                             >
-                                Cancel request
+                                {t('contentReview.cancelRequest')}
                             </Button>
                         )}
                         <Button
@@ -87,7 +97,7 @@ const PendingReviewBadge: FC<Props> = ({ request }) => {
                             variant="default"
                             size="xs"
                         >
-                            Open request
+                            {t('contentReview.pendingBadge.openRequest')}
                         </Button>
                     </Group>
                 </Stack>

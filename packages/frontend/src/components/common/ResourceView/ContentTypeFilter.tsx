@@ -6,7 +6,9 @@ import {
     Text,
     useMatches,
 } from '@mantine/core';
+import { type TFunction } from 'i18next';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 
 interface OptionProps {
@@ -22,22 +24,22 @@ const ContentTypeSelectOption = ({ label }: OptionProps) => (
     </Center>
 );
 
-const ContentTypeOptions = [
+const getContentTypeOptions = (t: TFunction<'resourceView'>) => [
     {
         value: ContentType.DOCUMENT,
-        label: 'Documents',
+        label: t('contentTypeFilter.documents'),
     },
     {
         value: ContentType.DASHBOARD,
-        label: 'Dashboards',
+        label: t('contentTypeFilter.dashboards'),
     },
     {
         value: ContentType.CHART,
-        label: 'Charts',
+        label: t('contentTypeFilter.charts'),
     },
     {
         value: ContentType.DATA_APP,
-        label: 'Data Apps',
+        label: t('contentTypeFilter.dataApps'),
     },
 ];
 type ContentTypeFilterProps = {
@@ -51,14 +53,15 @@ const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
     onChange,
     options,
 }) => {
+    const { t } = useTranslation('resourceView');
     const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
     const compact = useMatches(
         { base: true, sm: false },
         { getInitialValueInEffect: false },
     );
     const data = [
-        { value: 'all', label: 'All' },
-        ...ContentTypeOptions.filter(
+        { value: 'all', label: t('contentTypeFilter.all') },
+        ...getContentTypeOptions(t).filter(
             (option) =>
                 options.includes(option.value) &&
                 (option.value !== ContentType.DOCUMENT ||
@@ -71,7 +74,7 @@ const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
     if (compact) {
         return (
             <Select
-                aria-label="Content type"
+                aria-label={t('contentTypeFilter.ariaLabel')}
                 miw={112}
                 maw={160}
                 flex="1 1 112px"

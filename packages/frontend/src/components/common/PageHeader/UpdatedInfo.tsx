@@ -1,20 +1,14 @@
 import { type SessionUser } from '@lightdash/common';
-import { Text, type MantineSize } from '@mantine/core';
+import { Text } from '@mantine/core';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 
-const TimeAgo: FC<{
-    updatedAt: Date;
-    fontSize?: MantineSize;
-    partiallyBold?: boolean;
-}> = ({ updatedAt, fontSize = 'sm', partiallyBold = true }) => {
-    const timeAgo = useTimeAgo(updatedAt || new Date());
-
-    return (
-        <Text fz={fontSize} span fw={partiallyBold ? 600 : 'default'}>
-            {timeAgo}
-        </Text>
-    );
+const getUpdatedInfoKey = (hasTime: boolean, hasUser: boolean) => {
+    if (hasTime && hasUser) return 'updatedInfo.lastEditedAtBy';
+    if (hasTime) return 'updatedInfo.lastEditedAt';
+    if (hasUser) return 'updatedInfo.lastEditedBy';
+    return 'updatedInfo.lastEdited';
 };
 
 export const UpdatedInfo: FC<{
@@ -22,28 +16,29 @@ export const UpdatedInfo: FC<{
     user: Partial<SessionUser> | null | undefined;
     partiallyBold?: boolean;
 }> = ({ updatedAt, user, partiallyBold = true }) => {
+    const { t } = useTranslation('commonUi');
+    const timeAgo = useTimeAgo(updatedAt || new Date());
+    const userName =
+        user && user.firstName
+            ? `${user.firstName} ${user.lastName ?? ''}`.trim()
+            : null;
+
     return (
         <Text c="dimmed" fz="xs">
-            Last edited{' '}
-            {updatedAt && (
-                <>
-                    <TimeAgo
-                        updatedAt={updatedAt}
-                        fontSize="xs"
-                        partiallyBold={partiallyBold}
-                    />{' '}
-                </>
-            )}
-            {user && user.firstName ? (
-                <>
-                    by{' '}
-                    <Text fz="xs" span fw={partiallyBold ? 600 : 'default'}>
-                        {user.firstName} {user.lastName}
-                    </Text>
-                </>
-            ) : (
-                ''
-            )}
+            <Trans
+                t={t}
+                i18nKey={getUpdatedInfoKey(!!updatedAt, userName !== null)}
+                values={{ timeAgo, userName }}
+                components={{
+                    bold: (
+                        <Text
+                            fz="xs"
+                            span
+                            fw={partiallyBold ? 600 : 'default'}
+                        />
+                    ),
+                }}
+            />
         </Text>
     );
 };

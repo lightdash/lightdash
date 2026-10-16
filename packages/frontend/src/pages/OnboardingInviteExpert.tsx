@@ -35,6 +35,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import { z } from 'zod';
 import AboutFooter from '../components/AboutFooter';
@@ -64,39 +65,52 @@ type SetupInviteFormValues = {
     email: string;
 };
 
-const PreparingPlaygroundCard: FC = () => (
-    <Group gap="md" wrap="nowrap">
-        <Loader size="sm" />
-        <Stack gap={2}>
-            <Text size="sm" fw={500}>
-                Preparing your playground…
-            </Text>
-            <Text size="sm" c="dimmed">
-                Explore sample data while your expert connects your warehouse.
-            </Text>
-        </Stack>
-    </Group>
-);
+const PreparingPlaygroundCard: FC = () => {
+    const { t } = useTranslation('pages');
+    return (
+        <Group gap="md" wrap="nowrap">
+            <Loader size="sm" />
+            <Stack gap={2}>
+                <Text size="sm" fw={500}>
+                    {t('onboardingInviteExpert.preparingPlayground')}
+                </Text>
+                <Text size="sm" c="dimmed">
+                    {t('onboardingInviteExpert.preparingPlaygroundDescription')}
+                </Text>
+            </Stack>
+        </Group>
+    );
+};
 
 const PlaygroundFailureCard: FC<{
     failure: PlaygroundSetupFailure;
     onRetry: () => void;
     onClose: () => void;
-}> = ({ failure, onRetry, onClose }) => (
-    <Stack gap="md">
-        <Callout variant="warning" title="We couldn't set up a sample project">
-            <Text size="sm">{PLAYGROUND_SETUP_FAILURE_MESSAGES[failure]}</Text>
-        </Callout>
-        <Group justify="flex-end" gap="xs">
-            {isRetryablePlaygroundSetupFailure(failure) && (
-                <Button variant="default" onClick={onRetry}>
-                    Try again
+}> = ({ failure, onRetry, onClose }) => {
+    const { t } = useTranslation('pages');
+    return (
+        <Stack gap="md">
+            <Callout
+                variant="warning"
+                title={t('onboardingInviteExpert.playgroundFailed')}
+            >
+                <Text size="sm">
+                    {PLAYGROUND_SETUP_FAILURE_MESSAGES[failure]}
+                </Text>
+            </Callout>
+            <Group justify="flex-end" gap="xs">
+                {isRetryablePlaygroundSetupFailure(failure) && (
+                    <Button variant="default" onClick={onRetry}>
+                        {t('onboardingInviteExpert.tryAgain')}
+                    </Button>
+                )}
+                <Button onClick={onClose}>
+                    {t('onboardingInviteExpert.done')}
                 </Button>
-            )}
-            <Button onClick={onClose}>Done</Button>
-        </Group>
-    </Stack>
-);
+            </Group>
+        </Stack>
+    );
+};
 
 const InviteExpertForm: FC<{
     form: UseFormReturnType<SetupInviteFormValues>;
@@ -104,74 +118,80 @@ const InviteExpertForm: FC<{
     isSubmitting: boolean;
     onSubmit: (values: SetupInviteFormValues) => Promise<void>;
     onCancel: () => void;
-}> = ({ form, needsName, isSubmitting, onSubmit, onCancel }) => (
-    <form
-        id="setup_invite"
-        name="setup_invite"
-        onSubmit={form.onSubmit((values) => onSubmit(values))}
-    >
-        <Stack gap="sm">
-            {needsName && (
-                <>
-                    <Flex direction={{ base: 'column', sm: 'row' }} gap="sm">
-                        <TextInput
-                            name="firstName"
-                            autoComplete="given-name"
-                            flex={1}
-                            label="Your first name"
-                            required
-                            disabled={isSubmitting}
-                            {...form.getInputProps('firstName')}
-                        />
-                        <TextInput
-                            name="lastName"
-                            autoComplete="family-name"
-                            flex={1}
-                            label="Your last name"
-                            required
-                            disabled={isSubmitting}
-                            {...form.getInputProps('lastName')}
-                        />
-                    </Flex>
-                    <Text size="sm" c="dimmed">
-                        We'll include your name in the invite so they know who's
-                        asking.
-                    </Text>
-                </>
-            )}
-            <TextInput
-                name="email"
-                type="email"
-                label="Their email address"
-                placeholder="example@company.com"
-                required
-                disabled={isSubmitting}
-                {...form.getInputProps('email')}
-            />
-            <Text size="sm" c="dimmed">
-                We'll ask them to connect your data warehouse.
-            </Text>
-            <Group justify="flex-end" mt="sm">
-                <Button
-                    variant="default"
-                    onClick={onCancel}
+}> = ({ form, needsName, isSubmitting, onSubmit, onCancel }) => {
+    const { t } = useTranslation('pages');
+    return (
+        <form
+            id="setup_invite"
+            name="setup_invite"
+            onSubmit={form.onSubmit((values) => onSubmit(values))}
+        >
+            <Stack gap="sm">
+                {needsName && (
+                    <>
+                        <Flex
+                            direction={{ base: 'column', sm: 'row' }}
+                            gap="sm"
+                        >
+                            <TextInput
+                                name="firstName"
+                                autoComplete="given-name"
+                                flex={1}
+                                label={t('onboardingInviteExpert.firstName')}
+                                required
+                                disabled={isSubmitting}
+                                {...form.getInputProps('firstName')}
+                            />
+                            <TextInput
+                                name="lastName"
+                                autoComplete="family-name"
+                                flex={1}
+                                label={t('onboardingInviteExpert.lastName')}
+                                required
+                                disabled={isSubmitting}
+                                {...form.getInputProps('lastName')}
+                            />
+                        </Flex>
+                        <Text size="sm" c="dimmed">
+                            {t('onboardingInviteExpert.nameHint')}
+                        </Text>
+                    </>
+                )}
+                <TextInput
+                    name="email"
+                    type="email"
+                    label={t('onboardingInviteExpert.email')}
+                    placeholder={t('onboardingInviteExpert.emailPlaceholder')}
+                    required
                     disabled={isSubmitting}
-                >
-                    Cancel
-                </Button>
-                <Button
-                    loading={isSubmitting}
-                    type="submit"
-                    form="setup_invite"
-                >
-                    Send invite
-                </Button>
-            </Group>
-        </Stack>
-    </form>
-);
+                    {...form.getInputProps('email')}
+                />
+                <Text size="sm" c="dimmed">
+                    {t('onboardingInviteExpert.emailHint')}
+                </Text>
+                <Group justify="flex-end" mt="sm">
+                    <Button
+                        variant="default"
+                        onClick={onCancel}
+                        disabled={isSubmitting}
+                    >
+                        {t('actions.cancel', { ns: 'common' })}
+                    </Button>
+                    <Button
+                        loading={isSubmitting}
+                        type="submit"
+                        form="setup_invite"
+                    >
+                        {t('onboardingInviteExpert.sendInvite')}
+                    </Button>
+                </Group>
+            </Stack>
+        </form>
+    );
+};
 
 const OnboardingInviteExpert: FC = () => {
+    const { t } = useTranslation('pages');
     const { health, user } = useApp();
     const existingFirstName = user.data?.firstName ?? '';
     const existingLastName = user.data?.lastName ?? '';
@@ -356,15 +376,17 @@ const OnboardingInviteExpert: FC = () => {
         ? '/onboarding/data-source'
         : '/createProject';
     const backLabel = (returnTo ?? fallbackTarget).startsWith('/createProject')
-        ? 'Back to project setup'
-        : 'Back to data sources';
+        ? t('onboardingInviteExpert.backToProjectSetup')
+        : t('onboardingInviteExpert.backToDataSources');
 
     // Fail closed: a user query that errored leaves no ability to read, and
     // submitting would only produce a raw 403.
     if (!canInviteUsers) {
         return (
             <Box className={classes.page}>
-                <DocumentTitle title="Invite an expert" />
+                <DocumentTitle
+                    title={t('onboardingInviteExpert.documentTitle')}
+                />
                 <Box className={classes.column}>
                     <Stack align="center" gap="md" maw={420} mx="auto">
                         <Title
@@ -374,15 +396,14 @@ const OnboardingInviteExpert: FC = () => {
                             tabIndex={-1}
                             className={classes.title}
                         >
-                            Invite someone to set this up
+                            {t('onboardingInviteExpert.title')}
                         </Title>
                         <Alert
                             icon={<IconInfoCircle />}
                             color="yellow"
-                            title="You don't have permission to invite people"
+                            title={t('onboardingInviteExpert.noPermission')}
                         >
-                            Ask an admin of this organization to send the invite
-                            instead.
+                            {t('onboardingInviteExpert.askAdmin')}
                         </Alert>
                         <Button variant="default" onClick={handleClose}>
                             {backLabel}
@@ -396,7 +417,7 @@ const OnboardingInviteExpert: FC = () => {
 
     return (
         <Box className={classes.page}>
-            <DocumentTitle title="Invite an expert" />
+            <DocumentTitle title={t('onboardingInviteExpert.documentTitle')} />
             <Box className={classes.column}>
                 <Stack align="center" gap="xs">
                     <MantineIcon icon={IconUserPlus} size="xl" color="dimmed" />
@@ -407,11 +428,10 @@ const OnboardingInviteExpert: FC = () => {
                         tabIndex={-1}
                         className={classes.title}
                     >
-                        Invite someone to set this up
+                        {t('onboardingInviteExpert.title')}
                     </Title>
                     <Text size="md" c="dimmed" ta="center">
-                        Connecting the warehouse is usually a data-team job —
-                        we'll take them straight to warehouse setup.
+                        {t('onboardingInviteExpert.subtitle')}
                     </Text>
                 </Stack>
 

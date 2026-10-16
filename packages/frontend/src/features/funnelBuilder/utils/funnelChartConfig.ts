@@ -5,6 +5,7 @@ import {
     type FunnelStep,
     type FunnelStepResult,
 } from '@lightdash/common';
+import i18n from '../../../i18n/i18n';
 
 /**
  * Check if funnel configuration is valid for running a query.
@@ -102,9 +103,20 @@ export function formatTimeDuration(seconds: number | null | undefined): string {
  */
 export function formatStepTooltipLabel(step: FunnelStepResult): string {
     const rows = [
-        ['Users', step.totalUsers.toLocaleString()],
-        ['Conversion', `${step.stepConversionRate.toFixed(1)}%`],
-        ['Overall', `${step.conversionRate.toFixed(1)}%`],
+        [
+            i18n.t('funnelBuilder.tooltip.users', { ns: 'metricsCatalog' }),
+            step.totalUsers.toLocaleString(),
+        ],
+        [
+            i18n.t('funnelBuilder.tooltip.conversion', {
+                ns: 'metricsCatalog',
+            }),
+            `${step.stepConversionRate.toFixed(1)}%`,
+        ],
+        [
+            i18n.t('funnelBuilder.tooltip.overall', { ns: 'metricsCatalog' }),
+            `${step.conversionRate.toFixed(1)}%`,
+        ],
     ];
     const rowsHtml = rows
         .map(

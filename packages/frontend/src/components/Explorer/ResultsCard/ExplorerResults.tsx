@@ -1,6 +1,7 @@
 import { getItemLabel, getItemMap, isField } from '@lightdash/common';
 import { Box, Loader, Text } from '@mantine/core';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import {
     explorerActions,
     selectAdditionalMetrics,
@@ -69,6 +70,7 @@ type ExplorerResultsProps = {
 };
 
 export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
+    const { t } = useTranslation('explorer');
     const dispatch = useExplorerDispatch();
     const columns = useColumns();
     const isEditMode = useExplorerSelector(selectIsEditMode);
@@ -461,30 +463,27 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
     const IdleState: FC = useCallback(() => {
         const description =
             dimensions.length <= 0 ? (
-                <>
-                    Pick one or more{' '}
-                    <Text span c="blue.9" fz="sm" fw="bold">
-                        dimensions
-                    </Text>{' '}
-                    to split your selected metric by.
-                </>
+                <Trans
+                    t={t}
+                    i18nKey="explorerResults.idle.pickDimensions"
+                    components={{
+                        highlight: <Text span c="blue.9" fz="sm" fw="bold" />,
+                    }}
+                />
             ) : metrics.length <= 0 ? (
-                <>
-                    Pick a{' '}
-                    <Text span c="yellow.9" fz="sm" fw="bold">
-                        metric
-                    </Text>{' '}
-                    to make calculations across your selected dimensions.
-                </>
+                <Trans
+                    t={t}
+                    i18nKey="explorerResults.idle.pickMetric"
+                    components={{
+                        highlight: <Text span c="yellow.9" fz="sm" fw="bold" />,
+                    }}
+                />
             ) : (
-                <>
-                    Run query to view your results and visualize them as a
-                    chart.
-                </>
+                t('explorerResults.idle.runQuery')
             );
 
         return <EmptyStateNoTableData description={description} />;
-    }, [dimensions.length, metrics.length]);
+    }, [dimensions.length, metrics.length, t]);
 
     const pagination = useMemo(
         () => ({
@@ -525,7 +524,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
             return (
                 <Text c="red" ta="center">
                     {groupedResultsData.apiError.error?.message ||
-                        'Error loading grouped results'}
+                        t('explorerResults.groupedError')}
                 </Text>
             );
         }
@@ -629,7 +628,9 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                 )}
 
                 <JsonViewerModal
-                    heading={`Field: ${expandData.name}`}
+                    heading={t('explorerResults.jsonFieldHeading', {
+                        name: expandData.name,
+                    })}
                     jsonObject={expandData.jsonObject}
                     opened={isExpandModalOpened}
                     onClose={() => setIsExpandModalOpened(false)}

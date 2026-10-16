@@ -1,5 +1,6 @@
 import { ChartKind, type VizColumn } from '@lightdash/common';
 import { Stack, Tabs } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import { barChartConfigSlice } from '../store/barChartSlice';
 import { lineChartConfigSlice } from '../store/lineChartSlice';
 import { CartesianChartDisplayConfig } from './CartesianChartDisplayConfig';
@@ -13,6 +14,7 @@ export const CartesianChartConfig = ({
     selectedChartType: ChartKind;
     columns: VizColumn[];
 }) => {
+    const { t } = useTranslation('dataViz');
     const actions =
         selectedChartType === ChartKind.LINE
             ? lineChartConfigSlice.actions
@@ -28,9 +30,13 @@ export const CartesianChartConfig = ({
         <Stack gap="xs" mb="lg">
             <Tabs defaultValue="data" keepMounted>
                 <Tabs.List>
-                    <Tabs.Tab value="data">Data</Tabs.Tab>
-                    <Tabs.Tab value="series">Series</Tabs.Tab>
-                    <Tabs.Tab value="display">Display</Tabs.Tab>
+                    <Tabs.Tab value="data">{t('cartesian.tabs.data')}</Tabs.Tab>
+                    <Tabs.Tab value="series">
+                        {t('cartesian.tabs.series')}
+                    </Tabs.Tab>
+                    <Tabs.Tab value="display">
+                        {t('cartesian.tabs.display')}
+                    </Tabs.Tab>
                 </Tabs.List>
 
                 <Tabs.Panel value="data" pt="xs">

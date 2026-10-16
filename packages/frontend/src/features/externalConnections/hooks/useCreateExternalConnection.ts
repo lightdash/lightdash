@@ -4,6 +4,7 @@ import {
     type ExternalConnection,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -22,17 +23,20 @@ const createExternalConnection = async ({ projectUuid, data }: CreateParams) =>
 export const useCreateExternalConnection = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('sync');
     return useMutation<ExternalConnection, ApiError, CreateParams>({
         mutationFn: createExternalConnection,
         onSuccess: async (_data, variables) => {
             await queryClient.invalidateQueries({
                 queryKey: ['external-connections', variables.projectUuid],
             });
-            showToastSuccess({ title: 'Connection created' });
+            showToastSuccess({
+                title: t('externalConnections.toasts.created'),
+            });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to create connection',
+                title: t('externalConnections.toasts.createFailed'),
                 apiError: error,
             });
         },

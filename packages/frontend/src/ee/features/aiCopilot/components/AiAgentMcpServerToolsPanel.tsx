@@ -18,9 +18,11 @@ import {
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import TruncatedText from '../../../../components/common/TruncatedText';
+import i18n from '../../../../i18n/i18n';
 import {
     rehypeRemoveHeaderLinks,
     useMdEditorStyle,
@@ -54,14 +56,14 @@ const shouldBlockTools = (mcpServer: AiMcpServer) =>
 const getConnectionRequiredCopy = (mcpServer: AiMcpServer) => {
     if (mcpServer.connectionStatus === 'error') {
         return {
-            message: 'Reconnect to load and configure tools.',
-            actionLabel: 'Reconnect',
+            message: i18n.t('toolsPanel.reconnectMessage', { ns: 'aiAgent' }),
+            actionLabel: i18n.t('toolsPanel.reconnect', { ns: 'aiAgent' }),
         };
     }
 
     return {
-        message: 'Connect your account to load tools.',
-        actionLabel: 'Connect account',
+        message: i18n.t('toolsPanel.connectMessage', { ns: 'aiAgent' }),
+        actionLabel: i18n.t('toolsPanel.connectAccount', { ns: 'aiAgent' }),
     };
 };
 
@@ -78,6 +80,7 @@ const ToolDescriptionModal = ({
     toolName: string;
     source: string;
 }) => {
+    const { t } = useTranslation('aiAgent');
     const { colorScheme } = useMantineColorScheme();
     const markdownStyle = useMdEditorStyle();
 
@@ -94,13 +97,13 @@ const ToolDescriptionModal = ({
             <Stack gap="md">
                 <Box>
                     <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-                        Tool name
+                        {t('toolsPanel.toolName')}
                     </Text>
                     <Text size="sm">{toolName}</Text>
                 </Box>
                 <Box>
                     <Text size="xs" fw={600} c="dimmed" tt="uppercase" mb="xs">
-                        Description
+                        {t('toolsPanel.description')}
                     </Text>
                     <Box data-color-mode={colorScheme}>
                         <MarkdownPreview
@@ -154,6 +157,7 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
     opened,
     showHeader = true,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const [hasRequestedInitialRefresh, setHasRequestedInitialRefresh] =
         useState(false);
     const [selectedToolForDescription, setSelectedToolForDescription] =
@@ -229,7 +233,7 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
         return (
             <Box py="sm">
                 <Text size="sm" c="dimmed">
-                    Create this agent before configuring MCP tools.
+                    {t('toolsPanel.createAgentFirst')}
                 </Text>
             </Box>
         );
@@ -239,7 +243,7 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
         return (
             <Box py="sm">
                 <Text size="sm" c="dimmed">
-                    Saving MCP settings...
+                    {t('toolsPanel.saving')}
                 </Text>
             </Box>
         );
@@ -300,17 +304,20 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
                                     color="var(--mantine-color-ldGray-7)"
                                 />
                                 <Text size="sm" fw={600}>
-                                    Tools
+                                    {t('toolsPanel.tools')}
                                 </Text>
                                 {!isInitialLoading && tools.length > 0 && (
                                     <Text size="xs" c="dimmed">
-                                        {enabledCount}/{tools.length} enabled
+                                        {t('mcpInput.toolsEnabled', {
+                                            enabled: enabledCount,
+                                            total: tools.length,
+                                        })}
                                     </Text>
                                 )}
                             </Group>
                         ) : (
                             <Text size="xs" c="dimmed">
-                                Changes save automatically.
+                                {t('toolsPanel.autoSave')}
                             </Text>
                         )}
                         <Group gap={4}>
@@ -329,13 +336,13 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
                                     })
                                 }
                             >
-                                Refresh tools from this MCP
+                                {t('toolsPanel.refresh')}
                             </Button>
                         </Group>
                     </Group>
                     {showHeader && (
                         <Text size="xs" c="dimmed">
-                            Changes save automatically.
+                            {t('toolsPanel.autoSave')}
                         </Text>
                     )}
                 </Stack>
@@ -343,12 +350,12 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
                 {isInitialLoading ? (
                     <Group gap="xs">
                         <Text size="sm" c="dimmed">
-                            Loading tools...
+                            {t('toolsPanel.loading')}
                         </Text>
                     </Group>
                 ) : tools.length === 0 ? (
                     <Text size="sm" c="dimmed">
-                        No tools found for this MCP server yet.
+                        {t('toolsPanel.empty')}
                     </Text>
                 ) : (
                     <Stack gap={0}>
@@ -356,7 +363,7 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
                             <Checkbox
                                 label={
                                     <Text size="sm" fw={600}>
-                                        Enable all
+                                        {t('toolsPanel.enableAll')}
                                     </Text>
                                 }
                                 checked={allToolsEnabled}
@@ -372,12 +379,9 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
                                     })
                                 }
                             />
-                            <Tooltip
-                                label="Approximate input tokens for each tool definition. Actual usage varies by model and provider."
-                                w={280}
-                            >
+                            <Tooltip label={t('toolsPanel.tokensHelp')} w={280}>
                                 <Text className={styles.tokenColumnHeader}>
-                                    Tokens
+                                    {t('toolsPanel.tokens')}
                                 </Text>
                             </Tooltip>
                         </Group>
@@ -406,7 +410,10 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
                                             id={checkboxId}
                                             checked={tool.enabled}
                                             disabled={isUpdating}
-                                            aria-label={`Toggle ${tool.title || tool.toolName}`}
+                                            aria-label={t('toolsPanel.toggle', {
+                                                name:
+                                                    tool.title || tool.toolName,
+                                            })}
                                             onChange={(event) =>
                                                 void updateTools({
                                                     toolSettings: [
@@ -442,7 +449,14 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
                                                 </Box>
                                                 <ActionIcon
                                                     size="sm"
-                                                    aria-label={`View description for ${tool.title || tool.toolName}`}
+                                                    aria-label={t(
+                                                        'toolsPanel.viewDescription',
+                                                        {
+                                                            name:
+                                                                tool.title ||
+                                                                tool.toolName,
+                                                        },
+                                                    )}
                                                     onClick={() =>
                                                         setSelectedToolForDescription(
                                                             {
@@ -453,7 +467,9 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
                                                                     tool.toolName,
                                                                 description:
                                                                     tool.description ||
-                                                                    'No description provided',
+                                                                    t(
+                                                                        'toolsPanel.noDescription',
+                                                                    ),
                                                             },
                                                         )
                                                     }
@@ -483,11 +499,14 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
             <ToolDescriptionModal
                 opened={!!selectedToolForDescription}
                 onClose={() => setSelectedToolForDescription(null)}
-                title={selectedToolForDescription?.title ?? 'Tool description'}
+                title={
+                    selectedToolForDescription?.title ??
+                    t('toolsPanel.toolDescription')
+                }
                 toolName={selectedToolForDescription?.toolName ?? ''}
                 source={
                     selectedToolForDescription?.description ??
-                    'No description provided'
+                    t('toolsPanel.noDescription')
                 }
             />
         </Box>

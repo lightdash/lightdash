@@ -1,6 +1,7 @@
 import { ChartType, type CreateSavedChartVersion } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
 import { IconTelescope } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import Callout from '../../components/common/Callout';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -21,6 +22,7 @@ const DocumentChartExploreButton = ({
     documentUuid,
     chart,
 }: Props) => {
+    const { t } = useTranslation('documents');
     const navigate = useNavigate();
     const { track } = useTracking();
     const share = useCreateShareMutation();
@@ -62,7 +64,7 @@ const DocumentChartExploreButton = ({
                 loading={share.isLoading}
                 onClick={handleExplore}
             >
-                Explore from here
+                {t('chart.exploreFromHere')}
             </Button>
             {share.error && (
                 <Callout variant="danger">{share.error.error.message}</Callout>

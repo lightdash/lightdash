@@ -1,6 +1,7 @@
 import { Group, Stack, Switch, Text, ThemeIcon, Title } from '@mantine/core';
 import { IconLink } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useOrganizationSettings,
     useUpdateOrganizationSettings,
@@ -10,6 +11,7 @@ import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 
 const AccountLinkingPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { data, isLoading } = useOrganizationSettings();
     const update = useUpdateOrganizationSettings();
 
@@ -41,17 +43,24 @@ const AccountLinkingPanel: FC = () => {
                             <MantineIcon icon={IconLink} />
                         </ThemeIcon>
                         <Stack gap={2}>
-                            <Title order={5}>Account linking</Title>
+                            <Title order={5}>
+                                {t('organizationSso.accountLinking.title')}
+                            </Title>
                             <Text c="dimmed" size="sm" maw={520}>
-                                Control whether single sign-on logins are
-                                automatically linked to existing accounts.
+                                {t(
+                                    'organizationSso.accountLinking.description',
+                                )}
                             </Text>
                         </Stack>
                     </Group>
 
                     <Switch
-                        label="Link SSO identities across providers"
-                        description="When a user signs in with a new SSO provider, link it to an existing account that already uses a different provider with the same email."
+                        label={t(
+                            'organizationSso.accountLinking.linkAcrossProviders',
+                        )}
+                        description={t(
+                            'organizationSso.accountLinking.linkAcrossProvidersDescription',
+                        )}
                         checked={oidcLinkingEnabled}
                         disabled={update.isLoading}
                         onChange={(event) =>
@@ -62,8 +71,10 @@ const AccountLinkingPanel: FC = () => {
                     />
 
                     <Switch
-                        label="Link SSO logins to existing accounts by email"
-                        description="Link an SSO sign-in to an existing account that has the same verified primary email, regardless of how that account was created."
+                        label={t('organizationSso.accountLinking.linkByEmail')}
+                        description={t(
+                            'organizationSso.accountLinking.linkByEmailDescription',
+                        )}
                         checked={oidcToEmailLinkingEnabled}
                         disabled={update.isLoading}
                         onChange={(event) =>

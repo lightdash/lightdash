@@ -1,6 +1,7 @@
 import { type ApiError } from '@lightdash/common';
 import { Button, Stack, Text, Textarea } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../common/Callout';
 
 type Props = {
@@ -20,13 +21,12 @@ export const AutomaticSetupStep: FC<Props> = ({
     error,
     onSwitchToManual,
 }) => {
+    const { t } = useTranslation('settings');
     const aiUnavailable = error?.error.name === 'MissingConfigError';
     return (
         <Stack gap="sm" mt="xl">
             <Text c="dimmed" fz="sm">
-                Describe what you want to connect to and AI will prefill the
-                connection — you review every step and paste the credential
-                yourself.
+                {t('dataAppConnections.wizard.automatic.intro')}
             </Text>
             <Textarea
                 autosize
@@ -34,7 +34,9 @@ export const AutomaticSetupStep: FC<Props> = ({
                 maxRows={8}
                 data-autofocus
                 disabled={isLoading}
-                placeholder="I want to connect to Google Sheets to read spreadsheet data…"
+                placeholder={t(
+                    'dataAppConnections.wizard.automatic.placeholder',
+                )}
                 value={description}
                 onChange={(event) =>
                     onDescriptionChange(event.currentTarget.value)
@@ -48,23 +50,30 @@ export const AutomaticSetupStep: FC<Props> = ({
             />
             {isLoading && (
                 <Text c="dimmed" fz="xs">
-                    This usually takes about 15 seconds.
+                    {t('dataAppConnections.wizard.automatic.loadingHint')}
                 </Text>
             )}
             {aiUnavailable ? (
-                <Callout variant="info" title="AI isn't configured">
+                <Callout
+                    variant="info"
+                    title={t(
+                        'dataAppConnections.wizard.automatic.aiUnavailableTitle',
+                    )}
+                >
                     <Stack gap="xs" align="flex-start">
                         <Text fz="sm">
-                            Your organization has no AI provider configured, so
-                            the connection can't be drafted automatically. You
-                            can still set it up manually.
+                            {t(
+                                'dataAppConnections.wizard.automatic.aiUnavailableBody',
+                            )}
                         </Text>
                         <Button
                             size="xs"
                             variant="default"
                             onClick={onSwitchToManual}
                         >
-                            Set up manually
+                            {t(
+                                'dataAppConnections.wizard.automatic.setUpManually',
+                            )}
                         </Button>
                     </Stack>
                 </Callout>
@@ -72,7 +81,9 @@ export const AutomaticSetupStep: FC<Props> = ({
                 error && (
                     <Callout
                         variant="danger"
-                        title="Couldn't draft the connection"
+                        title={t(
+                            'dataAppConnections.wizard.automatic.draftErrorTitle',
+                        )}
                     >
                         {error.error.message}
                     </Callout>

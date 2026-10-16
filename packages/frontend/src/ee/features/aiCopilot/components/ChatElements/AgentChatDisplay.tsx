@@ -17,6 +17,7 @@ import {
     type FC,
     type PropsWithChildren,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { type DeepResearchRunRegistration } from '../../deepResearch/types';
 import { ChatViewportContext } from '../../hooks/useChatBackUrl';
@@ -54,49 +55,49 @@ type Props = {
     onChoiceSelect?: (prompt: string) => void;
 };
 
-const CompactionDivider = () => (
-    <Box pos="relative" py="sm">
-        <Divider my={0} />
-        <Flex
-            align="center"
-            gap={6}
-            px="sm"
-            pos="absolute"
-            top="50%"
-            left="50%"
-            style={{
-                transform: 'translate(-50%, -50%)',
-                backgroundColor: 'var(--mantine-color-body)',
-                whiteSpace: 'nowrap',
-            }}
-        >
-            <IconCrop
-                size={14}
-                stroke={1.8}
-                color="var(--mantine-color-gray-5)"
-            />
-            <Text size="xs" c="dimmed" fw={500}>
-                Summarized Conversation
-            </Text>
-            <Tooltip
-                maw={320}
-                label="Earlier messages are automatically summarized when a conversation gets long, so responses stay fast and relevant."
+const CompactionDivider = () => {
+    const { t } = useTranslation('aiCopilotChat');
+    return (
+        <Box pos="relative" py="sm">
+            <Divider my={0} />
+            <Flex
+                align="center"
+                gap={6}
+                px="sm"
+                pos="absolute"
+                top="50%"
+                left="50%"
+                style={{
+                    transform: 'translate(-50%, -50%)',
+                    backgroundColor: 'var(--mantine-color-body)',
+                    whiteSpace: 'nowrap',
+                }}
             >
-                <Box
-                    component="span"
-                    aria-label="About summarized conversations"
-                    display="inline-flex"
-                >
-                    <IconInfoCircle
-                        size={14}
-                        stroke={1.8}
-                        color="var(--mantine-color-gray-5)"
-                    />
-                </Box>
-            </Tooltip>
-        </Flex>
-    </Box>
-);
+                <IconCrop
+                    size={14}
+                    stroke={1.8}
+                    color="var(--mantine-color-gray-5)"
+                />
+                <Text size="xs" c="dimmed" fw={500}>
+                    {t('chatDisplay.summarizedConversation')}
+                </Text>
+                <Tooltip maw={320} label={t('chatDisplay.summarizedTooltip')}>
+                    <Box
+                        component="span"
+                        aria-label={t('chatDisplay.aboutSummarized')}
+                        display="inline-flex"
+                    >
+                        <IconInfoCircle
+                            size={14}
+                            stroke={1.8}
+                            color="var(--mantine-color-gray-5)"
+                        />
+                    </Box>
+                </Tooltip>
+            </Flex>
+        </Box>
+    );
+};
 
 export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     thread,

@@ -2,6 +2,7 @@ import { type ProjectHomepage } from '@lightdash/common';
 import { Card, Radio, Stack, Text, TextInput } from '@mantine/core';
 import { IconSquareRoundedPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../../components/common/MantineModal';
 import { useCreateHomepage } from './hooks/useProjectHomepage';
 
@@ -20,6 +21,7 @@ export const CreateHomepageModal: FC<Props> = ({
     homepages,
     onCreated,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const createMutation = useCreateHomepage(projectUuid);
     const [name, setName] = useState('');
     const [startFrom, setStartFrom] = useState('blank');
@@ -57,39 +59,40 @@ export const CreateHomepageModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title="Create a homepage"
+            title={t('create.title')}
             icon={IconSquareRoundedPlus}
             onConfirm={handleCreate}
-            confirmLabel="Create homepage"
+            confirmLabel={t('create.confirm')}
             confirmDisabled={name.trim().length === 0}
             confirmLoading={createMutation.isLoading}
         >
             <Stack gap="sm">
                 <Text c="dimmed" size="sm">
-                    Curate a landing page for this project. Publishing makes it
-                    what everyone sees when they land in Lightdash.
+                    {t('create.description')}
                 </Text>
                 <TextInput
-                    label="Name"
-                    placeholder="e.g. Team homepage"
+                    label={t('create.name')}
+                    placeholder={t('create.namePlaceholder')}
                     value={name}
                     onChange={(e) => setName(e.currentTarget.value)}
                     data-autofocus
                 />
                 <Radio.Group
-                    label="Start from"
+                    label={t('create.startFrom')}
                     value={startFrom}
                     onChange={setStartFrom}
                 >
                     <Stack gap="xs" mt="xs">
                         <Card p="sm">
-                            <Radio value="blank" label="Blank" />
+                            <Radio value="blank" label={t('create.blank')} />
                         </Card>
                         {homepages.map((homepage) => (
                             <Card key={homepage.homepageUuid} p="sm">
                                 <Radio
                                     value={homepage.homepageUuid}
-                                    label={`Duplicate “${homepage.name}”`}
+                                    label={t('create.duplicate', {
+                                        name: homepage.name,
+                                    })}
                                 />
                             </Card>
                         ))}

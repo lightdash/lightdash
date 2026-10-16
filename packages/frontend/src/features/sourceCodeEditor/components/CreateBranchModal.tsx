@@ -2,6 +2,7 @@ import { Button, Stack, TextInput, type ModalProps } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconGitBranch } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../../components/common/MantineModal';
 import { useCreateGitBranch } from '../hooks';
 
@@ -22,6 +23,7 @@ const CreateBranchModal: FC<CreateBranchModalProps> = ({
     sourceBranch,
     onBranchCreated,
 }) => {
+    const { t } = useTranslation('sourceCode');
     const { mutateAsync, isLoading } = useCreateGitBranch(projectUuid);
 
     const form = useForm<FormState>({
@@ -31,9 +33,9 @@ const CreateBranchModal: FC<CreateBranchModalProps> = ({
         validateInputOnChange: true,
         validate: {
             name: (value) => {
-                if (!value.trim()) return 'Branch name is required';
+                if (!value.trim()) return t('createBranch.nameRequired');
                 if (!/^[\w\-./]+$/.test(value))
-                    return 'Branch name can only contain letters, numbers, dashes, underscores, dots, and slashes';
+                    return t('createBranch.nameInvalid');
                 return null;
             },
         },
@@ -53,7 +55,7 @@ const CreateBranchModal: FC<CreateBranchModalProps> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Create new branch"
+            title={t('createBranch.title')}
             icon={IconGitBranch}
             actions={
                 <Button
@@ -62,21 +64,21 @@ const CreateBranchModal: FC<CreateBranchModalProps> = ({
                     type="submit"
                     form="create-branch-form"
                 >
-                    Create branch
+                    {t('createBranch.submit')}
                 </Button>
             }
         >
             <form id="create-branch-form" onSubmit={handleSubmit}>
                 <Stack>
                     <TextInput
-                        label="Branch name"
+                        label={t('createBranch.nameLabel')}
                         required
-                        placeholder="e.g., feature/my-changes"
+                        placeholder={t('createBranch.namePlaceholder')}
                         disabled={isLoading}
                         {...form.getInputProps('name')}
                     />
                     <TextInput
-                        label="Create from"
+                        label={t('createBranch.createFrom')}
                         value={sourceBranch}
                         disabled
                         readOnly

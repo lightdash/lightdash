@@ -4,9 +4,10 @@ import {
     ProjectMemberRole,
     ScopeGroup,
 } from '@lightdash/common';
+import i18n from '../../i18n/i18n';
 import { CURRICULUM } from '../scopeTours/curriculum';
 import { tourFor } from '../scopeTours/tourFor';
-import { ROLE_LABELS, ROLE_ORDER, SYSTEM_ROLE_SCOPES } from './access';
+import { getRoleLabel, ROLE_ORDER, SYSTEM_ROLE_SCOPES } from './access';
 import { codeLessonIndex, sitsWithCodeLessons } from './codeLessons';
 import { COMING_SOON_SCOPES } from './comingSoon';
 import { SANDBOX_LESSONS } from './sandboxLessons';
@@ -95,35 +96,25 @@ export const GROUP_ORDER: LearnGroup[] = [
     DEVELOPER,
 ];
 
-/** The library's one-line purpose per group, as on learn.lightdash.com. */
-export const GROUP_DESCRIPTIONS: Record<LearnGroup, string> = {
-    [FOUNDATIONS]: 'Become a knowledgeable Lightdash user',
-    [ScopeGroup.CONTENT]: 'Create and maintain charts, dashboards, and spaces',
-    [ScopeGroup.SHARING]: 'Send, schedule, and discuss trusted answers',
-    [ScopeGroup.EMBED]: 'Put charts and dashboards inside other products',
-    [ScopeGroup.DATA]:
-        'Shape, inspect, and extend the data available in Lightdash',
-    [ScopeGroup.AI]: 'Ask better questions and manage AI-powered workflows',
-    [ScopeGroup.PROJECT_MANAGEMENT]: 'Keep project access and delivery healthy',
-    [ScopeGroup.SPOTLIGHT]: 'Learn timely product areas and advanced workflows',
-    [ScopeGroup.ORGANIZATION_MANAGEMENT]:
-        'Administer people, roles, and organisation settings',
-    [DEVELOPER]:
-        'Model the semantic layer and manage content as code with the CLI',
+const GROUP_KEYS: Record<LearnGroup, string> = {
+    [FOUNDATIONS]: 'foundations',
+    [ScopeGroup.CONTENT]: 'content',
+    [ScopeGroup.SHARING]: 'sharing',
+    [ScopeGroup.EMBED]: 'embed',
+    [ScopeGroup.DATA]: 'data',
+    [ScopeGroup.AI]: 'ai',
+    [ScopeGroup.PROJECT_MANAGEMENT]: 'projectManagement',
+    [ScopeGroup.SPOTLIGHT]: 'spotlight',
+    [ScopeGroup.ORGANIZATION_MANAGEMENT]: 'organizationManagement',
+    [DEVELOPER]: 'developer',
 };
 
-export const GROUP_LABELS: Record<LearnGroup, string> = {
-    [FOUNDATIONS]: 'Foundations',
-    [ScopeGroup.CONTENT]: 'Content',
-    [ScopeGroup.SHARING]: 'Sharing',
-    [ScopeGroup.EMBED]: 'Embedding',
-    [ScopeGroup.DATA]: 'Data',
-    [ScopeGroup.AI]: 'AI',
-    [ScopeGroup.PROJECT_MANAGEMENT]: 'Project management',
-    [ScopeGroup.SPOTLIGHT]: 'Spotlight',
-    [ScopeGroup.ORGANIZATION_MANAGEMENT]: 'Organization',
-    [DEVELOPER]: 'Developer',
-};
+/** The library's one-line purpose per group, as on learn.lightdash.com. */
+export const getGroupDescription = (group: LearnGroup): string =>
+    i18n.t(`groups.${GROUP_KEYS[group]}.description`, { ns: 'learn' });
+
+export const getGroupLabel = (group: LearnGroup): string =>
+    i18n.t(`groups.${GROUP_KEYS[group]}.label`, { ns: 'learn' });
 
 /**
  * A card's blurb is plain text: the docs' bold markers go, and a link reads
@@ -320,5 +311,10 @@ export const accessNote = (
     module: LearnModule,
 ): string | null => {
     if (holds(held, module)) return null;
-    return module.minRole ? `${ROLE_LABELS[module.minRole]} and above` : null;
+    return module.minRole
+        ? i18n.t('library.roleAndAbove', {
+              ns: 'learn',
+              role: getRoleLabel(module.minRole),
+          })
+        : null;
 };

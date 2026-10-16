@@ -1,6 +1,7 @@
 import { Anchor } from '@mantine/core';
 import { IconPuzzle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineModal from '../../../components/common/MantineModal';
 import ChartTypeLibrarySection from './ChartTypeLibrarySection';
@@ -21,32 +22,35 @@ const ChartTypeLibraryModal: FC<Props> = ({
     projectUuid,
     onClose,
     onInstalled,
-}) => (
-    <MantineModal
-        opened
-        onClose={onClose}
-        title="Find new chart types"
-        icon={IconPuzzle}
-        // The library cards carry live previews sized for the gallery page;
-        // xl squeezes their three columns into truncation.
-        size={1100}
-        subtitle={
-            <Anchor
-                component={Link}
-                to={`/projects/${projectUuid}/chart-studio?tab=chart-library`}
-                fz="xs"
-            >
-                Open Chart Studio
-            </Anchor>
-        }
-        bodyScrollAreaMaxHeight="calc(100vh - 200px)"
-    >
-        <ChartTypeLibrarySection
-            projectUuid={projectUuid}
-            withHeader={false}
-            onInstalled={onInstalled}
-        />
-    </MantineModal>
-);
+}) => {
+    const { t } = useTranslation('chartTypes');
+    return (
+        <MantineModal
+            opened
+            onClose={onClose}
+            title={t('libraryModal.title')}
+            icon={IconPuzzle}
+            // The library cards carry live previews sized for the gallery page;
+            // xl squeezes their three columns into truncation.
+            size={1100}
+            subtitle={
+                <Anchor
+                    component={Link}
+                    to={`/projects/${projectUuid}/chart-studio?tab=chart-library`}
+                    fz="xs"
+                >
+                    {t('libraryModal.openChartStudio')}
+                </Anchor>
+            }
+            bodyScrollAreaMaxHeight="calc(100vh - 200px)"
+        >
+            <ChartTypeLibrarySection
+                projectUuid={projectUuid}
+                withHeader={false}
+                onInstalled={onInstalled}
+            />
+        </MantineModal>
+    );
+};
 
 export default ChartTypeLibraryModal;

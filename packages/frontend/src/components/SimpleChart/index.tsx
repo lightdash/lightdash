@@ -19,6 +19,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import useEchartsCartesianConfig from '../../hooks/echarts/useEchartsCartesianConfig';
 import {
     getDisabledLegendEntries,
@@ -83,15 +84,18 @@ export type EchartsSeriesClickEvent = EchartsBaseClickEvent & {
 
 type EchartsClickEvent = EchartsSeriesClickEvent | EchartsBaseClickEvent;
 
-export const EmptyChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <SuboptimalState
-            title="No data available"
-            description="Query metrics and dimensions with results."
-            icon={IconChartBarOff}
-        />
-    </div>
-);
+export const EmptyChart = () => {
+    const { t } = useTranslation('visualization');
+    return (
+        <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
+            <SuboptimalState
+                title={t('emptyState.noDataTitle')}
+                description={t('emptyState.noDataDescription')}
+                icon={IconChartBarOff}
+            />
+        </div>
+    );
+};
 
 const isSeriesClickEvent = (
     e: EchartsClickEvent,

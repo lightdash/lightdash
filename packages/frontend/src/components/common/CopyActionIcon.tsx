@@ -8,6 +8,7 @@ import {
 } from '@mantine/core';
 import { IconCheck, IconCopy, type Icon } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from './MantineIcon';
 
 type CopyActionIconProps = Omit<ActionIconProps, 'children'> &
@@ -21,28 +22,33 @@ type CopyActionIconProps = Omit<ActionIconProps, 'children'> &
 
 export const CopyActionIcon: FC<CopyActionIconProps> = ({
     value,
-    copyLabel = 'Copy',
-    copiedLabel = 'Copied',
+    copyLabel,
+    copiedLabel,
     icon = IconCopy,
     tooltipPosition,
     color,
     ...rest
-}) => (
-    <CopyButton value={value}>
-        {({ copied, copy }) => (
-            <Tooltip
-                label={copied ? copiedLabel : copyLabel}
-                position={tooltipPosition}
-            >
-                <ActionIcon
-                    color={copied ? 'teal' : color}
-                    onClick={copy}
-                    aria-label={copyLabel}
-                    {...rest}
+}) => {
+    const { t } = useTranslation('common');
+    const resolvedCopyLabel = copyLabel ?? t('actions.copy');
+    const resolvedCopiedLabel = copiedLabel ?? t('feedback.copiedShort');
+    return (
+        <CopyButton value={value}>
+            {({ copied, copy }) => (
+                <Tooltip
+                    label={copied ? resolvedCopiedLabel : resolvedCopyLabel}
+                    position={tooltipPosition}
                 >
-                    <MantineIcon icon={copied ? IconCheck : icon} />
-                </ActionIcon>
-            </Tooltip>
-        )}
-    </CopyButton>
-);
+                    <ActionIcon
+                        color={copied ? 'teal' : color}
+                        onClick={copy}
+                        aria-label={resolvedCopyLabel}
+                        {...rest}
+                    >
+                        <MantineIcon icon={copied ? IconCheck : icon} />
+                    </ActionIcon>
+                </Tooltip>
+            )}
+        </CopyButton>
+    );
+};

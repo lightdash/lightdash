@@ -59,6 +59,7 @@ import React, {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     findMatchingSubtotal,
     getGroupingValuesAndSubtotalKey,
@@ -264,6 +265,7 @@ const PivotTable: FC<PivotTableProps> = ({
     enableContextMenu = true,
     ...tableProps
 }) => {
+    const { t } = useTranslation('table');
     const colorScheme = useComputedColorScheme();
     const containerRef = useRef<HTMLDivElement>(null);
     const [grouping, setGrouping] = React.useState<GroupingState>([]);
@@ -1751,8 +1753,12 @@ const PivotTable: FC<PivotTableProps> = ({
                                               }
                                           >
                                               {totalLabel.fieldId
-                                                  ? `Total ${getFieldLabel(totalLabel.fieldId)}`
-                                                  : `Total`}
+                                                  ? t('totals.totalOf', {
+                                                        label: getFieldLabel(
+                                                            totalLabel.fieldId,
+                                                        ),
+                                                    })
+                                                  : t('totals.total')}
                                           </Table.CellHead>
                                       ) : (
                                           <Table.Cell
@@ -2559,8 +2565,12 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 withBoldFont
                                             >
                                                 {totalLabel.fieldId
-                                                    ? `Total ${getFieldLabel(totalLabel.fieldId)}`
-                                                    : `Total`}
+                                                    ? t('totals.totalOf', {
+                                                          label: getFieldLabel(
+                                                              totalLabel.fieldId,
+                                                          ),
+                                                      })
+                                                    : t('totals.total')}
                                             </Table.CellHead>
                                         ) : (
                                             <Table.Cell

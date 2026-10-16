@@ -2,6 +2,7 @@ import { type ApiOrganizationDesign } from '@lightdash/common';
 import { Stack, Textarea, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../../components/common/MantineModal';
 import { useCreateOrganizationDesign } from '../hooks/useOrganizationDesigns';
 
@@ -16,6 +17,7 @@ export const CreateDesignModal: FC<Props> = ({
     onClose,
     onCreated,
 }) => {
+    const { t } = useTranslation('settings');
     const form = useForm({
         initialValues: { name: '', description: '' },
     });
@@ -50,24 +52,24 @@ export const CreateDesignModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title="Create new theme"
+            title={t('designs.create.title')}
             size="md"
             onConfirm={handleSubmit}
-            confirmLabel="Create theme"
+            confirmLabel={t('designs.create.confirm')}
             confirmDisabled={!canSubmit}
             confirmLoading={createDesign.isLoading}
         >
             <Stack gap="md">
                 <TextInput
-                    label="Name"
-                    placeholder="Acme brand"
+                    label={t('designs.create.nameLabel')}
+                    placeholder={t('designs.create.namePlaceholder')}
                     required
                     data-autofocus
                     {...form.getInputProps('name')}
                 />
                 <Textarea
-                    label="Description"
-                    placeholder="Optional — what this theme is for"
+                    label={t('designs.create.descriptionLabel')}
+                    placeholder={t('designs.create.descriptionPlaceholder')}
                     minRows={2}
                     autosize
                     {...form.getInputProps('description')}

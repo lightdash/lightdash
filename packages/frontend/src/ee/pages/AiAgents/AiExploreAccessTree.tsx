@@ -1,17 +1,22 @@
 import { type AiAgentExploreAccessSummary } from '@lightdash/common';
 import { Group, Stack, Text, Tree, type TreeNodeData } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { memo, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 
-const convertToTree = (exploreAccessSummary: AiAgentExploreAccessSummary[]) => {
+const convertToTree = (
+    exploreAccessSummary: AiAgentExploreAccessSummary[],
+    t: TFunction,
+) => {
     return exploreAccessSummary.map<TreeNodeData>((e) => ({
         label: e.exploreName,
         value: e.exploreName,
         nodeProps: { uuid: e.exploreName, joinedTables: e.joinedTables },
         children: [
             {
-                label: 'Dimensions',
+                label: t('agents.accessTree.dimensions'),
                 value: `${e.exploreName}.dimensions`,
                 nodeProps: { uuid: `${e.exploreName}.dimensions` },
                 children: e.dimensions.map<TreeNodeData>((d) => ({
@@ -21,7 +26,7 @@ const convertToTree = (exploreAccessSummary: AiAgentExploreAccessSummary[]) => {
                 })),
             },
             {
-                label: 'Metrics',
+                label: t('agents.accessTree.metrics'),
                 value: `${e.exploreName}.metrics`,
                 nodeProps: { uuid: `${e.exploreName}.metrics` },
                 children: e.metrics.map<TreeNodeData>((m) => ({
@@ -39,9 +44,10 @@ type Props = {
 };
 
 const AiExploreAccessTree: FC<Props> = memo(({ exploreAccessSummary }) => {
+    const { t } = useTranslation('eeMisc');
     const treeData = useMemo(
-        () => convertToTree(exploreAccessSummary),
-        [exploreAccessSummary],
+        () => convertToTree(exploreAccessSummary, t),
+        [exploreAccessSummary, t],
     );
     return (
         <Tree
@@ -88,7 +94,7 @@ const AiExploreAccessTree: FC<Props> = memo(({ exploreAccessSummary }) => {
                     node.nodeProps?.joinedTables &&
                     node.nodeProps?.joinedTables.length > 0 ? (
                         <Text size="xs" c="dimmed" pl="sm">
-                            Joins{' '}
+                            {t('agents.accessTree.joins')}{' '}
                             <Text span fw={500}>
                                 {node.nodeProps?.joinedTables.join(', ')}
                             </Text>

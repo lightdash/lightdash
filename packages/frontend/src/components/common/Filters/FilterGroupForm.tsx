@@ -29,6 +29,7 @@ import {
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import React, { memo, useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../MantineIcon';
 import { FILTER_SELECT_LIMIT } from './constants';
@@ -48,6 +49,7 @@ type Props = {
 const ALLOW_CONVERT_TO_GROUP_UP_TO_DEPTH = 2;
 
 const AddFilterButton: FC<{ onClick: () => void }> = ({ onClick }) => {
+    const { t } = useTranslation('filters');
     return (
         <Box
             pos="relative"
@@ -62,7 +64,7 @@ const AddFilterButton: FC<{ onClick: () => void }> = ({ onClick }) => {
                 leftSection={<MantineIcon icon={IconPlus} />}
                 onClick={onClick}
             >
-                Add group rule
+                {t('group.addGroupRule')}
             </Button>
         </Box>
     );
@@ -79,8 +81,11 @@ const FilterGroupForm: FC<Props> = memo(
         onChange,
         onDelete,
     }) => {
+        const { t } = useTranslation('filters');
         const items = getItemsFromFilterGroup(filterGroup);
-        const [conditionLabel, setConditionLabel] = useState('');
+        const [conditionType, setConditionType] = useState<
+            'any' | 'dimension' | 'metric' | 'tableCalculation'
+        >('any');
 
         const [dimensions, metrics, tableCalculations] = useMemo<
             [
@@ -108,17 +113,17 @@ const FilterGroupForm: FC<Props> = memo(
             // If the group is an OR group, we can only use fields that are of the same type
             const filters = getFiltersFromGroup(filterGroup, fields);
             if (filters.dimensions) {
-                setConditionLabel('dimension');
+                setConditionType('dimension');
                 return dimensions;
             }
 
             if (filters.metrics) {
-                setConditionLabel('metric');
+                setConditionType('metric');
                 return metrics;
             }
 
             if (filters.tableCalculations) {
-                setConditionLabel('table calculation');
+                setConditionType('tableCalculation');
                 return tableCalculations;
             }
 
@@ -203,11 +208,11 @@ const FilterGroupForm: FC<Props> = memo(
                             data={[
                                 {
                                     value: FilterGroupOperator.and,
-                                    label: 'All',
+                                    label: t('group.operatorAll'),
                                 },
                                 {
                                     value: FilterGroupOperator.or,
-                                    label: 'Any',
+                                    label: t('group.operatorAny'),
                                 },
                             ]}
                             value={
@@ -225,7 +230,7 @@ const FilterGroupForm: FC<Props> = memo(
                     </Box>
 
                     <Text c="dimmed" size="xs">
-                        of the following {conditionLabel} conditions match:
+                        {t(`group.conditionsMatch.${conditionType}`)}
                     </Text>
                 </Group>
 

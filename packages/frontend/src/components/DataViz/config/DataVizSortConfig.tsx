@@ -1,7 +1,9 @@
 import { SortByDirection, type VizSortBy } from '@lightdash/common';
 import { Box, Text, Select, Tooltip } from '@mantine/core';
 import { IconArrowLeft, IconArrowRight } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './PillSelect.module.css';
 
@@ -26,14 +28,14 @@ type Props = {
     onChangeSortBy: (value: VizSortBy['direction'] | undefined) => void;
 };
 
-const getSortLabel = (label: SortByDirection | undefined) => {
+const getSortLabel = (t: TFunction, label: SortByDirection | undefined) => {
     switch (label) {
         case SortByDirection.ASC:
-            return 'Sort ascending';
+            return t('sort.sortAscending');
         case SortByDirection.DESC:
-            return 'Sort descending';
+            return t('sort.sortDescending');
         default:
-            return 'No sorting';
+            return t('sort.noSorting');
     }
 };
 
@@ -44,30 +46,34 @@ const SortItem = forwardRef<
         value: SortByDirection | 'none';
         selected: boolean;
     }
->(({ value, label, selected: _selected, ...others }, ref) => (
-    <Box ref={ref} {...others}>
-        <Text>{getSortLabel(value === 'none' ? undefined : value)}</Text>
-    </Box>
-));
+>(({ value, label: _label, selected: _selected, ...others }, ref) => {
+    const { t } = useTranslation('dataViz');
+    return (
+        <Box ref={ref} {...others}>
+            <Text>{getSortLabel(t, value === 'none' ? undefined : value)}</Text>
+        </Box>
+    );
+});
 
 export const DataVizSortConfig: FC<Props> = ({ sortBy, onChangeSortBy }) => {
+    const { t } = useTranslation('dataViz');
     const selectOptions = [
         {
             value: 'none',
-            label: 'No sorting',
+            label: t('sort.noSorting'),
         },
         {
             value: SortByDirection.ASC,
-            label: 'Ascending',
+            label: t('sort.ascending'),
         },
         {
             value: SortByDirection.DESC,
-            label: 'Descending',
+            label: t('sort.descending'),
         },
     ];
 
     return (
-        <Tooltip label="Sort by">
+        <Tooltip label={t('sort.tooltip')}>
             <Select
                 allowDeselect={false}
                 comboboxProps={{ withinPortal: true }}

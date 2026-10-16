@@ -3,6 +3,7 @@ import { Button, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../components/common/MantineModal';
 
 type EditProps = {
@@ -18,6 +19,7 @@ export const TabEditModal: FC<EditProps> = ({
     tab,
     onConfirm,
 }) => {
+    const { t } = useTranslation('dashboard');
     const form = useForm<{ newTabName: string }>({
         initialValues: {
             newTabName: tab.name,
@@ -38,7 +40,7 @@ export const TabEditModal: FC<EditProps> = ({
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title="Edit your tab"
+            title={t('tabs.editModal.title')}
             icon={IconPencil}
             size="sm"
             actions={
@@ -47,14 +49,14 @@ export const TabEditModal: FC<EditProps> = ({
                     form="edit-tab-form"
                     disabled={!form.isValid()}
                 >
-                    Update
+                    {t('actions.update', { ns: 'common' })}
                 </Button>
             }
         >
             <form id="edit-tab-form" onSubmit={handleConfirm}>
                 <TextInput
-                    label="Tab name"
-                    placeholder="Name your tab"
+                    label={t('tabs.tabName')}
+                    placeholder={t('tabs.tabNamePlaceholder')}
                     data-autofocus
                     required
                     {...form.getInputProps('newTabName')}

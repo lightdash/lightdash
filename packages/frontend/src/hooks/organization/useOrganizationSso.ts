@@ -12,6 +12,7 @@ import {
     type UpsertOneLoginSsoConfig,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -46,6 +47,7 @@ export const useAzureAdSsoConfig = () =>
 
 export const useUpsertAzureAdSsoConfig = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
         AzureAdSsoConfigSummary,
@@ -56,12 +58,12 @@ export const useUpsertAzureAdSsoConfig = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries(QUERY_KEY);
             showToastSuccess({
-                title: 'Azure AD SSO settings saved',
+                title: t('useOrganizationSso.azureAdSsoSettingsSaved'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to save Azure AD SSO settings',
+                title: t('useOrganizationSso.failedToSaveAzureAdSso'),
                 apiError: error,
             });
         },
@@ -70,18 +72,19 @@ export const useUpsertAzureAdSsoConfig = () => {
 
 export const useDeleteAzureAdSsoConfig = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<undefined, ApiError>(deleteAzureAdSsoConfig, {
         mutationKey: ['organization_sso', 'azuread', 'delete'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(QUERY_KEY);
             showToastSuccess({
-                title: 'Azure AD SSO settings removed',
+                title: t('useOrganizationSso.azureAdSsoSettingsRemoved'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to remove Azure AD SSO settings',
+                title: t('useOrganizationSso.failedToRemoveAzureAdSso'),
                 apiError: error,
             });
         },
@@ -119,6 +122,7 @@ export const useOktaSsoConfig = () =>
 
 export const useUpsertOktaSsoConfig = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<OktaSsoConfigSummary, ApiError, UpsertOktaSsoConfig>(
         upsertOktaSsoConfig,
@@ -127,12 +131,12 @@ export const useUpsertOktaSsoConfig = () => {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(OKTA_QUERY_KEY);
                 showToastSuccess({
-                    title: 'Okta SSO settings saved',
+                    title: t('useOrganizationSso.oktaSsoSettingsSaved'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to save Okta SSO settings',
+                    title: t('useOrganizationSso.failedToSaveOktaSsoSettings'),
                     apiError: error,
                 });
             },
@@ -142,18 +146,19 @@ export const useUpsertOktaSsoConfig = () => {
 
 export const useDeleteOktaSsoConfig = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<undefined, ApiError>(deleteOktaSsoConfig, {
         mutationKey: ['organization_sso', 'okta', 'delete'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(OKTA_QUERY_KEY);
             showToastSuccess({
-                title: 'Okta SSO settings removed',
+                title: t('useOrganizationSso.oktaSsoSettingsRemoved'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to remove Okta SSO settings',
+                title: t('useOrganizationSso.failedToRemoveOktaSsoSettings'),
                 apiError: error,
             });
         },
@@ -191,6 +196,7 @@ export const useGenericOidcSsoConfig = () =>
 
 export const useUpsertGenericOidcSsoConfig = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
         GenericOidcSsoConfigSummary,
@@ -201,12 +207,12 @@ export const useUpsertGenericOidcSsoConfig = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries(OIDC_QUERY_KEY);
             showToastSuccess({
-                title: 'OIDC SSO settings saved',
+                title: t('useOrganizationSso.oidcSsoSettingsSaved'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to save OIDC SSO settings',
+                title: t('useOrganizationSso.failedToSaveOidcSsoSettings'),
                 apiError: error,
             });
         },
@@ -215,18 +221,19 @@ export const useUpsertGenericOidcSsoConfig = () => {
 
 export const useDeleteGenericOidcSsoConfig = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<undefined, ApiError>(deleteGenericOidcSsoConfig, {
         mutationKey: ['organization_sso', 'oidc', 'delete'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(OIDC_QUERY_KEY);
             showToastSuccess({
-                title: 'OIDC SSO settings removed',
+                title: t('useOrganizationSso.oidcSsoSettingsRemoved'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to remove OIDC SSO settings',
+                title: t('useOrganizationSso.failedToRemoveOidcSsoSettings'),
                 apiError: error,
             });
         },
@@ -264,6 +271,7 @@ export const useOneLoginSsoConfig = () =>
 
 export const useUpsertOneLoginSsoConfig = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
         OneLoginSsoConfigSummary,
@@ -273,11 +281,13 @@ export const useUpsertOneLoginSsoConfig = () => {
         mutationKey: ['organization_sso', 'oneLogin', 'upsert'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(ONELOGIN_QUERY_KEY);
-            showToastSuccess({ title: 'OneLogin SSO settings saved' });
+            showToastSuccess({
+                title: t('useOrganizationSso.oneloginSsoSettingsSaved'),
+            });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to save OneLogin SSO settings',
+                title: t('useOrganizationSso.failedToSaveOneloginSsoSettings'),
                 apiError: error,
             });
         },
@@ -286,16 +296,21 @@ export const useUpsertOneLoginSsoConfig = () => {
 
 export const useDeleteOneLoginSsoConfig = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<undefined, ApiError>(deleteOneLoginSsoConfig, {
         mutationKey: ['organization_sso', 'oneLogin', 'delete'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(ONELOGIN_QUERY_KEY);
-            showToastSuccess({ title: 'OneLogin SSO settings removed' });
+            showToastSuccess({
+                title: t('useOrganizationSso.oneloginSsoSettingsRemoved'),
+            });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to remove OneLogin SSO settings',
+                title: t(
+                    'useOrganizationSso.failedToRemoveOneloginSsoSettings',
+                ),
                 apiError: error,
             });
         },
@@ -333,6 +348,7 @@ export const useGoogleSsoConfig = () =>
 
 export const useUpsertGoogleSsoConfig = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<GoogleSsoConfigSummary, ApiError, UpsertGoogleSsoConfig>(
         upsertGoogleSsoConfig,
@@ -341,12 +357,14 @@ export const useUpsertGoogleSsoConfig = () => {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(GOOGLE_QUERY_KEY);
                 showToastSuccess({
-                    title: 'Google SSO settings saved',
+                    title: t('useOrganizationSso.googleSsoSettingsSaved'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to save Google SSO settings',
+                    title: t(
+                        'useOrganizationSso.failedToSaveGoogleSsoSettings',
+                    ),
                     apiError: error,
                 });
             },
@@ -356,18 +374,19 @@ export const useUpsertGoogleSsoConfig = () => {
 
 export const useDeleteGoogleSsoConfig = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<undefined, ApiError>(deleteGoogleSsoConfig, {
         mutationKey: ['organization_sso', 'google', 'delete'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(GOOGLE_QUERY_KEY);
             showToastSuccess({
-                title: 'Google SSO settings removed',
+                title: t('useOrganizationSso.googleSsoSettingsRemoved'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to remove Google SSO settings',
+                title: t('useOrganizationSso.failedToRemoveGoogleSsoSettings'),
                 apiError: error,
             });
         },

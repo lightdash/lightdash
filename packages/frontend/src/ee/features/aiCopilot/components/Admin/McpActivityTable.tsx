@@ -25,6 +25,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ContentTable,
     useContentTable,
@@ -61,52 +62,59 @@ type McpActivityTableProps = {
 const SessionHeaderLabel: FC<{
     session: McpSessionHeaderRow;
     isCollapsed: boolean;
-}> = ({ session, isCollapsed }) => (
-    <Group gap="xs" wrap="nowrap">
-        <MantineIcon
-            icon={isCollapsed ? IconChevronRight : IconChevronDown}
-            color="dimmed"
-        />
-        <MantineIcon
-            icon={session.sessionId ? IconLink : IconUnlink}
-            color="dimmed"
-        />
-        {session.sessionId ? (
-            <Tooltip label={session.sessionId}>
-                <Text fz="xs" ff="monospace" fw={600}>
-                    {session.sessionId.slice(0, 8)}
+}> = ({ session, isCollapsed }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
+    return (
+        <Group gap="xs" wrap="nowrap">
+            <MantineIcon
+                icon={isCollapsed ? IconChevronRight : IconChevronDown}
+                color="dimmed"
+            />
+            <MantineIcon
+                icon={session.sessionId ? IconLink : IconUnlink}
+                color="dimmed"
+            />
+            {session.sessionId ? (
+                <Tooltip label={session.sessionId}>
+                    <Text fz="xs" ff="monospace" fw={600}>
+                        {session.sessionId.slice(0, 8)}
+                    </Text>
+                </Tooltip>
+            ) : (
+                <Text fz="sm" fs="italic" c="dimmed">
+                    {t('mcp.table.noSessionId')}
                 </Text>
-            </Tooltip>
-        ) : (
-            <Text fz="sm" fs="italic" c="dimmed">
-                No session ID
-            </Text>
-        )}
-    </Group>
-);
+            )}
+        </Group>
+    );
+};
 
 // Outbound calls have no MCP client: the agent is the caller, so the
 // external server it reached is the useful peer to show
 const OutboundServerLabel: FC<{
     serverName: string | null;
     dimmed?: boolean;
-}> = ({ serverName, dimmed }) => (
-    <Group gap="xs" wrap="nowrap">
-        <MantineIcon icon={IconPlugConnected} color="dimmed" />
-        <Text
-            fz="sm"
-            fw={dimmed ? 500 : 400}
-            c={dimmed ? 'ldGray.7' : undefined}
-            truncate
-        >
-            {serverName ?? 'Deleted MCP server'}
-        </Text>
-    </Group>
-);
+}> = ({ serverName, dimmed }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
+    return (
+        <Group gap="xs" wrap="nowrap">
+            <MantineIcon icon={IconPlugConnected} color="dimmed" />
+            <Text
+                fz="sm"
+                fw={dimmed ? 500 : 400}
+                c={dimmed ? 'ldGray.7' : undefined}
+                truncate
+            >
+                {serverName ?? t('mcp.table.deletedServer')}
+            </Text>
+        </Group>
+    );
+};
 
 // Extracted so the useIsTruncated hook isn't called conditionally from a
 // Cell that also renders session-header rows
 const ClientCellContent: FC<{ call: McpActivityItem }> = ({ call }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const isTruncated = useIsTruncated<HTMLDivElement>();
     const { clientName, clientVersion, userAgent } = call;
     if (call.direction === 'outbound') {
@@ -116,7 +124,7 @@ const ClientCellContent: FC<{ call: McpActivityItem }> = ({ call }) => {
     }
     const label = clientName
         ? `${clientName}${clientVersion ? ` ${clientVersion}` : ''}`
-        : (userAgent ?? 'Unknown');
+        : (userAgent ?? t('mcp.table.unknown'));
     return (
         <Tooltip
             label={userAgent ?? label}
@@ -134,6 +142,7 @@ const McpActivityTable = ({
     onCallSelect,
     selectedCall,
 }: McpActivityTableProps) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const theme = useMantineTheme();
 
     const {
@@ -249,7 +258,7 @@ const McpActivityTable = ({
             id: 'createdAt',
             accessorFn: (row) =>
                 row.type === 'call' ? row.call.createdAt : row.latestCallAt,
-            header: 'Time',
+            header: t('mcp.table.columns.time'),
             enableSorting: true,
             enableEditing: false,
             size: 170,
@@ -286,7 +295,7 @@ const McpActivityTable = ({
             id: 'toolName',
             accessorFn: (row) =>
                 row.type === 'call' ? row.call.toolName : null,
-            header: 'Tool',
+            header: t('mcp.table.columns.tool'),
             enableSorting: false,
             enableEditing: false,
             size: 190,
@@ -310,7 +319,7 @@ const McpActivityTable = ({
             id: 'user.name',
             accessorFn: (row) =>
                 row.type === 'call' ? row.call.user.name : null,
-            header: 'User',
+            header: t('mcp.table.columns.user'),
             enableSorting: false,
             enableEditing: false,
             Header: ({ column }) => (
@@ -332,7 +341,7 @@ const McpActivityTable = ({
             id: 'project.name',
             accessorFn: (row) =>
                 row.type === 'call' ? row.call.project?.name : null,
-            header: 'Project',
+            header: t('mcp.table.columns.project'),
             enableSorting: false,
             enableEditing: false,
             Header: ({ column }) => (
@@ -352,7 +361,7 @@ const McpActivityTable = ({
             id: 'agent.name',
             accessorFn: (row) =>
                 row.type === 'call' ? row.call.agent?.name : null,
-            header: 'Agent',
+            header: t('mcp.table.columns.agent'),
             enableSorting: false,
             enableEditing: false,
             size: 150,
@@ -380,7 +389,7 @@ const McpActivityTable = ({
             id: 'clientName',
             accessorFn: (row) =>
                 row.type === 'call' ? row.call.clientName : row.clientName,
-            header: 'Client',
+            header: t('mcp.table.columns.client'),
             enableSorting: false,
             enableEditing: false,
             size: 180,
@@ -414,7 +423,7 @@ const McpActivityTable = ({
                             </Text>
                             {!sessionId && (
                                 <Text fz="xs" c="ldGray.5" flex="0 0 auto">
-                                    not reported
+                                    {t('mcp.table.notReported')}
                                 </Text>
                             )}
                         </Group>
@@ -426,7 +435,7 @@ const McpActivityTable = ({
         {
             id: 'status',
             accessorFn: (row) => (row.type === 'call' ? row.call.status : null),
-            header: 'Status',
+            header: t('mcp.table.columns.status'),
             enableSorting: false,
             enableEditing: false,
             size: 110,
@@ -440,8 +449,9 @@ const McpActivityTable = ({
                 row.original.type === 'session' ? (
                     row.original.errorCount > 0 ? (
                         <Text fz="sm" fw={500} c="ldGray.7">
-                            {row.original.errorCount}{' '}
-                            {row.original.errorCount === 1 ? 'error' : 'errors'}
+                            {t('mcp.table.errorCount', {
+                                count: row.original.errorCount,
+                            })}
                         </Text>
                     ) : null
                 ) : (
@@ -454,7 +464,7 @@ const McpActivityTable = ({
             id: 'durationMs',
             accessorFn: (row) =>
                 row.type === 'call' ? row.call.durationMs : null,
-            header: 'Duration',
+            header: t('mcp.table.columns.duration'),
             enableSorting: true,
             enableEditing: false,
             size: 120,
@@ -577,19 +587,24 @@ const McpActivityTable = ({
             >
                 {isFetching ? (
                     <Text c="ldGray.8" fz="xs">
-                        Loading more...
+                        {t('mcp.table.loadingMore')}
                     </Text>
                 ) : (
                     <Group gap="two">
                         <Text fz="xs" c="ldGray.8">
                             {hasNextPage
-                                ? 'Scroll for more results'
-                                : 'All results loaded'}
+                                ? t('mcp.table.scrollForMore')
+                                : t('mcp.table.allLoaded')}
                         </Text>
                         <Text fz="xs" fw={400} c="dimmed">
                             {hasNextPage
-                                ? `(${flatData.length} of ${totalResults} loaded)`
-                                : `(${flatData.length})`}
+                                ? t('mcp.table.loadedOf', {
+                                      loaded: flatData.length,
+                                      total: totalResults,
+                                  })
+                                : t('mcp.table.loadedCount', {
+                                      count: flatData.length,
+                                  })}
                         </Text>
                     </Group>
                 )}

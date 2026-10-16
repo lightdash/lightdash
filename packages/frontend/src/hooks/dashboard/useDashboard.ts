@@ -26,6 +26,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
@@ -264,6 +265,7 @@ type DashboardContentExportDetails = {
 };
 
 export const useExportDashboardContent = () => {
+    const { t } = useTranslation('app');
     const {
         showToastSuccess,
         showToastError,
@@ -305,7 +307,9 @@ export const useExportDashboardContent = () => {
             onMutate: (data) => {
                 showToastInfo({
                     key: 'dashboard_export_toast',
-                    title: `${data.dashboard.name} is being exported. This might take a few seconds.`,
+                    title: t('useDashboard.isBeingExportedThisMightTake', {
+                        name: data.dashboard.name,
+                    }),
                     autoClose: false,
                     loading: true,
                 });
@@ -335,28 +339,42 @@ export const useExportDashboardContent = () => {
                             if (numFailures > 0) {
                                 showToastWarning({
                                     key: 'dashboard_export_toast',
-                                    title: `${data.dashboard.name} was exported with ${numFailures} failed chart(s).`,
-                                    subtitle:
-                                        'Some charts could not be exported. The download contains only the successful ones.',
+                                    title: t(
+                                        'useDashboard.wasExportedWithFailedChartS',
+                                        {
+                                            name: data.dashboard.name,
+                                            numFailures,
+                                        },
+                                    ),
+                                    subtitle: t(
+                                        'useDashboard.someChartsCouldNotBeExported',
+                                    ),
                                 });
                             } else {
                                 showToastSuccess({
                                     key: 'dashboard_export_toast',
-                                    title: `Success! ${data.dashboard.name} was exported.`,
+                                    title: t(
+                                        'useDashboard.successWasExported',
+                                        { name: data.dashboard.name },
+                                    ),
                                 });
                             }
                         } else {
                             showToastError({
                                 key: 'dashboard_export_toast',
-                                title: `Missing file url for ${data.dashboard.name}`,
-                                subtitle: 'Something went wrong',
+                                title: t('useDashboard.missingFileUrlFor', {
+                                    name: data.dashboard.name,
+                                }),
+                                subtitle: t('useDashboard.somethingWentWrong'),
                             });
                         }
                     })
                     .catch((error: Error) => {
                         showToastError({
                             key: 'dashboard_export_toast',
-                            title: `Failed to export ${data.dashboard.name}`,
+                            title: t('useDashboard.failedToExport', {
+                                name: data.dashboard.name,
+                            }),
                             subtitle: error.message,
                         });
                     });
@@ -364,7 +382,9 @@ export const useExportDashboardContent = () => {
             onError: ({ error }, data) => {
                 showToastApiError({
                     key: 'dashboard_export_toast',
-                    title: `Failed to export ${data.dashboard.name}`,
+                    title: t('useDashboard.failedToExport', {
+                        name: data.dashboard.name,
+                    }),
                     apiError: error,
                 });
             },
@@ -376,6 +396,7 @@ export const useExportDashboardContent = () => {
 // synchronous export endpoint, so heavy dashboards don't hold an HTTP request
 // open until the gateway times out.
 export const useExportDashboardContentPreview = () => {
+    const { t } = useTranslation('app');
     const {
         showToastInfo,
         showToastSuccess,
@@ -423,7 +444,9 @@ export const useExportDashboardContentPreview = () => {
             onMutate: (data) => {
                 showToastInfo({
                     key: 'dashboard_export_toast',
-                    title: `Generating preview for ${data.dashboard.name}`,
+                    title: t('useDashboard.generatingPreviewFor', {
+                        name: data.dashboard.name,
+                    }),
                     autoClose: false,
                     loading: true,
                 });
@@ -431,11 +454,13 @@ export const useExportDashboardContentPreview = () => {
             onSuccess: () => {
                 showToastSuccess({
                     key: 'dashboard_export_toast',
-                    title: 'Success!',
+                    title: t('useDashboard.success'),
                 });
             },
             onError: (error, data) => {
-                const title = `Failed to generate preview for ${data.dashboard.name}`;
+                const title = t('useDashboard.previewFailed', {
+                    name: data.dashboard.name,
+                });
                 if ('error' in error) {
                     showToastApiError({
                         key: 'dashboard_export_toast',
@@ -462,6 +487,7 @@ export const useUpdateDashboard = (
 ) => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const { clearDashboardStorage } = useDashboardStorage();
     return useMutation<Dashboard, ApiError, UpdateDashboard>(
@@ -516,18 +542,21 @@ export const useUpdateDashboard = (
                 showToastSuccess({
                     ...(updatedDashboard.hasUnpublishedChanges
                         ? {
-                              title: 'Dashboard draft saved for review',
-                              subtitle:
-                                  'Only you can see these changes until a reviewer writes them back to the repo.',
+                              title: t(
+                                  'useDashboard.dashboardDraftSavedForReview',
+                              ),
+                              subtitle: t(
+                                  'useDashboard.onlyYouCanSeeTheseChanges',
+                              ),
                           }
                         : {
-                              title: `Success! Dashboard ${
-                                  onlyUpdatedName ? 'name ' : ''
-                              }was updated.`,
+                              title: onlyUpdatedName
+                                  ? t('useDashboard.successNameUpdated')
+                                  : t('useDashboard.successUpdated'),
                           }),
                     action: showRedirectButton
                         ? {
-                              children: 'Open dashboard',
+                              children: t('useDashboard.openDashboard'),
                               icon: IconArrowRight,
                               onClick: () =>
                                   navigate(
@@ -545,7 +574,7 @@ export const useUpdateDashboard = (
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to update dashboard`,
+                    title: t('useDashboard.failedToUpdateDashboard'),
                     apiError: error,
                 });
             },
@@ -559,6 +588,7 @@ export const useCreateMutation = (
     { showToastOnSuccess = true }: { showToastOnSuccess?: boolean } = {},
 ) => {
     const navigate = useNavigate();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<Dashboard, ApiError, CreateDashboard>(
@@ -578,10 +608,10 @@ export const useCreateMutation = (
 
                 if (showToastOnSuccess) {
                     showToastSuccess({
-                        title: `Success! Dashboard was created.`,
+                        title: t('useDashboard.successDashboardWasCreated'),
                         action: showRedirectButton
                             ? {
-                                  children: 'Open dashboard',
+                                  children: t('useDashboard.openDashboard'),
                                   icon: IconArrowRight,
                                   onClick: () =>
                                       navigate(
@@ -594,7 +624,7 @@ export const useCreateMutation = (
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to create dashboard`,
+                    title: t('useDashboard.failedToCreateDashboard'),
                     apiError: error,
                 });
             },
@@ -607,6 +637,7 @@ export const useCreateDashboardWithChartsMutation = (
     { showToastOnSuccess = true }: { showToastOnSuccess?: boolean } = {},
 ) => {
     const navigate = useNavigate();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<Dashboard, ApiError, CreateDashboardWithCharts>(
@@ -628,9 +659,9 @@ export const useCreateDashboardWithChartsMutation = (
 
                 if (showToastOnSuccess) {
                     showToastSuccess({
-                        title: 'Dashboard created successfully!',
+                        title: t('useDashboard.dashboardCreatedSuccessfully'),
                         action: {
-                            children: 'Open dashboard',
+                            children: t('useDashboard.openDashboard'),
                             onClick: () =>
                                 navigate(
                                     `/projects/${projectUuid}/dashboards/${result.slug}`,
@@ -641,7 +672,7 @@ export const useCreateDashboardWithChartsMutation = (
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to create dashboard',
+                    title: t('useDashboard.failedToCreateDashboard'),
                     apiError: error,
                 });
             },
@@ -659,6 +690,7 @@ export const useDuplicateDashboardMutation = (
     const navigate = useNavigate();
     const projectUuid = useProjectUuid();
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         Dashboard,
@@ -685,10 +717,10 @@ export const useDuplicateDashboardMutation = (
                 ]);
                 await queryClient.invalidateQueries(['content']);
                 showToastSuccess({
-                    title: `Dashboard successfully duplicated!`,
+                    title: t('useDashboard.dashboardSuccessfullyDuplicated'),
                     action: options?.showRedirectButton
                         ? {
-                              children: 'Open dashboard',
+                              children: t('useDashboard.openDashboard'),
                               icon: IconArrowRight,
                               onClick: () =>
                                   navigate(
@@ -700,7 +732,7 @@ export const useDuplicateDashboardMutation = (
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to duplicate dashboard`,
+                    title: t('useDashboard.failedToDuplicateDashboard'),
                     apiError: error,
                 });
             },
@@ -713,6 +745,7 @@ export const useDashboardDeleteMutation = (projectUuid?: string) => {
     const navigate = useNavigate();
     const { health } = useApp();
     const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(
         (id) => {
@@ -730,10 +763,10 @@ export const useDashboardDeleteMutation = (projectUuid?: string) => {
                 ]);
                 await queryClient.invalidateQueries(['deletedContent']);
                 showToastSuccess({
-                    title: `Deleted! Dashboard was deleted.`,
+                    title: t('useDashboard.deletedDashboardWasDeleted'),
                     action: isSoftDeleteEnabled
                         ? {
-                              children: 'Go to recently deleted',
+                              children: t('useDashboard.goToRecentlyDeleted'),
                               icon: IconArrowRight,
                               onClick: () =>
                                   navigate(
@@ -745,7 +778,7 @@ export const useDashboardDeleteMutation = (projectUuid?: string) => {
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to delete dashboard`,
+                    title: t('useDashboard.failedToDeleteDashboard'),
                     apiError: error,
                 });
             },
@@ -806,6 +839,7 @@ export const useDashboardVersionRollbackMutation = (
     dashboardUuid: string | undefined,
 ) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(
         (versionUuid: string) =>
@@ -853,12 +887,12 @@ export const useDashboardVersionRollbackMutation = (
                 ]);
 
                 showToastSuccess({
-                    title: `Success! Dashboard was reverted.`,
+                    title: t('useDashboard.successDashboardWasReverted'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to revert dashboard`,
+                    title: t('useDashboard.failedToRevertDashboard'),
                     apiError: error,
                 });
             },

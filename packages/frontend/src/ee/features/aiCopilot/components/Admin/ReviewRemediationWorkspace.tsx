@@ -27,6 +27,7 @@ import {
     IconRefresh,
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -61,6 +62,7 @@ type PaneBadge = { label: string; color: string; loading: boolean };
 const WORKSPACE_HEIGHT = 'calc(100vh - 170px)';
 
 export const ReviewRemediationWorkspace = () => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const { fingerprint } = useParams<{ fingerprint: string }>();
 
     // The drawer is anchored below the fixed navbar (and the preview/impersonation
@@ -115,26 +117,50 @@ export const ReviewRemediationWorkspace = () => {
         if (!activity) return null;
         if (activity.liveState === 'writeback')
             return {
-                label: 'Waiting for build',
+                label: t('workspace.badges.waitingForBuild'),
                 color: 'gray',
                 loading: false,
             };
         if (activity.liveState === 'compiling')
-            return { label: 'Building preview', color: 'blue', loading: true };
+            return {
+                label: t('workspace.badges.buildingPreview'),
+                color: 'blue',
+                loading: true,
+            };
         if (activity.liveState === 'verifying')
-            return { label: 'Testing', color: 'blue', loading: true };
+            return {
+                label: t('workspace.badges.testing'),
+                color: 'blue',
+                loading: true,
+            };
         if (activity.verdictStale)
-            return { label: 'Stale — retest', color: 'yellow', loading: false };
+            return {
+                label: t('workspace.badges.stale'),
+                color: 'yellow',
+                loading: false,
+            };
         if (hasVerification)
-            return { label: 'Verdict ready', color: 'green', loading: false };
+            return {
+                label: t('workspace.badges.verdictReady'),
+                color: 'green',
+                loading: false,
+            };
         if (remediation?.status === 'failed')
-            return { label: 'Failed', color: 'red', loading: false };
+            return {
+                label: t('workspace.badges.failed'),
+                color: 'red',
+                loading: false,
+            };
         return null;
-    }, [activity, hasVerification, remediation?.status]);
+    }, [activity, hasVerification, remediation?.status, t]);
 
     const buildBadge: PaneBadge | null =
         activity?.liveState === 'writeback'
-            ? { label: 'Opening PR', color: 'blue', loading: true }
+            ? {
+                  label: t('workspace.badges.openingPr'),
+                  color: 'blue',
+                  loading: true,
+              }
             : null;
 
     // A verdict is trustworthy enough to encourage resolving only once it's in
@@ -148,7 +174,7 @@ export const ReviewRemediationWorkspace = () => {
     // emphasis hands off to the black Resolve button at the right moment.
     const verdictPill = useMemo(() => {
         const base = testBadge ?? {
-            label: 'Test the fix',
+            label: t('workspace.testTheFix'),
             color: 'blue',
             loading: false,
         };
@@ -163,7 +189,7 @@ export const ReviewRemediationWorkspace = () => {
         const variant: 'light' | 'filled' =
             base.color === 'green' ? 'light' : 'filled';
         return { ...base, icon, variant };
-    }, [testBadge]);
+    }, [testBadge, t]);
 
     if (isItemLoading) {
         return (
@@ -178,15 +204,21 @@ export const ReviewRemediationWorkspace = () => {
             <Stack gap="md">
                 <PageBreadcrumbs
                     items={[
-                        { title: 'Ask AI', to: '/generalSettings/ai/general' },
-                        { title: 'Issues', to: '/generalSettings/ai/issues' },
-                        { title: 'Workspace', active: true },
+                        {
+                            title: t('workspace.breadcrumbs.askAi'),
+                            to: '/generalSettings/ai/general',
+                        },
+                        {
+                            title: t('workspace.breadcrumbs.issues'),
+                            to: '/generalSettings/ai/issues',
+                        },
+                        {
+                            title: t('workspace.breadcrumbs.workspace'),
+                            active: true,
+                        },
                     ]}
                 />
-                <Text c="dimmed">
-                    No remediation workspace for this issue yet. Open a pull
-                    request from the issues board first.
-                </Text>
+                <Text c="dimmed">{t('workspace.noWorkspace')}</Text>
             </Stack>
         );
     }
@@ -203,7 +235,8 @@ export const ReviewRemediationWorkspace = () => {
     const testAgent = agentFor(remediation.previewAgentUuid);
     const buildProjectName = projectName(remediation.sourceProjectUuid);
     const previewProjectName =
-        projectName(remediation.previewProjectUuid) ?? 'Preview environment';
+        projectName(remediation.previewProjectUuid) ??
+        t('workspace.previewEnvironment');
 
     const renderBadge = (badge: PaneBadge, onColor = false) => (
         <Group gap={6} wrap="nowrap" align="center">
@@ -233,11 +266,13 @@ export const ReviewRemediationWorkspace = () => {
                         <MantineIcon icon={IconGitPullRequest} size={14} />
                     </ThemeIcon>
                     <Text fw={600} fz="sm">
-                        Build the fix
+                        {t('workspace.buildTheFix')}
                     </Text>
                     {buildProjectName && (
                         <Text fz="xs" c="dimmed" truncate maw={150}>
-                            · {buildProjectName}
+                            {t('workspace.projectSuffix', {
+                                name: buildProjectName,
+                            })}
                         </Text>
                     )}
                     {buildBadge && renderBadge(buildBadge)}
@@ -260,7 +295,7 @@ export const ReviewRemediationWorkspace = () => {
                 <WorkspaceThreadPane
                     projectUuid={remediation.sourceProjectUuid}
                     agentUuid={remediation.sourceAgentUuid}
-                    agentName={buildAgent?.name ?? 'Build fix'}
+                    agentName={buildAgent?.name ?? t('workspace.buildFixAgent')}
                     threadUuid={remediation.workThreadUuid!}
                     interactive
                 />
@@ -278,7 +313,7 @@ export const ReviewRemediationWorkspace = () => {
             leftSection={<MantineIcon icon={IconRefresh} size={16} />}
             onClick={() => fingerprint && retest.mutate({ fingerprint })}
         >
-            Test again
+            {t('workspace.testAgain')}
         </Button>
     );
 
@@ -293,7 +328,9 @@ export const ReviewRemediationWorkspace = () => {
                 <WorkspaceThreadPane
                     projectUuid={remediation.previewProjectUuid}
                     agentUuid={remediation.previewAgentUuid}
-                    agentName={testAgent?.name ?? 'Verification'}
+                    agentName={
+                        testAgent?.name ?? t('workspace.verificationAgent')
+                    }
                     threadUuid={remediation.previewThreadUuid}
                     interactive={false}
                 />
@@ -302,12 +339,12 @@ export const ReviewRemediationWorkspace = () => {
                     {isLive && <Loader size="sm" />}
                     <Text c="dimmed" fz="sm" ta="center" maw={320}>
                         {activity?.liveState === 'writeback'
-                            ? 'Waiting for the pull request to open…'
+                            ? t('workspace.waiting.writeback')
                             : activity?.liveState === 'compiling'
-                              ? 'Building the preview environment…'
+                              ? t('workspace.waiting.compiling')
                               : activity?.liveState === 'verifying'
-                                ? 'Running verification in the preview…'
-                                : 'The verdict appears here once the preview is ready.'}
+                                ? t('workspace.waiting.verifying')
+                                : t('workspace.waiting.idle')}
                     </Text>
                 </Stack>
             )}
@@ -332,10 +369,12 @@ export const ReviewRemediationWorkspace = () => {
                         <MantineIcon icon={IconFlask} size={14} />
                     </ThemeIcon>
                     <Text fw={600} fz="sm">
-                        Test the fix
+                        {t('workspace.testTheFix')}
                     </Text>
                     <Text fz="xs" c="dimmed" truncate maw={150}>
-                        · {previewProjectName}
+                        {t('workspace.projectSuffix', {
+                            name: previewProjectName,
+                        })}
                     </Text>
                     {testBadge && renderBadge(testBadge)}
                 </Group>
@@ -353,11 +392,11 @@ export const ReviewRemediationWorkspace = () => {
                     <PageBreadcrumbs
                         items={[
                             {
-                                title: 'Ask AI',
+                                title: t('workspace.breadcrumbs.askAi'),
                                 to: '/generalSettings/ai/general',
                             },
                             {
-                                title: 'Issues',
+                                title: t('workspace.breadcrumbs.issues'),
                                 to: '/generalSettings/ai/issues',
                             },
                             { title: reviewItem.title, active: true },
@@ -394,7 +433,7 @@ export const ReviewRemediationWorkspace = () => {
                                 />
                             }
                         >
-                            View PR
+                            {t('workspace.viewPr')}
                         </Button>
                     )}
                     {hasBuildThread && (
@@ -439,7 +478,7 @@ export const ReviewRemediationWorkspace = () => {
                             }
                             onClick={resolveHandlers.open}
                         >
-                            Resolve
+                            {t('workspace.resolve')}
                         </Button>
                     )}
                 </Group>
@@ -470,11 +509,10 @@ export const ReviewRemediationWorkspace = () => {
                                 />
                             </ThemeIcon>
                             <Text fw={600} fz="sm">
-                                Deterministic fix
+                                {t('workspace.deterministicFix')}
                             </Text>
                             <Text fz="xs" c="dimmed" truncate>
-                                · Project context, written without a build
-                                conversation
+                                {t('workspace.deterministicFixNote')}
                             </Text>
                         </Group>
                     </Paper>
@@ -498,14 +536,13 @@ export const ReviewRemediationWorkspace = () => {
                                 color="dimmed"
                             />
                             <Text fw={600} fz="sm">
-                                Changes
+                                {t('workspace.changes')}
                             </Text>
                             {prDiff.data && (
                                 <Text fz="xs" c="dimmed">
-                                    {prDiff.data.files.length}{' '}
-                                    {prDiff.data.files.length === 1
-                                        ? 'file'
-                                        : 'files'}
+                                    {t('workspace.fileCount', {
+                                        count: prDiff.data.files.length,
+                                    })}
                                 </Text>
                             )}
                         </Group>
@@ -557,35 +594,31 @@ export const ReviewRemediationWorkspace = () => {
                             <Box miw={0}>
                                 <Group gap="xs" wrap="nowrap" miw={0}>
                                     <Text fw={600} fz="md">
-                                        Test the fix
+                                        {t('workspace.testTheFix')}
                                     </Text>
                                     {testBadge && renderBadge(testBadge)}
                                 </Group>
                                 <Text fz="xs" c="dimmed" truncate>
-                                    Preview environment · {previewProjectName}
+                                    {t('workspace.previewEnvironmentName', {
+                                        name: previewProjectName,
+                                    })}
                                 </Text>
                             </Box>
                         </Group>
                         <CloseButton onClick={testDrawerHandlers.close} />
                     </Group>
                     <Text fz="sm" c="dimmed" mt="sm">
-                        We spun up a{' '}
-                        <Text span fw={600} c="bright">
-                            throwaway copy
-                        </Text>{' '}
-                        of your project with this fix applied.{' '}
-                        <Text span fw={600} c="bright">
-                            {testAgent?.name ?? 'Your agent'}
-                        </Text>{' '}
-                        re-runs the original question against it, so you can see
-                        whether the answer is right{' '}
-                        <Text span fw={600} c="bright">
-                            before you merge
-                        </Text>
-                        .{' '}
-                        <Text span fw={600} c="bright">
-                            Nothing here touches production.
-                        </Text>
+                        <Trans
+                            t={t}
+                            i18nKey="workspace.drawerDescription"
+                            values={{
+                                agentName:
+                                    testAgent?.name ?? t('workspace.yourAgent'),
+                            }}
+                            components={{
+                                b: <Text span fw={600} c="bright" />,
+                            }}
+                        />
                     </Text>
                     <Group justify="flex-end" mt="sm">
                         {retestButton}

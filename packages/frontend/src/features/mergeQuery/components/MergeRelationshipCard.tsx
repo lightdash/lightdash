@@ -1,6 +1,7 @@
 import { MergeJoinType } from '@lightdash/common';
 import { Badge, Box } from '@mantine/core';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import CollapsableCard from '../../../components/common/CollapsableCard/CollapsableCard';
 import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
@@ -9,6 +10,7 @@ import { MergeJoinBar } from './MergeJoinBar';
 import { getJoinClauseLabel } from './mergeJoinLabels';
 
 const MergeRelationshipCardContent: FC = () => {
+    const { t } = useTranslation('mergeQuery');
     const {
         effectiveParts,
         labelFor,
@@ -20,14 +22,14 @@ const MergeRelationshipCardContent: FC = () => {
     } = useMergeSetup();
     const merge = useMergeSafe();
     const [isOpen, setIsOpen] = useState(true);
-    const primaryLabel = primaryExploreLabel ?? 'First data';
-    const additionalLabel = additionalExploreLabel ?? 'Combined data';
+    const primaryLabel = primaryExploreLabel ?? t('labels.firstData');
+    const additionalLabel = additionalExploreLabel ?? t('labels.combinedData');
     const joinTypeLabel =
         merge?.joinType === MergeJoinType.LEFT
-            ? 'Left'
+            ? t('joinTypes.left')
             : merge?.joinType === MergeJoinType.INNER
-              ? 'Inner'
-              : 'Full outer';
+              ? t('joinTypes.inner')
+              : t('joinTypes.fullOuter');
     const relationshipSummary = effectiveParts
         .map((part) => {
             const primaryFieldId = part.fieldIdBySourceId[PRIMARY_SOURCE_ID];
@@ -40,12 +42,12 @@ const MergeRelationshipCardContent: FC = () => {
                 additionalFieldId ? labelFor(additionalFieldId) : '?',
             );
         })
-        .join(' AND ');
+        .join(` ${t('labels.and')} `);
     const badgeLabel = setupStep ?? `${relationshipSummary} · ${joinTypeLabel}`;
 
     return (
         <CollapsableCard
-            title="Relationship"
+            title={t('relationshipCard.title')}
             isOpen={isOpen}
             onToggle={setIsOpen}
             headerElement={

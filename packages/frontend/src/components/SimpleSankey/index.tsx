@@ -2,21 +2,25 @@ import { Box } from '@mantine/core';
 import { IconFilterOff } from '@tabler/icons-react';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import { memo, useEffect, useRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useEchartsSankeyConfig from '../../hooks/echarts/useEchartsSankeyConfig';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 
-const EmptyChart = () => (
-    <Box h="100%" w="100%" py="xl">
-        <SuboptimalState
-            title="No data available"
-            description="Select a source dimension, a target dimension, and a weight metric to create a Sankey diagram. Multi-level flows are supported when nodes appear as both source and target."
-            icon={IconFilterOff}
-        />
-    </Box>
-);
+const EmptyChart = () => {
+    const { t } = useTranslation('visualization');
+    return (
+        <Box h="100%" w="100%" py="xl">
+            <SuboptimalState
+                title={t('emptyState.noDataTitle')}
+                description={t('emptyState.sankeyDescription')}
+                icon={IconFilterOff}
+            />
+        </Box>
+    );
+};
 
 type SimpleSankeyProps = Omit<EChartsReactProps, 'option'> & {
     isInDashboard: boolean;

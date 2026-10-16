@@ -20,6 +20,7 @@ import {
 import { IconArrowsExchange } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import { pollJobStatus } from '../../../features/scheduler/hooks/useScheduler';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -75,6 +76,7 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
     hasUnsavedChanges,
     candidateExploreNames,
 }) => {
+    const { t } = useTranslation('modals');
     const queryClient = useQueryClient();
     const { user } = useApp();
     const [selectedExplore, setSelectedExplore] = useState<string | null>(null);
@@ -152,13 +154,17 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
 
             showToastSuccess({
                 key: 'change_chart_explore_toast',
-                title: `Explore changed to "${selectedExplore}"`,
+                title: t('changeChartExplore.toast.changed', {
+                    exploreName: selectedExplore,
+                }),
             });
 
             if (fixAllAllowed && result?.jobId) {
                 showToastInfo({
                     key: 'change_chart_explore_fixall_toast',
-                    title: `Updating other charts using "${currentExploreName}"...`,
+                    title: t('changeChartExplore.toast.updatingOthers', {
+                        exploreName: currentExploreName,
+                    }),
                 });
                 pollJobStatus(result.jobId)
                     .then((status) => {
@@ -166,13 +172,17 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
                             status?.results?.charts?.length || 0;
                         showToastSuccess({
                             key: 'change_chart_explore_fixall_toast',
-                            title: `Updated ${totalCharts} other chart${totalCharts === 1 ? '' : 's'}`,
+                            title: t('changeChartExplore.toast.updatedOthers', {
+                                count: totalCharts,
+                            }),
                         });
                     })
                     .catch((jobError) => {
                         showToastError({
                             key: 'change_chart_explore_fixall_toast',
-                            title: 'Unable to update other charts',
+                            title: t(
+                                'changeChartExplore.toast.updateOthersFailed',
+                            ),
                             subtitle: getErrorMessage(jobError),
                         });
                     });
@@ -189,7 +199,7 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
             const apiError = error as ApiError;
             showToastError({
                 key: 'change_chart_explore_toast',
-                title: 'Unable to change explore',
+                title: t('changeChartExplore.toast.changeFailed'),
                 subtitle: apiError?.error?.message,
             });
         }
@@ -199,7 +209,7 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title="Change explore"
+            title={t('changeChartExplore.title')}
             icon={IconArrowsExchange}
             actions={
                 <Button
@@ -208,7 +218,7 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
                     disabled={!canSubmit}
                     loading={isRenaming}
                 >
-                    Change explore
+                    {t('changeChartExplore.submit')}
                 </Button>
             }
         >
@@ -216,29 +226,31 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
                 <Stack>
                     {hasUnsavedChanges && (
                         <Callout variant="warning">
-                            You have unsaved changes to this chart. They will be
-                            discarded when the explore is changed.
+                            {t('changeChartExplore.unsavedChangesWarning')}
                         </Callout>
                     )}
 
                     <Text fz="sm" c="dimmed">
-                        Change which explore this chart uses. All field
-                        references will be remapped to the new explore.
+                        {t('changeChartExplore.description')}
                     </Text>
 
                     <Text fz="sm">
-                        Current explore:{' '}
-                        <Text span fw={600}>
-                            {currentExploreName}
-                        </Text>
+                        <Trans
+                            t={t}
+                            i18nKey="changeChartExplore.currentExplore"
+                            values={{ exploreName: currentExploreName }}
+                            components={{ name: <Text span fw={600} /> }}
+                        />
                     </Text>
 
                     {isLoadingExplores ? (
                         <Loader size="sm" />
                     ) : (
                         <Select
-                            label="New explore"
-                            placeholder="Select an explore"
+                            label={t('changeChartExplore.newExploreLabel')}
+                            placeholder={t(
+                                'changeChartExplore.newExplorePlaceholder',
+                            )}
                             data={exploreOptions}
                             value={selectedExplore}
                             onChange={setSelectedExplore}
@@ -257,7 +269,7 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
                             required
                             error={
                                 isSameExplore
-                                    ? 'Please select a different explore'
+                                    ? t('changeChartExplore.sameExploreError')
                                     : undefined
                             }
                         />
@@ -266,7 +278,7 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
                     {userCanUpdateProject && (
                         <Checkbox
                             size="xs"
-                            label="Also update all other charts using this explore"
+                            label={t('changeChartExplore.fixAllLabel')}
                             checked={fixAll}
                             onChange={(e) => setFixAll(e.currentTarget.checked)}
                         />

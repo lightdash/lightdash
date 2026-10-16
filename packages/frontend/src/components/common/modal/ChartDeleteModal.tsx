@@ -6,6 +6,7 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import DocumentsLinkingChartCallout from '../../../features/documents/DocumentsLinkingChartCallout';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
@@ -29,6 +30,7 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
     onConfirm,
     ...modalProps
 }) => {
+    const { t } = useTranslation('modals');
     const projectUuid = useProjectUuid();
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const { health } = useApp();
@@ -61,20 +63,24 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
     };
 
     const description = softDeleteEnabled
-        ? `This chart will be moved to Recently deleted and permanently removed after ${retentionDays} days.`
+        ? t('chartDelete.softDeleteDescription', { count: retentionDays })
         : undefined;
 
     const dashboardWarningTitle = softDeleteEnabled
-        ? `This chart tile will be removed from ${relatedDashboards.length} dashboard${relatedDashboards.length > 1 ? 's' : ''}. The chart can be restored from Recently deleted.`
-        : `This action will permanently remove a chart tile from ${relatedDashboards.length} dashboard${relatedDashboards.length > 1 ? 's' : ''}:`;
+        ? t('chartDelete.dashboardWarningSoft', {
+              count: relatedDashboards.length,
+          })
+        : t('chartDelete.dashboardWarningPermanent', {
+              count: relatedDashboards.length,
+          });
 
     return (
         <MantineModal
             opened={modalProps.opened}
             onClose={modalProps.onClose}
-            title="Delete Chart"
+            title={t('chartDelete.title')}
             variant="delete"
-            resourceType="chart"
+            resourceType={t('resourceTypes.chart')}
             resourceLabel={chart.name}
             description={description}
             onConfirm={handleConfirm}

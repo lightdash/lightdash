@@ -2,6 +2,7 @@ import { DOCUMENT_EXPORT_CLASS, type Document } from '@lightdash/common';
 import { Box, Stack, Text, Title } from '@mantine/core';
 import { EditorContent } from '@tiptap/react';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useSearchParams } from 'react-router';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import DocumentByline from '../features/documents/DocumentByline';
@@ -18,6 +19,7 @@ import { useProjectUuid } from '../hooks/useProjectUuid';
 type ChartOutcome = 'ready' | 'errored';
 
 const DocumentPrint = ({ document }: { document: Document }) => {
+    const { t } = useTranslation('pages');
     const { markdown, charts } = document.version.content;
     const { editor } = useDocumentReader(document);
     const [outcomes, setOutcomes] = useState<Record<string, ChartOutcome>>({});
@@ -63,7 +65,7 @@ const DocumentPrint = ({ document }: { document: Document }) => {
                         <DocumentByline document={document} />
                     </Box>
                     {markdown.trim() === '' ? (
-                        <Text c="dimmed">This document is empty.</Text>
+                        <Text c="dimmed">{t('minimalDocument.empty')}</Text>
                     ) : (
                         <DocumentExportStatusContext.Provider
                             value={exportStatus}

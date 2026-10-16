@@ -17,6 +17,7 @@ import {
     IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import {
     matchPath,
     Navigate,
@@ -142,6 +143,7 @@ const AiReviewsToIssuesRedirect = ({
 };
 
 const Settings: FC = () => {
+    const { t } = useTranslation('pages');
     const context = useSettingsContext();
     const sections = useSettingsNavigation(context);
 
@@ -224,21 +226,23 @@ const Settings: FC = () => {
                 path: '/profile',
                 element: (
                     <SettingsPage
-                        title="Profile"
-                        description="Manage your personal details and account preferences."
+                        title={t('settings.profile.title')}
+                        description={t('settings.profile.description')}
                     >
                         <SettingsGridCard>
-                            <Title order={5}>Profile details</Title>
+                            <Title order={5}>
+                                {t('settings.profile.details')}
+                            </Title>
                             <ProfilePanel />
                         </SettingsGridCard>
                         {health?.hasGithub && <GithubUserSettingsPanel />}
                         <SettingsGridCard>
                             <Box>
-                                <Title order={5}>Danger zone</Title>
+                                <Title order={5}>
+                                    {t('settings.dangerZone')}
+                                </Title>
                                 <Text c="dimmed" fz="xs">
-                                    Leave the organization to remove yourself
-                                    from it (you cannot leave if you are the
-                                    only admin). This action is not reversible.
+                                    {t('settings.profile.leaveDescription')}
                                 </Text>
                             </Box>
                             <LeaveOrganizationPanel />
@@ -257,17 +261,21 @@ const Settings: FC = () => {
                 path: '/password',
                 element: (
                     <SettingsPage
-                        title="Password"
-                        description="Update your password and manage the ways you sign in."
+                        title={t('settings.password.title')}
+                        description={t('settings.password.description')}
                     >
                         <SettingsGridCard>
-                            <Title order={5}>Change password</Title>
+                            <Title order={5}>
+                                {t('settings.password.change')}
+                            </Title>
                             <PasswordPanel />
                         </SettingsGridCard>
 
                         {hasSocialLogin && (
                             <SettingsGridCard>
-                                <Title order={5}>Social logins</Title>
+                                <Title order={5}>
+                                    {t('settings.password.socialLogins')}
+                                </Title>
                                 <SocialLoginsPanel />
                             </SettingsGridCard>
                         )}
@@ -316,20 +324,25 @@ const Settings: FC = () => {
                 path: '/organization',
                 element: (
                     <SettingsPage
-                        title="General"
-                        description="Manage organization-wide defaults, access, and account controls."
+                        title={t('settings.general.title')}
+                        description={t('settings.general.description')}
                     >
                         <SettingsGridCard>
-                            <Title order={5}>Organization details</Title>
+                            <Title order={5}>
+                                {t('settings.general.organizationDetails')}
+                            </Title>
                             <OrganizationPanel />
                         </SettingsGridCard>
 
                         <SettingsGridCard>
                             <div>
-                                <Title order={5}>Allowed email domains</Title>
+                                <Title order={5}>
+                                    {t('settings.general.allowedDomains')}
+                                </Title>
                                 <Text c="dimmed" fz="xs">
-                                    Anyone with email addresses at these domains
-                                    can automatically join the organization.
+                                    {t(
+                                        'settings.general.allowedDomainsDescription',
+                                    )}
                                 </Text>
                             </div>
                             <AllowedDomainsPanel />
@@ -337,12 +350,13 @@ const Settings: FC = () => {
 
                         <SettingsGridCard>
                             <div>
-                                <Title order={5}>Default project</Title>
+                                <Title order={5}>
+                                    {t('settings.general.defaultProject')}
+                                </Title>
                                 <Text c="dimmed" fz="xs">
-                                    This is the project users will see when they
-                                    log in for the first time or from a new
-                                    device. If a user does not have access, they
-                                    will see their next accessible project.
+                                    {t(
+                                        'settings.general.defaultProjectDescription',
+                                    )}
                                 </Text>
                             </div>
                             <DefaultProjectPanel />
@@ -351,10 +365,13 @@ const Settings: FC = () => {
                         {user.ability.can('manage', 'Organization') && (
                             <SettingsGridCard>
                                 <div>
-                                    <Title order={5}>Invitations</Title>
+                                    <Title order={5}>
+                                        {t('settings.general.invitations')}
+                                    </Title>
                                     <Text c="dimmed" fz="xs">
-                                        Control how long new user invitations
-                                        remain valid for your organization.
+                                        {t(
+                                            'settings.general.invitationsDescription',
+                                        )}
                                     </Text>
                                 </div>
                                 <InviteLinkExpirationPanel />
@@ -363,29 +380,33 @@ const Settings: FC = () => {
 
                         {showImpersonationPanel && (
                             <SettingsGridCard>
-                                <Title order={5}>User impersonation</Title>
+                                <Title order={5}>
+                                    {t('settings.general.impersonation')}
+                                </Title>
                                 <ImpersonationPanel />
                             </SettingsGridCard>
                         )}
 
                         <SettingsGridCard>
-                            <Title order={5}>Lightdash support access</Title>
+                            <Title order={5}>
+                                {t('settings.general.supportAccess')}
+                            </Title>
                             <SupportImpersonationPanel />
                         </SettingsGridCard>
 
                         <SettingsGridCard>
                             <Box>
-                                <Title order={5}>Danger zone</Title>
+                                <Title order={5}>
+                                    {t('settings.dangerZone')}
+                                </Title>
                                 <Text c="dimmed" fz="xs">
-                                    {
-                                        'Leave the organization to remove yourself from it (you cannot leave if you are the only admin). '
-                                    }
-                                    {user.ability?.can(
-                                        'delete',
-                                        'Organization',
-                                    ) &&
-                                        'Deleting the organization removes the whole workspace and all its content, including users. '}
-                                    These actions are not reversible.
+                                    {user.ability?.can('delete', 'Organization')
+                                        ? t(
+                                              'settings.general.dangerDescriptionWithDelete',
+                                          )
+                                        : t(
+                                              'settings.general.dangerDescription',
+                                          )}
                                 </Text>
                             </Box>
                             <Stack gap="sm" align="flex-end">
@@ -407,25 +428,31 @@ const Settings: FC = () => {
                 path: '/exporting',
                 element: (
                     <SettingsPage
-                        title="Exporting"
-                        description="Control how exported files are shared outside Lightdash."
+                        title={t('settings.exporting.title')}
+                        description={t('settings.exporting.description')}
                     >
                         <SettingsGridCard>
                             <div>
-                                <Title order={5}>Scheduled deliveries</Title>
+                                <Title order={5}>
+                                    {t(
+                                        'settings.exporting.scheduledDeliveries',
+                                    )}
+                                </Title>
                                 <Text c="dimmed" fz="xs">
-                                    Control how files exported from your
-                                    organization — starting with scheduled
-                                    deliveries — are shared.{' '}
-                                    <Anchor
-                                        inherit
-                                        href="https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries"
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        Learn more about scheduled deliveries
-                                    </Anchor>
-                                    .
+                                    <Trans
+                                        t={t}
+                                        i18nKey="settings.exporting.scheduledDeliveriesDescription"
+                                        components={{
+                                            link: (
+                                                <Anchor
+                                                    inherit
+                                                    href="https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries"
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                />
+                                            ),
+                                        }}
+                                    />
                                 </Text>
                             </div>
                             <ExportingPanel />
@@ -455,16 +482,18 @@ const Settings: FC = () => {
                 path: '/limits',
                 element: (
                     <SettingsPage
-                        title="Limits"
-                        description="Set organization-wide query and export limits."
+                        title={t('settings.limits.title')}
+                        description={t('settings.limits.description')}
                     >
                         <SettingsGridCard>
                             <div>
-                                <Title order={5}>Query and export limits</Title>
+                                <Title order={5}>
+                                    {t('settings.limits.queryAndExport')}
+                                </Title>
                                 <Text c="dimmed" fz="xs">
-                                    Limit how many rows a query can return and
-                                    how many cells a CSV or Excel export can
-                                    contain for your organization.
+                                    {t(
+                                        'settings.limits.queryAndExportDescription',
+                                    )}
                                 </Text>
                             </div>
                             <LimitsPanel />
@@ -601,13 +630,13 @@ const Settings: FC = () => {
                 path: '/integrations',
                 element: (
                     <SettingsPage
-                        title="Integrations"
-                        description="Connect Lightdash to the tools your organization uses."
+                        title={t('settings.integrations.title')}
+                        description={t('settings.integrations.description')}
                     >
                         {!health?.hasSlack &&
                             !health?.hasGithub &&
                             !health?.hasGitlab &&
-                            'No integrations available'}
+                            t('settings.integrations.none')}
                         {health?.hasSlack && <SlackSettingsPanel />}
                         {health?.hasGithub && <GithubSettingsPanel />}
                         {health?.hasGitlab && <GitlabSettingsPanel />}
@@ -651,8 +680,8 @@ const Settings: FC = () => {
                 path: '/sso',
                 element: (
                     <SettingsPage
-                        title="Single Sign-On"
-                        description="Configure SSO providers and account linking. Users are routed to the matching provider based on their email domain."
+                        title={t('settings.sso.title')}
+                        description={t('settings.sso.description')}
                     >
                         <AzureAdSsoPanel />
                         <OktaSsoPanel />
@@ -922,6 +951,7 @@ const Settings: FC = () => {
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
         projectSettingsAccess,
+        t,
     ]);
     const routeElements = useRoutes(routes);
 
@@ -1136,17 +1166,17 @@ const Settings: FC = () => {
             withSidebarFooter
             withFixedContent={isFixedContent}
             withPaddedContent
-            title="Settings"
-            sidebarTitle="Settings"
+            title={t('settings.title')}
+            sidebarTitle={t('settings.title')}
             sidebarWidthProps={{ defaultWidth: 300, minWidth: 260 }}
             isSidebarCollapsed={isSidebarCollapsed}
             isSidebarCollapsible
             collapsedSidebarContent={
-                <Tooltip label="Pin sidebar" position="right">
+                <Tooltip label={t('settings.pinSidebar')} position="right">
                     <ActionIcon
                         size="lg"
                         onClick={() => setIsSidebarCollapsed(false)}
-                        aria-label="Pin sidebar"
+                        aria-label={t('settings.pinSidebar')}
                     >
                         <MantineIcon icon={IconLayoutSidebarLeftExpand} />
                     </ActionIcon>
@@ -1161,13 +1191,15 @@ const Settings: FC = () => {
                         visibleFrom="sm"
                     >
                         <PageBreadcrumbs
-                            items={[{ title: 'Settings', active: true }]}
+                            items={[
+                                { title: t('settings.title'), active: true },
+                            ]}
                         />
                         <Tooltip
                             label={
                                 isSidebarCollapsed
-                                    ? 'Pin sidebar'
-                                    : 'Unpin sidebar'
+                                    ? t('settings.pinSidebar')
+                                    : t('settings.unpinSidebar')
                             }
                         >
                             <ActionIcon
@@ -1177,8 +1209,8 @@ const Settings: FC = () => {
                                 }
                                 aria-label={
                                     isSidebarCollapsed
-                                        ? 'Pin sidebar'
-                                        : 'Unpin sidebar'
+                                        ? t('settings.pinSidebar')
+                                        : t('settings.unpinSidebar')
                                 }
                             >
                                 <MantineIcon
@@ -1209,7 +1241,9 @@ const Settings: FC = () => {
                         ) : (
                             <Stack gap="xs" align="center" py="xl" px="md">
                                 <Text fz="sm" c="dimmed" ta="center">
-                                    No settings match “{debouncedSearch.trim()}”
+                                    {t('settings.noMatch', {
+                                        search: debouncedSearch.trim(),
+                                    })}
                                 </Text>
                                 <Anchor
                                     component="button"
@@ -1217,7 +1251,7 @@ const Settings: FC = () => {
                                     fz="xs"
                                     onClick={() => setSearch('')}
                                 >
-                                    Clear search
+                                    {t('settings.clearSearch')}
                                 </Anchor>
                             </Stack>
                         )}

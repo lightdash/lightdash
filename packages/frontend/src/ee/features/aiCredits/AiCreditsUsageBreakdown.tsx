@@ -18,6 +18,7 @@ import {
 } from '@mantine/core';
 import { type EChartsOption } from 'echarts';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import EChartsReact from '../../../components/EChartsReactWrapper';
 import { AiCreditSeriesIcon } from './AiCreditSeriesIcon';
@@ -143,48 +144,57 @@ const UsageRows: FC<{
     series: LabelledSeries[];
     allowanceCredits: number | null;
     usedCredits: number;
-}> = ({ breakdown, series, allowanceCredits, usedCredits }) => (
-    <Stack gap="sm">
-        {series.map((item) => (
-            <Box key={item.id}>
-                {item.series.type === 'other' && <Divider mb="sm" />}
-                <Group justify="space-between" gap="xs" mb={4}>
-                    <Group gap="xs" wrap="nowrap">
-                        <AiCreditSeriesIcon
-                            breakdown={breakdown}
-                            series={item.series}
-                            color={item.color}
-                        />
-                        <Text fz="sm">{item.label}</Text>
+}> = ({ breakdown, series, allowanceCredits, usedCredits }) => {
+    const { t } = useTranslation('eeMisc');
+    return (
+        <Stack gap="sm">
+            {series.map((item) => (
+                <Box key={item.id}>
+                    {item.series.type === 'other' && <Divider mb="sm" />}
+                    <Group justify="space-between" gap="xs" mb={4}>
+                        <Group gap="xs" wrap="nowrap">
+                            <AiCreditSeriesIcon
+                                breakdown={breakdown}
+                                series={item.series}
+                                color={item.color}
+                            />
+                            <Text fz="sm">{item.label}</Text>
+                        </Group>
+                        <Text fz="sm" c="dimmed">
+                            {t('chart.credits', {
+                                credits: formatCredits(item.credits),
+                            })}
+                        </Text>
                     </Group>
-                    <Text fz="sm" c="dimmed">
-                        {formatCredits(item.credits)} credits
-                    </Text>
-                </Group>
-                <Box
-                    className={classes.segments}
-                    role="img"
-                    aria-label={`${item.label}: ${formatCredits(item.credits)} credits`}
-                >
                     <Box
-                        className={classes.fill}
-                        w={`${getAiCreditRowShare({
-                            credits: item.credits,
-                            allowanceCredits,
-                            usedCredits,
-                        })}%`}
-                        bg={item.color}
-                    />
+                        className={classes.segments}
+                        role="img"
+                        aria-label={t('aiCredits.breakdown.rowLabel', {
+                            label: item.label,
+                            credits: formatCredits(item.credits),
+                        })}
+                    >
+                        <Box
+                            className={classes.fill}
+                            w={`${getAiCreditRowShare({
+                                credits: item.credits,
+                                allowanceCredits,
+                                usedCredits,
+                            })}%`}
+                            bg={item.color}
+                        />
+                    </Box>
                 </Box>
-            </Box>
-        ))}
-    </Stack>
-);
+            ))}
+        </Stack>
+    );
+};
 
 export const AiCreditsUsageBreakdown: FC<{
     allowanceCredits: number | null;
     usedCredits: number;
 }> = ({ allowanceCredits, usedCredits }) => {
+    const { t } = useTranslation('eeMisc');
     const [breakdown, setBreakdown] =
         useState<AiCreditUsageBreakdown>('feature');
     const {
@@ -202,7 +212,7 @@ export const AiCreditsUsageBreakdown: FC<{
         <Paper p="md">
             <Stack gap="md">
                 <Group justify="space-between" gap="sm">
-                    <Title order={5}>Usage breakdown</Title>
+                    <Title order={5}>{t('aiCredits.breakdown.title')}</Title>
                     <SegmentedControl
                         size="xs"
                         value={breakdown}
@@ -221,19 +231,19 @@ export const AiCreditsUsageBreakdown: FC<{
                 <VisuallyHidden aria-live="polite">
                     {isInitialLoading
                         ? ''
-                        : `Showing usage by ${getAiCreditBreakdownLabel(breakdown).toLowerCase()}`}
+                        : t(`aiCredits.breakdown.showingBy.${breakdown}`)}
                 </VisuallyHidden>
                 {isInitialLoading ? (
                     <Skeleton h={200} />
                 ) : isError || usage === undefined ? (
                     <InlineErrorState
-                        message="Daily AI credit usage could not be loaded."
+                        message={t('aiCredits.breakdown.loadError')}
                         onRetry={() => void refetch()}
                     />
                 ) : series.length === 0 ? (
                     <Paper variant="dotted" p="md">
                         <Text fz="sm" c="dimmed" ta="center">
-                            No usage yet this period
+                            {t('aiCredits.breakdown.noUsage')}
                         </Text>
                     </Paper>
                 ) : (

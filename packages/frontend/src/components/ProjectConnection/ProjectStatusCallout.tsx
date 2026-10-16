@@ -6,6 +6,7 @@ import {
 } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import rehypeExternalLinks from 'rehype-external-links';
 import MantineIcon from '../common/MantineIcon';
 
@@ -23,12 +24,13 @@ const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
     error,
     ...props
 }) => {
+    const { t } = useTranslation('projectConnection');
     let stateProps: AlertProps;
 
     if (isLoading) {
         stateProps = {
             color: 'blue',
-            title: 'Updating project settings...',
+            title: t('projectStatus.updating'),
             icon: <Loader size="lg" />,
             children: undefined,
             styles: { body: { gap: 0 } },
@@ -36,7 +38,7 @@ const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
     } else if (isSuccess) {
         stateProps = {
             color: 'green',
-            title: 'Project settings updated!',
+            title: t('projectStatus.updated'),
             icon: <MantineIcon icon={IconCircleCheckFilled} size="lg" />,
             children: undefined,
             styles: { body: { gap: 0 } },
@@ -44,7 +46,7 @@ const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
     } else if (isError) {
         stateProps = {
             color: 'red',
-            title: 'There was an error updating the project...',
+            title: t('projectStatus.error'),
             icon: <MantineIcon icon={IconAlertTriangleFilled} size="lg" />,
             children: error ? (
                 <MDEditor.Markdown
@@ -63,7 +65,7 @@ const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
     } else {
         stateProps = {
             color: 'blue',
-            title: 'Updating project settings...',
+            title: t('projectStatus.updating'),
             icon: <Loader size="lg" />,
             children: undefined,
             styles: { body: { gap: 0 } },

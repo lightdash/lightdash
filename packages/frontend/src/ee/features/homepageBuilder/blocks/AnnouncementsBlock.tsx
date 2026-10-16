@@ -30,6 +30,7 @@ import {
     IconSpeakerphone,
     IconTrash,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import {
     useEffect,
     useMemo,
@@ -38,6 +39,7 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CategoryBadge } from '../../../../components/common/CategoryBadge/CategoryBadge';
 import CalendarPickerInput from '../../../../components/common/DatePickers/CalendarPickerInput';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -63,29 +65,34 @@ const RECENT_LIMIT = 5;
 
 const NOOP = () => {};
 
-const CATEGORY_OPTIONS = Object.values(AnnouncementCategory).map((value) => ({
-    value,
-    label: ANNOUNCEMENT_CATEGORY_META[value].label,
-}));
-
 const AnnouncementCategoryBadge: FC<{ category: AnnouncementCategory }> = ({
     category,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const meta = ANNOUNCEMENT_CATEGORY_META[category];
     if (!meta) return null;
     return (
-        <CategoryBadge label={meta.label} color={meta.color} variant="dot" />
+        <CategoryBadge
+            label={t(`announcements.categories.${category}`)}
+            color={meta.color}
+            variant="dot"
+        />
     );
 };
 
 const Timestamp: FC<{ announcement: ProjectAnnouncement }> = ({
     announcement,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const timeAgo = useTimeAgo(new Date(announcement.createdAt));
     return (
         <>
-            {timeAgo}
-            {announcement.authorName ? ` by ${announcement.authorName}` : ''}
+            {announcement.authorName
+                ? t('announcements.timestampBy', {
+                      timeAgo,
+                      author: announcement.authorName,
+                  })
+                : timeAgo}
         </>
     );
 };
@@ -94,6 +101,7 @@ const ClampedBody: FC<{ projectUuid: string; body: string }> = ({
     projectUuid,
     body,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const [expanded, setExpanded] = useState(false);
     const [overflowing, setOverflowing] = useState(false);
     const clampRef = useRef<HTMLDivElement>(null);
@@ -137,7 +145,9 @@ const ClampedBody: FC<{ projectUuid: string; body: string }> = ({
                     className={classes.readMore}
                     onClick={() => setExpanded((value) => !value)}
                 >
-                    {expanded ? 'Show less' : 'Read more'}
+                    {expanded
+                        ? t('favorites.showLess')
+                        : t('announcements.readMore')}
                 </button>
             )}
         </div>
@@ -148,64 +158,76 @@ const AnnouncementCard: FC<{
     projectUuid: string;
     announcement: ProjectAnnouncement;
     actions?: ReactNode;
-}> = ({ projectUuid, announcement, actions }) => (
-    <div
-        className={
-            announcement.published
-                ? classes.card
-                : `${classes.card} ${classes.cardDraft}`
-        }
-    >
-        {(announcement.pinned || !announcement.published) && (
-            <div className={classes.cardHeader}>
-                <span className={classes.headerTags}>
-                    {!announcement.published &&
-                        (announcement.scheduledPublishAt ? (
-                            <span className={classes.draftTag}>
-                                <MantineIcon icon={IconClock} size="sm" />
-                                Scheduled ·{' '}
-                                {new Date(
-                                    announcement.scheduledPublishAt,
-                                ).toLocaleString(undefined, {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    hour: 'numeric',
-                                    minute: '2-digit',
-                                })}
+}> = ({ projectUuid, announcement, actions }) => {
+    const { t } = useTranslation('homepageBuilder');
+    return (
+        <div
+            className={
+                announcement.published
+                    ? classes.card
+                    : `${classes.card} ${classes.cardDraft}`
+            }
+        >
+            {(announcement.pinned || !announcement.published) && (
+                <div className={classes.cardHeader}>
+                    <span className={classes.headerTags}>
+                        {!announcement.published &&
+                            (announcement.scheduledPublishAt ? (
+                                <span className={classes.draftTag}>
+                                    <MantineIcon icon={IconClock} size="sm" />
+                                    {t('announcements.scheduledAt', {
+                                        date: new Date(
+                                            announcement.scheduledPublishAt,
+                                        ).toLocaleString(undefined, {
+                                            month: 'short',
+                                            day: 'numeric',
+                                            hour: 'numeric',
+                                            minute: '2-digit',
+                                        }),
+                                    })}
+                                </span>
+                            ) : (
+                                <span className={classes.draftTag}>
+                                    {t('announcements.draft')}
+                                </span>
+                            ))}
+                        {announcement.pinned && (
+                            <span className={classes.pinnedTag}>
+                                <MantineIcon icon={IconPin} size="sm" />
+                                {t('starter.pinned')}
                             </span>
-                        ) : (
-                            <span className={classes.draftTag}>Draft</span>
-                        ))}
-                    {announcement.pinned && (
-                        <span className={classes.pinnedTag}>
-                            <MantineIcon icon={IconPin} size="sm" />
-                            Pinned
-                        </span>
-                    )}
-                </span>
-            </div>
-        )}
-        <div className={classes.cardTitle}>
-            {announcement.title}
-            {announcement.category && (
-                <AnnouncementCategoryBadge category={announcement.category} />
+                        )}
+                    </span>
+                </div>
             )}
+            <div className={classes.cardTitle}>
+                {announcement.title}
+                {announcement.category && (
+                    <AnnouncementCategoryBadge
+                        category={announcement.category}
+                    />
+                )}
+            </div>
+            {announcement.body && (
+                <ClampedBody
+                    projectUuid={projectUuid}
+                    body={announcement.body}
+                />
+            )}
+            <div className={classes.meta}>
+                <Timestamp announcement={announcement} />
+            </div>
+            {actions && <div className={classes.itemActions}>{actions}</div>}
         </div>
-        {announcement.body && (
-            <ClampedBody projectUuid={projectUuid} body={announcement.body} />
-        )}
-        <div className={classes.meta}>
-            <Timestamp announcement={announcement} />
-        </div>
-        {actions && <div className={classes.itemActions}>{actions}</div>}
-    </div>
-);
+    );
+};
 
 const EarlierSection: FC<{
     projectUuid: string;
     items: ProjectAnnouncement[];
     renderActions?: (announcement: ProjectAnnouncement) => ReactNode;
 }> = ({ projectUuid, items, renderActions }) => {
+    const { t } = useTranslation('homepageBuilder');
     const [open, setOpen] = useState(false);
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
     const toggleRow = (uuid: string) =>
@@ -227,10 +249,8 @@ const EarlierSection: FC<{
                     size="sm"
                 />
                 {open
-                    ? 'Show fewer'
-                    : `Show ${items.length} earlier announcement${
-                          items.length === 1 ? '' : 's'
-                      }`}
+                    ? t('announcements.showFewer')
+                    : t('announcements.showEarlier', { count: items.length })}
             </button>
             {open && (
                 <div className={classes.earlierList}>
@@ -249,7 +269,7 @@ const EarlierSection: FC<{
                                         toggleRow(announcement.announcementUuid)
                                     }
                                 >
-                                    Show less
+                                    {t('favorites.showLess')}
                                 </button>
                             </div>
                         ) : (
@@ -387,11 +407,12 @@ const FeedSkeleton: FC = () => (
     </Stack>
 );
 
-const FeedError: FC = () => (
-    <div className={classes.feedError}>
-        Couldn’t load announcements. Try refreshing the page.
-    </div>
-);
+const FeedError: FC = () => {
+    const { t } = useTranslation('homepageBuilder');
+    return (
+        <div className={classes.feedError}>{t('announcements.loadFailed')}</div>
+    );
+};
 
 const AnnouncementItemActions: FC<{
     projectUuid: string;
@@ -399,16 +420,17 @@ const AnnouncementItemActions: FC<{
     onEdit: (announcement: ProjectAnnouncement) => void;
     onDelete: (announcement: ProjectAnnouncement) => void;
 }> = ({ projectUuid, announcement, onEdit, onDelete }) => {
+    const { t } = useTranslation('homepageBuilder');
     const [confirmingPublish, setConfirmingPublish] = useState(false);
     const { mutate: update, isLoading: updating } =
         useUpdateAnnouncement(projectUuid);
     return (
         <>
             {!announcement.published && (
-                <Tooltip label="Publish now">
+                <Tooltip label={t('announcements.actions.publishNow')}>
                     <ActionIcon
                         size="sm"
-                        aria-label="Publish announcement now"
+                        aria-label={t('announcements.actions.publishNowAria')}
                         onClick={() => setConfirmingPublish(true)}
                     >
                         <MantineIcon icon={IconSend} />
@@ -419,9 +441,9 @@ const AnnouncementItemActions: FC<{
                 <MantineModal
                     opened
                     onClose={() => !updating && setConfirmingPublish(false)}
-                    title="Publish announcement"
+                    title={t('announcements.publishModal.title')}
                     icon={IconSend}
-                    confirmLabel="Publish now"
+                    confirmLabel={t('announcements.actions.publishNow')}
                     confirmLoading={updating}
                     onConfirm={() =>
                         update(
@@ -436,22 +458,35 @@ const AnnouncementItemActions: FC<{
                     }
                 >
                     <Text size="sm">
-                        “{announcement.title}” goes live on the homepage
-                        immediately
-                        {announcement.pendingSlackChannelId
-                            ? ' and notifies Slack'
-                            : ''}
-                        {announcement.scheduledPublishAt
-                            ? ', replacing its schedule'
-                            : ''}
-                        .
+                        {t(
+                            `announcements.publishModal.${
+                                announcement.pendingSlackChannelId
+                                    ? 'withSlack'
+                                    : 'noSlack'
+                            }${
+                                announcement.scheduledPublishAt
+                                    ? 'ReplacingSchedule'
+                                    : ''
+                            }`,
+                            { title: announcement.title },
+                        )}
                     </Text>
                 </MantineModal>
             )}
-            <Tooltip label={announcement.pinned ? 'Unpin' : 'Pin to top'}>
+            <Tooltip
+                label={
+                    announcement.pinned
+                        ? t('announcements.actions.unpin')
+                        : t('announcements.actions.pinToTop')
+                }
+            >
                 <ActionIcon
                     size="sm"
-                    aria-label={announcement.pinned ? 'Unpin' : 'Pin'}
+                    aria-label={
+                        announcement.pinned
+                            ? t('announcements.actions.unpin')
+                            : t('announcements.actions.pin')
+                    }
                     onClick={() =>
                         update({
                             announcementUuid: announcement.announcementUuid,
@@ -464,20 +499,20 @@ const AnnouncementItemActions: FC<{
                     />
                 </ActionIcon>
             </Tooltip>
-            <Tooltip label="Edit">
+            <Tooltip label={t('actions.edit', { ns: 'common' })}>
                 <ActionIcon
                     size="sm"
-                    aria-label="Edit announcement"
+                    aria-label={t('announcements.actions.editAria')}
                     onClick={() => onEdit(announcement)}
                 >
                     <MantineIcon icon={IconPencil} />
                 </ActionIcon>
             </Tooltip>
-            <Tooltip label="Delete">
+            <Tooltip label={t('actions.delete', { ns: 'common' })}>
                 <ActionIcon
                     color="red"
                     size="sm"
-                    aria-label="Delete announcement"
+                    aria-label={t('announcements.actions.deleteAria')}
                     onClick={() => onDelete(announcement)}
                 >
                     <MantineIcon icon={IconTrash} />
@@ -492,13 +527,14 @@ const DeleteAnnouncementModal: FC<{
     announcement: ProjectAnnouncement;
     onClose: () => void;
 }> = ({ projectUuid, announcement, onClose }) => {
+    const { t } = useTranslation('homepageBuilder');
     const { mutate: remove, isLoading: removing } =
         useDeleteAnnouncement(projectUuid);
     return (
         <MantineModal
             opened
             onClose={() => !removing && onClose()}
-            title="Delete announcement"
+            title={t('announcements.deleteModal.title')}
             variant="delete"
             resourceType="announcement"
             resourceLabel={announcement.title}
@@ -535,6 +571,7 @@ export const AnnouncementsBlockView: FC<BlockComponentProps> = ({
     block,
     projectUuid,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const canManage = useCanManageHomepage(projectUuid);
     // Managers see drafts inline (tagged) so they can edit or delete them
     // from here; viewers only ever get published announcements.
@@ -566,15 +603,14 @@ export const AnnouncementsBlockView: FC<BlockComponentProps> = ({
                             }
                             onClick={() => setCreating(true)}
                         >
-                            New announcement
+                            {t('announcements.new')}
                         </Button>
                     ) : undefined
                 }
             />
             {announcements.length === 0 ? (
                 <div className={classes.emptyHint}>
-                    No announcements yet — share your first update. Viewers
-                    don’t see this block while it’s empty.
+                    {t('announcements.emptyView')}
                 </div>
             ) : (
                 <AnnouncementFeed
@@ -670,54 +706,68 @@ const useScheduleFields = (initialSchedule: Date | null) => {
 
 type ScheduleFields = ReturnType<typeof useScheduleFields>;
 
-const SchedulePicker: FC<{ schedule: ScheduleFields }> = ({ schedule }) => (
-    <Stack gap="xs">
-        <Switch
-            size="xs"
-            label="Schedule publish"
-            checked={schedule.enabled}
-            onChange={(event) =>
-                schedule.setEnabled(event.currentTarget.checked)
-            }
-        />
-        {schedule.enabled && (
-            <Group grow align="flex-start" wrap="nowrap">
-                <CalendarPickerInput
-                    label="Date"
-                    size="sm"
-                    radius="md"
-                    value={schedule.date}
-                    onChange={schedule.setDate}
-                    minDate={new Date()}
-                />
-                <TimeInput
-                    label="Time"
-                    size="sm"
-                    value={schedule.time}
-                    onChange={(event) =>
-                        schedule.setTime(event.currentTarget.value)
-                    }
-                />
-            </Group>
-        )}
-    </Stack>
-);
+const SchedulePicker: FC<{ schedule: ScheduleFields }> = ({ schedule }) => {
+    const { t } = useTranslation('homepageBuilder');
+    return (
+        <Stack gap="xs">
+            <Switch
+                size="xs"
+                label={t('announcements.schedule.label')}
+                checked={schedule.enabled}
+                onChange={(event) =>
+                    schedule.setEnabled(event.currentTarget.checked)
+                }
+            />
+            {schedule.enabled && (
+                <Group grow align="flex-start" wrap="nowrap">
+                    <CalendarPickerInput
+                        label={t('announcements.schedule.date')}
+                        size="sm"
+                        radius="md"
+                        value={schedule.date}
+                        onChange={schedule.setDate}
+                        minDate={new Date()}
+                    />
+                    <TimeInput
+                        label={t('announcements.schedule.time')}
+                        size="sm"
+                        value={schedule.time}
+                        onChange={(event) =>
+                            schedule.setTime(event.currentTarget.value)
+                        }
+                    />
+                </Group>
+            )}
+        </Stack>
+    );
+};
 
-const saveLabelFor = ({
-    isEdit,
-    isScheduled,
-    publishNow,
-    hasSlack,
-}: {
-    isEdit: boolean;
-    isScheduled: boolean;
-    publishNow: boolean;
-    hasSlack: boolean;
-}): string => {
-    if (isEdit) return 'Save';
-    if (isScheduled) return hasSlack ? 'Schedule & queue Slack' : 'Schedule';
-    if (publishNow) return hasSlack ? 'Post & send to Slack' : 'Post';
-    return hasSlack ? 'Create draft & queue Slack' : 'Create draft';
+const saveLabelFor = (
+    t: TFunction,
+    {
+        isEdit,
+        isScheduled,
+        publishNow,
+        hasSlack,
+    }: {
+        isEdit: boolean;
+        isScheduled: boolean;
+        publishNow: boolean;
+        hasSlack: boolean;
+    },
+): string => {
+    if (isEdit) return t('actions.save', { ns: 'common' });
+    if (isScheduled)
+        return hasSlack
+            ? t('announcements.save.scheduleWithSlack')
+            : t('announcements.save.schedule');
+    if (publishNow)
+        return hasSlack
+            ? t('announcements.save.postWithSlack')
+            : t('announcements.save.post');
+    return hasSlack
+        ? t('announcements.save.draftWithSlack')
+        : t('announcements.save.draft');
 };
 
 const PublishHint: FC<{
@@ -727,43 +777,49 @@ const PublishHint: FC<{
     hasSlack: boolean;
     schedule: ScheduleFields;
 }> = ({ isEdit, isPublished, publishNow, hasSlack, schedule }) => {
+    const { t } = useTranslation('homepageBuilder');
     if (schedule.enabled && schedule.isInPast) {
         return (
             <Text size="xs" c="red">
-                Pick a publish time in the future.
+                {t('announcements.hints.pastTime')}
             </Text>
         );
     }
     if (schedule.enabled && schedule.scheduledAt) {
         return (
             <Text size="xs" c="dimmed">
-                Publishes automatically on{' '}
-                {schedule.scheduledAt.toLocaleString(undefined, {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit',
-                })}{' '}
-                (your local time)
-                {hasSlack ? ' and notifies Slack then' : ''}.
+                {t(
+                    hasSlack
+                        ? 'announcements.hints.scheduledWithSlack'
+                        : 'announcements.hints.scheduled',
+                    {
+                        date: schedule.scheduledAt.toLocaleString(undefined, {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                        }),
+                    },
+                )}
             </Text>
         );
     }
     if (!isEdit && publishNow) {
         return (
             <Text size="xs" c="dimmed">
-                Goes live on the homepage immediately
-                {hasSlack ? ' and notifies Slack' : ''}.
+                {hasSlack
+                    ? t('announcements.hints.liveWithSlack')
+                    : t('announcements.hints.live')}
             </Text>
         );
     }
     if (isPublished) return null;
     return (
         <Text size="xs" c="dimmed">
-            Saved as a draft. It
-            {hasSlack ? ' and its Slack notification' : ''} goes live when you
-            publish the homepage.
+            {hasSlack
+                ? t('announcements.hints.draftWithSlack')
+                : t('announcements.hints.draft')}
         </Text>
     );
 };
@@ -783,6 +839,7 @@ const AnnouncementFormModal: FC<{
     publishNow = false,
     onClose,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const isEdit = announcement !== null;
     const isPublished = announcement?.published === true;
     // Slack can only be retargeted while the announcement is still a draft.
@@ -855,11 +912,11 @@ const AnnouncementFormModal: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            title={isEdit ? 'Edit announcement' : 'New announcement'}
+            title={isEdit ? t('announcements.edit') : t('announcements.new')}
             icon={IconSpeakerphone}
             size="lg"
             onConfirm={handleSave}
-            confirmLabel={saveLabelFor({
+            confirmLabel={saveLabelFor(t, {
                 isEdit,
                 isScheduled: scheduledAt !== null,
                 publishNow,
@@ -874,7 +931,7 @@ const AnnouncementFormModal: FC<{
                 <div className={classes.doc}>
                     <TextInput
                         variant="unstyled"
-                        placeholder="Announcement title"
+                        placeholder={t('announcements.form.titlePlaceholder')}
                         classNames={{ input: classes.docTitle }}
                         value={title}
                         onChange={(e) => setTitle(e.currentTarget.value)}
@@ -894,11 +951,16 @@ const AnnouncementFormModal: FC<{
                 <Divider />
                 <Group grow align="flex-start" wrap="nowrap">
                     <Select
-                        label="Category"
-                        placeholder="None"
+                        label={t('announcements.form.category')}
+                        placeholder={t('announcements.form.noCategory')}
                         clearable
                         size="sm"
-                        data={CATEGORY_OPTIONS}
+                        data={Object.values(AnnouncementCategory).map(
+                            (value) => ({
+                                value,
+                                label: t(`announcements.categories.${value}`),
+                            }),
+                        )}
                         value={category}
                         onChange={(value) =>
                             setCategory(value as AnnouncementCategory | null)
@@ -906,8 +968,8 @@ const AnnouncementFormModal: FC<{
                     />
                     {slackEditable && (
                         <SlackChannelSelect
-                            label="Notify Slack"
-                            placeholder="No notification"
+                            label={t('announcements.form.notifySlack')}
+                            placeholder={t('announcements.form.noNotification')}
                             size="sm"
                             radius="md"
                             value={slackChannelId}
@@ -918,10 +980,10 @@ const AnnouncementFormModal: FC<{
                 {!isPublished && <SchedulePicker schedule={schedule} />}
                 {bodyTooLong && (
                     <Text size="xs" c="red">
-                        Body is {body.trim().length.toLocaleString()} characters
-                        — trim it to{' '}
-                        {ANNOUNCEMENT_BODY_MAX_LENGTH.toLocaleString()} or
-                        fewer.
+                        {t('announcements.form.bodyTooLong', {
+                            length: body.trim().length.toLocaleString(),
+                            max: ANNOUNCEMENT_BODY_MAX_LENGTH.toLocaleString(),
+                        })}
                     </Text>
                 )}
                 <PublishHint
@@ -941,6 +1003,7 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
     projectUuid,
     onChange,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const [creating, setCreating] = useState(false);
     const [editing, setEditing] = useState<ProjectAnnouncement | null>(null);
     const [deleting, setDeleting] = useState<ProjectAnnouncement | null>(null);
@@ -969,7 +1032,7 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
             <BlockHeader icon={IconSpeakerphone} title={block.config.title} />
             <Switch
                 size="xs"
-                label="Collapse all but the first announcement"
+                label={t('announcements.collapseAfterFirst')}
                 checked={collapseAfterFirst}
                 onChange={(e) =>
                     onChange({
@@ -988,7 +1051,7 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                 onClick={() => setCreating(true)}
                 className={classes.newAnnouncementButton}
             >
-                New announcement
+                {t('announcements.new')}
             </Button>
             {isLoading ? (
                 <FeedSkeleton />
@@ -996,9 +1059,7 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                 <FeedError />
             ) : announcements.length === 0 ? (
                 <div className={classes.emptyHint}>
-                    No announcements yet — share your first update. The block
-                    stays hidden on the homepage until there is something to
-                    show.
+                    {t('announcements.emptyBuild')}
                 </div>
             ) : (
                 <AnnouncementFeed

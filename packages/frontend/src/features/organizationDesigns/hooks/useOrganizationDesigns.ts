@@ -10,6 +10,7 @@ import {
     type UpdateOrganizationDesignRequest,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -134,6 +135,7 @@ export const useOrganizationDesign = (designUuid: string | undefined) =>
 
 export const useCreateOrganizationDesign = () => {
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('settings');
     const queryClient = useQueryClient();
     return useMutation<
         ApiOrganizationDesign,
@@ -143,11 +145,11 @@ export const useCreateOrganizationDesign = () => {
         mutationKey: ['create_org_design'],
         onSuccess: async () => {
             await queryClient.invalidateQueries([ORG_DESIGNS_QUERY_KEY]);
-            showToastSuccess({ title: 'Theme created successfully' });
+            showToastSuccess({ title: t('designs.toast.created') });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to create theme',
+                title: t('designs.toast.createFailed'),
                 apiError: error,
             });
         },
@@ -156,6 +158,7 @@ export const useCreateOrganizationDesign = () => {
 
 export const useUpdateOrganizationDesign = () => {
     const { showToastApiError } = useToaster();
+    const { t } = useTranslation('settings');
     const queryClient = useQueryClient();
     return useMutation<
         ApiOrganizationDesign,
@@ -172,7 +175,7 @@ export const useUpdateOrganizationDesign = () => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update theme',
+                title: t('designs.toast.updateFailed'),
                 apiError: error,
             });
         },
@@ -181,6 +184,7 @@ export const useUpdateOrganizationDesign = () => {
 
 export const useDeleteOrganizationDesign = () => {
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('settings');
     const queryClient = useQueryClient();
     return useMutation<null, ApiError, string>(
         (designUuid) => deleteOrganizationDesignApi(designUuid),
@@ -188,11 +192,11 @@ export const useDeleteOrganizationDesign = () => {
             mutationKey: ['delete_org_design'],
             onSuccess: async () => {
                 await queryClient.invalidateQueries([ORG_DESIGNS_QUERY_KEY]);
-                showToastSuccess({ title: 'Theme deleted' });
+                showToastSuccess({ title: t('designs.toast.deleted') });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to delete theme',
+                    title: t('designs.toast.deleteFailed'),
                     apiError: error,
                 });
             },
@@ -202,6 +206,7 @@ export const useDeleteOrganizationDesign = () => {
 
 export const useSetDefaultOrganizationDesign = () => {
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('settings');
     const queryClient = useQueryClient();
     return useMutation<ApiOrganizationDesign, ApiError, string>(
         (designUuid) => setDefaultOrganizationDesignApi(designUuid),
@@ -214,11 +219,11 @@ export const useSetDefaultOrganizationDesign = () => {
                 // every single-design query so any open detail modal
                 // refreshes.
                 await queryClient.invalidateQueries([ORG_DESIGN_QUERY_KEY]);
-                showToastSuccess({ title: 'Default theme updated' });
+                showToastSuccess({ title: t('designs.toast.defaultUpdated') });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to set default theme',
+                    title: t('designs.toast.setDefaultFailed'),
                     apiError: error,
                 });
             },
@@ -228,6 +233,7 @@ export const useSetDefaultOrganizationDesign = () => {
 
 export const useClearDefaultOrganizationDesign = () => {
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('settings');
     const queryClient = useQueryClient();
     return useMutation<null, ApiError, void>(
         () => clearDefaultOrganizationDesignApi(),
@@ -239,11 +245,11 @@ export const useClearDefaultOrganizationDesign = () => {
                 // every single-design query so any open detail modal sees
                 // the cleared `isDefault`.
                 await queryClient.invalidateQueries([ORG_DESIGN_QUERY_KEY]);
-                showToastSuccess({ title: 'Default theme cleared' });
+                showToastSuccess({ title: t('designs.toast.defaultCleared') });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to clear default theme',
+                    title: t('designs.toast.clearDefaultFailed'),
                     apiError: error,
                 });
             },
@@ -253,6 +259,7 @@ export const useClearDefaultOrganizationDesign = () => {
 
 export const useUploadDesignFile = () => {
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('settings');
     const queryClient = useQueryClient();
     return useMutation<
         ApiOrganizationDesignFile,
@@ -271,11 +278,13 @@ export const useUploadDesignFile = () => {
                 ORG_DESIGN_QUERY_KEY,
                 designUuid,
             ]);
-            showToastSuccess({ title: `Uploaded ${filename}` });
+            showToastSuccess({
+                title: t('designs.toast.uploaded', { filename }),
+            });
         },
         onError: ({ error }, { filename }) => {
             showToastApiError({
-                title: `Failed to upload ${filename}`,
+                title: t('designs.toast.uploadFailed', { filename }),
                 apiError: error,
             });
         },
@@ -284,6 +293,7 @@ export const useUploadDesignFile = () => {
 
 export const useDeleteDesignFile = () => {
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('settings');
     const queryClient = useQueryClient();
     return useMutation<
         null,
@@ -297,11 +307,11 @@ export const useDeleteDesignFile = () => {
                 ORG_DESIGN_QUERY_KEY,
                 designUuid,
             ]);
-            showToastSuccess({ title: 'File deleted' });
+            showToastSuccess({ title: t('designs.toast.fileDeleted') });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to delete file',
+                title: t('designs.toast.fileDeleteFailed'),
                 apiError: error,
             });
         },
@@ -310,6 +320,7 @@ export const useDeleteDesignFile = () => {
 
 export const useDeleteAllDesignFiles = () => {
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('settings');
     const queryClient = useQueryClient();
     return useMutation<null, ApiError, string>(
         (designUuid) => deleteAllDesignFilesApi(designUuid),
@@ -321,11 +332,11 @@ export const useDeleteAllDesignFiles = () => {
                     ORG_DESIGN_QUERY_KEY,
                     designUuid,
                 ]);
-                showToastSuccess({ title: 'All files deleted' });
+                showToastSuccess({ title: t('designs.toast.allFilesDeleted') });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to delete files',
+                    title: t('designs.toast.filesDeleteFailed'),
                     apiError: error,
                 });
             },

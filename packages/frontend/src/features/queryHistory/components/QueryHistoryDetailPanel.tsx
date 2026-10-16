@@ -26,6 +26,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import Callout from '../../../components/common/Callout';
 import CodeBlock from '../../../components/common/CodeBlock/CodeBlock';
@@ -154,6 +155,7 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
     canNavigateUp,
     canNavigateDown,
 }) => {
+    const { t } = useTranslation('queryHistory');
     const navigate = useNavigate();
     const [aiPrompt, setAiPrompt] = useState('');
     const showAskAi = useAiAgentButtonVisibility();
@@ -203,9 +205,11 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
     const submitAiPrompt = () => {
         const prompt = aiPrompt.trim();
         if (!prompt || !projectUuid) return;
-        const context = `Regarding the results of my "${item.title}" query (${
-            item.totalRowCount ?? 'unknown'
-        } rows): ${prompt}`;
+        const context = t('detail.aiContext', {
+            title: item.title,
+            rowCount: item.totalRowCount ?? t('detail.unknownRowCount'),
+            prompt,
+        });
         void navigate(
             {
                 pathname: `/projects/${projectUuid}/ai-agents`,
@@ -221,7 +225,10 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
         getTriggerLabel(item.trigger),
         formatWhen(item.createdAt),
         item.totalRowCount !== null
-            ? `${item.totalRowCount.toLocaleString()} rows`
+            ? t('detail.rows', {
+                  count: item.totalRowCount,
+                  formattedCount: item.totalRowCount.toLocaleString(),
+              })
             : null,
         item.dashboardName,
     ]
@@ -230,10 +237,15 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
 
     const resultsMeta = [
         item.totalRowCount !== null
-            ? `${item.totalRowCount.toLocaleString()} rows`
+            ? t('detail.rows', {
+                  count: item.totalRowCount,
+                  formattedCount: item.totalRowCount.toLocaleString(),
+              })
             : null,
         item.resultsExpiresAt && dayjs(item.resultsExpiresAt).isAfter(dayjs())
-            ? `cached until ${dayjs(item.resultsExpiresAt).format('HH:mm')}`
+            ? t('detail.cachedUntil', {
+                  time: dayjs(item.resultsExpiresAt).format('HH:mm'),
+              })
             : null,
     ]
         .filter(Boolean)
@@ -248,7 +260,7 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
                     variant="light"
                     onClick={() => cancelQuery()}
                 >
-                    Cancel query
+                    {t('detail.cancelQuery')}
                 </Button>
             );
         }
@@ -263,7 +275,7 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
                         <MantineIcon icon={IconArrowRight} size="sm" />
                     }
                 >
-                    Open in SQL runner
+                    {t('detail.openInSqlRunner')}
                 </Button>
             );
         }
@@ -277,7 +289,9 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
                         <MantineIcon icon={IconArrowRight} size="sm" />
                     }
                 >
-                    {failed ? 'Fix in Explore' : 'Open in Explore'}
+                    {failed
+                        ? t('detail.fixInExplore')
+                        : t('detail.openInExplore')}
                 </Button>
             );
         }
@@ -293,7 +307,7 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
                         ff="monospace"
                         className={styles.errorMessage}
                     >
-                        {item.error ?? 'Query failed'}
+                        {item.error ?? t('detail.queryFailed')}
                     </Text>
                 </Callout>
             );
@@ -303,7 +317,7 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
                 <ResultsPlaceholder>
                     <Loader size="xs" color="gray" />
                     <Text fz="sm" c="dimmed">
-                        Query is still running
+                        {t('detail.stillRunning')}
                     </Text>
                 </ResultsPlaceholder>
             );
@@ -361,8 +375,7 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
         return (
             <ResultsPlaceholder>
                 <Text fz="sm" c="dimmed" ta="center">
-                    Results are no longer available. Re-run the query to see
-                    them.
+                    {t('detail.resultsUnavailable')}
                 </Text>
             </ResultsPlaceholder>
         );
@@ -393,26 +406,29 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
                     </Text>
                 </Stack>
                 <Group gap={4} wrap="nowrap">
-                    <Tooltip label="Previous query">
+                    <Tooltip label={t('detail.previousQuery')}>
                         <ActionIcon
-                            aria-label="Previous query"
+                            aria-label={t('detail.previousQuery')}
                             disabled={!canNavigateUp}
                             onClick={() => onNavigate(-1)}
                         >
                             <MantineIcon icon={IconChevronUp} />
                         </ActionIcon>
                     </Tooltip>
-                    <Tooltip label="Next query">
+                    <Tooltip label={t('detail.nextQuery')}>
                         <ActionIcon
-                            aria-label="Next query"
+                            aria-label={t('detail.nextQuery')}
                             disabled={!canNavigateDown}
                             onClick={() => onNavigate(1)}
                         >
                             <MantineIcon icon={IconChevronDown} />
                         </ActionIcon>
                     </Tooltip>
-                    <Tooltip label="Close">
-                        <ActionIcon aria-label="Close panel" onClick={onClose}>
+                    <Tooltip label={t('detail.close')}>
+                        <ActionIcon
+                            aria-label={t('detail.closePanel')}
+                            onClick={onClose}
+                        >
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
                     </Tooltip>
@@ -422,18 +438,21 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
             <Box className={styles.panelBody}>
                 <Stack p="md" gap="lg">
                     <Paper className={styles.timings}>
-                        <TimingCell label="Total" value={timings.totalMs} />
                         <TimingCell
-                            label="Queued"
+                            label={t('detail.timings.total')}
+                            value={timings.totalMs}
+                        />
+                        <TimingCell
+                            label={t('detail.timings.queued')}
                             value={timings.queuedMs}
                             muted
                         />
                         <TimingCell
-                            label="Warehouse"
+                            label={t('detail.timings.warehouse')}
                             value={timings.warehouseMs}
                         />
                         <TimingCell
-                            label="Fetch"
+                            label={t('detail.timings.fetch')}
                             value={timings.fetchMs}
                             muted
                         />
@@ -441,7 +460,7 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
 
                     <Stack gap="xs">
                         <Group justify="space-between" wrap="nowrap">
-                            <Text fw={500}>Results</Text>
+                            <Text fw={500}>{t('detail.results')}</Text>
                             {resultsMeta ? (
                                 <Text fz="xs" c="dimmed">
                                     {resultsMeta}
@@ -453,11 +472,9 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
 
                     <Stack gap="xs">
                         <Group justify="space-between" wrap="nowrap">
-                            <Text fw={500}>SQL</Text>
+                            <Text fw={500}>{t('detail.sql')}</Text>
                             <Text fz="xs" c="dimmed">
-                                {`${sqlLineCount} ${
-                                    sqlLineCount === 1 ? 'line' : 'lines'
-                                }`}
+                                {t('detail.lines', { count: sqlLineCount })}
                             </Text>
                         </Group>
                         <Box className={styles.sql}>
@@ -484,7 +501,7 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
                         onKeyDown={(event) => {
                             if (event.key === 'Enter') submitAiPrompt();
                         }}
-                        placeholder="Ask AI about these results"
+                        placeholder={t('detail.askAiPlaceholder')}
                         leftSection={<AiAgentIcon size={14} />}
                     />
                 ) : null}
@@ -496,7 +513,7 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
                         disabled={!canRerunQuery(item)}
                         onClick={() => rerunMutation.mutate(item)}
                     >
-                        Re-run
+                        {t('detail.rerun')}
                     </Button>
                     {primaryCta}
                 </Group>

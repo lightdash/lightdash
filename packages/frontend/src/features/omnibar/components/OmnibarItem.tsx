@@ -1,7 +1,9 @@
 import { ActionIcon, Badge, Box, Group, Text } from '@mantine/core';
 import { IconCircleCheckFilled, IconInfoCircle } from '@tabler/icons-react';
 import { type FC, type RefObject } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type SearchItem } from '../types/searchItem';
+import { getSearchItemTypeLabel } from '../utils/getSearchItemLabel';
 import classes from './OmnibarItem.module.css';
 import {
     OmnibarItemIcon,
@@ -32,6 +34,7 @@ const OmnibarItem: FC<Props> = ({
     scrollRef,
     onPreview,
 }) => {
+    const { t } = useTranslation('omnibar');
     return (
         <Group
             role="menuitem"
@@ -74,7 +77,9 @@ const OmnibarItem: FC<Props> = ({
                             item.contextLabel
                         ) : (
                             <>
-                                {item.typeLabel}
+                                {item.typeLabel
+                                    ? getSearchItemTypeLabel(item.typeLabel)
+                                    : null}
                                 {item.typeLabel && item.description
                                     ? ' · '
                                     : null}
@@ -91,7 +96,7 @@ const OmnibarItem: FC<Props> = ({
                         leftSection={<IconCircleCheckFilled size={10} />}
                         className={classes.verifiedBadge}
                     >
-                        Verified
+                        {t('item.verified')}
                     </Badge>
                 )}
             </Group>
@@ -100,7 +105,7 @@ const OmnibarItem: FC<Props> = ({
                     size="lg"
                     variant="subtle"
                     color="gray"
-                    aria-label={`Preview ${item.title}`}
+                    aria-label={t('item.preview', { title: item.title })}
                     onClick={(event) => {
                         event.stopPropagation();
                         onPreview();

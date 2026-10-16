@@ -3,6 +3,7 @@ import {
     type AiAgentToolName,
     type ToolName,
 } from '@lightdash/common';
+import i18n from '../../../../../../../i18n/i18n';
 import { type ToolCallSummary } from './types';
 
 export type ToolCallGroupDisplay = {
@@ -17,8 +18,10 @@ export type ToolCallActivityGroup = {
     display?: ToolCallGroupDisplay;
 };
 
-type ToolCallGroupDefinition = ToolCallGroupDisplay & {
+type ToolCallGroupDefinition = {
     key: string;
+    /** Key under `toolGroups` in the aiCopilotChat namespace. */
+    labelKey: string;
     representativeToolName: ToolName;
     toolNames: readonly ToolName[];
 };
@@ -26,16 +29,14 @@ type ToolCallGroupDefinition = ToolCallGroupDisplay & {
 const TOOL_CALL_GROUP_DEFINITIONS: ToolCallGroupDefinition[] = [
     {
         key: 'data-model-search',
+        labelKey: 'dataModelSearch',
         representativeToolName: 'findFields',
-        liveLabel: 'Searching the data model',
-        doneLabel: 'Searched the data model',
         toolNames: ['findExplores', 'findFields', 'searchSemanticLayer'],
     },
     {
         key: 'content-search',
+        labelKey: 'contentSearch',
         representativeToolName: 'findContent',
-        liveLabel: 'Finding relevant content',
-        doneLabel: 'Found relevant content',
         toolNames: [
             'findContent',
             'listContent',
@@ -46,23 +47,20 @@ const TOOL_CALL_GROUP_DEFINITIONS: ToolCallGroupDefinition[] = [
     },
     {
         key: 'warehouse-inspection',
+        labelKey: 'warehouseInspection',
         representativeToolName: 'listWarehouseTables',
-        liveLabel: 'Inspecting warehouse tables',
-        doneLabel: 'Inspected warehouse tables',
         toolNames: ['listWarehouseTables', 'describeWarehouseTable'],
     },
     {
         key: 'knowledge-search',
+        labelKey: 'knowledgeSearch',
         representativeToolName: 'listKnowledgeDocuments',
-        liveLabel: 'Reading knowledge documents',
-        doneLabel: 'Read knowledge documents',
         toolNames: ['listKnowledgeDocuments', 'getKnowledgeDocumentContent'],
     },
     {
         key: 'chart-build',
+        labelKey: 'chartBuild',
         representativeToolName: 'generateVisualization',
-        liveLabel: 'Building a chart',
-        doneLabel: 'Built a chart',
         toolNames: [
             'generateVisualization',
             'runQuery',
@@ -72,9 +70,8 @@ const TOOL_CALL_GROUP_DEFINITIONS: ToolCallGroupDefinition[] = [
     },
     {
         key: 'project-context',
+        labelKey: 'projectContext',
         representativeToolName: 'loadProjectContext',
-        liveLabel: 'Loading project context',
-        doneLabel: 'Loaded project context',
         toolNames: [
             'listProjects',
             'getProjectInfo',
@@ -84,9 +81,8 @@ const TOOL_CALL_GROUP_DEFINITIONS: ToolCallGroupDefinition[] = [
     },
     {
         key: 'content-editing',
+        labelKey: 'contentEditing',
         representativeToolName: 'editContent',
-        liveLabel: 'Editing content',
-        doneLabel: 'Edited content',
         toolNames: ['editContent', 'createContent'],
     },
 ];
@@ -119,8 +115,12 @@ const getToolCallGroupDisplay = (
     }
 
     return {
-        doneLabel: firstDefinition.doneLabel,
-        liveLabel: firstDefinition.liveLabel,
+        doneLabel: i18n.t(`toolGroups.${firstDefinition.labelKey}.done`, {
+            ns: 'aiCopilotChat',
+        }),
+        liveLabel: i18n.t(`toolGroups.${firstDefinition.labelKey}.live`, {
+            ns: 'aiCopilotChat',
+        }),
     };
 };
 

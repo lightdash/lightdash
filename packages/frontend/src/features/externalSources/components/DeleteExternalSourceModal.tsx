@@ -2,6 +2,7 @@ import { type ExternalSourceRef } from '@lightdash/common';
 import { Button, Group, Stack, Text } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../../components/common/MantineModal';
 import { useDeleteExternalSource } from '../hooks/useExternalSources';
 
@@ -22,24 +23,22 @@ export const DeleteExternalSourceModal: FC<Props> = ({
     onClose,
     onDeleted,
 }) => {
+    const { t } = useTranslation('sync');
     const deleteMutation = useDeleteExternalSource(projectUuid);
 
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title={`Delete ${tableLabel}`}
+            title={t('externalSources.delete.title', { table: tableLabel })}
             icon={IconTrash}
             size="md"
         >
             <Stack gap="md">
-                <Text fz="sm">
-                    This permanently removes the table and its uploaded data.
-                    Charts built on it will stop working.
-                </Text>
+                <Text fz="sm">{t('externalSources.delete.description')}</Text>
                 <Group justify="flex-end">
                     <Button variant="default" onClick={onClose}>
-                        Cancel
+                        {t('actions.cancel', { ns: 'common' })}
                     </Button>
                     <Button
                         color="red"
@@ -53,7 +52,7 @@ export const DeleteExternalSourceModal: FC<Props> = ({
                             })
                         }
                     >
-                        Delete
+                        {t('actions.delete', { ns: 'common' })}
                     </Button>
                 </Group>
             </Stack>

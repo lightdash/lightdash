@@ -22,6 +22,7 @@ import {
     IconMessage,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useApp from '../../../providers/App/useApp';
@@ -51,6 +52,7 @@ export const DashboardTileComments: FC<
     onOpen,
     targetVariant = 'actionIcon',
 }) => {
+    const { t } = useTranslation('comments');
     const getUiString = useUiStrings();
     const { user } = useApp();
     const { track } = useTracking();
@@ -284,7 +286,7 @@ export const DashboardTileComments: FC<
                     ))}
                     {!hasComments && (
                         <Text fz="xs" c="dimmed">
-                            No open comments
+                            {t('panel.noOpenComments')}
                         </Text>
                     )}
 
@@ -317,8 +319,13 @@ export const DashboardTileComments: FC<
                                     />
                                 }
                             >
-                                {showResolved ? 'Hide' : 'Show'} resolved (
-                                {resolvedComments.length})
+                                {showResolved
+                                    ? t('panel.hideResolved', {
+                                          count: resolvedComments.length,
+                                      })
+                                    : t('panel.showResolved', {
+                                          count: resolvedComments.length,
+                                      })}
                             </Button>
                             <Collapse expanded={showResolved}>
                                 <Stack gap="xs" mt="xs">

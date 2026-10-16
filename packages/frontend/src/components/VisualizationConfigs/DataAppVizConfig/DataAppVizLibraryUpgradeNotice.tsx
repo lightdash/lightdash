@@ -1,6 +1,7 @@
 import { FeatureFlags, type DataAppViz } from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine/core';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import ChartTypeUpgradeModal from '../../../features/chartTypes/components/ChartTypeUpgradeModal';
 import { useRegistryChartTypes } from '../../../features/chartTypes/hooks/useRegistryChartTypes';
@@ -16,6 +17,7 @@ const DataAppVizLibraryUpgradeNotice: FC<Props> = ({
     projectUuid,
     dataAppViz,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
     const canUpgrade = useCanCreateDataApp(projectUuid);
     const registryEnabled =
@@ -37,16 +39,18 @@ const DataAppVizLibraryUpgradeNotice: FC<Props> = ({
         <>
             <Callout
                 variant="info"
-                title={`Update available: v${registryUpdate.version}`}
+                title={t('dataAppViz.libraryUpgrade.title', {
+                    version: registryUpdate.version,
+                })}
             >
                 <Stack gap="sm" align="flex-start">
                     {registryUpdate.changelog && (
                         <Text fz="sm">{registryUpdate.changelog}</Text>
                     )}
                     <Text fz="sm">
-                        Charts pinned to an earlier version keep rendering it
-                        until each chart is upgraded; charts without a pinned
-                        version switch to v{registryUpdate.version} right away.
+                        {t('dataAppViz.libraryUpgrade.description', {
+                            version: registryUpdate.version,
+                        })}
                     </Text>
                     {canUpgrade && (
                         <Button
@@ -54,7 +58,9 @@ const DataAppVizLibraryUpgradeNotice: FC<Props> = ({
                             variant="default"
                             onClick={() => setIsUpgradeOpen(true)}
                         >
-                            Upgrade to v{registryUpdate.version}
+                            {t('dataAppViz.libraryUpgrade.upgradeTo', {
+                                version: registryUpdate.version,
+                            })}
                         </Button>
                     )}
                 </Stack>

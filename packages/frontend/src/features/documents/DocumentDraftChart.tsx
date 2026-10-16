@@ -1,5 +1,6 @@
 import { type SemanticChartAsCode } from '@lightdash/common';
 import { useMemo, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import { buildQueryArgs } from '../../hooks/explorer/buildQueryArgs';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
@@ -22,6 +23,7 @@ const DocumentDraftChart = ({
     chart,
     actions,
 }: Props) => {
+    const { t } = useTranslation('documents');
     const { canViewExplore } = useContextMenuPermissions({ projectUuid });
     const version = useMemo(() => getDocumentChartVersion(chart), [chart]);
     const explore = useExploreByProjectUuid(chart.tableName, projectUuid, {
@@ -61,8 +63,8 @@ const DocumentDraftChart = ({
                 <InlineErrorState
                     message={
                         !canViewExplore
-                            ? 'You need Explore access to preview this unsaved chart.'
-                            : 'The explore for this chart could not be loaded.'
+                            ? t('chart.draftNoExploreAccess')
+                            : t('chart.draftExploreLoadFailed')
                     }
                     onRetry={
                         canViewExplore

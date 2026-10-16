@@ -4,6 +4,7 @@ import {
     type ApiJobStatusResponse,
 } from '@lightdash/common';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { getSchedulerJobStatus } from '../../scheduler/hooks/useScheduler';
 
@@ -39,6 +40,7 @@ export const useIndexCatalogJob = (
     onSuccess: (job: ApiJobStatusResponse['results']) => void,
 ) => {
     const { showToastApiError, showToastError } = useToaster();
+    const { t } = useTranslation('metricsCatalog');
     const queryClient = useQueryClient();
     return useQuery<ApiJobStatusResponse['results'], ApiError>({
         queryKey: ['index-catalog-job', jobId],
@@ -65,13 +67,13 @@ export const useIndexCatalogJob = (
                 onSuccess(job);
             } else if (job.status === SchedulerJobStatus.ERROR) {
                 showToastError({
-                    title: 'Failed to refresh catalog',
+                    title: t('toasts.refreshCatalogFailed'),
                 });
             }
         },
         onError: ({ error }: ApiError) => {
             showToastApiError({
-                title: 'Failed to refresh catalog',
+                title: t('toasts.refreshCatalogFailed'),
                 apiError: error,
             });
         },

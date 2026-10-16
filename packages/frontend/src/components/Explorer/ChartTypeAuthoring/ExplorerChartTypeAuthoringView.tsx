@@ -1,6 +1,7 @@
 import { type DataAppVizContext } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { useId, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type SdkUpgradeOffer } from '../../../features/apps/hooks/useSdkUpgradeStatus';
 import { type ChartTypeAppMeta } from '../../../features/chartTypes/builder/appMeta';
 import ChartTypeBuilderWorkspace from '../../../features/chartTypes/builder/ChartTypeBuilderWorkspace';
@@ -43,6 +44,7 @@ const ExplorerChartTypeAuthoringView: FC<Props> = ({
     onDetailsSaved,
     onDone,
 }) => {
+    const { t } = useTranslation('explorer');
     const titleId = useId();
     const schema = workspace.dataAppViz?.schema;
     // A schema is useful once it has something the chart can configure. The
@@ -90,7 +92,7 @@ const ExplorerChartTypeAuthoringView: FC<Props> = ({
                         <Box
                             component="aside"
                             className={classes.configColumn}
-                            aria-label="Chart type configuration"
+                            aria-label={t('chartStudio.configuration')}
                         >
                             <ChartGalleryContext.Provider value={true}>
                                 <DataAppVizConfigTabs />

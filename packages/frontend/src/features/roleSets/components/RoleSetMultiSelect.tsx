@@ -1,5 +1,6 @@
 import { MultiSelect, Tooltip } from '@mantine/core';
 import { useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export type RoleOption = { value: string; label: string };
 
@@ -46,6 +47,7 @@ export function RoleSetMultiSelect<TSystemRole extends string>({
     size = 'xs',
     w = 300,
 }: Props<TSystemRole>) {
+    const { t } = useTranslation('roles');
     const systemRoleValues = useMemo(
         () => new Set(systemRoles.map((role) => role.value)),
         [systemRoles],
@@ -54,16 +56,19 @@ export function RoleSetMultiSelect<TSystemRole extends string>({
     const data = useMemo(() => {
         const groups: { group: string; items: RoleOption[] }[] = [];
         if (systemRoles.length > 0) {
-            groups.push({ group: 'System role', items: systemRoles });
+            groups.push({
+                group: t('roleSets.systemRoleGroup'),
+                items: systemRoles,
+            });
         }
         if (customRoles.length > 0) {
             groups.push({
-                group: 'Custom roles (additive)',
+                group: t('roleSets.customRolesGroup'),
                 items: customRoles,
             });
         }
         return groups;
-    }, [systemRoles, customRoles]);
+    }, [systemRoles, customRoles, t]);
 
     const handleChange = useCallback(
         (selected: string[]) => {
@@ -97,10 +102,7 @@ export function RoleSetMultiSelect<TSystemRole extends string>({
     );
 
     return (
-        <Tooltip
-            label="Permissions are the union of every selected role. One system role at most; custom roles add on top."
-            openDelay={500}
-        >
+        <Tooltip label={t('roleSets.unionTooltip')} openDelay={500}>
             <MultiSelect
                 id={id}
                 size={size}

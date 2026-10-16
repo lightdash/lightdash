@@ -1,81 +1,89 @@
 import type { RowLimit } from '@lightdash/common';
 import { Group, SegmentedControl, Switch, Text } from '@mantine/core';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { NumberInput } from '../../common/NumberInput';
-
-const MODE_OPTIONS = [
-    { label: 'Show', value: 'show' },
-    { label: 'Hide', value: 'hide' },
-];
-
-const DIRECTION_OPTIONS = [
-    { label: 'First', value: 'first' },
-    { label: 'Last', value: 'last' },
-];
 
 type Props = {
     rowLimit: RowLimit | undefined;
     onRowLimitChange: (rowLimit: RowLimit | undefined) => void;
 };
 
-export const RowLimitControls: FC<Props> = ({ rowLimit, onRowLimitChange }) => (
-    <>
-        <Switch
-            size="xs"
-            label="Limit displayed rows"
-            checked={rowLimit !== undefined}
-            onChange={(e) =>
-                onRowLimitChange(
-                    e.currentTarget.checked
-                        ? { mode: 'show', direction: 'first', count: 50 }
-                        : undefined,
-                )
-            }
-        />
-        {rowLimit !== undefined && (
-            <Group gap="xs" wrap="nowrap">
-                <SegmentedControl
-                    size="xs"
-                    data={MODE_OPTIONS}
-                    value={rowLimit.mode}
-                    onChange={(value) =>
-                        onRowLimitChange({
-                            ...rowLimit,
-                            mode: value as 'show' | 'hide',
-                        })
-                    }
-                />
-                <Text fz="xs" c="dimmed">
-                    the
-                </Text>
-                <SegmentedControl
-                    size="xs"
-                    data={DIRECTION_OPTIONS}
-                    value={rowLimit.direction}
-                    onChange={(value) =>
-                        onRowLimitChange({
-                            ...rowLimit,
-                            direction: value as 'first' | 'last',
-                        })
-                    }
-                />
-                <NumberInput
-                    size="xs"
-                    w={60}
-                    min={1}
-                    allowDecimal={false}
-                    value={rowLimit.count}
-                    onChange={(value) =>
-                        onRowLimitChange({
-                            ...rowLimit,
-                            count: typeof value === 'number' ? value : 50,
-                        })
-                    }
-                />
-                <Text fz="xs" c="dimmed">
-                    rows
-                </Text>
-            </Group>
-        )}
-    </>
-);
+export const RowLimitControls: FC<Props> = ({ rowLimit, onRowLimitChange }) => {
+    const { t } = useTranslation('vizConfig');
+    const modeOptions = useMemo(
+        () => [
+            { label: t('common.rowLimit.show'), value: 'show' },
+            { label: t('common.rowLimit.hide'), value: 'hide' },
+        ],
+        [t],
+    );
+    const directionOptions = useMemo(
+        () => [
+            { label: t('common.rowLimit.first'), value: 'first' },
+            { label: t('common.rowLimit.last'), value: 'last' },
+        ],
+        [t],
+    );
+    return (
+        <>
+            <Switch
+                size="xs"
+                label={t('common.rowLimit.label')}
+                checked={rowLimit !== undefined}
+                onChange={(e) =>
+                    onRowLimitChange(
+                        e.currentTarget.checked
+                            ? { mode: 'show', direction: 'first', count: 50 }
+                            : undefined,
+                    )
+                }
+            />
+            {rowLimit !== undefined && (
+                <Group gap="xs" wrap="nowrap">
+                    <SegmentedControl
+                        size="xs"
+                        data={modeOptions}
+                        value={rowLimit.mode}
+                        onChange={(value) =>
+                            onRowLimitChange({
+                                ...rowLimit,
+                                mode: value as 'show' | 'hide',
+                            })
+                        }
+                    />
+                    <Text fz="xs" c="dimmed">
+                        {t('common.rowLimit.the')}
+                    </Text>
+                    <SegmentedControl
+                        size="xs"
+                        data={directionOptions}
+                        value={rowLimit.direction}
+                        onChange={(value) =>
+                            onRowLimitChange({
+                                ...rowLimit,
+                                direction: value as 'first' | 'last',
+                            })
+                        }
+                    />
+                    <NumberInput
+                        size="xs"
+                        w={60}
+                        min={1}
+                        allowDecimal={false}
+                        value={rowLimit.count}
+                        onChange={(value) =>
+                            onRowLimitChange({
+                                ...rowLimit,
+                                count: typeof value === 'number' ? value : 50,
+                            })
+                        }
+                    />
+                    <Text fz="xs" c="dimmed">
+                        {t('common.rowLimit.rows')}
+                    </Text>
+                </Group>
+            )}
+        </>
+    );
+};

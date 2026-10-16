@@ -7,6 +7,7 @@ import {
     IconSparkles,
 } from '@tabler/icons-react';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import MantineIcon from '../components/common/MantineIcon';
@@ -40,6 +41,7 @@ import useNativeFullscreenToggle from '../providers/Fullscreen/useNativeFullscre
 import classes from './AppPreviewTest.module.css';
 
 export default function AppPreviewTest() {
+    const { t } = useTranslation('pages');
     const navigate = useNavigate();
     const { appUuid, version: versionParam } = useParams();
     const projectUuid = useProjectUuid();
@@ -184,7 +186,7 @@ export default function AppPreviewTest() {
     }
 
     if (!projectUuid || !appUuid) {
-        return <div>Missing route params</div>;
+        return <div>{t('dataApp.missingRouteParams')}</div>;
     }
 
     const visibleTokenError = getVisiblePreviewTokenError(tokenError, !!token);
@@ -204,8 +206,8 @@ export default function AppPreviewTest() {
             <Box mt="30vh">
                 <SuboptimalState
                     icon={IconAppsOff}
-                    title="Data app not found"
-                    description="This data app doesn't exist or has been deleted."
+                    title={t('dataApp.notFound')}
+                    description={t('dataApp.notFoundDescription')}
                 />
             </Box>
         );
@@ -216,7 +218,7 @@ export default function AppPreviewTest() {
             <Stack align="center" justify="center" h="calc(100dvh - 50px)">
                 <Loader size="md" />
                 <Text size="sm" c="dimmed">
-                    Loading app...
+                    {t('dataApp.loading')}
                 </Text>
             </Stack>
         );
@@ -226,8 +228,12 @@ export default function AppPreviewTest() {
         return (
             <Stack align="center" justify="center" h="calc(100dvh - 50px)">
                 <Text c="red" size="sm">
-                    Failed to load app:{' '}
-                    {error instanceof Error ? error.message : 'Unknown error'}
+                    {t('dataApp.loadFailed', {
+                        message:
+                            error instanceof Error
+                                ? error.message
+                                : t('dataApp.unknownError'),
+                    })}
                 </Text>
             </Stack>
         );
@@ -248,18 +254,18 @@ export default function AppPreviewTest() {
         body = isBuildInProgress ? (
             <SuboptimalState
                 loading
-                title="This app is still building"
-                description="The preview will load automatically once the build is ready."
+                title={t('dataApp.stillBuilding')}
+                description={t('dataApp.stillBuildingDescription')}
             />
         ) : (
             <SuboptimalState
                 icon={IconAppsOff}
-                title="This app hasn't been built yet"
-                description="There's no ready version of this app to preview yet."
+                title={t('dataApp.notBuilt')}
+                description={t('dataApp.notBuiltDescription')}
             />
         );
     } else if (isTokenLoading || !previewUrl || !token) {
-        body = <SuboptimalState loading title="Loading app..." />;
+        body = <SuboptimalState loading title={t('dataApp.loading')} />;
     } else {
         body = (
             <>
@@ -322,7 +328,7 @@ export default function AppPreviewTest() {
                     mod="touch-target"
                     variant="default"
                     onClick={handleToggleFullscreen}
-                    aria-label="Exit fullscreen"
+                    aria-label={t('dataApp.exitFullscreen')}
                 >
                     <MantineIcon icon={IconMinimize} />
                 </ActionIcon>
@@ -365,7 +371,7 @@ export default function AppPreviewTest() {
                                                       analysisAvailability
                                                           .reason
                                                   ]
-                                                : 'Analyse this view'
+                                                : t('dataApp.analyseView')
                                         }
                                         position="bottom"
                                         openDelay={200}
@@ -377,7 +383,9 @@ export default function AppPreviewTest() {
                                             onClick={() =>
                                                 setAnalysisOpened(true)
                                             }
-                                            aria-label="Analyse this view"
+                                            aria-label={t(
+                                                'dataApp.analyseView',
+                                            )}
                                         >
                                             <MantineIcon
                                                 icon={IconSparkles}
@@ -391,7 +399,7 @@ export default function AppPreviewTest() {
                                 isFullscreenFeatureEnabled &&
                                 document.fullscreenEnabled ? (
                                     <Tooltip
-                                        label="Enter Fullscreen Mode"
+                                        label={t('dataApp.enterFullscreen')}
                                         position="bottom"
                                         openDelay={200}
                                         transitionProps={{
@@ -403,7 +411,9 @@ export default function AppPreviewTest() {
                                             variant="default"
                                             size="md"
                                             onClick={handleToggleFullscreen}
-                                            aria-label="Enter Fullscreen Mode"
+                                            aria-label={t(
+                                                'dataApp.enterFullscreen',
+                                            )}
                                         >
                                             <MantineIcon
                                                 icon={IconMaximize}

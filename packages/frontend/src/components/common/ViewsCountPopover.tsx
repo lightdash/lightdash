@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import dayjs from 'dayjs';
 import { type FC, type ReactNode, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useChartViewStats } from '../../hooks/chart/useChartViewStats';
 import { useDashboardViewStats } from '../../hooks/dashboard/useDashboardViewStats';
 import classes from './ViewsCountPopover.module.css';
@@ -27,6 +28,7 @@ const StatRow: FC<{ label: string; children: ReactNode }> = ({
 const ViewStatsCard: FC<{ stats: DetailedViewStatistics | undefined }> = ({
     stats,
 }) => {
+    const { t } = useTranslation('commonUi');
     if (!stats) {
         return (
             <Stack gap="xs">
@@ -38,21 +40,21 @@ const ViewStatsCard: FC<{ stats: DetailedViewStatistics | undefined }> = ({
 
     return (
         <Stack gap={4}>
-            <StatRow label="Unique viewers">
+            <StatRow label={t('viewsCountPopover.uniqueViewers')}>
                 {stats.uniqueViewerCount.toLocaleString()}
             </StatRow>
             {stats.firstViewedAt && (
-                <StatRow label="First viewed">
+                <StatRow label={t('viewsCountPopover.firstViewed')}>
                     {dayjs(stats.firstViewedAt).format('MMM D, YYYY')}
                 </StatRow>
             )}
             {stats.anonymousViewCount > 0 && (
                 <Text className={classes.note}>
-                    Includes {stats.anonymousViewCount.toLocaleString()}{' '}
-                    {stats.anonymousViewCount === 1
-                        ? 'anonymous view'
-                        : 'anonymous views'}{' '}
-                    not tied to a user
+                    {t('viewsCountPopover.anonymousViews', {
+                        count: stats.anonymousViewCount,
+                        formattedCount:
+                            stats.anonymousViewCount.toLocaleString(),
+                    })}
                 </Text>
             )}
         </Stack>

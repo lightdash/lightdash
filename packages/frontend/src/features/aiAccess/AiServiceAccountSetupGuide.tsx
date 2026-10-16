@@ -1,5 +1,6 @@
 import { Stack, Text } from '@mantine/core';
 import { type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AgentSetupStep } from './AgentSetupStep';
 
 export const AiServiceAccountSetupGuide = ({
@@ -7,9 +8,9 @@ export const AiServiceAccountSetupGuide = ({
     createContent,
     grantContent,
     addHelp,
-    createTitle = `Create the account in ${warehouseName}`,
-    grantTitle = 'Grant it only the data agents may read',
-    addTitle = 'Add it here and select Test',
+    createTitle,
+    grantTitle,
+    addTitle,
 }: {
     warehouseName: string;
     createContent: ReactNode;
@@ -18,18 +19,36 @@ export const AiServiceAccountSetupGuide = ({
     createTitle?: string;
     grantTitle?: string;
     addTitle?: string;
-}) => (
-    <Stack gap="lg" mt="lg">
-        <AgentSetupStep number={1} title={createTitle} done={false}>
-            {createContent}
-        </AgentSetupStep>
-        <AgentSetupStep number={2} title={grantTitle} done={false}>
-            {grantContent}
-        </AgentSetupStep>
-        <AgentSetupStep number={3} title={addTitle} done={false}>
-            <Text size="sm" c="dimmed">
-                {addHelp}
-            </Text>
-        </AgentSetupStep>
-    </Stack>
-);
+}) => {
+    const { t } = useTranslation('aiAccess');
+    return (
+        <Stack gap="lg" mt="lg">
+            <AgentSetupStep
+                number={1}
+                title={
+                    createTitle ??
+                    t('setupGuide.createTitle', { warehouse: warehouseName })
+                }
+                done={false}
+            >
+                {createContent}
+            </AgentSetupStep>
+            <AgentSetupStep
+                number={2}
+                title={grantTitle ?? t('setupGuide.grantTitle')}
+                done={false}
+            >
+                {grantContent}
+            </AgentSetupStep>
+            <AgentSetupStep
+                number={3}
+                title={addTitle ?? t('setupGuide.addTitle')}
+                done={false}
+            >
+                <Text size="sm" c="dimmed">
+                    {addHelp}
+                </Text>
+            </AgentSetupStep>
+        </Stack>
+    );
+};

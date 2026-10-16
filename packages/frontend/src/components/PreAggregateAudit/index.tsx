@@ -2,6 +2,7 @@ import { Button, Card, LoadingOverlay, SimpleGrid, Text } from '@mantine/core';
 import { IconRefresh } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useToaster from '../../hooks/toaster/useToaster';
 import { usePreAggregateStats } from '../../hooks/usePreAggregateStats';
 import { useProject } from '../../hooks/useProject';
@@ -14,6 +15,7 @@ type PreAggregateAuditProps = {
 };
 
 const PreAggregateAudit: FC<PreAggregateAuditProps> = ({ projectUuid }) => {
+    const { t } = useTranslation('app');
     const queryClient = useQueryClient();
     const { showToastSuccess } = useToaster();
     const { isLoading: isLoadingProject } = useProject(projectUuid);
@@ -63,7 +65,7 @@ const PreAggregateAudit: FC<PreAggregateAuditProps> = ({ projectUuid }) => {
     const handleRefresh = async () => {
         await queryClient.invalidateQueries(['preAggregateStats', projectUuid]);
         showToastSuccess({
-            title: 'Pre-aggregate stats refreshed',
+            title: t('preAggregateAudit.refreshed'),
         });
     };
 
@@ -72,8 +74,8 @@ const PreAggregateAudit: FC<PreAggregateAuditProps> = ({ projectUuid }) => {
             <LoadingOverlay visible={isLoadingProject} />
 
             <SettingsPage
-                title="Pre-aggregate analytics"
-                description="Track cache performance for this project's pre-aggregates. Data is retained for 3 days."
+                title={t('preAggregateAudit.title')}
+                description={t('preAggregateAudit.description')}
                 actions={
                     <Button
                         onClick={handleRefresh}
@@ -81,24 +83,24 @@ const PreAggregateAudit: FC<PreAggregateAuditProps> = ({ projectUuid }) => {
                         size="xs"
                         leftSection={<MantineIcon icon={IconRefresh} />}
                     >
-                        Refresh stats
+                        {t('preAggregateAudit.refreshStats')}
                     </Button>
                 }
             >
                 <SimpleGrid cols={3}>
                     <Card p="md">
                         <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-                            Cache Rate (3 days)
+                            {t('preAggregateAudit.cacheRate')}
                         </Text>
                         <Text size="xl" fw={600}>
                             {summary.totalQueries > 0
                                 ? `${summary.hitRate}%`
-                                : 'No data'}
+                                : t('preAggregateAudit.noData')}
                         </Text>
                     </Card>
                     <Card p="md">
                         <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-                            Total Queries
+                            {t('preAggregateAudit.totalQueries')}
                         </Text>
                         <Text size="xl" fw={600}>
                             {summary.totalQueries}
@@ -106,7 +108,7 @@ const PreAggregateAudit: FC<PreAggregateAuditProps> = ({ projectUuid }) => {
                     </Card>
                     <Card p="md">
                         <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-                            Explores with Pre-Aggregates
+                            {t('preAggregateAudit.exploresWithPreAggregates')}
                         </Text>
                         <Text size="xl" fw={600}>
                             {summary.exploreCount}

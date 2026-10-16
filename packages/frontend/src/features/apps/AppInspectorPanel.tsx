@@ -25,6 +25,7 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../components/common/MantineIcon';
 import classes from './AppInspector.module.css';
 import { ExternalRequestInspectorContent } from './ExternalRequestInspector';
@@ -112,6 +113,7 @@ const AppInspectorPanel: FC<Props> = ({
     onDismiss,
     hideWhenEmpty = true,
 }) => {
+    const { t } = useTranslation('apps');
     const [collapsed, setCollapsed] = useState(defaultCollapsed);
     const [height, setHeight] = useState(DEFAULT_HEIGHT);
     const [activeTab, setActiveTab] = useState<InspectorTab>('queries');
@@ -119,9 +121,11 @@ const AppInspectorPanel: FC<Props> = ({
         null,
     );
 
-    const queriesLabel = `Queries (${queries.length})`;
+    const queriesLabel = t('inspector.queriesTab', { count: queries.length });
     // Kept short so both tabs fit the collapsed (content-width) title bar.
-    const externalLabel = `Requests (${externalRequests.length})`;
+    const externalLabel = t('inspector.requestsTab', {
+        count: externalRequests.length,
+    });
 
     const toggle = useCallback(() => setCollapsed((v) => !v), []);
 
@@ -199,7 +203,9 @@ const AppInspectorPanel: FC<Props> = ({
     }
 
     const clearLabel =
-        activeTab === 'external' ? 'Clear external requests' : 'Clear queries';
+        activeTab === 'external'
+            ? t('inspector.clearRequests')
+            : t('inspector.clearQueries');
 
     return (
         <Box
@@ -243,11 +249,11 @@ const AppInspectorPanel: FC<Props> = ({
                                 label={
                                     !lineageAvailable
                                         ? lineageSupportedBySdk
-                                            ? "Inspect data isn't wired into this app yet — ask the agent to add it"
-                                            : 'Inspect data is not available in this app version — upgrade the app to enable it'
+                                            ? t('inspector.lineage.notWired')
+                                            : t('inspector.lineage.unsupported')
                                         : lineageEnabled
-                                          ? 'Inspect data: on'
-                                          : 'Inspect data'
+                                          ? t('inspector.lineage.on')
+                                          : t('inspector.lineage.off')
                                 }
                                 position="top"
                                 maw={260}
@@ -270,7 +276,7 @@ const AppInspectorPanel: FC<Props> = ({
                                         !lineageAvailable || undefined
                                     }
                                     aria-disabled={!lineageAvailable}
-                                    aria-label="Toggle data lineage inspector"
+                                    aria-label={t('inspector.lineage.toggle')}
                                 >
                                     <MantineIcon
                                         icon={IconDatabaseSearch}
@@ -290,13 +296,13 @@ const AppInspectorPanel: FC<Props> = ({
                         </Tooltip>
                         {onPersistLogsChange && (
                             <Tooltip
-                                label="Preserve logs across iframe refreshes and new app versions"
+                                label={t('inspector.persistTooltip')}
                                 position="top"
                             >
                                 <Box onClick={(e) => e.stopPropagation()}>
                                     <Switch
                                         size="xs"
-                                        label="Persist"
+                                        label={t('inspector.persist')}
                                         checked={persistLogs ?? false}
                                         onChange={(e) =>
                                             onPersistLogsChange(
@@ -319,7 +325,7 @@ const AppInspectorPanel: FC<Props> = ({
                 <ActionIcon
                     size="xs"
                     onClick={handleDismiss}
-                    aria-label="Close inspector panel"
+                    aria-label={t('inspector.close')}
                 >
                     <MantineIcon icon={IconX} size={12} />
                 </ActionIcon>

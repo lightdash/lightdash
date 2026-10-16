@@ -5,11 +5,13 @@ import {
     type Project,
 } from '@lightdash/common';
 import { Stack, Text } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import { AiServiceAccountCard } from './AiServiceAccountCard';
 
 export const ProjectAgentIdentityPage = ({ project }: { project: Project }) => {
+    const { t } = useTranslation('aiAccess');
     const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
     const ability = useAbilityContext();
     if (
@@ -33,7 +35,7 @@ export const ProjectAgentIdentityPage = ({ project }: { project: Project }) => {
                 />
             ) : (
                 <Text size="sm" c="dimmed">
-                    Agent identity is not available for this warehouse.
+                    {t('projectIdentity.notAvailable')}
                 </Text>
             )}
         </Stack>

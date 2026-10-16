@@ -13,6 +13,7 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import ScheduledDeliveryAsCodeModal from '../../features/contentAsCode/components/ScheduledDeliveryAsCodeModal';
 import { SchedulerDeleteModal } from '../../features/scheduler';
@@ -48,6 +49,7 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
     onReassignOwner,
     hideReassign = false,
 }) => {
+    const { t } = useTranslation('scheduler');
     const [isDeleting, setIsDeleting] = React.useState(false);
     const [isConfirmOpen, setIsConfirmOpen] = React.useState(false);
     const [isAsCodeOpen, asCodeModalHandlers] = useDisclosure(false);
@@ -105,7 +107,7 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                         leftSection={<MantineIcon icon={IconEdit} />}
                         to={getSchedulerLink(item, projectUuid)}
                     >
-                        Edit schedule
+                        {t('actionMenu.editSchedule')}
                     </Menu.Item>
                     <Menu.Item
                         component={Link}
@@ -113,10 +115,9 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                         leftSection={<MantineIcon icon={IconSquarePlus} />}
                         to={getItemLink(item, projectUuid)}
                     >
-                        Go to{' '}
                         {item.savedChartUuid || item.savedSqlUuid
-                            ? 'chart'
-                            : 'dashboard'}
+                            ? t('actionMenu.goToChart')
+                            : t('actionMenu.goToDashboard')}
                     </Menu.Item>
                     <Menu.Item
                         component="button"
@@ -124,7 +125,7 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                         leftSection={<MantineIcon icon={IconSend} />}
                         onClick={() => setIsConfirmOpen(true)}
                     >
-                        Send now
+                        {t('actionMenu.sendNow')}
                     </Menu.Item>
                     {isScheduledDelivery && userCanViewAsCode && (
                         <Menu.Item
@@ -133,7 +134,7 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                             leftSection={<MantineIcon icon={IconCode} />}
                             onClick={asCodeModalHandlers.open}
                         >
-                            View as code
+                            {t('actionMenu.viewAsCode')}
                         </Menu.Item>
                     )}
                     {!hideReassign && (
@@ -148,7 +149,7 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                                 )
                             }
                         >
-                            Reassign owner
+                            {t('actionMenu.reassignOwner')}
                         </Menu.Item>
                     )}
                     <Menu.Divider />
@@ -159,7 +160,7 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                         leftSection={<MantineIcon icon={IconTrash} />}
                         onClick={() => setIsDeleting(true)}
                     >
-                        Delete schedule
+                        {t('actionMenu.deleteSchedule')}
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>

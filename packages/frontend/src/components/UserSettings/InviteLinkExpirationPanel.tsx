@@ -3,24 +3,31 @@ import {
     MAX_INVITE_LINK_EXPIRATION_DAYS,
 } from '@lightdash/common';
 import { Loader, Select } from '@mantine/core';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useOrganizationSettings,
     useUpdateOrganizationSettings,
 } from '../../hooks/organization/useOrganizationSettings';
 
-const expirationOptions = Array.from(
-    { length: MAX_INVITE_LINK_EXPIRATION_DAYS },
-    (_, index) => {
-        const days = index + 1;
-        return {
-            value: String(days),
-            label: `${days} ${days === 1 ? 'day' : 'days'}`,
-        };
-    },
-);
-
 const InviteLinkExpirationPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
+    const expirationOptions = useMemo(
+        () =>
+            Array.from(
+                { length: MAX_INVITE_LINK_EXPIRATION_DAYS },
+                (_, index) => {
+                    const days = index + 1;
+                    return {
+                        value: String(days),
+                        label: t('inviteLinkExpirationPanel.days', {
+                            count: days,
+                        }),
+                    };
+                },
+            ),
+        [t],
+    );
     const organizationSettings = useOrganizationSettings();
     const updateOrganizationSettings = useUpdateOrganizationSettings();
     const inviteLinkExpirationDays =
@@ -40,8 +47,8 @@ const InviteLinkExpirationPanel: FC = () => {
 
     return (
         <Select
-            label="Invite link expiration"
-            description="Applies to new organization invite links. Existing links are unchanged."
+            label={t('inviteLinkExpirationPanel.label')}
+            description={t('inviteLinkExpirationPanel.description')}
             data={expirationOptions}
             value={String(inviteLinkExpirationDays)}
             disabled={updateOrganizationSettings.isLoading}

@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { List, ScrollArea, type ModalProps } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useDashboardDeleteMutation,
     useDashboardQuery,
@@ -27,6 +28,7 @@ const DashboardDeleteModal: FC<DashboardDeleteModalProps> = ({
     uuid,
     onConfirm,
 }) => {
+    const { t } = useTranslation('modals');
     const projectUuid = useProjectUuid();
     const { health } = useApp();
     const softDeleteEnabled = health.data?.softDelete.enabled;
@@ -55,20 +57,20 @@ const DashboardDeleteModal: FC<DashboardDeleteModalProps> = ({
     );
 
     const description = softDeleteEnabled
-        ? `This dashboard will be moved to Recently deleted and permanently removed after ${retentionDays} days.`
+        ? t('dashboardDelete.softDeleteDescription', { count: retentionDays })
         : undefined;
 
     const chartsWarningTitle = softDeleteEnabled
-        ? 'The following charts created within this dashboard will also be deleted. They can be restored from Recently deleted.'
-        : 'This action will also permanently delete the following charts that were created from within it:';
+        ? t('dashboardDelete.chartsWarningSoft')
+        : t('dashboardDelete.chartsWarningPermanent');
 
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Delete dashboard"
+            title={t('dashboardDelete.title')}
             variant="delete"
-            resourceType="dashboard"
+            resourceType={t('resourceTypes.dashboard')}
             resourceLabel={dashboard.name}
             description={description}
             onConfirm={handleConfirm}

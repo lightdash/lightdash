@@ -12,6 +12,7 @@ import {
     useUploadCsv,
 } from '../../../../features/externalSources/hooks/useExternalSources';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 
 export type PendingCsvSource = {
     id: number;
@@ -68,7 +69,9 @@ const waitForSourceReady = async (
         if (source.status === ExternalSourceStatus.ERROR) {
             throw new Error(
                 source.errorMessage ??
-                    'Something went wrong while preparing the source.',
+                    i18n.t('toasts.csv.prepareFailedFallback', {
+                        ns: 'aiAgent',
+                    }),
             );
         }
         if (Date.now() >= deadline) break;
@@ -78,7 +81,7 @@ const waitForSourceReady = async (
     }
 
     throw new SourcePreparationTimeoutError(
-        'The CSV is still preparing. Please try attaching it again later.',
+        i18n.t('toasts.csv.stillPreparing', { ns: 'aiAgent' }),
     );
 };
 
@@ -178,16 +181,22 @@ export const useCsvSourceAttachment = ({
                 if (!mountedRef.current) return;
                 if (isApiError(error)) {
                     showToastApiError({
-                        title: 'Could not prepare the CSV',
+                        title: i18n.t('toasts.csv.prepareFailed', {
+                            ns: 'aiAgent',
+                        }),
                         apiError: error.error,
                     });
                 } else {
                     showToastError({
-                        title: 'Could not prepare the CSV',
+                        title: i18n.t('toasts.csv.prepareFailed', {
+                            ns: 'aiAgent',
+                        }),
                         subtitle:
                             error instanceof Error
                                 ? error.message
-                                : 'Something went wrong while preparing the source.',
+                                : i18n.t('toasts.csv.prepareFailedFallback', {
+                                      ns: 'aiAgent',
+                                  }),
                     });
                 }
             } finally {
@@ -269,7 +278,9 @@ export const useCsvSourceAttachment = ({
             } catch (error) {
                 if (isApiError(error)) {
                     showToastApiError({
-                        title: 'Could not remove the CSV',
+                        title: i18n.t('toasts.csv.removeFailed', {
+                            ns: 'aiAgent',
+                        }),
                         apiError: error.error,
                     });
                 }

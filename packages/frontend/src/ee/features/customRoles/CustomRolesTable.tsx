@@ -12,6 +12,7 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
@@ -23,6 +24,7 @@ const TableRow: FC<{
     onClickEdit: (role: RoleWithScopes) => void;
     onClickDelete: (role: RoleWithScopes) => void;
 }> = ({ role, onClickDelete }) => {
+    const { t } = useTranslation('customRoles');
     const { name, description, level, createdAt } = role;
     const { ref: nameRef, isTruncated: isNameTruncated } =
         useIsTruncated<HTMLDivElement>();
@@ -60,7 +62,9 @@ const TableRow: FC<{
             </Table.Td>
             <Table.Td>
                 <Badge>
-                    {level === 'organization' ? 'Organization' : 'Project'}
+                    {level === 'organization'
+                        ? t('levels.organization')
+                        : t('levels.project')}
                 </Badge>
             </Table.Td>
             <Table.Td>{createdAt ? formatDate(createdAt) : '-'}</Table.Td>
@@ -70,7 +74,7 @@ const TableRow: FC<{
                         <ActionIcon
                             variant="transparent"
                             size="sm"
-                            aria-label={`Actions for ${name}`}
+                            aria-label={t('table.actionsFor', { name })}
                         >
                             <MantineIcon icon={IconDots} />
                         </ActionIcon>
@@ -81,14 +85,14 @@ const TableRow: FC<{
                             component={Link}
                             to={`/generalSettings/customRoles/${role.roleUuid}`}
                         >
-                            Edit
+                            {t('actions.edit', { ns: 'common' })}
                         </Menu.Item>
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconTrash} />}
                             color="red"
                             onClick={() => onClickDelete(role)}
                         >
-                            Delete
+                            {t('actions.delete', { ns: 'common' })}
                         </Menu.Item>
                     </Menu.Dropdown>
                 </Menu>
@@ -110,6 +114,7 @@ export const CustomRolesTable: FC<TableProps> = ({
     onEdit,
     isDeleting,
 }) => {
+    const { t } = useTranslation('customRoles');
     const [deleteOpened, { open: openDelete, close: closeDelete }] =
         useDisclosure(false);
     const [roleToDelete, setRoleToDelete] = useState<
@@ -143,10 +148,10 @@ export const CustomRolesTable: FC<TableProps> = ({
                     >
                         <Table.Thead>
                             <Table.Tr>
-                                <Table.Th>Name</Table.Th>
-                                <Table.Th>Description</Table.Th>
-                                <Table.Th>Type</Table.Th>
-                                <Table.Th>Created</Table.Th>
+                                <Table.Th>{t('table.name')}</Table.Th>
+                                <Table.Th>{t('table.description')}</Table.Th>
+                                <Table.Th>{t('table.type')}</Table.Th>
+                                <Table.Th>{t('table.created')}</Table.Th>
                                 <Table.Th></Table.Th>
                             </Table.Tr>
                         </Table.Thead>

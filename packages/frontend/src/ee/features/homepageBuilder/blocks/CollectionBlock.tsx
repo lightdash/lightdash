@@ -50,6 +50,7 @@ import {
     IconSearch,
 } from '@tabler/icons-react';
 import { useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { NumberInput } from '../../../../components/common/NumberInput';
@@ -135,23 +136,26 @@ const SpaceItselfRow: FC<{
     spaceName: string;
     checked: boolean;
     onToggle: () => void;
-}> = ({ spaceName, checked, onToggle }) => (
-    <Group
-        gap="sm"
-        wrap="nowrap"
-        className={classes.pickerRow}
-        onClick={onToggle}
-    >
-        <Checkbox size="xs" checked={checked} readOnly />
-        <IconBox icon={IconFolder} color="violet.6" />
-        <Text size="sm" truncate flex={1}>
-            {spaceName}
-        </Text>
-        <Text size="xs" c="dimmed">
-            Add the space itself
-        </Text>
-    </Group>
-);
+}> = ({ spaceName, checked, onToggle }) => {
+    const { t } = useTranslation('homepageBuilder');
+    return (
+        <Group
+            gap="sm"
+            wrap="nowrap"
+            className={classes.pickerRow}
+            onClick={onToggle}
+        >
+            <Checkbox size="xs" checked={checked} readOnly />
+            <IconBox icon={IconFolder} color="violet.6" />
+            <Text size="sm" truncate flex={1}>
+                {spaceName}
+            </Text>
+            <Text size="xs" c="dimmed">
+                {t('collection.picker.addSpaceItself')}
+            </Text>
+        </Group>
+    );
+};
 
 // The right pane: the selected space's charts/dashboards, fetched lazily so
 // only the open space ever loads (scales to large projects).
@@ -170,6 +174,7 @@ const SpaceContent: FC<{
     onToggleMany,
     onToggleSpace,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const spaceUuid = space.uuid;
     const { data, isFetching, hasNextPage, fetchNextPage, isFetchingNextPage } =
         useInfiniteContent(
@@ -210,7 +215,7 @@ const SpaceContent: FC<{
                 </Stack>
             ) : items.length === 0 ? (
                 <Text size="sm" c="dimmed" p="sm">
-                    This space has no charts or dashboards.
+                    {t('collection.picker.emptySpace')}
                 </Text>
             ) : (
                 <>
@@ -225,7 +230,9 @@ const SpaceContent: FC<{
                             onChange={() => onToggleMany(items)}
                         />
                         <Text size="xs" c="dimmed" fw={600} tt="uppercase">
-                            Select all ({items.length})
+                            {t('collection.picker.selectAll', {
+                                count: items.length,
+                            })}
                         </Text>
                     </Group>
                     {items.map((content) => (
@@ -244,7 +251,7 @@ const SpaceContent: FC<{
                             loading={isFetchingNextPage}
                             onClick={() => void fetchNextPage()}
                         >
-                            Load more
+                            {t('dataAppPicker.loadMore')}
                         </Button>
                     )}
                 </>
@@ -268,6 +275,7 @@ const SearchContentList: FC<{
     selected,
     onToggleItem,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const { data, isFetching, hasNextPage, fetchNextPage, isFetchingNextPage } =
@@ -325,7 +333,7 @@ const SearchContentList: FC<{
                                 loading={isFetchingNextPage}
                                 onClick={() => void fetchNextPage()}
                             >
-                                Load more
+                                {t('dataAppPicker.loadMore')}
                             </Button>
                         )}
                     </Stack>
@@ -345,6 +353,7 @@ const CollectionPicker: FC<{
      * selection — the footer lives in MantineModal, outside this component. */
     registerApply: (commit: () => void) => void;
 }> = ({ projectUuid, initialSelected, onApply, registerApply }) => {
+    const { t } = useTranslation('homepageBuilder');
     const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
     const [tab, setTab] = useState<PickerTab>('content');
     const [selectedSpaceUuid, setSelectedSpaceUuid] = useState<string | null>(
@@ -405,15 +414,30 @@ const CollectionPicker: FC<{
                     value={tab}
                     onChange={(value) => setTab(value as PickerTab)}
                     data={[
-                        { label: 'Charts & dashboards', value: 'content' },
-                        { label: 'Data apps', value: 'apps' },
+                        {
+                            label: t('collection.picker.tabs.content'),
+                            value: 'content',
+                        },
+                        {
+                            label: t('collection.picker.tabs.apps'),
+                            value: 'apps',
+                        },
                         ...(documentsFlag.data?.enabled
-                            ? [{ label: 'Documents', value: 'documents' }]
+                            ? [
+                                  {
+                                      label: t(
+                                          'collection.picker.tabs.documents',
+                                      ),
+                                      value: 'documents',
+                                  },
+                              ]
                             : []),
                     ]}
                 />
                 <Text size="sm" c="dimmed">
-                    {selected.size} selected
+                    {t('collection.picker.selectedCount', {
+                        count: selected.size,
+                    })}
                 </Text>
             </Group>
             <Box h="min(64vh, 720px)">
@@ -437,8 +461,7 @@ const CollectionPicker: FC<{
                         >
                             {selectedSpace == null ? (
                                 <Text size="sm" c="dimmed" p="sm">
-                                    Pick a space on the left to add it, or to
-                                    see its charts and dashboards.
+                                    {t('collection.picker.pickSpace')}
                                 </Text>
                             ) : (
                                 <SpaceContent
@@ -458,8 +481,8 @@ const CollectionPicker: FC<{
                     <SearchContentList
                         projectUuid={projectUuid}
                         contentType={ContentType.DOCUMENT}
-                        placeholder="Search documents..."
-                        emptyLabel="No documents found."
+                        placeholder={t('collection.picker.searchDocuments')}
+                        emptyLabel={t('collection.picker.noDocuments')}
                         selected={selected}
                         onToggleItem={toggleItem}
                     />
@@ -468,8 +491,8 @@ const CollectionPicker: FC<{
                     <SearchContentList
                         projectUuid={projectUuid}
                         contentType={ContentType.DATA_APP}
-                        placeholder="Search data apps..."
-                        emptyLabel="No data apps found."
+                        placeholder={t('dataAppPicker.search')}
+                        emptyLabel={t('dataAppPicker.empty')}
                         selected={selected}
                         onToggleItem={toggleItem}
                     />
@@ -486,6 +509,7 @@ const CollectionPickerModal: FC<{
     initialSelected: HomepageCollectionItemRef[];
     onApply: (refs: HomepageCollectionItemRef[]) => void;
 }> = ({ opened, onClose, projectUuid, initialSelected, onApply }) => {
+    const { t } = useTranslation('homepageBuilder');
     // The Apply/Cancel footer is MantineModal's own — it lives outside the
     // remountable picker body, so the picker hands its commit fn up via ref
     // rather than rendering a duplicate footer inline.
@@ -494,10 +518,10 @@ const CollectionPickerModal: FC<{
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Add content"
+            title={t('collection.addContent')}
             icon={IconPlus}
             size="min(92vw, 1280px)"
-            confirmLabel="Apply"
+            confirmLabel={t('collection.picker.apply')}
             onConfirm={() => {
                 applyRef.current();
                 onClose();
@@ -657,74 +681,49 @@ const SortableTile: FC<{
 
 const SOURCE_OPTIONS: {
     value: HomepageCollectionSource;
-    label: string;
-    hint: string;
+    key: string;
 }[] = [
-    {
-        value: 'manual',
-        label: 'Hand-picked',
-        hint: 'Exactly the items you choose.',
-    },
-    {
-        value: 'most-viewed',
-        label: 'Most viewed',
-        hint: 'What people in this project actually open.',
-    },
-    {
-        value: 'pinned',
-        label: 'Pinned',
-        hint: "Follows the project's pin list — new pins appear here.",
-    },
-    {
-        value: 'favorites',
-        label: 'Favourites',
-        hint: "Each viewer's own favourites.",
-    },
-    {
-        value: 'recently-viewed',
-        label: 'Recently viewed',
-        hint: "Each viewer's own history.",
-    },
-    {
-        value: 'recently-updated',
-        label: 'Recently updated',
-        hint: 'Recently changed content. Surfaces churn, not importance.',
-    },
-    {
-        value: 'verified',
-        label: 'Verified',
-        hint: "This project's admin-verified charts and dashboards.",
-    },
+    { value: 'manual', key: 'manual' },
+    { value: 'most-viewed', key: 'mostViewed' },
+    { value: 'pinned', key: 'pinned' },
+    { value: 'favorites', key: 'favorites' },
+    { value: 'recently-viewed', key: 'recentlyViewed' },
+    { value: 'recently-updated', key: 'recentlyUpdated' },
+    { value: 'verified', key: 'verified' },
 ];
 
 const CONTENT_TYPE_OPTIONS: {
     value: HomepageCollectionItemRef['contentType'];
-    label: string;
+    labelKey: string;
 }[] = [
-    { value: 'dashboard', label: 'Dashboards' },
-    { value: 'chart', label: 'Charts' },
-    { value: 'data_app', label: 'Apps' },
-    { value: 'space', label: 'Spaces' },
-    { value: 'document', label: 'Documents' },
+    { value: 'dashboard', labelKey: 'collection.contentTypes.dashboards' },
+    { value: 'chart', labelKey: 'collection.contentTypes.charts' },
+    { value: 'data_app', labelKey: 'collection.contentTypes.apps' },
+    { value: 'space', labelKey: 'collection.contentTypes.spaces' },
+    { value: 'document', labelKey: 'collection.contentTypes.documents' },
 ];
 
 const CollectionSourceControls: FC<{
     config: HomepageCollectionBlock['config'];
     onChange: (config: HomepageCollectionBlock['config']) => void;
 }> = ({ config, onChange }) => {
+    const { t } = useTranslation('homepageBuilder');
     const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
     const source = collectionSourceOf(config);
-    const hint = SOURCE_OPTIONS.find((o) => o.value === source)?.hint;
+    const sourceOption = SOURCE_OPTIONS.find((o) => o.value === source);
+    const hint = sourceOption
+        ? t(`collection.sources.${sourceOption.key}.hint`)
+        : undefined;
     return (
         <Stack gap={6}>
             <Group gap="xs" align="flex-end" wrap="nowrap">
                 <Select
                     size="xs"
-                    label="Items"
+                    label={t('collection.items')}
                     flex={1}
-                    data={SOURCE_OPTIONS.map(({ value, label }) => ({
+                    data={SOURCE_OPTIONS.map(({ value, key }) => ({
                         value,
-                        label,
+                        label: t(`collection.sources.${key}.label`),
                     }))}
                     value={source}
                     allowDeselect={false}
@@ -738,7 +737,7 @@ const CollectionSourceControls: FC<{
                 />
                 <NumberInput
                     size="xs"
-                    label="Show at most"
+                    label={t('collection.showAtMost')}
                     w={110}
                     min={1}
                     max={MAX_COLLECTION_LIMIT}
@@ -769,14 +768,14 @@ const CollectionSourceControls: FC<{
                             ({ value }) =>
                                 value !== 'document' ||
                                 documentsFlag.data?.enabled,
-                        ).map(({ value, label }) => (
+                        ).map(({ value, labelKey }) => (
                             <Chip
                                 key={value}
                                 value={value}
                                 size="xs"
                                 variant="light"
                             >
-                                {label}
+                                {t(labelKey)}
                             </Chip>
                         ))}
                     </Chip.Group>
@@ -794,7 +793,7 @@ const CollectionSourceControls: FC<{
                             onChange({ ...config, verifiedOnly: checked })
                         }
                     >
-                        Verified only
+                        {t('collection.verifiedOnly')}
                     </Chip>
                 )}
             </Group>
@@ -810,6 +809,7 @@ const DynamicSourcePreview: FC<{
     config: HomepageCollectionBlock['config'];
     itemSpan: number | null;
 }> = ({ projectUuid, config, itemSpan }) => {
+    const { t } = useTranslation('homepageBuilder');
     const { items, isLoading } = useCollectionSourceContent(
         projectUuid,
         config,
@@ -822,8 +822,7 @@ const DynamicSourcePreview: FC<{
         <Stack gap={6}>
             {items.length === 0 ? (
                 <div className={classes.dashedEmpty}>
-                    Nothing matches this rule yet. The block won't render until
-                    it does.
+                    {t('collection.noMatches')}
                 </div>
             ) : (
                 <CollectionContentGrid
@@ -835,8 +834,8 @@ const DynamicSourcePreview: FC<{
             )}
             <div className={classes.buildHint}>
                 {isPersonal
-                    ? 'Showing your own items as a sample — every viewer sees their own.'
-                    : 'Updates on its own as the project changes.'}
+                    ? t('collection.personalHint')
+                    : t('collection.dynamicHint')}
             </div>
         </Stack>
     );
@@ -848,6 +847,7 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
     projectUuid,
     onChange,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const [isPickerOpen, setIsPickerOpen] = useState(false);
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -885,7 +885,7 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
         <Stack gap="xs">
             <Group gap="xs" align="flex-end" wrap="nowrap">
                 <TextInput
-                    label="Title"
+                    label={t('blockBuild.title')}
                     size="xs"
                     fw={600}
                     flex={1}
@@ -963,7 +963,7 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                                     onClick={() => setIsPickerOpen(true)}
                                 >
                                     <MantineIcon icon={IconPlus} size={14} />
-                                    Add content
+                                    {t('collection.addContent')}
                                 </button>
                             </div>
                         ) : (
@@ -989,7 +989,7 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                                             icon={IconPlus}
                                             size={14}
                                         />
-                                        Add content
+                                        {t('collection.addContent')}
                                     </button>
                                 </PageGridItem>
                             </PageGrid>
@@ -1015,7 +1015,7 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                             })
                         }
                     >
-                        Import pinned items
+                        {t('collection.importPinned')}
                     </Button>
                 )}
             <CollectionPickerModal

@@ -1,5 +1,6 @@
 import { type ApiError } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -13,6 +14,7 @@ const deleteScheduler = async (uuid: string) =>
 export const useSchedulersDeleteMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('scheduler');
     return useMutation<null, ApiError, string>(deleteScheduler, {
         mutationKey: ['delete_scheduler'],
         onSuccess: async () => {
@@ -22,12 +24,12 @@ export const useSchedulersDeleteMutation = () => {
             await queryClient.invalidateQueries(['app_schedulers']);
             await queryClient.invalidateQueries(['paginatedSchedulers']);
             showToastSuccess({
-                title: `Success! Scheduled delivery was deleted`,
+                title: t('toasts.deleted'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to delete scheduled delivery`,
+                title: t('toasts.deleteFailed'),
                 apiError: error,
             });
         },

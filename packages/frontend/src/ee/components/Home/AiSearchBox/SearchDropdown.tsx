@@ -10,6 +10,7 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import OmnibarItem from '../../../../features/omnibar/components/OmnibarItem';
@@ -44,6 +45,7 @@ export const SearchDropdown: FC<Props> = ({
     header,
     onHeaderClick,
 }) => {
+    const { t } = useTranslation('eeMisc');
     const navigate = useNavigate();
     const projectRoute = useOptionalProjectRoute();
     const canUserManageValidation = useValidationUserAbility(projectUuid);
@@ -156,13 +158,13 @@ export const SearchDropdown: FC<Props> = ({
                                     gap="xs"
                                 >
                                     <Loader size={12} />
-                                    Loading search results
+                                    {t('aiSearch.loadingResults')}
                                 </Group>
                             </Combobox.Empty>
                         ) : (
                             allSearchItems.length === 0 && (
                                 <Combobox.Empty>
-                                    No matching search results
+                                    {t('aiSearch.noResults')}
                                 </Combobox.Empty>
                             )
                         )}

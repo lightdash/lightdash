@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, type QueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
+import i18n from '../../../i18n/i18n';
 
 type AppThumbnailTarget = {
     projectUuid: string;
@@ -39,7 +40,10 @@ const uploadAppThumbnail = async ({
         const errorBody = await response.json();
         throw new Error(
             errorBody?.error?.message ??
-                `Thumbnail upload failed: ${response.status}`,
+                i18n.t('upload.thumbnailFailed', {
+                    ns: 'apps',
+                    status: response.status,
+                }),
         );
     }
 };

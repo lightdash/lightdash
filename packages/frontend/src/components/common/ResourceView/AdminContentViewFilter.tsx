@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../MantineIcon';
 import styles from './AdminContentViewFilter.module.css';
 
@@ -37,6 +38,7 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
     withSharedWithMe = false,
     withAdminView = true,
 }) => {
+    const { t } = useTranslation('resourceView');
     const compact = useMatches(
         { base: true, sm: false },
         { getInitialValueInEffect: false },
@@ -44,7 +46,7 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
     if (compact) {
         return (
             <Select
-                aria-label="Content view"
+                aria-label={t('contentViewFilter.ariaLabel')}
                 miw={112}
                 maw={160}
                 flex="1 1 112px"
@@ -59,12 +61,27 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
                         onChange(next);
                 }}
                 data={[
-                    { value: 'shared', label: 'Spaces' },
+                    {
+                        value: 'shared',
+                        label: t('contentViewFilter.spaces'),
+                    },
                     ...(withSharedWithMe
-                        ? [{ value: 'shared-with-me', label: 'Shared with me' }]
+                        ? [
+                              {
+                                  value: 'shared-with-me',
+                                  label: t('contentViewFilter.sharedWithMe'),
+                              },
+                          ]
                         : []),
                     ...(withAdminView
-                        ? [{ value: 'all', label: 'Admin Content View' }]
+                        ? [
+                              {
+                                  value: 'all',
+                                  label: t(
+                                      'contentViewFilter.adminContentView',
+                                  ),
+                              },
+                          ]
                         : []),
                 ]}
             />
@@ -90,7 +107,7 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
                         label: (
                             <Center px={'xxs'}>
                                 <Text fz="sm" c="ldDark.9">
-                                    Spaces
+                                    {t('contentViewFilter.spaces')}
                                 </Text>
                             </Center>
                         ),
@@ -102,7 +119,9 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
                                   label: (
                                       <Center px={'xxs'}>
                                           <Text fz="sm" c="ldDark.9">
-                                              Shared with me
+                                              {t(
+                                                  'contentViewFilter.sharedWithMe',
+                                              )}
                                           </Text>
                                       </Center>
                                   ),
@@ -117,9 +136,9 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
                                       <Center px={'xxs'}>
                                           <Tooltip
                                               position="top"
-                                              label={
-                                                  'View all public and private spaces in your organization'
-                                              }
+                                              label={t(
+                                                  'contentViewFilter.adminContentViewTooltip',
+                                              )}
                                           >
                                               <MantineIcon
                                                   icon={IconInfoCircle}
@@ -127,7 +146,9 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
                                               />
                                           </Tooltip>
                                           <Text fz="sm" c="ldDark.9" ml={'xxs'}>
-                                              Admin Content View
+                                              {t(
+                                                  'contentViewFilter.adminContentView',
+                                              )}
                                           </Text>
                                       </Center>
                                   ),

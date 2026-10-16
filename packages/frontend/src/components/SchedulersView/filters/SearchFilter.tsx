@@ -1,5 +1,6 @@
 import { ActionIcon, TextInput, Tooltip } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { type useLogsFilters } from '../../../features/scheduler/hooks/useLogsFilters';
 import { type useSchedulerFilters } from '../../../features/scheduler/hooks/useSchedulerFilters';
 import MantineIcon from '../../common/MantineIcon';
@@ -10,8 +11,9 @@ type SearchFilterProps =
     | Pick<ReturnType<typeof useLogsFilters>, 'search' | 'setSearch'>;
 
 export const SearchFilter = ({ search, setSearch }: SearchFilterProps) => {
+    const { t } = useTranslation('scheduler');
     return (
-        <Tooltip label="Search by scheduler name">
+        <Tooltip label={t('filters.search.tooltip')}>
             <TextInput
                 size="xs"
                 classNames={{
@@ -21,7 +23,7 @@ export const SearchFilter = ({ search, setSearch }: SearchFilterProps) => {
                 }}
                 type="search"
                 variant="default"
-                placeholder="Search schedulers by name"
+                placeholder={t('filters.search.placeholder')}
                 value={search ?? ''}
                 leftSection={
                     <MantineIcon size="md" color="dimmed" icon={IconSearch} />

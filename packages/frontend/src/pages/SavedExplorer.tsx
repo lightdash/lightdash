@@ -10,6 +10,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Provider } from 'react-redux';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import ErrorState from '../components/common/ErrorState';
@@ -72,6 +73,7 @@ const SavedExplorerContent = memo(() => {
 });
 
 const SavedExplorer = () => {
+    const { t } = useTranslation('pages');
     const { health } = useApp();
 
     const projectUuid = useProjectUuid();
@@ -238,7 +240,7 @@ const SavedExplorer = () => {
                     action={
                         isSplitExploreError ? (
                             <Button onClick={changeExploreModalHandlers.open}>
-                                Change explore
+                                {t('savedExplorer.changeExplore')}
                             </Button>
                         ) : undefined
                     }
@@ -262,7 +264,7 @@ const SavedExplorer = () => {
     if (isInitialLoading || !data) {
         return (
             <div style={{ marginTop: '20px' }}>
-                <SuboptimalState title="Loading..." loading />
+                <SuboptimalState title={t('common.loading')} loading />
             </div>
         );
     }

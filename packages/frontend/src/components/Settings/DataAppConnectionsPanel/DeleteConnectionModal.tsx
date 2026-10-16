@@ -1,5 +1,6 @@
 import { type ExternalConnection } from '@lightdash/common';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDeleteExternalConnection } from '../../../features/externalConnections/hooks/useDeleteExternalConnection';
 import MantineModal, {
     type MantineModalProps,
@@ -16,6 +17,7 @@ export const DeleteConnectionModal: FC<Props> = ({
     projectUuid,
     connection,
 }) => {
+    const { t } = useTranslation('settings');
     const { mutateAsync, isLoading: isDeleting } =
         useDeleteExternalConnection();
 
@@ -31,7 +33,7 @@ export const DeleteConnectionModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Delete connection"
+            title={t('dataAppConnections.delete.title')}
             variant="delete"
             resourceType="connection"
             resourceLabel={connection.name}

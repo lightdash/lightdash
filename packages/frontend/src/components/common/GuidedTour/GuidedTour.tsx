@@ -18,6 +18,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { cardLayout } from './cardLayout';
 import styles from './GuidedTour.module.css';
 
@@ -727,6 +728,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     initialStepIndex = 0,
     initialBeacon = null,
 }) => {
+    const { t } = useTranslation('commonUi');
     const [stepIndex, setStepIndex] = useState(initialStepIndex);
     const [cardHeight, cardRef] = useCardHeight();
 
@@ -1243,7 +1245,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                 refreshTarget();
             }}
         >
-            Use it
+            {t('guidedTour.useIt')}
         </Button>
     );
 
@@ -1266,7 +1268,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                 if (problem === null) handleNext();
             }}
         >
-            Check
+            {t('guidedTour.check')}
         </Button>
     ) : null;
 
@@ -1300,7 +1302,10 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             <Stack gap="sm">
                 <Stack gap={6}>
                     <Text className={styles.eyebrow}>
-                        Step {shownStepIndex + 1} of {steps.length}
+                        {t('guidedTour.stepOf', {
+                            current: shownStepIndex + 1,
+                            total: steps.length,
+                        })}
                     </Text>
                     {/* While the page is still working, its own words for
                         what it is doing take the title's place, so the state
@@ -1332,7 +1337,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                     )}
                     {failed && (
                         <Text fz="sm" c="dimmed" data-tour-card-failed>
-                            That did not work. Check the output, then try again
+                            {t('guidedTour.failed')}
                         </Text>
                     )}
                     {busy && status !== '' && (
@@ -1347,8 +1352,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                     )}
                     {cardReturned && waiting && (
                         <Text fz="xs" c="dimmed" data-tour-card-waiting>
-                            Still waiting for the page to show the next control.
-                            You can skip if it does not appear.
+                            {t('guidedTour.stillWaiting')}
                         </Text>
                     )}
                 </Stack>
@@ -1359,7 +1363,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                         size="compact-sm"
                         onClick={handleClose}
                     >
-                        Skip
+                        {t('guidedTour.skip')}
                     </Button>
                     <Box className={styles.dots}>
                         {steps.map((s, i) => (
@@ -1382,7 +1386,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                                 size="compact-sm"
                                 onClick={handleBack}
                             >
-                                Back
+                                {t('actions.back', { ns: 'common' })}
                             </Button>
                         )}
                         {shownStep.advanceOnTargetClick ||
@@ -1399,7 +1403,9 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                                             words say which lines to add. */}
                                         {contextLines === 0 && (
                                             <Text fz="xs" c="dimmed">
-                                                Type here, or use:
+                                                {t(
+                                                    'guidedTour.typeHereOrUseBlock',
+                                                )}
                                             </Text>
                                         )}
                                         <Code
@@ -1449,18 +1455,27 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                                 ) : (
                                     <Group gap="xs" wrap="nowrap">
                                         <Text fz="xs" c="dimmed">
-                                            Type here, or use{' '}
-                                            <Text
-                                                component="span"
-                                                fz="xs"
-                                                fw={600}
-                                                c="inherit"
-                                                data-tour-suggestion={
-                                                    shownStep.suggestion
-                                                }
-                                            >
-                                                {shownStep.suggestion}
-                                            </Text>
+                                            <Trans
+                                                t={t}
+                                                i18nKey="guidedTour.typeHereOrUse"
+                                                values={{
+                                                    suggestion:
+                                                        shownStep.suggestion,
+                                                }}
+                                                components={{
+                                                    suggestion: (
+                                                        <Text
+                                                            component="span"
+                                                            fz="xs"
+                                                            fw={600}
+                                                            c="inherit"
+                                                            data-tour-suggestion={
+                                                                shownStep.suggestion
+                                                            }
+                                                        />
+                                                    ),
+                                                }}
+                                            />
                                         </Text>
                                         {suggestionButton}
                                         {checkButton}
@@ -1470,8 +1485,8 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                                 <Text fz="xs" c="dimmed">
                                     {shownStep.advanceOnTargetInput &&
                                     spotlightSelector === shownStep.target
-                                        ? 'Type in the highlighted field to continue'
-                                        : 'Click the highlighted control to continue'}
+                                        ? t('guidedTour.typeToContinue')
+                                        : t('guidedTour.clickToContinue')}
                                 </Text>
                             )
                         ) : (
@@ -1502,10 +1517,10 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                                 }
                             >
                                 {failed
-                                    ? 'Try again'
+                                    ? t('guidedTour.tryAgain')
                                     : shownIsLast
-                                      ? 'Got it'
-                                      : 'Next'}
+                                      ? t('guidedTour.gotIt')
+                                      : t('actions.next', { ns: 'common' })}
                             </Button>
                         )}
                     </Group>

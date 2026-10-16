@@ -9,6 +9,7 @@ import { useMemo } from 'react';
 import { lightdashApi } from '../../../api';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
+import i18n from '../../../i18n/i18n';
 
 const CACHE_KEY = 'custom-role';
 
@@ -68,12 +69,12 @@ export const useCustomRole = (roleUuid?: string) => {
                 queryKey: ['custom-roles', organization?.organizationUuid],
             });
             showToastSuccess({
-                title: `Custom role updated successfully`,
+                title: i18n.t('toasts.updated', { ns: 'customRoles' }),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to update custom role`,
+                title: i18n.t('toasts.updateFailed', { ns: 'customRoles' }),
                 apiError: error,
             });
         },

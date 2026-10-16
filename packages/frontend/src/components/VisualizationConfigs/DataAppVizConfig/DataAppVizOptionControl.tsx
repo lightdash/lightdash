@@ -9,6 +9,7 @@ import {
 import { Group, Select, Stack, Switch, TextInput } from '@mantine/core';
 import { useDebouncedCallback } from '@mantine/hooks';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { NumberInput } from '../../common/NumberInput';
 import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
@@ -143,65 +144,78 @@ const GradientOptionControl: FC<{
     value: DataAppVizGradientValue;
     colorPalette: string[];
     onChange: (value: DataAppVizGradientValue) => void;
-}> = ({ option, value, colorPalette, onChange }) => (
-    <Stack gap="xs" role="group" aria-label={option.label}>
-        <Config.Label>{option.label}</Config.Label>
-        <GradientStopsEditor
-            colors={value.colors}
-            startLabel={option.showBounds === false ? 'Start' : 'Low'}
-            endLabel={option.showBounds === false ? 'End' : 'High'}
-            swatches={
-                colorPalette.length > 0 ? colorPalette : ECHARTS_DEFAULT_COLORS
-            }
-            onAddColor={() =>
-                onChange({
-                    ...value,
-                    colors: [
-                        ...value.colors.slice(0, -1),
-                        '#fab005',
-                        value.colors[value.colors.length - 1],
-                    ],
-                })
-            }
-            onRemoveColor={(index) =>
-                onChange({
-                    ...value,
-                    colors: value.colors.filter(
-                        (_, colorIndex) => colorIndex !== index,
-                    ),
-                })
-            }
-            onColorChange={(index, color) =>
-                onChange({
-                    ...value,
-                    colors: value.colors.map((existing, colorIndex) =>
-                        colorIndex === index ? color : existing,
-                    ),
-                })
-            }
-        />
-        {option.showBounds !== false && (
-            <>
-                <Group gap="xs" wrap="nowrap" align="flex-end">
-                    <RangeBoundInput
-                        label="Minimum"
-                        autoLabel="Auto"
-                        value={value.min}
-                        onChange={(min) => onChange({ ...value, min })}
-                    />
-                </Group>
-                <Group gap="xs" wrap="nowrap" align="flex-end">
-                    <RangeBoundInput
-                        label="Maximum"
-                        autoLabel="Auto"
-                        value={value.max}
-                        onChange={(max) => onChange({ ...value, max })}
-                    />
-                </Group>
-            </>
-        )}
-    </Stack>
-);
+}> = ({ option, value, colorPalette, onChange }) => {
+    const { t } = useTranslation('vizConfig');
+    return (
+        <Stack gap="xs" role="group" aria-label={option.label}>
+            <Config.Label>{option.label}</Config.Label>
+            <GradientStopsEditor
+                colors={value.colors}
+                startLabel={
+                    option.showBounds === false
+                        ? t('dataAppViz.gradient.start')
+                        : t('dataAppViz.gradient.low')
+                }
+                endLabel={
+                    option.showBounds === false
+                        ? t('dataAppViz.gradient.end')
+                        : t('dataAppViz.gradient.high')
+                }
+                swatches={
+                    colorPalette.length > 0
+                        ? colorPalette
+                        : ECHARTS_DEFAULT_COLORS
+                }
+                onAddColor={() =>
+                    onChange({
+                        ...value,
+                        colors: [
+                            ...value.colors.slice(0, -1),
+                            '#fab005',
+                            value.colors[value.colors.length - 1],
+                        ],
+                    })
+                }
+                onRemoveColor={(index) =>
+                    onChange({
+                        ...value,
+                        colors: value.colors.filter(
+                            (_, colorIndex) => colorIndex !== index,
+                        ),
+                    })
+                }
+                onColorChange={(index, color) =>
+                    onChange({
+                        ...value,
+                        colors: value.colors.map((existing, colorIndex) =>
+                            colorIndex === index ? color : existing,
+                        ),
+                    })
+                }
+            />
+            {option.showBounds !== false && (
+                <>
+                    <Group gap="xs" wrap="nowrap" align="flex-end">
+                        <RangeBoundInput
+                            label={t('dataAppViz.gradient.minimum')}
+                            autoLabel={t('dataAppViz.gradient.auto')}
+                            value={value.min}
+                            onChange={(min) => onChange({ ...value, min })}
+                        />
+                    </Group>
+                    <Group gap="xs" wrap="nowrap" align="flex-end">
+                        <RangeBoundInput
+                            label={t('dataAppViz.gradient.maximum')}
+                            autoLabel={t('dataAppViz.gradient.auto')}
+                            value={value.max}
+                            onChange={(max) => onChange({ ...value, max })}
+                        />
+                    </Group>
+                </>
+            )}
+        </Stack>
+    );
+};
 
 type Props = {
     option: DataAppVizConfigOption;

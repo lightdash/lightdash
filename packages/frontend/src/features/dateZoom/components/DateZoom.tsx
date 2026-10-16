@@ -22,6 +22,7 @@ import {
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
@@ -51,46 +52,53 @@ const EditModeGranularityItem: FC<EditModeGranularityItemProps> = ({
     isLastEnabled,
     onToggle,
     onSetDefault,
-}) => (
-    <Menu.Item
-        fz="xs"
-        closeMenuOnClick={false}
-        leftSection={
-            <Checkbox
-                size="xs"
-                checked={isEnabled}
-                disabled={isLastEnabled}
-                onChange={() => onToggle(granularity)}
-                classNames={{ input: styles.checkboxInput }}
-            />
-        }
-        rightSection={
-            isEnabled ? (
-                <Tooltip
-                    label={isDefault ? 'Remove default' : 'Set as default'}
-                    position="top"
-                >
-                    <ActionIcon
-                        size="xs"
-                        color={isDefault ? 'blue' : 'ldGray'}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onSetDefault(granularity);
-                        }}
+}) => {
+    const { t } = useTranslation('dashboard');
+    return (
+        <Menu.Item
+            fz="xs"
+            closeMenuOnClick={false}
+            leftSection={
+                <Checkbox
+                    size="xs"
+                    checked={isEnabled}
+                    disabled={isLastEnabled}
+                    onChange={() => onToggle(granularity)}
+                    classNames={{ input: styles.checkboxInput }}
+                />
+            }
+            rightSection={
+                isEnabled ? (
+                    <Tooltip
+                        label={
+                            isDefault
+                                ? t('dateZoom.removeDefault')
+                                : t('dateZoom.setAsDefault')
+                        }
+                        position="top"
                     >
-                        <MantineIcon
-                            icon={isDefault ? IconPinFilled : IconPin}
-                            size="sm"
-                        />
-                    </ActionIcon>
-                </Tooltip>
-            ) : null
-        }
-        onClick={() => onToggle(granularity)}
-    >
-        {label}
-    </Menu.Item>
-);
+                        <ActionIcon
+                            size="xs"
+                            color={isDefault ? 'blue' : 'ldGray'}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSetDefault(granularity);
+                            }}
+                        >
+                            <MantineIcon
+                                icon={isDefault ? IconPinFilled : IconPin}
+                                size="sm"
+                            />
+                        </ActionIcon>
+                    </Tooltip>
+                ) : null
+            }
+            onClick={() => onToggle(granularity)}
+        >
+            {label}
+        </Menu.Item>
+    );
+};
 
 type ViewModeGranularityItemProps = {
     granularity: string;
@@ -128,6 +136,7 @@ type Props = {
 
 export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
     const getUiString = useUiStrings();
+    const { t } = useTranslation('dashboard');
     const [showOpenIcon, setShowOpenIcon] = useState(false);
 
     const dateZoomGranularity = useDashboardContext(
@@ -389,7 +398,9 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                         <Menu.Dropdown>
                             {isEditMode ? (
                                 <>
-                                    <Menu.Label>Granularities</Menu.Label>
+                                    <Menu.Label>
+                                        {t('dateZoom.granularities')}
+                                    </Menu.Label>
                                     {standardGranularities.map(
                                         (granularity) => (
                                             <EditModeGranularityItem
@@ -424,7 +435,9 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                     {customGranularities.length > 0 && (
                                         <>
                                             <Menu.Divider />
-                                            <Menu.Label>Custom</Menu.Label>
+                                            <Menu.Label>
+                                                {t('dateZoom.custom')}
+                                            </Menu.Label>
                                             {customGranularities.map(
                                                 (granularity) => (
                                                     <EditModeGranularityItem

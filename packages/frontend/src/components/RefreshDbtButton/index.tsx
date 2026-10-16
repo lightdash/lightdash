@@ -14,7 +14,9 @@ import {
     type ButtonProps,
 } from '@mantine/core';
 import { IconChevronDown, IconRefresh } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useEffect, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useContentAsCodeSettings } from '../../features/contentAsCode/hooks/useContentAsCodeSettings';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -33,40 +35,23 @@ type RefreshMode = 'dbt' | 'dbt-and-content';
 const refreshModeStorageKey = (projectUuid: string) =>
     `lightdash-refresh-dbt-mode:${projectUuid}`;
 
-const MODE_COPY: Record<
+type ModeCopy = Record<
     RefreshMode,
     { label: string; description: string; busy: string; tooltip: string }
-> = {
-    dbt: {
-        label: 'Refresh dbt',
-        description: 'Recompile explores from your dbt project',
-        busy: 'Refreshing dbt',
-        tooltip:
-            "If you've updated your YAML files, you can sync your changes to Lightdash by clicking this button.",
-    },
-    'dbt-and-content': {
-        label: 'Refresh dbt and sync content',
-        description: 'Then pull charts and dashboards as code from the repo',
-        busy: 'Refreshing dbt and content',
-        tooltip:
-            'Recompiles your dbt project, then applies charts and dashboards as code from the repo.',
-    },
-};
+>;
 
-const NATIVE_MODE_COPY: typeof MODE_COPY = {
-    dbt: {
-        ...MODE_COPY.dbt,
-        label: 'Refresh models',
-        description: 'Recompile explores from your native Lightdash YAML',
-        busy: 'Refreshing models',
-    },
-    'dbt-and-content': {
-        ...MODE_COPY['dbt-and-content'],
-        label: 'Refresh models and sync content',
-        busy: 'Refreshing models and content',
-        tooltip:
-            'Recompiles your native Lightdash models, then applies charts and dashboards as code from the repo.',
-    },
+const getModeCopy = (t: TFunction, isNative: boolean): ModeCopy => {
+    const group = isNative ? 'native' : 'dbt';
+    const modeCopy = (key: 'refresh' | 'refreshAndSync') => ({
+        label: t(`refreshDbt.modes.${group}.${key}.label`),
+        description: t(`refreshDbt.modes.${group}.${key}.description`),
+        busy: t(`refreshDbt.modes.${group}.${key}.busy`),
+        tooltip: t(`refreshDbt.modes.${group}.${key}.tooltip`),
+    });
+    return {
+        dbt: modeCopy('refresh'),
+        'dbt-and-content': modeCopy('refreshAndSync'),
+    };
 };
 
 const loadStoredMode = (projectUuid: string): RefreshMode => {
@@ -104,6 +89,7 @@ const RefreshDbtButton: FC<{
     defaultTextOverride,
     refreshingTextOverride,
 }) => {
+    const { t } = useTranslation('projectConnection');
     const projectUuid = useProjectUuid();
     const { data } = useProject(projectUuid);
     const { activeJob } = useActiveJob();
@@ -162,48 +148,40 @@ const RefreshDbtButton: FC<{
                             leftSection={<MantineIcon icon={IconRefresh} />}
                             disabled
                         >
-                            Refresh project
+                            {t('refreshDbt.refreshProject')}
                         </Button>
                     </Box>
                 </Popover.Target>
                 <Popover.Dropdown>
                     <Text>
-                        This project is deployed using the CLI.
-                        <br />
-                        To keep your Lightdash project in sync with your source
-                        files,
-                        <br /> you need to either{' '}
-                        <Anchor
-                            href={
-                                'https://docs.lightdash.com/get-started/setup-lightdash/connect-project#2-import-a-dbt-project'
-                            }
-                            target="_blank"
-                            rel="noreferrer"
-                        >
-                            change your connection type
-                        </Anchor>
-                        , setup a{' '}
-                        <Anchor
-                            href={
-                                'https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy#automatically-deploy-your-changes-to-lightdash-using-a-github-action'
-                            }
-                            target="_blank"
-                            rel="noreferrer"
-                        >
-                            GitHub action
-                        </Anchor>
-                        <br />
-                        or, run{' '}
-                        <Anchor
-                            href={
-                                'https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy#lightdash-deploy-syncs-the-changes-in-your-dbt-project-to-lightdash'
-                            }
-                            target="_blank"
-                            rel="noreferrer"
-                        >
-                            lightdash deploy
-                        </Anchor>
-                        from your command line.
+                        <Trans
+                            t={t}
+                            i18nKey="refreshDbt.cliDeployedHint"
+                            components={{
+                                br: <br />,
+                                connectionTypeLink: (
+                                    <Anchor
+                                        href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#2-import-a-dbt-project"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    />
+                                ),
+                                githubActionLink: (
+                                    <Anchor
+                                        href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy#automatically-deploy-your-changes-to-lightdash-using-a-github-action"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    />
+                                ),
+                                deployLink: (
+                                    <Anchor
+                                        href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy#lightdash-deploy-syncs-the-changes-in-your-dbt-project-to-lightdash"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    />
+                                ),
+                            }}
+                        />
                     </Text>
                 </Popover.Dropdown>
             </Popover>
@@ -240,11 +218,11 @@ const RefreshDbtButton: FC<{
         if (projectUuid) storeMode(projectUuid, nextMode);
     };
 
-    const modeCopy =
+    const modeCopy = getModeCopy(
+        t,
         data?.dbtConnection.type === DbtProjectType.GITHUB &&
-        data.dbtConnection.semanticLayer === 'lightdash'
-            ? NATIVE_MODE_COPY
-            : MODE_COPY;
+            data.dbtConnection.semanticLayer === 'lightdash',
+    );
     const busy = isLoading;
     const busyLabel = modeCopy[activeMode].busy;
 
@@ -282,7 +260,7 @@ const RefreshDbtButton: FC<{
                                 p={4}
                                 variant="default"
                                 disabled={busy}
-                                aria-label="Change refresh mode"
+                                aria-label={t('refreshDbt.changeMode')}
                             >
                                 <MantineIcon icon={IconChevronDown} size="sm" />
                             </Button>
@@ -320,11 +298,9 @@ const RefreshDbtButton: FC<{
                 refreshButton
             )}
             {data?.type === ProjectType.PREVIEW && (
-                <Tooltip
-                    label={`Developer previews are temporary Lightdash projects`}
-                >
+                <Tooltip label={t('refreshDbt.developerPreviewTooltip')}>
                     <Badge color="yellow" size="lg">
-                        Developer preview
+                        {t('refreshDbt.developerPreview')}
                     </Badge>
                 </Tooltip>
             )}

@@ -28,6 +28,7 @@ import {
     selectTableName,
     useExplorerSelector,
 } from '../features/explorer/store';
+import i18n from '../i18n/i18n';
 import { useExplore } from './useExplore';
 
 const createCompleter: (fields: Ace.Completion[]) => Ace.Completer = (
@@ -63,7 +64,7 @@ const mapTableCalculationsToCompletions = (
         const technicalOption: Ace.Completion = {
             caption: `\${${tableCalc.name}}`,
             value: `\${${tableCalc.name}}`,
-            meta: 'Table calculation',
+            meta: i18n.t('aceCompleter.tableCalculation', { ns: 'app' }),
             score: Number.MAX_VALUE,
         };
         const friendlyOption: Ace.Completion = {
@@ -73,84 +74,89 @@ const mapTableCalculationsToCompletions = (
         return [...acc, technicalOption, friendlyOption];
     }, []);
 
-const TABLE_CALCULATION_FUNCTION_COMPLETIONS: Ace.Completion[] = [
+const getTableCalculationFunctionCompletions = (): Ace.Completion[] => [
     {
         caption: 'total(metric)',
         value: 'total()',
-        meta: 'Aggregate',
+        meta: i18n.t('aceCompleter.aggregate', { ns: 'app' }),
         score: 1000,
     },
     {
         caption: 'row_total(metric)',
         value: 'row_total()',
-        meta: 'Aggregate',
+        meta: i18n.t('aceCompleter.aggregate', { ns: 'app' }),
         score: 1000,
     },
-    { caption: 'row()', value: 'row()', meta: 'Row', score: 1000 },
+    {
+        caption: 'row()',
+        value: 'row()',
+        meta: i18n.t('aceCompleter.row', { ns: 'app' }),
+        score: 1000,
+    },
     {
         caption: 'offset(column, n)',
         value: 'offset()',
-        meta: 'Row',
+        meta: i18n.t('aceCompleter.row', { ns: 'app' }),
         score: 1000,
     },
     {
         caption: 'index(column, rowIndex)',
         value: 'index()',
-        meta: 'Row',
+        meta: i18n.t('aceCompleter.row', { ns: 'app' }),
         score: 1000,
     },
     {
         caption: 'offset_list(column, start, count)',
         value: 'offset_list()',
-        meta: 'Row',
+        meta: i18n.t('aceCompleter.row', { ns: 'app' }),
         score: 1000,
     },
     {
         caption: 'lookup(value, lookupCol, resultCol)',
         value: 'lookup()',
-        meta: 'Row',
+        meta: i18n.t('aceCompleter.row', { ns: 'app' }),
         score: 1000,
     },
     {
         caption: 'list(value1, value2, ...)',
         value: 'list()',
-        meta: 'Row',
+        meta: i18n.t('aceCompleter.row', { ns: 'app' }),
         score: 1000,
     },
     {
         caption: 'pivot_column()',
         value: 'pivot_column()',
-        meta: 'Pivot',
+        meta: i18n.t('aceCompleter.pivot', { ns: 'app' }),
         score: 1000,
     },
     {
         caption: 'pivot_offset(column, n)',
         value: 'pivot_offset()',
-        meta: 'Pivot',
+        meta: i18n.t('aceCompleter.pivot', { ns: 'app' }),
         score: 1000,
     },
     {
         caption: 'pivot_index(column, index)',
         value: 'pivot_index()',
-        meta: 'Pivot',
+        meta: i18n.t('aceCompleter.pivot', { ns: 'app' }),
         score: 1000,
     },
     {
         caption: 'pivot_offset_list(column, start, count)',
         value: 'pivot_offset_list()',
-        meta: 'Pivot',
+        meta: i18n.t('aceCompleter.pivot', { ns: 'app' }),
         score: 1000,
     },
     {
         caption: 'pivot_row(column)',
         value: 'pivot_row()',
-        meta: 'Pivot',
+        meta: i18n.t('aceCompleter.pivot', { ns: 'app' }),
         score: 1000,
     },
     {
         caption: 'pivot_where(select, value)',
         value: 'pivot_where()',
-        meta: 'Pivot',
+        meta: i18n.t('aceCompleter.pivot', { ns: 'app' }),
         score: 1000,
     },
 ];
@@ -169,7 +175,7 @@ const mapReservedParametersToCompletions = (
             const technicalOption: Ace.Completion = {
                 caption: reference,
                 value: reference,
-                meta: 'System variable',
+                meta: i18n.t('aceCompleter.systemVariable', { ns: 'app' }),
                 score: Number.MAX_VALUE,
             };
             const friendlyOption: Ace.Completion = {
@@ -188,7 +194,7 @@ const mapCustomDimensionsToCompletions = (
         const technicalOption: Ace.Completion = {
             caption: `\${${customDim.id}}`,
             value: `\${${customDim.id}}`,
-            meta: 'Custom dimension',
+            meta: i18n.t('aceCompleter.customDimension', { ns: 'app' }),
             score: Number.MAX_VALUE,
         };
         const friendlyOption: Ace.Completion = {
@@ -247,13 +253,13 @@ export const useTableCalculationAceEditorCompleter = (): {
                             acc2.push(metric);
                             return acc2;
                         }, []),
-                    'Metric',
+                    i18n.t('aceCompleter.metric', { ns: 'app' }),
                 ),
                 ...mapFieldsToCompletions(
                     Object.values(table.dimensions).filter((field) =>
                         activeFields.has(getItemId(field)),
                     ),
-                    'Dimension',
+                    i18n.t('aceCompleter.dimension', { ns: 'app' }),
                 ),
             ],
             [],
@@ -275,7 +281,7 @@ export const useTableCalculationAceEditorCompleter = (): {
             ...fields,
             ...tableCalculationCompletions,
             ...customDimensionCompletions,
-            ...TABLE_CALCULATION_FUNCTION_COMPLETIONS,
+            ...getTableCalculationFunctionCompletions(),
         ];
     }, [
         exploreData,
@@ -314,7 +320,7 @@ export const useCustomDimensionsAceEditorCompleter = (): {
             const activeExplore = exploreData;
             const fields = mapFieldsToCompletions(
                 getDimensions(activeExplore),
-                'Dimension',
+                i18n.t('aceCompleter.dimension', { ns: 'app' }),
             );
             const shadowedReservedNames = getShadowedReservedNames(
                 Object.keys(getExploreParameterDefinitions(activeExplore)),

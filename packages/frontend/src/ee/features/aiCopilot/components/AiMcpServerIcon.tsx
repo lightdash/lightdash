@@ -1,6 +1,7 @@
 import { Avatar, type MantineColor } from '@mantine/core';
 import { IconPlugConnected } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 
 type Props = {
@@ -11,12 +12,13 @@ type Props = {
 };
 
 export const AiMcpServerIcon: FC<Props> = ({ color, name, size = 40, src }) => {
+    const { t } = useTranslation('aiAgent');
     const radius = Math.max(4, Math.round(size / 5));
 
     return (
         <Avatar
             src={src ?? undefined}
-            alt={`${name} icon`}
+            alt={t('mcpLabels.iconAlt', { name })}
             radius={radius}
             size={size}
             variant="light"

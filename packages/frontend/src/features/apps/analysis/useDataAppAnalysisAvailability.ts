@@ -1,6 +1,7 @@
 import { FeatureFlags } from '@lightdash/common';
 import { useAiOrganizationSettings } from '../../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import i18n from '../../../i18n/i18n';
 
 export type DataAppAnalysisUnavailableReason =
     | 'not_rolled_out'
@@ -20,14 +21,20 @@ export type DataAppAnalysisAvailability =
           reason: DataAppAnalysisUnavailableReason;
       };
 
+// Getters keep copy lazy: i18n may not be initialised at import time.
 export const UNAVAILABLE_COPY: Record<
     DataAppAnalysisUnavailableReason,
     string
 > = {
-    not_rolled_out: 'AI analysis is not available for this organization yet.',
-    copilot_off: 'AI is not enabled for this organization.',
-    org_setting_off:
-        'AI analysis in data apps is turned off for this organization.',
+    get not_rolled_out() {
+        return i18n.t('analysis.unavailable.notRolledOut', { ns: 'apps' });
+    },
+    get copilot_off() {
+        return i18n.t('analysis.unavailable.copilotOff', { ns: 'apps' });
+    },
+    get org_setting_off() {
+        return i18n.t('analysis.unavailable.orgSettingOff', { ns: 'apps' });
+    },
 };
 
 /** Settings page an org admin turns the blocker on at; null when nothing in-product does. */

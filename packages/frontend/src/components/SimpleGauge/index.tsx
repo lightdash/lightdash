@@ -2,21 +2,25 @@ import { getGaugeSizes } from '@lightdash/visualization/editor';
 import { IconGauge } from '@tabler/icons-react';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useEchartsGaugeConfig from '../../hooks/echarts/useEchartsGaugeConfig';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 
-const EmptyChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <SuboptimalState
-            title="No data available"
-            description="Query metrics and dimensions with results."
-            icon={IconGauge}
-        />
-    </div>
-);
+const EmptyChart = () => {
+    const { t } = useTranslation('visualization');
+    return (
+        <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
+            <SuboptimalState
+                title={t('emptyState.noDataTitle')}
+                description={t('emptyState.noDataDescription')}
+                icon={IconGauge}
+            />
+        </div>
+    );
+};
 
 type SimpleGaugeProps = Omit<EChartsReactProps, 'option'> & {
     isInDashboard: boolean;

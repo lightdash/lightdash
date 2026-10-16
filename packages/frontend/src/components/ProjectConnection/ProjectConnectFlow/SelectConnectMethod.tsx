@@ -9,6 +9,7 @@ import {
     IconTerminal,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -32,6 +33,7 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
     onSelect,
     onBack,
 }) => {
+    const { t } = useTranslation('projectConnection');
     const { track } = useTracking();
 
     const warehouseConnectFlag = useServerFeatureFlag(
@@ -50,7 +52,7 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                 leftSection={<MantineIcon icon={IconChevronLeft} />}
                 onClick={onBack}
             >
-                Back
+                {t('actions.back', { ns: 'common' })}
             </Button>
 
             <ProjectCreationCard>
@@ -61,8 +63,8 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
 
                     <Text c="dimmed">
                         {isWarehouseConnectEnabled
-                            ? 'To get started, choose how you want to connect:'
-                            : 'To get started, choose how you want to upload your dbt project:'}
+                            ? t('connectFlow.method.promptConnect')
+                            : t('connectFlow.method.promptUpload')}
                     </Text>
 
                     <Stack>
@@ -89,9 +91,11 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                                         color="black"
                                     />
                                 }
-                                description="Connect your warehouse, then let Lightdash finish your project setup"
+                                description={t(
+                                    'connectFlow.method.agentDescription',
+                                )}
                             >
-                                Set up with a coding agent
+                                {t('connectFlow.method.agent')}
                             </OnboardingButton>
                         )}
 
@@ -118,15 +122,16 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                                 />
                             }
                             description={
-                                <>
-                                    with{' '}
-                                    <Text span ff="monospace">
-                                        `lightdash deploy`
-                                    </Text>
-                                </>
+                                <Trans
+                                    t={t}
+                                    i18nKey="connectFlow.method.cliDescription"
+                                    components={{
+                                        command: <Text span ff="monospace" />,
+                                    }}
+                                />
                             }
                         >
-                            Using your CLI
+                            {t('connectFlow.method.cli')}
                         </OnboardingButton>
 
                         <OnboardingButton
@@ -151,9 +156,11 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                                     color="black"
                                 />
                             }
-                            description="Pull project from git repository"
+                            description={t(
+                                'connectFlow.method.manualDescription',
+                            )}
                         >
-                            Manually
+                            {t('connectFlow.method.manual')}
                         </OnboardingButton>
 
                         {isWarehouseConnectEnabled && (
@@ -179,9 +186,11 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                                         color="black"
                                     />
                                 }
-                                description="Fastest way to get started — connect directly and query your tables"
+                                description={t(
+                                    'connectFlow.method.warehouseDescription',
+                                )}
                             >
-                                Connect to your warehouse
+                                {t('connectFlow.method.warehouse')}
                             </OnboardingButton>
                         )}
                     </Stack>
@@ -205,7 +214,7 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                     });
                 }}
             >
-                View docs
+                {t('connectFlow.viewDocs')}
             </Button>
         </OnboardingWrapper>
     );

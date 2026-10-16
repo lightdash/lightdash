@@ -16,6 +16,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 import {
     getInFlightJobUuidFromError,
@@ -56,6 +57,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     successRedirect,
     celebrateOnSuccess = false,
 }) => {
+    const { t } = useTranslation('projectConnection');
     const { pathname } = useLocation();
     const onboardingFlow = pathname.startsWith('/onboarding/')
         ? 'new'
@@ -146,7 +148,10 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         if (selectedWarehouse) {
             try {
                 const data = await mutateAsync({
-                    name: name || user.data?.organizationName || 'My project',
+                    name:
+                        name ||
+                        user.data?.organizationName ||
+                        t('createProject.defaultName'),
                     type: ProjectType.DEFAULT,
                     dbtConnection,
                     dbtVersion,
@@ -280,8 +285,8 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                                     disabled={!form.isValid()}
                                 >
                                     {warehouseOnly
-                                        ? 'Test & save'
-                                        : 'Test & deploy project'}
+                                        ? t('createProject.testAndSave')
+                                        : t('createProject.testAndDeploy')}
                                 </Button>
                             </>
                         )}

@@ -24,6 +24,7 @@ import {
     IconTerminal2,
 } from '@tabler/icons-react';
 import { Fragment, useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../../../../../components/common/ChartDownload/chartDownloadUtils';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -109,6 +110,7 @@ export const AiChartQuickOptions = ({
     artifactData,
     merge,
 }: Props) => {
+    const { t } = useTranslation('aiCopilotChat');
     const authoringEnabled = useContentAuthoringEnabled();
     const { track } = useTracking();
     const { user } = useApp();
@@ -305,7 +307,7 @@ export const AiChartQuickOptions = ({
         try {
             const chart = await addChartToDashboard({
                 savedData,
-                name: saveChartOptions.name ?? 'Untitled chart',
+                name: saveChartOptions.name ?? t('chartOptions.untitledChart'),
                 description: saveChartOptions.description,
                 dashboardUuid: quickSaveDashboard.uuid,
                 activeTabUuid: quickSaveDashboard.activeTabUuid,
@@ -321,11 +323,13 @@ export const AiChartQuickOptions = ({
                 }),
             );
             showToastSuccess({
-                title: `Chart added to "${quickSaveDashboard.name}"`,
+                title: t('chartOptions.addedToDashboard', {
+                    dashboard: quickSaveDashboard.name,
+                }),
             });
         } catch (e) {
             showToastApiError({
-                title: 'Failed to add chart to dashboard',
+                title: t('chartOptions.addToDashboardFailed'),
                 apiError: (e as ApiError).error,
             });
         } finally {
@@ -343,6 +347,7 @@ export const AiChartQuickOptions = ({
         dispatch,
         showToastSuccess,
         showToastApiError,
+        t,
     ]);
 
     const openInExploreUrl = useMemo(() => {
@@ -515,8 +520,8 @@ export const AiChartQuickOptions = ({
                 <Tooltip
                     label={
                         isVerified
-                            ? 'Remove from verified answers'
-                            : 'Add to verified answers'
+                            ? t('chartOptions.removeFromVerified')
+                            : t('chartOptions.addToVerified')
                     }
                     position="bottom"
                 >
@@ -548,7 +553,9 @@ export const AiChartQuickOptions = ({
                         </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
-                        <Menu.Label>Quick actions</Menu.Label>
+                        <Menu.Label>
+                            {t('chartOptions.quickActions')}
+                        </Menu.Label>
                         {canExportImage && (
                             <AiChartImageExportMenuItem
                                 onClick={openExportImageModal}
@@ -561,7 +568,7 @@ export const AiChartQuickOptions = ({
                                 }
                                 onClick={openDownloadModal}
                             >
-                                Download results
+                                {t('chartOptions.downloadResults')}
                             </Menu.Item>
                         )}
                         {savedQueryUuid ? (
@@ -585,7 +592,7 @@ export const AiChartQuickOptions = ({
                                         <MantineIcon icon={IconTableShortcut} />
                                     }
                                 >
-                                    View saved chart
+                                    {t('chartOptions.viewSavedChart')}
                                 </Menu.Item>
                             ) : (
                                 <>
@@ -599,7 +606,7 @@ export const AiChartQuickOptions = ({
                                             />
                                         }
                                     >
-                                        View saved chart
+                                        {t('chartOptions.viewSavedChart')}
                                     </Menu.Item>
                                     {canCreateScheduledDeliveries && (
                                         <Menu.Item
@@ -608,7 +615,7 @@ export const AiChartQuickOptions = ({
                                                 <MantineIcon icon={IconSend} />
                                             }
                                         >
-                                            Schedule delivery
+                                            {t('chartOptions.scheduleDelivery')}
                                         </Menu.Item>
                                     )}
                                 </>
@@ -636,7 +643,9 @@ export const AiChartQuickOptions = ({
                                             />
                                         }
                                     >
-                                        Save to current dashboard
+                                        {t(
+                                            'chartOptions.saveToCurrentDashboard',
+                                        )}
                                     </Menu.Item>
                                 )}
                                 {canSaveChart && (
@@ -655,8 +664,10 @@ export const AiChartQuickOptions = ({
                                         }
                                     >
                                         {quickSaveDashboard
-                                            ? 'Save to…'
-                                            : 'Save'}
+                                            ? t('chartOptions.saveTo')
+                                            : t('actions.save', {
+                                                  ns: 'common',
+                                              })}
                                     </Menu.Item>
                                 )}
                             </>
@@ -671,7 +682,7 @@ export const AiChartQuickOptions = ({
                                 disabled={isDisabled || !openInExploreUrl}
                                 onClick={handleExploreFromHere}
                             >
-                                Explore from here
+                                {t('chartOptions.exploreFromHere')}
                             </Menu.Item>
                         )}
 
@@ -680,7 +691,7 @@ export const AiChartQuickOptions = ({
                                 leftSection={<MantineIcon icon={IconEye} />}
                                 onClick={openSqlModal}
                             >
-                                View SQL
+                                {t('chartOptions.viewSql')}
                             </Menu.Item>
                         )}
 
@@ -695,7 +706,7 @@ export const AiChartQuickOptions = ({
                                     <MantineIcon icon={IconTerminal2} />
                                 }
                             >
-                                Open in SQL Runner
+                                {t('assistant.openInSqlRunner')}
                             </Menu.Item>
                         ) : null}
                     </Menu.Dropdown>
@@ -704,7 +715,7 @@ export const AiChartQuickOptions = ({
             <MantineModal
                 opened={opened && authoringEnabled}
                 onClose={close}
-                title="Save chart"
+                title={t('chartOptions.saveChart')}
                 icon={IconChartBar}
                 size="lg"
                 modalBodyProps={{
@@ -746,7 +757,9 @@ export const AiChartQuickOptions = ({
             )}
             <AiChartImageExportModal
                 chartRef={chartRef}
-                chartName={saveChartOptions.name ?? 'Untitled chart'}
+                chartName={
+                    saveChartOptions.name ?? t('chartOptions.untitledChart')
+                }
                 opened={exportImageModalOpened}
                 onClose={closeExportImageModal}
             />
@@ -761,13 +774,13 @@ export const AiChartQuickOptions = ({
                 opened={verifyModalOpened}
                 onClose={closeVerifyModal}
                 role="alertdialog"
-                title="Remove from verified answers"
+                title={t('chartOptions.removeFromVerified')}
                 icon={IconCircleCheck}
                 size="sm"
-                description="Are you sure you want to remove this answer from verified answers? It will no longer be used as an example in future Agent responses."
+                description={t('chartOptions.removeFromVerifiedDescription')}
                 actions={
                     <Button color="red" onClick={handleConfirmUnverify}>
-                        Confirm
+                        {t('actions.confirm', { ns: 'common' })}
                     </Button>
                 }
             />

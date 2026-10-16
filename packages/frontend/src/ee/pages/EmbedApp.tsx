@@ -1,12 +1,14 @@
 import { Box } from '@mantine/core';
 import { IconUnlink } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
 import EmbedApp from '../features/embed/EmbedApp/components/EmbedApp';
 import useEmbed from '../providers/Embed/useEmbed';
 
 const EmbedAppPage: FC = () => {
+    const { t } = useTranslation('embed');
     const { appUuid: appUuidFromParams } = useParams<{ appUuid?: string }>();
     const { embedToken, projectUuid, appUuid: appUuidFromContext } = useEmbed();
 
@@ -19,7 +21,7 @@ const EmbedAppPage: FC = () => {
             <Box mt="md">
                 <SuboptimalState
                     icon={IconUnlink}
-                    title="This embed link is not valid"
+                    title={t('page.invalidLink')}
                 />
             </Box>
         );
@@ -28,7 +30,10 @@ const EmbedAppPage: FC = () => {
     if (!projectUuid || !appUuid) {
         return (
             <Box mt="md">
-                <SuboptimalState icon={IconUnlink} title="Missing app ID" />
+                <SuboptimalState
+                    icon={IconUnlink}
+                    title={t('page.missingAppId')}
+                />
             </Box>
         );
     }

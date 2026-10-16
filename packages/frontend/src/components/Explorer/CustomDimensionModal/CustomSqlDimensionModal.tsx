@@ -1,5 +1,4 @@
 import {
-    capitalize,
     convertFieldRefToFieldId,
     CustomDimensionType,
     DimensionType,
@@ -26,6 +25,7 @@ import {
     IconSql,
 } from '@tabler/icons-react';
 import { useMemo, useRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import {
     AiCustomDimensionInputBody,
@@ -79,6 +79,7 @@ export const CustomSqlDimensionModal: FC<{
     table: string;
     item?: CustomSqlDimension;
 }> = ({ isEditing, table, item }) => {
+    const { t } = useTranslation('explorer');
     const { ace: aceTheme } = useEditorTheme();
 
     const { showToastSuccess, showToastError } = useToaster();
@@ -129,7 +130,7 @@ export const CustomSqlDimensionModal: FC<{
                     !isEditing &&
                     explore?.tables[table]?.dimensions[customDimensionId]
                 ) {
-                    return 'A model dimension with this ID already exists';
+                    return t('customDimension.errors.modelDimensionExists');
                 }
 
                 const isInvalid = [
@@ -142,7 +143,7 @@ export const CustomSqlDimensionModal: FC<{
                 );
 
                 return isInvalid
-                    ? 'Dimension/Table calculation with this label already exists'
+                    ? t('customDimension.errors.labelExistsWithCalculation')
                     : null;
             },
         },
@@ -160,7 +161,7 @@ export const CustomSqlDimensionModal: FC<{
 
         try {
             if (!values.sql) {
-                throw new Error('SQL is required');
+                throw new Error(t('customDimension.errors.sqlRequired'));
             }
             // Validate all references in SQL
             const fieldIds = getAllReferences(values.sql).map((ref) => {
@@ -172,9 +173,7 @@ export const CustomSqlDimensionModal: FC<{
             });
 
             if (fieldIds.some((id) => id === null)) {
-                throw new Error(
-                    'Invalid field references in SQL. References must be of the format "table.field", e.g "orders.id"',
-                );
+                throw new Error(t('customDimension.errors.invalidReferences'));
             }
 
             // Only proceed if all conversions succeeded
@@ -196,12 +195,12 @@ export const CustomSqlDimensionModal: FC<{
                     explorerActions.setCustomDimensions(updatedDimensions),
                 );
                 showToastSuccess({
-                    title: 'Custom dimension edited successfully',
+                    title: t('customDimension.toast.edited'),
                 });
             } else {
                 dispatch(explorerActions.addCustomDimension(customDim));
                 showToastSuccess({
-                    title: 'Custom dimension added successfully',
+                    title: t('customDimension.toast.added'),
                 });
             }
 
@@ -209,18 +208,24 @@ export const CustomSqlDimensionModal: FC<{
             toggleModal();
         } catch (error) {
             showToastError({
-                title: 'Error creating custom dimension',
+                title: t('customDimension.toast.createFailed'),
                 subtitle:
                     error instanceof Error
                         ? error.message
-                        : 'Invalid field reference in SQL or dimension name',
+                        : t('customDimension.errors.invalidReferenceOrName'),
             });
         }
     });
 
+    const baseTitle = isEditing
+        ? t('customDimension.modal.editTitle')
+        : t('customDimension.modal.createTitle');
     const title = item
-        ? `${isEditing ? 'Edit' : 'Create'} Custom Dimension - ${item.name}`
-        : `${isEditing ? 'Edit' : 'Create'} Custom Dimension`;
+        ? t('customDimension.modal.titleWithName', {
+              title: baseTitle,
+              name: item.name,
+          })
+        : baseTitle;
 
     return (
         <MantineModal
@@ -243,7 +248,7 @@ export const CustomSqlDimensionModal: FC<{
                 py: 'sm',
             }}
             leftActions={
-                <Tooltip label="Expand/Collapse">
+                <Tooltip label={t('customDimension.modal.expandCollapse')}>
                     <ActionIcon variant="outline" onClick={toggleExpanded}>
                         <MantineIcon
                             icon={isExpanded ? IconMinimize : IconMaximize}
@@ -258,7 +263,9 @@ export const CustomSqlDimensionModal: FC<{
                     ref={submitButtonRef}
                     {...(isEditing ? {} : createTourAction)}
                 >
-                    {isEditing ? 'Save changes' : 'Create'}
+                    {isEditing
+                        ? t('customDimension.modal.saveChanges')
+                        : t('actions.create', { ns: 'common' })}
                 </Button>
             }
         >
@@ -275,9 +282,11 @@ export const CustomSqlDimensionModal: FC<{
                 <Stack gap="xs">
                     <Group justify="space-between">
                         <TextInput
-                            label="Label"
+                            label={t('customDimension.modal.label')}
                             required
-                            placeholder="Enter custom dimension label"
+                            placeholder={t(
+                                'customDimension.modal.labelPlaceholder',
+                            )}
                             flex={1}
                             {...form.getInputProps('customDimensionLabel')}
                             data-testid="CustomSqlDimensionModal/LabelInput"
@@ -289,10 +298,12 @@ export const CustomSqlDimensionModal: FC<{
                         />
                         <Select
                             className={classes.dimensionTypeSelect}
-                            label="Dimension Type"
+                            label={t('customDimension.modal.dimensionType')}
                             data={Object.values(DimensionType).map((type) => ({
                                 value: type,
-                                label: capitalize(type),
+                                label: t(
+                                    `customDimension.dimensionTypes.${type}`,
+                                ),
                             }))}
                             {...form.getInputProps('dimensionType')}
                         />
@@ -307,7 +318,9 @@ export const CustomSqlDimensionModal: FC<{
                     >
                         <SqlEditor
                             mode="sql"
-                            placeholder="Enter SQL"
+                            placeholder={t(
+                                'customDimension.modal.sqlPlaceholder',
+                            )}
                             theme={aceTheme}
                             width="100%"
                             maxLines={Infinity}
@@ -332,7 +345,7 @@ export const CustomSqlDimensionModal: FC<{
                         <AiSlot
                             icon={IconSparkles}
                             iconColor="indigo.4"
-                            title="Generate and improve your custom dimension with AI"
+                            title={t('customDimension.modal.aiTitle')}
                         >
                             <AiCustomDimensionInputBody
                                 currentSql={form.values.sql || undefined}

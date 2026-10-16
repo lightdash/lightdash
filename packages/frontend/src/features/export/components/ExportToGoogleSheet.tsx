@@ -3,6 +3,7 @@ import { type ApiScheduledDownloadCsv } from '@lightdash/common';
 import { Button, Loader, Menu } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useEffect, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useGdriveAccessToken } from '../../../hooks/gdrive/useGdrive';
@@ -19,6 +20,7 @@ export type ExportToGoogleSheetProps = {
 
 export const ExportToGoogleSheet: FC<ExportToGoogleSheetProps> = memo(
     ({ getGsheetLink, asMenuItem, disabled }) => {
+        const { t } = useTranslation('export');
         const health = useHealth();
         const { user } = useApp();
         const projectUuid = useProjectUuid();
@@ -70,7 +72,7 @@ export const ExportToGoogleSheet: FC<ExportToGoogleSheetProps> = memo(
                     onClick={() => mutate()}
                     closeMenuOnClick={false}
                 >
-                    Export Google Sheets
+                    {t('googleSheets.exportMenuItem')}
                 </Menu.Item>
             );
         }
@@ -84,7 +86,7 @@ export const ExportToGoogleSheet: FC<ExportToGoogleSheetProps> = memo(
                 onClick={() => mutate()}
                 disabled={disabled}
             >
-                Google Sheets
+                {t('googleSheets.button')}
             </Button>
         );
     },

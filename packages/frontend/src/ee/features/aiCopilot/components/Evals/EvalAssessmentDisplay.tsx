@@ -1,6 +1,7 @@
 import { Badge, Box, Divider, Group, Loader, Stack, Text } from '@mantine/core';
 import { IconCheck, IconClipboardList, IconX } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiAgentEvaluationRunResults } from '../../hooks/useAiAgentEvaluations';
 import { ToolCallPaper } from '../ChatElements/ToolCalls/ToolCallPaper';
@@ -22,6 +23,7 @@ export const EvalAssessmentDisplay: FC<EvalAssessmentDisplayProps> = ({
     runUuid,
     threadUuid,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const { data, isLoading } = useAiAgentEvaluationRunResults(
         projectUuid,
         agentUuid,
@@ -42,7 +44,7 @@ export const EvalAssessmentDisplay: FC<EvalAssessmentDisplayProps> = ({
             <>
                 <Box m="sm">
                     <ToolCallPaper
-                        title="Evaluation Assessment"
+                        title={t('evals.assessment.title')}
                         icon={IconClipboardList}
                         defaultOpened={false}
                     >
@@ -65,7 +67,7 @@ export const EvalAssessmentDisplay: FC<EvalAssessmentDisplayProps> = ({
         <>
             <Box m="sm">
                 <ToolCallPaper
-                    title="Evaluation Assessment"
+                    title={t('evals.assessment.title')}
                     icon={IconClipboardList}
                     defaultOpened
                     rightAction={
@@ -79,7 +81,7 @@ export const EvalAssessmentDisplay: FC<EvalAssessmentDisplayProps> = ({
                                 />
                             }
                         >
-                            {assessmentConfig.label}
+                            {t(assessmentConfig.labelKey)}
                         </Badge>
                     }
                 >
@@ -95,7 +97,7 @@ export const EvalAssessmentDisplay: FC<EvalAssessmentDisplayProps> = ({
                     {expectedResponse && (
                         <Stack gap={2} mt="sm">
                             <Text size="xs" fw={600} c="dimmed">
-                                Expected Response
+                                {t('evals.assessment.expectedResponse')}
                             </Text>
                             <Text
                                 size="xs"

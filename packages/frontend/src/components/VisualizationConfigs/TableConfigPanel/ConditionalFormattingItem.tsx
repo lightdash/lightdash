@@ -44,6 +44,7 @@ import {
 } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FieldSelect from '../../common/FieldSelect';
 import { filterOperatorLabel } from '../../common/Filters/FilterInputs/constants';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
@@ -68,19 +69,26 @@ type Props = {
     removeItem: (value: string) => void;
 };
 
-const ConditionalFormattingRuleLabels = {
-    [ConditionalFormattingConfigType.Single]: 'Single',
-    [ConditionalFormattingConfigType.Range]: 'Range',
-};
-
 const TEXT_STYLE_TOGGLES: {
     key: keyof ConditionalFormattingTextStyle;
-    label: string;
+    labelKey: string;
     icon: typeof IconBold;
 }[] = [
-    { key: 'bold', label: 'Bold', icon: IconBold },
-    { key: 'italic', label: 'Italic', icon: IconItalic },
-    { key: 'underline', label: 'Underline', icon: IconUnderline },
+    {
+        key: 'bold',
+        labelKey: 'tableConditionalFormatting.textStyle.bold',
+        icon: IconBold,
+    },
+    {
+        key: 'italic',
+        labelKey: 'tableConditionalFormatting.textStyle.italic',
+        icon: IconItalic,
+    },
+    {
+        key: 'underline',
+        labelKey: 'tableConditionalFormatting.textStyle.underline',
+        icon: IconUnderline,
+    },
 ];
 
 export const ConditionalFormattingItem: FC<Props> = ({
@@ -94,6 +102,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
     addNewItem,
     removeItem,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const [config, setConfig] = useState<ConditionalFormattingConfig>(value);
     const [openConditions, setOpenConditions] = useState<string[]>(() =>
         isConditionalFormattingConfigWithSingleColor(value)
@@ -383,18 +392,24 @@ export const ConditionalFormattingItem: FC<Props> = ({
         [handleChange, config],
     );
 
-    const controlLabel = `Rule ${configIndex}`;
+    const controlLabel = t('tableConditionalFormatting.ruleNumber', {
+        number: configIndex,
+    });
     const accordionValue = `${configIndex}`;
 
     const description = useMemo(() => {
-        if (!field) return 'No condition set';
+        if (!field) return t('tableConditionalFormatting.noConditionSet');
 
         if (isConditionalFormattingConfigWithColorRange(config)) {
             const min =
-                config.rule.min === 'auto' ? 'min. in table' : config.rule.min;
+                config.rule.min === 'auto'
+                    ? t('tableConditionalFormatting.minInTable')
+                    : config.rule.min;
             const max =
-                config.rule.max === 'auto' ? 'max. in table' : config.rule.max;
-            return `Range ${min} – ${max}`;
+                config.rule.max === 'auto'
+                    ? t('tableConditionalFormatting.maxInTable')
+                    : config.rule.max;
+            return t('tableConditionalFormatting.rangeSummary', { min, max });
         }
 
         if (
@@ -409,15 +424,16 @@ export const ConditionalFormattingItem: FC<Props> = ({
                 : '';
             const ruleStr = values ? `${operator} ${values}` : operator;
             const extraCount = config.rules.length - 1;
-            const extra =
-                extraCount > 0
-                    ? ` +${extraCount} ${extraCount === 1 ? 'rule' : 'rules'}`
-                    : '';
-            return `${ruleStr}${extra}`;
+            return extraCount > 0
+                ? t('tableConditionalFormatting.ruleSummaryWithExtra', {
+                      rule: ruleStr,
+                      count: extraCount,
+                  })
+                : ruleStr;
         }
 
-        return 'No condition set';
-    }, [config, field]);
+        return t('tableConditionalFormatting.noConditionSet');
+    }, [config, field, t]);
 
     const onControlClick = useCallback(
         () =>
@@ -445,7 +461,13 @@ export const ConditionalFormattingItem: FC<Props> = ({
                 <Stack gap="xs">
                     <FiltersProvider>
                         <FieldSelect
-                            label={<Config.Label>Select field</Config.Label>}
+                            label={
+                                <Config.Label>
+                                    {t(
+                                        'tableConditionalFormatting.selectField',
+                                    )}
+                                </Config.Label>
+                            }
                             clearable
                             size="xs"
                             item={field}
@@ -455,23 +477,23 @@ export const ConditionalFormattingItem: FC<Props> = ({
                         />
 
                         <Stack gap={4}>
-                            <Config.Label>Color mode</Config.Label>
+                            <Config.Label>
+                                {t('tableConditionalFormatting.colorMode')}
+                            </Config.Label>
                             <SegmentedControl
                                 fullWidth
                                 data={[
                                     {
                                         value: ConditionalFormattingConfigType.Single,
-                                        label: ConditionalFormattingRuleLabels[
-                                            ConditionalFormattingConfigType
-                                                .Single
-                                        ],
+                                        label: t(
+                                            'tableConditionalFormatting.configType.single',
+                                        ),
                                     },
                                     {
                                         value: ConditionalFormattingConfigType.Range,
-                                        label: ConditionalFormattingRuleLabels[
-                                            ConditionalFormattingConfigType
-                                                .Range
-                                        ],
+                                        label: t(
+                                            'tableConditionalFormatting.configType.range',
+                                        ),
                                         disabled:
                                             field && !isNumericItem(field),
                                     },
@@ -491,7 +513,9 @@ export const ConditionalFormattingItem: FC<Props> = ({
                             config,
                         ) ? (
                             <Group gap="xs">
-                                <Config.Label>Color</Config.Label>
+                                <Config.Label>
+                                    {t('tableConditionalFormatting.color')}
+                                </Config.Label>
                                 <ColorSelector
                                     color={config.color}
                                     swatches={colorPalette}
@@ -501,17 +525,23 @@ export const ConditionalFormattingItem: FC<Props> = ({
                         ) : null}
 
                         <Group gap="xs">
-                            <Config.Label>Apply to</Config.Label>
+                            <Config.Label>
+                                {t('tableConditionalFormatting.applyTo')}
+                            </Config.Label>
 
                             <SegmentedControl
                                 data={[
                                     {
                                         value: ConditionalFormattingColorApplyTo.CELL,
-                                        label: 'Cell',
+                                        label: t(
+                                            'tableConditionalFormatting.applyToCell',
+                                        ),
                                     },
                                     {
                                         value: ConditionalFormattingColorApplyTo.TEXT,
-                                        label: 'Text',
+                                        label: t(
+                                            'tableConditionalFormatting.applyToText',
+                                        ),
                                     },
                                     // Row fill only applies to single-color rules;
                                     // color-range (gradient) rules ignore ROW, so
@@ -522,7 +552,9 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                         ? [
                                               {
                                                   value: ConditionalFormattingColorApplyTo.ROW,
-                                                  label: 'Row',
+                                                  label: t(
+                                                      'tableConditionalFormatting.applyToRow',
+                                                  ),
                                               },
                                           ]
                                         : []),
@@ -540,18 +572,22 @@ export const ConditionalFormattingItem: FC<Props> = ({
                         </Group>
 
                         <Group gap="xs">
-                            <Config.Label>Text style</Config.Label>
+                            <Config.Label>
+                                {t(
+                                    'tableConditionalFormatting.textStyle.label',
+                                )}
+                            </Config.Label>
                             <ActionIcon.Group>
                                 {TEXT_STYLE_TOGGLES.map(
-                                    ({ key, label, icon }) => (
-                                        <Tooltip key={key} label={label}>
+                                    ({ key, labelKey, icon }) => (
+                                        <Tooltip key={key} label={t(labelKey)}>
                                             <ActionIcon
                                                 variant={
                                                     config.textStyle?.[key]
                                                         ? 'filled'
                                                         : 'default'
                                                 }
-                                                aria-label={label}
+                                                aria-label={t(labelKey)}
                                                 onClick={() =>
                                                     handleToggleTextStyle(key)
                                                 }
@@ -572,14 +608,20 @@ export const ConditionalFormattingItem: FC<Props> = ({
                         ) ? (
                             <>
                                 <Flex justify="space-between">
-                                    <Config.Label>Conditions</Config.Label>
+                                    <Config.Label>
+                                        {t(
+                                            'tableConditionalFormatting.conditions',
+                                        )}
+                                    </Config.Label>
                                     <Button
                                         size="compact-xs"
                                         variant="subtle"
                                         disabled={!field}
                                         title={
                                             !field
-                                                ? 'Select a field first'
+                                                ? t(
+                                                      'tableConditionalFormatting.selectFieldFirst',
+                                                  )
                                                 : undefined
                                         }
                                         leftSection={
@@ -590,7 +632,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                         }
                                         onClick={handleAddRule}
                                     >
-                                        Add
+                                        {t('actions.add', { ns: 'common' })}
                                     </Button>
                                 </Flex>
                                 <Accordion

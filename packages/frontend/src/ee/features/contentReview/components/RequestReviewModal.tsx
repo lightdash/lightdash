@@ -8,6 +8,7 @@ import { Button, Group, Stack, Text, Textarea } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconArrowRight, IconFolder, IconSend } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { IconBox } from '../../../../components/common/ResourceIcon';
@@ -71,6 +72,7 @@ const RequestReviewModal: FC<Props> = ({
     opened,
     onClose,
 }) => {
+    const { t } = useTranslation('eeMisc');
     const [step, setStep] = useState<Step>('space');
     const { data: personalSpace } = usePersonalSpace(projectUuid, {
         enabled: opened,
@@ -121,11 +123,11 @@ const RequestReviewModal: FC<Props> = ({
 
     return (
         <MantineModal
-            title="Request review"
+            title={t('contentReview.requestModal.title')}
             subtitle={
                 isSpaceStep
-                    ? 'Step 1 of 2. Where it belongs'
-                    : 'Step 2 of 2. Why it belongs there'
+                    ? t('contentReview.requestModal.step1')
+                    : t('contentReview.requestModal.step2')
             }
             opened={opened}
             onClose={handleClose}
@@ -134,7 +136,7 @@ const RequestReviewModal: FC<Props> = ({
             leftActions={
                 isSpaceStep ? null : (
                     <Button variant="subtle" onClick={() => setStep('space')}>
-                        Back
+                        {t('actions.back', { ns: 'common' })}
                     </Button>
                 )
             }
@@ -148,7 +150,7 @@ const RequestReviewModal: FC<Props> = ({
                             setStep('note');
                         }}
                     >
-                        Continue
+                        {t('actions.continue', { ns: 'common' })}
                     </Button>
                 ) : (
                     <Button
@@ -157,7 +159,7 @@ const RequestReviewModal: FC<Props> = ({
                         loading={isSubmitting}
                         disabled={form.values.targetSpaceUuid === null}
                     >
-                        Request review
+                        {t('contentReview.requestModal.title')}
                     </Button>
                 )
             }
@@ -166,9 +168,9 @@ const RequestReviewModal: FC<Props> = ({
                 {isSpaceStep ? (
                     <Stack gap="md">
                         <Text fz="sm" c="dimmed">
-                            The people who can edit the space you pick will
-                            review this {typeLabel} and move it there when they
-                            approve.
+                            {t('contentReview.requestModal.spaceDescription', {
+                                noun: typeLabel,
+                            })}
                         </Text>
                         <SpaceSelector
                             projectUuid={projectUuid}
@@ -206,13 +208,18 @@ const RequestReviewModal: FC<Props> = ({
                             <Group gap={4} wrap="nowrap" flex="0 0 auto">
                                 <MantineIcon icon={IconFolder} color="dimmed" />
                                 <Text fz="sm" fw={500}>
-                                    {targetSpace?.name ?? 'Shared space'}
+                                    {targetSpace?.name ??
+                                        t(
+                                            'contentReview.requestModal.sharedSpace',
+                                        )}
                                 </Text>
                             </Group>
                         </Group>
                         {isCheckingSimilar && (
                             <Text size="xs" c="dimmed" role="status">
-                                Checking for related content…
+                                {t(
+                                    'contentReview.requestModal.checkingSimilar',
+                                )}
                             </Text>
                         )}
                         <SimilarContentPanel
@@ -222,11 +229,15 @@ const RequestReviewModal: FC<Props> = ({
                             items={similarContent}
                         />
                         <Textarea
-                            label="Note for reviewers"
+                            label={t('contentReview.requestModal.noteLabel')}
                             description={
                                 similarContent.length > 0
-                                    ? 'What does yours add that the existing content does not?'
-                                    : 'What does it show, and who is it for?'
+                                    ? t(
+                                          'contentReview.requestModal.noteSimilar',
+                                      )
+                                    : t(
+                                          'contentReview.requestModal.noteDefault',
+                                      )
                             }
                             autosize
                             minRows={3}

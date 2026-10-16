@@ -5,6 +5,7 @@ import {
     IconTarget,
     IconUser,
 } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon, {
     type MantineIconProps,
 } from '../../../../components/common/MantineIcon';
@@ -32,36 +33,24 @@ const InstructionsGuidelinesItem = ({
 );
 
 const guidelines = [
-    {
-        icon: IconTarget,
-        title: 'Domain knowledge',
-        description:
-            'Specify the industry, field, or subject matter expertise. Include relevant methodologies, frameworks, and technical knowledge.',
-    },
-    {
-        icon: IconBuilding,
-        title: 'Company context',
-        description:
-            'Include relevant business context, goals, and constraints. Mention industry, target audience, and strategic objectives.',
-    },
-    {
-        icon: IconChartBar,
-        title: 'Analysis preferences',
-        description:
-            'Define how data should be analyzed and presented. Specify preferred metrics, dimensions, visualization types, and reporting formats.',
-    },
-    {
-        icon: IconUser,
-        title: 'Role & expertise',
-        description:
-            "Describe the analyst's role, responsibilities, and expertise level. Define communication style and decision-making authority.",
-    },
-];
+    { key: 'domainKnowledge', icon: IconTarget },
+    { key: 'companyContext', icon: IconBuilding },
+    { key: 'analysisPreferences', icon: IconChartBar },
+    { key: 'roleExpertise', icon: IconUser },
+] as const;
 
-export const InstructionsGuidelines = () => (
-    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" verticalSpacing="sm">
-        {guidelines.map((guideline) => (
-            <InstructionsGuidelinesItem key={guideline.title} {...guideline} />
-        ))}
-    </SimpleGrid>
-);
+export const InstructionsGuidelines = () => {
+    const { t } = useTranslation('aiAgent');
+    return (
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" verticalSpacing="sm">
+            {guidelines.map(({ key, icon }) => (
+                <InstructionsGuidelinesItem
+                    key={key}
+                    icon={icon}
+                    title={t(`guidelines.${key}.title`)}
+                    description={t(`guidelines.${key}.description`)}
+                />
+            ))}
+        </SimpleGrid>
+    );
+};

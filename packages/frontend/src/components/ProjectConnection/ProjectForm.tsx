@@ -1,6 +1,7 @@
 import { ProjectType, DbtProjectType, FeatureFlags } from '@lightdash/common';
 import { TextInput, Flex, Stack, Text, Title, Avatar } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import LightdashLogo from '../../svgs/logo-icon.svg';
@@ -25,6 +26,7 @@ interface Props {
 }
 
 const WarehouseIpHint: FC = () => {
+    const { t } = useTranslation('projectConnection');
     const { health } = useApp();
     const egressIpNoticeFlag = useServerFeatureFlag(
         FeatureFlags.EgressIpNotice,
@@ -34,8 +36,7 @@ const WarehouseIpHint: FC = () => {
 
     return (
         <Text c="gray">
-            If you need to add our IP address to your database's allow-list, use{' '}
-            <b>{health.data.staticIp}</b>
+            {t('projectForm.ipHint')} <b>{health.data.staticIp}</b>
         </Text>
     );
 };
@@ -47,6 +48,7 @@ export const ProjectForm: FC<Props> = ({
     isProjectUpdate,
     warehouseOnly = false,
 }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
     const { savedProject } = useProjectFormContext();
     const warehouse = form.values.warehouse.type;
@@ -60,13 +62,15 @@ export const ProjectForm: FC<Props> = ({
             {showGeneralSettings && (
                 <SettingsGridCard>
                     <div>
-                        <Title order={5}>General settings</Title>
+                        <Title order={5}>
+                            {t('projectForm.generalSettings')}
+                        </Title>
                     </div>
 
                     <div>
                         <TextInput
                             name="name"
-                            label="Project name"
+                            label={t('projectForm.projectName')}
                             required
                             disabled={disabled}
                             {...form.getInputProps('name')}
@@ -79,7 +83,9 @@ export const ProjectForm: FC<Props> = ({
                 <div>
                     {warehouse && getWarehouseIcon(warehouse)}
                     <Flex align="center" gap={2}>
-                        <Title order={5}>Warehouse connection</Title>
+                        <Title order={5}>
+                            {t('projectForm.warehouseConnection')}
+                        </Title>
                         <DocumentationHelpButton
                             href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection"
                             pos="relative"
@@ -115,11 +121,17 @@ export const ProjectForm: FC<Props> = ({
                         <Avatar
                             size="md"
                             src={isNative ? LightdashLogo : DbtLogo}
-                            alt={isNative ? 'Lightdash icon' : 'dbt icon'}
+                            alt={
+                                isNative
+                                    ? t('projectForm.lightdashIcon')
+                                    : t('projectForm.dbtIcon')
+                            }
                         />
 
                         <Flex align="center" gap={2}>
-                            <Title order={5}>Semantic layer connection</Title>
+                            <Title order={5}>
+                                {t('projectForm.semanticLayerConnection')}
+                            </Title>
                             <DocumentationHelpButton
                                 href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project"
                                 pos="relative"

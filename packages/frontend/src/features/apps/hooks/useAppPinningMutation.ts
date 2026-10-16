@@ -1,5 +1,6 @@
 import { type ApiError, type TogglePinnedItemInfo } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -18,6 +19,7 @@ const updateAppPinning = async ({
 
 export const useAppPinningMutation = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('apps');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
         TogglePinnedItemInfo,
@@ -42,17 +44,17 @@ export const useAppPinningMutation = () => {
 
             if (app.isPinned) {
                 showToastSuccess({
-                    title: 'Success! Data app was pinned to homepage',
+                    title: t('toasts.pinned'),
                 });
             } else {
                 showToastSuccess({
-                    title: 'Success! Data app was unpinned from homepage',
+                    title: t('toasts.unpinned'),
                 });
             }
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to pin data app',
+                title: t('toasts.pinFailed'),
                 apiError: error,
             });
         },

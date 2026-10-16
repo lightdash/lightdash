@@ -13,6 +13,7 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useProjectValidation } from '../../../../../hooks/validation/useValidation';
 import styles from './ReviewValidationList.module.css';
@@ -23,9 +24,6 @@ type Props = {
     previewProjectUuid: string;
 };
 
-const getValidationName = (error: ValidationResponse): string =>
-    error.name ?? 'Unnamed';
-
 // Chart-configuration warnings on charts are hidden by default on the validator
 // page (includeChartConfigWarnings=false); mirror that exact condition so the
 // count and entries match what "See all" opens.
@@ -34,6 +32,7 @@ const isHiddenConfigWarning = (error: ValidationResponse): boolean =>
     error.errorType === ValidationErrorType.ChartConfiguration;
 
 export const ReviewValidationList: FC<Props> = ({ previewProjectUuid }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const { data, isInitialLoading } = useProjectValidation(previewProjectUuid);
     const validatorUrl = `/generalSettings/projectManagement/${previewProjectUuid}/validator`;
 
@@ -42,7 +41,7 @@ export const ReviewValidationList: FC<Props> = ({ previewProjectUuid }) => {
             <Group gap="xs" pt="xs">
                 <Loader size={12} color="ldGray.5" />
                 <Text fz="xs" c="dimmed">
-                    Loading validation results…
+                    {t('reviews.validation.loading')}
                 </Text>
             </Group>
         );
@@ -56,7 +55,7 @@ export const ReviewValidationList: FC<Props> = ({ previewProjectUuid }) => {
     if (total === 0) {
         return (
             <Text fz="xs" c="dimmed" pt="xs">
-                No validation errors found
+                {t('reviews.validation.none')}
             </Text>
         );
     }
@@ -64,7 +63,7 @@ export const ReviewValidationList: FC<Props> = ({ previewProjectUuid }) => {
     return (
         <Stack gap="xs" pt="xs">
             <Text fz="xs" fw={600} tt="uppercase" lts={0.4} c="ldGray.7">
-                {total} validation {total === 1 ? 'error' : 'errors'}
+                {t('reviews.validation.count', { count: total })}
             </Text>
 
             <List size="xs" spacing={4} c="ldGray.7">
@@ -73,7 +72,8 @@ export const ReviewValidationList: FC<Props> = ({ previewProjectUuid }) => {
                         <Tooltip label={error.error} maw={320} openDelay={300}>
                             <Text fz="xs" c="ldGray.7" lineClamp={1}>
                                 <Text span inherit fw={600}>
-                                    {getValidationName(error)}
+                                    {error.name ??
+                                        t('reviews.validation.unnamed')}
                                 </Text>
                                 {' - '}
                                 {error.error}
@@ -88,7 +88,7 @@ export const ReviewValidationList: FC<Props> = ({ previewProjectUuid }) => {
                 to={validatorUrl}
                 className={styles.linkButton}
             >
-                See more
+                {t('reviews.validation.seeMore')}
             </UnstyledButton>
         </Stack>
     );

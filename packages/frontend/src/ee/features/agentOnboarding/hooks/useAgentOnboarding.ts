@@ -14,6 +14,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 
@@ -119,6 +120,7 @@ export const useAgentOnboardingFile = (
     });
 
 export const useStartAgentOnboardingRun = () => {
+    const { t } = useTranslation('agentOnboarding');
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
 
@@ -139,7 +141,7 @@ export const useStartAgentOnboardingRun = () => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to start project setup',
+                title: t('errors.startFailed'),
                 apiError: error,
             });
         },
@@ -152,6 +154,7 @@ type CancelRunArgs = {
 };
 
 export const useCancelAgentOnboardingRun = () => {
+    const { t } = useTranslation('agentOnboarding');
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
 
@@ -174,7 +177,7 @@ export const useCancelAgentOnboardingRun = () => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to cancel project setup',
+                title: t('errors.cancelFailed'),
                 apiError: error,
             });
         },

@@ -25,6 +25,7 @@ import {
     useTransition,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import VirtualViewAsCodeModal from '../../../features/contentAsCode/components/VirtualViewAsCodeModal';
 import {
     explorerActions,
@@ -71,6 +72,7 @@ interface ExplorePanelProps {
 }
 
 const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
+    const { t } = useTranslation('explorer');
     const { track } = useTracking();
     const { user } = useApp();
     const [isEditVirtualViewOpen, setIsEditVirtualViewOpen] = useState(false);
@@ -199,12 +201,12 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         if (!explore) return [];
         const items = onBack
             ? [
-                  { title: 'Tables', onClick: onBack },
+                  { title: t('explorePanel.tables'), onClick: onBack },
                   { title: explore.label, active: true },
               ]
             : [{ title: explore.label, active: true }];
         return items;
-    }, [onBack, explore]);
+    }, [onBack, explore, t]);
 
     if (isInitialLoading) {
         return <LoadingSkeleton />;
@@ -321,7 +323,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                     <ActionIcon
                                         data-tour-anchor="virtual-view-actions"
                                         data-tour-hint="Open virtual view actions"
-                                        aria-label="Virtual view actions"
+                                        aria-label={t(
+                                            'explorePanel.virtualViewActions',
+                                        )}
                                         variant="transparent"
                                     >
                                         <MantineIcon icon={IconDots} />
@@ -340,7 +344,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                             onClick={handleEditVirtualView}
                                         >
                                             <Text fz="xs" fw={500}>
-                                                Edit virtual view
+                                                {t(
+                                                    'explorePanel.editVirtualView',
+                                                )}
                                             </Text>
                                         </Menu.Item>
                                     )}
@@ -350,7 +356,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                                 <Menu.Divider />
                                             )}
                                             <Menu.Label>
-                                                Content as code
+                                                {t(
+                                                    'explorePanel.contentAsCode',
+                                                )}
                                             </Menu.Label>
                                             <Menu.Item
                                                 leftSection={
@@ -362,7 +370,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                                     virtualViewAsCodeModalHandlers.open
                                                 }
                                             >
-                                                View as code
+                                                {t('explorePanel.viewAsCode')}
                                             </Menu.Item>
                                         </>
                                     )}
@@ -390,7 +398,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                                 }
                                             >
                                                 <Text fz="xs" fw={500}>
-                                                    Delete
+                                                    {t('actions.delete', {
+                                                        ns: 'common',
+                                                    })}
                                                 </Text>
                                             </Menu.Item>
                                         </>
@@ -414,7 +424,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                             <Menu withArrow offset={-2}>
                                 <Menu.Target>
                                     <ActionIcon
-                                        aria-label="Query options"
+                                        aria-label={t(
+                                            'explorePanel.queryOptions',
+                                        )}
                                         variant="transparent"
                                     >
                                         <MantineIcon icon={IconDots} />
@@ -429,7 +441,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                             onClick={handleViewSourceCode}
                                         >
                                             <Text fz="xs" fw={500}>
-                                                View source code
+                                                {t(
+                                                    'explorePanel.viewSourceCode',
+                                                )}
                                             </Text>
                                         </Menu.Item>
                                     )}
@@ -447,7 +461,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                             onClick={handleAddMergeSource}
                                         >
                                             <Text fz="xs" fw={500}>
-                                                Merge another query
+                                                {t(
+                                                    'explorePanel.mergeAnotherQuery',
+                                                )}
                                             </Text>
                                         </Menu.Item>
                                     )}

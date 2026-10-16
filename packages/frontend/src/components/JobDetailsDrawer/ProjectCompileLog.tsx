@@ -1,6 +1,7 @@
 import { Box, Button } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactJson from 'react-json-view';
 import { useProjectCompileLogByJob } from '../../hooks/useProjectCompileLogs';
 import { useRjvTheme } from '../../hooks/useRjvTheme';
@@ -16,6 +17,7 @@ const ProjectCompileLog: FC<ProjectCompileLogProps> = ({
     projectUuid,
     jobUuid,
 }) => {
+    const { t } = useTranslation('projectConnection');
     const { data: compileLog } = useProjectCompileLogByJob({
         projectUuid,
         jobUuid,
@@ -28,7 +30,7 @@ const ProjectCompileLog: FC<ProjectCompileLogProps> = ({
 
     return (
         <CollapsablePaper
-            title="Compilation log"
+            title={t('jobDetails.compilationLog')}
             rightAction={
                 <Button
                     variant="subtle"
@@ -39,7 +41,7 @@ const ProjectCompileLog: FC<ProjectCompileLogProps> = ({
                     target="_blank"
                     href={`/generalSettings/projectManagement/${projectUuid}/compilationHistory`}
                 >
-                    See history
+                    {t('jobDetails.seeHistory')}
                 </Button>
             }
         >

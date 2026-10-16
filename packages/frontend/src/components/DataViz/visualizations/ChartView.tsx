@@ -3,6 +3,7 @@ import { Box, LoadingOverlay } from '@mantine/core';
 import { type SerializedError } from '@reduxjs/toolkit';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import EChartsReact, {
     type EChartsReactProps,
@@ -18,6 +19,7 @@ type Props = {
 
 const ChartView = memo<Props>(
     ({ config, isLoading, error, style, spec, onChartReady }) => {
+        const { t } = useTranslation('dataViz');
         if (isVizTableConfig(config)) {
             throw new Error(
                 'VizChartView should not be used for table visualization',
@@ -30,11 +32,11 @@ const ChartView = memo<Props>(
         ) {
             return (
                 <SuboptimalState
-                    title="Incomplete chart configuration"
+                    title={t('view.incompleteConfig')}
                     description={
                         !config.fieldConfig?.x
-                            ? "You're missing an X axis"
-                            : "You're missing a Y axis"
+                            ? t('view.missingXAxis')
+                            : t('view.missingYAxis')
                     }
                     icon={IconAlertCircle}
                     mt="xl"
@@ -45,7 +47,7 @@ const ChartView = memo<Props>(
         if (error && !isLoading) {
             return (
                 <SuboptimalState
-                    title="Error generating chart"
+                    title={t('view.errorGenerating')}
                     description={error.message}
                     icon={IconAlertCircle}
                     mt="xl"

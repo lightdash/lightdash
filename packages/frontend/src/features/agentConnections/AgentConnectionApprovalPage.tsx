@@ -20,6 +20,7 @@ import {
 } from '@mantine/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { v4 as uuid, validate as isUuid } from 'uuid';
 import { lightdashApi } from '../../api';
@@ -43,6 +44,7 @@ const isTerminal = (failure: ApprovalError | null) =>
             'approval_request_consumed');
 
 const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
+    const { t } = useTranslation('aiAccess');
     const client = useQueryClient();
     const navigate = useNavigate();
     const location = useLocation();
@@ -167,8 +169,8 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
                 setReviewMessage(
                     details.code === 'approval_selection_changed' &&
                         details.review
-                        ? 'Your permissions changed. Check the selection and approve again.'
-                        : 'This review is out of date. Check it again.',
+                        ? t('agentConnections.approval.selectionChanged')
+                        : t('agentConnections.approval.outOfDate'),
                 );
                 if (details.review)
                     client.setQueryData(queryKey, details.review);
@@ -192,20 +194,29 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
                 }
             />
         );
-    if (!review) return <EmptyStateLoader title="Loading approval" />;
+    if (!review)
+        return (
+            <EmptyStateLoader title={t('agentConnections.approval.loading')} />
+        );
     return (
         <Stack gap="lg">
             <Callout variant="info">{review.notice}</Callout>
             <Box>
-                <Title order={3}>Connect your CLI agent</Title>
-                <Text size="sm">{review.request.name} · CLI</Text>
+                <Title order={3}>{t('agentConnections.approval.title')}</Title>
+                <Text size="sm">
+                    {t('agentConnections.approval.requestName', {
+                        name: review.request.name,
+                    })}
+                </Text>
             </Box>
             {reviewMessage && (
                 <Callout variant="warning">{reviewMessage}</Callout>
             )}
             {failure && <InlineErrorState message={failure.error.message} />}
             <Stack gap="xs">
-                <Title order={5}>Projects</Title>
+                <Title order={5}>
+                    {t('agentConnections.approval.projects')}
+                </Title>
                 {review.projects.map((project) => (
                     <Box key={project.projectUuid}>
                         <Checkbox
@@ -243,7 +254,9 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
                 ))}
             </Stack>
             <Stack gap="xs">
-                <Title order={5}>Actions</Title>
+                <Title order={5}>
+                    {t('agentConnections.approval.actions')}
+                </Title>
                 {actions.map((action) => (
                     <ApprovalActionRow
                         key={action.capability}
@@ -268,12 +281,15 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
             </Stack>
             <Group gap="xs">
                 <Text size="sm" c="dimmed">
-                    Expires {approvalDuration(review.request.expiresInSeconds)}{' '}
-                    after approval
+                    {t('agentConnections.approval.expires', {
+                        duration: approvalDuration(
+                            review.request.expiresInSeconds,
+                        ),
+                    })}
                 </Text>
                 {review.request.expiresInSeconds > 86400 && (
                     <Text size="sm" c="orange">
-                        Longer than the usual 24 hours
+                        {t('agentConnections.approval.longerThanUsual')}
                     </Text>
                 )}
             </Group>
@@ -283,14 +299,14 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
                     disabled={pending}
                     onClick={() => void decide('deny')}
                 >
-                    Cancel
+                    {t('actions.cancel', { ns: 'common' })}
                 </Button>
                 <Button
                     loading={pending}
                     disabled={selectedProjects.length === 0 || pending}
                     onClick={() => void decide('approve')}
                 >
-                    Approve
+                    {t('agentConnections.approval.approve')}
                 </Button>
             </Group>
         </Stack>
@@ -298,6 +314,7 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
 };
 
 const AgentConnectionApprovalPage = () => {
+    const { t } = useTranslation('aiAccess');
     const flag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
     const [params] = useSearchParams();
     const requestUuid = params.get('request');
@@ -313,7 +330,9 @@ const AgentConnectionApprovalPage = () => {
                         requestUuid={requestUuid}
                     />
                 ) : (
-                    <InlineErrorState message="This approval link is missing a valid request." />
+                    <InlineErrorState
+                        message={t('agentConnections.approval.invalidLink')}
+                    />
                 )}
             </Paper>
         </Container>

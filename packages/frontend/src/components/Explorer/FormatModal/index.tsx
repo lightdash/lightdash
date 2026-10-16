@@ -17,6 +17,7 @@ import { useForm } from '@mantine/form';
 import { IconEraser, IconPencil } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { memo, useCallback, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type ValueOf } from 'type-fest';
 import {
     explorerActions,
@@ -49,6 +50,7 @@ const DEFAULT_FORMAT: CustomFormat = {
 const getDefaultFormat = (): CustomFormat => ({ ...DEFAULT_FORMAT });
 
 export const FormatModal = memo(() => {
+    const { t } = useTranslation('explorer');
     const dispatch = useExplorerDispatch();
     const { isOpen, item } = useExplorerSelector(selectFormatModal);
     const metricQuery = useExplorerSelector(selectMetricQuery);
@@ -151,13 +153,13 @@ export const FormatModal = memo(() => {
 
     const modalTitle = useMemo(() => {
         if (isDimension(item)) {
-            return 'Format dimension';
+            return t('formatModal.titleDimension');
         }
         if (isMetric(item)) {
-            return 'Format metric';
+            return t('formatModal.titleMetric');
         }
-        return 'Format field';
-    }, [item]);
+        return t('formatModal.titleField');
+    }, [item, t]);
 
     if (!isOpen || !item) {
         return null;
@@ -172,7 +174,7 @@ export const FormatModal = memo(() => {
             title={modalTitle}
             actions={
                 <Button type="submit" form="format-field-form">
-                    Save changes
+                    {t('formatModal.saveChanges')}
                 </Button>
             }
             leftActions={
@@ -186,7 +188,7 @@ export const FormatModal = memo(() => {
                             })
                         }
                     >
-                        Reset
+                        {t('formatModal.reset')}
                     </Button>
                 ) : undefined
             }

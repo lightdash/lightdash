@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { IconSearch, IconUserMinus, IconUserPlus } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useProjectUsersWithRoles } from '../../../../../hooks/useProjectUsersWithRolesV2';
@@ -36,6 +37,7 @@ export const ReviewAssigneeMenu: FC<Props> = ({
     withName = false,
     avatarSize = 26,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     // Source the candidate list from the same hook the project users & groups
     // table uses, so anyone who can access the project is assignable — not just
     // users with a direct project membership (which excluded group- and
@@ -79,13 +81,19 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                         className={classes.assigneeTrigger}
                         aria-label={
                             assigneeName
-                                ? `Assigned to ${assigneeName}`
-                                : 'Assign user'
+                                ? t('reviews.assigneeMenu.assignedTo', {
+                                      name: assigneeName,
+                                  })
+                                : t('reviews.assigneeMenu.assignUser')
                         }
                         onClick={(e) => e.stopPropagation()}
                         onPointerDown={(e) => e.stopPropagation()}
                     >
-                        <Tooltip label={assigneeName ?? 'Assign'}>
+                        <Tooltip
+                            label={
+                                assigneeName ?? t('reviews.assigneeMenu.assign')
+                            }
+                        >
                             <Group gap={6} wrap="nowrap">
                                 {assignee ? (
                                     <LightdashUserAvatar
@@ -118,7 +126,8 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                                         fw={500}
                                         ff="var(--mantine-font-family)"
                                     >
-                                        {assigneeName ?? 'Assign'}
+                                        {assigneeName ??
+                                            t('reviews.assigneeMenu.assign')}
                                     </Text>
                                 )}
                             </Group>
@@ -132,7 +141,7 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                 >
                     <TextInput
                         size="xs"
-                        placeholder="Search people"
+                        placeholder={t('reviews.assigneeMenu.searchPeople')}
                         value={search}
                         onChange={(e) => setSearch(e.currentTarget.value)}
                         onKeyDown={(e) => e.stopPropagation()}
@@ -144,7 +153,7 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                     <ScrollArea.Autosize mah={200} type="scroll">
                         {filtered.length === 0 ? (
                             <Text fz="xs" c="dimmed" ta="center" py="xs">
-                                No people
+                                {t('reviews.assigneeMenu.noPeople')}
                             </Text>
                         ) : (
                             filtered.map((member) => {
@@ -203,7 +212,7 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                                     });
                                 }}
                             >
-                                Unassign
+                                {t('reviews.assigneeMenu.unassign')}
                             </Menu.Item>
                         </>
                     )}

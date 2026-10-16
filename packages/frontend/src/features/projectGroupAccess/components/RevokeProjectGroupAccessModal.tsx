@@ -2,6 +2,7 @@ import { type GroupWithMembers } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { IconKey } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal, {
     type MantineModalProps,
 } from '../../../components/common/MantineModal';
@@ -16,17 +17,20 @@ const RevokeProjectGroupAccessModal: FC<RevokeProjectGroupAccessModalProps> = ({
     onDelete,
     onClose,
 }) => {
+    const { t } = useTranslation('roles');
     return (
         <MantineModal
             opened
             onClose={onClose}
             role="alertdialog"
-            title="Revoke group project access"
+            title={t('projectGroupAccess.revokeModal.title')}
             icon={IconKey}
-            description={`Are you sure you want to revoke project access for this group "${group.name}"?`}
+            description={t('projectGroupAccess.revokeModal.description', {
+                name: group.name,
+            })}
             actions={
                 <Button color="red" onClick={onDelete}>
-                    Revoke
+                    {t('projectGroupAccess.revokeModal.revoke')}
                 </Button>
             }
         />

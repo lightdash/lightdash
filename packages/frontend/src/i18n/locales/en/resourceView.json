@@ -1,0 +1,155 @@
+{
+    "contentViewFilter": {
+        "ariaLabel": "Content view",
+        "spaces": "Spaces",
+        "sharedWithMe": "Shared with me",
+        "adminContentView": "Admin Content View",
+        "adminContentViewTooltip": "View all public and private spaces in your organization"
+    },
+    "contentTypeFilter": {
+        "ariaLabel": "Content type",
+        "all": "All",
+        "documents": "Documents",
+        "dashboards": "Dashboards",
+        "charts": "Charts",
+        "dataApps": "Data Apps"
+    },
+    "dataAppBuildStatus": {
+        "noPreviewYet": "No preview yet",
+        "previewVersion": "Preview v{{version}}",
+        "buildingNoPreviewTooltip": "Version {{version}} is building. A preview will be available when it is ready.",
+        "buildingWithPreviewTooltip": "Version {{version}} is building. Preview opens the latest ready version, v{{readyVersion}}.",
+        "badge": "Building v{{version}} · {{preview}}"
+    },
+    "actionMenu": {
+        "menu": "Menu",
+        "documentActions": "Document actions",
+        "addToFavorites": "Add to favorites",
+        "removeFromFavorites": "Remove from favorites",
+        "pinToHomepage": "Pin to homepage",
+        "unpinFromHomepage": "Unpin from homepage",
+        "continueBuilding": "Continue building",
+        "updateSpace": "Update space",
+        "rename": "Rename",
+        "duplicate": "Duplicate",
+        "addToDashboard": "Add to Dashboard",
+        "promoteRequiresUpstream": "You must enable first an upstream project in settings > Data ops",
+        "promoteChart": "Promote chart",
+        "promoteDashboard": "Promote dashboard",
+        "promoteDataApp": "Promote data app",
+        "verify": "Verify",
+        "removeVerification": "Remove verification",
+        "requestReview": "Request review",
+        "move": "Move",
+        "moveToSpace": "Move to space",
+        "addToSpace": "Add to space",
+        "saveToSpace": "Save to space",
+        "share": "Share",
+        "deleteChart": "Delete chart",
+        "deleteDashboard": "Delete dashboard",
+        "deleteSpace": "Delete space",
+        "deleteDataApp": "Delete data app",
+        "deleteDocument": "Delete document"
+    },
+    "actionHandlers": {
+        "updateSpace": "Update space",
+        "deleteSpace": "Delete space",
+        "createNewSpace": "Create new space"
+    },
+    "accessInfo": {
+        "status": {
+            "private": "Private",
+            "inherited": "Inherited access",
+            "restricted": "Restricted access"
+        },
+        "tooltip": {
+            "inheritsFromParent": "Inherits access from the parent space",
+            "allProjectMembers": "All project members can access",
+            "onlyYouAndAdmins": "Only you and admins can access",
+            "sharedWithMembers_one": "Shared with {{count}} member",
+            "sharedWithMembers_other": "Shared with {{count}} members"
+        }
+    },
+    "emptyState": {
+        "noItems": "No items"
+    },
+    "lastEdited": {
+        "byUser": "by {{firstName}} {{lastName}}"
+    },
+    "validation": {
+        "brokenContent": "This content is broken. Learn more about the validation error(s) <link>here</link>.",
+        "chartError": "There's an error with this chart.",
+        "dashboardError": "There's an error with this dashboard."
+    },
+    "verification": {
+        "verifiedByOn": "Verified by {{firstName}} {{lastName}} on {{date}}"
+    },
+    "views": {
+        "count_one": "{{count}} view",
+        "count_other": "{{count}} views",
+        "sinceDate_one": "{{count}} view since {{date}}",
+        "sinceDate_other": "{{count}} views since {{date}}"
+    },
+    "attributeCount": {
+        "documents": "Documents",
+        "dashboards": "Dashboards",
+        "charts": "Charts",
+        "dataApps": "Data apps",
+        "spaces": "Spaces"
+    },
+    "columns": {
+        "name": "Name",
+        "space": "Space",
+        "lastModified": "Last Modified",
+        "lastUpdated": "Last updated",
+        "lastEdited": "Last Edited",
+        "owner": "Owner",
+        "views": "Views",
+        "access": "Access",
+        "content": "Content"
+    },
+    "table": {
+        "searchByName": "Search by name",
+        "clearSearch": "Clear search",
+        "columns": "Columns",
+        "filterByOwner": "Filter by owner",
+        "personal": "Personal",
+        "loadingMore": "Loading more...",
+        "scrollForMore": "Scroll for more results",
+        "allResultsLoaded": "All results loaded",
+        "loadedOfTotal": "({{loaded}} of {{total}} loaded)",
+        "loadedCount": "({{loaded}})"
+    },
+    "grid": {
+        "groupName": "{{list}} & {{last}}"
+    },
+    "resourceType": {
+        "dashboard": "Dashboard",
+        "space": "Space",
+        "dataApp": "Data app",
+        "document": "Document",
+        "chart": "Chart",
+        "barChart": "Bar chart",
+        "horizontalBarChart": "Horizontal bar chart",
+        "lineChart": "Line chart",
+        "scatterChart": "Scatter chart",
+        "areaChart": "Area chart",
+        "mixedChart": "Mixed chart",
+        "pieChart": "Pie chart",
+        "funnelChart": "Funnel chart",
+        "treemap": "Treemap",
+        "gauge": "Gauge",
+        "table": "Table",
+        "bigNumber": "Big number",
+        "customChart": "Custom chart",
+        "map": "Map",
+        "sankey": "Sankey"
+    },
+    "resourceTypePlural": {
+        "dashboard": "Dashboards",
+        "chart": "Charts",
+        "space": "Spaces",
+        "dataApp": "Data apps",
+        "document": "Documents"
+    }
+}

@@ -12,20 +12,21 @@ import {
     agentCapabilityGroups,
     getAgentScopeLabel,
 } from '../../../../features/aiAccess/agentCapabilityLabels';
+import i18n from '../../../../i18n/i18n';
 
 const agentScopes: string[] = agentCapabilityGroups.flatMap((group) =>
     group.capabilities.map((capability) => AGENT_CAPABILITY_SCOPES[capability]),
 );
 
-const GROUP_DISPLAY_NAMES: Record<ScopeGroup, string> = {
-    [ScopeGroup.CONTENT]: 'Content Management',
-    [ScopeGroup.PROJECT_MANAGEMENT]: 'Project Management',
-    [ScopeGroup.ORGANIZATION_MANAGEMENT]: 'Organization Management',
-    [ScopeGroup.DATA]: 'Data Access',
-    [ScopeGroup.SHARING]: 'Sharing & Export',
-    [ScopeGroup.AI]: 'AI Features',
-    [ScopeGroup.EMBED]: 'Embedding',
-    [ScopeGroup.SPOTLIGHT]: 'Spotlight Features',
+const GROUP_DISPLAY_KEYS: Record<ScopeGroup, string> = {
+    [ScopeGroup.CONTENT]: 'content',
+    [ScopeGroup.PROJECT_MANAGEMENT]: 'projectManagement',
+    [ScopeGroup.ORGANIZATION_MANAGEMENT]: 'organizationManagement',
+    [ScopeGroup.DATA]: 'data',
+    [ScopeGroup.SHARING]: 'sharing',
+    [ScopeGroup.AI]: 'ai',
+    [ScopeGroup.EMBED]: 'embed',
+    [ScopeGroup.SPOTLIGHT]: 'spotlight',
 };
 
 export type GroupedScopes = {
@@ -70,7 +71,10 @@ export const getScopesByGroup = (
 
     return Object.entries(grouped).map(([group, scopes]) => ({
         group: group as ScopeGroup,
-        groupName: GROUP_DISPLAY_NAMES[group as ScopeGroup],
+        groupName: i18n.t(
+            `scopeGroups.${GROUP_DISPLAY_KEYS[group as ScopeGroup]}`,
+            { ns: 'customRoles' },
+        ),
         scopes: scopes
             .map((scope) => ({
                 ...scope,

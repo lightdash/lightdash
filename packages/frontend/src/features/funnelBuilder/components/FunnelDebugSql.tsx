@@ -1,10 +1,12 @@
 import { Code, Collapse, Group, Text, UnstyledButton } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../store';
 import { selectResults } from '../store/funnelBuilderSlice';
 
 export const FunnelDebugSql: FC = () => {
+    const { t } = useTranslation('metricsCatalog');
     const results = useAppSelector(selectResults);
     const [opened, setOpened] = useState(false);
 
@@ -20,7 +22,7 @@ export const FunnelDebugSql: FC = () => {
                         <IconChevronRight size={16} />
                     )}
                     <Text size="sm" c="dimmed">
-                        View Generated SQL
+                        {t('funnelBuilder.viewSql')}
                     </Text>
                 </Group>
             </UnstyledButton>

@@ -16,6 +16,7 @@ import {
     useQuery,
     useQueryClient,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
@@ -131,6 +132,7 @@ export const useWarehouseConnectionUserCredentialsMutation = (
     options: { onSuccess: () => void },
 ) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         undefined,
@@ -159,13 +161,17 @@ export const useWarehouseConnectionUserCredentialsMutation = (
                     ),
                 );
                 showToastSuccess({
-                    title: 'Credentials preference saved successfully',
+                    title: t(
+                        'useWarehouseConnections.credentialsPreferenceSavedSuccessfully',
+                    ),
                 });
                 options.onSuccess();
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to save credentials preference',
+                    title: t(
+                        'useWarehouseConnections.failedToSaveCredentialsPreference',
+                    ),
                     apiError: error,
                 });
             },
@@ -205,6 +211,7 @@ export const useCreateWarehouseConnection = (
     },
 ) => {
     const invalidate = useConnectionInvalidation(projectUuid);
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         WarehouseConnection,
@@ -222,7 +229,9 @@ export const useCreateWarehouseConnection = (
             onSuccess: async () => {
                 options.onSuccess();
                 await invalidate();
-                showToastSuccess({ title: 'Connection added' });
+                showToastSuccess({
+                    title: t('useWarehouseConnections.connectionAdded'),
+                });
             },
             onError: ({ error }) => {
                 if (isNameConflict(error)) {
@@ -230,7 +239,7 @@ export const useCreateWarehouseConnection = (
                     return;
                 }
                 showToastApiError({
-                    title: 'Failed to add connection',
+                    title: t('useWarehouseConnections.failedToAddConnection'),
                     apiError: error,
                 });
             },
@@ -244,6 +253,7 @@ export const useUpdateWarehouseConnection = (
 ) => {
     const queryClient = useQueryClient();
     const invalidate = useConnectionInvalidation(projectUuid);
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         WarehouseConnection,
@@ -272,11 +282,15 @@ export const useUpdateWarehouseConnection = (
                         ),
                     ),
                 ]);
-                showToastSuccess({ title: 'Connection updated' });
+                showToastSuccess({
+                    title: t('useWarehouseConnections.connectionUpdated'),
+                });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to update connection',
+                    title: t(
+                        'useWarehouseConnections.failedToUpdateConnection',
+                    ),
                     apiError: error,
                 });
             },
@@ -292,6 +306,7 @@ export const useRenameWarehouseConnection = (
     },
 ) => {
     const invalidate = useConnectionInvalidation(projectUuid);
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         WarehouseConnection,
@@ -309,7 +324,9 @@ export const useRenameWarehouseConnection = (
             onSuccess: async () => {
                 options.onSuccess();
                 await invalidate();
-                showToastSuccess({ title: 'Connection renamed' });
+                showToastSuccess({
+                    title: t('useWarehouseConnections.connectionRenamed'),
+                });
             },
             onError: ({ error }) => {
                 if (isNameConflict(error)) {
@@ -317,7 +334,9 @@ export const useRenameWarehouseConnection = (
                     return;
                 }
                 showToastApiError({
-                    title: 'Failed to rename connection',
+                    title: t(
+                        'useWarehouseConnections.failedToRenameConnection',
+                    ),
                     apiError: error,
                 });
             },
@@ -330,6 +349,7 @@ export const useDeleteWarehouseConnection = (
     options: { onSuccess: () => void },
 ) => {
     const invalidate = useConnectionInvalidation(projectUuid);
+    const { t } = useTranslation('app');
     const { showToastSuccess } = useToaster();
     return useMutation<undefined, ApiError, string>(
         (warehouseConnectionUuid) =>
@@ -343,7 +363,9 @@ export const useDeleteWarehouseConnection = (
             onSuccess: async () => {
                 options.onSuccess();
                 await invalidate();
-                showToastSuccess({ title: 'Connection removed' });
+                showToastSuccess({
+                    title: t('useWarehouseConnections.connectionRemoved'),
+                });
             },
         },
     );

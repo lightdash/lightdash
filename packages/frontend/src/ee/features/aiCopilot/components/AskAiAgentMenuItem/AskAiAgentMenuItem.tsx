@@ -1,5 +1,6 @@
 import { Menu } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type AiAgentAskClickedSource } from '../../../../../providers/Tracking/types';
 import { AiAgentIcon } from '../AiAgentIcon';
 import {
@@ -35,6 +36,7 @@ export const AskAiAgentMenuItem: FC<Props> = ({
     mode,
     withDivider = false,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const { canAsk, handleClick } = useAskAiAgentAction({
         projectUuid,
         chartUuid,
@@ -53,7 +55,7 @@ export const AskAiAgentMenuItem: FC<Props> = ({
                 onClick={handleClick}
                 fw={500}
             >
-                Ask AI Agent
+                {t('askAiAgent')}
             </Menu.Item>
             {withDivider && <Menu.Divider />}
         </>

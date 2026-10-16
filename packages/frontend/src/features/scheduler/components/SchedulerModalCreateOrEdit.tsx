@@ -26,6 +26,7 @@ import {
 import { IconBell, IconSend } from '@tabler/icons-react';
 import { type UseMutationResult } from '@tanstack/react-query';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
@@ -98,6 +99,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
     onClose,
     onBack,
 }) => {
+    const { t } = useTranslation('scheduler');
     const compact = useMatches(
         { base: true, sm: false },
         { getInitialValueInEffect: false },
@@ -187,27 +189,29 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
     // Name why the submit is blocked instead of failing silently on submit —
     // the offending field may live in a section the user isn't looking at.
     const blockedReason = !form.values.name
-        ? `Give your ${isThresholdAlert ? 'alert' : 'delivery'} a name`
+        ? isThresholdAlert
+            ? t('createOrEdit.blocked.nameAlert')
+            : t('createOrEdit.blocked.nameDelivery')
         : isThresholdAlert && !form.values.thresholds?.[0]?.fieldId
-          ? 'Pick an alert field'
+          ? t('createOrEdit.blocked.pickAlertField')
           : hasUnmetFilterRequirements
             ? hasOnlyUnmetGroupRequirements
-                ? 'Set a value for at least one filter in each requirement group'
-                : 'Some required filters are missing values'
+                ? t('form.validation.requirementGroupsUnmet')
+                : t('createOrEdit.blocked.missingRequiredFilters')
             : !form.isValid()
-              ? 'Complete the required fields'
+              ? t('createOrEdit.blocked.completeRequired')
               : null;
 
     const subtitle = [
         resourceName ?? dashboard?.name,
         isEditMode
-            ? 'editing'
+            ? t('createOrEdit.subtitle.editing')
             : isThresholdAlert
-              ? 'new alert'
-              : 'new schedule',
+              ? t('createOrEdit.subtitle.newAlert')
+              : t('createOrEdit.subtitle.newSchedule'),
     ]
         .filter(Boolean)
-        .join(' · ');
+        .join(t('createOrEdit.subtitle.separator'));
 
     const renderSection = () => {
         switch (activeSection) {
@@ -314,8 +318,8 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                                 <Stack gap={0}>
                                     <span className={classes.headerTitle}>
                                         {isThresholdAlert
-                                            ? 'Alert'
-                                            : 'Scheduled delivery'}
+                                            ? t('createOrEdit.titleAlert')
+                                            : t('createOrEdit.titleScheduled')}
                                     </span>
                                     {subtitle && (
                                         <Text
@@ -335,7 +339,11 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                                             : 'https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries'
                                     }
                                 />
-                                <Modal.CloseButton aria-label="Close scheduled delivery" />
+                                <Modal.CloseButton
+                                    aria-label={t(
+                                        'createOrEdit.closeAriaLabel',
+                                    )}
+                                />
                             </Group>
                         </Group>
 
@@ -343,7 +351,9 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                             <Box p="xl" mih={400}>
                                 {isLoading ? (
                                     <Stack h={300} w="100%" align="center">
-                                        <Text fw={600}>Loading scheduler</Text>
+                                        <Text fw={600}>
+                                            {t('deleteModal.loading')}
+                                        </Text>
                                         <Loader size="lg" />
                                     </Stack>
                                 ) : (
@@ -377,17 +387,17 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                                                             classes.sectionTitle
                                                         }
                                                     >
-                                                        {activeMeta.label}
+                                                        {t(activeMeta.labelKey)}
                                                     </span>
-                                                    {activeMeta.description && (
+                                                    {activeMeta.descriptionKey && (
                                                         <span
                                                             className={
                                                                 classes.sectionDescription
                                                             }
                                                         >
-                                                            {
-                                                                activeMeta.description
-                                                            }
+                                                            {t(
+                                                                activeMeta.descriptionKey,
+                                                            )}
                                                         </span>
                                                     )}
                                                 </Stack>
@@ -399,7 +409,9 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                                         <Accordion px="md" pb="md">
                                             <Accordion.Item value="preview">
                                                 <Accordion.Control>
-                                                    Preview and next runs
+                                                    {t(
+                                                        'createOrEdit.previewAndNextRuns',
+                                                    )}
                                                 </Accordion.Control>
                                                 <Accordion.Panel>
                                                     {preview}
@@ -413,7 +425,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
 
                                 <div className={classes.footer}>
                                     <Button variant="subtle" onClick={onBack}>
-                                        Cancel
+                                        {t('actions.cancel', { ns: 'common' })}
                                     </Button>
                                     <Group gap="sm">
                                         {!isThresholdAlert && (
@@ -431,7 +443,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                                                 }
                                                 disabled={!canSendNow}
                                             >
-                                                Send once now
+                                                {t('createOrEdit.sendOnceNow')}
                                             </Button>
                                         )}
                                         <Tooltip

@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Box, Group, Text, Select } from '@mantine/core';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 import { getChartIcon } from '../../common/ResourceIcon/utils';
 import classes from './SelectConfig.module.css';
@@ -42,14 +43,15 @@ const ChartTypeItem = forwardRef<
 ));
 
 export const CartesianChartTypeConfig: FC<Props> = ({ onChangeType, type }) => {
+    const { t } = useTranslation('dataViz');
     const options = [
         {
             value: CartesianSeriesType.BAR,
-            label: 'Bar',
+            label: t('cartesian.seriesType.bar'),
         },
         {
             value: CartesianSeriesType.LINE,
-            label: 'Line',
+            label: t('cartesian.seriesType.line'),
         },
     ];
 

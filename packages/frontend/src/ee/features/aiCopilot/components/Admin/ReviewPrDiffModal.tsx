@@ -1,6 +1,7 @@
 import { type AiAgentReviewItemPrDiff } from '@lightdash/common';
 import { IconGitPullRequest } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { ReviewPrDiffContent } from './ReviewPrDiffContent';
 
@@ -16,14 +17,17 @@ export const ReviewPrDiffModal: FC<Props> = ({
     onClose,
     diff,
     isLoading,
-}) => (
-    <MantineModal
-        opened={opened}
-        onClose={onClose}
-        title="Pull request changes"
-        icon={IconGitPullRequest}
-        size="80vw"
-    >
-        <ReviewPrDiffContent diff={diff} isLoading={isLoading} />
-    </MantineModal>
-);
+}) => {
+    const { t } = useTranslation('aiCopilotAdmin');
+    return (
+        <MantineModal
+            opened={opened}
+            onClose={onClose}
+            title={t('reviews.prDiff.title')}
+            icon={IconGitPullRequest}
+            size="80vw"
+        >
+            <ReviewPrDiffContent diff={diff} isLoading={isLoading} />
+        </MantineModal>
+    );
+};

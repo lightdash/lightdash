@@ -9,6 +9,7 @@ import {
     IconPlugConnected,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import styles from './ConnectionHeader.module.css';
 
@@ -56,6 +57,7 @@ export const ConnectionHeader: FC<Props> = ({
     warehouseType,
     connections,
 }) => {
+    const { t } = useTranslation('sqlRunner');
     if (!connections || connections.items.length < 2) {
         return (
             <Group gap="xs" wrap="nowrap" className={styles.root}>
@@ -73,7 +75,7 @@ export const ConnectionHeader: FC<Props> = ({
                     size="sm"
                     fullWidth
                     justify="space-between"
-                    aria-label="Active connection"
+                    aria-label={t('connectionHeader.activeConnection')}
                     leftSection={
                         <MantineIcon icon={IconPlugConnected} color="dimmed" />
                     }

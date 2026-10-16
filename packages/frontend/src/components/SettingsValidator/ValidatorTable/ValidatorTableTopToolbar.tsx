@@ -21,14 +21,15 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './ValidatorTableTopToolbar.module.css';
 
 const SOURCE_TYPE_OPTIONS = [
-    { value: ValidationSourceType.Chart, label: 'Chart' },
-    { value: ValidationSourceType.Dashboard, label: 'Dashboard' },
-    { value: ValidationSourceType.DataApp, label: 'Data app' },
-    { value: ValidationSourceType.Table, label: 'Table' },
+    { value: ValidationSourceType.Chart, labelKey: 'chart' },
+    { value: ValidationSourceType.Dashboard, labelKey: 'dashboard' },
+    { value: ValidationSourceType.DataApp, labelKey: 'dataApp' },
+    { value: ValidationSourceType.Table, labelKey: 'table' },
 ] as const;
 
 type ValidatorTableTopToolbarProps = {
@@ -59,6 +60,7 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
     onDeleteSelected,
     onClearSelection,
 }) => {
+    const { t } = useTranslation('projectSettings');
     const hasActiveFilters =
         sourceTypeFilter.length > 0 || showConfigWarnings || searchQuery !== '';
 
@@ -99,7 +101,7 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
 
                 <TextInput
                     size="xs"
-                    placeholder="Search by name or error..."
+                    placeholder={t('validator.toolbar.searchPlaceholder')}
                     leftSection={<MantineIcon icon={IconSearch} size={14} />}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.currentTarget.value)}
@@ -109,7 +111,9 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
 
                 <Popover width={250} position="bottom-start">
                     <Popover.Target>
-                        <Tooltip label="Filter by source type">
+                        <Tooltip
+                            label={t('validator.toolbar.filterBySourceType')}
+                        >
                             <Button
                                 h={30}
                                 c="foreground"
@@ -134,14 +138,14 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
                                     ) : null
                                 }
                             >
-                                Source
+                                {t('validator.toolbar.source')}
                             </Button>
                         </Tooltip>
                     </Popover.Target>
                     <Popover.Dropdown p="sm">
                         <Stack gap={4}>
                             <Text fz="xs" c="ldDark.3" fw={600}>
-                                Filter by source:
+                                {t('validator.toolbar.filterBySource')}
                             </Text>
 
                             <ScrollArea.Autosize
@@ -159,7 +163,9 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
                                             onChange={() =>
                                                 handleSourceChange(option.value)
                                             }
-                                            label={option.label}
+                                            label={t(
+                                                `validator.sourceTypes.${option.labelKey}`,
+                                            )}
                                             size="xs"
                                         />
                                     ))}
@@ -175,8 +181,10 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
                         setShowConfigWarnings(e.currentTarget.checked)
                     }
                     label={
-                        <Tooltip label="Include chart configuration warnings">
-                            <Box c="dimmed">Warnings</Box>
+                        <Tooltip label={t('validator.toolbar.includeWarnings')}>
+                            <Box c="dimmed">
+                                {t('validator.toolbar.warnings')}
+                            </Box>
                         </Tooltip>
                     }
                     size="xs"
@@ -184,7 +192,7 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
                 />
 
                 {hasActiveFilters && (
-                    <Tooltip label="Reset filters">
+                    <Tooltip label={t('validator.toolbar.resetFilters')}>
                         <ActionIcon size="sm" onClick={resetFilters}>
                             <MantineIcon icon={IconArrowBack} />
                         </ActionIcon>
@@ -204,7 +212,9 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
                             }
                             onClick={onDeleteSelected}
                         >
-                            Delete content ({selectedCount})
+                            {t('validator.toolbar.deleteContent', {
+                                count: selectedCount,
+                            })}
                         </Button>
                         <Button
                             size="compact-xs"
@@ -212,18 +222,20 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
                             color="gray"
                             onClick={onClearSelection}
                         >
-                            Clear
+                            {t('validator.toolbar.clear')}
                         </Button>
                     </Group>
                 )}
                 {lastValidatedAt && (
                     <Text fw={500} fz="xs" c="dimmed">
-                        Last validated: {formatTime(lastValidatedAt)}
+                        {t('validator.toolbar.lastValidated', {
+                            time: formatTime(lastValidatedAt),
+                        })}
                     </Text>
                 )}
                 {totalResults > 0 && (
                     <Badge color="red" size="sm">
-                        {totalResults} error{totalResults === 1 ? '' : 's'}
+                        {t('validator.counts.errors', { count: totalResults })}
                     </Badge>
                 )}
             </Group>

@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { Center, Text } from '@mantine/core';
 import { useCallback, useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useSearchParams } from 'react-router';
 import { validate as isUuid } from 'uuid';
 import ScreenshotProgressIndicator from '../../components/common/ScreenshotProgressIndicator';
@@ -20,6 +21,7 @@ import { useAiAgentArtifactVizQuery } from '../features/aiCopilot/hooks/useProje
 // Minimal render of a custom chart type artifact version for headless
 // capture: web-thread derivation/renderer, interactions structurally off.
 const MinimalAiAgentArtifact: FC = () => {
+    const { t } = useTranslation('eeMisc');
     const { agentUuid, artifactUuid, versionUuid } = useParams<{
         agentUuid: string;
         artifactUuid: string;
@@ -154,8 +156,8 @@ const MinimalAiAgentArtifact: FC = () => {
                 <Center h="100%">
                     <Text size="sm" c="dimmed" ta="center">
                         {isUnsupportedArtifact
-                            ? 'This artifact is not a custom chart type answer.'
-                            : 'Failed to load artifact visualization.'}
+                            ? t('artifact.unsupported')
+                            : t('artifact.loadError')}
                     </Text>
                 </Center>
             ) : null}

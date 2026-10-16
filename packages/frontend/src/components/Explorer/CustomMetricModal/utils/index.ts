@@ -25,6 +25,7 @@ import {
     type MetricFilterRule,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
+import i18n from '../../../../i18n/i18n';
 import { type MetricFilterRuleWithFieldId } from '../FilterForm';
 
 export const getCustomMetricSourceDimension = (
@@ -190,7 +191,9 @@ export const getCustomMetricLabelError = ({
         isCustomDimension(item) &&
         exploreData?.tables[item.table]?.dimensions[item.id]
     ) {
-        return 'This ID matches a model dimension. Create a custom dimension with a different name before creating the metric';
+        return i18n.t('customMetric.errors.idMatchesDimension', {
+            ns: 'explorer',
+        });
     }
 
     const metricName = getCustomMetricName(
@@ -205,13 +208,13 @@ export const getCustomMetricLabelError = ({
     if (
         metricIds.includes(getItemId({ table: item.table, name: metricName }))
     ) {
-        return 'Metric with this ID already exists';
+        return i18n.t('customMetric.errors.idExists', { ns: 'explorer' });
     }
 
     if (isEditing && metricName === item.name) return null;
 
     return additionalMetrics?.some((metric) => metric.name === metricName)
-        ? 'Metric with this label already exists'
+        ? i18n.t('customMetric.errors.labelExists', { ns: 'explorer' })
         : null;
 };
 

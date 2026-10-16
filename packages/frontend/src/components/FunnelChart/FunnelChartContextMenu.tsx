@@ -3,6 +3,7 @@ import { Box, Menu, Portal, type MenuProps } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useToaster from '../../hooks/toaster/useToaster';
 import MantineIcon from '../common/MantineIcon';
 import { UnderlyingDataMenuItem } from '../DashboardTiles/UnderlyingDataMenuItem';
@@ -31,6 +32,7 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
 }) => {
     const { visualizationConfig } = useVisualizationContext();
 
+    const { t } = useTranslation('visualization');
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
     const metricQueryData = useMetricQueryDataContext(true);
@@ -49,7 +51,7 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
         if (value) {
             clipboard.copy(value.formatted);
             showToastSuccess({
-                title: 'Copied to clipboard!',
+                title: t('contextMenu.copiedToClipboard'),
             });
         }
     };
@@ -100,7 +102,7 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
                     leftSection={<MantineIcon icon={IconCopy} />}
                     onClick={handleCopy}
                 >
-                    Copy value
+                    {t('contextMenu.copyValue')}
                 </Menu.Item>
 
                 {metricQuery && canViewUnderlyingData && (

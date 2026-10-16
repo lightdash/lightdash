@@ -20,6 +20,7 @@ import MantineIcon, {
 } from '../../components/common/MantineIcon';
 import { LightdashEventType } from '../../ee/features/embed/events/types';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
+import i18n from '../../i18n/i18n';
 import ApiErrorDisplay from './ApiErrorDisplay';
 import MultipleToastBody from './MultipleToastBody';
 import {
@@ -128,7 +129,11 @@ const useToaster = () => {
                 loading: false,
                 withCloseButton: true,
                 loaderProps: { size: 12, color: 'ldGray.6' },
-                closeButtonProps: { 'aria-label': 'Dismiss notification' },
+                closeButtonProps: {
+                    'aria-label': i18n.t('multipleToast.dismissNotification', {
+                        ns: 'app',
+                    }),
+                },
                 icon: (
                     <MantineIcon
                         icon={variantConfig.icon}

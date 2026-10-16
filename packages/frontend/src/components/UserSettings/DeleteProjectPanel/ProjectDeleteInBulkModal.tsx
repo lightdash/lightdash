@@ -1,6 +1,7 @@
 import { ProjectType, type OrganizationProject } from '@lightdash/common';
 import { List, Text, TextInput, type ModalProps } from '@mantine/core';
 import { useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useDeleteActiveProjectMutation } from '../../../hooks/useActiveProject';
 import { useDeleteProjectMutation } from '../../../hooks/useProjects';
 import MantineModal from '../../common/MantineModal';
@@ -18,6 +19,7 @@ export const ProjectDeleteInBulkModal: FC<Props> = ({
     opened,
     onClose,
 }) => {
+    const { t } = useTranslation('userSettings');
     const { mutateAsync: deleteProject, isLoading: isDeleting } =
         useDeleteProjectMutation();
     const { mutateAsync: deleteActiveProject, isLoading: isDeletingActive } =
@@ -50,22 +52,23 @@ export const ProjectDeleteInBulkModal: FC<Props> = ({
 
     const statsText = useMemo(() => {
         let texts = [];
+        const bold = { bold: <Text span fw={500} /> };
 
         const currentProject = projects.find(
             (p) => p.projectUuid === currentProjectUuid,
         );
         if (currentProject) {
             texts.push(
-                <>
-                    Active{' '}
-                    {currentProject.type === ProjectType.PREVIEW
-                        ? `preview `
-                        : ''}
-                    project{' '}
-                    <Text span fw={500}>
-                        "{currentProject.name}"
-                    </Text>
-                </>,
+                <Trans
+                    t={t}
+                    i18nKey={
+                        currentProject.type === ProjectType.PREVIEW
+                            ? 'deleteProjectPanel.bulkModal.activePreviewProject'
+                            : 'deleteProjectPanel.bulkModal.activeProject'
+                    }
+                    values={{ name: currentProject.name }}
+                    components={bold}
+                />,
             );
         }
 
@@ -76,12 +79,12 @@ export const ProjectDeleteInBulkModal: FC<Props> = ({
         );
         if (regularProjects.length > 0) {
             texts.push(
-                <>
-                    <Text span fw={500}>
-                        {regularProjects.length}
-                    </Text>{' '}
-                    {regularProjects.length === 1 ? 'project' : 'projects'}
-                </>,
+                <Trans
+                    t={t}
+                    i18nKey="deleteProjectPanel.bulkModal.projectCount"
+                    count={regularProjects.length}
+                    components={bold}
+                />,
             );
         }
 
@@ -92,26 +95,23 @@ export const ProjectDeleteInBulkModal: FC<Props> = ({
         );
         if (previewProjects.length > 0) {
             texts.push(
-                <>
-                    <Text span fw={500}>
-                        {previewProjects.length}
-                    </Text>
-
-                    {previewProjects.length === 1
-                        ? ' preview project'
-                        : ' preview projects'}
-                </>,
+                <Trans
+                    t={t}
+                    i18nKey="deleteProjectPanel.bulkModal.previewProjectCount"
+                    count={previewProjects.length}
+                    components={bold}
+                />,
             );
         }
 
         return texts;
-    }, [projects, currentProjectUuid]);
+    }, [projects, currentProjectUuid, t]);
 
     return (
         <MantineModal
             opened={opened}
             onClose={handleOnClose}
-            title="Delete projects in bulk"
+            title={t('deleteProjectPanel.bulkModal.title')}
             variant="delete"
             resourceType="projects"
             size="md"
@@ -122,7 +122,9 @@ export const ProjectDeleteInBulkModal: FC<Props> = ({
             }
             confirmLoading={isDeleting || isDeletingActive}
         >
-            <Text fz="sm">You are about to delete:</Text>
+            <Text fz="sm">
+                {t('deleteProjectPanel.bulkModal.aboutToDelete')}
+            </Text>
 
             <List size="sm">
                 {statsText.map((text, index) => (
@@ -131,11 +133,12 @@ export const ProjectDeleteInBulkModal: FC<Props> = ({
             </List>
 
             <Text fz="sm" c="dimmed">
-                Type in{' '}
-                <Text span fw={500}>
-                    "{CONFIRMATION_TEXT}"
-                </Text>{' '}
-                to confirm. This action is not reversible.
+                <Trans
+                    t={t}
+                    i18nKey="deleteProjectPanel.bulkModal.typeToConfirm"
+                    values={{ text: CONFIRMATION_TEXT }}
+                    components={{ bold: <Text span fw={500} /> }}
+                />
             </Text>
 
             <TextInput

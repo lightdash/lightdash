@@ -8,6 +8,7 @@ import {
     IconWorldCheck,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import {
     useDeleteVerifiedDomain,
     useVerifiedDomains,
@@ -21,6 +22,7 @@ import { SettingsPage } from '../../common/Settings/SettingsPage';
 import AddVerifiedDomainModal from './AddVerifiedDomainModal';
 
 const VerifiedDomainsPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { data: verifiedDomains, isInitialLoading } = useVerifiedDomains();
     const deleteDomain = useDeleteVerifiedDomain();
     const [domainToDelete, setDomainToDelete] = useState<string | null>(null);
@@ -28,8 +30,8 @@ const VerifiedDomainsPanel: FC = () => {
 
     return (
         <SettingsPage
-            title="Verified domains"
-            description="Verify domains your organization owns and route them to your SSO providers."
+            title={t('verifiedDomains.panel.title')}
+            description={t('verifiedDomains.panel.description')}
             actions={
                 <Menu position="bottom-end">
                     <Menu.Target>
@@ -37,23 +39,29 @@ const VerifiedDomainsPanel: FC = () => {
                             size="xs"
                             leftSection={<MantineIcon icon={IconPlus} />}
                         >
-                            Add domain
+                            {t('verifiedDomains.panel.addDomain')}
                         </Button>
                     </Menu.Target>
                     <Menu.Dropdown>
-                        <Menu.Label>Verify ownership with</Menu.Label>
+                        <Menu.Label>
+                            {t('verifiedDomains.panel.verifyOwnershipWith')}
+                        </Menu.Label>
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconMail} />}
                             onClick={() => setAddOpen(true)}
                         >
-                            Email
+                            {t('verifiedDomains.panel.email')}
                         </Menu.Item>
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconWorld} />}
                             disabled
-                            rightSection={<Badge size="xs">Soon</Badge>}
+                            rightSection={
+                                <Badge size="xs">
+                                    {t('verifiedDomains.panel.soon')}
+                                </Badge>
+                            }
                         >
-                            DNS (TXT record)
+                            {t('verifiedDomains.panel.dns')}
                         </Menu.Item>
                     </Menu.Dropdown>
                 </Menu>
@@ -66,8 +74,8 @@ const VerifiedDomainsPanel: FC = () => {
             ) : (verifiedDomains ?? []).length === 0 ? (
                 <SettingsEmptyState
                     icon={IconWorldCheck}
-                    title="No verified domains"
-                    description="Add a domain before routing sign-in to an SSO provider."
+                    title={t('verifiedDomains.panel.emptyTitle')}
+                    description={t('verifiedDomains.panel.emptyDescription')}
                 />
             ) : (
                 <SettingsCard>
@@ -85,7 +93,7 @@ const VerifiedDomainsPanel: FC = () => {
                                     />
                                     <Text fw={500}>{d.domain}</Text>
                                     <Badge color="green" size="sm">
-                                        Verified
+                                        {t('verifiedDomains.panel.verified')}
                                     </Badge>
                                 </Group>
                                 <Button
@@ -97,7 +105,7 @@ const VerifiedDomainsPanel: FC = () => {
                                     }
                                     onClick={() => setDomainToDelete(d.domain)}
                                 >
-                                    Remove
+                                    {t('actions.remove', { ns: 'common' })}
                                 </Button>
                             </Group>
                         ))}
@@ -117,9 +125,9 @@ const VerifiedDomainsPanel: FC = () => {
                     opened
                     onClose={() => setDomainToDelete(null)}
                     role="alertdialog"
-                    title="Remove verified domain"
+                    title={t('verifiedDomains.panel.removeModalTitle')}
                     icon={IconWorldCheck}
-                    cancelLabel="Cancel"
+                    cancelLabel={t('actions.cancel', { ns: 'common' })}
                     actions={
                         <Button
                             color="red"
@@ -129,13 +137,17 @@ const VerifiedDomainsPanel: FC = () => {
                                 setDomainToDelete(null);
                             }}
                         >
-                            Remove
+                            {t('actions.remove', { ns: 'common' })}
                         </Button>
                     }
                 >
                     <Text>
-                        Removing <b>{domainToDelete}</b> will stop routing it to
-                        any SSO provider. You can verify it again later.
+                        <Trans
+                            t={t}
+                            i18nKey="verifiedDomains.panel.removeModalBody"
+                            values={{ domain: domainToDelete }}
+                            components={{ b: <b /> }}
+                        />
                     </Text>
                 </MantineModal>
             )}

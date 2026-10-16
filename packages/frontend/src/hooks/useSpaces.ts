@@ -14,6 +14,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { lightdashApi } from '../api';
 import useApp from '../providers/App/useApp';
@@ -98,6 +99,7 @@ const deleteQuery = async (projectUuid: string, spaceUuid: string) =>
     });
 
 export const useSpaceDeleteMutation = (projectUuid: string) => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -112,10 +114,10 @@ export const useSpaceDeleteMutation = (projectUuid: string) => {
                 await invalidateContent(queryClient, projectUuid);
                 await queryClient.invalidateQueries(['deletedContent']);
                 showToastSuccess({
-                    title: `Success! Space was deleted.`,
+                    title: t('useSpaces.successSpaceWasDeleted'),
                     action: isSoftDeleteEnabled
                         ? {
-                              children: 'Go to recently deleted',
+                              children: t('useSpaces.goToRecentlyDeleted'),
                               icon: IconArrowRight,
                               onClick: () =>
                                   navigate(
@@ -127,7 +129,7 @@ export const useSpaceDeleteMutation = (projectUuid: string) => {
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to delete space`,
+                    title: t('useSpaces.failedToDeleteSpace'),
                     apiError: error,
                 });
             },
@@ -150,6 +152,7 @@ export const useUpdateMutation = (
     projectUuid: string,
     spaceUuid: string | undefined,
 ) => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -180,12 +183,12 @@ export const useUpdateMutation = (
                 );
 
                 showToastSuccess({
-                    title: `Success! Space was updated.`,
+                    title: t('useSpaces.successSpaceWasUpdated'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to update space`,
+                    title: t('useSpaces.failedToUpdateSpace'),
                     apiError: error,
                 });
             },
@@ -206,6 +209,7 @@ export const useCreateMutation = (
         onSuccess?: (space: Space) => void;
     },
 ) => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -234,12 +238,12 @@ export const useCreateMutation = (
                 options?.onSuccess?.(space);
 
                 showToastSuccess({
-                    title: `Success! Space was created.`,
+                    title: t('useSpaces.successSpaceWasCreated'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to create space`,
+                    title: t('useSpaces.failedToCreateSpace'),
                     apiError: error,
                 });
             },
@@ -263,6 +267,7 @@ export const useAddSpaceShareMutation = (
     projectUuid: string,
     spaceUuid: string,
 ) => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -285,12 +290,12 @@ export const useAddSpaceShareMutation = (
                 ]);
 
                 showToastSuccess({
-                    title: `Success! Space access updated!`,
+                    title: t('useSpaces.successSpaceAccessUpdated'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to update space access`,
+                    title: t('useSpaces.failedToUpdateSpaceAccess'),
                     apiError: error,
                 });
             },
@@ -313,6 +318,7 @@ export const useDeleteSpaceShareMutation = (
     projectUuid: string,
     spaceUuid: string,
 ) => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -334,12 +340,12 @@ export const useDeleteSpaceShareMutation = (
                 ]);
 
                 showToastSuccess({
-                    title: `Success! Space access updated!`,
+                    title: t('useSpaces.successSpaceAccessUpdated'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to update space access`,
+                    title: t('useSpaces.failedToUpdateSpaceAccess'),
                     apiError: error,
                 });
             },
@@ -363,6 +369,7 @@ export const useAddGroupSpaceShareMutation = (
     projectUuid: string,
     spaceUuid: string,
 ) => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -385,12 +392,12 @@ export const useAddGroupSpaceShareMutation = (
                 ]);
 
                 showToastSuccess({
-                    title: `Success! Space group access updated!`,
+                    title: t('useSpaces.successSpaceGroupAccessUpdated'),
                 });
             },
             onError: (error) => {
                 showToastError({
-                    title: `Failed to update space group access`,
+                    title: t('useSpaces.failedToUpdateSpaceGroupAccess'),
                     subtitle: error.error.message,
                 });
             },
@@ -413,6 +420,7 @@ export const useDeleteSpaceGroupAccessMutation = (
     projectUuid: string,
     spaceUuid: string,
 ) => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -434,12 +442,12 @@ export const useDeleteSpaceGroupAccessMutation = (
                 ]);
 
                 showToastSuccess({
-                    title: `Success! Space group access updated!`,
+                    title: t('useSpaces.successSpaceGroupAccessUpdated'),
                 });
             },
             onError: (error) => {
                 showToastError({
-                    title: `Failed to update space group access`,
+                    title: t('useSpaces.failedToUpdateSpaceGroupAccess'),
                     subtitle: error.error.message,
                 });
             },

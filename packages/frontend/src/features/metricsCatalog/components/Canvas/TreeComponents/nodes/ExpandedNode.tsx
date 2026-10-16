@@ -22,7 +22,9 @@ import {
 } from '@mantine/core';
 import { IconHierarchy3, IconInfoCircle } from '@tabler/icons-react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
+import { type TFunction } from 'i18next';
 import React, { useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useAppSelector } from '../../../../../sqlRunner/store/hooks';
 import { useRunMetricTotal } from '../../../../hooks/useRunMetricExplorerQuery';
@@ -31,23 +33,24 @@ import { useCanvasYamlDrivers } from '../../CanvasYamlDriversContext';
 import classes from './ChangeIndicator.module.css';
 
 const getComparisonLabel = (
+    t: TFunction,
     timeFrame: TimeFrames,
     rollingDays?: number,
 ): string => {
     if (rollingDays) {
-        return `Last ${rollingDays} days vs. previous ${rollingDays} days`;
+        return t('expandedNode.comparison.rolling', { days: rollingDays });
     }
     switch (timeFrame) {
         case TimeFrames.DAY:
-            return 'Current day vs. last day to date';
+            return t('expandedNode.comparison.day');
         case TimeFrames.WEEK:
-            return 'Current week vs. last week to date';
+            return t('expandedNode.comparison.week');
         case TimeFrames.MONTH:
-            return 'Current month vs. last month to date';
+            return t('expandedNode.comparison.month');
         case TimeFrames.YEAR:
-            return 'Current year vs. last year to date';
+            return t('expandedNode.comparison.year');
         default:
-            return 'Current vs. previous period';
+            return t('expandedNode.comparison.default');
     }
 };
 
@@ -62,12 +65,13 @@ const ChangeIndicator: FC<{
     timeFrame: TimeFrames;
     rollingDays?: number;
 }> = ({ change, formattedChange, timeFrame, rollingDays }) => {
+    const { t } = useTranslation('metricsCatalog');
     const variant = useMemo(() => getVariant(change), [change]);
 
     return (
         <Tooltip
             position="bottom"
-            label={getComparisonLabel(timeFrame, rollingDays)}
+            label={getComparisonLabel(t, timeFrame, rollingDays)}
         >
             <Badge
                 fz="sm"
@@ -101,6 +105,7 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
     isConnectable,
     selected,
 }) => {
+    const { t } = useTranslation('metricsCatalog');
     const title = data.label;
 
     const projectUuid = useAppSelector(
@@ -229,13 +234,15 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
                     <Group gap="xs" wrap="nowrap">
                         {missingDrivers.length > 0 && (
                             <Tooltip
-                                label="Add drivers from YAML"
+                                label={t('expandedNode.addYamlDrivers')}
                                 openDelay={300}
                             >
                                 <ActionIcon
                                     size="xs"
                                     onClick={handleAddDrivers}
-                                    aria-label="Add YAML drivers to canvas"
+                                    aria-label={t(
+                                        'expandedNode.addYamlDriversAriaLabel',
+                                    )}
                                     data-tour-anchor="tree-add-drivers"
                                     data-tour-hint="Add drivers from YAML"
                                     data-tour-docs="explore/metrics-catalog/drivers.mdx#how-drivers-appear-on-the-canvas:p2:1"

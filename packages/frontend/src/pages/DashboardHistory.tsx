@@ -17,6 +17,7 @@ import {
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import AgentAttribution from '../components/common/AgentAttribution/AgentAttribution';
 import Callout from '../components/common/Callout';
@@ -41,6 +42,7 @@ import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
 import DashboardVersionComparison from './DashboardVersionComparison';
 
 const DashboardHistory = () => {
+    const { t } = useTranslation('pages');
     const agentIdentityEnabled =
         useServerFeatureFlag(FeatureFlags.AgentIdentity).data?.enabled === true;
     const authoringEnabled = useContentAuthoringEnabled();
@@ -67,7 +69,7 @@ const DashboardHistory = () => {
     if (historyQuery.isInitialLoading || dashboardQuery.isInitialLoading) {
         return (
             <div style={{ marginTop: '20px' }}>
-                <SuboptimalState title="Loading..." loading />
+                <SuboptimalState title={t('common.loading')} loading />
             </div>
         );
     }
@@ -83,8 +85,8 @@ const DashboardHistory = () => {
 
     return (
         <Page
-            title="Dashboard version history"
-            sidebarTitle="Versions"
+            title={t('dashboardHistory.title')}
+            sidebarTitle={t('versionHistory.versions', { ns: 'app' })}
             withSidebarFooter
             withFullHeight
             withPaddedContent
@@ -98,10 +100,13 @@ const DashboardHistory = () => {
                         <PageBreadcrumbs
                             items={[
                                 {
-                                    title: 'Dashboard',
+                                    title: t('dashboardHistory.dashboard'),
                                     to: `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}`,
                                 },
-                                { title: 'Version history', active: true },
+                                {
+                                    title: t('common.versionHistory'),
+                                    active: true,
+                                },
                             ]}
                         />
                     </Flex>
@@ -127,17 +132,28 @@ const DashboardHistory = () => {
                                             createdBy={version.createdBy}
                                         />
                                     ) : version.createdBy ? (
-                                        `Updated by: ${version.createdBy.firstName} ${version.createdBy.lastName}`
+                                        t('versionHistory.updatedBy', {
+                                            ns: 'app',
+                                            name: `${version.createdBy.firstName} ${version.createdBy.lastName}`,
+                                        })
                                     ) : (
-                                        'Updated by: unknown'
+                                        t('dashboardHistory.updatedByUnknown')
                                     )
                                 }
                                 rightSection={
                                     <>
                                         {index === 0 && (
-                                            <Tooltip label="This is the current version.">
+                                            <Tooltip
+                                                label={t(
+                                                    'versionHistory.currentTooltip',
+                                                    { ns: 'app' },
+                                                )}
+                                            >
                                                 <Badge size="xs" color="green">
-                                                    current
+                                                    {t(
+                                                        'versionHistory.current',
+                                                        { ns: 'app' },
+                                                    )}
                                                 </Badge>
                                             </Tooltip>
                                         )}
@@ -191,8 +207,12 @@ const DashboardHistory = () => {
                                                                     );
                                                                 }}
                                                             >
-                                                                Restore this
-                                                                version
+                                                                {t(
+                                                                    'versionHistory.restoreThisVersion',
+                                                                    {
+                                                                        ns: 'app',
+                                                                    },
+                                                                )}
                                                             </Menu.Item>
                                                         </Menu.Dropdown>
                                                     </Menu>
@@ -220,14 +240,14 @@ const DashboardHistory = () => {
                 <EmptyState
                     maw={500}
                     icon={<NoTableIcon />}
-                    title="Select a version to compare"
+                    title={t('dashboardHistory.selectVersion')}
                 />
             )}
 
             <MantineModal
                 opened={isRollbackModalOpen}
                 onClose={() => setIsRollbackModalOpen(false)}
-                title="Restore dashboard version"
+                title={t('dashboardHistory.restoreTitle')}
                 icon={IconHistory}
                 cancelDisabled={rollbackMutation.isLoading}
                 actions={
@@ -247,21 +267,15 @@ const DashboardHistory = () => {
                         }}
                         color="red"
                     >
-                        Restore
+                        {t('versionHistory.restore', { ns: 'app' })}
                     </Button>
                 }
             >
                 <Stack gap="md">
-                    <Text>
-                        By restoring to this dashboard version, a new version
-                        will be generated and saved. All previous versions are
-                        still safely stored and can be restored at any time.
-                    </Text>
+                    <Text>{t('dashboardHistory.restoreDescription')}</Text>
                     <Callout variant="info">
                         <Text size="sm">
-                            Charts created within this dashboard will also be
-                            restored to their version at the time this dashboard
-                            version was created.
+                            {t('dashboardHistory.restoreChartsNote')}
                         </Text>
                     </Callout>
                 </Stack>

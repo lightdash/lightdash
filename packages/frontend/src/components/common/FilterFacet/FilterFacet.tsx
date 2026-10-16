@@ -24,6 +24,7 @@ import {
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import MantineIcon from '../MantineIcon';
 import classes from './FilterFacet.module.css';
@@ -90,7 +91,7 @@ const FilterFacet = ({
     selected,
     onChange,
     icon,
-    emptyLabel = 'No options',
+    emptyLabel,
     tooltipLabel,
     loading,
     loadingMore,
@@ -99,7 +100,7 @@ const FilterFacet = ({
     mode = 'multi',
     searchValue,
     onSearchChange,
-    searchPlaceholder = 'Search…',
+    searchPlaceholder,
     onScrollEnd,
     scrollEndOffset = 50,
     enableSelectAll = false,
@@ -109,7 +110,10 @@ const FilterFacet = ({
     triggerProps,
     optionAnchor,
 }: FilterFacetProps) => {
+    const { t } = useTranslation('commonUi');
     const getUiString = useUiStrings();
+    const resolvedSearchPlaceholder =
+        searchPlaceholder ?? t('filterFacet.searchPlaceholder');
     const [opened, setOpened] = useState(false);
     const selectedSet = new Set(selected);
     const viewportRef = useRef<HTMLDivElement>(null);
@@ -346,8 +350,8 @@ const FilterFacet = ({
                         <TextInput
                             size="xs"
                             autoFocus
-                            placeholder={searchPlaceholder}
-                            aria-label={searchPlaceholder}
+                            placeholder={resolvedSearchPlaceholder}
+                            aria-label={resolvedSearchPlaceholder}
                             className={classes.search}
                             value={searchValue ?? ''}
                             onChange={(e) =>
@@ -382,14 +386,16 @@ const FilterFacet = ({
                                 aria-hidden
                             />
                             <Text fz="xs" fw={500}>
-                                {allSelected ? 'Deselect all' : 'Select all'}
+                                {allSelected
+                                    ? t('filterFacet.deselectAll')
+                                    : t('filterFacet.selectAll')}
                             </Text>
                         </Group>
                     </UnstyledButton>
                 )}
                 {!hasAnyOption ? (
                     <Text fz="xs" c="dimmed" p="xs">
-                        {emptyLabel}
+                        {emptyLabel ?? t('filterFacet.noOptions')}
                     </Text>
                 ) : (
                     <ScrollArea.Autosize
@@ -424,12 +430,12 @@ const FilterFacet = ({
         <Group gap={2} wrap="nowrap">
             {popover}
             {hasSelection && (
-                <Tooltip label="Clear">
+                <Tooltip label={t('filterFacet.clear')}>
                     <ActionIcon
                         size="xs"
                         className={classes.clearButton}
                         color="ldGray.5"
-                        aria-label={`Clear ${label} filter`}
+                        aria-label={t('filterFacet.clearFilter', { label })}
                         onClick={() => onChange([])}
                     >
                         <MantineIcon icon={IconX} />

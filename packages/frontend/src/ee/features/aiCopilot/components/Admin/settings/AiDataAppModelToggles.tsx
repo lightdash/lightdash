@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { Box, Group, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import classes from './AiDataAppModelToggles.module.css';
 
 const MODEL_LABELS: Record<DataAppClaudeModel, string> = {
@@ -33,18 +34,16 @@ export const AiDataAppModelToggles: FC<AiDataAppModelTogglesProps> = ({
     disabled,
     onUpdateVisibility,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const visibleModels = getVisibleDataAppClaudeModels(dataAppModelVisibility);
 
     return (
         <Stack gap={4}>
             <Text fz="xs" fw={500}>
-                Data Apps models
+                {t('settings.dataAppModels.title')}
             </Text>
             <Text c="dimmed" fz="xs">
-                Which models users can pick when building a Data App. Data Apps
-                run the Claude CLI, which picks the latest model in each tier —
-                so these are set separately from Ask AI models. Apps already
-                built with a hidden model keep working.
+                {t('settings.dataAppModels.description')}
             </Text>
             <Group gap="lg" mt={4}>
                 {DATA_APP_CLAUDE_MODELS.map((model) => {
@@ -57,7 +56,7 @@ export const AiDataAppModelToggles: FC<AiDataAppModelTogglesProps> = ({
                     return (
                         <Tooltip
                             key={model}
-                            label="At least one model must stay available"
+                            label={t('settings.dataAppModels.lockedTooltip')}
                             disabled={!isLocked}
                             position="top"
                         >
@@ -68,7 +67,12 @@ export const AiDataAppModelToggles: FC<AiDataAppModelTogglesProps> = ({
                                 <Switch
                                     size="sm"
                                     label={MODEL_LABELS[model]}
-                                    aria-label={`Data Apps ${MODEL_LABELS[model]}`}
+                                    aria-label={t(
+                                        'settings.dataAppModels.ariaLabel',
+                                        {
+                                            model: MODEL_LABELS[model],
+                                        },
+                                    )}
                                     className={
                                         isLocked
                                             ? classes.lockedSwitch

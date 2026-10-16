@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../components/common/MantineModal';
 import { BigQueryKeyFileInput } from '../../components/ProjectConnection/WarehouseForms/BigQueryKeyFileInput';
 import { useSaveAiServiceAccount, useTestAiServiceAccount } from './api';
@@ -30,6 +31,7 @@ const BigqueryAiServiceAccountForm = ({
     onClose,
     onSaved,
 }: AiServiceAccountFormProps) => {
+    const { t } = useTranslation('aiAccess');
     const [file, setFile] = useState<File | null>(null);
     const [keyfileContents, setKeyfileContents] = useState<Record<
         string,
@@ -49,9 +51,9 @@ const BigqueryAiServiceAccountForm = ({
     return (
         <MantineModal
             opened
-            title="Shared agent account"
+            title={t('serviceAccountForm.title')}
             onClose={busy ? () => {} : onClose}
-            confirmLabel="Save"
+            confirmLabel={t('actions.save', { ns: 'common' })}
             confirmDisabled={!credentials || busy}
             confirmLoading={save.isLoading}
             onConfirm={() => {
@@ -83,7 +85,7 @@ const BigqueryAiServiceAccountForm = ({
                         if (credentials) test.mutate({ credentials });
                     }}
                 >
-                    Test
+                    {t('serviceAccountCard.test')}
                 </Button>
             }
         >
@@ -100,7 +102,9 @@ const BigqueryAiServiceAccountForm = ({
                 {test.data && (
                     <Text size="sm" role="status">
                         {test.data.ok && test.data.principal
-                            ? `Signs in as ${test.data.principal}`
+                            ? t('serviceAccountDetails.signsInAs', {
+                                  principal: test.data.principal,
+                              })
                             : test.data.message}
                     </Text>
                 )}
@@ -130,13 +134,16 @@ export const AiServiceAccountForm = ({
     warehouseType,
     ...props
 }: WarehouseAiServiceAccountFormProps) => {
+    const { t } = useTranslation('aiAccess');
     switch (warehouseType) {
         case WarehouseTypes.TRINO:
             return (
                 <UserPasswordAiServiceAccountForm
                     {...props}
                     warehouseType={warehouseType}
-                    userDescription="The Trino login for agents"
+                    userDescription={t(
+                        'serviceAccountForm.userDescription.trino',
+                    )}
                 />
             );
         case WarehouseTypes.CLICKHOUSE:
@@ -144,7 +151,9 @@ export const AiServiceAccountForm = ({
                 <UserPasswordAiServiceAccountForm
                     {...props}
                     warehouseType={warehouseType}
-                    userDescription="The ClickHouse user for agents"
+                    userDescription={t(
+                        'serviceAccountForm.userDescription.clickhouse',
+                    )}
                 />
             );
         case WarehouseTypes.REDSHIFT:
@@ -152,7 +161,9 @@ export const AiServiceAccountForm = ({
                 <UserPasswordAiServiceAccountForm
                     {...props}
                     warehouseType={warehouseType}
-                    userDescription="The Redshift database user for agents"
+                    userDescription={t(
+                        'serviceAccountForm.userDescription.redshift',
+                    )}
                 />
             );
         case WarehouseTypes.POSTGRES:
@@ -160,7 +171,9 @@ export const AiServiceAccountForm = ({
                 <UserPasswordAiServiceAccountForm
                     {...props}
                     warehouseType={warehouseType}
-                    userDescription="The Postgres login role for agents"
+                    userDescription={t(
+                        'serviceAccountForm.userDescription.postgres',
+                    )}
                 />
             );
         case WarehouseTypes.ATHENA:

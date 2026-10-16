@@ -14,26 +14,36 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconLock, IconUsers } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import ShareSpaceModal from '../../../components/common/ShareSpaceModal';
 import { useSpaceAccess } from '../../../hooks/useSpaceAccess';
 import { useSpace, useSpaceSummaries } from '../../../hooks/useSpaces';
 
-const AUDIENCE_OPTIONS: { value: ManagedAgentAudience; label: string }[] = [
-    { value: 'everyone', label: 'Everyone' },
-    { value: 'admins', label: 'Admins' },
+const getAudienceOptions = (
+    t: TFunction,
+): { value: ManagedAgentAudience; label: string }[] => [
+    { value: 'everyone', label: t('suggestionsAccess.audience.everyone') },
+    { value: 'admins', label: t('suggestionsAccess.audience.admins') },
 ];
 
-const countLabel = (count: number, noun: string) =>
-    `${count} ${noun}${count === 1 ? '' : 's'}`;
-
-const describeRestrictedAccess = (space: Space, memberCount: number) => {
-    const parts = [countLabel(memberCount, 'member')];
+const describeRestrictedAccess = (
+    t: TFunction,
+    space: Space,
+    memberCount: number,
+) => {
+    const members = t('suggestionsAccess.memberCount', { count: memberCount });
     if (space.groupsAccess.length > 0) {
-        parts.push(countLabel(space.groupsAccess.length, 'group'));
+        return t('suggestionsAccess.restrictedWithGroups', {
+            members,
+            groups: t('suggestionsAccess.groupCount', {
+                count: space.groupsAccess.length,
+            }),
+        });
     }
-    return `${parts.join(' and ')} can see suggestions.`;
+    return t('suggestionsAccess.restricted', { members });
 };
 
 /**
@@ -47,6 +57,7 @@ export const SuggestionsSpaceAccess: FC<{
     disabled: boolean;
     onAudienceChange: (audience: ManagedAgentAudience) => void;
 }> = ({ projectUuid, audience, disabled, onAudienceChange }) => {
+    const { t } = useTranslation('managedAgent');
     const { data: spaceSummaries, isInitialLoading: isLoadingSummaries } =
         useSpaceSummaries(projectUuid, true);
     const spaceUuid = useMemo(
@@ -72,13 +83,14 @@ export const SuggestionsSpaceAccess: FC<{
     const isLoading = isLoadingSummaries || isLoadingSpace;
 
     const description = (() => {
-        if (isLoading) return 'Checking who can see suggestions…';
+        if (isLoading) return t('suggestionsAccess.checking');
         if (!space) {
-            return 'The "Agent Suggestions" space is created the first time Autopilot suggests content. This sets who can see it.';
+            return t('suggestionsAccess.notCreated');
         }
         return space.inheritParentPermissions
-            ? 'Everyone on this project can see suggestions.'
+            ? t('suggestionsAccess.everyoneCanSee')
             : describeRestrictedAccess(
+                  t,
                   space,
                   spaceAccess?.pagination?.totalResults ?? 0,
               );
@@ -90,7 +102,7 @@ export const SuggestionsSpaceAccess: FC<{
                 <Stack gap={3}>
                     <Group gap="xs">
                         <Text fz="xs" fw={500}>
-                            Suggestions access
+                            {t('suggestionsAccess.title')}
                         </Text>
                         {space && (
                             <Badge
@@ -112,8 +124,8 @@ export const SuggestionsSpaceAccess: FC<{
                                 }
                             >
                                 {space.inheritParentPermissions
-                                    ? 'Everyone'
-                                    : 'Restricted'}
+                                    ? t('suggestionsAccess.badge.everyone')
+                                    : t('suggestionsAccess.badge.restricted')}
                             </Badge>
                         )}
                     </Group>
@@ -131,7 +143,7 @@ export const SuggestionsSpaceAccess: FC<{
                         leftSection={<MantineIcon icon={IconUsers} size={12} />}
                         onClick={openModal}
                     >
-                        Manage access
+                        {t('suggestionsAccess.manageAccess')}
                     </Button>
                 ) : (
                     <SegmentedControl
@@ -140,7 +152,7 @@ export const SuggestionsSpaceAccess: FC<{
                         onChange={(value) =>
                             onAudienceChange(value as ManagedAgentAudience)
                         }
-                        data={AUDIENCE_OPTIONS}
+                        data={getAudienceOptions(t)}
                         disabled={disabled}
                     />
                 )}

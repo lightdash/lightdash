@@ -1,9 +1,10 @@
 import { Box, Button, List, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../components/common/MantineIcon';
 import {
-    GROUP_DESCRIPTIONS,
-    GROUP_LABELS,
+    getGroupDescription,
+    getGroupLabel,
     GROUP_ORDER,
     type LearnModule,
 } from './catalogue';
@@ -32,6 +33,7 @@ export const EnableLearnPanel: FC<Props> = ({
     onEnable,
     catalogue,
 }) => {
+    const { t } = useTranslation('learn');
     const groups = GROUP_ORDER.filter((group) =>
         catalogue.some((module) => module.group === group),
     );
@@ -44,14 +46,13 @@ export const EnableLearnPanel: FC<Props> = ({
                         component="span"
                         className={`${styles.overline} ${styles.overlineAccent}`}
                     >
-                        Learn
+                        {t('enable.overline')}
                     </Text>
                     <Title order={1} className={styles.enableTitle}>
-                        Get confident with Lightdash, step by step
+                        {t('enable.title')}
                     </Title>
                     <Text component="p" className={styles.enableLede}>
-                        Work through guided walkthroughs on a sample project,
-                        one feature at a time.
+                        {t('enable.lede')}
                     </Text>
                 </Box>
 
@@ -73,10 +74,10 @@ export const EnableLearnPanel: FC<Props> = ({
                                     </Box>
                                     <Box>
                                         <Title order={3}>
-                                            {GROUP_LABELS[group]}
+                                            {getGroupLabel(group)}
                                         </Title>
                                         <Text component="p">
-                                            {GROUP_DESCRIPTIONS[group]}
+                                            {getGroupDescription(group)}
                                         </Text>
                                     </Box>
                                 </Box>
@@ -86,27 +87,25 @@ export const EnableLearnPanel: FC<Props> = ({
 
                     <Box component="aside" className={styles.enableCard}>
                         <Text component="span" className={styles.overline}>
-                            Not enabled yet
+                            {t('enable.notEnabled')}
                         </Text>
                         {canEnable ? (
                             <>
                                 <Title order={2}>
-                                    Enable Learn for your organisation
+                                    {t('enable.adminTitle')}
                                 </Title>
                                 <Text component="p">
-                                    Enabling does three things:
+                                    {t('enable.adminIntro')}
                                 </Text>
                                 <List>
                                     <List.Item>
-                                        creates a project named Training (sample
-                                        data), on a small built-in dataset;
+                                        {t('enable.effects.createsProject')}
                                     </List.Item>
                                     <List.Item>
-                                        gives everyone the permissions to
-                                        practise there, and only there;
+                                        {t('enable.effects.grantsPermissions')}
                                     </List.Item>
                                     <List.Item>
-                                        makes you that project's admin.
+                                        {t('enable.effects.makesAdmin')}
                                     </List.Item>
                                 </List>
                                 <Button
@@ -117,18 +116,16 @@ export const EnableLearnPanel: FC<Props> = ({
                                     onClick={onEnable}
                                     data-learn-enable
                                 >
-                                    Enable Learn
+                                    {t('enable.button')}
                                 </Button>
                             </>
                         ) : (
                             <>
                                 <Title order={2}>
-                                    Ask an admin to enable Learn
+                                    {t('enable.askAdminTitle')}
                                 </Title>
                                 <Text component="p" data-learn-ask-admin>
-                                    An organisation admin turns Learn on from
-                                    this page. Once they have, every walkthrough
-                                    here is yours to start.
+                                    {t('enable.askAdminBody')}
                                 </Text>
                             </>
                         )}

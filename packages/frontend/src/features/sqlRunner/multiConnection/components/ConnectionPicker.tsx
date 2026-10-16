@@ -1,11 +1,13 @@
 import { Select } from '@mantine/core';
 import { IconPlugConnected } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useActiveConnection } from '../hooks/useActiveConnection';
 import { useTrackedConnectionSwitch } from '../hooks/useTrackedConnectionSwitch';
 
 export const ConnectionPicker: FC = () => {
+    const { t } = useTranslation('sqlRunner');
     const { connections, hasSeveralConnections, activeConnectionUuid } =
         useActiveConnection();
     const switchConnection = useTrackedConnectionSwitch();
@@ -26,9 +28,9 @@ export const ConnectionPicker: FC = () => {
             size="sm"
             data={data}
             value={activeConnectionUuid ?? null}
-            placeholder="Choose a connection"
+            placeholder={t('connection.choose')}
             allowDeselect={false}
-            aria-label="Active connection"
+            aria-label={t('connectionHeader.activeConnection')}
             leftSection={<MantineIcon icon={IconPlugConnected} />}
             onChange={(value) => {
                 if (value) switchConnection(value, 'picker');

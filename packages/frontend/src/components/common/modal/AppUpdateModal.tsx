@@ -10,8 +10,10 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconAppWindow, type Icon as IconType } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useUpdateApp } from '../../../features/apps/hooks/useUpdateApp';
 import ChartTypeIconPicker from '../../../features/chartTypes/components/ChartTypeIconPicker';
@@ -36,13 +38,17 @@ interface AppUpdateModalProps {
     onConfirm?: () => void;
 }
 
-const updateAppSchema = z.object({
-    name: z.string().trim().min(1, { message: 'Name is required' }),
-    description: z.string(),
-    icon: chartTypeIconSchema.nullable(),
-});
+const getUpdateAppSchema = (t: TFunction) =>
+    z.object({
+        name: z
+            .string()
+            .trim()
+            .min(1, { message: t('appUpdate.nameRequired') }),
+        description: z.string(),
+        icon: chartTypeIconSchema.nullable(),
+    });
 
-type FormState = z.infer<typeof updateAppSchema>;
+type FormState = z.infer<ReturnType<typeof getUpdateAppSchema>>;
 
 const AppUpdateModal: FC<AppUpdateModalProps> = ({
     projectUuid,
@@ -50,12 +56,16 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
     appUuidOrSlug,
     initialName,
     initialDescription,
-    resourceLabel = 'Data App',
+    resourceLabel: resourceLabelProp,
     icon = IconAppWindow,
     iconPicker,
     onConfirm,
     ...modalProps
 }) => {
+    const { t } = useTranslation('modals');
+    const resourceLabel =
+        resourceLabelProp ?? t('appUpdate.defaultResourceLabel');
+    const updateAppSchema = useMemo(() => getUpdateAppSchema(t), [t]);
     const { mutateAsync, isLoading: isUpdating } = useUpdateApp({
         resourceLabel,
         appUuidOrSlug,
@@ -99,7 +109,7 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
 
     return (
         <MantineModal
-            title={`Update ${resourceLabel}`}
+            title={t('appUpdate.title', { resourceLabel })}
             {...modalProps}
             icon={icon}
             actions={
@@ -109,7 +119,7 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
                     type="submit"
                     form="update-app"
                 >
-                    Save
+                    {t('actions.save', { ns: 'common' })}
                 </Button>
             }
         >
@@ -129,18 +139,18 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
                         )}
 
                         <TextInput
-                            label="Name"
+                            label={t('appUpdate.nameLabel')}
                             required
                             flex={1}
-                            placeholder="eg. Sales insights"
+                            placeholder={t('appUpdate.namePlaceholder')}
                             disabled={isUpdating}
                             {...form.getInputProps('name')}
                         />
                     </Group>
 
                     <Textarea
-                        label="Description"
-                        placeholder="A few words to give your team some context"
+                        label={t('appUpdate.descriptionLabel')}
+                        placeholder={t('descriptionPlaceholder')}
                         disabled={isUpdating}
                         autosize
                         maxRows={3}

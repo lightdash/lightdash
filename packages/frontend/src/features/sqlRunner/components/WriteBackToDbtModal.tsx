@@ -18,6 +18,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { IconGitPullRequest, IconInfoCircle } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import Callout from '../../../components/common/Callout';
 import {
@@ -30,6 +31,7 @@ import MantineModal, {
 } from '../../../components/common/MantineModal';
 import useHealth from '../../../hooks/health/useHealth';
 import { useProject } from '../../../hooks/useProject';
+import i18n from '../../../i18n/i18n';
 import { useGithubDbtWriteBack } from '../hooks/useGithubDbtWriteBack';
 import { useGithubDbtWritePreview } from '../hooks/useGithubDbtWritePreview';
 import { useAppSelector } from '../store/hooks';
@@ -37,7 +39,9 @@ import { isBitbucketCloudConnection } from '../utils/isBitbucketCloudConnection'
 import classes from './WriteBackToDbtModal.module.css';
 
 const validationSchema = z.object({
-    name: z.string().min(1, 'Name is required'),
+    name: z.string().min(1, {
+        error: () => i18n.t('saveModal.nameRequired', { ns: 'sqlRunner' }),
+    }),
 });
 
 type FormValues = z.infer<typeof validationSchema>;
@@ -45,6 +49,7 @@ type FormValues = z.infer<typeof validationSchema>;
 type Props = Pick<MantineModalProps, 'opened' | 'onClose'>;
 
 export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
+    const { t } = useTranslation('sqlRunner');
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const columns = useAppSelector((state) => state.sqlRunner.sqlColumns);
@@ -147,7 +152,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Write back to dbt"
+            title={t('writeBack.title')}
             icon={IconGitPullRequest}
             cancelDisabled={isLoadingPullRequest}
             actions={
@@ -159,14 +164,11 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                     }
                     loading={isLoadingPullRequest}
                 >
-                    Open Pull Request
+                    {t('writeBack.openPullRequest')}
                 </Button>
             }
             headerActions={
-                <Tooltip
-                    label="Create a new model in your dbt project from this SQL query. This will create a new branch and start a pull request."
-                    maw={300}
-                >
+                <Tooltip label={t('writeBack.tooltip')} maw={300}>
                     <MantineIcon
                         color="ldGray.7"
                         icon={IconInfoCircle}
@@ -181,34 +183,54 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
             >
                 <Stack>
                     <TextInput
-                        label="Name"
+                        label={t('writeBack.name')}
                         required
                         {...form.getInputProps('name')}
                     />
 
                     <Stack gap="xs" pl="xs">
                         <Text fw={500}>
-                            Files to be created in{' '}
-                            <Badge
-                                radius="md"
-                                color="ldGray.9"
-                                fz="xs"
-                                leftSection={
-                                    <MantineIcon icon={IconGitPullRequest} />
-                                }
-                                onClick={() => {
-                                    window.open(
-                                        writePreviewData?.url,
-                                        '_blank',
-                                        'noopener,noreferrer',
-                                    );
+                            <Trans
+                                t={t}
+                                i18nKey="writeBack.filesToBeCreatedIn"
+                                components={{
+                                    repo: (
+                                        <>
+                                            <Badge
+                                                radius="md"
+                                                color="ldGray.9"
+                                                fz="xs"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={
+                                                            IconGitPullRequest
+                                                        }
+                                                    />
+                                                }
+                                                onClick={() => {
+                                                    window.open(
+                                                        writePreviewData?.url,
+                                                        '_blank',
+                                                        'noopener,noreferrer',
+                                                    );
+                                                }}
+                                                className={classes.previewLink}
+                                                title={t(
+                                                    'writeBack.openInNewTab',
+                                                    {
+                                                        url: writePreviewData?.url,
+                                                    },
+                                                )}
+                                            >
+                                                {writePreviewData?.repo}
+                                            </Badge>
+                                            {isPreviewLoading && (
+                                                <Loader size="xs" />
+                                            )}
+                                        </>
+                                    ),
                                 }}
-                                className={classes.previewLink}
-                                title={`Open "${writePreviewData?.url}" in new tab`}
-                            >
-                                {writePreviewData?.repo}
-                            </Badge>
-                            {isPreviewLoading && <Loader size="xs" />}:
+                            />
                         </Text>
                         <List pl="xs">
                             {writePreviewData?.files.map((file) => (
@@ -229,26 +251,34 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                     {isGithubProject &&
                         (githubUserCredential ? (
                             <Text fz="xs" c="dimmed">
-                                The pull request will be authored as{' '}
-                                <Text span fw={500} inherit>
-                                    @{githubUserCredential.githubLogin}
-                                </Text>
-                                .
+                                <Trans
+                                    t={t}
+                                    i18nKey="writeBack.authoredAs"
+                                    values={{
+                                        login: githubUserCredential.githubLogin,
+                                    }}
+                                    components={{
+                                        login: <Text span fw={500} inherit />,
+                                    }}
+                                />
                             </Text>
                         ) : (
                             <Callout variant="info">
-                                The pull request will be opened by the Lightdash
-                                bot.{' '}
-                                <Anchor
-                                    fz="sm"
-                                    href={`${GITHUB_USER_AUTHORIZE_URL}?redirect=${encodeURIComponent(
-                                        window.location.pathname,
-                                    )}`}
-                                    target="_blank"
-                                >
-                                    Connect your GitHub account
-                                </Anchor>{' '}
-                                to author it as you.
+                                <Trans
+                                    t={t}
+                                    i18nKey="writeBack.openedByBot"
+                                    components={{
+                                        link: (
+                                            <Anchor
+                                                fz="sm"
+                                                href={`${GITHUB_USER_AUTHORIZE_URL}?redirect=${encodeURIComponent(
+                                                    window.location.pathname,
+                                                )}`}
+                                                target="_blank"
+                                            />
+                                        ),
+                                    }}
+                                />
                             </Callout>
                         ))}
                 </Stack>

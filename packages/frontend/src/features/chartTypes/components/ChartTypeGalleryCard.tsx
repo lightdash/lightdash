@@ -22,6 +22,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { FloatingActionsPill } from '../../../components/common/FloatingActionsPill';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -53,6 +54,7 @@ const ChartTypeGalleryCard: FC<Props> = ({
     onPreview,
     onDelete,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const navigate = useNavigate();
     const canEdit = useCanEditDataApp(dataAppViz.projectUuid, dataAppViz);
     const projectRoute = useOptionalProjectRoute();
@@ -101,11 +103,11 @@ const ChartTypeGalleryCard: FC<Props> = ({
                         {isOfficial && <OfficialChartTypeBadge />}
                     </Group>
                     <Text fz="xs" c="dimmed" lh={1.35} lineClamp={2}>
-                        {dataAppViz.description || 'No description'}
+                        {dataAppViz.description || t('detail.noDescription')}
                     </Text>
                     {hasRegistryUpdate && (
                         <Badge size="xs" variant="light" color="orange">
-                            Update available
+                            {t('gallery.updateAvailable')}
                         </Badge>
                     )}
                 </Stack>
@@ -113,10 +115,12 @@ const ChartTypeGalleryCard: FC<Props> = ({
                     {isOfficial
                         ? dataAppsEnabled &&
                           canFork && (
-                              <Tooltip label="Fork to customize">
+                              <Tooltip label={t('detail.forkToCustomize')}>
                                   <ActionIcon
                                       size="sm"
-                                      aria-label={`Fork ${displayName}`}
+                                      aria-label={t('gallery.forkNamed', {
+                                          name: displayName,
+                                      })}
                                       onClick={(e) => {
                                           e.stopPropagation();
                                           setIsForkOpen(true);
@@ -128,7 +132,9 @@ const ChartTypeGalleryCard: FC<Props> = ({
                           )
                         : dataAppsEnabled &&
                           canEdit && (
-                              <Tooltip label="Edit">
+                              <Tooltip
+                                  label={t('actions.edit', { ns: 'common' })}
+                              >
                                   <ActionIcon
                                       size="sm"
                                       component={Link}
@@ -136,7 +142,9 @@ const ChartTypeGalleryCard: FC<Props> = ({
                                           projectUrlIdentifier,
                                           dataAppViz.slug,
                                       )}
-                                      aria-label={`Edit ${displayName}`}
+                                      aria-label={t('gallery.editNamed', {
+                                          name: displayName,
+                                      })}
                                       onClick={(e) => e.stopPropagation()}
                                   >
                                       <MantineIcon icon={IconFilePencil} />
@@ -152,7 +160,9 @@ const ChartTypeGalleryCard: FC<Props> = ({
                         <Menu.Target>
                             <ActionIcon
                                 size="sm"
-                                aria-label={`Actions for ${displayName}`}
+                                aria-label={t('gallery.actionsFor', {
+                                    name: displayName,
+                                })}
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <MantineIcon icon={IconDots} />
@@ -168,7 +178,7 @@ const ChartTypeGalleryCard: FC<Props> = ({
                                     onPreview();
                                 }}
                             >
-                                Preview in explorer
+                                {t('detail.previewInExplorer')}
                             </Menu.Item>
                             {canEdit && (
                                 <>
@@ -183,7 +193,11 @@ const ChartTypeGalleryCard: FC<Props> = ({
                                             onDelete();
                                         }}
                                     >
-                                        {isOfficial ? 'Uninstall' : 'Delete'}
+                                        {isOfficial
+                                            ? t('detail.uninstall')
+                                            : t('actions.delete', {
+                                                  ns: 'common',
+                                              })}
                                     </Menu.Item>
                                 </>
                             )}

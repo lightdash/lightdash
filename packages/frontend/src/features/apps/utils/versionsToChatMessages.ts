@@ -1,4 +1,5 @@
 import { type ApiAppVersionSummary } from '@lightdash/common';
+import i18n from '../../../i18n/i18n';
 import { getAppVersionFailureMessage } from '../getAppVersionFailureMessage';
 import {
     emptyChatMessage,
@@ -104,8 +105,11 @@ export function versionsToChatMessages(
         const isUploadedVersion = v.prompt === '';
         const readyMessage =
             v.version === 1
-                ? 'Your app is ready!'
-                : `Version ${v.version} is ready!`;
+                ? i18n.t('chat.appReady', { ns: 'apps' })
+                : i18n.t('chat.versionReady', {
+                      ns: 'apps',
+                      version: v.version,
+                  });
         // Null rather than 0 when the version never recorded a transition:
         // an unknown duration is not a zero-second build.
         const durationMs = v.statusUpdatedAt

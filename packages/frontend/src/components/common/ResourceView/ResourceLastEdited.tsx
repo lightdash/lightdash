@@ -7,6 +7,7 @@ import {
 import { Text, Tooltip } from '@mantine/core';
 import dayjs from 'dayjs';
 import type { FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 
 interface ResourceLastEditedProps {
@@ -22,6 +23,7 @@ const ResourceLastEdited: FC<ResourceLastEditedProps> = ({
         data: { updatedAt, updatedByUser: user },
     },
 }) => {
+    const { t } = useTranslation('resourceView');
     const timeAgo = useTimeAgo(updatedAt);
 
     return (
@@ -37,7 +39,10 @@ const ResourceLastEdited: FC<ResourceLastEditedProps> = ({
 
             {user && user.firstName ? (
                 <Text fz="xs" c="dimmed">
-                    by {user.firstName} {user.lastName}
+                    {t('lastEdited.byUser', {
+                        firstName: user.firstName,
+                        lastName: user.lastName,
+                    })}
                 </Text>
             ) : null}
         </div>

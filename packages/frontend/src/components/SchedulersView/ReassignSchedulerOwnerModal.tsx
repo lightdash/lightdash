@@ -1,6 +1,7 @@
 import { Button, Group, Stack, Text } from '@mantine/core';
 import { IconInfoCircle, IconUserCheck } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSchedulerReassignOwnerMutation } from '../../features/scheduler/hooks/useSchedulerReassignOwnerMutation';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal, { type MantineModalProps } from '../common/MantineModal';
@@ -27,6 +28,7 @@ const ReassignSchedulerOwnerModal: FC<ReassignSchedulerOwnerModalProps> = ({
     onSuccess,
     hasGsheetsSchedulers = false,
 }) => {
+    const { t } = useTranslation('scheduler');
     const [selectedUserUuid, setSelectedUserUuid] = useState<string | null>(
         null,
     );
@@ -63,16 +65,12 @@ const ReassignSchedulerOwnerModal: FC<ReassignSchedulerOwnerModalProps> = ({
     ]);
 
     const schedulerCount = schedulerUuids.length;
-    const schedulerText =
-        schedulerCount === 1
-            ? '1 scheduled delivery'
-            : `${schedulerCount} scheduled deliveries`;
 
     return (
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title={`Reassign owner for "${schedulerText}"`}
+            title={t('reassignOwnerModal.title', { count: schedulerCount })}
             icon={IconUserCheck}
             size="lg"
             actions={
@@ -81,21 +79,20 @@ const ReassignSchedulerOwnerModal: FC<ReassignSchedulerOwnerModalProps> = ({
                     loading={isReassigning}
                     disabled={!selectedUserUuid}
                 >
-                    Reassign
+                    {t('reassignOwnerModal.reassign')}
                 </Button>
             }
         >
             <Stack gap="lg">
                 <Text fz="sm" c="ldGray.7">
-                    Select a new owner for the selected scheduled{' '}
-                    {schedulerCount === 1 ? 'delivery' : 'deliveries'}. The new
-                    owner will be responsible for managing{' '}
-                    {schedulerCount === 1 ? 'it' : 'them'}.
+                    {t('reassignOwnerModal.description', {
+                        count: schedulerCount,
+                    })}
                 </Text>
 
                 <UserSelect
                     projectUuid={projectUuid}
-                    label="New owner"
+                    label={t('reassignOwnerModal.newOwner')}
                     value={selectedUserUuid}
                     onChange={setSelectedUserUuid}
                     excludedUserUuid={excludedUserUuid}
@@ -110,8 +107,7 @@ const ReassignSchedulerOwnerModal: FC<ReassignSchedulerOwnerModalProps> = ({
                             size="lg"
                         />
                         <Text fz="xs" c="dimmed">
-                            You can only transfer ownership of a Google Sheets
-                            sync to a user with an active Google connection.
+                            {t('reassignOwnerModal.gsheetsNote')}
                         </Text>
                     </Group>
                 )}

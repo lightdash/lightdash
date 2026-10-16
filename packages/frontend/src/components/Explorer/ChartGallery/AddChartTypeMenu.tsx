@@ -3,6 +3,7 @@ import { Button, Menu, Stack, Text } from '@mantine/core';
 import { IconChevronDown, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import ChartTypeLibraryModal from '../../../features/chartTypes/components/ChartTypeLibraryModal';
 import { getDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
@@ -22,6 +23,7 @@ import { ProvenanceGlyph } from './ChartTypeGallery';
 const AddChartTypeMenu: FC = () => {
     const projectUuid = useProjectUuid();
     const dispatch = useExplorerDispatch();
+    const { t } = useTranslation('explorer');
     const store = useExplorerStore();
     const queryClient = useQueryClient();
     const pendingSelection = useRef<symbol | null>(null);
@@ -69,9 +71,9 @@ const AddChartTypeMenu: FC = () => {
                             rightSection={
                                 <MantineIcon icon={IconChevronDown} size={12} />
                             }
-                            aria-label="Add chart type"
+                            aria-label={t('chartGallery.addMenu.addChartType')}
                         >
-                            Add
+                            {t('actions.add', { ns: 'common' })}
                         </Button>
                     </Menu.Target>
                     <Menu.Dropdown>
@@ -85,10 +87,13 @@ const AddChartTypeMenu: FC = () => {
                             onClick={onFindNew}
                         >
                             <Stack gap={0}>
-                                <Text fz="sm">Browse the chart library</Text>
+                                <Text fz="sm">
+                                    {t('chartGallery.addMenu.browseLibrary')}
+                                </Text>
                                 <Text fz="xs" c="dimmed">
-                                    Ready-made chart types, installed in one
-                                    click
+                                    {t(
+                                        'chartGallery.addMenu.browseLibraryDescription',
+                                    )}
                                 </Text>
                             </Stack>
                         </Menu.Item>
@@ -102,9 +107,13 @@ const AddChartTypeMenu: FC = () => {
                             onClick={onCreateNew}
                         >
                             <Stack gap={0}>
-                                <Text fz="sm">Create your own</Text>
+                                <Text fz="sm">
+                                    {t('chartGallery.addMenu.createOwn')}
+                                </Text>
                                 <Text fz="xs" c="dimmed">
-                                    Describe a chart type in Chart Studio
+                                    {t(
+                                        'chartGallery.addMenu.createOwnDescription',
+                                    )}
                                 </Text>
                             </Stack>
                         </Menu.Item>
@@ -118,10 +127,10 @@ const AddChartTypeMenu: FC = () => {
                     variant="subtle"
                     size="xs"
                     leftSection={addIcon}
-                    aria-label="Add chart type from the library"
+                    aria-label={t('chartGallery.addMenu.addFromLibrary')}
                     onClick={onFindNew}
                 >
-                    Add
+                    {t('actions.add', { ns: 'common' })}
                 </Button>
             );
         }
@@ -131,10 +140,10 @@ const AddChartTypeMenu: FC = () => {
                     variant="subtle"
                     size="xs"
                     leftSection={addIcon}
-                    aria-label="Add chart type in Chart Studio"
+                    aria-label={t('chartGallery.addMenu.addInStudio')}
                     onClick={onCreateNew}
                 >
-                    Add
+                    {t('actions.add', { ns: 'common' })}
                 </Button>
             );
         }

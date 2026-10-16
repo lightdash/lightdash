@@ -1,6 +1,7 @@
 import { ChartKind } from '@lightdash/common';
 import { ActionIcon, Group, Tooltip } from '@mantine/core';
 import { memo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../common/MantineIcon';
 import { getChartIcon } from '../common/ResourceIcon/utils';
 
@@ -42,19 +43,20 @@ export const VisualizationSwitcher = ({
     selectedChartType: ChartKind;
     setSelectedChartType: (chartKind: ChartKind) => void;
 }) => {
+    const { t } = useTranslation('dataViz');
     const AVAILABLE_VISUALIZATIONS = [
-        { label: 'Table', value: ChartKind.TABLE },
-        { label: 'Bar chart', value: ChartKind.VERTICAL_BAR },
-        { label: 'Line chart', value: ChartKind.LINE },
-        { label: 'Pie chart', value: ChartKind.PIE },
-        { label: 'Big value', value: ChartKind.BIG_NUMBER },
+        { label: t('switcher.table'), value: ChartKind.TABLE },
+        { label: t('switcher.barChart'), value: ChartKind.VERTICAL_BAR },
+        { label: t('switcher.lineChart'), value: ChartKind.LINE },
+        { label: t('switcher.pieChart'), value: ChartKind.PIE },
+        { label: t('switcher.bigValue'), value: ChartKind.BIG_NUMBER },
     ];
 
     return (
         <Group gap={4}>
             {AVAILABLE_VISUALIZATIONS.map((vis) => (
                 <VisualizationActionIcon
-                    key={vis.label}
+                    key={vis.value}
                     chartKind={vis.value}
                     label={vis.label}
                     onClick={() => setSelectedChartType(vis.value)}

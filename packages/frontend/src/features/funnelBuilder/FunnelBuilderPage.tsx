@@ -2,6 +2,7 @@ import { type ApiErrorDetail } from '@lightdash/common';
 import { Badge, Group, Title } from '@mantine/core';
 import { IconFlask2Filled } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Provider } from 'react-redux';
 import { Navigate } from 'react-router';
 import Page from '../../components/common/Page/Page';
@@ -27,6 +28,7 @@ const isApiErrorDetail = (
 };
 
 const FunnelBuilder: FC = () => {
+    const { t } = useTranslation('metricsCatalog');
     const projectUuid = useProjectUuid();
     const dispatch = useAppDispatch();
     const { showToastApiError, showToastError } = useToaster();
@@ -57,18 +59,19 @@ const FunnelBuilder: FC = () => {
             shownQueryError.current = queryError;
             if (isApiErrorDetail(queryError)) {
                 showToastApiError({
-                    title: 'Failed to run funnel query',
+                    title: t('funnelBuilder.toasts.runFailed'),
                     apiError: queryError,
                 });
             } else {
                 showToastError({
-                    title: 'Failed to run funnel query',
+                    title: t('funnelBuilder.toasts.runFailed'),
                     subtitle:
-                        queryError.message ?? 'An unexpected error occurred',
+                        queryError.message ??
+                        t('funnelBuilder.toasts.unexpectedError'),
                 });
             }
         }
-    }, [queryError, showToastApiError, showToastError]);
+    }, [queryError, showToastApiError, showToastError, t]);
 
     // Show toast when fetching event names fails
     useEffect(() => {
@@ -79,19 +82,19 @@ const FunnelBuilder: FC = () => {
             shownEventNamesError.current = eventNamesError;
             if (isApiErrorDetail(eventNamesError)) {
                 showToastApiError({
-                    title: 'Failed to load event names',
+                    title: t('funnelBuilder.toasts.loadEventNamesFailed'),
                     apiError: eventNamesError,
                 });
             } else {
                 showToastError({
-                    title: 'Failed to load event names',
+                    title: t('funnelBuilder.toasts.loadEventNamesFailed'),
                     subtitle:
                         eventNamesError.message ??
-                        'An unexpected error occurred',
+                        t('funnelBuilder.toasts.unexpectedError'),
                 });
             }
         }
-    }, [eventNamesError, showToastApiError, showToastError]);
+    }, [eventNamesError, showToastApiError, showToastError, t]);
 
     const sidebar = useMemo(
         () =>
@@ -105,19 +108,19 @@ const FunnelBuilder: FC = () => {
 
     return (
         <Page
-            title="Funnel Builder"
+            title={t('funnelBuilder.title')}
             sidebar={sidebar}
             withFullHeight
             withPaddedContent
         >
             <Group gap="sm" mb="md">
-                <Title order={4}>Funnel Builder</Title>
+                <Title order={4}>{t('funnelBuilder.title')}</Title>
                 <Badge
                     color="violet"
                     size="sm"
                     leftSection={<IconFlask2Filled size={12} />}
                 >
-                    Experimental
+                    {t('funnelBuilder.experimental')}
                 </Badge>
             </Group>
             <FunnelMainContent />

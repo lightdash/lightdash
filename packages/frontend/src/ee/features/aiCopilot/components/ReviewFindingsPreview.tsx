@@ -3,6 +3,7 @@ import { Box, ColorSwatch, Group, Skeleton, Stack, Text } from '@mantine/core';
 import { IconArrowRight } from '@tabler/icons-react';
 import { type EChartsOption } from 'echarts';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import EChartsReact from '../../../../components/EChartsReactWrapper';
@@ -93,6 +94,7 @@ export const ReviewFindingsPreview: FC<Props> = ({
     promptTrendDays,
     isLoadingPromptTrend = false,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const totalPrompts = promptTrend.reduce(
         (total, point) => total + point.promptCount,
         0,
@@ -108,9 +110,14 @@ export const ReviewFindingsPreview: FC<Props> = ({
         <Stack gap={2}>
             <Box px="xs" pt={4} pb={6}>
                 <Group justify="space-between" mb={4} wrap="nowrap">
-                    <Text className={classes.heading}>Prompts</Text>
                     <Text className={classes.heading}>
-                        {totalPrompts} in {promptTrendDays}d
+                        {t('reviewPreview.prompts')}
+                    </Text>
+                    <Text className={classes.heading}>
+                        {t('reviewPreview.promptsInDays', {
+                            count: totalPrompts,
+                            days: promptTrendDays,
+                        })}
                     </Text>
                 </Group>
                 {isLoadingPromptTrend ? (
@@ -129,8 +136,12 @@ export const ReviewFindingsPreview: FC<Props> = ({
             </Box>
 
             <Group justify="space-between" px="xs" pt={4} pb={2} wrap="nowrap">
-                <Text className={classes.heading}>Issues</Text>
-                <Text className={classes.heading}>{totalOpen} open</Text>
+                <Text className={classes.heading}>
+                    {t('reviewPreview.issues')}
+                </Text>
+                <Text className={classes.heading}>
+                    {t('reviewPreview.open', { count: totalOpen })}
+                </Text>
             </Group>
 
             {items.map((item) => (
@@ -160,7 +171,7 @@ export const ReviewFindingsPreview: FC<Props> = ({
 
             <Box component={Link} to={reviewsUrl} className={classes.footer}>
                 <Text size="xs" fw={500}>
-                    View all issues
+                    {t('reviewPreview.viewAll')}
                 </Text>
                 <MantineIcon icon={IconArrowRight} size={12} />
             </Box>

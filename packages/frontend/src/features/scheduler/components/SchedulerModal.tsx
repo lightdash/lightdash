@@ -10,6 +10,7 @@ import { Group, Modal, Paper, Stack, Text, useMatches } from '@mantine/core';
 import { IconBell, IconSend } from '@tabler/icons-react';
 import { type UseInfiniteQueryResult } from '@tanstack/react-query';
 import React, { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
 import RunDetailsModal from '../../../components/SchedulersView/RunDetailsModal';
@@ -87,6 +88,7 @@ const SchedulersModal: FC<
     searchQuery,
     onSearchQueryChange,
 }) => {
+    const { t } = useTranslation('scheduler');
     const compact = useMatches({ base: true, sm: false });
     const [modalState, setModalState] = useState<States>(
         // eslint-disable-next-line no-nested-ternary
@@ -161,7 +163,7 @@ const SchedulersModal: FC<
                     })
                     .catch((error) => {
                         showToastError({
-                            title: 'Failed to load run details',
+                            title: t('schedulerModal.loadRunDetailsFailed'),
                             subtitle:
                                 error instanceof Error
                                     ? error.message
@@ -170,7 +172,7 @@ const SchedulersModal: FC<
                     });
             }
         },
-        [childLogsMap, fetchRunLogsMutation, showToastError],
+        [childLogsMap, fetchRunLogsMutation, showToastError, t],
     );
 
     if (modalState === States.LIST) {
@@ -206,8 +208,10 @@ const SchedulersModal: FC<
                                 <Stack gap={0}>
                                     <span className={classes.headerTitle}>
                                         {isThresholdAlert
-                                            ? 'Alerts'
-                                            : 'Scheduled deliveries'}
+                                            ? t('schedulerModal.alerts')
+                                            : t(
+                                                  'schedulerModal.scheduledDeliveries',
+                                              )}
                                     </span>
                                     <Text
                                         size="xs"
@@ -225,7 +229,11 @@ const SchedulersModal: FC<
                                             : 'https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries'
                                     }
                                 />
-                                <Modal.CloseButton aria-label="Close scheduled deliveries" />
+                                <Modal.CloseButton
+                                    aria-label={t(
+                                        'schedulerModal.closeAriaLabel',
+                                    )}
+                                />
                             </Group>
                         </Group>
                         <SchedulerList

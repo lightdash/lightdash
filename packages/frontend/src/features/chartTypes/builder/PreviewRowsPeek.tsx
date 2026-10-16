@@ -7,8 +7,11 @@ import {
 import { Box, Button, Group, Stack, Table, Text } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { formatDistanceToNow } from 'date-fns';
+import { type TFunction } from 'i18next';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { getDateFnsLocale } from '../../../i18n/dateLocale';
 import { getChartTypeRowColumns, rowsFromVizContext } from './chartTypeRows';
 import { ChartTypeRowsModal } from './ChartTypeSampleData';
 import { type AttachedExplore } from './exploreSource';
@@ -50,6 +53,7 @@ const SERIES_COLUMN = '__series';
 
 /** The sample, one row per (index, series value) pair, metrics as columns. */
 const unpivotSample = (
+    t: TFunction,
     fields: DataAppVizField[],
     context: DataAppVizContext,
 ): DisplayRows => {
@@ -89,7 +93,8 @@ const unpivotSample = (
             context.fields[id]?.label ?? pivot.originalColumns[id]?.label ?? id,
     }));
     const seriesLabel =
-        fields.find((field) => field.type === 'series')?.label ?? 'Series';
+        fields.find((field) => field.type === 'series')?.label ??
+        t('rowsPeek.series');
     const seriesValues = [
         ...new Set(
             pivot.valuesColumns.map((column) =>
@@ -136,11 +141,9 @@ const unpivotSample = (
     };
 };
 
-const plural = (count: number, noun: string) =>
-    `${count} ${noun}${count === 1 ? '' : 's'}`;
-
 /** What the sample is made of, the way the author declared it. */
 const sampleSummary = (
+    t: TFunction,
     fields: DataAppVizField[],
     context: DataAppVizContext,
     rowCount: number,
@@ -169,15 +172,20 @@ const sampleSummary = (
               .size
         : idsFor('metric').length;
     return [
-        plural(rowCount, 'row'),
-        ...(seriesIds.length > 0 ? [`${seriesCount} series`] : []),
-        ...(metricCount > 0 ? [plural(metricCount, 'value')] : []),
+        t('rowsPeek.rows', { count: rowCount }),
+        ...(seriesIds.length > 0
+            ? [t('rowsPeek.series_count', { count: seriesCount })]
+            : []),
+        ...(metricCount > 0
+            ? [t('rowsPeek.values', { count: metricCount })]
+            : []),
     ].join(' · ');
 };
 
 /** The rows behind the preview, whichever source they come from: three rows,
  *  what they amount to, and the way out to the full table. */
 const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
+    const { t } = useTranslation('chartTypes');
     const [isSampleModalOpen, setIsSampleModalOpen] = useState(false);
     const isChart = source.previewSource !== 'sample';
     const attached = source.attached;
@@ -214,8 +222,8 @@ const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
                 ),
             };
         }
-        return unpivotSample(fields, context);
-    }, [context, fields, isChart]);
+        return unpivotSample(t, fields, context);
+    }, [context, fields, isChart, t]);
     if (!context || !display || display.columns.length === 0) return null;
     if (isChart && attached?.status !== 'ready') return null;
 
@@ -227,26 +235,36 @@ const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
         const rowCount = isPivoted
             ? context.rows.length
             : (attached?.rowCount ?? 0);
-        const ran = attached?.ranAt
-            ? ` · ran ${formatDistanceToNow(attached.ranAt, {
-                  addSuffix: true,
-              })}`
-            : '';
-        summary = `${plural(rowCount, isPivoted ? 'pivoted row' : 'row')}${ran}`;
+        const rowsText = isPivoted
+            ? t('rowsPeek.pivotedRows', { count: rowCount })
+            : t('rowsPeek.rows', { count: rowCount });
+        summary = attached?.ranAt
+            ? t('rowsPeek.rowsRan', {
+                  rows: rowsText,
+                  ran: formatDistanceToNow(attached.ranAt, {
+                      addSuffix: true,
+                      locale: getDateFnsLocale(),
+                  }),
+              })
+            : rowsText;
     } else {
-        summary = sampleSummary(fields, context, display.rows.length);
+        summary = sampleSummary(t, fields, context, display.rows.length);
     }
 
     return (
         <Stack gap="xs">
             <Text component="h3" fz="sm" fw={600}>
-                {isChart ? 'Query results' : 'Sample data'}
+                {isChart
+                    ? t('rowsPeek.queryResults')
+                    : t('rowsPeek.sampleData')}
             </Text>
             <Box
                 className={classes.tableViewport}
                 role="region"
                 aria-label={
-                    isChart ? 'Query results preview' : 'Sample data preview'
+                    isChart
+                        ? t('rowsPeek.queryResultsPreview')
+                        : t('rowsPeek.sampleDataPreview')
                 }
                 tabIndex={0}
             >
@@ -315,7 +333,7 @@ const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
                             : () => setIsSampleModalOpen(true)
                     }
                 >
-                    View all
+                    {t('rowsPeek.viewAll')}
                 </Button>
             </Group>
             {!isChart && (
@@ -323,8 +341,8 @@ const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
                     data={rowsFromVizContext(context)}
                     opened={isSampleModalOpen}
                     onClose={() => setIsSampleModalOpen(false)}
-                    title="Sample data"
-                    subtitle="Rows generated from the chart inputs, used until a table or saved chart is attached."
+                    title={t('rowsPeek.sampleData')}
+                    subtitle={t('rowsPeek.sampleDataSubtitle')}
                 />
             )}
         </Stack>

@@ -52,6 +52,7 @@ import {
     IconWorldCog,
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { canAccessDeepResearchSettings } from './deepResearchSettingsAccess';
@@ -71,6 +72,7 @@ import {
 export const useSettingsNavigation = (
     context: SettingsContext,
 ): SettingsNavigationSection[] => {
+    const { t } = useTranslation('app');
     const { track } = useTracking();
     const {
         user,
@@ -118,7 +120,7 @@ export const useSettingsNavigation = (
 
         const yourSettings: SettingsNavigationItem[] = [
             {
-                label: 'Profile',
+                label: t('useSettingsNavigation.profile'),
                 to: '/generalSettings/profile',
                 icon: IconUserCircle,
                 keywords: ['account', 'avatar', 'name'],
@@ -129,7 +131,9 @@ export const useSettingsNavigation = (
 
         if (allowPasswordAuthentication) {
             yourSettings.push({
-                label: hasSocialLogin ? 'Password & Social Logins' : 'Password',
+                label: hasSocialLogin
+                    ? t('useSettingsNavigation.passwordAndSocialLogins')
+                    : t('useSettingsNavigation.password'),
                 to: '/generalSettings/password',
                 icon: IconLock,
                 keywords: ['login', 'security', 'mfa', 'social', 'sso'],
@@ -139,7 +143,7 @@ export const useSettingsNavigation = (
         }
 
         yourSettings.push({
-            label: 'My warehouse connections',
+            label: t('useSettingsNavigation.myWarehouseConnections'),
             to: '/generalSettings/myWarehouseConnections',
             icon: IconDatabaseCog,
             keywords: ['database', 'credentials', 'warehouse'],
@@ -149,7 +153,7 @@ export const useSettingsNavigation = (
 
         if (showMyAgentConnections) {
             yourSettings.push({
-                label: 'My agent identity',
+                label: t('useSettingsNavigation.myAgentIdentity'),
                 to: '/generalSettings/myAgentConnections',
                 icon: IconPlugConnected,
                 keywords: [
@@ -169,7 +173,7 @@ export const useSettingsNavigation = (
 
         if (ability?.can('create', 'ScheduledDeliveries')) {
             yourSettings.push({
-                label: 'My scheduled deliveries',
+                label: t('useSettingsNavigation.myScheduledDeliveries'),
                 to: '/generalSettings/userScheduledDeliveries',
                 icon: IconCalendarStats,
                 keywords: ['email', 'reports', 'schedule'],
@@ -180,7 +184,7 @@ export const useSettingsNavigation = (
 
         if (isDataAppsEnabled && ability?.can('create', 'DataApp')) {
             yourSettings.push({
-                label: 'My apps',
+                label: t('useSettingsNavigation.myApps'),
                 to: '/generalSettings/myApps',
                 icon: IconAppWindow,
                 keywords: ['data apps'],
@@ -191,7 +195,7 @@ export const useSettingsNavigation = (
 
         if (ability?.can('manage', 'PersonalAccessToken')) {
             yourSettings.push({
-                label: 'Personal access tokens',
+                label: t('useSettingsNavigation.personalAccessTokens'),
                 to: '/generalSettings/personalAccessTokens',
                 icon: IconKey,
                 keywords: ['api', 'pat', 'token'],
@@ -204,7 +208,7 @@ export const useSettingsNavigation = (
 
         if (ability?.can('manage', 'Organization')) {
             organizationItems.push({
-                label: 'General',
+                label: t('useSettingsNavigation.general'),
                 to: '/generalSettings/organization',
                 icon: IconBuildingSkyscraper,
                 keywords: [
@@ -215,23 +219,25 @@ export const useSettingsNavigation = (
                 ],
                 pageSections: [
                     {
-                        title: 'Allowed email domains',
+                        title: t('useSettingsNavigation.allowedEmailDomains'),
                         keywords: ['email', 'domain', 'auto join'],
                     },
                     {
-                        title: 'Default project',
+                        title: t('useSettingsNavigation.defaultProject'),
                         keywords: ['landing project', 'home project'],
                     },
                     {
-                        title: 'User impersonation',
+                        title: t('useSettingsNavigation.userImpersonation'),
                         keywords: ['impersonate', 'impersonation'],
                     },
                     {
-                        title: 'Lightdash support access',
+                        title: t(
+                            'useSettingsNavigation.lightdashSupportAccess',
+                        ),
                         keywords: ['support', 'impersonate', 'impersonation'],
                     },
                     {
-                        title: 'Danger zone',
+                        title: t('useSettingsNavigation.dangerZone'),
                         keywords: ['delete organization', 'leave organization'],
                     },
                 ],
@@ -242,7 +248,7 @@ export const useSettingsNavigation = (
 
         if (ability?.can('manage', 'Organization')) {
             organizationItems.push({
-                label: 'Exporting',
+                label: t('useSettingsNavigation.exporting'),
                 to: '/generalSettings/exporting',
                 icon: IconFileExport,
                 keywords: ['export', 'csv', 'excel', 'downloads'],
@@ -253,7 +259,7 @@ export const useSettingsNavigation = (
 
         if (isProLimitsEnabled && ability?.can('manage', 'Organization')) {
             organizationItems.push({
-                label: 'Limits',
+                label: t('useSettingsNavigation.limits'),
                 to: '/generalSettings/limits',
                 icon: IconGauge,
                 keywords: ['rows', 'query', 'cells', 'export'],
@@ -264,7 +270,7 @@ export const useSettingsNavigation = (
 
         if (isCustomRolesEnabled && ability?.can('manage', 'Organization')) {
             organizationItems.push({
-                label: 'Custom roles',
+                label: t('useSettingsNavigation.customRoles'),
                 to: '/generalSettings/customRoles',
                 icon: IconIdBadge2,
                 keywords: ['permissions', 'access', 'scopes'],
@@ -276,8 +282,8 @@ export const useSettingsNavigation = (
         if (ability?.can('update', 'OrganizationMemberProfile')) {
             organizationItems.push({
                 label: isGroupManagementEnabled
-                    ? 'Users & groups'
-                    : 'User management',
+                    ? t('useSettingsNavigation.usersAndGroups')
+                    : t('useSettingsNavigation.userManagement'),
                 to: '/generalSettings/userManagement',
                 icon: IconUserPlus,
                 keywords: ['members', 'invite', 'teams', 'groups'],
@@ -296,8 +302,8 @@ export const useSettingsNavigation = (
         ) {
             organizationItems.push({
                 label: isGroupManagementEnabled
-                    ? 'User & group attributes'
-                    : 'User attributes',
+                    ? t('useSettingsNavigation.userAndGroupAttributes')
+                    : t('useSettingsNavigation.userAttributes'),
                 to: '/generalSettings/userAttributes',
                 icon: IconUserShield,
                 keywords: ['attributes', 'access control'],
@@ -316,7 +322,7 @@ export const useSettingsNavigation = (
             )
         ) {
             organizationItems.push({
-                label: 'Appearance',
+                label: t('useSettingsNavigation.appearance'),
                 to: '/generalSettings/appearance',
                 icon: IconPalette,
                 keywords: ['theme', 'color', 'branding', 'logo', 'palette'],
@@ -333,7 +339,7 @@ export const useSettingsNavigation = (
                 ability?.can('manage', 'Organization')
             ) {
                 dataAppChildren.push({
-                    label: 'General',
+                    label: t('useSettingsNavigation.general'),
                     to: '/generalSettings/dataApps/general',
                     icon: IconSettings,
                     keywords: [
@@ -349,7 +355,7 @@ export const useSettingsNavigation = (
 
             if (ability?.can('manage', 'OrganizationDesign')) {
                 dataAppChildren.push({
-                    label: 'Themes',
+                    label: t('useSettingsNavigation.themes'),
                     to: '/generalSettings/dataApps/themes',
                     icon: IconBrush,
                     keywords: ['design', 'colors', 'charts'],
@@ -360,7 +366,7 @@ export const useSettingsNavigation = (
 
             if (ability?.can('manage', 'Organization')) {
                 dataAppChildren.push({
-                    label: 'Activity',
+                    label: t('useSettingsNavigation.activity'),
                     to: '/generalSettings/dataApps/activity',
                     icon: IconReportAnalytics,
                     keywords: [
@@ -381,7 +387,7 @@ export const useSettingsNavigation = (
                 ability?.can('manage', 'Organization')
             ) {
                 dataAppChildren.push({
-                    label: 'AI analysis',
+                    label: t('useSettingsNavigation.aiAnalysis'),
                     to: '/generalSettings/dataApps/aiAnalysis',
                     icon: IconSparkles,
                     keywords: [
@@ -399,7 +405,7 @@ export const useSettingsNavigation = (
 
             if (dataAppChildren.length > 0) {
                 organizationItems.push({
-                    label: 'Data apps',
+                    label: t('useSettingsNavigation.dataApps'),
                     to: '/generalSettings/dataApps',
                     icon: IconAppWindow,
                     keywords: ['apps', 'data apps'],
@@ -410,7 +416,7 @@ export const useSettingsNavigation = (
 
         if (ability?.can('manage', 'Organization')) {
             organizationItems.push({
-                label: 'Integrations',
+                label: t('useSettingsNavigation.integrations'),
                 to: '/generalSettings/integrations',
                 icon: IconPlug,
                 keywords: ['slack', 'github', 'gitlab', 'linear', 'jira'],
@@ -421,7 +427,7 @@ export const useSettingsNavigation = (
 
         if (ability?.can('manage', 'Organization')) {
             organizationItems.push({
-                label: 'OAuth applications',
+                label: t('useSettingsNavigation.oauthApplications'),
                 to: '/generalSettings/oauthClients',
                 icon: IconApps,
                 keywords: ['oauth', 'clients', 'api'],
@@ -435,7 +441,7 @@ export const useSettingsNavigation = (
             isSsoOrganizationSettingsEnabled
         ) {
             organizationItems.push({
-                label: 'Verified domains',
+                label: t('useSettingsNavigation.verifiedDomains'),
                 to: '/generalSettings/verifiedDomains',
                 icon: IconWorldCheck,
                 keywords: ['email', 'domains', 'sso'],
@@ -449,7 +455,7 @@ export const useSettingsNavigation = (
             isEmailWhitelabelEnabled
         ) {
             organizationItems.push({
-                label: 'Email domain',
+                label: t('useSettingsNavigation.emailDomain'),
                 to: '/generalSettings/emailWhitelabel',
                 icon: IconMailForward,
                 keywords: [
@@ -470,7 +476,7 @@ export const useSettingsNavigation = (
             isSsoOrganizationSettingsEnabled
         ) {
             organizationItems.push({
-                label: 'Single Sign-On',
+                label: t('useSettingsNavigation.singleSignOn'),
                 to: '/generalSettings/sso',
                 icon: IconLock,
                 keywords: [
@@ -497,7 +503,7 @@ export const useSettingsNavigation = (
             isWarehouseCredentialsEnabled
         ) {
             organizationItems.push({
-                label: 'Warehouse credentials',
+                label: t('useSettingsNavigation.warehouseCredentials'),
                 to: '/generalSettings/warehouseCredentials',
                 icon: IconDatabaseCog,
                 keywords: ['database', 'credentials'],
@@ -512,7 +518,7 @@ export const useSettingsNavigation = (
             ability?.can('view', 'Project')
         ) {
             organizationItems.push({
-                label: 'All projects',
+                label: t('useSettingsNavigation.allProjects'),
                 to: '/generalSettings/projectManagement',
                 icon: IconDatabase,
                 keywords: ['projects', 'manage'],
@@ -523,7 +529,7 @@ export const useSettingsNavigation = (
 
         if (canAccessAnalyticsSettings) {
             organizationItems.push({
-                label: 'Lightdash analytics',
+                label: t('useSettingsNavigation.lightdashAnalytics'),
                 to: '/generalSettings/lightdashAnalytics',
                 icon: IconReportAnalytics,
                 isBeta: true,
@@ -535,7 +541,7 @@ export const useSettingsNavigation = (
 
         if (ability?.can('manage', 'Organization') && isScimEnabled) {
             organizationItems.push({
-                label: 'SCIM access tokens',
+                label: t('useSettingsNavigation.scimAccessTokens'),
                 to: '/generalSettings/scimAccessTokens',
                 icon: IconKey,
                 keywords: ['scim', 'provisioning', 'tokens'],
@@ -549,7 +555,7 @@ export const useSettingsNavigation = (
             isServiceAccountsEnabled
         ) {
             organizationItems.push({
-                label: 'Service accounts',
+                label: t('useSettingsNavigation.serviceAccounts'),
                 to: '/generalSettings/serviceAccounts',
                 icon: IconUserCode,
                 keywords: ['api', 'ci', 'automation', 'tokens'],
@@ -560,7 +566,7 @@ export const useSettingsNavigation = (
 
         if (canAccessAiCredits) {
             organizationItems.push({
-                label: 'AI credits',
+                label: t('useSettingsNavigation.aiCredits'),
                 to: '/generalSettings/aiCredits',
                 icon: IconCoins,
                 keywords: ['ai', 'credits', 'usage', 'allowance', 'billing'],
@@ -574,7 +580,7 @@ export const useSettingsNavigation = (
             // General is org-wide config (router, org settings) — org admins only.
             if (canManageOrgAiAgent) {
                 aiChildren.push({
-                    label: 'General',
+                    label: t('useSettingsNavigation.general'),
                     to: '/generalSettings/ai/general',
                     icon: IconSettings,
                     keywords: ['ai', 'settings'],
@@ -585,7 +591,7 @@ export const useSettingsNavigation = (
             // Threads & Agents are project-filtered for project-scoped users.
             aiChildren.push(
                 {
-                    label: 'Threads',
+                    label: t('useSettingsNavigation.threads'),
                     to: '/generalSettings/ai/threads',
                     icon: IconMessageCircle,
                     keywords: ['conversations'],
@@ -593,7 +599,7 @@ export const useSettingsNavigation = (
                     exact: true,
                 },
                 {
-                    label: 'Agents',
+                    label: t('useSettingsNavigation.agents'),
                     to: '/generalSettings/ai/agents',
                     icon: IconRobotFace,
                     keywords: ['bots'],
@@ -601,7 +607,7 @@ export const useSettingsNavigation = (
                     exact: true,
                 },
                 {
-                    label: 'Evals',
+                    label: t('useSettingsNavigation.evals'),
                     to: '/generalSettings/ai/evals',
                     icon: IconBook2,
                     keywords: ['evaluations', 'evals', 'runs', 'testing'],
@@ -612,7 +618,7 @@ export const useSettingsNavigation = (
 
             if (shouldShowAiAgentReviews) {
                 aiChildren.push({
-                    label: 'Issues',
+                    label: t('useSettingsNavigation.issues'),
                     to: '/generalSettings/ai/issues',
                     icon: IconListCheck,
                     keywords: ['classifier', 'reviews'],
@@ -622,7 +628,7 @@ export const useSettingsNavigation = (
             }
 
             aiChildren.push({
-                label: 'Memories',
+                label: t('useSettingsNavigation.memories'),
                 to: '/generalSettings/ai/memories',
                 icon: IconNotebook,
                 keywords: ['memory', 'memories', 'learned', 'knowledge'],
@@ -638,7 +644,7 @@ export const useSettingsNavigation = (
                 })
             ) {
                 aiChildren.push({
-                    label: 'Deep research',
+                    label: t('useSettingsNavigation.deepResearch'),
                     to: '/generalSettings/ai/deep-research',
                     icon: IconTelescope,
                     keywords: ['research', 'limits', 'tools', 'queries'],
@@ -648,7 +654,7 @@ export const useSettingsNavigation = (
             }
 
             organizationItems.push({
-                label: 'Ask AI',
+                label: t('useSettingsNavigation.askAi'),
                 to: '/generalSettings/ai',
                 icon: IconBrain,
                 aiAgentIcon: true,
@@ -659,7 +665,7 @@ export const useSettingsNavigation = (
 
         if (isAgentIdentityEnabled && ability?.can('manage', 'Organization')) {
             organizationItems.push({
-                label: 'Agents',
+                label: t('useSettingsNavigation.agents'),
                 to: AGENT_IDENTITY_SETTINGS_PATH,
                 icon: IconIdBadge2,
                 keywords: [
@@ -674,7 +680,7 @@ export const useSettingsNavigation = (
                 ],
                 pageSections: [
                     {
-                        title: 'Identity',
+                        title: t('useSettingsNavigation.identity'),
                         keywords: [
                             'who agents run as',
                             'shared agent account',
@@ -682,7 +688,7 @@ export const useSettingsNavigation = (
                         ],
                     },
                     {
-                        title: 'Permissions',
+                        title: t('useSettingsNavigation.permissions'),
                         keywords: [
                             'limit what agents can do',
                             'who can use agents',
@@ -699,13 +705,13 @@ export const useSettingsNavigation = (
 
         const mcpChildren: SettingsNavigationItem[] = [
             {
-                label: 'Connect',
+                label: t('useSettingsNavigation.connect'),
                 to: '/generalSettings/mcp/connect',
                 icon: IconPlugConnected,
                 keywords: ['mcp', 'setup', 'installation', 'connect'],
                 pageSections: [
                     {
-                        title: 'Client setup',
+                        title: t('useSettingsNavigation.clientSetup'),
                         keywords: [
                             'setup',
                             'connect',
@@ -724,7 +730,7 @@ export const useSettingsNavigation = (
         if (isAiCopilotEnabledOrTrial && hasAnyAiAgentAccess) {
             if (canManageOrgAiAgent) {
                 mcpChildren.push({
-                    label: 'General',
+                    label: t('useSettingsNavigation.general'),
                     to: '/generalSettings/mcp/general',
                     icon: IconSettings,
                     keywords: [
@@ -736,11 +742,15 @@ export const useSettingsNavigation = (
                     ],
                     pageSections: [
                         {
-                            title: 'Enable agents over MCP',
+                            title: t(
+                                'useSettingsNavigation.enableAgentsOverMcp',
+                            ),
                             keywords: ['tools', 'context', 'access'],
                         },
                         {
-                            title: 'Allow content changes via MCP',
+                            title: t(
+                                'useSettingsNavigation.allowContentChangesViaMcp',
+                            ),
                             keywords: [
                                 'charts',
                                 'dashboards',
@@ -754,7 +764,7 @@ export const useSettingsNavigation = (
                 });
             }
             mcpChildren.push({
-                label: 'Analytics',
+                label: t('useSettingsNavigation.analytics'),
                 to: '/generalSettings/mcp/analytics',
                 icon: IconReportAnalytics,
                 keywords: [
@@ -770,7 +780,7 @@ export const useSettingsNavigation = (
             });
         }
         organizationItems.push({
-            label: 'MCP',
+            label: t('useSettingsNavigation.mcp'),
             to: '/generalSettings/mcp',
             icon: IconPlugConnected,
             keywords: ['model context protocol', 'claude', 'cursor'],
@@ -787,7 +797,7 @@ export const useSettingsNavigation = (
             )
         ) {
             organizationItems.push({
-                label: 'Roadmap',
+                label: t('useSettingsNavigation.roadmap'),
                 to: '/generalSettings/roadmap',
                 icon: IconRoad,
                 keywords: [
@@ -804,13 +814,13 @@ export const useSettingsNavigation = (
         const sections: SettingsNavigationSection[] = [
             {
                 id: 'your-settings',
-                title: 'Your settings',
+                title: t('useSettingsNavigation.yourSettings'),
                 subtitle: null,
                 items: yourSettings,
             },
             {
                 id: 'organization',
-                title: 'Organization settings',
+                title: t('useSettingsNavigation.organizationSettings'),
                 subtitle: null,
                 items: organizationItems,
             },
@@ -826,7 +836,7 @@ export const useSettingsNavigation = (
             SettingsNavigationItem
         > = {
             validator: {
-                label: 'Validator',
+                label: t('useSettingsNavigation.validator'),
                 to: `${base}/validator`,
                 icon: IconChecklist,
                 keywords: ['validation', 'errors', 'content'],
@@ -835,7 +845,7 @@ export const useSettingsNavigation = (
                 tourNav: 'validator',
             },
             recentlyDeleted: {
-                label: 'Recently deleted',
+                label: t('useSettingsNavigation.recentlyDeleted'),
                 to: `${base}/recentlyDeleted`,
                 icon: IconTrash,
                 keywords: ['trash', 'restore', 'deleted'],
@@ -852,7 +862,7 @@ export const useSettingsNavigation = (
         ) {
             sections.push({
                 id: 'current-project',
-                title: 'Current project',
+                title: t('useSettingsNavigation.currentProject'),
                 subtitle: project.name,
                 items: projectSettingsAccess.pages.map(
                     (page) => limitedItems[page],
@@ -863,7 +873,7 @@ export const useSettingsNavigation = (
         if (canUpdateCurrentProject && project && organization) {
             const projectItems: SettingsNavigationItem[] = [
                 {
-                    label: 'Connection settings',
+                    label: t('useSettingsNavigation.connectionSettings'),
                     to: `${base}/settings`,
                     icon: IconDatabaseCog,
                     keywords: ['warehouse', 'dbt', 'database'],
@@ -871,7 +881,7 @@ export const useSettingsNavigation = (
                     exact: true,
                 },
                 {
-                    label: 'Tables configuration',
+                    label: t('useSettingsNavigation.tablesConfiguration'),
                     to: `${base}/tablesConfiguration`,
                     icon: IconTableOptions,
                     keywords: ['models', 'explores'],
@@ -888,7 +898,7 @@ export const useSettingsNavigation = (
                 )
                     ? [
                           {
-                              label: 'Agent identity',
+                              label: t('useSettingsNavigation.agentIdentity'),
                               to: `${base}/agentIdentity`,
                               icon: IconIdBadge2,
                               keywords: ['ai', 'agent', 'credentials'],
@@ -902,7 +912,7 @@ export const useSettingsNavigation = (
                 ...(isAiCopilotEnabledOrTrial
                     ? [
                           {
-                              label: 'Agent data scope',
+                              label: t('useSettingsNavigation.agentDataScope'),
                               to: `${base}/agentDataScope`,
                               icon: IconDatabaseCog,
                               keywords: [
@@ -926,7 +936,7 @@ export const useSettingsNavigation = (
                 ...(isAiCopilotEnabledOrTrial && canManageOrgAiAgent
                     ? [
                           {
-                              label: 'AI region',
+                              label: t('useSettingsNavigation.aiRegion'),
                               to: `${base}/aiRegion`,
                               icon: IconWorldCog,
                               keywords: [
@@ -943,7 +953,7 @@ export const useSettingsNavigation = (
                       ]
                     : []),
                 {
-                    label: 'Compilation history',
+                    label: t('useSettingsNavigation.compilationHistory'),
                     to: `${base}/compilationHistory`,
                     icon: IconRefresh,
                     keywords: ['dbt', 'refresh', 'logs'],
@@ -954,13 +964,13 @@ export const useSettingsNavigation = (
 
             if (health?.preAggregates.enabled) {
                 projectItems.push({
-                    label: 'Pre-aggregates',
+                    label: t('useSettingsNavigation.preAggregates'),
                     to: `${base}/preAggregates`,
                     icon: IconBolt,
                     keywords: ['cache', 'materialization', 'performance'],
                     children: [
                         {
-                            label: 'Materializations',
+                            label: t('useSettingsNavigation.materializations'),
                             to: `${base}/preAggregates/materializations`,
                             icon: IconDatabase,
                             keywords: ['cache'],
@@ -968,7 +978,7 @@ export const useSettingsNavigation = (
                             exact: true,
                         },
                         {
-                            label: 'Analytics',
+                            label: t('useSettingsNavigation.analytics'),
                             to: `${base}/preAggregates/audit`,
                             icon: IconReportAnalytics,
                             keywords: ['usage', 'audit'],
@@ -981,7 +991,7 @@ export const useSettingsNavigation = (
 
             if (isResultsCacheEnabled) {
                 projectItems.push({
-                    label: 'Results caching',
+                    label: t('useSettingsNavigation.resultsCaching'),
                     to: `${base}/caching`,
                     icon: IconDatabaseExport,
                     keywords: [
@@ -997,7 +1007,7 @@ export const useSettingsNavigation = (
             }
 
             projectItems.push({
-                label: 'Parameters',
+                label: t('useSettingsNavigation.parameters'),
                 to: `${base}/parameters`,
                 icon: IconVariable,
                 keywords: ['variables'],
@@ -1007,7 +1017,7 @@ export const useSettingsNavigation = (
 
             projectItems.push(
                 {
-                    label: 'Project time zone',
+                    label: t('useSettingsNavigation.projectTimeZone'),
                     to: `${base}/queryTimezone`,
                     icon: IconClock,
                     keywords: ['timezone', 'time', 'query'],
@@ -1015,7 +1025,7 @@ export const useSettingsNavigation = (
                     exact: true,
                 },
                 {
-                    label: 'Preview settings',
+                    label: t('useSettingsNavigation.previewSettings'),
                     to: `${base}/previewsConfig`,
                     icon: IconUserCode,
                     keywords: ['preview', 'developer', 'expiration'],
@@ -1023,7 +1033,7 @@ export const useSettingsNavigation = (
                     exact: true,
                 },
                 {
-                    label: 'Appearance',
+                    label: t('useSettingsNavigation.appearance'),
                     to: `${base}/appearance`,
                     icon: IconPalette,
                     keywords: ['theme', 'color', 'branding'],
@@ -1043,7 +1053,7 @@ export const useSettingsNavigation = (
             ) {
                 projectItems.push(
                     {
-                        label: 'Project access',
+                        label: t('useSettingsNavigation.projectAccess'),
                         to: `${base}/projectAccess`,
                         icon: IconUsers,
                         keywords: ['members', 'permissions', 'sharing'],
@@ -1051,7 +1061,7 @@ export const useSettingsNavigation = (
                         exact: true,
                     },
                     {
-                        label: 'Default user spaces',
+                        label: t('useSettingsNavigation.defaultUserSpaces'),
                         to: `${base}/defaultUserSpaces`,
                         icon: IconFolders,
                         keywords: ['spaces', 'folders'],
@@ -1072,7 +1082,7 @@ export const useSettingsNavigation = (
                 )
             ) {
                 projectItems.push({
-                    label: 'External sources',
+                    label: t('useSettingsNavigation.externalSources'),
                     to: `${base}/externalSources`,
                     icon: IconDatabaseExport,
                     keywords: ['csv', 'upload', 'files', 'google sheets'],
@@ -1091,7 +1101,7 @@ export const useSettingsNavigation = (
                 )
             ) {
                 projectItems.push({
-                    label: 'Usage analytics',
+                    label: t('useSettingsNavigation.usageAnalytics'),
                     to: `${base}/usageAnalytics`,
                     icon: IconReportAnalytics,
                     keywords: ['stats', 'metrics', 'dashboards'],
@@ -1104,7 +1114,7 @@ export const useSettingsNavigation = (
             }
 
             projectItems.push({
-                label: 'Syncs & Scheduled deliveries',
+                label: t('useSettingsNavigation.syncsScheduledDeliveries'),
                 to: `${base}/scheduledDeliveries`,
                 icon: IconCalendarStats,
                 keywords: ['email', 'reports', 'sync', 'dbt'],
@@ -1123,7 +1133,7 @@ export const useSettingsNavigation = (
                 )
             ) {
                 projectItems.push({
-                    label: 'Data app connections',
+                    label: t('useSettingsNavigation.dataAppConnections'),
                     to: `${base}/dataAppConnections`,
                     icon: IconPlugConnected,
                     keywords: ['external', 'api', 'http', 'fetch', 'apps'],
@@ -1134,7 +1144,7 @@ export const useSettingsNavigation = (
 
             if (organization?.pgWire?.enabled) {
                 projectItems.push({
-                    label: 'Metric SQL API',
+                    label: t('useSettingsNavigation.metricSqlApi'),
                     to: `${base}/semanticLayer`,
                     icon: IconPlug,
                     keywords: [
@@ -1163,7 +1173,7 @@ export const useSettingsNavigation = (
             ) {
                 const embedChildren: SettingsNavigationItem[] = [
                     {
-                        label: 'General',
+                        label: t('useSettingsNavigation.general'),
                         to: `${base}/embed`,
                         icon: IconBrowser,
                         keywords: ['embed', 'iframe', 'public'],
@@ -1174,7 +1184,7 @@ export const useSettingsNavigation = (
 
                 if (ability?.can('manage', 'Organization')) {
                     embedChildren.push({
-                        label: 'CORS',
+                        label: t('useSettingsNavigation.cors'),
                         to: `${base}/embed/cors`,
                         icon: IconWorldCog,
                         keywords: ['cors', 'origins', 'domains', 'embed'],
@@ -1184,7 +1194,7 @@ export const useSettingsNavigation = (
                 }
 
                 projectItems.push({
-                    label: 'Embed configuration',
+                    label: t('useSettingsNavigation.embedConfiguration'),
                     to: `${base}/embed`,
                     icon: IconBrowser,
                     keywords: ['embed', 'iframe', 'public'],
@@ -1214,7 +1224,7 @@ export const useSettingsNavigation = (
                 )
             ) {
                 projectItems.push({
-                    label: 'Verified content',
+                    label: t('useSettingsNavigation.verifiedContent'),
                     to: `${base}/verifiedContent`,
                     icon: IconShieldCheck,
                     keywords: ['certified', 'trusted'],
@@ -1234,7 +1244,7 @@ export const useSettingsNavigation = (
                 )
             ) {
                 projectItems.push({
-                    label: 'Review requests',
+                    label: t('useSettingsNavigation.reviewRequests'),
                     to: `${base}/reviewRequests`,
                     icon: IconSend,
                     keywords: [
@@ -1258,7 +1268,7 @@ export const useSettingsNavigation = (
                 )
             ) {
                 projectItems.push({
-                    label: 'Data ops',
+                    label: t('useSettingsNavigation.dataOps'),
                     to: `${base}/dataOps`,
                     icon: IconDatabaseExport,
                     keywords: ['promote', 'deploy', 'content as code'],
@@ -1278,7 +1288,7 @@ export const useSettingsNavigation = (
                 )
             ) {
                 projectItems.push({
-                    label: 'Pull requests',
+                    label: t('useSettingsNavigation.pullRequests'),
                     to: `${base}/pullRequests`,
                     icon: IconGitPullRequest,
                     keywords: ['git', 'github', 'write back'],
@@ -1298,7 +1308,7 @@ export const useSettingsNavigation = (
                 )
             ) {
                 projectItems.push({
-                    label: 'Content review',
+                    label: t('useSettingsNavigation.contentReview'),
                     to: `${base}/contentReview`,
                     icon: IconEyeCheck,
                     keywords: ['drafts', 'unpublished', 'review', 'write back'],
@@ -1313,7 +1323,7 @@ export const useSettingsNavigation = (
 
             sections.push({
                 id: 'current-project',
-                title: 'Current project',
+                title: t('useSettingsNavigation.currentProject'),
                 subtitle: project.name,
                 items: projectItems,
             });
@@ -1321,6 +1331,7 @@ export const useSettingsNavigation = (
 
         return sections;
     }, [
+        t,
         user?.ability,
         organization,
         project,

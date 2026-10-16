@@ -1,6 +1,7 @@
 import { type AiAgentReviewItemPriority } from '@lightdash/common';
 import { Group, Menu, Tooltip, UnstyledButton } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import { PriorityBars } from '../../../../../components/common/PriorityBars';
 import { useUpdateAiAgentReviewItemPriority } from '../../hooks/useAiAgentAdmin';
@@ -35,6 +36,7 @@ export const ReviewPriorityMenu: FC<Props> = ({
     bordered = true,
     className,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const updatePriority = useUpdateAiAgentReviewItemPriority();
 
     return (
@@ -42,7 +44,9 @@ export const ReviewPriorityMenu: FC<Props> = ({
             <Menu.Target>
                 <UnstyledButton
                     display="inline-flex"
-                    aria-label={`Priority: ${reviewPriorityLabels[priority]}`}
+                    aria-label={t('reviews.priorityMenu.ariaLabel', {
+                        priority: reviewPriorityLabels[priority],
+                    })}
                     className={variant === 'bars' ? className : undefined}
                     onClick={(event) => event.stopPropagation()}
                     onPointerDown={(event) => event.stopPropagation()}

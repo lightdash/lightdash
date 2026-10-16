@@ -18,6 +18,7 @@ import {
     IconVideo,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { v4 as uuid4 } from 'uuid';
 import MantineModal from '../../common/MantineModal';
 import DataAppTileForm from './DataAppTileForm';
@@ -46,24 +47,33 @@ export const TileAddModal: FC<AddProps> = ({
     onClose,
     onConfirm,
 }) => {
+    const { t } = useTranslation('dashboard');
     const [errorMessage, setErrorMessage] = useState<string>();
 
     const getValidators = () => {
         const urlValidator = {
             url: (value: string | undefined) =>
-                getLoomId(value) ? null : 'Loom url not valid',
+                getLoomId(value)
+                    ? null
+                    : t('tileForms.validation.invalidLoomUrl'),
         };
         const titleValidator = {
             title: (value: string | undefined) =>
-                !value || !value.length ? 'Required field' : null,
+                !value || !value.length
+                    ? t('tileForms.validation.required')
+                    : null,
         };
         const textValidator = {
             text: (value: string | undefined) =>
-                !value || !value.length ? 'Required field' : null,
+                !value || !value.length
+                    ? t('tileForms.validation.required')
+                    : null,
         };
         const appUuidValidator = {
             appUuid: (value: string | undefined) =>
-                !value || !value.length ? 'Required field' : null,
+                !value || !value.length
+                    ? t('tileForms.validation.required')
+                    : null,
         };
         if (type === DashboardTileTypes.LOOM)
             return { ...urlValidator, ...titleValidator };
@@ -104,17 +114,17 @@ export const TileAddModal: FC<AddProps> = ({
     const tileTitle = useMemo(() => {
         switch (type) {
             case DashboardTileTypes.MARKDOWN:
-                return 'Add markdown tile';
+                return t('tileForms.addTitle.markdown');
             case DashboardTileTypes.LOOM:
-                return 'Add loom tile';
+                return t('tileForms.addTitle.loom');
             case DashboardTileTypes.HEADING:
-                return 'Add heading tile';
+                return t('tileForms.addTitle.heading');
             case DashboardTileTypes.DATA_APP:
-                return 'Add data app tile';
+                return t('tileForms.addTitle.dataApp');
             default:
                 return assertUnreachable(type, 'Tile type not supported');
         }
-    }, [type]);
+    }, [type, t]);
 
     if (!type) return null;
 
@@ -122,7 +132,9 @@ export const TileAddModal: FC<AddProps> = ({
         if (type === DashboardTileTypes.MARKDOWN) {
             const markdownForm = properties as any;
             if (!markdownForm.title && !markdownForm.content) {
-                setErrorMessage('Title or content is required');
+                setErrorMessage(
+                    t('tileForms.validation.titleOrContentRequired'),
+                );
                 return;
             }
         }
@@ -167,7 +179,7 @@ export const TileAddModal: FC<AddProps> = ({
                     form="add-tile-form"
                     disabled={!form.isValid()}
                 >
-                    Add
+                    {t('actions.add', { ns: 'common' })}
                 </Button>
             }
         >

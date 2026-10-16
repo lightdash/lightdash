@@ -11,6 +11,7 @@ import {
 import { Accordion } from '@mantine/core';
 import { produce } from 'immer';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -21,6 +22,7 @@ import { useControlledAccordion } from '../common/hooks/useControlledAccordion';
 import { ConditionalFormattingItem } from './ConditionalFormattingItem';
 
 const ConditionalFormattingList = ({}) => {
+    const { t } = useTranslation('vizConfig');
     const { openItems, handleAccordionChange, addNewItem, removeItem } =
         useControlledAccordion();
 
@@ -130,7 +132,9 @@ const ConditionalFormattingList = ({}) => {
         <Config>
             <Config.Section>
                 <Config.Group>
-                    <Config.Heading>Rules and Conditions</Config.Heading>
+                    <Config.Heading>
+                        {t('tableConditionalFormatting.rulesAndConditions')}
+                    </Config.Heading>
                     <AddButton onClick={handleAdd} />
                 </Config.Group>
                 <Accordion

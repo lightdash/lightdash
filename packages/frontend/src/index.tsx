@@ -39,6 +39,7 @@ import '@mantine/code-highlight/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/tiptap/styles.css';
 import './styles/global.css';
+import './i18n/i18n';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';

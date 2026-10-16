@@ -1,4 +1,5 @@
 import { isApiError } from '@lightdash/common';
+import i18n from '../../../i18n/i18n';
 
 export type PlaygroundSetupFailure =
     | 'unavailable'
@@ -19,18 +20,28 @@ export const getPlaygroundSetupFailure = (
     return 'unknown';
 };
 
+const tFailure = (key: string) =>
+    i18n.t(`connectFlow.playgroundSetupFailure.${key}`, {
+        ns: 'projectConnection',
+    });
+
+// Getters resolve lazily so messages follow the active language
 export const PLAYGROUND_SETUP_FAILURE_MESSAGES: Record<
     PlaygroundSetupFailure,
     string
 > = {
-    unavailable:
-        "Sample projects aren't available on this instance. Your invite is still ready below.",
-    'previously-removed':
-        "Your organization's sample project was removed and can't be set up again. Your invite is still ready below.",
-    forbidden:
-        "You don't have permission to create a sample project. Your invite is still ready below.",
-    unknown:
-        'Something went wrong while preparing your sample project. Your invite is still ready below.',
+    get unavailable() {
+        return tFailure('unavailable');
+    },
+    get 'previously-removed'() {
+        return tFailure('previouslyRemoved');
+    },
+    get forbidden() {
+        return tFailure('forbidden');
+    },
+    get unknown() {
+        return tFailure('unknown');
+    },
 };
 
 export const isRetryablePlaygroundSetupFailure = (

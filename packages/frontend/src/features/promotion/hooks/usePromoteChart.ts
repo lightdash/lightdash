@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -17,6 +18,7 @@ const promoteChart = async (chartUuid: string): Promise<SavedChart> => {
 };
 
 export const usePromoteMutation = () => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<SavedChart, ApiError, string>(
         (data) => promoteChart(data),
@@ -24,9 +26,9 @@ export const usePromoteMutation = () => {
             mutationKey: ['promote_chart'],
             onSuccess: (data) => {
                 showToastSuccess({
-                    title: `Success! Chart was promoted.`,
+                    title: t('usePromoteChart.successChartWasPromoted'),
                     action: {
-                        children: 'Open chart',
+                        children: t('usePromoteChart.openChart'),
                         icon: IconArrowRight,
                         onClick: () => {
                             window.open(
@@ -39,7 +41,7 @@ export const usePromoteMutation = () => {
             },
             onError: (error) => {
                 showToastError({
-                    title: `Failed to promote chart`,
+                    title: t('usePromoteChart.failedToPromoteChart'),
                     subtitle: error.error.message,
                 });
             },
@@ -58,6 +60,7 @@ const getPromoteChartDiff = async (
 };
 
 export const usePromoteChartDiffMutation = () => {
+    const { t } = useTranslation('app');
     const { showToastError } = useToaster();
     return useMutation<PromotionChanges, ApiError, string>(
         (data) => getPromoteChartDiff(data),
@@ -68,7 +71,7 @@ export const usePromoteChartDiffMutation = () => {
             },
             onError: (error) => {
                 showToastError({
-                    title: `Failed to get diff from chart`,
+                    title: t('usePromoteChart.failedToGetDiffFromChart'),
                     subtitle: error.error.message,
                 });
             },

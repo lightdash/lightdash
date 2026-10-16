@@ -1,0 +1,1433 @@
+{
+    "battle": {
+        "jev": {
+            "editKinds": {
+                "chartType": "tipo de gráfico",
+                "filterValues": "filtro",
+                "filterPeriod": "rango de fechas",
+                "addField": "desglose",
+                "sort": "orden",
+                "removeFilter": "eliminación de filtro",
+                "filterNumber": "filtro de umbral",
+                "filterBoolean": "filtro sí/no",
+                "filterText": "coincidencia de texto",
+                "filterBlank": "filtro de vacíos",
+                "acknowledgement": "respuesta rápida",
+                "showQuery": "resumen de consulta",
+                "downloadHelp": "ayuda de descarga",
+                "addMetric": "adición de métrica",
+                "removeMetric": "eliminación de métrica",
+                "swapMetric": "cambio de métrica",
+                "removeField": "eliminación de desglose",
+                "swapField": "cambio de desglose",
+                "changeGrain": "cambio de granularidad temporal",
+                "clearFilters": "borrar filtros",
+                "clearSort": "borrar orden",
+                "stack": "apilar",
+                "unstack": "desapilar",
+                "swapAxes": "intercambiar ejes",
+                "splitSeries": "dividir series",
+                "compound": "edición de varios pasos",
+                "undo": "deshacer",
+                "renameDocument": "cambio de nombre del documento",
+                "renameChart": "cambio de nombre del gráfico",
+                "removeChart": "eliminación de gráfico",
+                "moveChart": "movimiento de gráfico"
+            },
+            "defaultEdit": "edición",
+            "agentBadge": "Agente · {{badge}}",
+            "applied": {
+                "badge": "{{name}} · {{edit}}",
+                "title": "{{name}} aplicó: {{edit}}",
+                "description": "{{name}} hizo el cambio directamente, así que el modelo del agente no se ejecutó ni gastó tokens."
+            },
+            "routed": {
+                "badge": "nueva pregunta",
+                "title": "Nueva pregunta para el agente",
+                "description": "{{name}} interpretó esto como una nueva pregunta en lugar de un cambio al gráfico actual, así que respondió el agente."
+            },
+            "clarify": {
+                "badge": "{{name}} · pregunta aclaratoria",
+                "title": "{{name}} preguntó a cuál te referías",
+                "description": "La solicitud encajaba casi por igual con más de una opción, así que {{name}} ofreció las opciones en lugar de adivinar. El modelo del agente no se ejecutó."
+            },
+            "unresolved": {
+                "badge": "{{name}} no está seguro",
+                "title": "{{name}} no estaba seguro",
+                "description": "{{name}} buscó una edición directa del gráfico pero no estaba lo bastante seguro para aplicarla, así que el agente tomó el control."
+            },
+            "instantReply": {
+                "badge": "{{name}} · {{edit}}",
+                "title": "{{name}} respondió directamente",
+                "description": "Era un seguimiento pequeño que {{name}} podía responder desde el propio gráfico, así que el modelo del agente no se ejecutó."
+            },
+            "unavailable": {
+                "badge": "{{name}} no disponible",
+                "title": "{{name}} no respondió",
+                "description": "{{name}} no respondió a tiempo, así que el agente gestionó el turno como de costumbre."
+            },
+            "handedOff": {
+                "title": "{{name}} pasó la tarea ({{edit}}) al agente",
+                "description": "{{name}} resolvió la tarea ({{edit}}) pero necesitaba más que una edición directa, así que el agente la terminó."
+            },
+            "decidedIn": "Decidido en {{duration}}"
+        },
+        "tokens": {
+            "agent": "{{count}} agente",
+            "decision": "{{count}} {{name}}",
+            "total": "{{parts}} tokens"
+        },
+        "pane": {
+            "status": {
+                "streaming": "Transmitiendo",
+                "failed": "Falló",
+                "waiting": "Esperando"
+            },
+            "defaultModel": "Modelo predeterminado",
+            "queued": "{{count}} en cola",
+            "firstToken": "primer token {{value}}",
+            "open": "Abrir"
+        },
+        "setup": {
+            "battleMode": "Modo batalla",
+            "types": {
+                "speed": "Funciones de velocidad",
+                "decisions": "JEV vs Luna",
+                "models": "Modelos"
+            },
+            "vs": "vs",
+            "descriptions": {
+                "speed": "Mismo prompt y modelo. A usa la ruta rápida completa de JEV; B es la referencia. Las respuestas continúan ambos hilos en paralelo.",
+                "decisions": "Mismo prompt y modelo. A toma decisiones rápidas con JEV; B las toma con OpenAI Luna. Las respuestas continúan ambos hilos en paralelo.",
+                "models": "Tu prompt se envía a ambos modelos en hilos separados. Las respuestas continúan ambos lados con tiempos y uso de tokens."
+            }
+        }
+    },
+    "evals": {
+        "status": {
+            "completed": "Completado",
+            "failed": "Con error",
+            "running": "En ejecución",
+            "assessing": "Evaluando",
+            "pending": "Pendiente"
+        },
+        "assessment": {
+            "notApplicable": "N/D",
+            "passed": "Aprobado",
+            "failed": "Fallido",
+            "title": "Evaluación del resultado",
+            "expectedResponse": "Respuesta esperada"
+        },
+        "runDetails": {
+            "columns": {
+                "prompt": "Prompt",
+                "evalStatus": "Estado de la evaluación",
+                "assessment": "Valoración"
+            },
+            "promptFallback": "Prompt {{number}}",
+            "backToEvaluation": "← Volver a la evaluación",
+            "runNotFound": "No se encontró la ejecución de la evaluación",
+            "runOverview": "Resumen de la ejecución",
+            "started": "Iniciada {{date}}",
+            "completed": "Completada {{date}}",
+            "duration": "Duración: {{duration}}",
+            "completedCount": "{{done}} / {{total}} completados",
+            "noResults": "No hay resultados disponibles para esta ejecución."
+        },
+        "form": {
+            "validation": {
+                "titleRequired": "El título es obligatorio",
+                "questionEmpty": "La pregunta no puede estar vacía",
+                "questionRequired": "Se requiere al menos una pregunta"
+            },
+            "createTitle": "Crear evaluación",
+            "editTitle": "Editar evaluación",
+            "createSubmit": "Crear evaluación",
+            "saveChanges": "Guardar cambios",
+            "title": "Título",
+            "titlePlaceholder": "Introduce el título de la evaluación",
+            "description": "Descripción",
+            "descriptionPlaceholder": "Introduce la descripción de la evaluación (opcional)",
+            "questions": "Preguntas",
+            "addQuestion": "Añadir pregunta",
+            "promptPlaceholder": "Introduce tu prompt",
+            "prompt": "Prompt",
+            "expectedResponse": "Respuesta esperada"
+        },
+        "detail": {
+            "notFound": "No se encontró la evaluación",
+            "testPrompts": "Prompts de prueba",
+            "created": "Creada {{date}}",
+            "invalidPrompt": "Configuración de prompt no válida"
+        },
+        "threadReference": {
+            "loading": "Cargando referencia del hilo...",
+            "failed": "No se pudo cargar la referencia del hilo",
+            "noPrompt": "No se encontró el prompt"
+        },
+        "layout": {
+            "evaluations": "Evaluaciones",
+            "evaluation": "Evaluación",
+            "run": "Ejecución {{id}}",
+            "descriptions": {
+                "list": "Prueba tu agente de IA con prompts predefinidos y mide su rendimiento en distintos escenarios.",
+                "detail": "Prueba tu agente de IA con prompts predefinidos y analiza su rendimiento en múltiples escenarios.",
+                "run": "Consulta los resultados detallados y las métricas de rendimiento de esta ejecución."
+            },
+            "runEvaluation": "Ejecutar evaluación",
+            "createEvaluation": "Crear evaluación"
+        },
+        "runs": {
+            "columns": {
+                "runId": "ID de ejecución",
+                "runStatus": "Estado de la ejecución",
+                "assessment": "Valoración",
+                "created": "Creada",
+                "duration": "Duración"
+            },
+            "running": "En ejecución",
+            "noAssessments": "No hay valoraciones disponibles",
+            "started": "Iniciada {{date}}",
+            "completed": "Completada {{date}}",
+            "previousRuns": "Ejecuciones anteriores",
+            "emptyTitle": "Aún no hay ejecuciones de evaluación",
+            "emptyDescription": "Ejecuta esta evaluación para ver los resultados y las métricas de rendimiento."
+        }
+    },
+    "memories": {
+        "status": {
+            "active": "Activa",
+            "superseded": "Reemplazada",
+            "retired": "Retirada",
+            "promoted": "Promovida"
+        },
+        "scope": {
+            "user": "Personal",
+            "project": "Todo el proyecto"
+        }
+    },
+    "filters": {
+        "scope": {
+            "label": "Ámbito",
+            "tooltip": "Filtrar memorias por ámbito",
+            "empty": "No hay ámbitos disponibles."
+        },
+        "status": {
+            "label": "Estado",
+            "tooltip": "Filtrar memorias por estado",
+            "empty": "No hay estados disponibles."
+        },
+        "feedback": {
+            "all": "Todos",
+            "allTooltip": "Mostrar todos los hilos",
+            "positive": "Mostrar solo hilos con comentarios positivos",
+            "negative": "Mostrar solo hilos con comentarios negativos"
+        },
+        "projects": {
+            "label": "Proyecto",
+            "defaultTooltip": "Filtrar hilos por proyecto",
+            "noMatch": "Ningún proyecto coincide con tu búsqueda.",
+            "empty": "No hay proyectos disponibles.",
+            "withAgentsOnly": "Mostrando solo proyectos con agentes",
+            "searchPlaceholder": "Buscar proyectos..."
+        },
+        "agents": {
+            "label": "Agente",
+            "tooltip": "Filtrar hilos por agente de IA",
+            "tooltipFiltered": "Filtrar hilos por agente de IA (filtrado por los proyectos seleccionados)",
+            "noMatch": "Ningún agente coincide con tu búsqueda.",
+            "empty": "No hay agentes disponibles.",
+            "searchPlaceholder": "Buscar agentes...",
+            "fromSelectedProjects": "Mostrando solo agentes de los proyectos seleccionados"
+        },
+        "users": {
+            "label": "Usuario",
+            "tooltip": "Filtrar por usuario",
+            "searchPlaceholder": "Buscar usuarios...",
+            "empty": "No se encontraron usuarios."
+        },
+        "source": {
+            "all": "Todos",
+            "allTooltip": "Todos los orígenes",
+            "webApp": "Hilos de la aplicación web",
+            "slack": "Hilos de Slack",
+            "api": "Hilos de la API"
+        },
+        "search": {
+            "tooltip": "Buscar en la vista actual"
+        }
+    },
+    "memoryProvenance": {
+        "title": "Procedencia de la memoria",
+        "nominationReason": "Motivo de la nominación",
+        "nominatedBy": "Nominada por",
+        "unknownUser": "Usuario desconocido",
+        "viewSource": "Ver memoria de origen",
+        "sourceUnavailable": "Memoria de origen no disponible"
+    },
+    "verifiedArtifacts": {
+        "title": "Respuestas verificadas",
+        "description": "Gestiona los gráficos y paneles verificados que el agente de IA puede consultar en las conversaciones.",
+        "columns": {
+            "title": "Título",
+            "verifiedBy": "Verificado por",
+            "verifiedAt": "Fecha de verificación",
+            "references": "Referencias",
+            "actions": "Acciones"
+        },
+        "untitled": "Sin título",
+        "remove": "Quitar de respuestas verificadas",
+        "viewArtifact": "Ver artefacto",
+        "loadingMore": "Cargando más...",
+        "scrollForMore": "Desplázate para ver más resultados",
+        "allLoaded": "Todos los resultados cargados",
+        "loadedOf": "({{loaded}} de {{total}} cargados)",
+        "loadedCount": "({{count}})",
+        "emptyTitle": "Aún no hay respuestas verificadas",
+        "emptyDescription": "Las respuestas verificadas aparecerán aquí cuando las marques como verificadas en las conversaciones.",
+        "unverifyTitle": "¿Quitar de respuestas verificadas?",
+        "unverifyDescription": "Esta respuesta ya no se usará como referencia en futuras conversaciones. Puedes volver a verificarla más tarde.",
+        "artifact": "Artefacto",
+        "viewVerifiedAnswer": "Ver respuesta verificada"
+    },
+    "mcp": {
+        "status": {
+            "success": "éxito",
+            "error": "error"
+        },
+        "detail": {
+            "title": "Llamada a herramienta",
+            "time": "Hora",
+            "user": "Usuario",
+            "userWithEmail": "{{name}} ({{email}})",
+            "project": "Proyecto",
+            "agent": "Agente",
+            "duration": "Duración",
+            "direction": "Dirección",
+            "outbound": "Agente → servidor MCP externo",
+            "inbound": "Cliente externo → servidor MCP de Lightdash",
+            "mcpServer": "Servidor MCP",
+            "deletedServer": "Servidor MCP eliminado",
+            "client": "Cliente",
+            "userAgent": "User agent",
+            "protocol": "Protocolo",
+            "auth": "Autenticación",
+            "thread": "Hilo",
+            "session": "Sesión",
+            "error": "Error",
+            "arguments": "Argumentos"
+        },
+        "toolbar": {
+            "all": "Todas",
+            "success": "Correctas",
+            "errors": "Errores",
+            "clearAllFilters": "Borrar todos los filtros",
+            "loading": "Cargando...",
+            "countOf": "{{current}} de {{total}} llamadas a herramientas",
+            "count": "{{total}} llamadas a herramientas"
+        },
+        "overview": {
+            "calls": "Llamadas",
+            "success": "Éxito",
+            "errors": "Errores",
+            "topTools": "Herramientas principales",
+            "activeAgents": "Agentes activos",
+            "noAgent": "Sin agente",
+            "callCount_one": "{{formatted}} llamada",
+            "callCount_other": "{{formatted}} llamadas",
+            "recentErrors": "Errores recientes",
+            "noErrors": "No hay errores en este periodo",
+            "unknownError": "Error desconocido",
+            "loadError": "No se pudieron cargar las estadísticas de actividad.",
+            "noMatches": "Ninguna llamada a herramienta coincide con los filtros actuales.",
+            "noCalls": "No hay llamadas a herramientas MCP en los últimos 90 días."
+        },
+        "table": {
+            "noSessionId": "Sin ID de sesión",
+            "deletedServer": "Servidor MCP eliminado",
+            "unknown": "Desconocido",
+            "columns": {
+                "time": "Hora",
+                "tool": "Herramienta",
+                "user": "Usuario",
+                "project": "Proyecto",
+                "agent": "Agente",
+                "client": "Cliente",
+                "status": "Estado",
+                "duration": "Duración"
+            },
+            "notReported": "no informado",
+            "errorCount_one": "{{count}} error",
+            "errorCount_other": "{{count}} errores",
+            "loadingMore": "Cargando más...",
+            "scrollForMore": "Desplázate para ver más resultados",
+            "allLoaded": "Todos los resultados cargados",
+            "loadedOf": "({{loaded}} de {{total}} cargados)",
+            "loadedCount": "({{count}})"
+        }
+    },
+    "reviews": {
+        "lanes": {
+            "needsTriage": "Por clasificar",
+            "todo": "Por hacer",
+            "inProgress": "En curso",
+            "done": "Hecho"
+        },
+        "rootCauses": {
+            "semanticLayer": "Capa semántica",
+            "projectContext": "Contexto del proyecto",
+            "agentConfiguration": "Configuración del agente",
+            "productCapability": "Producto",
+            "runtimeReliability": "Ejecución",
+            "feedbackQuality": "Comentarios",
+            "notAFailure": "No es un fallo",
+            "ambiguous": "Ambiguo"
+        },
+        "rootCauseJudged": {
+            "semanticLayer": "El agente de revisión lo clasificó como capa semántica.",
+            "projectContext": "El agente de revisión lo clasificó como contexto del proyecto.",
+            "agentConfiguration": "El agente de revisión lo clasificó como configuración del agente.",
+            "productCapability": "El agente de revisión lo clasificó como producto.",
+            "runtimeReliability": "El agente de revisión lo clasificó como ejecución.",
+            "feedbackQuality": "El agente de revisión lo clasificó como comentarios.",
+            "notAFailure": "El agente de revisión lo clasificó como no es un fallo.",
+            "ambiguous": "El agente de revisión lo clasificó como ambiguo."
+        },
+        "priorities": {
+            "urgent": "Urgente",
+            "high": "Alta",
+            "medium": "Media",
+            "low": "Baja",
+            "none": "Sin prioridad"
+        },
+        "blockedReasons": {
+            "reviewsDisabled": "Las incidencias no están habilitadas para esta organización",
+            "unsupportedRootCause": "No hay estrategia de escritura para esta causa raíz",
+            "missingProject": "No hay ningún proyecto vinculado a esta incidencia",
+            "missingAgent": "No hay ningún agente vinculado a esta incidencia",
+            "missingProjectContextEntry": "No se generó ninguna entrada de contexto del proyecto",
+            "projectContextDisabled": "El contexto del proyecto no está habilitado",
+            "insufficientSourceCodeAccess": "No tienes permiso para modificar el código fuente",
+            "unsupportedSourceControl": "El proyecto no está conectado a GitHub, GitLab o Bitbucket Cloud",
+            "bitbucketTokenMissing": "Configura el token de API de Bitbucket del proyecto",
+            "gitAppNotInstalled": "La aplicación de Git no está instalada",
+            "missingWritebackConfig": "El entorno de escritura no está configurado",
+            "pullRequestOpen": "Ya hay una pull request abierta",
+            "sourceThreadWritebackExists": "El agente ya abrió una pull request en el hilo de origen",
+            "terminalState": "La incidencia ya está cerrada",
+            "writebackInProgress": "La escritura ya está en curso"
+        },
+        "blockedReasonDescriptions": {
+            "unsupportedSourceControl": "Conecta este proyecto a GitHub, GitLab o Bitbucket Cloud para que Lightdash pueda abrir una pull request que corrija incidencias como esta por ti.",
+            "reviewsDisabled": "Activa las incidencias en tu organización para que los agentes puedan registrarlas y corregirlas automáticamente.",
+            "bitbucketTokenMissing": "Configura el token de API de Bitbucket del proyecto",
+            "gitAppNotInstalled": "Instala la aplicación de Lightdash en tu repositorio para que pueda abrir pull requests.",
+            "projectContextDisabled": "Habilita el contexto del proyecto para que Lightdash pueda proponer actualizaciones del conocimiento de tu proyecto.",
+            "insufficientSourceCodeAccess": "Pide a un administrador del proyecto permiso para gestionar el código fuente antes de crear una pull request.",
+            "missingWritebackConfig": "Pide a un administrador que configure el entorno de escritura para habilitar las correcciones automáticas."
+        },
+        "actions": {
+            "updateSemanticYaml": "Actualizar capa semántica",
+            "updateAgentInstructions": "Actualizar instrucciones",
+            "addKnowledgeDocument": "Añadir documento de conocimiento",
+            "enableDataAccess": "Habilitar acceso a datos",
+            "enableSqlMode": "Habilitar modo SQL",
+            "enableSelfImprovement": "Habilitar automejora",
+            "configureMcpServer": "Configurar MCP",
+            "adjustExploreTags": "Ajustar etiquetas de exploración",
+            "updateAccess": "Actualizar acceso",
+            "routeToProductWork": "Derivar a producto",
+            "requestMoreEvidence": "Necesita más evidencia",
+            "createSkill": "Crear skill",
+            "noAction": "Sin acción"
+        },
+        "relative": {
+            "justNow": "ahora mismo",
+            "minutesAgo": "hace {{count}} min",
+            "hoursAgo": "hace {{count}} h",
+            "daysAgo": "hace {{count}} d"
+        },
+        "details": {
+            "triageTitle": "Señal de corrección por clasificar",
+            "triageWhy": "Podría ser un fallo real o un cambio normal en la intención del usuario.",
+            "manualWhy": "Incidencia registrada manualmente.",
+            "proposedSkill": "{{why}}\n\nSkill propuesta `/{{name}}`: {{description}}",
+            "contextUpdates": "Actualiza el contexto del proyecto: {{content}}",
+            "contextAdds": "Añade contexto al proyecto: {{content}}",
+            "contextObjects": " Objetos: {{objects}}.",
+            "review": "Revisar",
+            "triageNextStep": "Revisa el hilo de origen antes de decidir si esto requiere acción.",
+            "noActionSuggested": "No se sugiere ninguna acción."
+        },
+        "assignee": {
+            "unknownUser": "Usuario desconocido",
+            "you": "{{name}} (tú)",
+            "unassigned": "Sin asignar"
+        },
+        "card": {
+            "writingFix": "Escribiendo corrección…",
+            "building": "Compilando…",
+            "compiling": "Validando…",
+            "example": "Ejemplo",
+            "seenRange": "Visto por primera vez {{first}} · última vez {{last}}",
+            "workspace": "Espacio de trabajo",
+            "openWorkspace": "Abrir espacio de trabajo",
+            "retryFix": "Reintentar corrección",
+            "startFix": "Iniciar corrección"
+        },
+        "assigneeMenu": {
+            "assignedTo": "Asignado a {{name}}",
+            "assignUser": "Asignar usuario",
+            "assign": "Asignar",
+            "searchPeople": "Buscar personas",
+            "noPeople": "No hay personas",
+            "unassign": "Desasignar"
+        },
+        "priorityMenu": {
+            "ariaLabel": "Prioridad: {{priority}}"
+        },
+        "validation": {
+            "loading": "Cargando resultados de validación…",
+            "none": "No se encontraron errores de validación",
+            "count_one": "{{count}} error de validación",
+            "count_other": "{{count}} errores de validación",
+            "unnamed": "Sin nombre",
+            "seeMore": "Ver más",
+            "modalTitle": "Validador"
+        },
+        "prDiff": {
+            "title": "Cambios de la pull request",
+            "truncated": "Mostrando los primeros {{count}} archivos modificados: abre la PR para ver el conjunto completo de cambios."
+        },
+        "statuses": {
+            "triage": "Por clasificar",
+            "open": "Abierta",
+            "in_progress": "En curso",
+            "resolved": "Resuelta",
+            "dismissed": "Descartada",
+            "duplicate": "Duplicada"
+        }
+    },
+    "agentsTable": {
+        "columns": {
+            "name": "Nombre del agente",
+            "project": "Proyecto",
+            "tags": "Etiquetas",
+            "integrations": "Integraciones",
+            "access": "Acceso",
+            "created": "Creado"
+        },
+        "unknownProject": "Proyecto desconocido",
+        "noTags": "Sin etiquetas",
+        "moreTags": "+{{count}} más",
+        "none": "Ninguna",
+        "channelNotCached": "El canal aún no está en caché. Si es un canal privado, añade la integración al canal manualmente",
+        "noRestrictions": "Sin restricciones",
+        "chat": "Chat",
+        "searchPlaceholder": "Buscar agentes",
+        "filterByProject": "Filtrar agentes por proyecto",
+        "hidePreviewProjects": "Ocultar proyectos de vista previa",
+        "clearAllFilters": "Borrar todos los filtros",
+        "loading": "Cargando...",
+        "count_one": "{{count}} agente",
+        "count_other": "{{count}} agentes"
+    },
+    "threadsTable": {
+        "createdFrom": {
+            "slack": "Slack",
+            "webApp": "Web",
+            "api": "API",
+            "evals": "Evaluaciones",
+            "scheduler": "Programador",
+            "dataApp": "App de datos"
+        },
+        "columns": {
+            "thread": "Hilo",
+            "agent": "Agente",
+            "project": "Proyecto",
+            "user": "Usuario",
+            "source": "Origen",
+            "prompts": "Prompts",
+            "feedback": "Comentarios",
+            "warnings": "Avisos",
+            "created": "Creado"
+        },
+        "untitled": "Hilo sin título",
+        "clean": "Sin problemas",
+        "findings_one": "{{count}} hallazgo",
+        "findings_other": "{{count}} hallazgos",
+        "activeCount": "{{count}} activos",
+        "reviewStatus": {
+            "triage": "por clasificar",
+            "open": "abierto",
+            "in_progress": "en curso",
+            "resolved": "resuelto",
+            "dismissed": "descartado",
+            "duplicate": "duplicado"
+        },
+        "loadingMore": "Cargando más...",
+        "scrollForMore": "Desplázate para ver más resultados",
+        "allLoaded": "Todos los resultados cargados",
+        "loadedOf": "({{loaded}} de {{total}} cargados)",
+        "loadedCount": "({{count}})",
+        "downloadDump": "Descargar volcado de depuración",
+        "deleteThread": "Eliminar hilo",
+        "dumpModal": {
+            "title": "Descargar volcado de depuración del hilo",
+            "confirm": "Descargar",
+            "body": "El volcado incluye prompts, respuestas del agente y su configuración. Los resultados de consultas y las salidas sensibles de herramientas se ocultan, pero las respuestas aún pueden citar datos.",
+            "warning": "Antes de compartir: revisa el archivo y confirma que estás conforme con su contenido."
+        },
+        "deleteModal": {
+            "title": "Eliminar hilo",
+            "description": "Toda la conversación y todo lo derivado de ella se eliminará de forma permanente. Esta acción no se puede deshacer."
+        }
+    },
+    "topToolbar": {
+        "searchPlaceholder": "Buscar hilos por título",
+        "hidePreviewProjects": "Ocultar proyectos de vista previa",
+        "clearAllFilters": "Borrar todos los filtros",
+        "loading": "Cargando...",
+        "countOf": "{{current}} de {{total}} hilos",
+        "count": "{{total}} hilos"
+    },
+    "memoriesTable": {
+        "never": "Nunca",
+        "loadingMore": "Cargando más...",
+        "scrollForMore": "Desplázate para ver más resultados",
+        "allLoaded": "Todos los resultados cargados",
+        "columns": {
+            "memory": "Memoria",
+            "status": "Estado",
+            "project": "Proyecto",
+            "agent": "Agente",
+            "user": "Usuario",
+            "cited": "Citada",
+            "generated": "Generada"
+        },
+        "deletedAgent": "Agente eliminado",
+        "unknown": "Desconocido",
+        "searchPlaceholder": "Buscar memorias",
+        "filterByProject": "Filtrar memorias por proyecto",
+        "clearAllFilters": "Borrar todos los filtros",
+        "loading": "Cargando...",
+        "countOf_one": "{{loaded}} de {{count}} memoria",
+        "countOf_other": "{{loaded}} de {{count}} memorias"
+    },
+    "evalsTable": {
+        "columns": {
+            "eval": "Evaluación",
+            "agent": "Agente",
+            "project": "Proyecto",
+            "prompts": "Prompts",
+            "latestRun": "Última ejecución",
+            "created": "Creada"
+        },
+        "neverRun": "Nunca ejecutada",
+        "entityName": "evaluaciones",
+        "emptyTitle": "Aún no hay evaluaciones",
+        "emptyDescription": "Crea una desde la pestaña Evaluaciones de un agente para medir sus respuestas.",
+        "searchPlaceholder": "Buscar evaluaciones por título",
+        "hidePreviewProjects": "Ocultar proyectos de vista previa",
+        "clearAllFilters": "Borrar todos los filtros",
+        "loading": "Cargando...",
+        "countOf": "{{current}} de {{total}} evaluaciones",
+        "count": "{{total}} evaluaciones",
+        "loadingMore": "Cargando más...",
+        "scrollForMore": "Desplázate para ver más resultados",
+        "allLoaded": "Todos los resultados cargados",
+        "loadedOf": "({{loaded}} de {{total}} cargados)",
+        "loadedCount": "({{count}})"
+    },
+    "reviewActions": {
+        "openingPr": "Abriendo pull request…",
+        "createSkillTooltip": "Revisa la skill redactada y guárdala en este agente",
+        "createSkill": "Crear skill",
+        "accept": "Aceptar",
+        "dismiss": "Descartar",
+        "openWorkspace": "Abrir espacio de trabajo",
+        "viewPr": "Ver PR",
+        "createPrTooltip": "Abre una pull request en el proyecto conectado (se ejecuta en segundo plano y puede tardar unos minutos)",
+        "createPr": "Crear PR",
+        "showError": "Mostrar error de escritura"
+    },
+    "markResolved": {
+        "title": "Resolver incidencia",
+        "description": "Al resolverla, esta incidencia se marca como hecha y se cierra su corrección.",
+        "descriptionWithPr": "Al resolverla, esta incidencia se marca como hecha y se cierra su corrección. Fusiona primero la pull request o resuélvela sin fusionar.",
+        "mergeAndResolve": "Fusionar PR y marcar como resuelta",
+        "resolveWithoutMerging": "Marcar como resuelta sin fusionar",
+        "resolve": "Marcar como resuelta"
+    },
+    "contextWriteback": {
+        "viewPr": "Ver PR",
+        "openPr": "Se ve bien, abrir PR",
+        "title": "Abrir PR de contexto del proyecto",
+        "close": "Cerrar",
+        "cancel": "Cancelar",
+        "failedTitle": "No se pudo abrir la PR",
+        "failedDescription": "La escritura falló. Puedes intentarlo de nuevo.",
+        "openedTitle": "Pull request abierta",
+        "openedDescription": "El cambio de contexto del proyecto está listo para revisar en GitHub.",
+        "opening": "Abriendo pull request…",
+        "backgroundNote": "Se ejecuta en segundo plano; puedes cerrar sin problema.",
+        "computing": "Calculando el cambio…",
+        "previewError": "No se pudo calcular la vista previa del cambio. Aún puedes abrir la PR y revisarla en GitHub.",
+        "upgradesV2": "Esta PR también actualiza tu archivo de contexto del proyecto a v2: pronto llegarán más mejoras de rendimiento.",
+        "sandboxNote": "Este cambio se ejecuta en un entorno aislado, así que el diff aparece en la propia pull request."
+    },
+    "contextDiff": {
+        "updatesEntry": "Actualiza entrada",
+        "addsEntry": "Añade entrada"
+    },
+    "workspaceSummary": {
+        "verdictReady": "Veredicto listo",
+        "verifying": "Verificando la corrección…",
+        "noVerdict": "Aún sin veredicto",
+        "label": "Espacio de trabajo",
+        "open": "Abrir espacio de trabajo"
+    },
+    "evidence": {
+        "sources": {
+            "userPrompt": "Usuario",
+            "assistantAnswer": "Asistente",
+            "nextUserPrompt": "Respuesta del usuario",
+            "conversationContext": "Contexto",
+            "toolCall": "Llamada a herramienta",
+            "toolResult": "Resultado de herramienta",
+            "agentConfig": "Configuración"
+        }
+    },
+    "fieldsModal": {
+        "changes": {
+            "added": "Añadidos",
+            "labelChanged": "Actualizados",
+            "removed": "Eliminados"
+        },
+        "createChart": "Crear gráfico",
+        "title": "Campos",
+        "empty": "No hay cambios de campos entre esta vista previa y su proyecto de origen."
+    },
+    "addToEval": {
+        "selectRequired": "Selecciona una evaluación",
+        "nameRequired": "Introduce un nombre para la evaluación",
+        "title": "Añadir prompt al conjunto de evaluación",
+        "newEvaluation": "Nueva evaluación",
+        "createDescription": "Crea un nuevo conjunto de evaluación y añádele el prompt.",
+        "addDescription": "Añade este prompt a un conjunto de evaluación existente.",
+        "createAndAdd": "Crear y añadir",
+        "loading": "Cargando evaluaciones...",
+        "selectLabel": "Seleccionar evaluación",
+        "selectPlaceholder": "Elige un conjunto de evaluación",
+        "nameLabel": "Nombre de la evaluación",
+        "namePlaceholder": "Introduce el nombre de la evaluación"
+    },
+    "evalPreview": {
+        "openEval": "Abrir evaluación",
+        "close": "Cerrar vista previa de la evaluación",
+        "agent": "Agente",
+        "project": "Proyecto",
+        "latestRun": "Última ejecución",
+        "neverRun": "Nunca ejecutada",
+        "prompts": "Prompts ({{count}})",
+        "promptUnavailable": "El prompt ya no está disponible",
+        "expected": "Esperado: {{response}}"
+    },
+    "workspaceThread": {
+        "placeholder": "Pide a {{agentName}} que mejore la PR…"
+    },
+    "analyticsEmbed": {
+        "loadError": "No se pudo cargar el panel de analítica",
+        "iframeTitle": "Panel de analítica"
+    },
+    "timeline": {
+        "issueOpened": "Incidencia abierta",
+        "statusChanged": "Estado cambiado a {{status}}",
+        "statusFrom": "desde {{status}}",
+        "assigned": "Asignada",
+        "unassigned": "Sin asignar",
+        "recurred": "Repetida: vista de nuevo",
+        "priorityChanged": "Prioridad cambiada",
+        "commentAdded": "Comentario añadido",
+        "updated": "Actualizada",
+        "findingOpened": "Hallazgo abierto",
+        "quotedExcerpt": "«{{excerpt}}»",
+        "fromThe": " — desde el ",
+        "fromTheStart": "Desde el ",
+        "sourceThread": "hilo de origen",
+        "writebackRan": "Escritura ejecutada",
+        "edited": "Editado {{files}}{{counts}}",
+        "prOpened": "Pull request abierta",
+        "viewPrNumber": "Ver PR #{{number}}",
+        "viewPr": "Ver PR",
+        "prUpdated": "Pull request actualizada",
+        "previewCompiled": "Vista previa compilada",
+        "fixVerified": "Corrección verificada",
+        "openVerificationThread": "Abrir hilo de verificación",
+        "prMerged": "Pull request fusionada",
+        "prClosed": "Pull request cerrada",
+        "resolved": "Resuelta",
+        "failed": "Falló",
+        "live": {
+            "writeback": "Escritura en curso",
+            "compiling": "Compilando vista previa",
+            "verifying": "Verificando corrección",
+            "writebackMeta": "Editando el proyecto dbt…",
+            "compilingMeta": "Creando el proyecto de vista previa desde la rama de la PR…",
+            "verifyingMeta": "Volviendo a ejecutar la pregunta original en la vista previa…",
+            "now": "ahora"
+        }
+    },
+    "verification": {
+        "checksFailing": "{{count}} con fallos",
+        "checksRunning": "{{count}} en ejecución",
+        "checksPassed": "{{count}} correctas",
+        "verified": "Verificado",
+        "title": "Verificación",
+        "pullRequestNumber": "Pull request #{{number}}",
+        "pullRequest": "Pull request",
+        "changes": "Cambios",
+        "checks": "Comprobaciones",
+        "fields": "Campos",
+        "validator": "Validador",
+        "whereFlagged": "Dónde se detectó",
+        "retryQuestion": "Reintentar pregunta",
+        "backToIssues": "Volver a incidencias",
+        "markDone": "Marcar como hecho"
+    },
+    "workspace": {
+        "badges": {
+            "waitingForBuild": "Esperando la compilación",
+            "buildingPreview": "Creando vista previa",
+            "testing": "Probando",
+            "stale": "Desactualizado: vuelve a probar",
+            "verdictReady": "Veredicto listo",
+            "failed": "Falló",
+            "openingPr": "Abriendo PR"
+        },
+        "testTheFix": "Probar la corrección",
+        "breadcrumbs": {
+            "askAi": "Ask AI",
+            "issues": "Incidencias",
+            "workspace": "Espacio de trabajo"
+        },
+        "noWorkspace": "Aún no hay un espacio de trabajo de corrección para esta incidencia. Abre primero una pull request desde el tablero de incidencias.",
+        "previewEnvironment": "Entorno de vista previa",
+        "buildTheFix": "Crear la corrección",
+        "buildFixAgent": "Crear corrección",
+        "projectSuffix": "· {{name}}",
+        "testAgain": "Probar de nuevo",
+        "verificationAgent": "Verificación",
+        "waiting": {
+            "writeback": "Esperando a que se abra la pull request…",
+            "compiling": "Creando el entorno de vista previa…",
+            "verifying": "Ejecutando la verificación en la vista previa…",
+            "idle": "El veredicto aparecerá aquí cuando la vista previa esté lista."
+        },
+        "viewPr": "Ver PR",
+        "resolve": "Resolver",
+        "deterministicFix": "Corrección determinista",
+        "deterministicFixNote": "· Contexto del proyecto, escrito sin una conversación de compilación",
+        "changes": "Cambios",
+        "fileCount_one": "{{count}} archivo",
+        "fileCount_other": "{{count}} archivos",
+        "previewEnvironmentName": "Entorno de vista previa · {{name}}",
+        "drawerDescription": "Hemos creado una <b>copia desechable</b> de tu proyecto con esta corrección aplicada. <b>{{agentName}}</b> vuelve a ejecutar la pregunta original contra ella, para que veas si la respuesta es correcta <b>antes de fusionar</b>. <b>Nada de esto afecta a producción.</b>",
+        "yourAgent": "Tu agente"
+    },
+    "issueModal": {
+        "issue": "Incidencia",
+        "seenRange": "{{first}} – {{last}}",
+        "recurs": "Se repite {{count}}×",
+        "description": "Descripción",
+        "activity": "Actividad",
+        "evidence": "Evidencia",
+        "readConversation": "Leer conversación completa",
+        "noExcerpts": "No se capturaron fragmentos: abre la conversación completa para ver qué lo provocó.",
+        "properties": "Propiedades de la incidencia",
+        "status": "Estado",
+        "priority": "Prioridad",
+        "assignee": "Responsable",
+        "agent": "Agente",
+        "project": "Proyecto",
+        "seen": "Visto",
+        "linear": "Linear",
+        "openInLinear": "Abrir en Linear",
+        "jira": "Jira",
+        "openInJira": "Abrir en Jira",
+        "pullRequest": "Pull request",
+        "viewPr": "Ver PR",
+        "conversation": "Conversación",
+        "openInTab": "Abrir en una pestaña"
+    },
+    "threadPreview": {
+        "showLess": "Mostrar menos",
+        "showMore": "Mostrar más",
+        "seenRange": "{{first}} - {{last}}",
+        "seenTooltip": "Visto por primera vez {{first}}. Última vez {{last}}.",
+        "recurrence": "{{count}} veces",
+        "reviewDetails": "Detalles de la revisión",
+        "threadPreview": "Vista previa del hilo",
+        "openThread": "Abrir hilo",
+        "openFullThread": "Abrir hilo completo",
+        "openAgentSettings": "Abrir configuración del agente",
+        "openAgentSettingsAria": "Abrir configuración del agente",
+        "close": "Cerrar vista previa del hilo",
+        "details": "Detalles",
+        "whyFlagged": "Por qué se marcó",
+        "validation": "Validación",
+        "project": "Proyecto",
+        "unknownProject": "Proyecto desconocido",
+        "seen": "Visto",
+        "recurrenceLabel": "Recurrencia",
+        "recurrenceTooltip": "Hallazgos agrupados en este elemento entre hilos",
+        "detail": "Detalle",
+        "activity": "Actividad",
+        "commentPlaceholder": "Añade un comentario",
+        "comment": "Comentar",
+        "issues": "Incidencias",
+        "viewIssue": "Ver incidencia",
+        "linear": "Linear",
+        "viewPr": "Ver PR",
+        "evidence": "Evidencia"
+    },
+    "board": {
+        "unknownProject": "Proyecto desconocido",
+        "unknownAgent": "Agente desconocido",
+        "searchPlaceholder": "Buscar incidencias",
+        "project": "Proyecto",
+        "noProjects": "No hay proyectos en la vista actual",
+        "filterByProject": "Filtrar por proyecto",
+        "agent": "Agente",
+        "noAgents": "No hay agentes en la vista actual",
+        "filterByAgent": "Filtrar por agente",
+        "cause": "Causa",
+        "noCauses": "No hay causas raíz en la vista actual",
+        "filterByCause": "Filtrar por causa raíz",
+        "status": "Estado",
+        "noStatuses": "No hay estados en la vista actual",
+        "filterByStatus": "Filtrar por estado",
+        "assignee": "Responsable",
+        "noAssignees": "No hay responsables en la vista actual",
+        "filterByAssignee": "Filtrar por responsable",
+        "noIssues": "No hay incidencias",
+        "showLess": "Mostrar menos",
+        "showAll": "Mostrar todas ({{count}})"
+    },
+    "reviewsTable": {
+        "signals": {
+            "normalRefinement": "Refinamiento normal",
+            "implicitCorrection": "Corrección implícita",
+            "explicitDispute": "Desacuerdo explícito",
+            "retryAfterFailure": "Reintento tras fallo",
+            "outputShapeCorrection": "Corrección de salida",
+            "newQuestion": "Nueva pregunta",
+            "acceptanceOrContinuation": "Aceptado",
+            "productCapabilityRequest": "Solicitud de funcionalidad",
+            "humanIntervention": "Intervención humana",
+            "standingInstruction": "Instrucción permanente",
+            "ambiguous": "Ambiguo"
+        },
+        "rootCauseHelp": {
+            "semanticLayer": "Faltaba o era incorrecta una métrica, un campo o un modelo",
+            "projectContext": "El agente desconocía algo sobre tus datos",
+            "agentConfiguration": "Sus instrucciones o su configuración fueron un obstáculo",
+            "productCapability": "El agente aún no puede hacer esto",
+            "runtimeReliability": "Algo falló o superó el tiempo de espera",
+            "feedbackQuality": "La valoración del juez necesita una segunda revisión",
+            "notAFailure": "Nada mal, respondió correctamente",
+            "ambiguous": "No está claro, merece un vistazo"
+        },
+        "findingPending": "Hallazgo pendiente",
+        "signalOnly": "Solo señal",
+        "signalWhyFallback": "El juez revisó este turno pero no lo convirtió en incidencia.",
+        "reviewFinding": "Revisar hallazgo",
+        "noAdminAction": "Sin acción de administración",
+        "clickToCollapse": "Haz clic para contraer",
+        "clickToExpand": "Haz clic para expandir",
+        "suggestedStep": "Siguiente paso sugerido: {{step}}",
+        "conceptHelp": "Un <b>turno</b> es una pregunta y su respuesta. Cuando un turno muestra un problema claro, se convierte en un <b>hallazgo</b> para que puedas revisarlo aquí y decidir qué corregir a continuación.",
+        "whatWentWrong": "Qué salió mal",
+        "fixableHere": " · se puede corregir aquí",
+        "unknownProject": "Proyecto desconocido",
+        "unknownAgent": "Agente desconocido",
+        "loading": "Cargando…",
+        "countIssues_one": "{{count}} incidencia",
+        "countIssues_other": "{{count}} incidencias",
+        "countTurns_one": "{{count}} turno",
+        "countTurns_other": "{{count}} turnos",
+        "countOfIssues_one": "{{visible}} de {{count}} incidencia",
+        "countOfIssues_other": "{{visible}} de {{count}} incidencias",
+        "countOfTurns_one": "{{visible}} de {{count}} turno",
+        "countOfTurns_other": "{{visible}} de {{count}} turnos",
+        "helper": "Las incidencias son elementos que merecen atención. Haz clic en una fila para ver los detalles y el contexto del hilo.",
+        "searchPlaceholder": "Buscar incidencias",
+        "issues": "Incidencias",
+        "project": "Proyecto",
+        "noProjects": "No hay proyectos en la vista actual",
+        "filterByProject": "Filtrar por proyecto",
+        "agent": "Agente",
+        "noAgents": "No hay agentes en la vista actual",
+        "filterByAgent": "Filtrar por agente",
+        "cause": "Causa",
+        "noCauses": "No hay causas raíz en la vista actual",
+        "filterByCause": "Filtrar por causa raíz",
+        "status": "Estado",
+        "noStatuses": "No hay estados en la vista actual",
+        "filterByStatus": "Filtrar por estado",
+        "assignee": "Responsable",
+        "noAssignees": "No hay responsables en la vista actual",
+        "filterByAssignee": "Filtrar por responsable",
+        "clearFilters": "Borrar filtros",
+        "selectedCount": "{{count}} seleccionadas",
+        "dismissIssues": "Descartar incidencias",
+        "clear": "Borrar",
+        "columns": {
+            "cause": "Causa",
+            "finding": "Hallazgo",
+            "action": "Acción",
+            "result": "Resultado",
+            "signal": "Señal",
+            "turn": "Turno",
+            "agent": "Agente",
+            "reviewed": "Revisado"
+        },
+        "example": "Ejemplo",
+        "createPr": "Crear PR",
+        "confidence": {
+            "high": "confianza alta",
+            "medium": "confianza media",
+            "low": "confianza baja"
+        },
+        "noResponse": "No se capturó ninguna respuesta",
+        "openThreadPreview": "Abrir vista previa del hilo de IA",
+        "emptyTitle": "Aún no hay incidencias",
+        "emptyDescription": "Cuando la respuesta de un agente parezca incorrecta, aparecerá aquí.",
+        "entityName": "incidencias"
+    },
+    "onboarding": {
+        "examples": {
+            "todo": {
+                "title": "No hay métrica de usuarios activos semanales",
+                "description": "Alguien preguntó por los usuarios activos semanales. No había una métrica para ello, así que el agente hizo una estimación."
+            },
+            "inProgress": {
+                "title": "El agente no sabía qué significa «usuario activo»",
+                "description": "Alguien preguntó por los usuarios activos. El agente lo adivinó en lugar de usar tu definición."
+            },
+            "done": {
+                "title": "Los ingresos excluían los reembolsos",
+                "description": "Alguien preguntó por los ingresos. El agente omitió los reembolsos, así que la cifra era demasiado alta."
+            }
+        },
+        "tour": {
+            "intro": {
+                "title": "Empieza aquí",
+                "body": "Estas son respuestas que probablemente tus agentes respondieron mal. Las agrupamos según su causa y las trabajas de izquierda a derecha."
+            },
+            "card": {
+                "title": "Cada tarjeta es un hallazgo",
+                "body": "Haz clic en una tarjeta para inspeccionar el hilo y la corrección sugerida. Capa semántica y Contexto del proyecto son los tipos que normalmente puedes corregir desde aquí."
+            },
+            "pr": {
+                "title": "Abre una pull request",
+                "body": "Cuando una corrección está lista, Iniciar abre una pull request en tu repositorio. La tarjeta pasa a En curso y sigue la PR."
+            },
+            "workspace": {
+                "title": "Sigue la corrección",
+                "body": "Abre el espacio de trabajo para ver cómo se construye la corrección y retomarla donde se quedó."
+            },
+            "inProgress": {
+                "title": "Crear y verificar",
+                "body": "En el espacio de trabajo, la corrección se crea en una vista previa desechable y luego tu agente vuelve a responder la pregunta original para comprobar que funcionó."
+            },
+            "afterMerge": {
+                "title": "Qué pasa después de fusionar",
+                "body": "Al fusionar, la tarjeta pasa a Hecho. El agente usa la corrección en su siguiente respuesta:"
+            }
+        },
+        "loop": {
+            "pullRequest": {
+                "title": "Pull request",
+                "subtitle": "se abre en tu repositorio"
+            },
+            "workspace": {
+                "title": "Espacio de trabajo",
+                "subtitle": "sigue la corrección"
+            },
+            "build": {
+                "title": "Crear y verificar",
+                "subtitle": "en una vista previa"
+            },
+            "merge": {
+                "title": "Fusionar",
+                "subtitle": "la corrección está activa"
+            },
+            "feedback": "El agente lo aplica <muted>en su siguiente respuesta.</muted>"
+        }
+    },
+    "settings": {
+        "issues": {
+            "title": "Incidencias",
+            "description": "Una cola accionable de incidencias de datos procedentes de hallazgos de IA y peticiones de personas. Las correcciones de la capa semántica abren una pull request; las de contexto del proyecto añaden indicaciones que tus agentes leen antes de responder.",
+            "newIssue": "Nueva incidencia",
+            "board": "Tablero",
+            "table": "Tabla",
+            "takeTour": "Hacer el recorrido"
+        },
+        "agents": {
+            "title": "Agentes",
+            "description": "Gestiona los agentes de IA disponibles en tu organización.",
+            "newAgent": "Nuevo agente"
+        },
+        "evals": {
+            "title": "Evaluaciones",
+            "description": "Supervisa las evaluaciones de agentes en tu organización."
+        },
+        "disabledAlert": {
+            "title": "Las funciones de Ask AI están desactivadas para todos los usuarios",
+            "body": "Vuelve a activarlas desde <anchor>Ask AI · General</anchor> para que los usuarios puedan interactuar de nuevo con los agentes."
+        },
+        "memories": {
+            "title": "Memorias",
+            "description": "Audita lo que tus agentes de IA han aprendido en los proyectos.",
+            "deprecatedTitle": "Las memorias de los agentes de IA están obsoletas",
+            "deprecatedBody": "Añade el conocimiento duradero del proyecto al <anchor>contexto del proyecto</anchor>. Las memorias existentes siguen disponibles para revisión."
+        },
+        "connect": {
+            "title": "Conectar",
+            "description": "Conecta tus herramientas de IA a Lightdash mediante MCP."
+        },
+        "geography": {
+            "jp": "Japón",
+            "us": "Estados Unidos",
+            "eu": "Europa",
+            "apac": "Asia-Pacífico",
+            "global": "Global"
+        },
+        "threads": {
+            "title": "Hilos",
+            "description": "Revisa las conversaciones de IA en tu organización.",
+            "insights": "Estadísticas",
+            "newThread": "Nuevo hilo",
+            "insightsModalTitle": "Estadísticas de agentes de IA"
+        },
+        "mcpActivity": {
+            "title": "Analítica de MCP",
+            "description": "Supervisa las llamadas a herramientas MCP e investiga errores en tu organización.",
+            "last90Days": "Últimos 90 días",
+            "overviewAria": "Resumen de actividad de MCP"
+        },
+        "general": {
+            "systemDefault": "Predeterminado del sistema",
+            "title": "Ask AI",
+            "description": "Configura las funciones de IA, los proveedores y los valores predeterminados de toda la organización.",
+            "agentBehaviour": "Comportamiento del agente",
+            "agentBehaviourDescription": "Se aplica en todas las superficies.",
+            "aiRouter": "Enrutador de IA",
+            "aiRouterDescription": "Envía automáticamente las preguntas de los usuarios al mejor agente.",
+            "defaultModel": "Modelo de IA predeterminado",
+            "defaultModelDescription": "Elige el modelo y el razonamiento predeterminados para los nuevos chats con agentes de IA. Los usuarios pueden cambiarlo en cada chat.",
+            "highReasoning": "Razonamiento alto por defecto",
+            "highReasoningDescription": "Inicia los nuevos chats con el razonamiento alto activado para el modelo seleccionado.",
+            "providers": "Proveedores y claves",
+            "providersDescription": "Tus propias claves tienen prioridad sobre las claves de la instancia.",
+            "quality": "Calidad y revisión",
+            "reviewTurns": "Revisar turnos de agentes de IA",
+            "reviewTurnsDescription": "Procesa cada turno de los agentes para detectar carencias en la capa semántica, mejoras del contexto del proyecto y recomendaciones de administración. En los proyectos conectados, Lightdash puede sugerir pull requests que mejoran el contexto y las definiciones semánticas.",
+            "seeIssues": " Consulta las incidencias en <anchor>Ask AI > Incidencias</anchor>.",
+            "reviewsPaused": "En pausa: la clave de tu proveedor de IA no puede ejecutar el modelo de revisión (Claude Haiku). Las revisiones usan tu propia clave, así que se reanudarán cuando tenga acceso."
+        },
+        "surfaces": {
+            "visibility": "Visibilidad",
+            "freeTrial": "Prueba gratuita",
+            "description": "Dónde se puede acceder a los agentes. El acceso por agente se aplica igualmente en todas las superficies.",
+            "lightdashUi": "Interfaz de Lightdash",
+            "lightdashUiDescription": "Tarjeta de la página de inicio, acción de la barra de navegación y chat con agentes.",
+            "dataApps": "Apps de datos",
+            "dataAppsDescription": "El análisis con IA dentro de las apps de datos se configura en <anchor>Apps de datos · Análisis con IA</anchor>.",
+            "slack": "Slack",
+            "slackConnected": "@menciones y el canal multiagente.",
+            "slackDisconnected": "Slack no está conectado. Añade primero la integración en Integraciones → Slack."
+        },
+        "dataAppModels": {
+            "title": "Modelos de Data Apps",
+            "description": "Qué modelos pueden elegir los usuarios al crear una Data App. Las Data Apps ejecutan la CLI de Claude, que elige el último modelo de cada nivel, así que se configuran por separado de los modelos de Ask AI. Las apps ya creadas con un modelo oculto siguen funcionando.",
+            "lockedTooltip": "Al menos un modelo debe seguir disponible",
+            "ariaLabel": "Data Apps {{model}}"
+        },
+        "retention": {
+            "title": "Retención de hilos",
+            "description": "Elimina automáticamente los hilos de los agentes tras un periodo de inactividad. Los agentes pueden acortar este periodo, pero no ampliarlo.",
+            "confirmTitle": "¿Reducir la retención de hilos?",
+            "confirmLabel": "Reducir retención",
+            "confirmBody": "Los hilos inactivos durante más de {{window}} se eliminarán de forma permanente en todos los agentes de esta organización a partir de la próxima hora. Esta acción no se puede deshacer.",
+            "counting": "Contando los hilos afectados…",
+            "threadCount_one": "{{count}} hilo",
+            "threadCount_other": "{{count}} hilos",
+            "agentCount_one": "{{count}} agente",
+            "agentCount_other": "{{count}} agentes",
+            "willBeDeleted": "Se eliminarán {{threads}} de {{agents}}"
+        },
+        "reviewNotifications": {
+            "slackTitle": "Notificaciones de Slack",
+            "slackDescription": "Publica en un canal de Slack cuando una revisión detecte hallazgos que necesiten revisión. Las notificaciones de asignación siempre se envían por mensaje directo y en la campana de la aplicación.",
+            "slackAria": "Publicar hallazgos de revisión de IA en Slack",
+            "slackChannel": "Canal de Slack",
+            "selectChannel": "Selecciona un canal"
+        },
+        "routing": {
+            "savedAgo": "Guardado {{timeAgo}}",
+            "confirmLeave": "Tienes instrucciones de enrutamiento sin guardar. ¿Seguro que quieres salir sin guardar?",
+            "confirmSwitch": "Tienes instrucciones de enrutamiento sin guardar. ¿Seguro que quieres cambiar de proyecto sin guardar?",
+            "save": "Guardar instrucciones",
+            "title": "Instrucciones de enrutamiento",
+            "description": "Indica al enrutador cómo dirigir las preguntas de un proyecto. Por ejemplo, envía las preguntas de facturación a un agente concreto. Escribe @ para etiquetar a un agente. Las reglas orientan al enrutador, pero nunca anulan las restricciones de acceso de un agente.",
+            "project": "Proyecto",
+            "selectProject": "Selecciona un proyecto",
+            "noProjects": "No hay proyectos disponibles para configurar.",
+            "tooFewAgents": "Este proyecto tiene menos de dos agentes accesibles, así que el enrutador aún no se ejecutará aquí. Aun así, puedes preparar las instrucciones.",
+            "placeholder": "p. ej., Envía las preguntas de facturación a @Agente de finanzas. Escribe @ para etiquetar a un agente.",
+            "editorAria": "Instrucciones de enrutamiento"
+        },
+        "providers": {
+            "gatewayLabel": "URL base personalizada",
+            "gatewayDescription": "Opcional. Envía las solicitudes de esta clave a un proxy o pasarela compatible con la API de este proveedor. Los nombres de los modelos se envían sin cambios.",
+            "gatewayError": "Introduce una URL http(s) sin credenciales, parámetros de consulta ni fragmento",
+            "active": "Activa",
+            "availableAria": "{{label}} disponible para los usuarios",
+            "setKey": "Establecer clave",
+            "askAiModels": "Modelos de Ask AI",
+            "askAiModelsAria": "Modelos de Ask AI de {{label}}",
+            "allModels": "Todos los modelos",
+            "lockedNote": "Desactivado mientras tu organización usa otra clave de proveedor: los modelos de {{label}} no se pueden seleccionar, así que los agentes de IA nunca recurren a la clave de {{label}} de la instancia. Añade tu propia clave de API de {{label}} para que estos modelos estén disponibles.",
+            "instanceKeyNote": "Los agentes de IA que usan modelos de {{label}} se ejecutan actualmente con la clave predeterminada de la instancia. Añade la clave de {{label}} de tu organización, o desactiva la disponibilidad arriba, para que todo el uso de agentes de IA se haga con tus propias claves.",
+            "title": "Proveedores y modelos de IA",
+            "description": "Usa la clave de API de Anthropic, Google Gemini u OpenAI de tu organización para las funciones de IA y controla qué modelos pueden elegir los usuarios. Las claves se guardan cifradas y no se vuelven a mostrar tras guardarlas; cuando están configuradas, tienen prioridad sobre las claves de la instancia. Los agentes que ya usan un modelo oculto siguen funcionando, pero ese modelo no se puede volver a seleccionar.",
+            "orgKeysTitle_one": "Los agentes de IA se ejecutan con la clave de API de tu organización",
+            "orgKeysTitle_other": "Los agentes de IA se ejecutan con las claves de API de tu organización",
+            "orgKeysBody_one": "Las respuestas de los agentes y sus tareas en segundo plano (títulos de hilos, sugerencias, resúmenes) usan la clave configurada abajo, nunca las claves predeterminadas de la instancia.",
+            "orgKeysBody_other": "Las respuestas de los agentes y sus tareas en segundo plano (títulos de hilos, sugerencias, resúmenes) usan las claves configuradas abajo, nunca las claves predeterminadas de la instancia.",
+            "autopilotNote": "La configuración de Autopilot muestra qué proveedor, modelo y clave usa. Las ejecuciones programadas pueden hacer varias llamadas al modelo y generar consumo en esa clave."
+        },
+        "bedrock": {
+            "title": "Credenciales de Amazon Bedrock",
+            "addCredential": "Añadir credencial",
+            "description": "Cada credencial fija Ask AI a una región de AWS. Los proyectos pueden seleccionar una credencial; todo lo que no tenga proyecto (enrutamiento de Slack, títulos de hilos) usa la predeterminada.",
+            "empty": "Aún no hay credenciales de Bedrock.",
+            "default": "predeterminada",
+            "legacySummary": "{{hint}} · {{count}} modelo(s) · configurada antes de las credenciales con nombre",
+            "convert": "Convertir en credencial gestionada",
+            "credentialSummary": "{{region}} · inferencia en {{geography}} · {{hint}} · {{count}} modelo(s)",
+            "credentialActions": "Acciones de la credencial",
+            "actionsFor": "Acciones para {{label}}",
+            "makeDefault": "Establecer como predeterminada",
+            "unreadable": "{{count}} credencial(es) no se pueden leer con el secreto de cifrado actual. Las solicitudes de IA fijadas a ellas fallan en lugar de recurrir a otra región, así que sustituye cada una por una configuración completa.",
+            "replace": "Sustituir",
+            "onlyProviderNote": "Mientras Bedrock esté configurado, es el único proveedor que usa Ask AI, así que los agentes fijados a otro proveedor dejan de funcionar hasta que los vuelvas a configurar. La búsqueda semántica de respuestas verificadas y la edición de repositorios con IA no están disponibles, porque ambas enviarían contenido fuera de estas regiones."
+        },
+        "bedrockModal": {
+            "regions": {
+                "apNortheast1": "Asia Pacífico (Tokio)",
+                "apNortheast3": "Asia Pacífico (Osaka)",
+                "euCentral1": "Europa (Fráncfort)",
+                "euWest1": "Europa (Irlanda)",
+                "usEast1": "EE. UU. Este (Norte de Virginia)",
+                "usWest2": "EE. UU. Oeste (Oregón)"
+            },
+            "geographyNotes": {
+                "jp": "Las solicitudes permanecen en Japón (perfiles de inferencia de Tokio y Osaka).",
+                "us": "Las solicitudes pueden atenderse desde cualquier región de EE. UU.",
+                "eu": "Las solicitudes pueden atenderse desde cualquier región europea.",
+                "apac": "Las solicitudes pueden atenderse desde cualquier región de Asia-Pacífico, en distintos países.",
+                "global": "Las solicitudes pueden atenderse desde cualquier región compatible del mundo."
+            },
+            "validation": {
+                "name": "Introduce un nombre",
+                "apiKey": "Introduce una clave de API de Bedrock",
+                "region": "Selecciona una región de AWS",
+                "models": "Selecciona al menos un modelo"
+            },
+            "replaceTitle": "Sustituir credencial",
+            "editTitle": "Editar credencial",
+            "addTitle": "Añadir credencial de Bedrock",
+            "addCredential": "Añadir credencial",
+            "replaceNote": "La configuración guardada no se puede leer, así que hay que volver a introducir todos los campos.",
+            "intro": "Usa una clave de API de Bedrock, no un par de claves de acceso de AWS. La región que elijas decide dónde se ejecuta la inferencia, así que habilita estos modelos en esa región de tu cuenta de AWS.",
+            "name": "Nombre",
+            "namePlaceholder": "Japón (Tokio)",
+            "nameDescription": "Cómo se refieren los proyectos a esta credencial.",
+            "region": "Región de AWS",
+            "selectRegion": "Selecciona una región",
+            "regionOption": "{{label}} — {{value}}",
+            "geography": "Geografía de inferencia",
+            "geographyDescription": "Dónde puede Amazon Bedrock procesar las solicitudes: la región anterior solo las recibe.",
+            "selectRegionFirst": "Selecciona primero una región",
+            "apiKey": "Clave de API de Bedrock",
+            "keepKey": "Déjalo en blanco para conservar la clave guardada.",
+            "allowedModels": "Modelos permitidos",
+            "allowedModelsAria": "Modelos permitidos de Bedrock",
+            "selectModel": "Selecciona un modelo"
+        },
+        "linear": {
+            "logoAlt": "Linear",
+            "clientIdLabel": "ID de cliente OAuth de Linear",
+            "clientIdPlaceholder": "Pega el ID de cliente de Linear",
+            "reconnectLinear": "Reconectar Linear",
+            "connectLinear": "Conectar Linear",
+            "title": "Incidencias de Linear",
+            "reconnectRequired": "Hay que reconectar",
+            "connected": "Conectado",
+            "connectedDescription": "Los nuevos hallazgos crean automáticamente una incidencia en Linear. Los hallazgos abiertos existentes se pueden exportar abajo. Cada incidencia se enlaza en ambos sentidos; el estado no se sincroniza.",
+            "disconnectedDescription": "Envía los hallazgos de revisión a Linear como incidencias. Cada incidencia se enlaza en ambos sentidos. El estado no se sincroniza.",
+            "connectedTo": "Conectado a {{name}} ({{key}}).",
+            "toggleAria": "Crear incidencias de Linear para los hallazgos de revisión de IA",
+            "step1Title": "Crea una app de Linear",
+            "step1Description": "Abre Linear con la URL de retorno ya rellenada. App privada, sin secreto de cliente.",
+            "createApp": "Crear app de Linear",
+            "step2Title": "Pega el ID de cliente y conecta",
+            "step2Description": "Usa el ID de cliente público de la app que acabas de crear.",
+            "reconnectTitle": "Reconecta Linear para seguir exportando incidencias",
+            "reconnectDescription": "La app guardada ya no puede crear incidencias. Crea una nueva app privada o reconecta con el mismo ID de cliente.",
+            "allProjects": "Todos los proyectos",
+            "allProjectsDescription": "Hallazgos de todos los proyectos, incluidos los que se creen más adelante.",
+            "projects": "Proyectos",
+            "loadingProjects": "Cargando proyectos",
+            "selectProjects": "Selecciona proyectos",
+            "team": "Equipo de Linear",
+            "loadingTeams": "Cargando equipos",
+            "selectTeam": "Selecciona un equipo",
+            "project": "Proyecto de Linear",
+            "projectDescription": "Opcional. Las incidencias sin proyecto siguen yendo al equipo seleccionado.",
+            "optionalProject": "Proyecto opcional",
+            "backfill": "Crear incidencias para los hallazgos existentes",
+            "reconnect": "Reconectar"
+        },
+        "jira": {
+            "logoAlt": "Jira",
+            "title": "Incidencias de Jira",
+            "selectSite": "Seleccionar sitio",
+            "connected": "Conectado",
+            "description": "Envía automáticamente los hallazgos de revisión a Jira. Los hallazgos abiertos existentes se pueden exportar abajo; el estado no se sincroniza.",
+            "connectedTo": "Conectado a {{name}} ({{url}}).",
+            "toggleAria": "Crear incidencias de Jira para los hallazgos de revisión de IA",
+            "step1Title": "Crea una app OAuth 2.0 de Atlassian",
+            "step1Description": "En la consola de desarrolladores, crea una integración OAuth 2.0. En Permisos, añade la API de Jira y marca los ámbitos clásicos read:jira-work y write:jira-work. En Autorización, establece esta URL de retorno.",
+            "copyCallback": "Copiar URL de retorno",
+            "openConsole": "Abrir la consola de desarrolladores de Atlassian",
+            "step2Title": "Pega el ID de cliente y el secreto",
+            "step2Description": "Ambos están en la página de configuración de la app. El secreto se guarda cifrado y solo se usa para esta organización. Al conectar se abre Atlassian: inicia sesión allí con una cuenta que tenga Jira en el sitio que quieras usar, o Atlassian mostrará Acceso denegado.",
+            "clientId": "ID de cliente",
+            "clientSecret": "Secreto de cliente",
+            "connectJira": "Conectar Jira",
+            "site": "Sitio de Jira",
+            "siteDescription": "Elige el sitio que recibirá las incidencias de revisión.",
+            "loadingSites": "Cargando sitios",
+            "allProjects": "Todos los proyectos",
+            "allProjectsDescription": "Hallazgos de todos los proyectos de Lightdash, incluidos los que se creen más adelante.",
+            "lightdashProjects": "Proyectos de Lightdash",
+            "loadingProjects": "Cargando proyectos",
+            "selectProjects": "Selecciona proyectos",
+            "project": "Proyecto de Jira",
+            "selectProject": "Selecciona un proyecto",
+            "issueType": "Tipo de incidencia de Jira",
+            "loadingIssueTypes": "Cargando tipos de incidencia",
+            "selectIssueType": "Selecciona un tipo de incidencia",
+            "backfill": "Crear incidencias para los hallazgos existentes",
+            "reconnect": "Reconectar"
+        },
+        "deepResearch": {
+            "fields": {
+                "maxSteps": {
+                    "label": "Máximo de pasos",
+                    "description": "El número máximo de pasos del modelo que puede dar el coordinador en una ejecución de investigación profunda."
+                },
+                "maxToolCalls": {
+                    "label": "Máximo de llamadas a herramientas",
+                    "description": "El número máximo de llamadas a herramientas en una ejecución de investigación profunda."
+                },
+                "maxWarehouseQueries": {
+                    "label": "Máximo de consultas al almacén",
+                    "description": "El número máximo de consultas al almacén de datos en una ejecución de investigación profunda."
+                },
+                "maxTokens": {
+                    "label": "Máximo de tokens",
+                    "description": "El total máximo de tokens del modelo consumidos en una ejecución de investigación profunda."
+                },
+                "deadlineMinutes": {
+                    "label": "Límite de tiempo (minutos)",
+                    "description": "El límite de tiempo real de una ejecución de investigación profunda antes de detenerse e informar de lo que tiene."
+                }
+            },
+            "runLimits": "Límites de ejecución",
+            "runLimitsDescription": "Topes aplicados a cada ejecución de investigación profunda de tu organización. Una ejecución que alcance cualquiera de estos límites se detiene e informa de lo que tiene.",
+            "rawSql": "Permitir SQL sin procesar",
+            "rawSqlDescription": "Permite que Deep Research ejecute SQL sin procesar cuando el usuario que la inicia tiene permiso de SQL Runner. Desactívalo para mantener las investigaciones en exploraciones y métricas gobernadas.",
+            "title": "Investigación profunda",
+            "description": "Configura el acceso a datos y los límites de seguridad de toda la organización para las ejecuciones de investigación profunda.",
+            "tryAgain": "Reintentar"
+        },
+        "mcpGeneral": {
+            "title": "General",
+            "description": "Configura cómo acceden los clientes MCP (Model Context Protocol) a los agentes y al contenido de Lightdash.",
+            "tryAgain": "Reintentar",
+            "enableAgents": "Habilitar agentes mediante MCP",
+            "enableAgentsDescription": "Pon las herramientas y el contexto de los agentes a disposición de los clientes MCP. El acceso por agente se sigue aplicando.",
+            "on": "Activado",
+            "off": "Desactivado",
+            "changeOnAgentsPage": "Cambiar en la página de agentes",
+            "allowWrites": "Permitir cambios de contenido mediante MCP",
+            "allowWritesDescription": "Permite que los clientes MCP creen y editen gráficos y paneles en esta organización. Desactívalo para evitar cambios no deseados en el contenido gestionado; la lectura de contenido mediante MCP sigue disponible en cualquier caso y cada usuario sigue sujeto a sus permisos."
+        },
+        "mcpInstall": {
+            "steps": {
+                "claudeDesktop": {
+                    "s1": "En Claude Desktop, abre Customize → Connectors y elige Add custom connector.",
+                    "s2": "Llámalo Lightdash y pega esta URL del servidor. Los conectores remotos necesitan una URL HTTPS accesible públicamente.",
+                    "s3": "Añade el conector, inicia sesión en Lightdash y aprueba el acceso."
+                },
+                "claudeCode": {
+                    "s1": "Ejecuta este comando en tu terminal.",
+                    "s2": "En Claude Code, ejecuta <code>/mcp</code>, selecciona Lightdash y elige Authenticate."
+                },
+                "codex": {
+                    "s1": "Añade el servidor e inicia sesión desde tu terminal.",
+                    "s3": "Inicia una nueva sesión de Codex para usar las herramientas de Lightdash."
+                },
+                "cursor": {
+                    "s1": "Añade este servidor al archivo <code>.cursor/mcp.json</code> de tu proyecto.",
+                    "s2": "Abre Cursor Settings → MCP & Integrations y conecta Lightdash."
+                },
+                "vscode": {
+                    "s1": "Añade este servidor al archivo <code>.vscode/mcp.json</code> de tu proyecto.",
+                    "s2": "Ejecuta <code>MCP: List Servers</code> desde la paleta de comandos, selecciona Lightdash e inícialo.",
+                    "s3": "Inicia sesión en Lightdash cuando se te pida y usa las herramientas en el modo agente de Copilot."
+                },
+                "other": {
+                    "s1": "Añade un servidor MCP remoto y elige Streamable HTTP como transporte.",
+                    "s2": "Llámalo Lightdash y pega esta URL del servidor.",
+                    "s3": "Elige autenticación OAuth, inicia sesión en Lightdash y aprueba el acceso."
+                },
+                "signInBrowser": "Inicia sesión en Lightdash en tu navegador y aprueba el acceso."
+            },
+            "otherClients": "Otros clientes",
+            "title": "Configuración del cliente",
+            "description": "Conecta tus herramientas de IA a Lightdash. Elige un cliente para empezar.",
+            "clientsAria": "Clientes MCP",
+            "copyLabel": "Copiar configuración de {{client}}",
+            "moreDetails": "Para más detalles, consulta la <anchor>documentación de MCP de {{client}}</anchor>.",
+            "permissions": "Las conexiones usan tus permisos de Lightdash. <anchor>Lee la guía de MCP de Lightdash</anchor>."
+        },
+        "projectRegion": {
+            "notEnabled": "Los proveedores de IA personalizados no están habilitados para esta organización.",
+            "noCredentials": "Esta organización aún no tiene credenciales de proveedores de IA configuradas. Un administrador de la organización puede añadirlas en Configuración de la organización → Ask AI.",
+            "pinNotServed": "Los proveedores de IA personalizados no están habilitados para esta organización, así que la credencial fijada de este proyecto no se está usando y las funciones de IA no están disponibles en este proyecto. Quita la fijación o habilita los proveedores personalizados.",
+            "label": "Credencial del proveedor de IA",
+            "description": "Dónde se procesan las solicitudes de Ask AI de este proyecto.",
+            "orgDefaultWith": "Predeterminada de la organización — {{label}} ({{region}})",
+            "orgDefault": "Predeterminada de la organización",
+            "credentialOption": "{{label}} — {{region}}",
+            "coverage": "Esto abarca Ask AI, las conversaciones con agentes y el contenido generado en este proyecto. No puede abarcar el enrutamiento de agentes de Slack, que pregunta a un modelo a qué proyecto pertenece un mensaje antes de conocer el proyecto; esa llamada usa la predeterminada de la organización."
+        }
+    }
+}

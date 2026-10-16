@@ -10,6 +10,7 @@ import {
     type UpdateExternalSourcePayload,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -93,12 +94,13 @@ export const useUploadCsv = (
     scope: ExternalSourceScope = ExternalSourceScope.CATALOG,
 ) => {
     const { showToastApiError } = useToaster();
+    const { t } = useTranslation('sync');
     return useMutation<StagedExternalSourceUpload, ApiError, File>({
         mutationFn: (file) =>
             uploadCsvApi({ projectUuid: projectUuid!, file, scope }),
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Could not upload the file',
+                title: t('externalSources.toasts.uploadFailed'),
                 apiError: error,
             });
         },
@@ -190,6 +192,7 @@ const refreshExternalSourceApi = async (args: {
 export const useRefreshExternalSource = (projectUuid: string | undefined) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('sync');
     return useMutation<ExternalSource, ApiError, string>({
         mutationFn: (sourceUuid) =>
             refreshExternalSourceApi({
@@ -201,13 +204,13 @@ export const useRefreshExternalSource = (projectUuid: string | undefined) => {
                 queryKey: ['external-sources', projectUuid],
             });
             showToastSuccess({
-                title: 'Refreshing from Google Sheets',
-                subtitle: 'The table updates when the ingest finishes.',
+                title: t('externalSources.toasts.refreshing'),
+                subtitle: t('externalSources.toasts.refreshingSubtitle'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Could not refresh the source',
+                title: t('externalSources.toasts.refreshFailed'),
                 apiError: error,
             });
         },
@@ -227,6 +230,7 @@ const reconnectExternalSourceApi = (args: {
 export const useReconnectExternalSource = (projectUuid: string | undefined) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('sync');
     return useMutation<ExternalSource, ApiError, string>({
         mutationFn: (sourceUuid) =>
             reconnectExternalSourceApi({
@@ -238,13 +242,13 @@ export const useReconnectExternalSource = (projectUuid: string | undefined) => {
                 queryKey: ['external-sources', projectUuid],
             });
             showToastSuccess({
-                title: 'Google Sheet reconnected',
-                subtitle: 'The project now owns this connection.',
+                title: t('externalSources.toasts.reconnected'),
+                subtitle: t('externalSources.toasts.reconnectedSubtitle'),
             });
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Could not reconnect the source',
+                title: t('externalSources.toasts.reconnectFailed'),
                 apiError: error,
             }),
     });
@@ -264,6 +268,7 @@ const renameExternalSourceApi = async (args: {
 export const useRenameExternalSource = (projectUuid: string | undefined) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('sync');
     return useMutation<
         ExternalSource,
         ApiError,
@@ -282,11 +287,11 @@ export const useRenameExternalSource = (projectUuid: string | undefined) => {
             await queryClient.invalidateQueries({
                 queryKey: ['tables', projectUuid],
             });
-            showToastSuccess({ title: 'Table renamed' });
+            showToastSuccess({ title: t('externalSources.toasts.renamed') });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Could not rename the table',
+                title: t('externalSources.toasts.renameFailed'),
                 apiError: error,
             });
         },
@@ -314,6 +319,7 @@ const replaceCsvApi = async (args: {
 export const useReplaceCsvFile = (projectUuid: string | undefined) => {
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
+    const { t } = useTranslation('sync');
     return useMutation<
         ExternalSource,
         ApiError,
@@ -328,7 +334,7 @@ export const useReplaceCsvFile = (projectUuid: string | undefined) => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Could not replace the file',
+                title: t('externalSources.toasts.replaceFailed'),
                 apiError: error,
             });
         },
@@ -348,6 +354,7 @@ export const deleteExternalSourceApi = async (args: {
 export const useDeleteExternalSource = (projectUuid: string | undefined) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('sync');
     return useMutation<undefined, ApiError, string>({
         mutationFn: (sourceUuid) =>
             deleteExternalSourceApi({
@@ -361,11 +368,11 @@ export const useDeleteExternalSource = (projectUuid: string | undefined) => {
             await queryClient.invalidateQueries({
                 queryKey: ['tables', projectUuid],
             });
-            showToastSuccess({ title: 'External source deleted' });
+            showToastSuccess({ title: t('externalSources.toasts.deleted') });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Could not delete the external source',
+                title: t('externalSources.toasts.deleteFailed'),
                 apiError: error,
             });
         },

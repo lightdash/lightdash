@@ -8,7 +8,8 @@ import { Button, Group, Select, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUser } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useOrganizationSettings } from '../../../hooks/organization/useOrganizationSettings';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
@@ -30,6 +31,7 @@ const InvitesModal: FC<{
     opened: boolean;
     onClose: () => void;
 }> = ({ opened, onClose }) => {
+    const { t } = useTranslation('userSettings');
     const form = useForm<SendInviteFormProps>({
         initialValues: {
             email: '',
@@ -57,6 +59,32 @@ const InvitesModal: FC<{
         isLoading,
     } = useCreateInviteLinkMutation();
     const isSubmitting = isLoading;
+    const roleOptions = useMemo(() => {
+        const roleLabels: Record<OrganizationMemberRole, string> = {
+            [OrganizationMemberRole.MEMBER]: t(
+                'usersAndGroupsPanel.invitesModal.roles.member',
+            ),
+            [OrganizationMemberRole.VIEWER]: t(
+                'usersAndGroupsPanel.invitesModal.roles.viewer',
+            ),
+            [OrganizationMemberRole.INTERACTIVE_VIEWER]: t(
+                'usersAndGroupsPanel.invitesModal.roles.interactiveViewer',
+            ),
+            [OrganizationMemberRole.EDITOR]: t(
+                'usersAndGroupsPanel.invitesModal.roles.editor',
+            ),
+            [OrganizationMemberRole.DEVELOPER]: t(
+                'usersAndGroupsPanel.invitesModal.roles.developer',
+            ),
+            [OrganizationMemberRole.ADMIN]: t(
+                'usersAndGroupsPanel.invitesModal.roles.admin',
+            ),
+        };
+        return Object.values(OrganizationMemberRole).map((orgMemberRole) => ({
+            value: orgMemberRole,
+            label: roleLabels[orgMemberRole],
+        }));
+    }, [t]);
 
     const handleSubmit = async (data: SendInviteFormProps) => {
         track({
@@ -70,7 +98,7 @@ const InvitesModal: FC<{
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Add user"
+            title={t('usersAndGroupsPanel.invitesModal.title')}
             icon={IconUser}
             size="lg"
             cancelLabel={false}
@@ -82,8 +110,8 @@ const InvitesModal: FC<{
                     form="invite_user"
                 >
                     {health.data?.hasEmailClient
-                        ? 'Send invite'
-                        : 'Generate invite'}
+                        ? t('usersAndGroupsPanel.invitesModal.sendInvite')
+                        : t('usersAndGroupsPanel.invitesModal.generateInvite')}
                 </Button>
             }
         >
@@ -103,7 +131,9 @@ const InvitesModal: FC<{
                         <Group gap="xs" align="start" wrap="nowrap">
                             <TextInput
                                 name="email"
-                                label="Enter user email address"
+                                label={t(
+                                    'usersAndGroupsPanel.invitesModal.emailLabel',
+                                )}
                                 placeholder="example@gmail.com"
                                 required
                                 disabled={isSubmitting}
@@ -112,15 +142,12 @@ const InvitesModal: FC<{
                             />
                             {canManageOrganization && (
                                 <Select
-                                    data={Object.values(
-                                        OrganizationMemberRole,
-                                    ).map((orgMemberRole) => ({
-                                        value: orgMemberRole,
-                                        label: orgMemberRole.replace('_', ' '),
-                                    }))}
+                                    data={roleOptions}
                                     disabled={isSubmitting}
                                     required
-                                    placeholder="Select role"
+                                    placeholder={t(
+                                        'usersAndGroupsPanel.invitesModal.selectRole',
+                                    )}
                                     comboboxProps={{
                                         position: 'bottom',
                                         withinPortal: true,
@@ -133,12 +160,12 @@ const InvitesModal: FC<{
                         </Group>
                         {canManageOrganization && organizationSettings.data ? (
                             <Text c="dimmed" fz="sm">
-                                New invite links expire after{' '}
-                                {inviteLinkExpirationDays}{' '}
-                                {inviteLinkExpirationDays === 1
-                                    ? 'day'
-                                    : 'days'}
-                                . You can change this in General settings.
+                                {t(
+                                    'usersAndGroupsPanel.invitesModal.expirationNote',
+                                    {
+                                        count: inviteLinkExpirationDays,
+                                    },
+                                )}
                             </Text>
                         ) : null}
                     </Stack>

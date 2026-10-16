@@ -1,0 +1,40 @@
+{
+    "totals": {
+        "total": "Total",
+        "noTotal": "No total",
+        "noTotalWithReason": "No total: {{reason}}",
+        "calculationErrorWithMessage": "Total calculation error: {{message}}",
+        "fromSourceExplanation": "Total of the {{sourceLabel}} query. The merge keeps every {{sourceLabel}} row, so it is the total of the rows shown.",
+        "totalOf": "Total {{label}}"
+    },
+    "imageCell": {
+        "loadFailed": "Could not load image \"{{imageUrl}}\"",
+        "loadFailedWithError": "Could not load image \"{{imageUrl}}\": {{error}}"
+    },
+    "pagination": {
+        "resultCount_one": "{{count}} result",
+        "resultCount_other": "{{count}} results",
+        "pages": "Pages",
+        "scroll": "Scroll"
+    },
+    "scrollableTable": {
+        "loadingMoreRows": "Loading more rows..."
+    },
+    "paginateControl": {
+        "pageOf": "Page <strong>{{currentPage}}</strong> of <strong>{{totalPages}}</strong>"
+    },
+    "valueCellMenu": {
+        "copyValue": "Copy value",
+        "drillInto": "Drill into <value>{{value}}</value>"
+    },
+    "jsonViewer": {
+        "title": "JSON cell",
+        "copyJson": "Copy JSON",
+        "copiedJson": "Copied JSON",
+        "selectedPath": "Selected path",
+        "copyPath": "Copy path",
+        "treeTab": "Tree",
+        "textTab": "Text",
+        "viewJson": "View JSON"
+    }
+}

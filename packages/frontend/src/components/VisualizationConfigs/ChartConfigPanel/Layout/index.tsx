@@ -21,6 +21,7 @@ import {
 } from '@mantine/core';
 import { IconRotate360 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { EMPTY_X_AXIS } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import FieldSelect from '../../../common/FieldSelect';
 import MantineIcon from '../../../common/MantineIcon';
@@ -38,6 +39,7 @@ type Props = {
 };
 
 export const Layout: FC<Props> = ({ items }) => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig, pivotDimensions, setPivotDimensions } =
         useVisualizationContext();
     const { addableItems, addFieldToQuery, isFieldPending } =
@@ -273,11 +275,13 @@ export const Layout: FC<Props> = ({ items }) => {
             <Config>
                 <Config.Section>
                     <Config.Group>
-                        <Config.Heading>{`${
-                            validConfig?.layout.flipAxes ? 'Y' : 'X'
-                        }-axis`}</Config.Heading>
+                        <Config.Heading>
+                            {t('layout.axisHeading', {
+                                axis: validConfig?.layout.flipAxes ? 'Y' : 'X',
+                            })}
+                        </Config.Heading>
                         <Group gap="two">
-                            <Tooltip label="Flip Axes">
+                            <Tooltip label={t('layout.flipAxes')}>
                                 <ActionIcon
                                     onClick={() =>
                                         setFlipAxis(!dirtyLayout?.flipAxes)
@@ -339,7 +343,7 @@ export const Layout: FC<Props> = ({ items }) => {
                             onChange={handleOnChangeOfXAxisField}
                             rightSection={
                                 <CloseButton
-                                    aria-label="Clear x-axis field"
+                                    aria-label={t('layout.clearXAxisField')}
                                     size="xs"
                                     onClick={() => {
                                         setXField(EMPTY_X_AXIS);
@@ -355,9 +359,11 @@ export const Layout: FC<Props> = ({ items }) => {
             <Config>
                 <Config.Section>
                     <Config.Group>
-                        <Config.Heading>{`${
-                            validConfig?.layout.flipAxes ? 'X' : 'Y'
-                        }-axis`}</Config.Heading>
+                        <Config.Heading>
+                            {t('layout.axisHeading', {
+                                axis: validConfig?.layout.flipAxes ? 'X' : 'Y',
+                            })}
+                        </Config.Heading>
                         {(availableYFields.length > 0 ||
                             addableYItems.length > 0) && (
                             <AddButton
@@ -399,7 +405,9 @@ export const Layout: FC<Props> = ({ items }) => {
                                 rightSection={
                                     yFields?.length !== 1 && (
                                         <CloseButton
-                                            aria-label="Remove y-axis field"
+                                            aria-label={t(
+                                                'layout.removeYAxisField',
+                                            )}
                                             size="xs"
                                             onClick={() => {
                                                 removeSingleSeries(index);
@@ -419,7 +427,9 @@ export const Layout: FC<Props> = ({ items }) => {
                     <Stack gap="xs">
                         <Config.Group>
                             <Group gap="one">
-                                <Config.Heading>Group</Config.Heading>
+                                <Config.Heading>
+                                    {t('layout.group')}
+                                </Config.Heading>
                             </Group>
                             {canAddPivot && (
                                 <AddButton
@@ -445,7 +455,7 @@ export const Layout: FC<Props> = ({ items }) => {
                                     items={[]}
                                     onChange={() => {}}
                                     disabled
-                                    placeholder="You need at least one metric in your chart to add a group"
+                                    placeholder={t('layout.needMetricToGroup')}
                                 />
                             )}
                     </Stack>
@@ -481,7 +491,9 @@ export const Layout: FC<Props> = ({ items }) => {
                                                     onMouseDown={(event) =>
                                                         event.preventDefault()
                                                     }
-                                                    aria-label="Remove pivot dimension"
+                                                    aria-label={t(
+                                                        'layout.removePivotDimension',
+                                                    )}
                                                     size="xs"
                                                     onClick={() => {
                                                         setPivotDimensions(
@@ -494,7 +506,7 @@ export const Layout: FC<Props> = ({ items }) => {
                                                     }}
                                                 />
                                             }
-                                            error={'Invalid reference'}
+                                            error={t('layout.invalidReference')}
                                         />
                                     );
                                 }
@@ -504,7 +516,9 @@ export const Layout: FC<Props> = ({ items }) => {
                                             disabled={
                                                 !chartHasMetricOrTableCalc
                                             }
-                                            placeholder="Select a field to group by"
+                                            placeholder={t(
+                                                'layout.selectFieldToGroupBy',
+                                            )}
                                             item={activeField}
                                             items={availableDimensions}
                                             addItems={addableDimensions}
@@ -532,7 +546,9 @@ export const Layout: FC<Props> = ({ items }) => {
                                             rightSection={
                                                 groupSelectedField && (
                                                     <CloseButton
-                                                        aria-label="Remove pivot dimension"
+                                                        aria-label={t(
+                                                            'layout.removePivotDimension',
+                                                        )}
                                                         size="xs"
                                                         onClick={() => {
                                                             setPivotDimensions(
@@ -554,12 +570,14 @@ export const Layout: FC<Props> = ({ items }) => {
                     </Stack>
                     {canBeStacked && (
                         <Tooltip
-                            label="x-axis must be non-numeric to enable stacking"
+                            label={t('layout.stackingDisabledTooltip')}
                             position="top-start"
                             disabled={!isXAxisFieldNumeric}
                         >
                             <Group gap="xs">
-                                <Config.Label>Stacking</Config.Label>
+                                <Config.Label>
+                                    {t('layout.stacking')}
+                                </Config.Label>
                                 <SegmentedControl
                                     size="xs"
                                     disabled={isXAxisFieldNumeric}
@@ -574,15 +592,15 @@ export const Layout: FC<Props> = ({ items }) => {
                                     }}
                                     data={[
                                         {
-                                            label: 'None',
+                                            label: t('layout.stackNone'),
                                             value: StackType.NONE,
                                         },
                                         {
-                                            label: 'Stack',
+                                            label: t('layout.stack'),
                                             value: StackType.NORMAL,
                                         },
                                         {
-                                            label: '100%',
+                                            label: t('layout.stackPercent'),
                                             value: StackType.PERCENT,
                                         },
                                     ]}
@@ -595,7 +613,7 @@ export const Layout: FC<Props> = ({ items }) => {
 
             <Config>
                 <Config.Section>
-                    <Config.Heading>Data</Config.Heading>
+                    <Config.Heading>{t('layout.data')}</Config.Heading>
                     <RowLimitControls
                         rowLimit={rowLimit}
                         onRowLimitChange={setRowLimit}
@@ -605,7 +623,9 @@ export const Layout: FC<Props> = ({ items }) => {
             {pivotDimensions && pivotDimensions.length > 0 && (
                 <Config>
                     <Config.Section>
-                        <Config.Heading>Column limit</Config.Heading>
+                        <Config.Heading>
+                            {t('layout.columnLimit')}
+                        </Config.Heading>
                         <NumberInput
                             size="xs"
                             min={1}
@@ -613,7 +633,7 @@ export const Layout: FC<Props> = ({ items }) => {
                             step={1}
                             allowDecimal={false}
                             clampBehavior="strict"
-                            placeholder="No limit"
+                            placeholder={t('layout.noLimit')}
                             value={columnLimit ?? ''}
                             onChange={handleColumnLimitChange}
                         />

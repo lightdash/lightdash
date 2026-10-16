@@ -1,4 +1,5 @@
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useScheduledDeliveryAsCode } from '../hooks/useScheduledDeliveryAsCode';
 import ContentAsCodeModal from './ContentAsCodeModal';
 
@@ -15,6 +16,7 @@ const ScheduledDeliveryAsCodeModal: FC<ScheduledDeliveryAsCodeModalProps> = ({
     projectUuid,
     deliverySlug,
 }) => {
+    const { t } = useTranslation('contentAsCode');
     const scheduledDeliveryAsCode = useScheduledDeliveryAsCode({
         projectUuid,
         deliverySlug,
@@ -25,7 +27,7 @@ const ScheduledDeliveryAsCodeModal: FC<ScheduledDeliveryAsCodeModalProps> = ({
         <ContentAsCodeModal
             opened={opened}
             onClose={onClose}
-            resourceLabel="scheduled delivery"
+            resourceLabel={t('resources.scheduledDelivery')}
             contentAsCode={scheduledDeliveryAsCode}
             warning={scheduledDeliveryAsCode.data?.skipped[0]?.reason}
         />

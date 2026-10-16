@@ -12,7 +12,9 @@ import {
     Switch,
     PasswordInput,
 } from '@mantine/core';
+import { type TFunction } from 'i18next';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
@@ -36,25 +38,38 @@ const CATALOG_TYPE_OPTIONS = [
     { value: DucklakeCatalogType.DUCKDB, label: 'DuckDB' },
 ];
 
-const DATA_PATH_TYPE_OPTIONS = [
-    { value: DucklakeDataPathType.S3, label: 'S3-compatible' },
-    { value: DucklakeDataPathType.GCS, label: 'Google Cloud Storage' },
-    { value: DucklakeDataPathType.AZURE, label: 'Azure Blob Storage' },
-    { value: DucklakeDataPathType.LOCAL, label: 'Local filesystem' },
+const getDataPathTypeOptions = (t: TFunction) => [
+    {
+        value: DucklakeDataPathType.S3,
+        label: t('warehouseFields.s3Compatible'),
+    },
+    {
+        value: DucklakeDataPathType.GCS,
+        label: t('warehouseFields.googleCloudStorage'),
+    },
+    {
+        value: DucklakeDataPathType.AZURE,
+        label: t('warehouseFields.azureBlobStorage'),
+    },
+    {
+        value: DucklakeDataPathType.LOCAL,
+        label: t('warehouseFields.localFilesystem'),
+    },
 ];
 
 export const DuckdbSchemaInput: FC<{
     disabled: boolean;
     description?: ReactNode;
 }> = ({ disabled, description }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
 
     return (
         <TextInput
             name="warehouse.schema"
-            label="Schema"
+            label={t('warehouseFields.schema')}
             description={
-                description ?? 'The default schema for your DuckDB connection.'
+                description ?? t('warehouseFields.duckdbSchemaDescription')
             }
             required
             {...form.getInputProps('warehouse.schema')}
@@ -64,21 +79,22 @@ export const DuckdbSchemaInput: FC<{
 };
 
 const MotherDuckFields: FC<{ disabled: boolean }> = ({ disabled }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
     return (
         <>
             <TextInput
                 name="warehouse.database"
-                label="Database"
-                description="Your MotherDuck database name, for example `my_db`."
+                label={t('warehouseFields.database')}
+                description={t('warehouseFields.motherduckDatabaseDescription')}
                 required
                 {...form.getInputProps('warehouse.database')}
                 disabled={disabled}
             />
             <TextInput
                 name="warehouse.schema"
-                label="Schema"
-                description="The default schema in MotherDuck, usually `main`."
+                label={t('warehouseFields.schema')}
+                description={t('warehouseFields.motherduckSchemaDescription')}
                 required
                 {...form.getInputProps('warehouse.schema')}
                 disabled={disabled}
@@ -86,8 +102,8 @@ const MotherDuckFields: FC<{ disabled: boolean }> = ({ disabled }) => {
             />
             <PasswordInput
                 name="warehouse.token"
-                label="Access token"
-                description="Create an access token in MotherDuck Settings."
+                label={t('warehouseFields.accessToken')}
+                description={t('warehouseFields.motherduckTokenDescription')}
                 placeholder={disabled ? '**************' : undefined}
                 {...form.getInputProps('warehouse.token')}
                 disabled={disabled}
@@ -97,6 +113,7 @@ const MotherDuckFields: FC<{ disabled: boolean }> = ({ disabled }) => {
 };
 
 const DucklakeFields: FC<{ disabled: boolean }> = ({ disabled }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
     const warehouse = form.values.warehouse;
     if (
@@ -113,8 +130,8 @@ const DucklakeFields: FC<{ disabled: boolean }> = ({ disabled }) => {
         <>
             <TextInput
                 name="warehouse.schema"
-                label="Schema"
-                description="The default DuckLake schema your queries will use."
+                label={t('warehouseFields.schema')}
+                description={t('warehouseFields.ducklakeSchemaDescription')}
                 required
                 placeholder="main"
                 {...form.getInputProps('warehouse.schema')}
@@ -122,16 +139,16 @@ const DucklakeFields: FC<{ disabled: boolean }> = ({ disabled }) => {
             />
             <TextInput
                 name="warehouse.catalogAlias"
-                label="Catalog alias"
-                description="Name used to attach the DuckLake catalog (defaults to `ducklake`)."
+                label={t('warehouseFields.catalogAlias')}
+                description={t('warehouseFields.catalogAliasDescription')}
                 placeholder="ducklake"
                 {...form.getInputProps('warehouse.catalogAlias')}
                 disabled={disabled}
             />
             <Select
                 allowDeselect={false}
-                label="Catalog backend"
-                description="Database that stores DuckLake catalog metadata."
+                label={t('warehouseFields.catalogBackend')}
+                description={t('warehouseFields.catalogBackendDescription')}
                 data={CATALOG_TYPE_OPTIONS}
                 value={catalogType}
                 onChange={(value) => {
@@ -161,31 +178,31 @@ const DucklakeFields: FC<{ disabled: boolean }> = ({ disabled }) => {
             {catalogType === DucklakeCatalogType.POSTGRES && (
                 <>
                     <TextInput
-                        label="Host"
+                        label={t('warehouseFields.host')}
                         required
                         {...form.getInputProps('warehouse.catalog.host')}
                         disabled={disabled}
                     />
                     <NumberInput
-                        label="Port"
+                        label={t('warehouseFields.port')}
                         required
                         {...form.getInputProps('warehouse.catalog.port')}
                         disabled={disabled}
                     />
                     <TextInput
-                        label="Database"
+                        label={t('warehouseFields.database')}
                         required
                         {...form.getInputProps('warehouse.catalog.database')}
                         disabled={disabled}
                     />
                     <TextInput
-                        label="User"
+                        label={t('warehouseFields.user')}
                         required
                         {...form.getInputProps('warehouse.catalog.user')}
                         disabled={disabled}
                     />
                     <PasswordInput
-                        label="Password"
+                        label={t('warehouseFields.password')}
                         placeholder={disabled ? '**************' : undefined}
                         {...form.getInputProps('warehouse.catalog.password')}
                         disabled={disabled}
@@ -196,8 +213,10 @@ const DucklakeFields: FC<{ disabled: boolean }> = ({ disabled }) => {
             {(catalogType === DucklakeCatalogType.SQLITE ||
                 catalogType === DucklakeCatalogType.DUCKDB) && (
                 <TextInput
-                    label="Catalog file path"
-                    description="Path to the catalog database file on the Lightdash server."
+                    label={t('warehouseFields.catalogFilePath')}
+                    description={t(
+                        'warehouseFields.catalogFilePathDescription',
+                    )}
                     required
                     {...form.getInputProps('warehouse.catalog.path')}
                     disabled={disabled}
@@ -206,9 +225,9 @@ const DucklakeFields: FC<{ disabled: boolean }> = ({ disabled }) => {
 
             <Select
                 allowDeselect={false}
-                label="Data path backend"
-                description="Where DuckLake stores Parquet data files."
-                data={DATA_PATH_TYPE_OPTIONS}
+                label={t('warehouseFields.dataPathBackend')}
+                description={t('warehouseFields.dataPathDescription')}
+                data={getDataPathTypeOptions(t)}
                 value={dataPathType}
                 onChange={(value) => {
                     if (!value) return;
@@ -247,33 +266,35 @@ const DucklakeFields: FC<{ disabled: boolean }> = ({ disabled }) => {
             {dataPathType === DucklakeDataPathType.S3 && (
                 <>
                     <TextInput
-                        label="S3 URL"
-                        description="e.g. s3://my-bucket/path/"
+                        label={t('warehouseFields.s3Url')}
+                        description={t('warehouseFields.s3UrlDescription')}
                         required
                         {...form.getInputProps('warehouse.dataPath.url')}
                         disabled={disabled}
                     />
                     <TextInput
-                        label="Endpoint"
-                        description="Override for S3-compatible providers (leave empty for AWS)."
+                        label={t('warehouseFields.endpoint')}
+                        description={t('warehouseFields.endpointDescription')}
                         {...form.getInputProps('warehouse.dataPath.endpoint')}
                         disabled={disabled}
                     />
                     <TextInput
-                        label="Region"
+                        label={t('warehouseFields.region')}
                         {...form.getInputProps('warehouse.dataPath.region')}
                         disabled={disabled}
                     />
                     <TextInput
-                        label="Access key ID"
-                        description="Leave blank to use the SDK credential chain (IAM role, web identity, …)."
+                        label={t('warehouseFields.accessKeyId')}
+                        description={t(
+                            'warehouseFields.sdkCredentialChainDetailed',
+                        )}
                         {...form.getInputProps(
                             'warehouse.dataPath.accessKeyId',
                         )}
                         disabled={disabled}
                     />
                     <PasswordInput
-                        label="Secret access key"
+                        label={t('warehouseFields.secretAccessKey')}
                         placeholder={disabled ? '**************' : undefined}
                         {...form.getInputProps(
                             'warehouse.dataPath.secretAccessKey',
@@ -281,7 +302,7 @@ const DucklakeFields: FC<{ disabled: boolean }> = ({ disabled }) => {
                         disabled={disabled}
                     />
                     <Switch
-                        label="Use path-style URLs"
+                        label={t('warehouseFields.usePathStyleUrls')}
                         {...form.getInputProps(
                             'warehouse.dataPath.forcePathStyle',
                             { type: 'checkbox' },
@@ -294,20 +315,20 @@ const DucklakeFields: FC<{ disabled: boolean }> = ({ disabled }) => {
             {dataPathType === DucklakeDataPathType.GCS && (
                 <>
                     <TextInput
-                        label="GCS URL"
-                        description="e.g. gs://my-bucket/path/"
+                        label={t('warehouseFields.gcsUrl')}
+                        description={t('warehouseFields.gcsUrlDescription')}
                         required
                         {...form.getInputProps('warehouse.dataPath.url')}
                         disabled={disabled}
                     />
                     <TextInput
-                        label="HMAC key ID"
-                        description="Leave blank to use the SDK credential chain."
+                        label={t('warehouseFields.hmacKeyId')}
+                        description={t('warehouseFields.sdkCredentialChain')}
                         {...form.getInputProps('warehouse.dataPath.hmacKeyId')}
                         disabled={disabled}
                     />
                     <PasswordInput
-                        label="HMAC secret"
+                        label={t('warehouseFields.hmacSecret')}
                         placeholder={disabled ? '**************' : undefined}
                         {...form.getInputProps('warehouse.dataPath.hmacSecret')}
                         disabled={disabled}
@@ -318,15 +339,19 @@ const DucklakeFields: FC<{ disabled: boolean }> = ({ disabled }) => {
             {dataPathType === DucklakeDataPathType.AZURE && (
                 <>
                     <TextInput
-                        label="Azure Blob URL"
-                        description="e.g. azure://container/path/ or abfss://container@account.dfs.core.windows.net/path/"
+                        label={t('warehouseFields.azureBlobUrl')}
+                        description={t(
+                            'warehouseFields.azureBlobUrlDescription',
+                        )}
                         required
                         {...form.getInputProps('warehouse.dataPath.url')}
                         disabled={disabled}
                     />
                     <PasswordInput
-                        label="Connection string"
-                        description="If set, takes precedence over account name + key."
+                        label={t('warehouseFields.connectionString')}
+                        description={t(
+                            'warehouseFields.connectionStringDescription',
+                        )}
                         placeholder={disabled ? '**************' : undefined}
                         {...form.getInputProps(
                             'warehouse.dataPath.connectionString',
@@ -334,14 +359,14 @@ const DucklakeFields: FC<{ disabled: boolean }> = ({ disabled }) => {
                         disabled={disabled}
                     />
                     <TextInput
-                        label="Account name"
+                        label={t('warehouseFields.accountName')}
                         {...form.getInputProps(
                             'warehouse.dataPath.accountName',
                         )}
                         disabled={disabled}
                     />
                     <PasswordInput
-                        label="Account key"
+                        label={t('warehouseFields.accountKey')}
                         placeholder={disabled ? '**************' : undefined}
                         {...form.getInputProps('warehouse.dataPath.accountKey')}
                         disabled={disabled}
@@ -351,8 +376,8 @@ const DucklakeFields: FC<{ disabled: boolean }> = ({ disabled }) => {
 
             {dataPathType === DucklakeDataPathType.LOCAL && (
                 <TextInput
-                    label="Local data path"
-                    description="Server-local directory. Only viable for single-pod deployments."
+                    label={t('warehouseFields.localDataPath')}
+                    description={t('warehouseFields.localDataPathDescription')}
                     required
                     {...form.getInputProps('warehouse.dataPath.path')}
                     disabled={disabled}
@@ -365,6 +390,7 @@ const DucklakeFields: FC<{ disabled: boolean }> = ({ disabled }) => {
 const DuckdbForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const { t } = useTranslation('projectConnection');
     const [isOpen, toggleOpen] = useToggle(false);
     const form = useFormContext();
 
@@ -406,8 +432,8 @@ const DuckdbForm: FC<{
                 <Stack mt="sm">
                     <NumberInput
                         name="warehouse.threads"
-                        label="Threads"
-                        description="Number of threads for dbt to use."
+                        label={t('warehouseFields.threads')}
+                        description={t('warehouseFields.threadsDescription')}
                         defaultValue={1}
                         {...form.getInputProps('warehouse.threads')}
                         disabled={disabled}
@@ -418,7 +444,7 @@ const DuckdbForm: FC<{
                 </Stack>
             </FormSection>
             <FormCollapseButton isSectionOpen={isOpen} onClick={toggleOpen}>
-                Advanced configuration options
+                {t('dbtSettings.advancedOptions')}
             </FormCollapseButton>
         </Stack>
     );

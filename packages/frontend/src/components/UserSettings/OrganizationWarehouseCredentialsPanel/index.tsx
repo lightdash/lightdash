@@ -2,6 +2,7 @@ import { type OrganizationWarehouseCredentials } from '@lightdash/common';
 import { Box, Button, LoadingOverlay } from '@mantine/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
@@ -12,6 +13,7 @@ import { DeleteCredentialsModal } from './DeleteCredentialsModal';
 import { EditCredentialsModal } from './EditCredentialsModal';
 
 export const OrganizationWarehouseCredentialsPanel = () => {
+    const { t } = useTranslation('userSettings');
     const { data: credentials, isLoading } =
         useOrganizationWarehouseCredentials();
     const [isCreatingCredentials, setIsCreatingCredentials] = useState(false);
@@ -24,15 +26,19 @@ export const OrganizationWarehouseCredentialsPanel = () => {
 
     return (
         <SettingsPage
-            title="Warehouse credentials"
-            description="Manage shared credentials available across your organization."
+            title={t('organizationWarehouseCredentialsPanel.page.title')}
+            description={t(
+                'organizationWarehouseCredentialsPanel.page.description',
+            )}
             actions={
                 <Button
                     size="xs"
                     leftSection={<MantineIcon icon={IconPlus} />}
                     onClick={() => setIsCreatingCredentials(true)}
                 >
-                    Add credentials
+                    {t(
+                        'organizationWarehouseCredentialsPanel.page.addCredentials',
+                    )}
                 </Button>
             }
         >
@@ -53,8 +59,12 @@ export const OrganizationWarehouseCredentialsPanel = () => {
             ) : (
                 <SettingsEmptyState
                     icon={IconDatabaseCog}
-                    title="No warehouse credentials"
-                    description="Add shared credentials for projects across your organization."
+                    title={t(
+                        'organizationWarehouseCredentialsPanel.page.emptyState.title',
+                    )}
+                    description={t(
+                        'organizationWarehouseCredentialsPanel.page.emptyState.description',
+                    )}
                 />
             )}
 

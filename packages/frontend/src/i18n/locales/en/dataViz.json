@@ -1,0 +1,154 @@
+{
+    "switcher": {
+        "table": "Table",
+        "barChart": "Bar chart",
+        "lineChart": "Line chart",
+        "pieChart": "Pie chart",
+        "bigValue": "Big value"
+    },
+    "common": {
+        "aggregation": "Aggregation"
+    },
+    "errors": {
+        "columnNotInQuery": "Column \"{{column}}\" not in SQL query",
+        "columnDoesNotExist": "Column \"{{column}}\" does not exist. Choose another"
+    },
+    "bigNumber": {
+        "tabs": {
+            "data": "Data",
+            "display": "Display",
+            "comparison": "Comparison",
+            "formatting": "Formatting"
+        },
+        "value": "Value",
+        "selectValue": "Select a value",
+        "label": "Label",
+        "hideLabel": "Hide label",
+        "showLabel": "Show label",
+        "format": "Format",
+        "comparison": {
+            "compareToField": "Compare to a field",
+            "field": "Field",
+            "selectFieldPlaceholder": "Select a field to compare against",
+            "rawValue": "Raw value",
+            "percentage": "Percentage",
+            "flipColors": "Flip positive color",
+            "label": "Comparison label",
+            "labelPlaceholder": "Add an optional label"
+        },
+        "rules": {
+            "title": "Rules",
+            "description": "The value takes the colour of the first rule it matches.",
+            "remove": "Remove rule",
+            "add": "Add rule",
+            "operators": {
+                "greaterThan": "is greater than",
+                "greaterThanOrEqual": "is greater than or equal to",
+                "lessThan": "is less than",
+                "lessThanOrEqual": "is less than or equal to",
+                "equals": "is equal to",
+                "notEquals": "is not equal to"
+            }
+        }
+    },
+    "cartesian": {
+        "tabs": {
+            "data": "Data",
+            "series": "Series",
+            "display": "Display"
+        },
+        "display": {
+            "xAxis": "X-axis",
+            "label": "Label",
+            "format": "Format",
+            "yAxis": "Y-axis",
+            "yAxisLeft": "Y-axis (left)",
+            "yAxisRight": "Y-axis (right)"
+        },
+        "format": {
+            "none": "None",
+            "percent": "Percent",
+            "si": "SI"
+        },
+        "fields": {
+            "selectYAxis": "Select Y axis",
+            "removeYAxis": "Remove Y axis",
+            "selectXAxis": "Select X axis",
+            "removeXAxis": "Remove X axis",
+            "selectGroupBy": "Select group by",
+            "addYAxis": "Add Y axis",
+            "groupBy": "Group by"
+        },
+        "series": {
+            "noSeries": "No series found. Add a metric to create a series.",
+            "stacking": "Stacking",
+            "stackNone": "None",
+            "stacked": "Stacked",
+            "stack100": "100%"
+        },
+        "seriesType": {
+            "bar": "Bar",
+            "line": "Line"
+        },
+        "valueLabel": {
+            "hidden": "Hidden",
+            "top": "Top",
+            "bottom": "Bottom",
+            "left": "Left",
+            "right": "Right",
+            "inside": "Inside",
+            "selectColor": "Select value label color",
+            "useAutomaticColor": "Use automatic color"
+        },
+        "dateFormat": {
+            "none": "None",
+            "day": "Day",
+            "week": "Week",
+            "month": "Month",
+            "quarter": "Quarter",
+            "year": "Year"
+        },
+        "seriesConfig": {
+            "label": "Label",
+            "chartType": "Chart Type",
+            "yAxis": "Y Axis",
+            "left": "Left",
+            "right": "Right",
+            "valueLabels": "Value labels"
+        }
+    },
+    "aggregation": {
+        "tooltip": "Aggregation type",
+        "sum": "Sum",
+        "count": "Count",
+        "avg": "Avg",
+        "min": "Min",
+        "max": "Max",
+        "any": "Any value"
+    },
+    "sort": {
+        "sortAscending": "Sort ascending",
+        "sortDescending": "Sort descending",
+        "noSorting": "No sorting",
+        "ascending": "Ascending",
+        "descending": "Descending",
+        "tooltip": "Sort by"
+    },
+    "pie": {
+        "data": "Data",
+        "aggregateBy": "Aggregate by"
+    },
+    "table": {
+        "columnLabels": "Column labels",
+        "toggleColumnVisibility": "Toggle column visibility",
+        "cannotSortGroupColumn": "You cannot sort by a group column",
+        "copyValue": "Copy value"
+    },
+    "view": {
+        "incompleteConfig": "Incomplete chart configuration",
+        "missingValueField": "You're missing a value field",
+        "missingXAxis": "You're missing an X axis",
+        "missingYAxis": "You're missing a Y axis",
+        "errorGenerating": "Error generating chart"
+    }
+}

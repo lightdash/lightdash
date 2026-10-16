@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { IconUnlink } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useSearchParams } from 'react-router';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
 import { parseChartFromExplorerSearchParams } from '../../hooks/useExplorerRoute';
@@ -32,6 +33,7 @@ const EmbedExplorePage: FC<{
     chartView,
     runQueryOnLoad,
 }) => {
+    const { t } = useTranslation('embed');
     const {
         content,
         embedToken,
@@ -72,7 +74,7 @@ const EmbedExplorePage: FC<{
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState
                     icon={IconUnlink}
-                    title="This embed link is not valid"
+                    title={t('page.invalidLink')}
                 />
             </div>
         );
@@ -86,7 +88,7 @@ const EmbedExplorePage: FC<{
         return (
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState
-                    title="Missing saved chart to explore"
+                    title={t('page.missingSavedChart')}
                     icon={IconUnlink}
                 />
             </div>

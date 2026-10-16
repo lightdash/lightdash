@@ -19,6 +19,7 @@ import {
     IconCopy,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import {
     useOrganizationSettings,
@@ -43,11 +44,7 @@ const TOKEN_PLACEHOLDER = '<token>';
 
 type SnippetKey = 'libpqUrl' | 'psql' | 'jdbc';
 
-const SNIPPET_TABS: { value: SnippetKey; label: string }[] = [
-    { value: 'libpqUrl', label: 'Connection URL' },
-    { value: 'psql', label: 'psql' },
-    { value: 'jdbc', label: 'JDBC' },
-];
+const SNIPPET_TABS: SnippetKey[] = ['libpqUrl', 'psql', 'jdbc'];
 
 // Keep the token recognisable (prefix + last 4) while hiding the secret body,
 // so it's safe to show on screen shares yet still identifiable.
@@ -131,6 +128,7 @@ const TokenAddedCard: FC<{
     generated: GeneratedToken;
     onReplace: () => void;
 }> = ({ generated, onReplace }) => {
+    const { t } = useTranslation('settings');
     const masked = maskToken(generated.token);
     return (
         <Box className={classes.tokenCard}>
@@ -143,11 +141,13 @@ const TokenAddedCard: FC<{
                     />
                     <Box>
                         <Text className={classes.tokenCardTitle}>
-                            Token added as your password
+                            {t('semanticLayer.tokenCard.title')}
                         </Text>
                         <Text className={classes.tokenCardMeta}>
-                            Generated for {generated.description} ·{' '}
-                            {generated.expiresLabel}
+                            {t('semanticLayer.tokenCard.generatedFor', {
+                                description: generated.description,
+                                expires: generated.expiresLabel,
+                            })}
                         </Text>
                     </Box>
                 </Group>
@@ -159,7 +159,7 @@ const TokenAddedCard: FC<{
                     onClick={onReplace}
                     flex="0 0 auto"
                 >
-                    Replace
+                    {t('semanticLayer.tokenCard.replace')}
                 </Anchor>
             </Group>
             <Group gap="xs" wrap="nowrap" align="stretch" mt="sm">
@@ -179,19 +179,22 @@ const TokenAddedCard: FC<{
                                 icon={copied ? IconCheck : IconCopy}
                                 size="sm"
                             />
-                            {copied ? 'Copied' : 'Copy'}
+                            {copied
+                                ? t('semanticLayer.tokenCard.copied')
+                                : t('actions.copy', { ns: 'common' })}
                         </UnstyledButton>
                     )}
                 </CopyButton>
             </Group>
             <Text className={classes.tokenCardHint} mt="xs">
-                Remember to save your token — you can&apos;t access it again.
+                {t('semanticLayer.tokenCard.saveReminder')}
             </Text>
         </Box>
     );
 };
 
 const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
+    const { t } = useTranslation('settings');
     const { health, user } = useApp();
     const { data: organization } = useOrganization();
     const { data: project } = useProject(projectUuid);
@@ -276,10 +279,11 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
             <SettingsCard>
                 <Group justify="space-between" wrap="nowrap" align="flex-start">
                     <Stack gap="xxs">
-                        <Title order={5}>Metric SQL API</Title>
+                        <Title order={5}>
+                            {t('semanticLayer.metricSqlApi')}
+                        </Title>
                         <Text c="dimmed" size="sm">
-                            Connect BI tools and SQL clients over the Postgres
-                            wire protocol. Follow the three steps below.
+                            {t('semanticLayer.description')}
                         </Text>
                     </Stack>
                     <Switch
@@ -300,8 +304,7 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
             {isEnabled && !isOrgAdmin && (
                 <SettingsCard>
                     <Callout variant="info">
-                        Connection details are only visible to organization
-                        admins.
+                        {t('semanticLayer.adminOnly')}
                     </Callout>
                 </SettingsCard>
             )}
@@ -309,30 +312,34 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
             {isEnabled && isOrgAdmin && (
                 <SettingsCard p="lg">
                     <Stack gap="lg">
-                        <Callout variant="info" title="Before you connect">
-                            Only simple <code>SELECT</code> queries against a
-                            single explore are supported (no SQL joins), with a
-                            default limit of 500 rows.{' '}
-                            {tlsRequired ? (
-                                <>
-                                    Connections are encrypted — TLS is required,
-                                    so use <code>sslmode=require</code> (or{' '}
-                                    <code>verify-full</code>).
-                                </>
-                            ) : (
-                                <>
-                                    TLS is disabled on this server, so clients
-                                    must use <code>sslmode=disable</code>.
-                                </>
-                            )}
+                        <Callout
+                            variant="info"
+                            title={t('semanticLayer.beforeConnect.title')}
+                        >
+                            <Trans
+                                t={t}
+                                i18nKey="semanticLayer.beforeConnect.limitations"
+                                components={{ code: <code /> }}
+                            />{' '}
+                            <Trans
+                                t={t}
+                                i18nKey={
+                                    tlsRequired
+                                        ? 'semanticLayer.beforeConnect.tlsRequired'
+                                        : 'semanticLayer.beforeConnect.tlsDisabled'
+                                }
+                                components={{ code: <code /> }}
+                            />
                         </Callout>
 
                         <Box>
                             <Step
                                 index={1}
                                 active
-                                title="Token"
-                                description="Paste an existing Lightdash token or generate a new one for this integration. You can use a service account or personal access token."
+                                title={t('semanticLayer.steps.token.title')}
+                                description={t(
+                                    'semanticLayer.steps.token.description',
+                                )}
                             >
                                 {generated ? (
                                     <TokenAddedCard
@@ -342,7 +349,9 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                                 ) : (
                                     <Stack gap="xs">
                                         <PasswordInput
-                                            placeholder="ldsvc_… or ldpat_…"
+                                            placeholder={t(
+                                                'semanticLayer.steps.token.placeholder',
+                                            )}
                                             className="sentry-block ph-no-capture"
                                             value={manualToken}
                                             onChange={(event) =>
@@ -353,7 +362,9 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                                         />
                                         {isServiceAccountsEnabled ? (
                                             <Text c="dimmed" fz="sm">
-                                                Don&apos;t have a token?{' '}
+                                                {t(
+                                                    'semanticLayer.steps.token.noToken',
+                                                )}{' '}
                                                 <Anchor
                                                     component="button"
                                                     type="button"
@@ -362,13 +373,16 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                                                         setModalOpen(true)
                                                     }
                                                 >
-                                                    Generate a new one
+                                                    {t(
+                                                        'semanticLayer.steps.token.generateNew',
+                                                    )}
                                                 </Anchor>
                                             </Text>
                                         ) : (
                                             <Text c="dimmed" fz="sm">
-                                                Paste a personal access token
-                                                from your account settings.
+                                                {t(
+                                                    'semanticLayer.steps.token.pastePat',
+                                                )}
                                             </Text>
                                         )}
                                     </Stack>
@@ -378,29 +392,41 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                             <Step
                                 index={2}
                                 active={false}
-                                title="Connection details"
+                                title={t(
+                                    'semanticLayer.steps.connectionDetails.title',
+                                )}
                             >
                                 <Box className={classes.chipGrid}>
                                     <ConnectionChip
-                                        label="Host"
+                                        label={t(
+                                            'semanticLayer.steps.connectionDetails.host',
+                                        )}
                                         value={host}
                                         span
                                     />
                                     <ConnectionChip
-                                        label="Port"
+                                        label={t(
+                                            'semanticLayer.steps.connectionDetails.port',
+                                        )}
                                         value={portString}
                                     />
                                     <ConnectionChip
-                                        label="User"
+                                        label={t(
+                                            'semanticLayer.steps.connectionDetails.user',
+                                        )}
                                         value={DEFAULT_USER}
                                     />
                                     <ConnectionChip
-                                        label="Database"
+                                        label={t(
+                                            'semanticLayer.steps.connectionDetails.database',
+                                        )}
                                         value={projectUuid}
                                         span
                                     />
                                     <ConnectionChip
-                                        label="SSL mode"
+                                        label={t(
+                                            'semanticLayer.steps.connectionDetails.sslMode',
+                                        )}
                                         value={sslMode}
                                     />
                                 </Box>
@@ -409,8 +435,12 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                             <Step
                                 index={3}
                                 active={false}
-                                title="Connect your client"
-                                description="Pick your tool and copy the ready-made string."
+                                title={t(
+                                    'semanticLayer.steps.connectClient.title',
+                                )}
+                                description={t(
+                                    'semanticLayer.steps.connectClient.description',
+                                )}
                             >
                                 <Stack gap="sm">
                                     <Tabs
@@ -424,11 +454,10 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                                     >
                                         <Tabs.List>
                                             {SNIPPET_TABS.map((tab) => (
-                                                <Tabs.Tab
-                                                    key={tab.value}
-                                                    value={tab.value}
-                                                >
-                                                    {tab.label}
+                                                <Tabs.Tab key={tab} value={tab}>
+                                                    {t(
+                                                        `semanticLayer.steps.connectClient.tabs.${tab}`,
+                                                    )}
                                                 </Tabs.Tab>
                                             ))}
                                         </Tabs.List>

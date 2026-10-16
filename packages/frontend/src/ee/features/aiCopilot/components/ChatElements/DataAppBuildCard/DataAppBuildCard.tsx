@@ -15,17 +15,15 @@ import {
     IconEye,
 } from '@tabler/icons-react';
 import clsx from 'clsx';
+import { type TFunction } from 'i18next';
 import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import AppVersionNarration from '../../../../../../features/apps/components/AppVersionNarration';
 import { formatBuildDuration } from '../../../../../../features/apps/utils/formatBuildDuration';
 import { type AppVersionNarrationData } from '../../../../../../features/apps/utils/versionNarration';
 import styles from './DataAppBuildCard.module.css';
-import {
-    DATA_APP_BUILD_CANCELLED_TITLE,
-    DATA_APP_BUILD_FAILED_TITLE,
-} from './dataAppBuildCardState';
 
 export type DataAppBuildCardState =
     // name: null until the app row (or the tool result) names it.
@@ -62,30 +60,42 @@ type Props = {
 
 const readySubtitle = (
     state: Extract<DataAppBuildCardState, { kind: 'ready' }>,
+    t: TFunction,
 ) => {
     const parts = [`v${state.version}`];
     if (state.restoredFromVersion !== null) {
-        parts.push(`restored from v${state.restoredFromVersion}`);
+        parts.push(
+            t('dataAppBuild.restoredFrom', {
+                version: state.restoredFromVersion,
+            }),
+        );
     } else if (state.durationMs !== null) {
-        parts.push(`built in ${formatBuildDuration(state.durationMs)}`);
+        parts.push(
+            t('dataAppBuild.builtIn', {
+                duration: formatBuildDuration(state.durationMs),
+            }),
+        );
     }
     if (state.themeName !== null) {
-        parts.push(`${state.themeName} theme`);
+        parts.push(t('dataAppBuild.theme', { theme: state.themeName }));
     }
     return parts.join(' · ');
 };
 
 /** View opens the preview panel; it is the card's only action. */
-const ViewButton: FC<{ onView: () => void }> = ({ onView }) => (
-    <Button
-        variant="default"
-        size="compact-xs"
-        leftSection={<MantineIcon icon={IconEye} size={14} />}
-        onClick={onView}
-    >
-        View
-    </Button>
-);
+const ViewButton: FC<{ onView: () => void }> = ({ onView }) => {
+    const { t } = useTranslation('aiCopilotChat');
+    return (
+        <Button
+            variant="default"
+            size="compact-xs"
+            leftSection={<MantineIcon icon={IconEye} size={14} />}
+            onClick={onView}
+        >
+            {t('dataAppBuild.view')}
+        </Button>
+    );
+};
 
 const CardIcon: FC<{ tone: 'default' | 'error' | 'muted' }> = ({ tone }) => (
     <ThemeIcon
@@ -141,6 +151,7 @@ const Muted: FC<{ children: ReactNode }> = ({ children }) => (
  * the reader asks for the rest.
  */
 const Summary: FC<{ children: string }> = ({ children }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const clampRef = useRef<HTMLDivElement>(null);
     const [expanded, setExpanded] = useState(false);
     const [canExpand, setCanExpand] = useState(false);
@@ -173,7 +184,9 @@ const Summary: FC<{ children: string }> = ({ children }) => {
                     className={styles.summaryToggle}
                     onClick={() => setExpanded((open) => !open)}
                 >
-                    {expanded ? 'See less' : 'See more'}
+                    {expanded
+                        ? t('dataAppBuild.seeLess')
+                        : t('dataAppBuild.seeMore')}
                 </UnstyledButton>
             )}
         </Stack>
@@ -202,18 +215,19 @@ const renderCells = (
     state: DataAppBuildCardState,
     compact: boolean,
     onView: () => void,
+    t: TFunction,
 ): ReactNode => {
     switch (state.kind) {
         case 'queued':
             return (
                 <>
                     <Lead icon={<CardIcon tone="default" />}>
-                        <Title>{state.name ?? 'Building data app'}</Title>
+                        <Title>
+                            {state.name ?? t('dataAppBuild.buildingDataApp')}
+                        </Title>
                     </Lead>
                     <Body>
-                        <Muted>
-                            Starting the build. This can take a few minutes.
-                        </Muted>
+                        <Muted>{t('dataAppBuild.startingBuild')}</Muted>
                     </Body>
                 </>
             );
@@ -223,7 +237,10 @@ const renderCells = (
                     <Box className={styles.full}>
                         <Lead icon={<CardIcon tone="default" />}>
                             <InlineTitle
-                                title={state.name ?? 'Building data app'}
+                                title={
+                                    state.name ??
+                                    t('dataAppBuild.buildingDataApp')
+                                }
                                 detail={state.statusMessage}
                             />
                         </Lead>
@@ -235,10 +252,7 @@ const renderCells = (
                         />
                     </Box>
                     <Box className={styles.full}>
-                        <Muted>
-                            Builds in the background, so it's safe to close the
-                            tab.
-                        </Muted>
+                        <Muted>{t('dataAppBuild.backgroundNotice')}</Muted>
                     </Box>
                 </>
             );
@@ -249,7 +263,7 @@ const renderCells = (
                         <Lead icon={<CardIcon tone="default" />}>
                             <InlineTitle
                                 title={state.name}
-                                detail={readySubtitle(state)}
+                                detail={readySubtitle(state, t)}
                             />
                         </Lead>
                         <Actions>
@@ -262,7 +276,7 @@ const renderCells = (
                 <>
                     <Lead icon={<CardIcon tone="default" />}>
                         <Title>{state.name}</Title>
-                        <Muted>{readySubtitle(state)}</Muted>
+                        <Muted>{readySubtitle(state, t)}</Muted>
                     </Lead>
                     <Actions>
                         <ViewButton onView={onView} />
@@ -278,7 +292,9 @@ const renderCells = (
                     <>
                         <Lead icon={<CardIcon tone="error" />}>
                             <Text size="xs" c="dimmed" lineClamp={2}>
-                                {`${DATA_APP_BUILD_FAILED_TITLE}. ${state.message}`}
+                                {t('dataAppBuild.failedWithMessage', {
+                                    message: state.message,
+                                })}
                             </Text>
                         </Lead>
                     </>
@@ -287,7 +303,7 @@ const renderCells = (
             return (
                 <>
                     <Lead icon={<CardIcon tone="error" />}>
-                        <Title>{DATA_APP_BUILD_FAILED_TITLE}</Title>
+                        <Title>{t('dataAppBuild.failedTitle')}</Title>
                     </Lead>
                     <Body>
                         <Muted>{state.message}</Muted>
@@ -304,14 +320,14 @@ const renderCells = (
                             </ThemeIcon>
                         }
                     >
-                        <Title>{DATA_APP_BUILD_CANCELLED_TITLE}</Title>
+                        <Title>{t('dataAppBuild.cancelledTitle')}</Title>
                     </Lead>
                 </>
             );
         case 'unavailable':
             return (
                 <Lead icon={<CardIcon tone="muted" />}>
-                    <Muted>This app is no longer available.</Muted>
+                    <Muted>{t('dataAppBuild.unavailable')}</Muted>
                 </Lead>
             );
         default:
@@ -328,17 +344,20 @@ export const DataAppBuildCard: FC<Props> = ({
     compact,
     isActive,
     onView,
-}) => (
-    <Paper
-        p="sm"
-        radius="md"
-        className={clsx(styles.card, {
-            [styles.cardUnavailable]: state.kind === 'unavailable',
-            [styles.cardActive]: isActive,
-        })}
-    >
-        <Box className={styles.layout}>
-            {renderCells(state, compact, onView)}
-        </Box>
-    </Paper>
-);
+}) => {
+    const { t } = useTranslation('aiCopilotChat');
+    return (
+        <Paper
+            p="sm"
+            radius="md"
+            className={clsx(styles.card, {
+                [styles.cardUnavailable]: state.kind === 'unavailable',
+                [styles.cardActive]: isActive,
+            })}
+        >
+            <Box className={styles.layout}>
+                {renderCells(state, compact, onView, t)}
+            </Box>
+        </Paper>
+    );
+};

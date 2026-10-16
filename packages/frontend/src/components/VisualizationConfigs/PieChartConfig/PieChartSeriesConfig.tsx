@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { Box, Stack } from '@mantine/core';
 import { useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
@@ -18,6 +19,7 @@ import { GroupItem } from './GroupItem';
 import { ValueOptions } from './ValueOptions';
 
 export const Series: FC = () => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig, colorPalette, getGroupColor, itemsMap } =
         useVisualizationContext();
 
@@ -81,7 +83,7 @@ export const Series: FC = () => {
             <Config>
                 <Config.Section>
                     <Config.Group>
-                        <Config.Heading>Label</Config.Heading>
+                        <Config.Heading>{t('pie.series.label')}</Config.Heading>
                     </Config.Group>
                     <ValueOptions
                         isValueLabelOverriden={isValueLabelOverriden}
@@ -104,7 +106,9 @@ export const Series: FC = () => {
             <Config>
                 <Config.Section>
                     <Config.Group>
-                        <Config.Heading>Series</Config.Heading>
+                        <Config.Heading>
+                            {t('pie.series.series')}
+                        </Config.Heading>
                     </Config.Group>
                     {sortedGroupLabels.length === 0 ? null : (
                         <DragDropContext onDragEnd={handleDragEnd}>

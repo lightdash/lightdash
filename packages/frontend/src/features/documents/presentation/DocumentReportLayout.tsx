@@ -8,6 +8,7 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { useEffect, useRef, type HTMLAttributes, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import styles from './ReportPresentation.module.css';
 import { useReportContents } from './useReportContents';
 
@@ -41,7 +42,7 @@ const DocumentReportLayout = ({
     eyebrow,
     description,
     headings,
-    contentsLabel = 'Contents',
+    contentsLabel: contentsLabelProp,
     children,
     headerProps,
     headingSelector,
@@ -53,6 +54,11 @@ const DocumentReportLayout = ({
     initialScrollTop = 0,
     onScrollTopChange,
 }: Props) => {
+    const { t } = useTranslation('documents');
+    const contentsLabel =
+        contentsLabelProp === undefined
+            ? t('report.contents')
+            : contentsLabelProp;
     const contents = useReportContents(headings, headingSelector);
     const { viewportRef } = contents;
     const openAt = useRef(initialScrollTop);
@@ -79,7 +85,7 @@ const DocumentReportLayout = ({
         return () => cancelAnimationFrame(frame);
     }, [viewportRef]);
     const entries = [
-        { id: null, label: 'Summary', badge: undefined },
+        { id: null, label: t('report.summary'), badge: undefined },
         ...headings,
     ];
 
@@ -110,7 +116,7 @@ const DocumentReportLayout = ({
                             <Box
                                 component="nav"
                                 className={styles.contentsNav}
-                                aria-label="Report contents"
+                                aria-label={t('report.contentsAriaLabel')}
                             >
                                 {contentsLabel && (
                                     <Text className={styles.contentsLabel}>

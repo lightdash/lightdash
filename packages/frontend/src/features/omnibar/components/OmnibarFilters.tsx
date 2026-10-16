@@ -27,6 +27,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import CalendarRangePicker from '../../../components/common/DatePickers/CalendarRangePicker';
 import { type CalendarDateRange } from '../../../components/common/DatePickers/types';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -104,12 +105,13 @@ function getFilterButtonProps(hasFilter: boolean) {
 const FilterRightSection: FC<{ isActive: boolean; onClear: () => void }> = ({
     isActive,
     onClear,
-}) =>
-    isActive ? (
+}) => {
+    const { t } = useTranslation('omnibar');
+    return isActive ? (
         <Box
             component="span"
             role="button"
-            aria-label="Clear filter"
+            aria-label={t('filters.clearFilter')}
             className={classes.clearSection}
             onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
             onClick={(e: React.MouseEvent) => {
@@ -123,8 +125,10 @@ const FilterRightSection: FC<{ isActive: boolean; onClear: () => void }> = ({
     ) : (
         <MantineIcon icon={IconChevronDown} strokeWidth={1.5} />
     );
+};
 
 const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
+    const { t } = useTranslation('omnibar');
     const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
     const searchItemTypes = allSearchItemTypes.filter(
         (type) =>
@@ -155,10 +159,10 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
     }, [filters]);
 
     const itemTypeButtonLabel = filters?.verifiedOnly
-        ? 'Verified'
+        ? t('filters.verified')
         : filters?.type
           ? getSearchItemLabel(filters.type as SearchItemType)
-          : 'Item type';
+          : t('filters.itemType');
 
     const userOptions = useMemo(
         () =>
@@ -250,7 +254,7 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                             });
                         }}
                     >
-                        Verified
+                        {t('filters.verified')}
                     </Menu.Item>
                     {searchItemTypes.map((type) => (
                         <Menu.Item
@@ -355,7 +359,7 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                                 });
                             }}
                         >
-                            Clear
+                            {t('filters.clear')}
                         </Button>
                     </Flex>
                 </Menu.Dropdown>
@@ -366,7 +370,7 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                     size="xs"
                     w={200}
                     classNames={{ input: classes.createdByInput }}
-                    placeholder="Search a user..."
+                    placeholder={t('filters.searchUser')}
                     searchable
                     // null keeps the Select controlled; if uncontrolled, Mantine resets the search text mid-click
                     value={filters?.createdByUuid ?? null}
@@ -417,7 +421,7 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                 >
                     {filters?.createdByUuid
                         ? findUserName(filters.createdByUuid, organizationUsers)
-                        : 'Created by'}
+                        : t('filters.createdBy')}
                 </Button>
             )}
 
@@ -432,7 +436,7 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                         onSearchFilterChange({});
                     }}
                 >
-                    Clear filters
+                    {t('filters.clearFilters')}
                 </Button>
             )}
         </Group>

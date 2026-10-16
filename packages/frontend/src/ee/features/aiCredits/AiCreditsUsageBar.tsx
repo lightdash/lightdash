@@ -1,6 +1,7 @@
 import { AI_CREDIT_ALLOWANCE_ALERT_THRESHOLDS } from '@lightdash/common';
 import { Box, Text, useComputedColorScheme } from '@mantine/core';
 import { useEffect, useRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import classes from './AiCreditsUsageBar.module.css';
 import { formatAllowance, formatCredits } from './creditUsage';
 
@@ -157,6 +158,7 @@ export const AiCreditsUsageBar: FC<{
     usedCredits: number;
     allowanceCredits: number;
 }> = ({ usedCredits, allowanceCredits }) => {
+    const { t } = useTranslation('eeMisc');
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const colorScheme = useComputedColorScheme('light');
     const percent = (usedCredits / allowanceCredits) * 100;
@@ -200,11 +202,15 @@ export const AiCreditsUsageBar: FC<{
             <Box
                 className={classes.bar}
                 role="progressbar"
-                aria-label="Credits used"
+                aria-label={t('aiCredits.bar.label')}
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={Math.round(Math.min(percent, 100))}
-                aria-valuetext={`${formatCredits(usedCredits)} of ${formatAllowance(allowanceCredits)} credits used, ${Math.round(percent)}%`}
+                aria-valuetext={t('aiCredits.bar.valueText', {
+                    used: formatCredits(usedCredits),
+                    allowance: formatAllowance(allowanceCredits),
+                    percent: Math.round(percent),
+                })}
             >
                 <canvas ref={canvasRef} className={classes.canvas} />
             </Box>

@@ -1,5 +1,6 @@
 import { type ApiError } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { captureChartTypeError } from '../../chartTypes/utils/captureChartTypeError';
@@ -23,6 +24,7 @@ const deleteApp = async ({
 
 export const useDeleteApp = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('apps');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<void, ApiError, DeleteAppParams>({
         mutationFn: deleteApp,
@@ -44,7 +46,7 @@ export const useDeleteApp = () => {
                 ],
             });
             showToastSuccess({
-                title: variables.successTitle ?? 'Data app deleted',
+                title: variables.successTitle ?? t('toasts.deleted'),
             });
         },
         onError: (apiError, variables) => {
@@ -53,7 +55,7 @@ export const useDeleteApp = () => {
                 appUuid: variables.appUuid,
             });
             showToastApiError({
-                title: 'Failed to delete app',
+                title: t('toasts.deleteFailed'),
                 apiError: apiError.error,
             });
         },

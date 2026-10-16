@@ -5,6 +5,7 @@ import {
 import { Badge, Box, Button, Image, type ButtonProps } from '@mantine/core';
 import { IconLock } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../MantineIcon';
 import {
@@ -64,6 +65,7 @@ const ThirdPartySignInButtonBase: FC<
     lastUsed,
     ...props
 }) => {
+    const { t } = useTranslation('commonUi');
     const button = (
         <Button
             variant="default"
@@ -80,7 +82,11 @@ const ThirdPartySignInButtonBase: FC<
             }`}
             leftSection={
                 typeof logo === 'string' ? (
-                    <Image w={16} src={logo} alt={`${providerName} logo`} />
+                    <Image
+                        w={16}
+                        src={logo}
+                        alt={t('thirdPartySignIn.logoAlt', { providerName })}
+                    />
                 ) : (
                     logo
                 )
@@ -88,10 +94,13 @@ const ThirdPartySignInButtonBase: FC<
             className={classes.signInButton}
             {...props}
         >
-            {intent === 'signup' && `Sign up with ${providerName}`}
-            {intent === 'signin' && `Sign in with ${providerName}`}
-            {intent === 'continue' && `Continue with ${providerName}`}
-            {intent === 'add' && 'Add +'}
+            {intent === 'signup' &&
+                t('thirdPartySignIn.signUpWith', { providerName })}
+            {intent === 'signin' &&
+                t('thirdPartySignIn.signInWith', { providerName })}
+            {intent === 'continue' &&
+                t('thirdPartySignIn.continueWith', { providerName })}
+            {intent === 'add' && t('thirdPartySignIn.add')}
         </Button>
     );
 
@@ -109,7 +118,7 @@ const ThirdPartySignInButtonBase: FC<
                 size="sm"
                 variant="default"
             >
-                Last used
+                {t('thirdPartySignIn.lastUsed')}
             </Badge>
         </Box>
     );

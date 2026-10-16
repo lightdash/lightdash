@@ -1,6 +1,7 @@
 import { ActionIcon, Group, Tooltip } from '@mantine/core';
 import { IconFilter, IconFilterOff } from '@tabler/icons-react';
 import type { FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../common/MantineIcon';
 import {
     ExploreFilter,
@@ -41,6 +42,7 @@ const PreAggregateTopToolbar: FC<Props> = ({
     hasActiveFilters,
     resetFilters,
 }) => {
+    const { t } = useTranslation('app');
     return (
         <Group
             justify="space-between"
@@ -74,7 +76,7 @@ const PreAggregateTopToolbar: FC<Props> = ({
                 />
             </Group>
             {hasActiveFilters && (
-                <Tooltip label="Reset filters">
+                <Tooltip label={t('preAggregateAudit.resetFilters')}>
                     <ActionIcon
                         size="sm"
                         onClick={resetFilters}

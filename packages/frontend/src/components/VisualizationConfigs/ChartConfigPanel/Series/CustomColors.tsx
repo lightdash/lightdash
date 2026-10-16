@@ -18,6 +18,7 @@ import {
     SegmentedControl,
 } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import ColorSelector from '../../ColorSelector';
 import { ChartConditionalFormatting } from './ChartConditionalFormatting';
 
@@ -62,6 +63,7 @@ export const CustomColors: FC<Props> = ({
     setAllCategoryColorOverrides,
     onSetConditionalFormattings,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const { uniqueCategories, allRawKeys, remainingCount } = useMemo(() => {
         if (!colorByCategory || !rows || !xField) {
             return { uniqueCategories: [], allRawKeys: [], remainingCount: 0 };
@@ -133,11 +135,13 @@ export const CustomColors: FC<Props> = ({
                     data={[
                         {
                             value: CUSTOM_COLOR_MODE.CATEGORY,
-                            label: 'Category',
+                            label: t('series.customColors.category'),
                         },
                         {
                             value: CUSTOM_COLOR_MODE.CONDITIONAL_FORMATTING,
-                            label: 'Conditional formatting',
+                            label: t(
+                                'series.customColors.conditionalFormatting',
+                            ),
                         },
                     ]}
                     onChange={(value) => {
@@ -175,7 +179,7 @@ export const CustomColors: FC<Props> = ({
                                 onColorChange={handleSetAllCategoryColors}
                             />
                             <Text fz="xs" fw={600} c="dimmed">
-                                Set all
+                                {t('series.customColors.setAll')}
                             </Text>
                         </Group>
                         <Box
@@ -221,8 +225,10 @@ export const CustomColors: FC<Props> = ({
                                     )}
                                     {remainingCount > 0 && (
                                         <Text fz="xs" c="dimmed" fs="italic">
-                                            {remainingCount} more colored
-                                            automatically
+                                            {t(
+                                                'series.customColors.moreColoredAutomatically',
+                                                { count: remainingCount },
+                                            )}
                                         </Text>
                                     )}
                                 </Stack>

@@ -5,6 +5,7 @@ import {
 import { Button, Skeleton, Stack } from '@mantine/core';
 import { IconPlug, IconPlus } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
 import Callout from '../../common/Callout';
@@ -23,6 +24,7 @@ type Props = {
 };
 
 const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
+    const { t } = useTranslation('settings');
     const { data: connections, isLoading } =
         useExternalConnections(projectUuid);
     // Deep-link support: the builder's connection picker links here with
@@ -54,22 +56,23 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
             leftSection={<MantineIcon icon={IconPlus} />}
             onClick={() => setIsCreating(true)}
         >
-            Add connection
+            {t('dataAppConnections.panel.addConnection')}
         </Button>
     );
     const dataWarning = (
-        <Callout variant="warning" title="Data leaves Lightdash">
-            Apps linked to a connection can send any data they can query to that
-            connection&apos;s external host. Only add connections to hosts you
-            trust with this project&apos;s data.
+        <Callout
+            variant="warning"
+            title={t('dataAppConnections.panel.dataWarningTitle')}
+        >
+            {t('dataAppConnections.panel.dataWarningBody')}
         </Callout>
     );
 
     return (
         <>
             <SettingsPage
-                title="Data app connections"
-                description="Manage external connections used by this project's data apps and chart types."
+                title={t('dataAppConnections.panel.title')}
+                description={t('dataAppConnections.panel.description')}
                 actions={addConnectionButton}
             >
                 <Stack gap="md">
@@ -104,8 +107,10 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
                             {dataWarning}
                             <SettingsEmptyState
                                 icon={IconPlug}
-                                title="No connections"
-                                description="Create a connection to let data apps and chart types call an external HTTP service."
+                                title={t('dataAppConnections.panel.emptyTitle')}
+                                description={t(
+                                    'dataAppConnections.panel.emptyDescription',
+                                )}
                             />
                         </Stack>
                     )}

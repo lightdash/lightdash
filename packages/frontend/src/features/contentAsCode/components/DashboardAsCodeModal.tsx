@@ -1,4 +1,5 @@
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDashboardAsCode } from '../hooks/useDashboardAsCode';
 import ContentAsCodeModal from './ContentAsCodeModal';
 
@@ -17,6 +18,7 @@ const DashboardAsCodeModal: FC<DashboardAsCodeModalProps> = ({
     dashboardUuid,
     hasUnsavedChanges,
 }) => {
+    const { t } = useTranslation('contentAsCode');
     const dashboardAsCode = useDashboardAsCode({
         projectUuid,
         dashboardUuid,
@@ -27,11 +29,11 @@ const DashboardAsCodeModal: FC<DashboardAsCodeModalProps> = ({
         <ContentAsCodeModal
             opened={opened}
             onClose={onClose}
-            resourceLabel="dashboard"
+            resourceLabel={t('resources.dashboard')}
             contentAsCode={dashboardAsCode}
             warning={
                 hasUnsavedChanges
-                    ? 'This YAML contains the last saved version. Save the dashboard to include your current changes.'
+                    ? t('asCodeModal.unsavedDashboardWarning')
                     : undefined
             }
         />

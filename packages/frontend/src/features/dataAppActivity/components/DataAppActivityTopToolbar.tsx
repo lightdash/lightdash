@@ -18,6 +18,7 @@ import {
     IconUser,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FilterFacet, {
     type FilterFacetOption,
 } from '../../../components/common/FilterFacet';
@@ -30,22 +31,6 @@ import {
     type DataAppActivityKind,
     type useDataAppActivityFilters,
 } from '../hooks/useDataAppActivityFilters';
-
-const PERIOD_LABELS: Record<
-    (typeof DATA_APP_ACTIVITY_PERIODS)[number],
-    string
-> = {
-    all: 'All time',
-    '7d': '7 days',
-    '30d': '30 days',
-    '90d': '90 days',
-};
-
-const KIND_LABELS: Record<DataAppActivityKind, string> = {
-    all: 'All builds',
-    apps: 'Apps',
-    chartTypes: 'Chart types',
-};
 
 type DataAppActivityTopToolbarProps = Pick<
     ReturnType<typeof useDataAppActivityFilters>,
@@ -86,6 +71,7 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
     isFetching,
     hasNextPage,
 }) => {
+    const { t } = useTranslation('queryHistory');
     const theme = useMantineTheme();
     const [projectSearch, setProjectSearch] = useState('');
     const [userSearch, setUserSearch] = useState('');
@@ -131,36 +117,40 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
             >
                 <Group gap="xs">
                     <FilterFacet
-                        label="Projects"
+                        label={t('dataAppActivity.filters.projects')}
                         icon={IconBox}
                         selected={selectedProjectUuids}
                         onChange={setSelectedProjectUuids}
                         options={projectOptions}
                         loading={isLoadingProjects}
-                        tooltipLabel="Filter activity by project"
+                        tooltipLabel={t(
+                            'dataAppActivity.filters.projectsTooltip',
+                        )}
                         searchValue={projectSearch}
                         onSearchChange={setProjectSearch}
                     />
                     <Divider orientation="vertical" w={1} h={20} />
                     <FilterFacet
-                        label="Users"
+                        label={t('dataAppActivity.filters.users')}
                         icon={IconUser}
                         selected={selectedUserUuids}
                         onChange={setSelectedUserUuids}
                         options={userOptions}
                         loading={isLoadingUsers}
-                        tooltipLabel="Filter activity by who generated it"
+                        tooltipLabel={t('dataAppActivity.filters.usersTooltip')}
                         searchValue={userSearch}
                         onSearchChange={setUserSearch}
                     />
                     <Divider orientation="vertical" w={1} h={20} />
                     <FilterFacet
-                        label="Models"
+                        label={t('dataAppActivity.filters.models')}
                         icon={IconSparkles}
                         selected={selectedModels}
                         onChange={setSelectedModels}
                         options={modelOptions}
-                        tooltipLabel="Filter activity by the model that built it"
+                        tooltipLabel={t(
+                            'dataAppActivity.filters.modelsTooltip',
+                        )}
                     />
                     <Divider orientation="vertical" w={1} h={20} />
                     <SegmentedControl
@@ -172,7 +162,7 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                             )
                         }
                         data={DATA_APP_ACTIVITY_PERIODS.map((period) => ({
-                            label: PERIOD_LABELS[period],
+                            label: t(`dataAppActivity.periods.${period}`),
                             value: period,
                         }))}
                     />
@@ -184,7 +174,7 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                             setSelectedKind(value as DataAppActivityKind)
                         }
                         data={DATA_APP_ACTIVITY_KINDS.map((kind) => ({
-                            label: KIND_LABELS[kind],
+                            label: t(`dataAppActivity.kinds.${kind}`),
                             value: kind,
                         }))}
                     />
@@ -199,7 +189,7 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                                 }
                                 onClick={resetFilters}
                             >
-                                Clear all filters
+                                {t('dataAppActivity.filters.clearAll')}
                             </Button>
                         </>
                     )}
@@ -218,14 +208,15 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                 >
                     <Text fz="sm" fw={500}>
                         {isFetching
-                            ? 'Loading...'
+                            ? t('dataAppActivity.loading')
                             : hasNextPage
-                              ? `${currentResultsCount} of ${totalResults} generations`
-                              : `${totalResults} ${
-                                    totalResults === 1
-                                        ? 'generation'
-                                        : 'generations'
-                                }`}
+                              ? t('dataAppActivity.partialCount', {
+                                    current: currentResultsCount,
+                                    total: totalResults,
+                                })
+                              : t('dataAppActivity.totalCount', {
+                                    count: totalResults,
+                                })}
                     </Text>
                 </Box>
             </Group>

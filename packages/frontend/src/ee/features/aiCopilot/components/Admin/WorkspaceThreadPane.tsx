@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { Center, Loader } from '@mantine/core';
 import { useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
 import {
@@ -47,6 +48,7 @@ export const WorkspaceThreadPane: FC<Props> = ({
     interactive,
     placeholder,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const {
         data: thread,
         isLoading,
@@ -128,7 +130,8 @@ export const WorkspaceThreadPane: FC<Props> = ({
                     loading={isCreating || isStreaming || isThreadPending}
                     onSubmit={handleSubmit}
                     placeholder={
-                        placeholder ?? `Ask ${agentName} to refine the PR…`
+                        placeholder ??
+                        t('workspaceThread.placeholder', { agentName })
                     }
                     messageCount={thread.messages?.length || 0}
                     projectUuid={projectUuid}

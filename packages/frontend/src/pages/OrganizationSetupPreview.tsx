@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Box, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { BrandPreview } from '../components/UserSettings/AppearanceSettingsPanel/BrandPreview';
 import classes from './OrganizationSetup.module.css';
 
@@ -26,39 +27,46 @@ const OrganizationSetupPreview: FC<OrganizationSetupPreviewProps> = ({
     bodyFont,
     detectedDomain,
     detectedLogoUrl,
-}) => (
-    <Box className={classes.previewCard}>
-        {detectedDomain && (
-            <Box className={classes.pill}>
-                {detectedLogoUrl && (
-                    <img
-                        src={detectedLogoUrl}
-                        alt=""
-                        className={classes.pillLogo}
-                    />
-                )}
-                <Box className={classes.pillDot} />
-                <Text size="xs" c="dimmed">
-                    Theme detected from{' '}
-                    <Text span fw={600} c="dimmed">
-                        {detectedDomain}
+}) => {
+    const { t } = useTranslation('pages');
+    return (
+        <Box className={classes.previewCard}>
+            {detectedDomain && (
+                <Box className={classes.pill}>
+                    {detectedLogoUrl && (
+                        <img
+                            src={detectedLogoUrl}
+                            alt=""
+                            className={classes.pillLogo}
+                        />
+                    )}
+                    <Box className={classes.pillDot} />
+                    <Text size="xs" c="dimmed">
+                        <Trans
+                            t={t}
+                            i18nKey="organizationSetup.themeDetectedFrom"
+                            values={{ domain: detectedDomain }}
+                            components={{
+                                domain: <Text span fw={600} c="dimmed" />,
+                            }}
+                        />
                     </Text>
-                </Text>
-            </Box>
-        )}
+                </Box>
+            )}
 
-        <BrandPreview
-            name={name}
-            logos={logos}
-            colors={colors}
-            titleFont={titleFont}
-            bodyFont={bodyFont}
-        />
+            <BrandPreview
+                name={name}
+                logos={logos}
+                colors={colors}
+                titleFont={titleFont}
+                bodyFont={bodyFont}
+            />
 
-        <Text size="xs" c="dimmed" ta="center">
-            A preview of Lightdash, themed to your brand.
-        </Text>
-    </Box>
-);
+            <Text size="xs" c="dimmed" ta="center">
+                {t('organizationSetup.previewCaption')}
+            </Text>
+        </Box>
+    );
+};
 
 export { OrganizationSetupPreview };

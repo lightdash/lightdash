@@ -27,6 +27,7 @@ import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 import utc from 'dayjs/plugin/utc';
 import { useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     jobStatusLabel,
     jobStepStatusLabel,
@@ -117,12 +118,13 @@ const StepIcon: FC<StepIconProps> = ({ step }) => {
 };
 
 const JobDetailsDrawer: FC = () => {
+    const { t } = useTranslation('projectConnection');
     const { isJobsDrawerOpen, setIsJobsDrawerOpen, activeJob } = useActiveJob();
 
     // Force re-render every second so elapsed timers update in real-time
     const [, setTick] = useState(0);
     const isRunning = activeJob?.jobStatus === JobStatusType.RUNNING;
-    const ticker = useInterval(() => setTick((t) => t + 1), 1000);
+    const ticker = useInterval(() => setTick((tick) => tick + 1), 1000);
     useEffect(() => {
         if (isRunning) {
             ticker.start();
@@ -146,7 +148,10 @@ const JobDetailsDrawer: FC = () => {
             closeOnClickOutside
             withOverlay
             withCloseButton
-            closeButtonProps={{ 'aria-label': 'Close job details', size: 44 }}
+            closeButtonProps={{
+                'aria-label': t('jobDetails.closeAriaLabel'),
+                size: 44,
+            }}
             position="right"
             opened={isJobsDrawerOpen}
             onClose={() => setIsJobsDrawerOpen(false)}
@@ -167,12 +172,15 @@ const JobDetailsDrawer: FC = () => {
                             )}
                         </Title>
                         {hasSteps && (
-                            <Text c="dimmed" fz="sm" fw={500}>{`${
-                                runningStepsInfo(activeJob.steps)
-                                    .completedStepsMessage
-                            } steps complete - ${durationSince(
-                                activeJob.createdAt,
-                            )}`}</Text>
+                            <Text c="dimmed" fz="sm" fw={500}>
+                                {t('jobDetails.stepsComplete', {
+                                    steps: runningStepsInfo(activeJob.steps)
+                                        .completedStepsMessage,
+                                    duration: durationSince(
+                                        activeJob.createdAt,
+                                    ),
+                                })}
+                            </Text>
                         )}
                     </Box>
                 </Group>
@@ -198,11 +206,10 @@ const JobDetailsDrawer: FC = () => {
                                 setTimeout(() => URL.revokeObjectURL(url), 0);
                             }}
                         >
-                            Download captured logs
+                            {t('jobDetails.downloadLogs')}
                         </Button>
                         <Text size="xs" c="dimmed">
-                            Includes saved errors and captured dbt messages.
-                            Some command output may be unavailable.
+                            {t('jobDetails.downloadLogsHint')}
                         </Text>
                     </Stack>
                 )}

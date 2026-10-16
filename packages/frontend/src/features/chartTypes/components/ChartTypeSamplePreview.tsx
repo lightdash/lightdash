@@ -1,6 +1,7 @@
 import { type ChartTypeIcon } from '@lightdash/common';
 import { Box, Stack, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedColorPalette';
 import { useResizeObserver } from '../../../hooks/useResizeObserver';
@@ -47,6 +48,7 @@ const ChartTypeSamplePreview: FC<Props> = ({
     dataAppVizUuid,
     icon,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const previewOrigin = usePreviewOrigin();
     const { data: metadata, error: metadataError } =
         useDataAppVizRenderMetadata(projectUuid, dataAppVizUuid, RENDER_TARGET);
@@ -86,24 +88,39 @@ const ChartTypeSamplePreview: FC<Props> = ({
     // only fall back when there is nothing to show.
     if (!metadata) {
         return metadataError ? (
-            <PreviewPlaceholder message="Preview unavailable" icon={icon} />
+            <PreviewPlaceholder
+                message={t('preview.unavailable')}
+                icon={icon}
+            />
         ) : (
-            <PreviewPlaceholder message="Loading preview…" icon={icon} />
+            <PreviewPlaceholder message={t('preview.loading')} icon={icon} />
         );
     }
     if (metadata.state === 'building') {
-        return <PreviewPlaceholder message="Still generating…" icon={icon} />;
+        return (
+            <PreviewPlaceholder message={t('preview.generating')} icon={icon} />
+        );
     }
     if (metadata.state === 'unavailable') {
-        return <PreviewPlaceholder message="Preview unavailable" icon={icon} />;
+        return (
+            <PreviewPlaceholder
+                message={t('preview.unavailable')}
+                icon={icon}
+            />
+        );
     }
     if (metadata.state === 'failed') {
         return (
-            <PreviewPlaceholder message="No finished version yet" icon={icon} />
+            <PreviewPlaceholder
+                message={t('preview.noFinishedVersion')}
+                icon={icon}
+            />
         );
     }
     if (!token || !previewBaseUrl) {
-        return <PreviewPlaceholder message="Loading preview…" icon={icon} />;
+        return (
+            <PreviewPlaceholder message={t('preview.loading')} icon={icon} />
+        );
     }
 
     const previewUrl = `${previewBaseUrl}?r=0#transport=postMessage&projectUuid=${projectUuid}`;

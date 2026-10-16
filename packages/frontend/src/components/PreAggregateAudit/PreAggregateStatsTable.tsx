@@ -10,6 +10,7 @@ import {
     IconTarget,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ContentTable,
     useContentTable,
@@ -38,6 +39,7 @@ const PreAggregateStatsTable: FC<Props> = ({
     isError,
     projectUuid,
 }) => {
+    const { t } = useTranslation('app');
     const theme = useMantineTheme();
 
     const [sorting, setSorting] = useState<ContentTableSortingState>([
@@ -125,7 +127,7 @@ const PreAggregateStatsTable: FC<Props> = ({
         () => [
             {
                 accessorKey: 'exploreName',
-                header: 'Explore',
+                header: t('preAggregateAudit.columns.explore'),
                 enableSorting: false,
                 size: 160,
                 Header: ({ column }) => (
@@ -142,7 +144,7 @@ const PreAggregateStatsTable: FC<Props> = ({
             },
             {
                 accessorKey: 'preAggregateName',
-                header: 'Pre-aggregate',
+                header: t('preAggregateAudit.columns.preAggregate'),
                 enableSorting: false,
                 size: 160,
                 Header: ({ column }) => (
@@ -164,7 +166,7 @@ const PreAggregateStatsTable: FC<Props> = ({
             },
             {
                 accessorKey: 'chartName',
-                header: 'Chart',
+                header: t('preAggregateAudit.columns.chart'),
                 enableSorting: false,
                 size: 200,
                 Header: ({ column }) => (
@@ -184,13 +186,13 @@ const PreAggregateStatsTable: FC<Props> = ({
                         </Anchor>
                     ) : (
                         <Text size="xs" c="dimmed" fs="italic">
-                            Ad-hoc query
+                            {t('preAggregateAudit.adHocQuery')}
                         </Text>
                     ),
             },
             {
                 accessorKey: 'dashboardName',
-                header: 'Dashboard',
+                header: t('preAggregateAudit.columns.dashboard'),
                 enableSorting: false,
                 size: 180,
                 Header: ({ column }) => (
@@ -219,7 +221,7 @@ const PreAggregateStatsTable: FC<Props> = ({
             },
             {
                 id: 'queries',
-                header: 'Cache',
+                header: t('preAggregateAudit.columns.cache'),
                 enableSorting: true,
                 size: 160,
                 accessorFn: (row) => row.hitCount + row.missCount,
@@ -234,7 +236,9 @@ const PreAggregateStatsTable: FC<Props> = ({
                     return (
                         <Group gap={8} wrap="nowrap">
                             <Text size="xs" c="green.7" ff="monospace">
-                                {hitCount} cached
+                                {t('preAggregateAudit.cached', {
+                                    count: hitCount,
+                                })}
                             </Text>
                             <Text size="xs" c="ldGray.4" ff="monospace">
                                 /
@@ -245,21 +249,29 @@ const PreAggregateStatsTable: FC<Props> = ({
                                 c={missCount > 0 ? 'orange.7' : 'ldGray.4'}
                                 fw={missCount > 0 ? 500 : 400}
                             >
-                                {missCount} uncached
+                                {t('preAggregateAudit.uncached', {
+                                    count: missCount,
+                                })}
                             </Text>
                             {fallbackCount > 0 && (
                                 <>
                                     <Text size="xs" c="ldGray.4" ff="monospace">
                                         /
                                     </Text>
-                                    <Tooltip label="Matched a pre-aggregate but execution failed. Results were served from the warehouse">
+                                    <Tooltip
+                                        label={t(
+                                            'preAggregateAudit.failedTooltip',
+                                        )}
+                                    >
                                         <Text
                                             size="xs"
                                             ff="monospace"
                                             c="red.7"
                                             fw={500}
                                         >
-                                            {fallbackCount} failed
+                                            {t('preAggregateAudit.failed', {
+                                                count: fallbackCount,
+                                            })}
                                         </Text>
                                     </Tooltip>
                                 </>
@@ -271,7 +283,7 @@ const PreAggregateStatsTable: FC<Props> = ({
             },
             {
                 accessorKey: 'topMissReason',
-                header: 'Miss Reason',
+                header: t('preAggregateAudit.columns.missReason'),
                 enableSorting: false,
                 size: 200,
                 Header: ({ column }) => (
@@ -291,7 +303,7 @@ const PreAggregateStatsTable: FC<Props> = ({
             },
             {
                 accessorKey: 'updatedAt',
-                header: 'Last Seen',
+                header: t('preAggregateAudit.columns.lastSeen'),
                 enableSorting: true,
                 size: 150,
                 Header: ({ column }) => (
@@ -308,7 +320,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                 sortingFn: 'datetime',
             },
         ],
-        [projectUuid],
+        [projectUuid, t],
     );
 
     const table = useContentTable({

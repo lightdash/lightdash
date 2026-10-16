@@ -5,12 +5,14 @@ import MantineIcon from '../../common/MantineIcon';
 
 type SectionHeaderProps = {
     label: string;
+    tourValue: string;
     isExpanded: boolean;
     onToggle: () => void;
 };
 
 const SectionHeader: FC<SectionHeaderProps> = ({
     label,
+    tourValue,
     isExpanded,
     onToggle,
 }) => {
@@ -22,7 +24,7 @@ const SectionHeader: FC<SectionHeaderProps> = ({
             // section of the list (Virtual Views), by its label.
             data-tour-anchor="explore-section"
             data-tour-hint="Open the {value} section"
-            data-tour-value={label}
+            data-tour-value={tourValue}
             disableRightSectionRotation
             rightSection={<></>}
             leftSection={

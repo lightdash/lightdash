@@ -1,5 +1,6 @@
 import { CloseButton, FileInput } from '@mantine/core';
 import React, { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFormContext } from '../formContext';
 
 const CertificateFileInput: FC<
@@ -23,6 +24,7 @@ const CertificateFileInput: FC<
           }
     )
 > = ({ name, fileNameProperty, label, disabled, description, accept }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
 
     const fileNamefield = form.getInputProps(fileNameProperty);
@@ -38,7 +40,7 @@ const CertificateFileInput: FC<
 
             <FileInput
                 label={label}
-                placeholder={fileNamePlaceholder || 'Choose file...'}
+                placeholder={fileNamePlaceholder || t('inputs.chooseFile')}
                 description={description}
                 {...fileField}
                 accept={accept}
@@ -66,7 +68,7 @@ const CertificateFileInput: FC<
                 rightSection={
                     (temporaryFile || fileNamePlaceholder) && (
                         <CloseButton
-                            aria-label="Remove certificate file"
+                            aria-label={t('inputs.removeCertificate')}
                             size="sm"
                             variant="transparent"
                             onClick={(event) => {

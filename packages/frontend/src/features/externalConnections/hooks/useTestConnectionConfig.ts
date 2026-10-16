@@ -5,6 +5,7 @@ import {
     type ExternalFetchResponse,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -32,11 +33,12 @@ const testConnectionConfig = async ({
 
 export const useTestConnectionConfig = () => {
     const { showToastApiError } = useToaster();
+    const { t } = useTranslation('sync');
     return useMutation<ExternalFetchResponse, ApiError, TestConfigParams>({
         mutationFn: testConnectionConfig,
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Test request failed',
+                title: t('externalConnections.toasts.testFailed'),
                 apiError: error,
             });
         },

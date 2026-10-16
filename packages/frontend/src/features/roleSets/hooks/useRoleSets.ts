@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -83,6 +84,7 @@ export const useProjectGroupRoleSet = (
 export const useReplaceOrganizationUserRoleSetMutation = () => {
     const { user } = useApp();
     const queryClient = useQueryClient();
+    const { t } = useTranslation('roles');
     const { showToastSuccess, showToastApiError } = useToaster();
     const organizationUuid = user.data?.organizationUuid;
 
@@ -98,7 +100,7 @@ export const useReplaceOrganizationUserRoleSetMutation = () => {
                     error: {
                         name: 'Error',
                         statusCode: 400,
-                        message: 'Organization is not loaded yet',
+                        message: t('roleSets.organizationNotLoaded'),
                         data: {},
                     },
                 };
@@ -125,11 +127,13 @@ export const useReplaceOrganizationUserRoleSetMutation = () => {
                     queryClient.invalidateQueries(['organization_users']),
                     queryClient.refetchQueries(['user']),
                 ]);
-                showToastSuccess({ title: 'Success! User roles updated.' });
+                showToastSuccess({
+                    title: t('roleSets.toasts.userRolesUpdated'),
+                });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: "Failed to update user's roles",
+                    title: t('roleSets.toasts.userRolesUpdateFailed'),
                     apiError: error,
                 });
             },
@@ -139,6 +143,7 @@ export const useReplaceOrganizationUserRoleSetMutation = () => {
 
 export const useReplaceProjectUserRoleSetMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('roles');
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<
@@ -167,12 +172,12 @@ export const useReplaceProjectUserRoleSetMutation = (projectUuid: string) => {
                     ]),
                 ]);
                 showToastSuccess({
-                    title: 'Success! User project roles updated.',
+                    title: t('roleSets.toasts.userProjectRolesUpdated'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to update user project roles',
+                    title: t('roleSets.toasts.userProjectRolesUpdateFailed'),
                     apiError: error,
                 });
             },
@@ -182,6 +187,7 @@ export const useReplaceProjectUserRoleSetMutation = (projectUuid: string) => {
 
 export const useReplaceProjectGroupRoleSetMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('roles');
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<
@@ -215,12 +221,12 @@ export const useReplaceProjectGroupRoleSetMutation = (projectUuid: string) => {
                     ]),
                 ]);
                 showToastSuccess({
-                    title: 'Success! Group project roles updated.',
+                    title: t('roleSets.toasts.groupProjectRolesUpdated'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to update group project roles',
+                    title: t('roleSets.toasts.groupProjectRolesUpdateFailed'),
                     apiError: error,
                 });
             },

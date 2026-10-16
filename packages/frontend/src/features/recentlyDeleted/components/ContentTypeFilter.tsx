@@ -9,6 +9,7 @@ import {
     IconPuzzle,
 } from '@tabler/icons-react';
 import type { FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
@@ -26,6 +27,7 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
     selectedContentType,
     setSelectedContentType,
 }) => {
+    const { t } = useTranslation('settings');
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
     const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
@@ -42,10 +44,10 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
         {
             value: 'all',
             label: (
-                <Tooltip label="Show all deleted items">
+                <Tooltip label={t('recentlyDeleted.filters.allTooltip')}>
                     <Box>
                         <Text fz="xs" fw={500}>
-                            All
+                            {t('recentlyDeleted.filters.all')}
                         </Text>
                     </Box>
                 </Tooltip>
@@ -54,7 +56,10 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
         {
             value: ContentType.CHART,
             label: (
-                <Tooltip label="Show only deleted charts" maw={200}>
+                <Tooltip
+                    label={t('recentlyDeleted.filters.chartsTooltip')}
+                    maw={200}
+                >
                     <Box>
                         <MantineIcon icon={IconChartBar} {...iconProps} />
                     </Box>
@@ -64,7 +69,7 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
         {
             value: ContentType.DASHBOARD,
             label: (
-                <Tooltip label="Show only deleted dashboards">
+                <Tooltip label={t('recentlyDeleted.filters.dashboardsTooltip')}>
                     <Box>
                         <MantineIcon
                             icon={IconLayoutDashboard}
@@ -79,8 +84,16 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
                   {
                       value: ContentType.DOCUMENT,
                       label: (
-                          <Tooltip label="Show only deleted documents">
-                              <Box aria-label="Documents">
+                          <Tooltip
+                              label={t(
+                                  'recentlyDeleted.filters.documentsTooltip',
+                              )}
+                          >
+                              <Box
+                                  aria-label={t(
+                                      'recentlyDeleted.filters.documentsLabel',
+                                  )}
+                              >
                                   <MantineIcon
                                       icon={IconFileText}
                                       {...iconProps}
@@ -96,7 +109,11 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
                   {
                       value: ContentType.DATA_APP,
                       label: (
-                          <Tooltip label="Show only deleted data apps">
+                          <Tooltip
+                              label={t(
+                                  'recentlyDeleted.filters.dataAppsTooltip',
+                              )}
+                          >
                               <Box>
                                   <MantineIcon
                                       icon={IconAppWindow}
@@ -109,7 +126,11 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
                   {
                       value: CHART_TYPES_FILTER_VALUE,
                       label: (
-                          <Tooltip label="Show only deleted custom chart types">
+                          <Tooltip
+                              label={t(
+                                  'recentlyDeleted.filters.chartTypesTooltip',
+                              )}
+                          >
                               <Box>
                                   <MantineIcon
                                       icon={IconPuzzle}
@@ -124,7 +145,7 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
         {
             value: ContentType.SPACE,
             label: (
-                <Tooltip label="Show only deleted spaces">
+                <Tooltip label={t('recentlyDeleted.filters.spacesTooltip')}>
                     <Box>
                         <MantineIcon icon={IconFolder} {...iconProps} />
                     </Box>

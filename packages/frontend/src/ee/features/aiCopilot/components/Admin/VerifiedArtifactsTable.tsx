@@ -13,6 +13,7 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { IconCircleX, IconDots, IconEye } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import {
     ContentTable,
@@ -36,6 +37,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
     onArtifactSelect,
     selectedArtifactVersionUuid,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const theme = useMantineTheme();
     const { agentUuid } = useParams();
     const projectUuid = useProjectUuid();
@@ -137,11 +139,12 @@ export const VerifiedArtifactsTable: FC<Props> = ({
             // },
             {
                 accessorKey: 'title',
-                header: 'Title',
+                header: t('verifiedArtifacts.columns.title'),
                 enableSorting: false,
                 size: 200,
                 Cell: ({ row }) => {
-                    const title = row.original.title || 'Untitled';
+                    const title =
+                        row.original.title || t('verifiedArtifacts.untitled');
                     return (
                         <Stack gap="xs">
                             <Text fz="sm" fw={500} truncate>
@@ -158,7 +161,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
             },
             {
                 accessorKey: 'verifiedBy',
-                header: 'Verified By',
+                header: t('verifiedArtifacts.columns.verifiedBy'),
                 enableSorting: false,
                 size: 180,
                 Cell: ({ row }) => {
@@ -172,7 +175,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
             },
             {
                 accessorKey: 'verifiedAt',
-                header: 'Verified Date',
+                header: t('verifiedArtifacts.columns.verifiedAt'),
                 enableSorting: false,
                 size: 150,
                 Cell: ({ row }) => {
@@ -186,7 +189,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
             },
             {
                 accessorKey: 'referenceCount',
-                header: 'References',
+                header: t('verifiedArtifacts.columns.references'),
                 enableSorting: false,
                 size: 120,
                 Cell: ({ row }) => {
@@ -199,7 +202,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
             },
             {
                 id: 'actions',
-                header: 'Actions',
+                header: t('verifiedArtifacts.columns.actions'),
                 enableSorting: false,
                 size: 60,
                 Cell: ({ row }) => {
@@ -225,7 +228,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                                         handleUnverify(row.original);
                                     }}
                                 >
-                                    Remove from verified answers
+                                    {t('verifiedArtifacts.remove')}
                                 </Menu.Item>
 
                                 <Menu.Item
@@ -235,7 +238,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                                         handleViewArtifact(row.original);
                                     }}
                                 >
-                                    View artifact
+                                    {t('verifiedArtifacts.viewArtifact')}
                                 </Menu.Item>
                             </Menu.Dropdown>
                         </Menu>
@@ -243,7 +246,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                 },
             },
         ],
-        [canManageAgent, handleUnverify, handleViewArtifact],
+        [canManageAgent, handleUnverify, handleViewArtifact, t],
     );
 
     const table = useContentTable({
@@ -338,19 +341,24 @@ export const VerifiedArtifactsTable: FC<Props> = ({
             >
                 {isFetching ? (
                     <Text c="ldGray.8" fz="xs">
-                        Loading more...
+                        {t('verifiedArtifacts.loadingMore')}
                     </Text>
                 ) : (
                     <Group gap="xs">
                         <Text fz="xs" c="ldGray.8">
                             {hasNextPage
-                                ? 'Scroll for more results'
-                                : 'All results loaded'}
+                                ? t('verifiedArtifacts.scrollForMore')
+                                : t('verifiedArtifacts.allLoaded')}
                         </Text>
                         <Text fz="xs" fw={400} c="dimmed">
                             {hasNextPage
-                                ? `(${artifacts.length} of ${totalResults} loaded)`
-                                : `(${artifacts.length})`}
+                                ? t('verifiedArtifacts.loadedOf', {
+                                      loaded: artifacts.length,
+                                      total: totalResults,
+                                  })
+                                : t('verifiedArtifacts.loadedCount', {
+                                      count: artifacts.length,
+                                  })}
                         </Text>
                     </Group>
                 )}
@@ -363,8 +371,8 @@ export const VerifiedArtifactsTable: FC<Props> = ({
             <Paper p="xl">
                 <SuboptimalState
                     icon={IconCircleX}
-                    title="No verified answers yet"
-                    description="Verified answers will appear here once you mark them as verified in conversations."
+                    title={t('verifiedArtifacts.emptyTitle')}
+                    description={t('verifiedArtifacts.emptyDescription')}
                 />
             </Paper>
         );
@@ -378,11 +386,11 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                 opened={unverifyModalOpened}
                 onClose={closeUnverifyModal}
                 role="alertdialog"
-                title="Remove from verified answers?"
-                description="This answer will no longer be used as a reference in future conversations. You can verify it again later."
+                title={t('verifiedArtifacts.unverifyTitle')}
+                description={t('verifiedArtifacts.unverifyDescription')}
                 actions={
                     <Button color="red" onClick={handleConfirmUnverify}>
-                        Remove
+                        {t('actions.remove', { ns: 'common' })}
                     </Button>
                 }
             />

@@ -1,7 +1,10 @@
-export const pluralizeTiles = (count: number): string =>
-    count === 1 ? 'tile' : 'tiles';
+import i18n from '../../i18n/i18n';
 
 export const joinLabels = (labels: string[]): string =>
     labels.length < 2
         ? labels.join('')
-        : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
+        : i18n.t('controls.labelList', {
+              ns: 'dashboardFilters',
+              items: labels.slice(0, -1).join(', '),
+              last: labels[labels.length - 1],
+          });

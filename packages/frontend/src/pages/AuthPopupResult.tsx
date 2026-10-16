@@ -1,6 +1,7 @@
 import { Box, Stack } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import { useMount } from 'react-use';
 import { DocumentTitle } from '../components/common/DocumentTitle';
@@ -8,6 +9,7 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 
 const AuthPopupResult: FC = () => {
+    const { t } = useTranslation('pages');
     const { status } = useParams<{ status: string }>();
 
     useMount(() => {
@@ -22,7 +24,7 @@ const AuthPopupResult: FC = () => {
 
     return (
         <>
-            <DocumentTitle title="Authentication" />
+            <DocumentTitle title={t('authPopup.documentTitle')} />
 
             <Stack>
                 <Box mx="auto" my="lg">
@@ -30,14 +32,14 @@ const AuthPopupResult: FC = () => {
                 </Box>
                 {status === 'success' ? (
                     <SuboptimalState
-                        title={'Thank you for authenticating'}
-                        description={'This window will close automatically'}
+                        title={t('authPopup.success')}
+                        description={t('authPopup.willClose')}
                     />
                 ) : (
                     <SuboptimalState
                         icon={IconAlertCircle}
-                        title={'Authentication failed. Please try again'}
-                        description={'This window will close automatically'}
+                        title={t('authPopup.failed')}
+                        description={t('authPopup.willClose')}
                     />
                 )}
             </Stack>

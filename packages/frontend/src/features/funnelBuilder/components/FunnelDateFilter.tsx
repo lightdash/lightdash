@@ -1,6 +1,7 @@
 import { FUNNEL_DATE_PRESETS, type FunnelDatePreset } from '@lightdash/common';
 import { Group, SegmentedControl } from '@mantine/core';
 import { useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import CalendarRangePickerInput from '../../../components/common/DatePickers/CalendarRangePickerInput';
 import { type CalendarDateRange } from '../../../components/common/DatePickers/types';
 import { useAppDispatch, useAppSelector } from '../store';
@@ -12,6 +13,7 @@ import {
 } from '../store/funnelBuilderSlice';
 
 export const FunnelDateFilter: FC = () => {
+    const { t } = useTranslation('metricsCatalog');
     const dispatch = useAppDispatch();
     const dateRangePreset = useAppSelector(selectDateRangePreset);
     const customDateRange = useAppSelector(selectCustomDateRange);
@@ -44,13 +46,13 @@ export const FunnelDateFilter: FC = () => {
                 }
                 data={FUNNEL_DATE_PRESETS.map((p) => ({
                     value: p.value,
-                    label: p.label,
+                    label: t(`funnelBuilder.datePresets.${p.value}`),
                 }))}
             />
 
             {dateRangePreset === 'custom' && (
                 <CalendarRangePickerInput
-                    label="Custom Date Range"
+                    label={t('funnelBuilder.customDateRange')}
                     value={customDateRangeDates}
                     onChange={handleCustomDateChange}
                 />

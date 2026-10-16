@@ -7,6 +7,7 @@ import {
     type AiServiceAccountTestResult,
 } from '@lightdash/common';
 import { Anchor, Stack, Text } from '@mantine/core';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { formatAiServiceAccountDate } from './formatAiServiceAccountDate';
 
@@ -20,21 +21,21 @@ type ServiceAccountWarehouse =
     | WarehouseTypes.SNOWFLAKE
     | WarehouseTypes.DATABRICKS;
 
-const getMethod = (warehouseType: ServiceAccountWarehouse): string => {
+const getMethodKey = (warehouseType: ServiceAccountWarehouse): string => {
     switch (warehouseType) {
         case WarehouseTypes.TRINO:
         case WarehouseTypes.CLICKHOUSE:
         case WarehouseTypes.REDSHIFT:
         case WarehouseTypes.POSTGRES:
-            return 'User and password';
+            return 'userPassword';
         case WarehouseTypes.ATHENA:
-            return 'Access keys';
+            return 'accessKeys';
         case WarehouseTypes.BIGQUERY:
-            return 'Key file';
+            return 'keyFile';
         case WarehouseTypes.SNOWFLAKE:
-            return 'Key pair';
+            return 'keyPair';
         case WarehouseTypes.DATABRICKS:
-            return 'Client ID and secret';
+            return 'clientIdSecret';
         default:
             return assertUnreachable(warehouseType, 'Unknown warehouse type');
     }
@@ -53,6 +54,7 @@ export const AiServiceAccountDetails = ({
     observation: AiServiceAccountTestResult | null;
     warehouseType: ServiceAccountWarehouse;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const principal =
         warehouseType === WarehouseTypes.BIGQUERY && !slot && parent
             ? parent.principal !== null
@@ -61,9 +63,15 @@ export const AiServiceAccountDetails = ({
             : testedPrincipal;
     const dates = [
         observation?.ok
-            ? `Tested ${formatAiServiceAccountDate(observation.checkedAt)}.`
+            ? t('serviceAccountDetails.tested', {
+                  date: formatAiServiceAccountDate(observation.checkedAt),
+              })
             : null,
-        slot ? `Added ${formatAiServiceAccountDate(slot.updatedAt)}.` : null,
+        slot
+            ? t('serviceAccountDetails.added', {
+                  date: formatAiServiceAccountDate(slot.updatedAt),
+              })
+            : null,
     ]
         .filter(Boolean)
         .join(' ');
@@ -71,33 +79,42 @@ export const AiServiceAccountDetails = ({
         <Stack gap="xs">
             {!slot && parent && parent.credentialsReadable !== false && (
                 <Text size="sm">
-                    Uses the shared agent account from{' '}
                     {parent.projectName !== null ? (
-                        <Anchor
-                            component={Link}
-                            to={getProjectAgentIdentitySettingsPath(
-                                parent.projectUuid,
-                            )}
-                            size="sm"
-                        >
-                            {parent.projectName}
-                        </Anchor>
+                        <Trans
+                            t={t}
+                            i18nKey="serviceAccountDetails.usesFromProject"
+                            values={{ project: parent.projectName }}
+                            components={{
+                                anchor: (
+                                    <Anchor
+                                        component={Link}
+                                        to={getProjectAgentIdentitySettingsPath(
+                                            parent.projectUuid,
+                                        )}
+                                        size="sm"
+                                    />
+                                ),
+                            }}
+                        />
                     ) : (
-                        'the parent project'
+                        t('serviceAccountDetails.usesFromParent')
                     )}
-                    .
                 </Text>
             )}
             {principal ? (
                 <Text size="sm" role="status">
-                    Signs in as {principal}
+                    {t('serviceAccountDetails.signsInAs', { principal })}
                 </Text>
             ) : (
                 <Text size="sm" c="dimmed">
-                    Not tested yet. Select Test to see who it signs in as.
+                    {t('serviceAccountDetails.notTested')}
                 </Text>
             )}
-            <Text size="sm">{getMethod(warehouseType)}</Text>
+            <Text size="sm">
+                {t(
+                    `serviceAccountDetails.methods.${getMethodKey(warehouseType)}`,
+                )}
+            </Text>
             {dates && (
                 <Text size="xs" c="dimmed">
                     {dates}

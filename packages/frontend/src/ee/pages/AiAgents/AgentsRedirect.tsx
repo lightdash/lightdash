@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router';
 import PageSpinner from '../../../components/PageSpinner';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -10,6 +11,7 @@ import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentP
  * This page will redirect them to their default project ai-agents welcome page.
  */
 const AgentsRedirect = () => {
+    const { t } = useTranslation('eeMisc');
     const { activeProjectUuid, isLoading } = useActiveProjectUuid();
     const { showToastInfo } = useToaster();
     const canViewAiAgents = useAiAgentPermission({
@@ -20,10 +22,10 @@ const AgentsRedirect = () => {
     useEffect(() => {
         if (!canViewAiAgents) {
             showToastInfo({
-                subtitle: 'You are not allowed to access this view',
+                subtitle: t('agents.notAllowed'),
             });
         }
-    }, [canViewAiAgents, showToastInfo]);
+    }, [canViewAiAgents, showToastInfo, t]);
 
     if (isLoading) {
         return <PageSpinner />;

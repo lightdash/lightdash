@@ -17,6 +17,7 @@ import {
     IconSparkles,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, type To } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
@@ -69,6 +70,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
     previewInExplorerDisabled,
     onPreviewInExplorer,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const [isEditingDetails, setIsEditingDetails] = useState(false);
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
     const upgradeAvailable =
@@ -98,7 +100,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                             fw={600}
                             c="ldGray.8"
                         >
-                            Chart Studio
+                            {t('header.chartStudio')}
                         </Text>
                         {(hasName || isNamePending) && (
                             <Box className={classes.divider} />
@@ -134,17 +136,17 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                                 <Tooltip w={280} label={app.description}>
                                     <ActionIcon
                                         size="sm"
-                                        aria-label="Chart type description"
+                                        aria-label={t('header.description')}
                                     >
                                         <MantineIcon icon={IconInfoCircle} />
                                     </ActionIcon>
                                 </Tooltip>
                             )}
                             {app && (
-                                <Tooltip label="Edit details">
+                                <Tooltip label={t('header.editDetails')}>
                                     <ActionIcon
                                         size="sm"
-                                        aria-label="Edit chart type details"
+                                        aria-label={t('header.editDetailsAria')}
                                         onClick={() =>
                                             setIsEditingDetails(true)
                                         }
@@ -169,7 +171,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                         disabled={upgrade.disabled}
                         onClick={() => setIsUpgradeModalOpen(true)}
                     >
-                        Upgrade available
+                        {t('header.upgradeAvailable')}
                     </Button>
                 )}
                 {app && (
@@ -192,7 +194,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                             onClick={onToggleHistory}
                             inert={!hasHistory}
                         >
-                            History
+                            {t('header.history')}
                         </Button>
                     </Skeleton>
                 )}
@@ -204,7 +206,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                             to={previewInExplorerLink}
                             disabled={previewInExplorerDisabled}
                         >
-                            Preview in explorer
+                            {t('detail.previewInExplorer')}
                         </Button>
                     ) : onPreviewInExplorer ? (
                         <Button
@@ -212,7 +214,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                             onClick={onPreviewInExplorer}
                             disabled={previewInExplorerDisabled}
                         >
-                            Preview in explorer
+                            {t('detail.previewInExplorer')}
                         </Button>
                     ) : null)}
             </Group>

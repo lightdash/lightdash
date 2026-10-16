@@ -1,5 +1,6 @@
 import { Stack, UnstyledButton } from '@mantine/core';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { NAVBAR_HEIGHT } from '../../../../components/common/Page/constants';
 import {
     getAgentSettingsSections,
@@ -14,7 +15,11 @@ type Props = {
 };
 
 export const AgentSettingsSectionNav: FC<Props> = ({ mode }) => {
-    const sections = useMemo(() => getAgentSettingsSections(mode), [mode]);
+    const { t } = useTranslation('aiAgent');
+    const sections = useMemo(
+        () => getAgentSettingsSections(mode, t),
+        [mode, t],
+    );
     const [activeId, setActiveId] = useState<AgentSettingsSectionId | null>(
         null,
     );

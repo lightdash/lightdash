@@ -18,6 +18,7 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import AboutFooter from '../components/AboutFooter';
 import CodeBlock from '../components/common/CodeBlock/CodeBlock';
@@ -41,6 +42,7 @@ const CLI_ROUTE_PARAM = 'cli';
 const DETECTION_POLL_INTERVAL_MS = 3000;
 
 const DocsLink: FC = () => {
+    const { t } = useTranslation('pages');
     const { track } = useTracking();
     return (
         <Anchor
@@ -57,12 +59,13 @@ const DocsLink: FC = () => {
                 });
             }}
         >
-            View docs
+            {t('onboardingDbt.viewDocs')}
         </Anchor>
     );
 };
 
 const DbtMethodPicker: FC = () => {
+    const { t } = useTranslation('pages');
     const navigate = useNavigate();
     const { track } = useTracking();
 
@@ -70,16 +73,16 @@ const DbtMethodPicker: FC = () => {
         {
             to: `/onboarding/dbt/${CLI_ROUTE_PARAM}`,
             icon: IconTerminal,
-            label: 'Using your CLI',
-            description: 'with lightdash deploy',
+            label: t('onboardingDbt.methods.cli.label'),
+            description: t('onboardingDbt.methods.cli.description'),
             onTrack: () =>
                 track({ name: EventName.CREATE_PROJECT_CLI_BUTTON_CLICKED }),
         },
         {
             to: INTEGRATIONS_ROUTE,
             icon: IconChecklist,
-            label: 'Manually',
-            description: 'Pull project from git repository',
+            label: t('onboardingDbt.methods.manual.label'),
+            description: t('onboardingDbt.methods.manual.description'),
             onTrack: () =>
                 track({
                     name: EventName.CREATE_PROJECT_MANUALLY_BUTTON_CLICKED,
@@ -91,10 +94,10 @@ const DbtMethodPicker: FC = () => {
         <Box className={classes.column}>
             <Stack align="center" gap="xs">
                 <Title order={1} ta="center">
-                    Let's get you set up!
+                    {t('onboardingDbt.title')}
                 </Title>
                 <Text size="md" c="dimmed" ta="center">
-                    Choose how you want to upload your dbt project.
+                    {t('onboardingDbt.subtitle')}
                 </Text>
             </Stack>
 
@@ -175,6 +178,7 @@ const useDbtSetupDetection = (isEnabled: boolean) => {
 };
 
 const DbtCliWaiting: FC = () => {
+    const { t } = useTranslation('pages');
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { health } = useApp();
@@ -211,10 +215,10 @@ const DbtCliWaiting: FC = () => {
             } catch {
                 // The destination reads these itself if priming failed
             }
-            showToastSuccess({ title: 'Your dbt project is connected!' });
+            showToastSuccess({ title: t('onboardingDbt.connected') });
             void navigate(GET_STARTED_ROUTE, { replace: true });
         })();
-    }, [isDetected, navigate, queryClient, showToastSuccess]);
+    }, [isDetected, navigate, queryClient, showToastSuccess, t]);
 
     const handleCopy = useCallback(() => {
         track({ name: EventName.COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED });
@@ -227,7 +231,7 @@ const DbtCliWaiting: FC = () => {
 
     const steps = [
         {
-            title: 'Install the Lightdash CLI',
+            title: t('onboardingDbt.steps.install'),
             content:
                 os === 'macos' ? (
                     <Tabs defaultValue="npm">
@@ -259,7 +263,7 @@ const DbtCliWaiting: FC = () => {
                 ),
         },
         {
-            title: 'Log in to Lightdash',
+            title: t('onboardingDbt.steps.login'),
             content: (
                 <CodeBlock
                     code={`lightdash login ${siteUrl}`}
@@ -269,7 +273,7 @@ const DbtCliWaiting: FC = () => {
             ),
         },
         {
-            title: 'Deploy your dbt project',
+            title: t('onboardingDbt.steps.deploy'),
             content: (
                 <CodeBlock
                     code="lightdash deploy --create"
@@ -285,11 +289,10 @@ const DbtCliWaiting: FC = () => {
             <Stack align="center" gap="xs">
                 <Loader size="sm" />
                 <Title order={1} ta="center">
-                    Waiting for data
+                    {t('onboardingDbt.waitingTitle')}
                 </Title>
                 <Text size="md" c="dimmed" ta="center">
-                    Inside your dbt project, run the steps below. We'll pick it
-                    up automatically.
+                    {t('onboardingDbt.waitingSubtitle')}
                 </Text>
             </Stack>
 
@@ -313,6 +316,7 @@ const DbtCliWaiting: FC = () => {
 };
 
 const OnboardingDbtContent: FC = () => {
+    const { t } = useTranslation('pages');
     const { method } = useParams<{ method?: string }>();
 
     if (method && method !== CLI_ROUTE_PARAM) {
@@ -321,7 +325,7 @@ const OnboardingDbtContent: FC = () => {
 
     return (
         <Box className={classes.page}>
-            <DocumentTitle title="Set up your dbt" />
+            <DocumentTitle title={t('onboardingDbt.documentTitle')} />
             {method === CLI_ROUTE_PARAM ? (
                 <DbtCliWaiting />
             ) : (

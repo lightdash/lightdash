@@ -19,6 +19,7 @@ import { useCallback, useMemo, useRef } from 'react';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import useUser from '../../../../hooks/user/useUser';
+import i18n from '../../../../i18n/i18n';
 import useApp from '../../../../providers/App/useApp';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
@@ -242,7 +243,9 @@ const useStartDeepResearchMutationBase = <
             const { threadUuid } = getIds(_variables);
             restoreDeepResearchComposerPrompt(threadUuid, _variables.question);
             showToastApiError({
-                title: 'Could not start research',
+                title: i18n.t('toasts.deepResearch.startFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -635,7 +638,9 @@ export const useCancelDeepResearchMutation = (
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Could not stop research',
+                title: i18n.t('toasts.deepResearch.stopFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },

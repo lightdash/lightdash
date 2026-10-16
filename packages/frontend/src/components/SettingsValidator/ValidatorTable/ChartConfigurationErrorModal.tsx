@@ -2,6 +2,7 @@ import { type ValidationErrorChartResponse } from '@lightdash/common';
 import { Anchor, Button, Stack, Text } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import Callout from '../../common/Callout';
 import MantineModal from '../../common/MantineModal';
 import { getLinkToResource } from '../utils/utils';
@@ -15,6 +16,7 @@ export const ChartConfigurationErrorModal: FC<Props> = ({
     validationError,
     onClose,
 }) => {
+    const { t } = useTranslation('projectSettings');
     if (!validationError) {
         return null;
     }
@@ -27,53 +29,59 @@ export const ChartConfigurationErrorModal: FC<Props> = ({
     return (
         <MantineModal
             size="lg"
-            title="Chart configuration issue"
+            title={t('validator.chartConfigModal.title')}
             icon={IconAlertTriangle}
             opened={!!validationError}
             onClose={onClose}
             actions={
                 <Button component="a" href={chartUrl} target="_blank">
-                    Edit chart
+                    {t('validator.chartConfigModal.editChart')}
                 </Button>
             }
         >
             <Stack gap="md">
                 <Text fz="sm">
-                    Chart:{' '}
-                    <Anchor href={chartUrl} target="_blank">
-                        <Text span fw={600}>
-                            {validationError.name}
-                        </Text>
-                    </Anchor>
+                    <Trans
+                        t={t}
+                        i18nKey="validator.chartConfigModal.chart"
+                        values={{ name: validationError.name }}
+                        components={{
+                            link: (
+                                <Anchor href={chartUrl} target="_blank">
+                                    <Text span fw={600} />
+                                </Anchor>
+                            ),
+                        }}
+                    />
                 </Text>
 
-                <Callout variant="warning" title="Unused dimension in query">
+                <Callout
+                    variant="warning"
+                    title={t('validator.chartConfigModal.unusedDimension')}
+                >
                     <Text fz="sm">
-                        The dimension{' '}
-                        <Text span fw={600}>
-                            {validationError.fieldName}
-                        </Text>{' '}
-                        is included in this chart's query but is not being used
-                        in the chart configuration (x-axis, y-axis, or group
-                        by).
+                        <Trans
+                            t={t}
+                            i18nKey="validator.chartConfigModal.unusedDimensionDescription"
+                            values={{ fieldName: validationError.fieldName }}
+                            components={{ b: <Text span fw={600} /> }}
+                        />
                     </Text>
                 </Callout>
 
                 <Text fz="sm">
-                    Dimensions that are not mapped to the chart configuration
-                    can cause incorrect or unexpected results.
+                    {t('validator.chartConfigModal.unmappedWarning')}
                 </Text>
 
                 <Text fz="sm" fw={500}>
-                    To fix this issue, either:
+                    {t('validator.chartConfigModal.toFix')}
                 </Text>
                 <Stack gap="xs" ml="md">
                     <Text fz="sm">
-                        1. Remove the unused dimension from the query
+                        {t('validator.chartConfigModal.fixRemove')}
                     </Text>
                     <Text fz="sm">
-                        2. Add the dimension to the x-axis, y-axis, or group by
-                        configuration
+                        {t('validator.chartConfigModal.fixAdd')}
                     </Text>
                 </Stack>
             </Stack>

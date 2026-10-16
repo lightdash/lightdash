@@ -2,6 +2,7 @@ import { type RoleLevel, type RoleWithScopes } from '@lightdash/common';
 import { Center, Loader, Select, Stack } from '@mantine/core';
 import startCase from 'lodash/startCase';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
 import { SettingsCard } from '../../../components/common/Settings/SettingsCard';
@@ -9,6 +10,7 @@ import { RoleBuilder } from '../../features/customRoles/components/RoleBuilder';
 import { useCustomRoles } from '../../features/customRoles/useCustomRoles';
 
 export const CustomRoleDuplicate = () => {
+    const { t } = useTranslation('customRoles');
     const navigate = useNavigate();
     const { createRole, getAllRoles } = useCustomRoles();
     const [sourceRoleId, setSourceRoleId] = useState('');
@@ -34,10 +36,10 @@ export const CustomRoleDuplicate = () => {
             }));
 
         return [
-            { group: 'System roles', items: systemRoles },
-            { group: 'Custom roles', items: customRoles },
+            { group: t('duplicate.systemRoles'), items: systemRoles },
+            { group: t('duplicate.customRoles'), items: customRoles },
         ];
-    }, [roles]);
+    }, [roles, t]);
 
     const sourceRole =
         roles.find((role) => role.roleUuid === sourceRoleId) ?? null;
@@ -71,11 +73,11 @@ export const CustomRoleDuplicate = () => {
             <PageBreadcrumbs
                 items={[
                     {
-                        title: 'Custom roles',
+                        title: t('page.title'),
                         to: '/generalSettings/customRoles',
                     },
                     {
-                        title: 'Duplicate role',
+                        title: t('duplicate.title'),
                         active: true,
                     },
                 ]}
@@ -83,10 +85,10 @@ export const CustomRoleDuplicate = () => {
 
             <SettingsCard>
                 <Select
-                    label="Select role to duplicate"
-                    placeholder="Choose a role"
+                    label={t('duplicate.selectLabel')}
+                    placeholder={t('duplicate.selectPlaceholder')}
                     searchable
-                    nothingFoundMessage="No roles found"
+                    nothingFoundMessage={t('duplicate.noRoles')}
                     data={rolesSelectData}
                     required
                     value={sourceRoleId}
@@ -98,7 +100,7 @@ export const CustomRoleDuplicate = () => {
                 <RoleBuilder
                     key={sourceRole.roleUuid}
                     initialValues={{
-                        name: `Copy of: ${sourceRole.name}`,
+                        name: t('duplicate.copyOf', { name: sourceRole.name }),
                         description: sourceRole.description ?? '',
                         level: sourceRole.level,
                         scopes: sourceRole.scopes,
@@ -107,7 +109,7 @@ export const CustomRoleDuplicate = () => {
                     isWorking={createRole.isLoading}
                     mode="create"
                     levelLocked={isCustomSource}
-                    levelLockedHint="Type matches the role being duplicated and cannot be changed."
+                    levelLockedHint={t('duplicate.levelLockedHint')}
                     rederiveScopesOnLevelChange
                 />
             )}

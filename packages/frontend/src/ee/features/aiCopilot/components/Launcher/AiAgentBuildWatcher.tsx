@@ -1,6 +1,7 @@
 import { type ApiAppVersionSummary } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useStore } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router';
 import { useAppBuildPoller } from '../../../../../features/apps/hooks/useAppBuildPoller';
@@ -57,6 +58,7 @@ type BuildWatchProps = { watch: BuildWatchEntry };
 
 /** Follows one build watch: polls the app until its outcome lands. */
 const BuildWatch: FC<BuildWatchProps> = ({ watch }) => {
+    const { t } = useTranslation('aiAgent');
     const queryClient = useQueryClient();
     const dispatch = useAiAgentStoreDispatch();
     const store = useStore<AiAgentStoreState>();
@@ -94,7 +96,7 @@ const BuildWatch: FC<BuildWatchProps> = ({ watch }) => {
     // Requests permission on mount, i.e. when the watch starts.
     const notify = useBuildNotification({
         appUuid,
-        appName: watch.appName ?? 'Data app',
+        appName: watch.appName ?? t('launcher.dataAppFallback'),
         shouldRequestPermission: canNotify,
         onClick: openThread,
     });

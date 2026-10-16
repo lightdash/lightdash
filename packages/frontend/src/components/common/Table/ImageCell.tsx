@@ -2,6 +2,7 @@ import { type Dimension } from '@lightdash/common';
 import { Tooltip } from '@mantine/core';
 import { IconPhotoOff } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../MantineIcon';
 
 export const BrokenImageCell = ({
@@ -11,12 +12,15 @@ export const BrokenImageCell = ({
     imageUrl: string;
     error?: string;
 }) => {
+    const { t } = useTranslation('table');
     return (
         <Tooltip
             w="400px"
-            label={`Could not load image "${imageUrl}" ${
-                error ? `: ${error}` : ''
-            }`}
+            label={
+                error
+                    ? t('imageCell.loadFailedWithError', { imageUrl, error })
+                    : t('imageCell.loadFailed', { imageUrl })
+            }
         >
             <span style={{ display: 'inline-block', lineHeight: 0 }}>
                 <MantineIcon icon={IconPhotoOff} size="xxl" color="gray" />{' '}

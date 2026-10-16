@@ -23,8 +23,10 @@ import {
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import i18n from '../../../i18n/i18n';
 import { type DestinationType } from './useSchedulerFilters';
 
 const getScheduler = async (uuid: string) =>
@@ -489,7 +491,12 @@ const getJobStatus = async (
             if (data.status === SchedulerJobStatus.COMPLETED) {
                 return onComplete(data.details);
             } else if (data.status === SchedulerJobStatus.ERROR) {
-                onError(new Error(data.details?.error || 'Job failed'));
+                onError(
+                    new Error(
+                        data.details?.error ||
+                            i18n.t('toasts.jobFailed', { ns: 'scheduler' }),
+                    ),
+                );
             } else {
                 setTimeout(
                     () => getJobStatus(jobId, onComplete, onError, projectUuid),
@@ -524,6 +531,7 @@ const useSendNowJobStatus = (jobId: string | undefined) => {
         showToastSuccess,
         showToastApiError,
     } = useToaster();
+    const { t } = useTranslation('scheduler');
     return useQuery<ApiJobStatusResponse['results'] | undefined, ApiError>(
         ['jobStatus', jobId],
         () => {
@@ -549,7 +557,7 @@ const useSendNowJobStatus = (jobId: string | undefined) => {
                 if (data) {
                     showToastInfo({
                         key: 'toast-info-job-scheduled-delivery-status',
-                        title: 'Processing Scheduled delivery...',
+                        title: t('toasts.processingDelivery'),
                         loading: true,
                         autoClose: false,
                     });
@@ -560,11 +568,11 @@ const useSendNowJobStatus = (jobId: string | undefined) => {
                         ThresholdStatus.NOT_MET
                     ) {
                         showToastInfo({
-                            title: 'Threshold not met. No notification was sent.',
+                            title: t('toasts.thresholdNotMet'),
                         });
                     } else {
                         showToastSuccess({
-                            title: 'Scheduled delivery sent successfully',
+                            title: t('toasts.sentSuccessfully'),
                         });
                     }
 
@@ -578,7 +586,7 @@ const useSendNowJobStatus = (jobId: string | undefined) => {
                 }
                 if (data?.status === SchedulerJobStatus.ERROR) {
                     showToastError({
-                        title: 'Failed to send scheduled delivery',
+                        title: t('toasts.sendFailed'),
                         ...(data?.details?.error && {
                             subtitle: data.details.error,
                         }),
@@ -594,7 +602,7 @@ const useSendNowJobStatus = (jobId: string | undefined) => {
             },
             onError: async ({ error }) => {
                 showToastApiError({
-                    title: 'Error polling job status',
+                    title: t('toasts.pollingError'),
                     apiError: error,
                 });
 
@@ -615,6 +623,7 @@ const useSendNowJobStatus = (jobId: string | undefined) => {
 
 export const useSendNowScheduler = () => {
     const { showToastInfo, showToastError, showToastApiError } = useToaster();
+    const { t } = useTranslation('scheduler');
 
     const sendNowMutation = useMutation<
         ApiTestSchedulerResponse['results'],
@@ -624,7 +633,7 @@ export const useSendNowScheduler = () => {
         (res) => {
             showToastInfo({
                 key: 'toast-info-job-status',
-                title: 'Processing job...',
+                title: t('toasts.processingJob'),
                 loading: true,
                 autoClose: false,
             });
@@ -636,15 +645,15 @@ export const useSendNowScheduler = () => {
                 if (!res.jobId) {
                     notifications.hide('toast-info-job-status');
                     showToastError({
-                        title: 'Failed to send scheduled delivery',
-                        subtitle: 'No job ID returned from server',
+                        title: t('toasts.sendFailed'),
+                        subtitle: t('toasts.noJobId'),
                     });
                 }
             },
             onError: (apiError: ApiError) => {
                 showToastApiError({
                     key: 'toast-info-job-status',
-                    title: 'Failed to send scheduled delivery',
+                    title: t('toasts.sendFailed'),
                     apiError: apiError.error,
                 });
             },
@@ -672,6 +681,7 @@ export const useSendNowScheduler = () => {
 
 export const useSendNowSchedulerByUuid = (schedulerUuid: string) => {
     const { showToastInfo, showToastError, showToastApiError } = useToaster();
+    const { t } = useTranslation('scheduler');
 
     const sendNowMutation = useMutation<
         ApiTestSchedulerResponse['results'],
@@ -681,7 +691,7 @@ export const useSendNowSchedulerByUuid = (schedulerUuid: string) => {
         async () => {
             showToastInfo({
                 key: 'toast-info-job-status',
-                title: 'Processing job...',
+                title: t('toasts.processingJob'),
                 loading: true,
                 autoClose: false,
             });
@@ -693,15 +703,15 @@ export const useSendNowSchedulerByUuid = (schedulerUuid: string) => {
                 if (!res.jobId) {
                     notifications.hide('toast-info-job-status');
                     showToastError({
-                        title: 'Failed to send scheduled delivery',
-                        subtitle: 'No job ID returned from server',
+                        title: t('toasts.sendFailed'),
+                        subtitle: t('toasts.noJobId'),
                     });
                 }
             },
             onError: (apiError: ApiError) => {
                 showToastApiError({
                     key: 'toast-info-job-status',
-                    title: 'Failed to send scheduled delivery',
+                    title: t('toasts.sendFailed'),
                     apiError: apiError.error,
                 });
             },

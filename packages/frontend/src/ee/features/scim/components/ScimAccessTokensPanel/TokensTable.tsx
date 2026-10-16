@@ -12,6 +12,7 @@ import {
     type FC,
     type SetStateAction,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
@@ -26,6 +27,7 @@ const TokenItem: FC<{
     token: ServiceAccount;
     setTokenToDelete: Dispatch<SetStateAction<ServiceAccount | undefined>>;
 }> = ({ token, setTokenToDelete }) => {
+    const { t } = useTranslation('serviceAccounts');
     const { description, expiresAt, rotatedAt, lastUsedAt, uuid } = token;
     return (
         <Table.Tr>
@@ -40,15 +42,15 @@ const TokenItem: FC<{
                     <span>
                         {expiresAt
                             ? formatDate(expiresAt)
-                            : 'No expiration date'}
+                            : t('scim.tokens.noExpirationDate')}
                     </span>
                     {rotatedAt && (
                         <Tooltip
                             position="top"
                             maw={350}
-                            label={`Last rotated at ${formatTimestamp(
-                                rotatedAt,
-                            )}`}
+                            label={t('table.lastRotatedAt', {
+                                date: formatTimestamp(rotatedAt),
+                            })}
                         >
                             <MantineIcon
                                 icon={IconInfoCircle}
@@ -69,7 +71,7 @@ const TokenItem: FC<{
                         <span>{formatDate(lastUsedAt)}</span>
                     </Tooltip>
                 ) : (
-                    <span>Never used</span>
+                    <span>{t('scim.tokens.neverUsed')}</span>
                 )}
             </Table.Td>
             <Table.Td>
@@ -102,6 +104,7 @@ const TokenItem: FC<{
 };
 
 export const TokensTable = () => {
+    const { t } = useTranslation('serviceAccounts');
     const { data } = useScimTokenList();
 
     const [tokenToDelete, setTokenToDelete] = useState<
@@ -124,15 +127,15 @@ export const TokensTable = () => {
                     <Table.Thead>
                         <Table.Tr>
                             <Table.Th className={classesModule.nameColumn}>
-                                Name
+                                {t('scim.tokens.name')}
                             </Table.Th>
                             <Table.Th className={classesModule.dateColumn}>
-                                Expiration date
+                                {t('scim.tokens.expirationDate')}
                             </Table.Th>
                             <Table.Th className={classesModule.dateColumn}>
-                                Last used at
+                                {t('table.headers.lastUsedAt')}
                             </Table.Th>
-                            <Table.Th>UUID</Table.Th>
+                            <Table.Th>{t('scim.tokens.uuid')}</Table.Th>
                             <Table.Th></Table.Th>
                         </Table.Tr>
                     </Table.Thead>
@@ -151,9 +154,9 @@ export const TokensTable = () => {
             <MantineModal
                 opened={!!tokenToDelete}
                 onClose={() => !isDeleting && setTokenToDelete(undefined)}
-                title="Delete token"
+                title={t('scim.tokens.deleteTitle')}
                 variant="delete"
-                resourceType="token"
+                resourceType={t('scim.tokens.resourceType')}
                 resourceLabel={tokenToDelete?.description}
                 cancelDisabled={isDeleting}
                 onConfirm={() => mutate(tokenToDelete?.uuid ?? '')}

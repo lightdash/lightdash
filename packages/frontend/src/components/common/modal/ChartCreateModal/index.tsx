@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { IconChartBar } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
 import { useContentAuthoringEnabled } from '../../../../hooks/useContentAuthoringEnabled';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
@@ -59,6 +60,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     forcedSpaceUuid,
     colorPaletteUuid,
 }) => {
+    const { t } = useTranslation('modals');
     const authoringEnabled = useContentAuthoringEnabled();
     // Store it in the state to avoid losing the param when the user switches between tables
     const [spaceUuid] = useState(defaultSpaceUuid);
@@ -103,13 +105,15 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
 
     const getModalTitle = useCallback(() => {
         if (isSaveAs) {
-            return 'Save as new chart';
+            return t('chartCreate.title.saveAs');
         }
         if (saveMode === SaveMode.TO_DASHBOARD) {
-            return `Save chart to "${editingDashboardInfo.name}"`;
+            return t('chartCreate.title.saveToDashboard', {
+                dashboardName: editingDashboardInfo.name,
+            });
         }
-        return 'Save chart';
-    }, [saveMode, editingDashboardInfo, isSaveAs]);
+        return t('chartCreate.title.save');
+    }, [saveMode, editingDashboardInfo, isSaveAs, t]);
 
     const originatingDashboard =
         isSaveAs &&

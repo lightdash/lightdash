@@ -20,6 +20,7 @@ import {
     IconPlus,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { v4 as uuid4 } from 'uuid';
 import { useSavedSqlChart } from '../../features/sqlRunner/hooks/useSavedSqlCharts';
 import {
@@ -53,6 +54,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     dashboardTileType,
     onClose,
 }) => {
+    const { t } = useTranslation('home');
     const [isCreatingNewDashboard, setIsCreatingNewDashboard] = useState(false);
     const [isCreatingNewSpace, setIsCreatingNewSpace] =
         useState<boolean>(false);
@@ -174,7 +176,8 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
             >
         >((acc, d) => {
             const spaceName =
-                spaces.find((s) => s.uuid === d.spaceUuid)?.name ?? 'Other';
+                spaces.find((s) => s.uuid === d.spaceUuid)?.name ??
+                t('addToDashboard.otherSpace');
             if (!acc[spaceName]) {
                 acc[spaceName] = [];
             }
@@ -191,7 +194,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
             group,
             items,
         }));
-    }, [dashboards, spaces]);
+    }, [dashboards, spaces, t]);
 
     const form = useForm({
         initialValues: {
@@ -318,7 +321,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         <MantineModal
             opened={isOpen}
             onClose={() => onClose?.()}
-            title="Add chart to dashboard"
+            title={t('addToDashboard.title')}
             icon={IconLayoutDashboard}
             actions={
                 <Button
@@ -327,7 +330,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                     loading={isLoading || isFetchingSelectedDashboard}
                     disabled={isSubmitDisabled}
                 >
-                    Add to dashboard
+                    {t('addToDashboard.submit')}
                 </Button>
             }
         >
@@ -336,10 +339,12 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                     <Stack gap="md">
                         <Select
                             id="select-dashboard"
-                            label="Select a dashboard"
+                            label={t('addToDashboard.selectDashboard')}
                             data={dashboardSelectItems}
                             searchable
-                            nothingFoundMessage="No matching dashboards found"
+                            nothingFoundMessage={t(
+                                'addToDashboard.noMatchingDashboards',
+                            )}
                             required
                             {...form.getInputProps('dashboardUuid')}
                         />
@@ -349,7 +354,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                         >
                             <Group gap="two">
                                 <MantineIcon icon={IconPlus} />
-                                Create new dashboard
+                                {t('addToDashboard.createNewDashboard')}
                             </Group>
                         </Anchor>
                     </Stack>
@@ -357,15 +362,19 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                     <Stack gap="md">
                         <TextInput
                             id="dashboard-name"
-                            label="Name your dashboard"
-                            placeholder="eg. KPI dashboard"
+                            label={t('addToDashboard.dashboardName')}
+                            placeholder={t(
+                                'addToDashboard.dashboardNamePlaceholder',
+                            )}
                             required
                             {...form.getInputProps('dashboardName')}
                         />
                         <Textarea
                             id="dashboard-description"
-                            label="Dashboard description"
-                            placeholder="A few words to give your team some context"
+                            label={t('addToDashboard.dashboardDescription')}
+                            placeholder={t(
+                                'addToDashboard.dashboardDescriptionPlaceholder',
+                            )}
                             autosize
                             maxRows={3}
                             className={classes.descriptionInput}
@@ -375,7 +384,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                             <>
                                 <Select
                                     id="select-space"
-                                    label="Select a space"
+                                    label={t('addToDashboard.selectSpace')}
                                     data={spaces.map((space) => ({
                                         value: space.uuid,
                                         label: space.name,
@@ -390,7 +399,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                 >
                                     <Group gap="two">
                                         <MantineIcon icon={IconPlus} />
-                                        Create new space
+                                        {t('addToDashboard.createNewSpace')}
                                     </Group>
                                 </Anchor>
                             </>
@@ -398,8 +407,10 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                             <>
                                 <TextInput
                                     id="new-space"
-                                    label="Name your new space"
-                                    placeholder="eg. KPIs"
+                                    label={t('addToDashboard.spaceName')}
+                                    placeholder={t(
+                                        'addToDashboard.spaceNamePlaceholder',
+                                    )}
                                     required
                                     {...form.getInputProps('spaceName')}
                                 />
@@ -409,7 +420,9 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                 >
                                     <Group gap="two">
                                         <MantineIcon icon={IconArrowLeft} />
-                                        Save to existing space
+                                        {t(
+                                            'addToDashboard.saveToExistingSpace',
+                                        )}
                                     </Group>
                                 </Anchor>
                             </>

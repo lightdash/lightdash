@@ -1,5 +1,6 @@
 import { Anchor, Box, Group, Text, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { PillTagsInput } from '../../../../components/common/TagsInput/PillTagsInput';
 import { TagPill } from '../../../../components/common/TagsInput/TagPill';
 import MsTeamsSvg from '../../../../svgs/msteams.svg?react';
@@ -39,6 +40,7 @@ const validateMsTeamsWebhook = (webhook: string): boolean => {
 export const SchedulerFormMicrosoftTeamsInput: FC<
     MicrosoftTeamsDestinationProps
 > = ({ onChange, msTeamTargets, hideIcon }) => {
+    const { t } = useTranslation('scheduler');
     return (
         <Group wrap="nowrap" mb={hideIcon ? 0 : 'sm'} align="flex-start">
             {!hideIcon && (
@@ -56,7 +58,7 @@ export const SchedulerFormMicrosoftTeamsInput: FC<
                 <PillTagsInput
                     radius="md"
                     clearable
-                    placeholder="Enter Microsoft Teams Workflow or webhook URLs"
+                    placeholder={t('msTeamsInput.placeholder')}
                     value={msTeamTargets}
                     allowDuplicates={false}
                     splitChars={[',', ' ']}
@@ -65,14 +67,19 @@ export const SchedulerFormMicrosoftTeamsInput: FC<
                     renderPill={renderWebhookPill}
                 />
                 <Text size="xs" c="dimmed" mt={4}>
-                    <Anchor
-                        size="xs"
-                        href="https://support.microsoft.com/en-us/office/create-incoming-webhooks-with-workflows-for-microsoft-teams-8ae491c7-0394-4861-ba59-055e33f75498"
-                        target="_blank"
-                    >
-                        Create a Workflow
-                    </Anchor>{' '}
-                    in Microsoft Teams to get a URL.
+                    <Trans
+                        t={t}
+                        i18nKey="msTeamsInput.help"
+                        components={{
+                            anchor: (
+                                <Anchor
+                                    size="xs"
+                                    href="https://support.microsoft.com/en-us/office/create-incoming-webhooks-with-workflows-for-microsoft-teams-8ae491c7-0394-4861-ba59-055e33f75498"
+                                    target="_blank"
+                                />
+                            ),
+                        }}
+                    />
                 </Text>
             </Box>
         </Group>

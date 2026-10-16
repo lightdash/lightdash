@@ -10,6 +10,7 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import i18n from '../../../i18n/i18n';
 import { executeSavedChartPreviewQuery } from '../utils/savedChartPreviewQuery';
 import { type SavedChartPreviewRun } from './useSavedChartPreviewData';
 
@@ -133,7 +134,9 @@ export const useSavedChartBindingPreview = ({
                 message:
                     run.error instanceof Error
                         ? run.error.message
-                        : 'The preview query failed',
+                        : i18n.t('errors.previewQueryFailed', {
+                              ns: 'chartTypes',
+                          }),
             },
             retry,
             fieldMapping,

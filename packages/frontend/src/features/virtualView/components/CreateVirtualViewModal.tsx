@@ -4,6 +4,7 @@ import { useForm } from '@mantine/form';
 import { IconInfoCircle, IconTableAlias } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal, {
@@ -12,12 +13,16 @@ import MantineModal, {
 import { useGitIntegration } from '../../../hooks/gitIntegration/useGitIntegration';
 import useHealth from '../../../hooks/health/useHealth';
 import { useProject } from '../../../hooks/useProject';
+import i18n from '../../../i18n/i18n';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { selectConnectionRequest } from '../../sqlRunner/store/sqlRunnerSlice';
 import { useCreateVirtualView } from '../hooks/useVirtualView';
 
 const validationSchema = z.object({
-    name: z.string().min(1, 'Name is required'),
+    name: z.string().min(1, {
+        error: () =>
+            i18n.t('virtualView.create.nameRequired', { ns: 'explorer' }),
+    }),
 });
 
 type FormValues = z.infer<typeof validationSchema>;
@@ -47,6 +52,7 @@ const createTourAction = {
 };
 
 export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
+    const { t } = useTranslation('explorer');
     const health = useHealth();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
@@ -117,18 +123,18 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Create virtual view"
+            title={t('virtualView.create.title')}
             icon={IconTableAlias}
             size="md"
             cancelDisabled={isLoadingVirtual}
             headerActions={
                 <Tooltip
                     maw={300}
-                    label={`Create a virtual view so others can reuse this query in Lightdash. The query won't be saved to or managed in your dbt project. ${
+                    label={
                         canWriteToDbtProject
-                            ? "If you're expecting to reuse this query regularly, we suggest writing it back to dbt."
-                            : ''
-                    } `}
+                            ? t('virtualView.create.infoWithWriteBack')
+                            : t('virtualView.create.info')
+                    }
                 >
                     <MantineIcon color="ldGray.7" icon={IconInfoCircle} />
                 </Tooltip>
@@ -143,14 +149,14 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
                     data-tour-hint="Create the virtual view"
                     {...createTourAction}
                 >
-                    Create
+                    {t('actions.create', { ns: 'common' })}
                 </Button>
             }
         >
             <form id={FORM_ID} onSubmit={form.onSubmit(handleSubmit)}>
                 <Stack>
                     <TextInput
-                        label="Name"
+                        label={t('virtualView.create.nameLabel')}
                         required
                         // Typed anchor for scope walkthroughs (data-tour-via)
                         data-tour-anchor="virtual-view-name"

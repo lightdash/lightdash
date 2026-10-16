@@ -16,6 +16,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useAccount } from '../../../hooks/user/useAccount';
@@ -36,6 +37,7 @@ export const SeriesContextMenu: FC<{
     series: EChartsSeries[] | undefined;
     explore: ApiExploreResults | undefined;
 }> = memo(({ echartsSeriesClickEvent, dimensions, series, explore }) => {
+    const { t } = useTranslation('explorer');
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
     const { track } = useTracking();
@@ -103,8 +105,8 @@ export const SeriesContextMenu: FC<{
         const value = underlyingData.value.formatted;
 
         clipboard.copy(value);
-        showToastSuccess({ title: 'Copied to clipboard!' });
-    }, [underlyingData, clipboard, showToastSuccess]);
+        showToastSuccess({ title: t('cellContextMenu.copiedToClipboard') });
+    }, [underlyingData, clipboard, showToastSuccess, t]);
 
     const handleViewUnderlyingData = useCallback(() => {
         if (underlyingData === undefined) return;
@@ -170,7 +172,7 @@ export const SeriesContextMenu: FC<{
                         leftSection={<MantineIcon icon={IconCopy} />}
                         onClick={handleCopyToClipboard}
                     >
-                        Copy value
+                        {t('cellContextMenu.copyValue')}
                     </Menu.Item>
                 )}
 
@@ -186,7 +188,7 @@ export const SeriesContextMenu: FC<{
                             leftSection={<MantineIcon icon={IconStack} />}
                             onClick={handleViewUnderlyingData}
                         >
-                            View underlying data
+                            {t('cellContextMenu.viewUnderlyingData')}
                         </Menu.Item>
                     )}
                 </Can>

@@ -3,6 +3,7 @@ import { Badge, Group, Text, type ComboboxItem } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import i18n from '../../../../../i18n/i18n';
 
 export type Agent = Pick<AiAgent, 'name' | 'uuid' | 'imageUrl' | 'adminOnly'>;
 
@@ -36,7 +37,11 @@ export const renderSelectOption = ({
             {option.label}
         </Text>
 
-        {option.adminOnly && <Badge size="xs">Admins only</Badge>}
+        {option.adminOnly && (
+            <Badge size="xs">
+                {i18n.t('agentSelector.adminsOnlyBadge', { ns: 'aiAgent' })}
+            </Badge>
+        )}
 
         {checked && <MantineIcon icon={IconCheck} size="sm" color="violet" />}
     </Group>

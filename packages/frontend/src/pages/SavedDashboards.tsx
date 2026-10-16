@@ -2,6 +2,7 @@ import { ContentType, LightdashMode } from '@lightdash/common';
 import { Group, Stack, Button } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
@@ -18,6 +19,7 @@ import useApp from '../providers/App/useApp';
 import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 
 const SavedDashboards = () => {
+    const { t } = useTranslation('pages');
     const authoringEnabled = useContentAuthoringEnabled();
     const navigate = useNavigate();
     const projectUuid = useProjectUuid();
@@ -40,7 +42,9 @@ const SavedDashboards = () => {
     }
 
     if (isInitialLoading) {
-        return <EmptyStateLoader my="xl" title="Loading dashboards" />;
+        return (
+            <EmptyStateLoader my="xl" title={t('savedDashboards.loading')} />
+        );
     }
 
     const handleCreateDashboard = () => {
@@ -50,7 +54,7 @@ const SavedDashboards = () => {
     return (
         <FavoritesProvider projectUuid={projectUuid}>
             <Page
-                title="Dashboards"
+                title={t('savedDashboards.title')}
                 withCenteredRoot
                 withCenteredContent
                 withXLargePaddedContent
@@ -60,8 +64,11 @@ const SavedDashboards = () => {
                     <Group justify="space-between">
                         <PageBreadcrumbs
                             items={[
-                                { title: 'Home', to: '/home' },
-                                { title: 'All dashboards', active: true },
+                                { title: t('common.home'), to: '/home' },
+                                {
+                                    title: t('savedDashboards.allDashboards'),
+                                    active: true,
+                                },
                             ]}
                         />
 
@@ -75,7 +82,7 @@ const SavedDashboards = () => {
                                     leftSection={<IconPlus size={18} />}
                                     onClick={handleCreateDashboard}
                                 >
-                                    Create dashboard
+                                    {t('savedDashboards.createDashboard')}
                                 </Button>
                             )}
                     </Group>

@@ -12,6 +12,7 @@ import {
     type UpdateProjectHomepageDraftRequest,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
@@ -182,6 +183,7 @@ export const useProjectHomepages = (
     });
 
 export const useDeleteHomepage = (projectUuid: string) => {
+    const { t } = useTranslation('homepageBuilder');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<undefined, ApiError, string>(
@@ -193,11 +195,11 @@ export const useDeleteHomepage = (projectUuid: string) => {
                     PROJECT_HOMEPAGE_QUERY_KEY,
                     projectUuid,
                 ]);
-                showToastSuccess({ title: 'Homepage deleted' });
+                showToastSuccess({ title: t('toasts.homepageDeleted') });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to delete homepage',
+                    title: t('toasts.deleteFailed'),
                     apiError: error,
                 });
             },
@@ -206,6 +208,7 @@ export const useDeleteHomepage = (projectUuid: string) => {
 };
 
 export const useCreateHomepage = (projectUuid: string) => {
+    const { t } = useTranslation('homepageBuilder');
     const { showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<ProjectHomepage, ApiError, CreateProjectHomepageRequest>(
@@ -220,7 +223,7 @@ export const useCreateHomepage = (projectUuid: string) => {
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to create homepage',
+                    title: t('toasts.createFailed'),
                     apiError: error,
                 });
             },
@@ -232,6 +235,7 @@ export const useCreateHomepage = (projectUuid: string) => {
 // first-time empty state, which skips the blank/duplicate name modal and
 // seeds the draft straight from the caller instead.
 export const useCreateHomepageWithDraft = (projectUuid: string) => {
+    const { t } = useTranslation('homepageBuilder');
     const { showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<
@@ -256,7 +260,7 @@ export const useCreateHomepageWithDraft = (projectUuid: string) => {
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to create homepage',
+                    title: t('toasts.createFailed'),
                     apiError: error,
                 });
             },
@@ -268,6 +272,7 @@ export const useUpdateHomepageDraft = (
     projectUuid: string,
     homepageUuid: string | undefined,
 ) => {
+    const { t } = useTranslation('homepageBuilder');
     const { showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<
@@ -285,7 +290,7 @@ export const useUpdateHomepageDraft = (
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to save draft',
+                title: t('toasts.saveDraftFailed'),
                 apiError: error,
             });
         },
@@ -313,6 +318,7 @@ export const useHomepageAssignments = (
     });
 
 export const useUpdateGroupPriorities = (projectUuid: string) => {
+    const { t } = useTranslation('homepageBuilder');
     const { showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<undefined, ApiError, string[]>(
@@ -328,7 +334,7 @@ export const useUpdateGroupPriorities = (projectUuid: string) => {
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to reorder group priority',
+                    title: t('toasts.reorderFailed'),
                     apiError: error,
                 });
             },
@@ -340,6 +346,7 @@ export const useDiscardHomepageDraft = (
     projectUuid: string,
     homepageUuid: string | undefined,
 ) => {
+    const { t } = useTranslation('homepageBuilder');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<ProjectHomepage, ApiError, void>(
@@ -351,11 +358,11 @@ export const useDiscardHomepageDraft = (
                     PROJECT_HOMEPAGE_QUERY_KEY,
                     projectUuid,
                 ]);
-                showToastSuccess({ title: 'Draft reverted to published' });
+                showToastSuccess({ title: t('toasts.draftReverted') });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to revert draft',
+                    title: t('toasts.revertFailed'),
                     apiError: error,
                 });
             },
@@ -367,6 +374,7 @@ export const usePublishHomepage = (
     projectUuid: string,
     homepageUuid: string | undefined,
 ) => {
+    const { t } = useTranslation('homepageBuilder');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<
@@ -390,11 +398,11 @@ export const usePublishHomepage = (
                         projectUuid,
                     ]),
                 ]);
-                showToastSuccess({ title: 'Homepage published' });
+                showToastSuccess({ title: t('toasts.published') });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to publish homepage',
+                    title: t('toasts.publishFailed'),
                     apiError: error,
                 });
             },

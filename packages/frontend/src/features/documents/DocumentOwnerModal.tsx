@@ -2,6 +2,7 @@ import { type Document } from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine/core';
 import { IconUserCircle } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../components/common/Callout';
 import MantineModal from '../../components/common/MantineModal';
 import { UserSelect } from '../../components/common/UserSelect';
@@ -14,6 +15,7 @@ type Props = {
 };
 
 const DocumentOwnerModal = ({ document, opened, onClose }: Props) => {
+    const { t } = useTranslation('documents');
     const [ownerUserUuid, setOwnerUserUuid] = useState(
         document.owner?.userUuid ?? null,
     );
@@ -31,7 +33,7 @@ const DocumentOwnerModal = ({ document, opened, onClose }: Props) => {
                     onClose();
                 }
             }}
-            title="Document owner"
+            title={t('owner.title')}
             icon={IconUserCircle}
             cancelDisabled={update.isLoading}
             actions={
@@ -42,18 +44,17 @@ const DocumentOwnerModal = ({ document, opened, onClose }: Props) => {
                         update.mutate({ ownerUserUuid }, { onSuccess: onClose })
                     }
                 >
-                    Save
+                    {t('actions.save', { ns: 'common' })}
                 </Button>
             }
         >
             <Stack>
                 <Text fz="sm" c="dimmed">
-                    The owner is accountable for this document. Assigning an
-                    owner does not change who can view or edit it.
+                    {t('owner.description')}
                 </Text>
                 <UserSelect
-                    label="Owner"
-                    placeholder="Assign an owner..."
+                    label={t('owner.label')}
+                    placeholder={t('owner.placeholder')}
                     value={ownerUserUuid}
                     onChange={setOwnerUserUuid}
                     disabled={update.isLoading}

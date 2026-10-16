@@ -3,6 +3,7 @@ import { notifyManager } from '@tanstack/react-query';
 import nock from 'nock';
 import nodeFetch from 'node-fetch';
 import { afterEach, beforeAll, beforeEach, vi } from 'vitest';
+import i18n from '../i18n/i18n';
 import mockDocumentFonts from './__mocks__/implementations/documentFonts.mock';
 import mockElementsFromPoint from './__mocks__/implementations/elementsFromPoint.mock';
 import mockMatchMedia from './__mocks__/implementations/matchMedia.mock';
@@ -20,6 +21,7 @@ vi.mock('@uiw/react-markdown-preview', () => ({
 }));
 
 beforeAll(() => {
+    void i18n.changeLanguage('en');
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
     mockMatchMedia();

@@ -27,6 +27,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import MantineIcon from '../../MantineIcon';
 import MantineModal from '../../MantineModal';
@@ -50,6 +51,7 @@ export const ManageFilterValuesModal: FC<Props> = ({
     title,
     validateValue,
 }) => {
+    const { t } = useTranslation('filters');
     const getUiString = useUiStrings();
     const scrollRef = useRef<HTMLDivElement | null>(null);
     const originalValuesRef = useRef<string[]>([]);
@@ -340,7 +342,10 @@ export const ManageFilterValuesModal: FC<Props> = ({
                                                 >
                                                     <Checkbox
                                                         checked={checked}
-                                                        aria-label={`Select ${value}`}
+                                                        aria-label={t(
+                                                            'manageValues.selectValue',
+                                                            { value },
+                                                        )}
                                                         onChange={() =>
                                                             toggleSelected(
                                                                 value,

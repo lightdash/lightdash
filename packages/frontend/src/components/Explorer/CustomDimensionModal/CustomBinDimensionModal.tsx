@@ -34,8 +34,10 @@ import {
     IconLayoutDashboard,
     IconX,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import {
     explorerActions,
@@ -78,15 +80,30 @@ const stripFormIds = (groups: FormBinGroup[]): BinGroup[] =>
         values: values.map(({ _id: _, ...v }) => v),
     }));
 
-const createDefaultCustomGroups = (): FormBinGroup[] => [
-    makeFormGroup({ name: 'Group 1', values: [] }),
+const createDefaultCustomGroups = (t: TFunction): FormBinGroup[] => [
+    makeFormGroup({
+        name: t('customDimension.bin.groupName', { number: 1 }),
+        values: [],
+    }),
 ];
 
-const MATCH_TYPE_OPTIONS = [
-    { value: GroupValueMatchType.EXACT, label: 'is' },
-    { value: GroupValueMatchType.STARTS_WITH, label: 'starts with' },
-    { value: GroupValueMatchType.ENDS_WITH, label: 'ends with' },
-    { value: GroupValueMatchType.INCLUDES, label: 'includes' },
+const getMatchTypeOptions = (t: TFunction) => [
+    {
+        value: GroupValueMatchType.EXACT,
+        label: t('customDimension.bin.matchTypes.exact'),
+    },
+    {
+        value: GroupValueMatchType.STARTS_WITH,
+        label: t('customDimension.bin.matchTypes.startsWith'),
+    },
+    {
+        value: GroupValueMatchType.ENDS_WITH,
+        label: t('customDimension.bin.matchTypes.endsWith'),
+    },
+    {
+        value: GroupValueMatchType.INCLUDES,
+        label: t('customDimension.bin.matchTypes.includes'),
+    },
 ];
 
 const createDefaultValueRule = (): FormGroupValueRule => ({
@@ -152,6 +169,8 @@ const GroupValueRow: FC<{
     valueIndex: number;
     onAddValueAfter: (groupIndex: number, valueIndex: number) => void;
 }> = ({ form, groupIndex, valueIndex, onAddValueAfter }) => {
+    const { t } = useTranslation('explorer');
+    const matchTypeOptions = useMemo(() => getMatchTypeOptions(t), [t]);
     const groups = form.values.binConfig.customGroups;
 
     return (
@@ -159,7 +178,7 @@ const GroupValueRow: FC<{
             <Select
                 size="xs"
                 w={110}
-                data={MATCH_TYPE_OPTIONS}
+                data={matchTypeOptions}
                 allowDeselect={false}
                 {...form.getInputProps(
                     `binConfig.customGroups.${groupIndex}.values.${valueIndex}.matchType`,
@@ -168,7 +187,7 @@ const GroupValueRow: FC<{
             <TextInput
                 flex={1}
                 size="xs"
-                placeholder="Enter a value"
+                placeholder={t('customDimension.bin.valuePlaceholder')}
                 data-focus-id={`custom-group-${groupIndex}-value-${valueIndex}`}
                 {...form.getInputProps(
                     `binConfig.customGroups.${groupIndex}.values.${valueIndex}.value`,
@@ -186,13 +205,15 @@ const GroupValueRow: FC<{
                         <ActionIcon
                             color="ldDark.4"
                             size="sm"
-                            title="Move to group"
+                            title={t('customDimension.bin.moveToGroup')}
                         >
                             <MantineIcon icon={IconArrowsTransferDown} />
                         </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
-                        <Menu.Label>Move to group</Menu.Label>
+                        <Menu.Label>
+                            {t('customDimension.bin.moveToGroup')}
+                        </Menu.Label>
                         {groups.map((targetGroup, targetIndex) =>
                             targetIndex !== groupIndex ? (
                                 <Menu.Item
@@ -230,7 +251,9 @@ const GroupValueRow: FC<{
                                     }}
                                 >
                                     {targetGroup.name ||
-                                        `Group ${targetIndex + 1}`}
+                                        t('customDimension.bin.groupName', {
+                                            number: targetIndex + 1,
+                                        })}
                                 </Menu.Item>
                             ) : null,
                         )}
@@ -265,6 +288,7 @@ const CustomGroupCard: FC<{
     groupIndex: number;
     onAddValue: (groupIndex: number, afterValueIndex?: number) => void;
 }> = ({ form, groupIndex, onAddValue }) => {
+    const { t } = useTranslation('explorer');
     const groups = form.values.binConfig.customGroups;
     const group = groups[groupIndex];
 
@@ -274,9 +298,9 @@ const CustomGroupCard: FC<{
                 <TextInput
                     flex={1}
                     size="sm"
-                    label="Group name"
+                    label={t('customDimension.bin.groupNameLabel')}
                     required
-                    placeholder="e.g. North America"
+                    placeholder={t('customDimension.bin.groupNamePlaceholder')}
                     {...form.getInputProps(
                         `binConfig.customGroups.${groupIndex}.name`,
                     )}
@@ -323,7 +347,7 @@ const CustomGroupCard: FC<{
                 className={classes.addButton}
                 onClick={() => onAddValue(groupIndex)}
             >
-                + Add a value
+                {t('customDimension.bin.addValue')}
             </Button>
         </Stack>
     );
@@ -333,6 +357,7 @@ export const CustomBinDimensionModal: FC<{
     isEditing: boolean;
     item: Dimension | CustomBinDimension;
 }> = ({ isEditing, item }) => {
+    const { t } = useTranslation('explorer');
     const { showToastSuccess } = useToaster();
     const dispatch = useExplorerDispatch();
     const customDimensions = useExplorerSelector(selectCustomDimensions);
@@ -380,7 +405,9 @@ export const CustomBinDimensionModal: FC<{
                                     customDimension.id === dimensionName,
                             );
                         },
-                        { message: 'Dimension with this label already exists' },
+                        {
+                            message: t('customDimension.errors.labelExists'),
+                        },
                     ),
                     binType: z.enum(BinType),
                     binConfig: z.object({
@@ -423,7 +450,9 @@ export const CustomBinDimensionModal: FC<{
                                         minimum: 1,
                                         origin: 'string',
                                         inclusive: true,
-                                        message: 'Group name is required',
+                                        message: t(
+                                            'customDimension.errors.groupNameRequired',
+                                        ),
                                         path: [
                                             'binConfig',
                                             'customGroups',
@@ -438,8 +467,9 @@ export const CustomBinDimensionModal: FC<{
                                         minimum: 1,
                                         origin: 'array',
                                         inclusive: true,
-                                        message:
-                                            'Each group must have at least one value',
+                                        message: t(
+                                            'customDimension.errors.groupNeedsValue',
+                                        ),
                                         path: [
                                             'binConfig',
                                             'customGroups',
@@ -455,7 +485,9 @@ export const CustomBinDimensionModal: FC<{
                                             minimum: 1,
                                             origin: 'string',
                                             inclusive: true,
-                                            message: 'Value is required',
+                                            message: t(
+                                                'customDimension.errors.valueRequired',
+                                            ),
                                             path: [
                                                 'binConfig',
                                                 'customGroups',
@@ -471,7 +503,7 @@ export const CustomBinDimensionModal: FC<{
                         );
                     }
                 }),
-        [customDimensions, isEditing, item],
+        [customDimensions, isEditing, item, t],
     );
     const validate = useMemo(() => zodResolver(formSchema), [formSchema]);
 
@@ -489,7 +521,7 @@ export const CustomBinDimensionModal: FC<{
                     binWidth: MIN_OF_FIXED_NUMBER_BINS,
                 },
                 customRange: DEFAULT_CUSTOM_RANGE,
-                customGroups: createDefaultCustomGroups(),
+                customGroups: createDefaultCustomGroups(t),
             },
         },
         validate,
@@ -564,7 +596,7 @@ export const CustomBinDimensionModal: FC<{
                 );
 
                 showToastSuccess({
-                    title: 'Custom dimension edited successfully',
+                    title: t('customDimension.toast.edited'),
                 });
             } else {
                 dispatch(
@@ -582,7 +614,7 @@ export const CustomBinDimensionModal: FC<{
                 );
 
                 showToastSuccess({
-                    title: 'Custom dimension added successfully',
+                    title: t('customDimension.toast.added'),
                 });
             }
         }
@@ -660,13 +692,16 @@ export const CustomBinDimensionModal: FC<{
             size="lg"
             opened={true}
             onClose={handleClose}
-            title={`${
-                isEditing ? 'Edit' : 'Create'
-            } Custom Dimension - ${baseDimensionLabel}`}
+            title={t('customDimension.modal.titleWithName', {
+                title: isEditing
+                    ? t('customDimension.modal.editTitle')
+                    : t('customDimension.modal.createTitle'),
+                name: baseDimensionLabel,
+            })}
             icon={IconLayoutDashboard}
             actions={
                 <Tooltip
-                    label="Each group must have at least one value"
+                    label={t('customDimension.errors.groupNeedsValue')}
                     disabled={!hasEmptyGroups}
                 >
                     <Button
@@ -674,7 +709,9 @@ export const CustomBinDimensionModal: FC<{
                         form="custom-bin-dimension-form"
                         disabled={hasEmptyGroups}
                     >
-                        {isEditing ? 'Save changes' : 'Create'}
+                        {isEditing
+                            ? t('customDimension.modal.saveChanges')
+                            : t('actions.create', { ns: 'common' })}
                     </Button>
                 </Tooltip>
             }
@@ -682,20 +719,21 @@ export const CustomBinDimensionModal: FC<{
             <form id="custom-bin-dimension-form" onSubmit={handleOnSubmit}>
                 <Stack gap="md">
                     <TextInput
-                        label="Label"
+                        label={t('customDimension.modal.label')}
                         required
-                        placeholder="Enter custom dimension label"
+                        placeholder={t(
+                            'customDimension.modal.labelPlaceholder',
+                        )}
                         {...form.getInputProps('customDimensionLabel')}
                     />
 
                     {isStringDimension ? (
                         <Text size="sm" c="ldDark.6">
-                            Group values into custom categories. Ungrouped
-                            values will be labeled &quot;Other&quot;.
+                            {t('customDimension.bin.groupIntro')}
                         </Text>
                     ) : (
                         <Radio.Group
-                            label="Bin type"
+                            label={t('customDimension.bin.binType')}
                             withAsterisk
                             required
                             {...form.getInputProps('binType')}
@@ -703,15 +741,15 @@ export const CustomBinDimensionModal: FC<{
                             <Group mt="md">
                                 <Radio
                                     value={BinType.FIXED_NUMBER}
-                                    label="Fixed number of bins"
+                                    label={t('customDimension.bin.fixedNumber')}
                                 />
                                 <Radio
                                     value={BinType.FIXED_WIDTH}
-                                    label="Fixed Width"
+                                    label={t('customDimension.bin.fixedWidth')}
                                 />
                                 <Radio
                                     value={BinType.CUSTOM_RANGE}
-                                    label="Custom range"
+                                    label={t('customDimension.bin.customRange')}
                                 />
                             </Group>
                         </Radio.Group>
@@ -720,7 +758,7 @@ export const CustomBinDimensionModal: FC<{
                     {form.values.binType === BinType.FIXED_NUMBER && (
                         <NumberInput
                             w={100}
-                            label="Bin number"
+                            label={t('customDimension.bin.binNumber')}
                             required
                             min={MIN_OF_FIXED_NUMBER_BINS}
                             {...form.getInputProps(
@@ -733,7 +771,7 @@ export const CustomBinDimensionModal: FC<{
                         <NumberInput
                             decimalScale="unlimited"
                             w={100}
-                            label="Bin width"
+                            label={t('customDimension.bin.binWidth')}
                             required
                             min={MIN_OF_FIXED_NUMBER_BINS}
                             {...form.getInputProps(
@@ -744,7 +782,9 @@ export const CustomBinDimensionModal: FC<{
 
                     {form.values.binType === BinType.CUSTOM_RANGE && (
                         <>
-                            <Text fw={500}>Range</Text>
+                            <Text fw={500}>
+                                {t('customDimension.bin.range')}
+                            </Text>
                             {form.values.binConfig.customRange.map(
                                 (range, index) => {
                                     const toProps = form.getInputProps(
@@ -767,7 +807,10 @@ export const CustomBinDimensionModal: FC<{
                                                     fw="400"
                                                     size="xs"
                                                 >
-                                                    &lt;{toProps.value}{' '}
+                                                    {t(
+                                                        'customDimension.bin.lessThan',
+                                                        { to: toProps.value },
+                                                    )}{' '}
                                                 </Text>
 
                                                 <TextInput
@@ -797,7 +840,12 @@ export const CustomBinDimensionModal: FC<{
                                                     fw="400"
                                                     size="xs"
                                                 >
-                                                    ≥{fromProps.value}{' '}
+                                                    {t(
+                                                        'customDimension.bin.atLeast',
+                                                        {
+                                                            from: fromProps.value,
+                                                        },
+                                                    )}{' '}
                                                 </Text>
 
                                                 <TextInput
@@ -812,7 +860,9 @@ export const CustomBinDimensionModal: FC<{
                                                     fw="400"
                                                     size="xs"
                                                 >
-                                                    and above{' '}
+                                                    {t(
+                                                        'customDimension.bin.andAbove',
+                                                    )}{' '}
                                                 </Text>
                                             </Flex>
                                         );
@@ -829,8 +879,13 @@ export const CustomBinDimensionModal: FC<{
                                                     fw="400"
                                                     size="xs"
                                                 >
-                                                    ≥{fromProps.value} and &lt;
-                                                    {toProps.value}
+                                                    {t(
+                                                        'customDimension.bin.between',
+                                                        {
+                                                            from: fromProps.value,
+                                                            to: toProps.value,
+                                                        },
+                                                    )}
                                                 </Text>
 
                                                 <TextInput
@@ -845,7 +900,9 @@ export const CustomBinDimensionModal: FC<{
                                                     fw="400"
                                                     size="xs"
                                                 >
-                                                    to{' '}
+                                                    {t(
+                                                        'customDimension.bin.to',
+                                                    )}{' '}
                                                 </Text>
 
                                                 <TextInput
@@ -903,14 +960,16 @@ export const CustomBinDimensionModal: FC<{
                                     );
                                 }}
                             >
-                                + Add a range
+                                {t('customDimension.bin.addRange')}
                             </Button>
                         </>
                     )}
 
                     {form.values.binType === BinType.CUSTOM_GROUP && (
                         <>
-                            <Text fw={500}>Groups</Text>
+                            <Text fw={500}>
+                                {t('customDimension.bin.groups')}
+                            </Text>
                             {form.values.binConfig.customGroups.map(
                                 (group, groupIndex) => (
                                     <CustomGroupCard
@@ -941,12 +1000,11 @@ export const CustomBinDimensionModal: FC<{
                                     );
                                 }}
                             >
-                                + Add a group
+                                {t('customDimension.bin.addGroup')}
                             </Button>
 
                             <Text size="xs" c="ldDark.6">
-                                Values not assigned to any group will be labeled
-                                &quot;Other&quot;.
+                                {t('customDimension.bin.otherHint')}
                             </Text>
                         </>
                     )}

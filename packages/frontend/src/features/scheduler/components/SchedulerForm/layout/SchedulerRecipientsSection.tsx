@@ -1,6 +1,7 @@
 import { Group, Stack, Text } from '@mantine/core';
 import { IconMail } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import useHealth from '../../../../../hooks/health/useHealth';
 import GoogleChatSvg from '../../../../../svgs/googlechat.svg?react';
@@ -31,6 +32,7 @@ const Destination: FC<{
 );
 
 export const SchedulerRecipientsSection: FC = () => {
+    const { t } = useTranslation('scheduler');
     const form = useSchedulerFormContext();
     const health = useHealth();
 
@@ -40,7 +42,7 @@ export const SchedulerRecipientsSection: FC = () => {
                 icon={
                     <MantineIcon icon={IconMail} size="sm" color="ldGray.7" />
                 }
-                label="Email"
+                label={t('destinations.email')}
             >
                 <SchedulerFormEmailInput
                     hideIcon
@@ -49,7 +51,10 @@ export const SchedulerRecipientsSection: FC = () => {
                 />
             </Destination>
 
-            <Destination icon={<SlackSvg style={SVG_SIZE} />} label="Slack">
+            <Destination
+                icon={<SlackSvg style={SVG_SIZE} />}
+                label={t('destinations.slack')}
+            >
                 <SchedulerFormSlackInput
                     hideIcon
                     value={form.values.slackTargets}
@@ -60,7 +65,7 @@ export const SchedulerRecipientsSection: FC = () => {
             {health.data?.hasMicrosoftTeams && (
                 <Destination
                     icon={<MsTeamsSvg style={SVG_SIZE} />}
-                    label="Microsoft Teams"
+                    label={t('destinations.microsoftTeams')}
                 >
                     <SchedulerFormMicrosoftTeamsInput
                         hideIcon
@@ -74,7 +79,7 @@ export const SchedulerRecipientsSection: FC = () => {
 
             <Destination
                 icon={<GoogleChatSvg style={SVG_SIZE} />}
-                label="Google Chat"
+                label={t('destinations.googleChat')}
             >
                 <SchedulerFormGoogleChatInput
                     hideIcon

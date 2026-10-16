@@ -1,5 +1,6 @@
 import { type ModalProps } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../Callout';
 import MantineModal from '../MantineModal';
 
@@ -16,21 +17,20 @@ const DeleteChartTileThatBelongsToDashboardModal: FC<Props> = ({
     onConfirm,
     className,
 }) => {
+    const { t } = useTranslation('modals');
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Delete chart"
+            title={t('deleteChartTile.title')}
             variant="delete"
-            resourceType="chart"
+            resourceType={t('resourceTypes.chart')}
             resourceLabel={name}
             modalRootProps={{ className }}
             onConfirm={onConfirm}
         >
-            <Callout variant="warning" title="This change cannot be undone.">
-                This chart was created from within the dashboard, so removing
-                the tile will also result in the permanent deletion of the
-                chart.
+            <Callout variant="warning" title={t('cannotBeUndone')}>
+                {t('deleteChartTile.warning')}
             </Callout>
         </MantineModal>
     );

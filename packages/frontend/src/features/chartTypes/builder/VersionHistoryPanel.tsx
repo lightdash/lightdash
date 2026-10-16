@@ -7,6 +7,7 @@ import {
     type DataAppVizSchemaChanges,
 } from '@lightdash/common';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import AppVersionHistoryPanel from '../../apps/components/AppVersionHistoryPanel';
 import VersionHistoryDisclosure from '../../apps/components/VersionHistoryDisclosure';
 import VizSchemaChangesList from '../components/VizSchemaChangesList';
@@ -33,15 +34,18 @@ type Props = {
 const VersionChanges: FC<{
     version: number;
     changes: DataAppVizSchemaChanges;
-}> = ({ version, changes }) => (
-    <VersionHistoryDisclosure
-        label="What changed"
-        ariaLabel={`What changed in v${version}`}
-        summary={summarizeDataAppVizSchemaChanges(changes).join(' · ')}
-    >
-        <VizSchemaChangesList changes={changes} compact />
-    </VersionHistoryDisclosure>
-);
+}> = ({ version, changes }) => {
+    const { t } = useTranslation('chartTypes');
+    return (
+        <VersionHistoryDisclosure
+            label={t('history.whatChanged')}
+            ariaLabel={t('history.whatChangedIn', { version })}
+            summary={summarizeDataAppVizSchemaChanges(changes).join(' · ')}
+        >
+            <VizSchemaChangesList changes={changes} compact />
+        </VersionHistoryDisclosure>
+    );
+};
 
 const schemaOf = (version: ApiAppVersionSummary): DataAppVizSchema | null =>
     version.status === 'ready' ? (version.resources?.vizSchema ?? null) : null;
@@ -88,6 +92,7 @@ const VersionHistoryPanel: FC<Props> = ({
     fetchEarlier,
     currentThreadNumber,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const [restoreTarget, setRestoreTarget] = useState<number | null>(null);
 
     const ordered = [...versions].sort((a, b) => b.version - a.version);
@@ -120,7 +125,7 @@ const VersionHistoryPanel: FC<Props> = ({
                 isFetchingEarlier={isFetchingEarlier}
                 fetchEarlier={fetchEarlier}
                 currentThreadNumber={currentThreadNumber}
-                emptyPromptLabel="Uploaded from source"
+                emptyPromptLabel={t('history.uploadedFromSource')}
                 olderVersionTime="absolute"
                 thumbnailSource={null}
                 renderEntryExtras={(version) => {

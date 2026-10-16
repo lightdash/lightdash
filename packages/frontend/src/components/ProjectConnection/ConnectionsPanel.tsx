@@ -36,6 +36,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useRef, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import {
     hidesConnectionsPanel,
     isSingleConnectionProject,
@@ -67,68 +68,82 @@ const ConnectionRow: FC<{
     onRename: (connection: WarehouseConnection) => void;
     onEditListing: (connection: WarehouseConnection) => void;
     onRemove: (connection: WarehouseConnection) => void;
-}> = ({ connection, onEdit, onRename, onEditListing, onRemove }) => (
-    <Group className={classes.row} gap="sm" wrap="nowrap">
-        <MantineIcon
-            icon={IconPlugConnected}
-            size="lg"
-            className={classes.mark}
-        />
-        <Box className={classes.info}>
-            <Group gap={6} wrap="nowrap">
-                <Text fw={600} size="sm" truncate>
-                    {connection.name}
+}> = ({ connection, onEdit, onRename, onEditListing, onRemove }) => {
+    const { t } = useTranslation('projectConnection');
+    return (
+        <Group className={classes.row} gap="sm" wrap="nowrap">
+            <MantineIcon
+                icon={IconPlugConnected}
+                size="lg"
+                className={classes.mark}
+            />
+            <Box className={classes.info}>
+                <Group gap={6} wrap="nowrap">
+                    <Text fw={600} size="sm" truncate>
+                        {connection.name}
+                    </Text>
+                    {connection.isOriginal && (
+                        <Badge size="sm">
+                            {t('connectionsPanel.original')}
+                        </Badge>
+                    )}
+                    {connection.organizationWarehouseCredentialsUuid !==
+                        null && (
+                        <Badge size="sm">
+                            {t('connectionsPanel.organisationCredential')}
+                        </Badge>
+                    )}
+                </Group>
+                <Text className={classes.meta} c="dimmed" truncate>
+                    {getWarehouseLabel(connection.warehouseType)}
                 </Text>
-                {connection.isOriginal && <Badge size="sm">Original</Badge>}
-                {connection.organizationWarehouseCredentialsUuid !== null && (
-                    <Badge size="sm">Organisation credential</Badge>
-                )}
-            </Group>
-            <Text className={classes.meta} c="dimmed" truncate>
-                {getWarehouseLabel(connection.warehouseType)}
-            </Text>
-        </Box>
-        <Menu position="bottom-end">
-            <Menu.Target>
-                <ActionIcon aria-label={`Actions for ${connection.name}`}>
-                    <MantineIcon icon={IconDots} />
-                </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-                {!connection.isOriginal && (
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconPencil} />}
-                        onClick={() => onEdit(connection)}
+            </Box>
+            <Menu position="bottom-end">
+                <Menu.Target>
+                    <ActionIcon
+                        aria-label={t('connectionsPanel.actionsFor', {
+                            name: connection.name,
+                        })}
                     >
-                        Edit
+                        <MantineIcon icon={IconDots} />
+                    </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    {!connection.isOriginal && (
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconPencil} />}
+                            onClick={() => onEdit(connection)}
+                        >
+                            {t('actions.edit', { ns: 'common' })}
+                        </Menu.Item>
+                    )}
+                    <Menu.Item onClick={() => onRename(connection)}>
+                        {t('connectionsPanel.rename')}
                     </Menu.Item>
-                )}
-                <Menu.Item onClick={() => onRename(connection)}>
-                    Rename
-                </Menu.Item>
-                {supportsConnectionDatabaseListing(
-                    connection.warehouseType,
-                ) && (
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconDatabase} />}
-                        onClick={() => onEditListing(connection)}
-                    >
-                        SQL runner databases
-                    </Menu.Item>
-                )}
-                {!connection.isOriginal && (
-                    <Menu.Item
-                        color="red"
-                        leftSection={<MantineIcon icon={IconTrash} />}
-                        onClick={() => onRemove(connection)}
-                    >
-                        Remove
-                    </Menu.Item>
-                )}
-            </Menu.Dropdown>
-        </Menu>
-    </Group>
-);
+                    {supportsConnectionDatabaseListing(
+                        connection.warehouseType,
+                    ) && (
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconDatabase} />}
+                            onClick={() => onEditListing(connection)}
+                        >
+                            {t('connectionsPanel.sqlRunnerDatabases')}
+                        </Menu.Item>
+                    )}
+                    {!connection.isOriginal && (
+                        <Menu.Item
+                            color="red"
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            onClick={() => onRemove(connection)}
+                        >
+                            {t('actions.remove', { ns: 'common' })}
+                        </Menu.Item>
+                    )}
+                </Menu.Dropdown>
+            </Menu>
+        </Group>
+    );
+};
 
 const AddConnectionModal: FC<{
     projectUuid: string;
@@ -141,6 +156,7 @@ const AddConnectionModal: FC<{
     primaryRequiresUserCredentials,
     onClose,
 }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useForm({
         initialValues: {
             name: '',
@@ -187,9 +203,9 @@ const AddConnectionModal: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            title="Add a connection"
+            title={t('connectionsPanel.addModalTitle')}
             size="lg"
-            confirmLabel="Add connection"
+            confirmLabel={t('connectionsPanel.addConnection')}
             onConfirm={handleSubmit}
             confirmLoading={createMutation.isLoading}
             cancelDisabled={createMutation.isLoading}
@@ -201,7 +217,7 @@ const AddConnectionModal: FC<{
                 warehouseType={warehouseType}
                 primaryRequiresUserCredentials={primaryRequiresUserCredentials}
                 showName
-                intro="Add another connection of the project's warehouse type. It is tested before it is saved."
+                intro={t('connectionsPanel.addIntro')}
             />
         </MantineModal>
     );
@@ -213,6 +229,7 @@ const EditConnectionForm: FC<{
     credentials: CreateWarehouseCredentials;
     onClose: () => void;
 }> = ({ projectUuid, connection, credentials, onClose }) => {
+    const { t } = useTranslation('projectConnection');
     const savedProject = {
         warehouseConnection: credentials,
         organizationWarehouseCredentialsUuid:
@@ -259,9 +276,9 @@ const EditConnectionForm: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            title={`Edit ${connection.name}`}
+            title={t('connectionsPanel.editTitle', { name: connection.name })}
             size="lg"
-            confirmLabel="Save changes"
+            confirmLabel={t('connectionsPanel.saveChanges')}
             onConfirm={handleSubmit}
             confirmLoading={updateMutation.isLoading}
             cancelDisabled={updateMutation.isLoading}
@@ -277,7 +294,7 @@ const EditConnectionForm: FC<{
                         : connection.warehouseConnectionUuid
                 }
                 showName={false}
-                intro="Leave a secret blank to keep the saved one. The connection is tested before it is saved."
+                intro={t('connectionsPanel.editIntro')}
             />
         </MantineModal>
     );
@@ -288,6 +305,7 @@ const EditConnectionModal: FC<{
     connection: WarehouseConnection;
     onClose: () => void;
 }> = ({ projectUuid, connection, onClose }) => {
+    const { t } = useTranslation('projectConnection');
     const { data, isInitialLoading } = useWarehouseConnection(
         projectUuid,
         connection.warehouseConnectionUuid,
@@ -298,7 +316,9 @@ const EditConnectionModal: FC<{
             <MantineModal
                 opened
                 onClose={onClose}
-                title={`Edit ${connection.name}`}
+                title={t('connectionsPanel.editTitle', {
+                    name: connection.name,
+                })}
                 size="lg"
                 cancelLabel={false}
             >
@@ -324,6 +344,7 @@ const RenameConnectionModal: FC<{
     connection: WarehouseConnection;
     onClose: () => void;
 }> = ({ projectUuid, connection, onClose }) => {
+    const { t } = useTranslation('projectConnection');
     const nameRef = useRef<HTMLInputElement>(null);
     const form = useMantineForm({
         initialValues: { name: connection.name },
@@ -349,15 +370,15 @@ const RenameConnectionModal: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            title="Rename connection"
-            confirmLabel="Save changes"
+            title={t('connectionsPanel.renameTitle')}
+            confirmLabel={t('connectionsPanel.saveChanges')}
             onConfirm={handleSubmit}
             confirmLoading={renameMutation.isLoading}
             cancelDisabled={renameMutation.isLoading}
         >
             <TextInput
                 ref={nameRef}
-                label="Name"
+                label={t('connectionFields.nameLabel')}
                 required
                 maxLength={WAREHOUSE_CONNECTION_NAME_MAX_LENGTH}
                 {...form.getInputProps('name')}
@@ -371,6 +392,7 @@ const ListingSettingsModal: FC<{
     connection: WarehouseConnection;
     onClose: () => void;
 }> = ({ projectUuid, connection, onClose }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useMantineForm<WarehouseDatabaseListingValues>({
         initialValues: {
             listAllDatabases: connection.listAllDatabases,
@@ -395,8 +417,10 @@ const ListingSettingsModal: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            title={`SQL runner databases for ${connection.name}`}
-            confirmLabel="Save changes"
+            title={t('connectionsPanel.listingTitle', {
+                name: connection.name,
+            })}
+            confirmLabel={t('connectionsPanel.saveChanges')}
             onConfirm={handleSubmit}
             confirmLoading={updateMutation.isLoading}
             cancelDisabled={updateMutation.isLoading}
@@ -415,6 +439,7 @@ const RemoveConnectionModal: FC<{
     connection: WarehouseConnection;
     onClose: () => void;
 }> = ({ projectUuid, connection, onClose }) => {
+    const { t } = useTranslation('projectConnection');
     const deleteMutation = useDeleteWarehouseConnection(projectUuid, {
         onSuccess: onClose,
     });
@@ -423,9 +448,9 @@ const RemoveConnectionModal: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            title="Remove connection"
+            title={t('connectionsPanel.removeTitle')}
             variant="delete"
-            confirmLabel="Remove"
+            confirmLabel={t('actions.remove', { ns: 'common' })}
             confirmLoading={deleteMutation.isLoading}
             cancelDisabled={deleteMutation.isLoading}
             onConfirm={() =>
@@ -434,11 +459,12 @@ const RemoveConnectionModal: FC<{
         >
             <Stack gap="md">
                 <Text>
-                    Remove{' '}
-                    <Text span fw={600}>
-                        {connection.name}
-                    </Text>
-                    ? A connection that content still uses cannot be removed.
+                    <Trans
+                        t={t}
+                        i18nKey="connectionsPanel.removeConfirm"
+                        values={{ name: connection.name }}
+                        components={{ name: <Text span fw={600} /> }}
+                    />
                 </Text>
                 {deleteMutation.error && (
                     <Text size="sm" c="red">
@@ -502,6 +528,7 @@ const ConnectionsPanelContent: FC<{
     projectUuid: string;
     primaryRequiresUserCredentials: boolean;
 }> = ({ projectUuid, primaryRequiresUserCredentials }) => {
+    const { t } = useTranslation('projectConnection');
     const { data, error, isInitialLoading, isEnabled } =
         useWarehouseConnections(projectUuid);
     const [action, setAction] = useState<ConnectionAction | null>(null);
@@ -529,7 +556,7 @@ const ConnectionsPanelContent: FC<{
     return (
         <Card padding="lg">
             <Stack gap="md">
-                <Title order={5}>Connections</Title>
+                <Title order={5}>{t('connectionsPanel.title')}</Title>
                 {isInitialLoading && (
                     <Group justify="center" py="md">
                         <Loader size="sm" />
@@ -537,7 +564,7 @@ const ConnectionsPanelContent: FC<{
                 )}
                 {error && (
                     <Text size="sm" c="red">
-                        Failed to load connections.
+                        {t('connectionsPanel.loadFailed')}
                     </Text>
                 )}
                 {data && (
@@ -579,7 +606,7 @@ const ConnectionsPanelContent: FC<{
                                 }
                                 onClick={() => setIsAddOpen(true)}
                             >
-                                Add connection
+                                {t('connectionsPanel.addConnection')}
                             </Button>
                         </Box>
                     </Tooltip>

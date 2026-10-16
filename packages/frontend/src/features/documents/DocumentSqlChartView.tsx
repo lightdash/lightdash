@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { useEffect, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import BigNumberView from '../../components/DataViz/visualizations/BigNumberView';
@@ -48,6 +49,7 @@ const DocumentSqlChartView = ({
     showTitle = false,
     actions,
 }: Props) => {
+    const { t } = useTranslation('documents');
     const exportStatus = useDocumentExportStatus();
     const isExporting = exportStatus !== null;
     const isError = results.errorMessage !== undefined;
@@ -83,8 +85,8 @@ const DocumentSqlChartView = ({
             <InlineErrorState
                 message={
                     isResourceLimitError
-                        ? 'This chart exceeds the warehouse query limit.'
-                        : 'The live data for this chart could not be loaded.'
+                        ? t('chart.resourceLimit')
+                        : t('chart.loadFailed')
                 }
                 onRetry={
                     isResourceLimitError || isExporting
@@ -98,7 +100,7 @@ const DocumentSqlChartView = ({
         return frame(
             <Box data-tour-anchor="document-chart-loading">
                 <EmptyStateLoader
-                    title="Loading live chart data"
+                    title={t('chart.loading')}
                     data-tour-status="true"
                 />
             </Box>,

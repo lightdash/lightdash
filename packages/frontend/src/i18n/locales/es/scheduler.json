@@ -1,0 +1,560 @@
+{
+    "cronInput": {
+        "cronExpression": "Expresión cron",
+        "at": "a las",
+        "mondayToFridayAt": "De lunes a viernes a las",
+        "atMinute": "en el minuto",
+        "minuteOutOfRange": "Debe estar entre 0 y 59",
+        "onDay": "el día",
+        "on": "el",
+        "frequency": {
+            "hourly": "Cada hora",
+            "daily": "Diario",
+            "weekdays": "Días laborables",
+            "weekly": "Semanal",
+            "monthly": "Mensual",
+            "custom": "Personalizado"
+        },
+        "weekDays": {
+            "sunday": "Domingo",
+            "monday": "Lunes",
+            "tuesday": "Martes",
+            "wednesday": "Miércoles",
+            "thursday": "Jueves",
+            "friday": "Viernes",
+            "saturday": "Sábado"
+        }
+    },
+    "runStatus": {
+        "completed": "Completado",
+        "partialFailure": "Fallo parcial",
+        "failed": "Fallido",
+        "running": "En ejecución",
+        "scheduled": "Programado"
+    },
+    "taskName": {
+        "slackTargets_one": "Slack ({{count}} destino)",
+        "slackTargets_other": "Slack ({{count}} destinos)",
+        "slackNotifications": "Notificaciones de Slack",
+        "emailTargets_one": "Correo ({{count}} destino)",
+        "emailTargets_other": "Correo ({{count}} destinos)",
+        "emailNotifications": "Notificaciones por correo",
+        "msTeamsTargets_one": "MS Teams ({{count}} destino)",
+        "msTeamsTargets_other": "MS Teams ({{count}} destinos)",
+        "msTeamsNotifications": "Notificaciones de MS Teams",
+        "googleChatTargets_one": "Google Chat ({{count}} destino)",
+        "googleChatTargets_other": "Google Chat ({{count}} destinos)",
+        "googleChatNotifications": "Notificaciones de Google Chat"
+    },
+    "schedulersView": {
+        "refreshSuccess": "Envíos programados actualizados correctamente",
+        "myScheduledDeliveries": "Mis envíos programados",
+        "myScheduledDeliveriesDescription": "Revisa y gestiona los envíos programados en todos tus proyectos.",
+        "refresh": "Actualizar",
+        "title": "Envíos programados",
+        "refreshTooltip": "Haz clic para actualizar el estado de los envíos programados",
+        "tabs": {
+            "allSchedulers": "Todas las programaciones",
+            "runHistory": "Historial de ejecuciones"
+        }
+    },
+    "toolbar": {
+        "schedulerLabel": "Programación:",
+        "clearAllFilters": "Borrar todos los filtros",
+        "selectedCount_one": "{{count}} seleccionado",
+        "selectedCount_other": "{{count}} seleccionados",
+        "reassignOwner": "Reasignar propietario"
+    },
+    "destinations": {
+        "slack": "Slack",
+        "email": "Correo",
+        "msTeams": "MS Teams",
+        "googleChat": "Google Chat",
+        "microsoftTeams": "Microsoft Teams"
+    },
+    "formats": {
+        "csv": ".csv",
+        "xlsx": ".xlsx",
+        "image": "Imagen",
+        "googleSheets": "Google Sheets",
+        "pdf": "PDF"
+    },
+    "filters": {
+        "owner": {
+            "label": "Propietario",
+            "tooltip": "Filtrar por el usuario propietario de la programación",
+            "searchPlaceholder": "Buscar usuarios…",
+            "empty": "No se encontraron usuarios"
+        },
+        "destination": {
+            "label": "Destino",
+            "tooltip": "Filtrar por tipo de destino",
+            "empty": "No hay destinos configurados."
+        },
+        "resourceType": {
+            "showAll": "Mostrar todas las programaciones",
+            "all": "Todas",
+            "showCharts": "Mostrar solo programaciones de gráficos",
+            "showDashboards": "Mostrar solo programaciones de paneles"
+        },
+        "search": {
+            "tooltip": "Buscar por nombre de programación",
+            "placeholder": "Buscar programaciones por nombre"
+        },
+        "format": {
+            "label": "Formato",
+            "tooltip": "Filtrar programaciones por formato"
+        },
+        "status": {
+            "label": "Estado",
+            "tooltip": "Filtrar ejecuciones por estado",
+            "completed": "Completado",
+            "partialFailure": "Fallo parcial",
+            "failed": "Fallido",
+            "running": "En ejecución",
+            "scheduled": "Programado"
+        }
+    },
+    "reassignOwnerModal": {
+        "title_one": "Reasignar propietario de \"{{count}} envío programado\"",
+        "title_other": "Reasignar propietario de \"{{count}} envíos programados\"",
+        "reassign": "Reasignar",
+        "description_one": "Selecciona un nuevo propietario para el envío programado seleccionado. El nuevo propietario será responsable de gestionarlo.",
+        "description_other": "Selecciona un nuevo propietario para los envíos programados seleccionados. El nuevo propietario será responsable de gestionarlos.",
+        "newOwner": "Nuevo propietario",
+        "gsheetsNote": "Solo puedes transferir la propiedad de una sincronización con Google Sheets a un usuario con una conexión de Google activa."
+    },
+    "actionMenu": {
+        "editSchedule": "Editar programación",
+        "goToChart": "Ir al gráfico",
+        "goToDashboard": "Ir al panel",
+        "sendNow": "Enviar ahora",
+        "viewAsCode": "Ver como código",
+        "reassignOwner": "Reasignar propietario",
+        "deleteSchedule": "Eliminar programación"
+    },
+    "schedulersTable": {
+        "columns": {
+            "name": "Nombre",
+            "owner": "Propietario",
+            "project": "Proyecto",
+            "lastRun": "Última ejecución",
+            "destinations": "Destinos",
+            "frequency": "Frecuencia",
+            "created": "Creado"
+        },
+        "format": {
+            "csv": "CSV",
+            "xlsx": "XLSX"
+        },
+        "scheduleType": "Tipo de programación:",
+        "createdBy": "Creado por:",
+        "notAvailable": "n/d",
+        "unknown": "Desconocido",
+        "noRunsYet": "Aún sin ejecuciones",
+        "lastRun": "Última ejecución: {{time}}",
+        "logCounts": "{{completed}} completados, {{failed}} fallidos",
+        "clickToViewRunHistory": "Haz clic para ver el historial de ejecuciones",
+        "emailWithSeparator": "Correo,",
+        "noDestinations": "Sin destinos"
+    },
+    "logsTable": {
+        "columns": {
+            "name": "Nombre",
+            "status": "Estado",
+            "scheduled": "Programado",
+            "start": "Inicio"
+        },
+        "status": {
+            "completedSuccessfully": "Completado correctamente",
+            "failed": "Fallido",
+            "partialFailure": "Fallo parcial",
+            "running": "En ejecución",
+            "scheduled": "Programado"
+        },
+        "loadingRunHistory": "Cargando historial de ejecuciones"
+    },
+    "runDetails": {
+        "summary": {
+            "jobsCompleted_one": "{{count}} tarea completada",
+            "jobsCompleted_other": "{{count}} tareas completadas",
+            "jobsFailed_one": "{{count}} tarea fallida",
+            "jobsFailed_other": "{{count}} tareas fallidas",
+            "jobsPartiallyFailed_one": "{{count}} tarea falló parcialmente",
+            "jobsPartiallyFailed_other": "{{count}} tareas fallaron parcialmente",
+            "chartsFailedToExport_one": "{{count}} gráfico no se pudo exportar",
+            "chartsFailedToExport_other": "{{count}} gráficos no se pudieron exportar",
+            "separator": ", ",
+            "allJobsCompleted_one": "{{count}} tarea completada correctamente",
+            "allJobsCompleted_other": "{{count}} tareas completadas correctamente",
+            "allJobsFailed": "Todas las tareas fallaron",
+            "jobsTotal": "Tareas ({{count}})"
+        },
+        "timing": {
+            "started": "iniciado",
+            "completed": "completado",
+            "failed": "fallido",
+            "duration": "duración"
+        },
+        "partialFailure": {
+            "noRecipients": "No hay destinatarios configurados para este envío programado",
+            "aiSummaryFailed": "No se pudo generar el resumen con IA",
+            "didNotRun": "no se ejecutó en este envío",
+            "queriesDropped_one": "Se descartó {{count}} consulta de la captura (límite {{limit}})",
+            "queriesDropped_other": "Se descartaron {{count}} consultas de la captura (límite {{limit}})"
+        },
+        "partialFailureMessage": {
+            "failingCharts_one": "{{count}} gráfico con errores",
+            "failingCharts_other": "{{count}} gráficos con errores",
+            "failingQueries_one": "{{count}} consulta con errores",
+            "failingQueries_other": "{{count}} consultas con errores",
+            "missingRecipients": "destinatarios faltantes",
+            "issues_one": "{{count}} incidencia",
+            "issues_other": "{{count}} incidencias",
+            "completedWith": "Completado con {{issues}}",
+            "and": " y "
+        },
+        "jobFailed": "La tarea falló",
+        "completedSuccessfully": "Completado correctamente",
+        "generateFormat": "Generar {{format}}",
+        "batchDelivered": "{{succeeded}}/{{total}} entregados correctamente",
+        "format": {
+            "excel": "Excel"
+        },
+        "chart": "Gráfico",
+        "dashboard": "Panel",
+        "createdBy": "Creado por",
+        "scheduled": "Programado",
+        "started": "Iniciado",
+        "noJobsFound": "No se encontraron tareas"
+    },
+    "toasts": {
+        "created": "¡Listo! Se creó el envío programado.",
+        "createFailed": "No se pudo crear el envío programado",
+        "deleted": "¡Listo! Se eliminó el envío programado",
+        "deleteFailed": "No se pudo eliminar el envío programado",
+        "reassigned_one": "Se reasignó correctamente {{count}} envío programado",
+        "reassigned_other": "Se reasignaron correctamente {{count}} envíos programados",
+        "reassignFailed": "No se pudo reasignar el propietario del envío programado",
+        "updated": "¡Listo! Se actualizó el envío programado.",
+        "updateFailed": "No se pudo actualizar el envío programado",
+        "jobFailed": "La tarea falló",
+        "processingDelivery": "Procesando envío programado...",
+        "thresholdNotMet": "No se alcanzó el umbral. No se envió ninguna notificación.",
+        "sentSuccessfully": "Envío programado enviado correctamente",
+        "sendFailed": "No se pudo enviar el envío programado",
+        "pollingError": "Error al consultar el estado de la tarea",
+        "processingJob": "Procesando tarea...",
+        "noJobId": "El servidor no devolvió ningún ID de tarea",
+        "aiSettingsSaveFailed": "No se pudo guardar la configuración de IA de este envío"
+    },
+    "form": {
+        "createAlert": "Crear alerta",
+        "createSchedule": "Crear programación",
+        "validation": {
+            "nameRequired": "El nombre es obligatorio",
+            "customLimitInteger": "El límite personalizado debe ser un número entero",
+            "requirementGroupsUnmet": "Indica un valor para al menos un filtro de cada grupo de requisitos",
+            "requiredFiltersMissing": "Los filtros obligatorios deben tener valores",
+            "alertFieldRequired": "El campo de alerta es obligatorio",
+            "selectedTabsEmpty": "Las pestañas seleccionadas no pueden estar vacías",
+            "instructionsRequired": "Las instrucciones son obligatorias"
+        }
+    },
+    "confirmSendNow": {
+        "title": "¿Enviar “{{name}}” ahora?",
+        "description": {
+            "scheduled": "Esto activará el envío programado de inmediato. No cambiará ni afectará la programación configurada ni los envíos futuros.",
+            "alert": "Esto evaluará la alerta y la enviará de inmediato si se alcanza el umbral. No cambiará ni afectará la programación configurada."
+        }
+    },
+    "deleteModal": {
+        "title": "Eliminar envío programado",
+        "resourceType": "envío programado",
+        "description": "Esta acción es permanente y no se puede deshacer.",
+        "loading": "Cargando programación"
+    },
+    "confirmPause": {
+        "title": "¿Pausar \"{{name}}\"?",
+        "pause": "Pausar"
+    },
+    "runsHistoryModal": {
+        "title": "Historial de ejecuciones – {{name}}"
+    },
+    "schedulerModal": {
+        "loadRunDetailsFailed": "No se pudieron cargar los detalles de la ejecución",
+        "alerts": "Alertas",
+        "scheduledDeliveries": "Envíos programados",
+        "closeAriaLabel": "Cerrar envíos programados"
+    },
+    "sections": {
+        "alert": {
+            "label": "Condiciones de alerta",
+            "description": "Se activa solo cuando tus datos cruzan un umbral."
+        },
+        "setup": {
+            "label": "Configuración"
+        },
+        "data": {
+            "label": "Datos y formato"
+        },
+        "message": {
+            "label": "Mensaje"
+        },
+        "ai": {
+            "label": "Agente de IA",
+            "description": "Un agente lee esto y escribe un breve resumen que se incluye al principio de cada correo y mensaje de Slack."
+        },
+        "groups": {
+            "delivery": "Envío",
+            "content": "Contenido"
+        },
+        "navAriaLabel": "Sección del envío"
+    },
+    "createOrEdit": {
+        "blocked": {
+            "nameAlert": "Ponle un nombre a tu alerta",
+            "nameDelivery": "Ponle un nombre a tu envío",
+            "pickAlertField": "Elige un campo de alerta",
+            "missingRequiredFilters": "Faltan valores en algunos filtros obligatorios",
+            "completeRequired": "Completa los campos obligatorios"
+        },
+        "subtitle": {
+            "editing": "editando",
+            "newAlert": "nueva alerta",
+            "newSchedule": "nueva programación",
+            "separator": " · "
+        },
+        "titleAlert": "Alerta",
+        "titleScheduled": "Envío programado",
+        "closeAriaLabel": "Cerrar envío programado",
+        "previewAndNextRuns": "Vista previa y próximas ejecuciones",
+        "sendOnceNow": "Enviar una vez ahora"
+    },
+    "slackError": {
+        "noIntegration": "No se encontró ninguna integración con Slack",
+        "setupSlack": "Para crear un envío programado por Slack, debes <anchor>configurar Slack</anchor> en tu instancia",
+        "missingPermissions": "A la integración con Slack le faltan permisos",
+        "missingScopes": "Los envíos programados necesitan los permisos de Slack <scopes>{{scopes}}</scopes>.",
+        "reinstall": "<anchor>Reinstala la integración con Slack</anchor> en tu organización para concederlos."
+    },
+    "emailInput": {
+        "placeholder": "Introduce direcciones de correo",
+        "invalidEmail": "'{{email}}' no parece ser una dirección de correo",
+        "noIntegration": "No se encontró ninguna integración de correo.",
+        "setupSmtp": "Para crear un envío programado por correo, debes añadir las <anchor>variables de entorno SMTP</anchor> a tu instancia de Lightdash"
+    },
+    "slackInput": {
+        "placeholder": "Buscar canales de Slack"
+    },
+    "googleChatInput": {
+        "placeholder": "Introduce URLs de webhook de Google Chat",
+        "help": "<anchor>Crea un webhook</anchor> en Google Chat para obtener una URL."
+    },
+    "msTeamsInput": {
+        "placeholder": "Introduce URLs de flujo de trabajo o webhook de Microsoft Teams",
+        "help": "<anchor>Crea un flujo de trabajo</anchor> en Microsoft Teams para obtener una URL."
+    },
+    "aiInput": {
+        "title": "Mensaje mejorado con IA",
+        "subtitle": "Redacta el mensaje del envío a partir de tus datos en cada envío.",
+        "instructions": "Instrucciones",
+        "agentLabel": "Agente de IA (opcional)",
+        "agentDescription": "Usa las herramientas y el contexto del agente."
+    },
+    "filterItem": {
+        "isAnyValue": "es cualquier valor",
+        "invalidFilter": "Filtro no válido",
+        "unknownField": "Se intentó hacer referencia a un campo con un id desconocido:",
+        "removeInvalidFilter": "Eliminar filtro no válido",
+        "appliesToTiles": "Se aplica a: {{tiles}}",
+        "appliesToCount_one": "Se aplica a {{count}} mosaico",
+        "appliesToCount_other": "Se aplica a {{count}} mosaicos",
+        "resetFilter": "Restablecer filtro",
+        "doneEditing": "Terminar edición",
+        "editFilter": "Editar filtro",
+        "removeFilter": "Eliminar filtro",
+        "unsavedChanges": "Cambios sin guardar",
+        "readdFilterTooltip": "Vuelve a añadir el filtro para sobrescribirlo en este envío",
+        "readdFilter": "Volver a añadir filtro"
+    },
+    "chartFilters": {
+        "loading": "Cargando filtros del gráfico...",
+        "readOnlyNotice": "Para ajustar estos filtros en un envío necesitas acceso de exploración al proyecto. El envío usa los filtros guardados del gráfico.",
+        "allRequired": "Todos los filtros obligatorios deben tener valores",
+        "usesChartDefault": "Usa el valor predeterminado del gráfico",
+        "removeTooltip": "Eliminar filtro: el envío usará el valor predeterminado del gráfico",
+        "orphanNotice": "Los siguientes filtros se aplican a este envío programado, pero ya no existen en el gráfico",
+        "empty": "No hay filtros definidos para este gráfico."
+    },
+    "dashboardFilters": {
+        "loading": "Cargando filtros del panel...",
+        "differsFromDashboard": "Difiere del panel",
+        "revertToDashboard": "Volver al valor del panel",
+        "usesDashboardDefault": "Usa el valor predeterminado del panel",
+        "removeTooltip": "Eliminar filtro: el envío usará el valor predeterminado del panel",
+        "orphanNotice": "Los siguientes filtros se aplican a este envío programado, pero ya no existen en el panel",
+        "empty": "No hay filtros definidos para este panel."
+    },
+    "parameters": {
+        "noValueSet": "Sin valor definido",
+        "resetTooltip": "Restablecer el parámetro al valor predeterminado del panel",
+        "loading": "Cargando parámetros...",
+        "empty": "No hay parámetros definidos para este proyecto."
+    },
+    "setup": {
+        "recipients": "Destinatarios",
+        "name": "Nombre",
+        "namePlaceholderAlert": "Ponle nombre a tu alerta",
+        "namePlaceholderDelivery": "Ponle nombre a tu envío",
+        "checkFrequency": "Frecuencia de comprobación",
+        "frequency": "Frecuencia",
+        "checkFrequencyDescription": "Con qué frecuencia Lightdash comprueba si hay cambios en tus datos. Solo se te notificará cuando se cumplan las condiciones.",
+        "timezone": "Zona horaria",
+        "timezonePlaceholder": "Predeterminada del proyecto",
+        "timezonePlaceholderWithOffset": "Predeterminada del proyecto (UTC {{offset}})"
+    },
+    "nextRuns": {
+        "title": "Próximas ejecuciones",
+        "timesShownIn": "Horas mostradas en {{timezone}}",
+        "timesShownInProject": "Horas mostradas en la zona horaria del proyecto"
+    },
+    "message": {
+        "includeLink": "Incluir enlace a Lightdash",
+        "includeLinkDescription": "Los destinatarios podrán abrirlo en Lightdash.",
+        "plainText": "Enviar como texto sin formato",
+        "plainTextDescription": "Los correos llegan como texto sin formato con el archivo adjunto, sin la marca de Lightdash, botones ni pie de página. Tu mensaje de abajo es todo el cuerpo. Los envíos por Slack y webhook no se ven afectados.",
+        "plainTextDisabled": "Debes tener al menos un destinatario de correo para enviar como texto sin formato",
+        "body": "Cuerpo del mensaje",
+        "aiFallback": "La IA redacta el mensaje en cada envío; este texto solo se usa si falla la generación con IA.",
+        "placeholder": "Añade una nota para los destinatarios..."
+    },
+    "thresholdOperators": {
+        "greaterThan": "es mayor que",
+        "lessThan": "es menor que",
+        "increasedBy": "aumentó en",
+        "decreasedBy": "disminuyó en"
+    },
+    "alert": {
+        "field": "Campo de alerta",
+        "noNumericFields": "No hay campos numéricos disponibles. Debes tener al menos una métrica o un cálculo numérico para configurar una alerta.",
+        "condition": "Condición",
+        "threshold": "Umbral",
+        "notifyOnce": "Notificarme solo una vez",
+        "notifyAlways": "Se te notificará con la frecuencia indicada siempre que se cumplan las condiciones del umbral",
+        "filters": "Filtros",
+        "parameters": "Parámetros"
+    },
+    "detail": {
+        "parameterOperator": "es",
+        "showLess": "Mostrar menos",
+        "andMore_one": "y {{count}} más",
+        "andMore_other": "y {{count}} más",
+        "alert": "Alerta",
+        "notifiesOnce": "Notifica solo una vez",
+        "filterCount_one": "{{count}} filtro",
+        "filterCount_other": "{{count}} filtros",
+        "parameterCount_one": "{{count}} parámetro",
+        "parameterCount_other": "{{count}} parámetros"
+    },
+    "customWidth": {
+        "tablet": "Tableta ({{width}}px)",
+        "laptop": "Pantalla de portátil ({{width}}px)",
+        "externalMonitor": "Monitor externo ({{width}}px)",
+        "tv": "Pantalla de TV ({{width}}px)",
+        "largeMonitor": "Monitor grande ({{width}}px)",
+        "ultraWide": "Monitor ultrapanorámico ({{width}}px)"
+    },
+    "preview": {
+        "aiSummary": "Resumen con IA",
+        "title": "Vista previa",
+        "regenerate": "Regenerar",
+        "defaultName": "Tu envío programado",
+        "generate": "Generar vista previa",
+        "renderWidth": "Ancho de renderizado"
+    },
+    "alertSummary": {
+        "emailRecipients_one": "{{count}} destinatario de correo",
+        "emailRecipients_other": "{{count}} destinatarios de correo",
+        "slackChannels_one": "{{count}} canal de Slack",
+        "slackChannels_other": "{{count}} canales de Slack",
+        "teamsWebhooks_one": "{{count}} webhook de Teams",
+        "teamsWebhooks_other": "{{count}} webhooks de Teams",
+        "googleChatWebhooks_one": "{{count}} webhook de Google Chat",
+        "googleChatWebhooks_other": "{{count}} webhooks de Google Chat",
+        "listWithLast": "{{list}} y {{last}}",
+        "listSeparator": ", ",
+        "title": "Resumen de la alerta",
+        "firesWhen": "Se activa cuando…",
+        "empty": "Elige un campo de alerta y un umbral para ver aquí la condición.",
+        "notifiedVia": "Se te notificará a través de {{destinations}}.",
+        "addRecipient": "Añade un destinatario para recibir notificaciones."
+    },
+    "csvOptions": {
+        "values": "Valores",
+        "formatted": "Con formato",
+        "raw": "Sin formato",
+        "layout": "Diseño",
+        "layoutHelp": "Se aplica a gráficos cartesianos con dimensiones dinamizadas. Agrupado mantiene la estructura de columnas del gráfico; Plano devuelve las filas sin procesar de la consulta.",
+        "grouped": "Agrupado",
+        "flat": "Plano",
+        "limit": "Límite",
+        "resultsInTable": "Resultados de la tabla",
+        "allResults": "Todos los resultados",
+        "custom": "Personalizado...",
+        "cellsLimit": "Los resultados están limitados a {{limit}} celdas por archivo",
+        "rerunWithoutLimit": "Las consultas que alcanzan su límite de filas se vuelven a ejecutar sin límite en el momento del envío; esto puede ser más lento.",
+        "xlsxOutput": "Salida XLSX",
+        "xlsxOutputHelp": "Archivos separados coloca cada mosaico del panel en su propio archivo XLSX dentro de un ZIP. Libro único coloca cada mosaico en su propia hoja de un solo archivo XLSX.",
+        "separateFiles": "Archivos separados (ZIP)",
+        "singleWorkbook": "Libro único",
+        "formattingOptions": "Opciones de formato"
+    },
+    "dataFormat": {
+        "appQueryCountNone": "No se detectaron consultas de datos en la vista actual. Las apps configuradas para envíos con todos los datos aún pueden capturar datos; si no se ejecuta ninguna, el envío falla.",
+        "appQueryCount_one": "Se detectó {{count}} consulta de datos en la vista actual; se convierte en un archivo",
+        "appQueryCount_other": "Se detectaron {{count}} consultas de datos en la vista actual; cada consulta se convierte en un archivo",
+        "format": "Formato",
+        "headlessBrowserRequired": "Debes habilitar el <anchor>navegador headless</anchor> para enviar imágenes",
+        "includeAllTabs": "Incluir todas las pestañas del panel",
+        "selectTabsPlaceholder": "Selecciona las pestañas que se incluirán en el envío",
+        "includePdf": "Incluir también la imagen como PDF adjunto",
+        "pagePerTab": "Cada pestaña en su propia página (con el título del panel y de la pestaña)",
+        "attachDisabled": "Añade un destinatario de correo o Slack para adjuntar el archivo",
+        "attachFile": "Adjuntar el archivo al envío",
+        "attachFileDescription": "Los correos lo reciben como adjunto y los canales de Slack en el hilo del mensaje",
+        "appState": "Estado de la app",
+        "sendAppState": "Enviar el estado actual de la app",
+        "appStateImageDescription": "El envío renderiza la app con este estado aplicado (filtros seleccionados, pestañas, etc.) en lugar de su vista predeterminada.",
+        "appStateDataDescription": "Los filtros y selecciones de este estado determinan los datos enviados. Las apps configuradas para envíos con todos los datos incluyen los datos de todas las pestañas, independientemente de la pestaña seleccionada aquí.",
+        "url": "URL",
+        "stateValues": "Valores del estado",
+        "key": "Clave",
+        "value": "Valor"
+    },
+    "list": {
+        "pauseTooltip": "Pausar este envío",
+        "resumeTooltip": "En pausa. Activa para reanudar",
+        "enableAriaLabel": "Habilitar envío programado",
+        "active": "Activo",
+        "paused": "En pausa",
+        "runs": "Ejecuciones",
+        "lastRun": "Última ejecución",
+        "notRunYet": "Aún no se ha ejecutado",
+        "recipientCount_one": "{{count}} destinatario",
+        "recipientCount_other": "{{count}} destinatarios",
+        "viewRunHistory": "Ver historial de ejecuciones",
+        "pauseDescription": "Esto pausará el envío programado. No se ejecutará hasta que se vuelva a habilitar.",
+        "emptyTitleAlert": "Recibe notificaciones cuando tus datos crucen un umbral",
+        "emptyTitleDelivery": "Envía esto de forma programada",
+        "emptyDescriptionAlert": "Las alertas comprueban tus datos de forma programada y te avisan por correo o Slack cuando se cumple la condición.",
+        "emptyDescriptionDelivery": "Envíalo por correo o Slack como hoja de cálculo, imagen o PDF, con un resumen opcional redactado por IA.",
+        "newAlert": "Nueva alerta",
+        "newDelivery": "Nuevo envío",
+        "searchPlaceholder": "Buscar...",
+        "frequencyPaused": "{{frequency}} · En pausa",
+        "noResults": "Sin resultados",
+        "selectAlert": "Selecciona una alerta para ver sus detalles",
+        "selectDelivery": "Selecciona un envío para ver sus detalles"
+    }
+}

@@ -14,6 +14,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC, type MouseEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
@@ -131,6 +132,7 @@ const Filter: FC<Props> = ({
     }, [dashboard, filterRule]);
 
     const getUiString = useUiStrings();
+    const { t } = useTranslation('dashboardFilters');
 
     const showsComposedValue = useMemo(
         () =>
@@ -201,7 +203,7 @@ const Filter: FC<Props> = ({
                         fz="xs"
                         label={
                             isReadOnlyLocked
-                                ? 'Locked by the dashboard editor — switch to edit mode to change it'
+                                ? t('lock.readOnlyLocked')
                                 : (orphanedTooltip ??
                                   getUiString('filters.notAppliedToAnyTiles'))
                         }

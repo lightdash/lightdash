@@ -4,6 +4,7 @@ import {
     type OrganizationAgentIdentityRule,
 } from '@lightdash/common';
 import { type ReactNode } from 'react';
+import i18n from '../../i18n/i18n';
 import { identityWarehouseNames } from './identityLabels';
 
 export type AiServiceAccountStatusInfo = {
@@ -29,15 +30,21 @@ export const getAiServiceAccountStatus = ({
 }): AiServiceAccountStatusInfo => {
     const required = rule.source === 'ai_service_account';
     const unreadableParent = !slot && parent?.credentialsReadable === false;
+    const tr = (key: string, options?: Record<string, unknown>) =>
+        i18n.t(`serviceAccountStatus.${key}`, { ns: 'aiAccess', ...options });
     const warehouse = identityWarehouseNames[rule.warehouseType];
-    const parentWarning = `This preview can't read the parent project's shared agent account. Ask an admin of ${parent?.projectName ?? 'the parent project'} to replace it.`;
+    const parentWarning = parent?.projectName
+        ? tr('parentWarning', { project: parent.projectName })
+        : tr('parentWarningGeneric');
     if (required && unreadableParent)
         return {
             badge: null,
             message: null,
             alert: {
                 color: 'red',
-                message: `Agents are refused on this preview. ${parentWarning}`,
+                message: tr('refusedPreviewWithWarning', {
+                    warning: parentWarning,
+                }),
             },
         };
     if (required && !slot && !parent)
@@ -47,23 +54,22 @@ export const getAiServiceAccountStatus = ({
             alert: {
                 color: 'yellow',
                 message: isPreview
-                    ? 'Agents are refused on this preview until the parent project has a shared agent account for this connection.'
-                    : 'Agents are refused on this project until you add a shared agent account.',
+                    ? tr('refusedPreview')
+                    : tr('refusedProject'),
             },
         };
     return {
         badge: required ? 'In use' : 'Not in use',
         message: required
-            ? `Agents on this project run as this account. The organization rule for ${warehouse} requires it.`
+            ? tr('requiredMessage', { warehouse })
             : rule.source === 'agent_sign_in'
-              ? "Agents on this project use each person's own agent sign-in for Snowflake. The organization rule decides this."
-              : `Agents on this project use each person's own ${warehouse} credentials. The organization rule decides this.`,
+              ? tr('agentSignInMessage')
+              : tr('personCredentialsMessage', { warehouse }),
         alert:
             slot && !credentialsReadable
                 ? {
                       color: 'red',
-                      message:
-                          "The shared agent account can't be read. Replace it.",
+                      message: tr('unreadable'),
                   }
                 : unreadableParent
                   ? { color: 'red', message: parentWarning }

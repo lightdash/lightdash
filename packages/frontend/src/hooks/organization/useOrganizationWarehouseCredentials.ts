@@ -10,6 +10,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -65,6 +66,7 @@ export const useOrganizationWarehouseCredentials = (
 
 export const useCreateOrganizationWarehouseCredentials = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         OrganizationWarehouseCredentials,
@@ -77,12 +79,16 @@ export const useCreateOrganizationWarehouseCredentials = () => {
                 queryKey: ['organization-warehouse-credentials'],
             });
             showToastSuccess({
-                title: 'Warehouse credentials created',
+                title: t(
+                    'useOrganizationWarehouseCredentials.warehouseCredentialsCreated',
+                ),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to create warehouse credentials',
+                title: t(
+                    'useOrganizationWarehouseCredentials.failedToCreateWarehouseCredentials',
+                ),
                 apiError: error,
             });
         },
@@ -91,6 +97,7 @@ export const useCreateOrganizationWarehouseCredentials = () => {
 
 export const useUpdateOrganizationWarehouseCredentials = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         OrganizationWarehouseCredentials,
@@ -103,12 +110,16 @@ export const useUpdateOrganizationWarehouseCredentials = () => {
                 queryKey: ['organization-warehouse-credentials'],
             });
             showToastSuccess({
-                title: 'Warehouse credentials updated',
+                title: t(
+                    'useOrganizationWarehouseCredentials.warehouseCredentialsUpdated',
+                ),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update warehouse credentials',
+                title: t(
+                    'useOrganizationWarehouseCredentials.failedToUpdateWarehouseCredentials',
+                ),
                 apiError: error,
             });
         },
@@ -117,6 +128,7 @@ export const useUpdateOrganizationWarehouseCredentials = () => {
 
 export const useDeleteOrganizationWarehouseCredentials = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<undefined, ApiError, string>(
         deleteOrganizationWarehouseCredentials,
@@ -127,12 +139,16 @@ export const useDeleteOrganizationWarehouseCredentials = () => {
                     queryKey: ['organization-warehouse-credentials'],
                 });
                 showToastSuccess({
-                    title: 'Warehouse credentials deleted',
+                    title: t(
+                        'useOrganizationWarehouseCredentials.warehouseCredentialsDeleted',
+                    ),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to delete warehouse credentials',
+                    title: t(
+                        'useOrganizationWarehouseCredentials.failedToDeleteWarehouseCredentials',
+                    ),
                     apiError: error,
                 });
             },

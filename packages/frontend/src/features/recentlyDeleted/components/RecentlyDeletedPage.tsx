@@ -33,7 +33,9 @@ import {
     IconUser,
     IconX,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../components/common/Callout';
 import {
     ContentTable,
@@ -64,53 +66,32 @@ function getDeletedContentDescription(
     item: DeletedContentWithDescendants,
     dataAppsEnabled: boolean,
     documentsEnabled: boolean,
+    t: TFunction,
 ): string | null {
     const parts: string[] = [];
+    const add = (key: string, count: number) => {
+        if (count > 0)
+            parts.push(t(`recentlyDeleted.counts.${key}`, { count }));
+    };
     if (item.contentType === ContentType.SPACE) {
-        if (documentsEnabled && item.documentCount > 0) {
-            parts.push(
-                `${item.documentCount} document${item.documentCount !== 1 ? 's' : ''}`,
-            );
-        }
-        if (item.nestedSpaceCount > 0)
-            parts.push(
-                `${item.nestedSpaceCount} space${item.nestedSpaceCount !== 1 ? 's' : ''}`,
-            );
-        if (item.dashboardCount > 0)
-            parts.push(
-                `${item.dashboardCount} dashboard${item.dashboardCount !== 1 ? 's' : ''}`,
-            );
-        if (item.chartCount > 0)
-            parts.push(
-                `${item.chartCount} chart${item.chartCount !== 1 ? 's' : ''}`,
-            );
-        if (dataAppsEnabled && item.appCount > 0)
-            parts.push(
-                `${item.appCount} data app${item.appCount !== 1 ? 's' : ''}`,
-            );
-        if (item.schedulerCount > 0)
-            parts.push(
-                `${item.schedulerCount} scheduled deliver${item.schedulerCount !== 1 ? 'ies' : 'y'}`,
-            );
+        if (documentsEnabled) add('documents', item.documentCount);
+        add('spaces', item.nestedSpaceCount);
+        add('dashboards', item.dashboardCount);
+        add('charts', item.chartCount);
+        if (dataAppsEnabled) add('dataApps', item.appCount);
+        add('scheduledDeliveries', item.schedulerCount);
     } else if (item.contentType === ContentType.DASHBOARD) {
-        if (item.chartCount > 0)
-            parts.push(
-                `${item.chartCount} chart${item.chartCount !== 1 ? 's' : ''}`,
-            );
-        if (item.schedulerCount > 0)
-            parts.push(
-                `${item.schedulerCount} scheduled deliver${item.schedulerCount !== 1 ? 'ies' : 'y'}`,
-            );
+        add('charts', item.chartCount);
+        add('scheduledDeliveries', item.schedulerCount);
     } else if (
         item.contentType === ContentType.CHART &&
         item.source === ChartSourceType.DBT_EXPLORE
     ) {
-        if (item.schedulerCount > 0)
-            parts.push(
-                `${item.schedulerCount} scheduled deliver${item.schedulerCount !== 1 ? 'ies' : 'y'}`,
-            );
+        add('scheduledDeliveries', item.schedulerCount);
     }
-    return parts.length > 0 ? `Contains ${parts.join(', ')}` : null;
+    return parts.length > 0
+        ? t('recentlyDeleted.contains', { items: parts.join(', ') })
+        : null;
 }
 
 interface Props {
@@ -119,22 +100,18 @@ interface Props {
 
 const FETCH_SIZE = 50;
 
-const formatDaysRemaining = (
-    deletedAt: Date,
-    retentionDays: number,
-): string => {
+const getDaysRemaining = (deletedAt: Date, retentionDays: number): number => {
     const deletedDate = new Date(deletedAt);
     const now = new Date();
     const diffDays = Math.ceil(
         (deletedDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24) +
             retentionDays,
     );
-    if (diffDays <= 0) return 'Expired';
-    if (diffDays === 1) return '1 day';
-    return `${diffDays} days`;
+    return diffDays;
 };
 
 const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
+    const { t } = useTranslation('settings');
     const theme = useMantineTheme();
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
@@ -249,7 +226,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
         () => [
             {
                 accessorKey: 'name',
-                header: 'Name',
+                header: t('recentlyDeleted.columns.name'),
                 size: 300,
                 Header: ({ column }) => (
                     <Group gap="two" wrap="nowrap">
@@ -315,6 +292,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                         row.original,
                         dataAppsEnabled,
                         documentsEnabled,
+                        t,
                     );
                     return (
                         <Group gap="sm" wrap="nowrap">
@@ -337,7 +315,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                 ? [
                       {
                           accessorKey: 'deletedBy',
-                          header: 'Deleted by',
+                          header: t('recentlyDeleted.columns.deletedBy'),
                           size: 150,
                           Header: ({
                               column,
@@ -361,7 +339,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                   </Text>
                               ) : (
                                   <Text fz="xs" c="dimmed">
-                                      Unknown
+                                      {t('recentlyDeleted.unknownUser')}
                                   </Text>
                               ),
                       } as ContentTableColumnDef<DeletedContentWithDescendants>,
@@ -369,7 +347,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                 : []),
             {
                 accessorKey: 'deletedAt',
-                header: 'Deleted',
+                header: t('recentlyDeleted.columns.deleted'),
                 size: 130,
                 Header: ({ column }) => (
                     <Group gap="two" wrap="nowrap">
@@ -385,7 +363,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
             },
             {
                 id: 'daysRemaining',
-                header: 'Days remaining',
+                header: t('recentlyDeleted.columns.daysRemaining'),
                 size: 140,
                 Header: ({ column }) => (
                     <Group gap="two" wrap="nowrap">
@@ -394,14 +372,18 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                     </Group>
                 ),
                 Cell: ({ row }) => {
-                    const remaining = formatDaysRemaining(
+                    const daysRemaining = getDaysRemaining(
                         row.original.deletedAt,
                         retentionDays ?? 0,
                     );
-                    const isExpired = remaining === 'Expired';
+                    const isExpired = daysRemaining <= 0;
                     return (
                         <Text fz="xs" c={isExpired ? 'red' : 'ldGray.6'}>
-                            {remaining}
+                            {isExpired
+                                ? t('recentlyDeleted.daysRemaining.expired')
+                                : t('recentlyDeleted.daysRemaining.days', {
+                                      count: daysRemaining,
+                                  })}
                         </Text>
                     );
                 },
@@ -511,6 +493,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
             isDeleting,
             dataAppsEnabled,
             documentsEnabled,
+            t,
         ],
     );
 
@@ -592,12 +575,14 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                 wrap="nowrap"
             >
                 <Group gap="xs" wrap="nowrap" flex={1} miw={0}>
-                    <Tooltip label="Search by item name">
+                    <Tooltip label={t('recentlyDeleted.page.searchTooltip')}>
                         <TextInput
                             size="xs"
                             type="search"
                             variant="default"
-                            placeholder="Search deleted items..."
+                            placeholder={t(
+                                'recentlyDeleted.page.searchPlaceholder',
+                            )}
                             value={search ?? ''}
                             leftSection={
                                 <MantineIcon
@@ -658,7 +643,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
         return (
             <Card>
                 <Callout variant="danger">
-                    Failed to load deleted content. Please try again.
+                    {t('recentlyDeleted.page.loadFailed')}
                 </Callout>
             </Card>
         );
@@ -669,13 +654,16 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
             <Card>
                 <Group justify="space-between">
                     <Box>
-                        <Title order={5}>Recently Deleted</Title>
+                        <Title order={5}>
+                            {t('recentlyDeleted.page.title')}
+                        </Title>
                         <Text size="sm" c="dimmed">
-                            Items are permanently deleted after {retentionDays}{' '}
-                            days
+                            {t('recentlyDeleted.page.retention', {
+                                count: retentionDays,
+                            })}
                         </Text>
                     </Box>
-                    <Tooltip label="Click to refresh the list">
+                    <Tooltip label={t('recentlyDeleted.page.refreshTooltip')}>
                         <ActionIcon onClick={() => refetch()} size="xs">
                             <MantineIcon
                                 icon={IconRefresh}

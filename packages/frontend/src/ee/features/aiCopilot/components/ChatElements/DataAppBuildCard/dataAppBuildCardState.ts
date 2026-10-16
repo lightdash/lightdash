@@ -11,12 +11,10 @@ import {
 } from '@lightdash/common';
 import { getAppVersionFailureMessage } from '../../../../../../features/apps/getAppVersionFailureMessage';
 import { getVersionNarration } from '../../../../../../features/apps/utils/versionNarration';
+import i18n from '../../../../../../i18n/i18n';
 import { type DataAppBuildCardState } from './DataAppBuildCard';
 
 type AppData = ApiGetAppResponse['results'];
-
-export const DATA_APP_BUILD_FAILED_TITLE = "The app couldn't be built";
-export const DATA_APP_BUILD_CANCELLED_TITLE = 'Build cancelled';
 
 /** What the thread knows about the app the build belongs to. */
 export type DataAppBuildCardAppSource =
@@ -52,7 +50,12 @@ const getReadyState = ({
     restoredFromVersion: null,
     completionMessage:
         row?.statusMessage ??
-        (version === 1 ? 'Your app is ready!' : `Version ${version} is ready!`),
+        (version === 1
+            ? i18n.t('dataAppBuild.appReady', { ns: 'aiCopilotChat' })
+            : i18n.t('dataAppBuild.versionReady', {
+                  ns: 'aiCopilotChat',
+                  version,
+              })),
 });
 
 /** Card state read from one of the app's live version rows. */
@@ -69,7 +72,9 @@ const getDataAppVersionState = (
         return {
             kind: 'building',
             name,
-            statusMessage: row.statusMessage ?? 'Building your app',
+            statusMessage:
+                row.statusMessage ??
+                i18n.t('dataAppBuild.buildingYourApp', { ns: 'aiCopilotChat' }),
             narration: getVersionNarration(row.statusHistory),
         };
     }
@@ -171,7 +176,7 @@ export const getDataAppRestoreCardState = (
         item.displayName ??
         (source.kind === 'loaded'
             ? getAppDisplayName(source.app.name, item.appUuid)
-            : 'Data app');
+            : i18n.t('dataAppBuild.dataAppFallback', { ns: 'aiCopilotChat' }));
     const row =
         source.kind === 'loaded'
             ? source.app.versions.find((v) => v.version === item.version)
@@ -185,7 +190,11 @@ export const getDataAppRestoreCardState = (
         restoredFromVersion: item.restoredFromVersion,
         completionMessage:
             response ??
-            `Restored version ${item.restoredFromVersion} as version ${item.version}.`,
+            i18n.t('dataAppBuild.restoredVersion', {
+                ns: 'aiCopilotChat',
+                from: item.restoredFromVersion,
+                version: item.version,
+            }),
     };
 };
 

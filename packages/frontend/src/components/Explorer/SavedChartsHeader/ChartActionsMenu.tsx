@@ -40,6 +40,7 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import {
     RequestReviewModal,
@@ -150,6 +151,7 @@ const ChartActionsMenu: FC<Props> = ({
     onSlugRenamed,
     schedulerDeepLink = null,
 }) => {
+    const { t } = useTranslation('explorer');
     const authoringEnabled = useContentAuthoringEnabled();
     const { data: changeChartExploreFlag } = useServerFeatureFlag(
         FeatureFlags.ChangeChartExplore,
@@ -303,10 +305,10 @@ const ChartActionsMenu: FC<Props> = ({
                 <Menu.Target>
                     <Button
                         variant="subtle"
-                        aria-label="Chart actions"
+                        aria-label={t('chartActions.label')}
                         leftSection={<MantineIcon icon={IconDots} />}
                     >
-                        More
+                        {t('chartActions.more')}
                     </Button>
                 </Menu.Target>
                 <Menu.Dropdown>{children}</Menu.Dropdown>
@@ -333,13 +335,13 @@ const ChartActionsMenu: FC<Props> = ({
                         chartUuid={savedChart.uuid}
                         clickedFrom="saved_chart_header"
                     />
-                    <Menu.Label>Manage</Menu.Label>
+                    <Menu.Label>{t('chartActions.manage')}</Menu.Label>
                     {canDuplicateChart && (
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconCopy} />}
                             onClick={chartDuplicateModalHandlers.open}
                         >
-                            Duplicate
+                            {t('chartActions.duplicate')}
                         </Menu.Item>
                     )}
                     {canManageStandaloneChart && (
@@ -349,7 +351,7 @@ const ChartActionsMenu: FC<Props> = ({
                             }
                             onClick={addToDashboardModalHandlers.open}
                         >
-                            Add to dashboard
+                            {t('chartActions.addToDashboard')}
                         </Menu.Item>
                     )}
                     {canMoveDashboardChartToSpace && (
@@ -357,7 +359,7 @@ const ChartActionsMenu: FC<Props> = ({
                             leftSection={<MantineIcon icon={IconFolders} />}
                             onClick={() => setIsMovingChart(true)}
                         >
-                            Move to space
+                            {t('chartActions.moveToSpace')}
                         </Menu.Item>
                     )}
                     {contentReview.canRequest && !hasUnsavedChanges && (
@@ -365,7 +367,7 @@ const ChartActionsMenu: FC<Props> = ({
                             leftSection={<MantineIcon icon={IconSend} />}
                             onClick={requestReviewModalHandlers.open}
                         >
-                            Request review
+                            {t('chartActions.requestReview')}
                         </Menu.Item>
                     )}
                     {!chartBelongsToDashboard && userCanPinChart && (
@@ -380,8 +382,8 @@ const ChartActionsMenu: FC<Props> = ({
                             onClick={onChartPinning}
                         >
                             {isPinned
-                                ? 'Unpin from homepage'
-                                : 'Pin to homepage'}
+                                ? t('chartActions.unpinFromHomepage')
+                                : t('chartActions.pinToHomepage')}
                         </Menu.Item>
                     )}
                     {directAccessAvailability.isAvailable &&
@@ -391,7 +393,7 @@ const ChartActionsMenu: FC<Props> = ({
                                 leftSection={<MantineIcon icon={IconUsers} />}
                                 onClick={directAccessModalHandlers.open}
                             >
-                                Share
+                                {t('chartActions.share')}
                             </Menu.Item>
                         )}
                     {canManageStandaloneChart && (
@@ -401,7 +403,7 @@ const ChartActionsMenu: FC<Props> = ({
                             }
                             onClick={transferToSpaceModalHandlers.open}
                         >
-                            Move chart
+                            {t('chartActions.moveChart')}
                         </Menu.Item>
                     )}
                     {userCanManageChart && (
@@ -409,7 +411,7 @@ const ChartActionsMenu: FC<Props> = ({
                             leftSection={<MantineIcon icon={IconHistory} />}
                             onClick={onOpenVersionHistory}
                         >
-                            Version history
+                            {t('chartActions.versionHistory')}
                         </Menu.Item>
                     )}
                     {/* A new explore re-initialises the page; the editor is keyed by its explore */}
@@ -420,12 +422,12 @@ const ChartActionsMenu: FC<Props> = ({
                             }
                             onClick={changeExploreModalHandlers.open}
                         >
-                            Change explore
+                            {t('chartActions.changeExplore')}
                         </Menu.Item>
                     )}
                     {canPromoteChart && (
                         <Tooltip
-                            label="You must enable first an upstream project in settings > Data ops"
+                            label={t('chartActions.promoteDisabled')}
                             disabled={!promoteDisabled}
                         >
                             <div>
@@ -440,7 +442,7 @@ const ChartActionsMenu: FC<Props> = ({
                                         getPromoteChartDiff(savedChart.uuid)
                                     }
                                 >
-                                    Promote chart
+                                    {t('chartActions.promoteChart')}
                                 </Menu.Item>
                             </div>
                         </Tooltip>
@@ -466,14 +468,18 @@ const ChartActionsMenu: FC<Props> = ({
                                 }
                             }}
                         >
-                            {isChartVerified ? 'Remove verification' : 'Verify'}
+                            {isChartVerified
+                                ? t('chartActions.removeVerification')
+                                : t('chartActions.verify')}
                         </Menu.Item>
                     )}
 
                     {(userCanViewContentAsCode || canAuthorChart) && (
                         <>
                             <Menu.Divider />
-                            <Menu.Label>Content as code</Menu.Label>
+                            <Menu.Label>
+                                {t('chartActions.contentAsCode')}
+                            </Menu.Label>
                             {userCanViewContentAsCode && (
                                 <Menu.Item
                                     leftSection={
@@ -481,7 +487,7 @@ const ChartActionsMenu: FC<Props> = ({
                                     }
                                     onClick={chartAsCodeModalHandlers.open}
                                 >
-                                    View as code
+                                    {t('chartActions.viewAsCode')}
                                 </Menu.Item>
                             )}
                             {canAuthorChart && (
@@ -491,20 +497,20 @@ const ChartActionsMenu: FC<Props> = ({
                                     }
                                     onClick={chartSlugRenameModalHandlers.open}
                                 >
-                                    Change URL slug
+                                    {t('chartActions.changeSlug')}
                                 </Menu.Item>
                             )}
                         </>
                     )}
 
                     <Menu.Divider />
-                    <Menu.Label>Integrations</Menu.Label>
+                    <Menu.Label>{t('chartActions.integrations')}</Menu.Label>
                     {userCanCreateDeliveriesAndAlerts && (
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconSend} />}
                             onClick={scheduledDeliveriesModalHandlers.open}
                         >
-                            Scheduled deliveries
+                            {t('chartActions.scheduledDeliveries')}
                         </Menu.Item>
                     )}
                     {userCanCreateDeliveriesAndAlerts && (
@@ -512,7 +518,7 @@ const ChartActionsMenu: FC<Props> = ({
                             leftSection={<MantineIcon icon={IconBell} />}
                             onClick={thresholdAlertsModalHandlers.open}
                         >
-                            Alerts
+                            {t('chartActions.alerts')}
                         </Menu.Item>
                     )}
                     {hasGoogleDriveEnabled &&
@@ -535,7 +541,7 @@ const ChartActionsMenu: FC<Props> = ({
                                         syncWithGoogleSheetsModalHandlers.open
                                     }
                                 >
-                                    Google Sheets Sync
+                                    {t('chartActions.googleSheetsSync')}
                                 </Menu.Item>
                             </Can>
                         )}
@@ -556,7 +562,7 @@ const ChartActionsMenu: FC<Props> = ({
                                     data-tour-hint="Delete the chart"
                                     onClick={deleteModalHandlers.open}
                                 >
-                                    Delete
+                                    {t('actions.delete', { ns: 'common' })}
                                 </Menu.Item>
                             </Box>
                         </>
@@ -566,15 +572,15 @@ const ChartActionsMenu: FC<Props> = ({
                     {withLabel ? (
                         <Button
                             variant="subtle"
-                            aria-label="Chart actions"
+                            aria-label={t('chartActions.label')}
                             leftSection={<MantineIcon icon={IconDots} />}
                         >
-                            More
+                            {t('chartActions.more')}
                         </Button>
                     ) : (
                         <ActionIcon
                             variant="default"
-                            aria-label="Chart actions"
+                            aria-label={t('chartActions.label')}
                             disabled={!unsavedChartVersion.tableName}
                             // Anchor for scope walkthroughs (data-tour-via)
                             data-tour-anchor="chart-actions"

@@ -1,4 +1,5 @@
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type DestinationType } from '../../../features/scheduler/hooks/useSchedulerFilters';
 import useHealth from '../../../hooks/health/useHealth';
 import { useGetSlack } from '../../../hooks/slack/useSlack';
@@ -9,17 +10,18 @@ interface DestinationFilterProps {
     setSelectedDestinations: (destinations: DestinationType[]) => void;
 }
 
-const DESTINATION_LABELS: Record<DestinationType, string> = {
-    slack: 'Slack',
-    email: 'Email',
-    msteams: 'MS Teams',
-    googlechat: 'Google Chat',
+const DESTINATION_LABEL_KEYS: Record<DestinationType, string> = {
+    slack: 'destinations.slack',
+    email: 'destinations.email',
+    msteams: 'destinations.msTeams',
+    googlechat: 'destinations.googleChat',
 };
 
 const DestinationFilter: FC<DestinationFilterProps> = ({
     selectedDestinations,
     setSelectedDestinations,
 }) => {
+    const { t } = useTranslation('scheduler');
     const health = useHealth();
     const slack = useGetSlack();
     const organizationHasSlack = !!slack.data?.organizationUuid;
@@ -32,20 +34,20 @@ const DestinationFilter: FC<DestinationFilterProps> = ({
         destinations.push('googlechat');
         return destinations.map((destination) => ({
             value: destination,
-            label: DESTINATION_LABELS[destination],
+            label: t(DESTINATION_LABEL_KEYS[destination]),
         }));
-    }, [health.data, organizationHasSlack]);
+    }, [health.data, organizationHasSlack, t]);
 
     return (
         <FilterFacet
-            label="Destination"
+            label={t('filters.destination.label')}
             options={options}
             selected={selectedDestinations}
             onChange={(values) =>
                 setSelectedDestinations(values as DestinationType[])
             }
-            tooltipLabel="Filter by destination type"
-            emptyLabel="No destinations configured."
+            tooltipLabel={t('filters.destination.tooltip')}
+            emptyLabel={t('filters.destination.empty')}
         />
     );
 };

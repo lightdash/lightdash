@@ -16,6 +16,7 @@ import {
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 
 const resolveAiAgentMemoryEnabled = (
@@ -120,7 +121,7 @@ export const useUpdateAiOrganizationSettings = (
         mutationFn: updateAiOrganizationSettings,
         onSuccess: async (data, variables, context) => {
             showToastSuccess({
-                title: 'Success! AI organization settings updated',
+                title: i18n.t('toasts.orgSettings.updated', { ns: 'aiAgent' }),
             });
             queryClient.setQueryData<
                 ApiAiOrganizationSettingsResponse['results'] | undefined
@@ -132,7 +133,9 @@ export const useUpdateAiOrganizationSettings = (
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update AI organization settings',
+                title: i18n.t('toasts.orgSettings.updateFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },

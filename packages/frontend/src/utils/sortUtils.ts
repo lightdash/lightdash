@@ -18,6 +18,7 @@ import {
     IconSortDescendingLetters,
     IconSortDescendingNumbers,
 } from '@tabler/icons-react';
+import i18n from '../i18n/i18n';
 
 export enum SortDirection {
     ASC = 'ASC',
@@ -50,12 +51,6 @@ export const getSortNullsFirstValue = (sort: SortField) => {
     return sort.nullsFirst ? SortNullsFirst.FIRST : SortNullsFirst.LAST;
 };
 
-export const sortNullsFirstLabels = {
-    [SortNullsFirst.DEFAULT]: 'Default',
-    [SortNullsFirst.FIRST]: 'First',
-    [SortNullsFirst.LAST]: 'Last',
-} as const;
-
 enum NumericSortLabels {
     ASC = '1-9',
     DESC = '9-1',
@@ -64,16 +59,6 @@ enum NumericSortLabels {
 enum StringSortLabels {
     ASC = 'A-Z',
     DESC = 'Z-A',
-}
-
-enum DateSortLabels {
-    ASC = 'Old-New',
-    DESC = 'New-Old',
-}
-
-enum BooleanSortLabels {
-    ASC = 'False-True',
-    DESC = 'True-False',
 }
 
 export const getSortLabel = (
@@ -114,14 +99,14 @@ export const getSortLabel = (
         case TableCalculationType.TIMESTAMP:
         case TableCalculationType.DATE:
             return direction === SortDirection.ASC
-                ? DateSortLabels.ASC
-                : DateSortLabels.DESC;
+                ? i18n.t('sortLabels.dateAsc', { ns: 'app' })
+                : i18n.t('sortLabels.dateDesc', { ns: 'app' });
         case DimensionType.BOOLEAN:
         case MetricType.BOOLEAN:
         case TableCalculationType.BOOLEAN:
             return direction === SortDirection.ASC
-                ? BooleanSortLabels.ASC
-                : BooleanSortLabels.DESC;
+                ? i18n.t('sortLabels.booleanAsc', { ns: 'app' })
+                : i18n.t('sortLabels.booleanDesc', { ns: 'app' });
         default:
             return assertUnreachable(
                 type,

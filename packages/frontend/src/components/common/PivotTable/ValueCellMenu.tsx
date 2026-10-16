@@ -11,6 +11,7 @@ import {
 import { Menu, type MenuProps, Text } from '@mantine/core';
 import { IconArrowBarToDown, IconCopy } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 import { FilterDashboardTo } from '../../../features/dashboardFilters/FilterDashboardTo';
 import { useContextMenuPermissions } from '../../../hooks/useContextMenuPermissions';
@@ -54,14 +55,19 @@ type ValueCellMenuProps = {
     isMinimal?: boolean;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
-const CopyValueMenuItem: FC<{ onCopy: () => void }> = ({ onCopy }) => (
-    <Menu.Item
-        leftSection={<MantineIcon icon={IconCopy} size="md" fillOpacity={0} />}
-        onClick={onCopy}
-    >
-        Copy value
-    </Menu.Item>
-);
+const CopyValueMenuItem: FC<{ onCopy: () => void }> = ({ onCopy }) => {
+    const { t } = useTranslation('table');
+    return (
+        <Menu.Item
+            leftSection={
+                <MantineIcon icon={IconCopy} size="md" fillOpacity={0} />
+            }
+            onClick={onCopy}
+        >
+            {t('valueCellMenu.copyValue')}
+        </Menu.Item>
+    );
+};
 
 const UrlMenuSection: FC<{
     value: ResultValue;
@@ -117,6 +123,7 @@ const ValueCellMenuDropdownContent: FC<{
     isMinimal,
     onCopy,
 }) => {
+    const { t } = useTranslation('table');
     const tracking = useTracking({ failSilently: true });
     const metricQueryData = useMetricQueryDataContext(true);
     const { data: account } = useAccount();
@@ -249,12 +256,12 @@ const ValueCellMenuDropdownContent: FC<{
                     }
                     onClick={handleOpenDrillIntoModal}
                 >
-                    <>
-                        Drill into{' '}
-                        <Text span fw={500}>
-                            {value.formatted}
-                        </Text>
-                    </>
+                    <Trans
+                        t={t}
+                        i18nKey="valueCellMenu.drillInto"
+                        values={{ value: value.formatted }}
+                        components={{ value: <Text span fw={500} /> }}
+                    />
                 </Menu.Item>
             )}
             {isDashboardPage && filters.length > 0 && (

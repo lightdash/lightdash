@@ -6,6 +6,7 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useProjectSettingsAccess } from '../../hooks/settings/useProjectSettingsAccess';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
@@ -15,6 +16,7 @@ import MantineIcon from '../common/MantineIcon';
 import { useNavBarMenuProps } from './NavBarPortalContext';
 
 const SettingsMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
+    const { t } = useTranslation('navigation');
     const menuProps = useNavBarMenuProps();
     const {
         user: { data: user },
@@ -46,7 +48,7 @@ const SettingsMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
         >
             <Menu.Target>
                 <Button
-                    aria-label="Settings"
+                    aria-label={t('settings.label')}
                     variant="default"
                     size="xs"
                     data-testid="settings-menu"
@@ -55,7 +57,7 @@ const SettingsMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                     data-tour-hint="Click Settings"
                 >
                     <MantineIcon icon={IconSettings} />
-                    {withLabel && ' Settings'}
+                    {withLabel && ` ${t('settings.label')}`}
                 </Button>
             </Menu.Target>
 
@@ -68,7 +70,7 @@ const SettingsMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                         data-tour-nav="project-settings"
                         data-tour-hint="Open Project settings"
                     >
-                        Project settings
+                        {t('settings.project')}
                     </Menu.Item>
                 )}
 
@@ -78,7 +80,7 @@ const SettingsMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                         leftSection={<MantineIcon icon={IconBuildingBank} />}
                         to={`/generalSettings/organization`}
                     >
-                        Organization settings
+                        {t('settings.organization')}
                     </Menu.Item>
                 )}
             </Menu.Dropdown>

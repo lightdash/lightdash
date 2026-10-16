@@ -31,6 +31,7 @@ import {
 } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
@@ -65,12 +66,15 @@ export type ChartTypeProvenance = 'official' | 'custom';
 
 const PROVENANCE: Record<
     ChartTypeProvenance,
-    { icon: TablerIcon; description: string }
+    { icon: TablerIcon; descriptionKey: string }
 > = {
-    official: { icon: IconPackage, description: 'Built by Lightdash' },
+    official: {
+        icon: IconPackage,
+        descriptionKey: 'chartGallery.provenance.official',
+    },
     custom: {
         icon: IconHammer,
-        description: 'Custom chart type, built by your team',
+        descriptionKey: 'chartGallery.provenance.custom',
     },
 };
 
@@ -134,6 +138,7 @@ export const ChartTypeThumbnail: FC<ChartTypeIconProps> = ({
 );
 
 const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
+    const { t } = useTranslation('explorer');
     // Keep the full name available when the card label is clamped.
     const labelRef = useRef<HTMLParagraphElement>(null);
     const [isLabelClamped, setIsLabelClamped] = useState(false);
@@ -156,7 +161,11 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
     const showsConfigure = item.selected && item.onConfigure !== null;
     const provenance =
         item.provenance !== null
-            ? { ...PROVENANCE[item.provenance], kind: item.provenance }
+            ? {
+                  icon: PROVENANCE[item.provenance].icon,
+                  description: t(PROVENANCE[item.provenance].descriptionKey),
+                  kind: item.provenance,
+              }
             : null;
 
     return (
@@ -242,11 +251,13 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                     rightSection={
                         <MantineIcon icon={IconArrowRight} size={14} />
                     }
-                    aria-label={`Configure ${item.label}`}
+                    aria-label={t('chartGallery.card.configureItem', {
+                        label: item.label,
+                    })}
                     disabled={item.disabled}
                     onClick={item.onConfigure}
                 >
-                    Configure
+                    {t('chartGallery.card.configure')}
                 </Button>
             ) : null}
             {item.onEdit !== null || item.onFork !== null ? (
@@ -261,14 +272,18 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                 >
                     <Menu.Target>
                         <Tooltip
-                            label={`More actions for ${item.label}`}
+                            label={t('chartGallery.card.moreActions', {
+                                label: item.label,
+                            })}
                             position="top"
                             openDelay={500}
                         >
                             <ActionIcon
                                 className={classes.cardMoreActions}
                                 size={24}
-                                aria-label={`More actions for ${item.label}`}
+                                aria-label={t('chartGallery.card.moreActions', {
+                                    label: item.label,
+                                })}
                                 disabled={item.disabled}
                             >
                                 <MantineIcon icon={IconDots} size={16} />
@@ -286,7 +301,7 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                                 }
                                 onClick={item.onEdit}
                             >
-                                Edit chart type
+                                {t('chartGallery.card.editChartType')}
                             </Menu.Item>
                         ) : null}
                         {item.onFork !== null ? (
@@ -296,7 +311,7 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                                 }
                                 onClick={item.onFork}
                             >
-                                Fork to customize
+                                {t('chartGallery.card.fork')}
                             </Menu.Item>
                         ) : null}
                     </Menu.Dropdown>
@@ -338,6 +353,7 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
     loadingMore,
     disabledReason,
 }) => {
+    const { t } = useTranslation('explorer');
     const gridRef = useRef<HTMLDivElement | null>(null);
     const pendingFocusKeys = useRef<Set<string> | null>(null);
     const hasScrolledToSelection = useRef(false);
@@ -382,9 +398,9 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
                 size="xs"
                 value={search}
                 onChange={(event) => onSearchChange(event.currentTarget.value)}
-                placeholder="Search the gallery"
+                placeholder={t('chartGallery.searchPlaceholder')}
                 leftSection={<MantineIcon icon={IconSearch} />}
-                aria-label="Search chart types"
+                aria-label={t('chartGallery.searchLabel')}
             />
 
             {/* Disabled cards drop out of the tab order, so the reason has to
@@ -414,7 +430,7 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
                         ref={gridRef}
                         className={classes.grid}
                         role="group"
-                        aria-label="Chart types"
+                        aria-label={t('chartGallery.chartTypes')}
                     >
                         {items.map((item) => (
                             <GalleryCard key={item.key} item={item} />
@@ -427,8 +443,10 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
                                 className={clsx(classes.card, classes.moreCard)}
                                 aria-label={
                                     moreCount === null
-                                        ? 'Load more chart types'
-                                        : `Show ${moreCount} more chart types`
+                                        ? t('chartGallery.loadMoreLabel')
+                                        : t('chartGallery.showMoreLabel', {
+                                              count: moreCount,
+                                          })
                                 }
                                 disabled={loadingMore}
                                 onClick={() => {
@@ -458,8 +476,10 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
                                     lh={1.2}
                                 >
                                     {moreCount === null
-                                        ? 'Load more'
-                                        : `+${moreCount} more`}
+                                        ? t('chartGallery.loadMore')
+                                        : t('chartGallery.moreCount', {
+                                              count: moreCount,
+                                          })}
                                 </Text>
                             </UnstyledButton>
                         ) : null}
@@ -469,7 +489,7 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
                         <Group gap="xs" role="status">
                             <Loader size="xs" />
                             <Text fz="xs" c="dimmed">
-                                Loading chart types…
+                                {t('chartGallery.loading')}
                             </Text>
                         </Group>
                     ) : null}
@@ -488,7 +508,7 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
                                     size="compact-xs"
                                     onClick={onRetry}
                                 >
-                                    Retry
+                                    {t('actions.retry', { ns: 'common' })}
                                 </Button>
                             ) : null}
                         </Group>
@@ -512,6 +532,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     onRetrySelectedProjectType,
     onConfigure,
 }) => {
+    const { t } = useTranslation('explorer');
     const projectUuid = useProjectUuid();
     const dispatch = useExplorerDispatch();
     const [search, setSearch] = useState('');
@@ -594,7 +615,9 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
             label,
             description:
                 dataAppViz.description ||
-                `${dataAppViz.schema?.fields.length ?? 0} fields`,
+                t('chartGallery.fieldCount', {
+                    count: dataAppViz.schema?.fields.length ?? 0,
+                }),
             provenance: isEmbedded ? null : isOfficial ? 'official' : 'custom',
             icon,
             rotatedIcon,
@@ -666,11 +689,11 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                     items={items}
                     emptyMessage={
                         items.length === 0 && debouncedSearch !== ''
-                            ? 'No chart types match your search'
+                            ? t('chartGallery.noMatches')
                             : null
                     }
                     loading={isInitialLoading}
-                    errorMessage={error ? 'Failed to load chart types' : null}
+                    errorMessage={error ? t('chartGallery.loadFailed') : null}
                     onRetry={error ? () => void refetch() : null}
                     onLoadMore={
                         hasNextPage === true ? () => void fetchNextPage() : null
@@ -678,7 +701,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                     moreCount={appendSelectedType ? null : unfetchedCount}
                     loadingMore={isFetchingNextPage}
                     disabledReason={
-                        disabled ? 'Run your query to pick a chart type.' : null
+                        disabled ? t('chartGallery.runQueryFirst') : null
                     }
                 />
                 {chartTypesEnabled &&
@@ -689,7 +712,9 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                         {selectedProjectTypeError !== null ? (
                             <Box role="alert">
                                 <InlineErrorState
-                                    message="Selected chart type is unavailable"
+                                    message={t(
+                                        'chartGallery.selectedUnavailable',
+                                    )}
                                     onRetry={onRetrySelectedProjectType}
                                 />
                             </Box>
@@ -697,7 +722,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                             <Group gap="xs" role="status">
                                 <Loader size="xs" />
                                 <Text fz="xs" c="dimmed">
-                                    Loading selected chart type…
+                                    {t('chartGallery.loadingSelected')}
                                 </Text>
                             </Group>
                         )}
@@ -710,7 +735,9 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                     onClose={() => setForkTarget(null)}
                     projectUuid={projectUuid}
                     appUuid={forkTarget.dataAppVizUuid}
-                    defaultName={`${forkTarget.name} (custom)`}
+                    defaultName={t('chartGallery.forkDefaultName', {
+                        name: forkTarget.name,
+                    })}
                     onForked={(result) => {
                         setForkTarget(null);
                         dispatch(

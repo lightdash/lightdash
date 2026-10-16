@@ -12,6 +12,7 @@ import {
     IconPlus,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useAmbientAiEnabled,
     useGenerateChartMetadata,
@@ -53,6 +54,7 @@ const SaveChartButton: FC<{
     onSaveModalOpenChange?: (isOpen: boolean) => void;
     verificationSavePrompt?: VerificationSavePrompt;
 }> = ({ disabled, onSaveModalOpenChange, verificationSavePrompt }) => {
+    const { t } = useTranslation('explorer');
     const embed = useEmbed();
     const isEmbedded = embed.embedToken !== undefined;
     const isModalHosted = useIsModalHosted();
@@ -264,8 +266,8 @@ const SaveChartButton: FC<{
                 <Tooltip
                     label={
                         !isMergeValid
-                            ? 'Finish configuring the merge before saving.'
-                            : 'A custom metric ID matches an existing table metric. Rename it to avoid conflicts.'
+                            ? t('saveChart.mergeIncomplete')
+                            : t('saveChart.duplicateMetricId')
                     }
                     disabled={isMergeValid && !foundCustomMetricWithDuplicateId}
                     position={'bottom'}
@@ -316,13 +318,15 @@ const SaveChartButton: FC<{
                         data-tour-via='[data-tour-nav="new"] >> [data-tour-nav="new-chart"] >> [data-tour-anchor="explore-table"] >> [data-tour-anchor="explore-metric"] >> [data-tour-anchor="explore-dimension"] >> [data-tour-anchor="run-query"]'
                         data-tour-then='[data-tour-anchor="chart-save-to-space"] >> [data-tour-anchor="chart-save-next"] >> [data-tour-anchor="space-option"][data-tour-value="Shared"] >> [data-tour-anchor="chart-save-submit"]'
                     >
-                        {savedChart ? 'Save changes' : 'Save chart'}
+                        {savedChart
+                            ? t('saveChart.saveChanges')
+                            : t('saveChart.saveChart')}
                     </Button>
                 </Tooltip>
 
                 {showSaveAsMenu && (
                     <Tooltip
-                        label="Save as new chart"
+                        label={t('saveChart.saveAsNew')}
                         position="bottom"
                         disabled={isSaveAsDisabled}
                     >
@@ -331,7 +335,7 @@ const SaveChartButton: FC<{
                             size="xs"
                             p="xs"
                             disabled={isSaveAsDisabled}
-                            aria-label="Save as new chart"
+                            aria-label={t('saveChart.saveAsNew')}
                             style={{
                                 borderTopLeftRadius: 0,
                                 borderBottomLeftRadius: 0,
@@ -375,14 +379,12 @@ const SaveChartButton: FC<{
             <MantineModal
                 opened={isSaveVerificationModalOpen}
                 onClose={() => setIsSaveVerificationModalOpen(false)}
-                title="Save verified chart"
+                title={t('saveChart.verified.title')}
             >
                 {verificationSavePrompt === 'warn-removal' ? (
                     <>
                         <Text mb="md">
-                            This chart is verified. Saving your changes will
-                            remove its verified status until someone verifies it
-                            again.
+                            {t('saveChart.verified.warnRemoval')}
                         </Text>
                         <Group justify="flex-end">
                             <Button
@@ -391,7 +393,7 @@ const SaveChartButton: FC<{
                                     setIsSaveVerificationModalOpen(false)
                                 }
                             >
-                                Cancel
+                                {t('actions.cancel', { ns: 'common' })}
                             </Button>
                             <Button
                                 loading={
@@ -402,14 +404,14 @@ const SaveChartButton: FC<{
                                     handleSavedQueryUpdate(false);
                                 }}
                             >
-                                Save anyway
+                                {t('saveChart.verified.saveAnyway')}
                             </Button>
                         </Group>
                     </>
                 ) : (
                     <>
                         <Text mb="md">
-                            Keep this chart verified after saving?
+                            {t('saveChart.verified.keepQuestion')}
                         </Text>
                         <Group justify="flex-end">
                             <Button
@@ -422,7 +424,7 @@ const SaveChartButton: FC<{
                                     handleSavedQueryUpdate(false);
                                 }}
                             >
-                                Save
+                                {t('actions.save', { ns: 'common' })}
                             </Button>
                             <Button
                                 data-tour-scope="manage:VerifiedContent"
@@ -447,7 +449,7 @@ const SaveChartButton: FC<{
                                     handleSavedQueryUpdate(true);
                                 }}
                             >
-                                Save & verify
+                                {t('saveChart.verified.saveAndVerify')}
                             </Button>
                         </Group>
                     </>

@@ -5,6 +5,7 @@ import {
 import { Box, Loader, Stack } from '@mantine/core';
 import { IconAppsOff } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import TileBase from '../../../../../components/DashboardTiles/TileBase';
 import AppIframePreview from '../../../../../features/apps/AppIframePreview';
@@ -32,6 +33,7 @@ type Props = {
  * the "Data app not available" placeholder.
  */
 const EmbedDataAppTile: FC<Props> = ({ tile, projectUuid }) => {
+    const { t } = useTranslation('embed');
     const {
         properties: { title, appUuid, appDeletedAt },
         uuid,
@@ -95,14 +97,14 @@ const EmbedDataAppTile: FC<Props> = ({ tile, projectUuid }) => {
                 {isNotFound ? (
                     <SuboptimalState
                         icon={IconAppsOff}
-                        title="Data app not available"
-                        description="This data app no longer exists or hasn't finished building yet."
+                        title={t('dataApp.notAvailable')}
+                        description={t('dataApp.notAvailableDescription')}
                     />
                 ) : isForbidden ? (
                     <SuboptimalState
                         icon={IconAppsOff}
-                        title="No access"
-                        description="This data app isn't authorized for this embed."
+                        title={t('dataApp.noAccess')}
+                        description={t('dataApp.noAccessDescription')}
                     />
                 ) : tokenQuery.isLoading || !previewUrl || !tokenQuery.data ? (
                     <Stack align="center" justify="center" h="100%">

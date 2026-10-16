@@ -9,6 +9,7 @@ import {
     type MouseEvent,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
     onConfirm: () => void;
@@ -29,11 +30,12 @@ type Props = {
 export const ConfirmDeleteButton: FC<Props> = ({
     onConfirm,
     children,
-    tooltip = 'Click again to delete',
+    tooltip,
     timeoutMs = 3000,
     'aria-label': ariaLabel,
     ...actionIconProps
 }) => {
+    const { t } = useTranslation('commonUi');
     const [armed, setArmed] = useState(false);
     const { start, clear } = useTimeout(() => setArmed(false), timeoutMs);
 
@@ -60,7 +62,11 @@ export const ConfirmDeleteButton: FC<Props> = ({
     };
 
     return (
-        <Tooltip label={tooltip} opened={armed} position="top">
+        <Tooltip
+            label={tooltip ?? t('confirmDeleteButton.clickAgain')}
+            opened={armed}
+            position="top"
+        >
             <ActionIcon
                 {...actionIconProps}
                 aria-label={ariaLabel}

@@ -26,8 +26,10 @@ import {
     IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { z } from 'zod';
 import { useAiAgentAdminAgents } from '../../../ee/features/aiCopilot/hooks/useAiAgentAdmin';
@@ -56,39 +58,72 @@ type SlackSettingsFormValues = SlackAppCustomSettings & {
     requireExplicitSlackChannelLinking: boolean;
 };
 
-const formSchema = z.object({
-    notificationChannel: z.string().min(1, 'Channel is required').nullable(),
-    appProfilePhotoUrl: z
-        .string()
-        .url({ message: 'Enter a valid URL' })
-        .max(2048, { message: 'URL must be 2048 characters or fewer' })
-        .nullable(),
-    slackChannelProjectMappings: z.array(
-        z.object({
-            projectUuid: z
-                .string({ message: 'You must select a project' })
-                .uuid({ message: 'Invalid project' }),
-            slackChannelId: z
-                .string({
-                    message: 'You must select a Slack channel',
-                })
-                .min(1, 'You must select a Slack channel'),
-            availableTags: z
-                .array(z.string().min(1, 'Tag cannot be empty'))
-                .nullable(),
-        }),
-    ),
-    aiThreadAccessConsent: z.boolean().optional(),
-    aiRequireOAuth: z.boolean().optional(),
-    aiLinksOnly: z.boolean().optional(),
-    aiMultiAgentChannelId: z.string().min(1, 'Channel is required').optional(),
-    aiMultiAgentProjectUuids: z.array(z.string().uuid()).nullable().optional(),
-    unfurlsEnabled: z.boolean().optional(),
-    aiAgentsEnabled: z.boolean().optional(),
-    requireExplicitSlackChannelLinking: z.boolean(),
-});
+const getFormSchema = (t: TFunction<'userSettings'>) =>
+    z.object({
+        notificationChannel: z
+            .string()
+            .min(1, t('slackSettingsPanel.validation.channelRequired'))
+            .nullable(),
+        appProfilePhotoUrl: z
+            .string()
+            .url({ message: t('slackSettingsPanel.validation.invalidUrl') })
+            .max(2048, {
+                message: t('slackSettingsPanel.validation.urlTooLong'),
+            })
+            .nullable(),
+        slackChannelProjectMappings: z.array(
+            z.object({
+                projectUuid: z
+                    .string({
+                        message: t(
+                            'slackSettingsPanel.validation.projectRequired',
+                        ),
+                    })
+                    .uuid({
+                        message: t(
+                            'slackSettingsPanel.validation.invalidProject',
+                        ),
+                    }),
+                slackChannelId: z
+                    .string({
+                        message: t(
+                            'slackSettingsPanel.validation.slackChannelRequired',
+                        ),
+                    })
+                    .min(
+                        1,
+                        t('slackSettingsPanel.validation.slackChannelRequired'),
+                    ),
+                availableTags: z
+                    .array(
+                        z
+                            .string()
+                            .min(
+                                1,
+                                t('slackSettingsPanel.validation.tagEmpty'),
+                            ),
+                    )
+                    .nullable(),
+            }),
+        ),
+        aiThreadAccessConsent: z.boolean().optional(),
+        aiRequireOAuth: z.boolean().optional(),
+        aiLinksOnly: z.boolean().optional(),
+        aiMultiAgentChannelId: z
+            .string()
+            .min(1, t('slackSettingsPanel.validation.channelRequired'))
+            .optional(),
+        aiMultiAgentProjectUuids: z
+            .array(z.string().uuid())
+            .nullable()
+            .optional(),
+        unfurlsEnabled: z.boolean().optional(),
+        aiAgentsEnabled: z.boolean().optional(),
+        requireExplicitSlackChannelLinking: z.boolean(),
+    });
 
 const SlackSettingsPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const aiOrganizationSettingsQuery = useAiOrganizationAdminSettings();
     const { data: aiCopilotFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.AiCopilot,
@@ -126,7 +161,7 @@ const SlackSettingsPanel: FC = () => {
             aiAgentsEnabled: true,
             requireExplicitSlackChannelLinking: false,
         },
-        validate: zodResolver(formSchema),
+        validate: zodResolver(getFormSchema(t)),
     });
 
     const { setFieldValue, onSubmit } = form;
@@ -219,7 +254,9 @@ const SlackSettingsPanel: FC = () => {
                 <Stack gap="sm">
                     {organizationHasSlack && (
                         <Group gap="xs">
-                            <Text fw={500}>Added to the Slack workspace: </Text>{' '}
+                            <Text fw={500}>
+                                {t('slackSettingsPanel.addedToWorkspace')}
+                            </Text>{' '}
                             <Badge
                                 radius="xs"
                                 size="lg"
@@ -234,11 +271,9 @@ const SlackSettingsPanel: FC = () => {
                     )}
 
                     <Text c="dimmed" fz="xs">
-                        Sharing in Slack allows you to unfurl Lightdash URLs and
-                        schedule deliveries to specific people or channels
-                        within your Slack workspace.{' '}
+                        {t('slackSettingsPanel.description')}{' '}
                         <Anchor href="https://docs.lightdash.com/references/slack-integration">
-                            View docs
+                            {t('slackSettingsPanel.viewDocs')}
                         </Anchor>
                     </Text>
                 </Stack>
@@ -250,11 +285,15 @@ const SlackSettingsPanel: FC = () => {
                                 label={
                                     <Group gap="two" mb={2}>
                                         <Text>
-                                            Select a notification channel
+                                            {t(
+                                                'slackSettingsPanel.notificationChannel.label',
+                                            )}
                                         </Text>
                                         <Tooltip
                                             maw={250}
-                                            label="Choose a channel where to send notifications to every time a scheduled delivery fails. You have to add this Slack App to this channel to enable notifications"
+                                            label={t(
+                                                'slackSettingsPanel.notificationChannel.tooltip',
+                                            )}
                                         >
                                             <MantineIcon
                                                 icon={IconHelpCircle}
@@ -269,10 +308,12 @@ const SlackSettingsPanel: FC = () => {
                                         value ?? null,
                                     );
                                 }}
-                                placeholder="Select a channel"
+                                placeholder={t(
+                                    'slackSettingsPanel.notificationChannel.placeholder',
+                                )}
                             />
                             <Title order={6} fw={500}>
-                                Slack bot avatar
+                                {t('slackSettingsPanel.botAvatar.title')}
                             </Title>
                             <Group gap="sm">
                                 <Avatar
@@ -283,7 +324,9 @@ const SlackSettingsPanel: FC = () => {
                                 />
                                 <TextInput
                                     flex={1}
-                                    label="Profile photo URL"
+                                    label={t(
+                                        'slackSettingsPanel.botAvatar.profilePhotoUrl',
+                                    )}
                                     size="xs"
                                     placeholder="https://lightdash.cloud/photo.jpg"
                                     type="url"
@@ -298,11 +341,19 @@ const SlackSettingsPanel: FC = () => {
                                 />
                             </Group>
                             <Stack gap="sm" mt="sm">
-                                <Title order={5}>Configuration</Title>
+                                <Title order={5}>
+                                    {t(
+                                        'slackSettingsPanel.configuration.title',
+                                    )}
+                                </Title>
                                 <Stack gap={0}>
                                     <SlackSettingRow
-                                        title="Link previews"
-                                        description="Post chart and dashboard previews when Lightdash links are shared. Previews run as the user who installed the app."
+                                        title={t(
+                                            'slackSettingsPanel.configuration.linkPreviews.title',
+                                        )}
+                                        description={t(
+                                            'slackSettingsPanel.configuration.linkPreviews.description',
+                                        )}
                                         checked={
                                             form.values.unfurlsEnabled ?? true
                                         }
@@ -316,8 +367,12 @@ const SlackSettingsPanel: FC = () => {
                                     {isAiCopilotEnabledOrTrial && (
                                         <>
                                             <SlackSettingRow
-                                                title="AI Agents in Slack"
-                                                description="Let people talk to AI Agents from Slack."
+                                                title={t(
+                                                    'slackSettingsPanel.configuration.aiAgents.title',
+                                                )}
+                                                description={t(
+                                                    'slackSettingsPanel.configuration.aiAgents.description',
+                                                )}
                                                 checked={
                                                     form.values
                                                         .aiAgentsEnabled ?? true
@@ -330,8 +385,12 @@ const SlackSettingsPanel: FC = () => {
                                                 }
                                             />
                                             <SlackSettingRow
-                                                title="AI Agents thread access consent"
-                                                description="Let agents read earlier messages in a thread when the bot is mentioned there."
+                                                title={t(
+                                                    'slackSettingsPanel.configuration.threadAccessConsent.title',
+                                                )}
+                                                description={t(
+                                                    'slackSettingsPanel.configuration.threadAccessConsent.description',
+                                                )}
                                                 disabled={aiAgentsDisabled}
                                                 checked={
                                                     form.values
@@ -346,8 +405,12 @@ const SlackSettingsPanel: FC = () => {
                                                 }
                                             />
                                             <SlackSettingRow
-                                                title="AI Agents OAuth requirement"
-                                                description="People must sign in with OAuth first, so requests run with their own permissions."
+                                                title={t(
+                                                    'slackSettingsPanel.configuration.oauthRequirement.title',
+                                                )}
+                                                description={t(
+                                                    'slackSettingsPanel.configuration.oauthRequirement.description',
+                                                )}
                                                 disabled={aiAgentsDisabled}
                                                 checked={
                                                     form.values
@@ -361,8 +424,12 @@ const SlackSettingsPanel: FC = () => {
                                                 }
                                             />
                                             <SlackSettingRow
-                                                title="Links only, no data in Slack"
-                                                description="Never post query results into Slack. People open results in Lightdash."
+                                                title={t(
+                                                    'slackSettingsPanel.configuration.linksOnly.title',
+                                                )}
+                                                description={t(
+                                                    'slackSettingsPanel.configuration.linksOnly.description',
+                                                )}
                                                 disabled={aiAgentsDisabled}
                                                 checked={
                                                     form.values.aiLinksOnly ??
@@ -376,8 +443,12 @@ const SlackSettingsPanel: FC = () => {
                                                 }
                                             />
                                             <SlackSettingRow
-                                                title="Automatic channel linking"
-                                                description="Mentioning the bot in a new channel links an agent to it."
+                                                title={t(
+                                                    'slackSettingsPanel.configuration.automaticChannelLinking.title',
+                                                )}
+                                                description={t(
+                                                    'slackSettingsPanel.configuration.automaticChannelLinking.description',
+                                                )}
                                                 disabled={
                                                     aiAgentsDisabled ||
                                                     isUpdatingAiOrganizationSettings
@@ -401,12 +472,16 @@ const SlackSettingsPanel: FC = () => {
                                     <Stack gap="xs">
                                         <Group gap="xs">
                                             <Title order={6} fw={500}>
-                                                Multi-agent channel
+                                                {t(
+                                                    'slackSettingsPanel.multiAgentChannel.title',
+                                                )}
                                             </Title>
 
                                             <Tooltip
                                                 maw={250}
-                                                label="Select a channel where users can interact with any AI agent (excluding from preview projects). When users start a thread in this channel, they'll see a dropdown to select which agent to use."
+                                                label={t(
+                                                    'slackSettingsPanel.multiAgentChannel.tooltip',
+                                                )}
                                             >
                                                 <MantineIcon
                                                     icon={IconHelpCircle}
@@ -415,8 +490,9 @@ const SlackSettingsPanel: FC = () => {
                                         </Group>
 
                                         <Text c="dimmed" fz="xs">
-                                            Lightdash picks the best agent
-                                            automatically.
+                                            {t(
+                                                'slackSettingsPanel.multiAgentChannel.description',
+                                            )}
                                         </Text>
 
                                         <SlackChannelSelect
@@ -433,25 +509,25 @@ const SlackSettingsPanel: FC = () => {
                                                     value ?? undefined,
                                                 );
                                             }}
-                                            placeholder="Select a channel (optional)"
+                                            placeholder={t(
+                                                'slackSettingsPanel.multiAgentChannel.placeholder',
+                                            )}
                                         />
 
                                         {conflictingAgents.length > 0 && (
                                             <Callout
                                                 variant="warning"
-                                                title="Channel already in use by an AI agent"
+                                                title={t(
+                                                    'slackSettingsPanel.multiAgentChannel.conflictTitle',
+                                                )}
                                             >
                                                 <Text fz="xs">
-                                                    Setting this as the
-                                                    multi-agent channel will
-                                                    override the channel
-                                                    configuration on the
-                                                    following{' '}
-                                                    {conflictingAgents.length >
-                                                    1
-                                                        ? 'agents'
-                                                        : 'agent'}
-                                                    :
+                                                    {t(
+                                                        'slackSettingsPanel.multiAgentChannel.conflictDescription',
+                                                        {
+                                                            count: conflictingAgents.length,
+                                                        },
+                                                    )}
                                                 </Text>
                                                 <Stack gap={2} mt="xs">
                                                     {conflictingAgents.map(
@@ -473,7 +549,9 @@ const SlackSettingsPanel: FC = () => {
                                         {form.values.aiMultiAgentChannelId && (
                                             <Stack gap="xs">
                                                 <Switch
-                                                    label="Allow all project agents to appear"
+                                                    label={t(
+                                                        'slackSettingsPanel.multiAgentChannel.allowAllProjects',
+                                                    )}
                                                     disabled={aiAgentsDisabled}
                                                     checked={
                                                         form.values
@@ -542,7 +620,7 @@ const SlackSettingsPanel: FC = () => {
                                             <MantineIcon icon={IconRefresh} />
                                         }
                                     >
-                                        Reinstall
+                                        {t('slackSettingsPanel.reinstall')}
                                     </Button>
                                 </Group>
                                 <Button
@@ -556,7 +634,7 @@ const SlackSettingsPanel: FC = () => {
                                         <MantineIcon icon={IconDeviceFloppy} />
                                     }
                                 >
-                                    Save
+                                    {t('actions.save', { ns: 'common' })}
                                 </Button>
                             </Group>
 
@@ -575,7 +653,7 @@ const SlackSettingsPanel: FC = () => {
                             target="_blank"
                             href={SLACK_INSTALL_URL}
                         >
-                            Add to Slack
+                            {t('slackSettingsPanel.addToSlack')}
                         </Button>
                     </Flex>
                 )}

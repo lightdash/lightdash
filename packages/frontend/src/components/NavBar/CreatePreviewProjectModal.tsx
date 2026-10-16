@@ -40,6 +40,7 @@ import React, {
     useState,
     type FC,
 } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { animals, colors, uniqueNamesGenerator } from 'unique-names-generator';
 import { lightdashApi } from '../../api';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
@@ -87,6 +88,7 @@ const EnvironmentVariablesInput: FC<EnvironmentVariablesInputProps> = ({
     labelHelp,
     error,
 }) => {
+    const { t } = useTranslation('navigation');
     const [isLabelInfoOpen, setIsLabelInfoOpen] = useState<boolean>(false);
 
     const handleAddVariable = () => {
@@ -156,7 +158,9 @@ const EnvironmentVariablesInput: FC<EnvironmentVariablesInputProps> = ({
                                     e.target.value,
                                 )
                             }
-                            placeholder="Key"
+                            placeholder={t(
+                                'createPreview.envVars.keyPlaceholder',
+                            )}
                             disabled={disabled}
                         />
 
@@ -169,7 +173,9 @@ const EnvironmentVariablesInput: FC<EnvironmentVariablesInputProps> = ({
                                     e.target.value,
                                 )
                             }
-                            placeholder="Value"
+                            placeholder={t(
+                                'createPreview.envVars.valuePlaceholder',
+                            )}
                             disabled={disabled}
                         />
 
@@ -189,7 +195,7 @@ const EnvironmentVariablesInput: FC<EnvironmentVariablesInputProps> = ({
                     disabled={disabled}
                     variant="outline"
                 >
-                    Add variable
+                    {t('createPreview.envVars.addVariable')}
                 </Button>
             </Stack>
         </Input.Wrapper>
@@ -207,6 +213,7 @@ const CreatePreviewModal: FC<Props> = ({
     onClose,
     preselectedProjectUuid,
 }) => {
+    const { t } = useTranslation('navigation');
     const { user } = useApp();
 
     const { isInitialLoading: isLoadingProjects, data: projects } =
@@ -280,10 +287,13 @@ const CreatePreviewModal: FC<Props> = ({
         return restricted.length > 0
             ? [
                   ...available,
-                  { group: 'Requires Developer Access', items: restricted },
+                  {
+                      group: t('createPreview.requiresDeveloperAccess'),
+                      items: restricted,
+                  },
               ]
             : available;
-    }, [projectItems]);
+    }, [projectItems, t]);
 
     const { data: projectDetails } = useProject(
         selectedProjectUuid ?? undefined,
@@ -341,27 +351,28 @@ const CreatePreviewModal: FC<Props> = ({
         }
     }, []);
 
-    const validateManifest = useCallback((value: string) => {
-        if (!value.trim()) {
-            setManifestError('');
-            return true;
-        }
+    const validateManifest = useCallback(
+        (value: string) => {
+            if (!value.trim()) {
+                setManifestError('');
+                return true;
+            }
 
-        try {
-            const parsed = JSON.parse(value);
-            if (!parsed.nodes || !parsed.metadata) {
-                setManifestError(
-                    'Invalid manifest.json: missing required fields (nodes, metadata)',
-                );
+            try {
+                const parsed = JSON.parse(value);
+                if (!parsed.nodes || !parsed.metadata) {
+                    setManifestError(t('createPreview.manifest.missingFields'));
+                    return false;
+                }
+                setManifestError('');
+                return true;
+            } catch (e) {
+                setManifestError(t('createPreview.manifest.invalidJson'));
                 return false;
             }
-            setManifestError('');
-            return true;
-        } catch (e) {
-            setManifestError('Invalid JSON format');
-            return false;
-        }
-    }, []);
+        },
+        [t],
+    );
 
     const handleManifestChange = useCallback(
         (value: string) => {
@@ -383,9 +394,9 @@ const CreatePreviewModal: FC<Props> = ({
             getInvalidDbtEnvironmentVariableKeys(environment);
         if (invalidEnvironmentKeys.length > 0) {
             setEnvironmentError(
-                `Environment variable keys cannot change how dbt or its child processes execute. Invalid keys: ${invalidEnvironmentKeys.join(
-                    ', ',
-                )}`,
+                t('createPreview.envVars.invalidKeys', {
+                    keys: invalidEnvironmentKeys.join(', '),
+                }),
             );
             return;
         }
@@ -420,11 +431,12 @@ const CreatePreviewModal: FC<Props> = ({
         onClose,
         validateManifest,
         reduceManifest,
+        t,
     ]);
 
     const branches = useBranches(selectedProjectUuid ?? undefined);
 
-    const modalTitle = 'Create a preview project';
+    const modalTitle = t('createPreview.title');
 
     return (
         <MantineModal
@@ -443,7 +455,9 @@ const CreatePreviewModal: FC<Props> = ({
                     loading={isPreviewCreating}
                     onClick={handleCreatePreview}
                 >
-                    {isPreviewCreating ? 'Creating preview' : 'Create preview'}
+                    {isPreviewCreating
+                        ? t('createPreview.creating')
+                        : t('createPreview.create')}
                 </Button>
             }
             leftActions={
@@ -453,7 +467,7 @@ const CreatePreviewModal: FC<Props> = ({
                     fz="sm"
                 >
                     <Group gap="xs" align="center">
-                        Learn more about preview projects{' '}
+                        {t('createPreview.learnMore')}{' '}
                         <MantineIcon icon={IconExternalLink} />
                     </Group>
                 </Anchor>
@@ -461,9 +475,9 @@ const CreatePreviewModal: FC<Props> = ({
         >
             <Stack gap="sm">
                 <Select
-                    label="Upstream Project"
-                    description="The project that will be used to create the preview project"
-                    placeholder="Select project"
+                    label={t('createPreview.upstreamProject.label')}
+                    description={t('createPreview.upstreamProject.description')}
+                    placeholder={t('createPreview.upstreamProject.placeholder')}
                     searchable
                     value={selectedProjectUuid}
                     disabled={isLoadingActiveProjectUuid || isLoadingProjects}
@@ -474,15 +488,15 @@ const CreatePreviewModal: FC<Props> = ({
                 />
 
                 <TextInput
-                    label="Preview Project Name"
-                    placeholder="Enter preview name"
+                    label={t('createPreview.name.label')}
+                    placeholder={t('createPreview.name.placeholder')}
                     value={previewName}
                     disabled={isPreviewCreating}
                     onChange={(e) => {
                         setPreviewName(e.currentTarget.value);
                     }}
                     rightSection={
-                        <Tooltip label="Generate unique name">
+                        <Tooltip label={t('createPreview.name.generate')}>
                             <ActionIcon
                                 color="foreground.9"
                                 onClick={() =>
@@ -497,13 +511,13 @@ const CreatePreviewModal: FC<Props> = ({
                 {hasGitIntegration ? (
                     <>
                         <Select
-                            label="Branch"
+                            label={t('createPreview.branch.label')}
                             placeholder={
                                 branches.isLoading
-                                    ? 'Loading branches...'
+                                    ? t('createPreview.branch.loading')
                                     : branches.isError
-                                      ? 'Failed to load branches'
-                                      : 'Select branch'
+                                      ? t('createPreview.branch.loadFailed')
+                                      : t('createPreview.branch.placeholder')
                             }
                             searchable
                             value={selectedBranch}
@@ -527,14 +541,17 @@ const CreatePreviewModal: FC<Props> = ({
                                 branches.isError ? (
                                     <Group gap="xs" align="center">
                                         <Text size="xs">
-                                            The project will use the default
-                                            branch.
+                                            {t(
+                                                'createPreview.branch.useDefault',
+                                            )}
                                         </Text>
                                         <Tooltip
                                             label={
                                                 branches.error?.error
                                                     ?.message ||
-                                                'Failed to fetch branches'
+                                                t(
+                                                    'createPreview.branch.fetchFailed',
+                                                )
                                             }
                                             w={250}
                                         >
@@ -554,8 +571,8 @@ const CreatePreviewModal: FC<Props> = ({
                         />{' '}
                         {/* only show if branch changed + change label based on warehouse type? + get value from dbt cloud api */}
                         <TextInput
-                            label="Schema/Dataset"
-                            placeholder="Change this if you want to override the default schema"
+                            label={t('createPreview.schema.label')}
+                            placeholder={t('createPreview.schema.placeholder')}
                             value={schema}
                             disabled={isPreviewCreating}
                             onChange={(e) => {
@@ -565,8 +582,10 @@ const CreatePreviewModal: FC<Props> = ({
                         {isOpen && (
                             <Stack>
                                 <Switch
-                                    label="Copy content in the background"
-                                    description="Avoid request timeouts when copying large projects."
+                                    label={t('createPreview.asyncCopy.label')}
+                                    description={t(
+                                        'createPreview.asyncCopy.description',
+                                    )}
                                     checked={asyncCopyContent}
                                     onChange={(event) =>
                                         setAsyncCopyContent(
@@ -577,7 +596,7 @@ const CreatePreviewModal: FC<Props> = ({
                                 />
                                 {/* only show if branch changed + check if project dbt connection type has environment + advanced option */}
                                 <EnvironmentVariablesInput
-                                    label="Environment Variables"
+                                    label={t('createPreview.envVars.label')}
                                     value={environment}
                                     onChange={(newVariables) => {
                                         setEnvironment(newVariables);
@@ -588,8 +607,10 @@ const CreatePreviewModal: FC<Props> = ({
                                 />
 
                                 <Textarea
-                                    label="Custom manifest.json (optional)"
-                                    placeholder="Paste your manifest.json content here..."
+                                    label={t('createPreview.manifest.label')}
+                                    placeholder={t(
+                                        'createPreview.manifest.placeholder',
+                                    )}
                                     value={manifestJson}
                                     onChange={(e) =>
                                         handleManifestChange(
@@ -600,7 +621,9 @@ const CreatePreviewModal: FC<Props> = ({
                                     maxRows={15}
                                     disabled={isPreviewCreating}
                                     error={manifestError}
-                                    description="Upload a custom manifest.json instead of generating one from the dbt project. This allows you to use pre-compiled dbt models."
+                                    description={t(
+                                        'createPreview.manifest.description',
+                                    )}
                                 />
                             </Stack>
                         )}
@@ -610,38 +633,42 @@ const CreatePreviewModal: FC<Props> = ({
                                 setIsOpen(!isOpen);
                             }}
                         >
-                            Advanced configuration options
+                            {t('createPreview.advancedOptions')}
                         </FormCollapseButton>
                     </>
                 ) : (
                     <>
                         <Text c="dimmed" fz="sm">
-                            This{' '}
-                            <Text span fw={600} fz="sm">
-                                {projectDetails?.dbtConnection?.type
-                                    ? DbtProjectTypeLabels[
-                                          projectDetails.dbtConnection.type
-                                      ]
-                                    : 'unknown'}
-                            </Text>{' '}
-                            project will copy the same connection details as its
-                            upstream project. To change the branch of the source
-                            code, switch to Github or GitLab connection on{' '}
-                            <Anchor
-                                target="_blank"
-                                fz="sm"
-                                href={`/generalSettings/projectManagement/${selectedProjectUuid}/settings`}
-                            >
-                                project settings
-                            </Anchor>
-                            .
+                            <Trans
+                                t={t}
+                                i18nKey="createPreview.noGitIntegration"
+                                values={{
+                                    type: projectDetails?.dbtConnection?.type
+                                        ? DbtProjectTypeLabels[
+                                              projectDetails.dbtConnection.type
+                                          ]
+                                        : t('createPreview.unknownType'),
+                                }}
+                                components={{
+                                    type: <Text span fw={600} fz="sm" />,
+                                    anchor: (
+                                        <Anchor
+                                            target="_blank"
+                                            fz="sm"
+                                            href={`/generalSettings/projectManagement/${selectedProjectUuid}/settings`}
+                                        />
+                                    ),
+                                }}
+                            />
                         </Text>
 
                         {isOpen && (
                             <Stack>
                                 <Switch
-                                    label="Copy content in the background"
-                                    description="Avoid request timeouts when copying large projects."
+                                    label={t('createPreview.asyncCopy.label')}
+                                    description={t(
+                                        'createPreview.asyncCopy.description',
+                                    )}
                                     checked={asyncCopyContent}
                                     onChange={(event) =>
                                         setAsyncCopyContent(
@@ -651,9 +678,13 @@ const CreatePreviewModal: FC<Props> = ({
                                     disabled={isPreviewCreating}
                                 />
                                 <Textarea
-                                    label="Custom manifest.json (optional)"
-                                    placeholder="Paste your manifest.json content here..."
-                                    description="Upload a custom manifest.json instead of generating one from the dbt project. This allows you to use pre-compiled dbt models."
+                                    label={t('createPreview.manifest.label')}
+                                    placeholder={t(
+                                        'createPreview.manifest.placeholder',
+                                    )}
+                                    description={t(
+                                        'createPreview.manifest.description',
+                                    )}
                                     value={manifestJson}
                                     onChange={(e) =>
                                         handleManifestChange(
@@ -673,7 +704,7 @@ const CreatePreviewModal: FC<Props> = ({
                                 setIsOpen(!isOpen);
                             }}
                         >
-                            Advanced configuration options
+                            {t('createPreview.advancedOptions')}
                         </FormCollapseButton>
                     </>
                 )}

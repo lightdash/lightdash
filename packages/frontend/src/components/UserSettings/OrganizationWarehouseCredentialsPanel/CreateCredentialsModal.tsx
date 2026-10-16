@@ -8,6 +8,7 @@ import { Button, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPlus } from '@tabler/icons-react';
 import React, { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useCreateOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';
 import MantineModal, {
     type MantineModalProps,
@@ -31,6 +32,7 @@ export const CreateCredentialsModal: FC<Props> = ({
     nameValue,
     onSuccess,
 }) => {
+    const { t } = useTranslation('userSettings');
     const [isAuthenticated, setIsAuthenticated] = React.useState(false);
     const { mutateAsync, isLoading: isSaving } =
         useCreateOrganizationWarehouseCredentials();
@@ -60,7 +62,12 @@ export const CreateCredentialsModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title={title ?? 'Add new credentials'}
+            title={
+                title ??
+                t(
+                    'organizationWarehouseCredentialsPanel.createCredentialsModal.title',
+                )
+            }
             icon={IconPlus}
             size="lg"
             cancelDisabled={isSaving}
@@ -71,7 +78,9 @@ export const CreateCredentialsModal: FC<Props> = ({
                     disabled={isSaving || !isAuthenticated}
                     loading={isSaving}
                 >
-                    Save credentials
+                    {t(
+                        'organizationWarehouseCredentialsPanel.createCredentialsModal.saveCredentials',
+                    )}
                 </Button>
             }
         >

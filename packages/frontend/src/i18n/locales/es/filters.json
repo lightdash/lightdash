@@ -1,0 +1,50 @@
+{
+    "form": {
+        "addFilter": "Añadir filtro",
+        "clearAllFilters": "Borrar todos los filtros",
+        "clearAll": "Borrar todo",
+        "unknownField": "Se intentó referenciar un campo con id desconocido: <code>{{fieldId}}</code>",
+        "invalidOperator": "El filtro en <code>{{fieldLabel}}</code> usa un operador no válido: <code>{{operator}}</code>"
+    },
+    "group": {
+        "addGroupRule": "Añadir regla de grupo",
+        "operatorAll": "Todas",
+        "operatorAny": "Alguna",
+        "conditionsMatch": {
+            "any": "de las siguientes condiciones se cumplen:",
+            "dimension": "de las siguientes condiciones de dimensión se cumplen:",
+            "metric": "de las siguientes condiciones de métrica se cumplen:",
+            "tableCalculation": "de las siguientes condiciones de cálculo de tabla se cumplen:"
+        }
+    },
+    "simplifiedGroup": {
+        "andOnlyTooltip": "Solo puedes usar el operador 'y' al combinar métricas y dimensiones",
+        "allConditionsMatch": "Se cumplen todas las siguientes condiciones:"
+    },
+    "rule": {
+        "hiddenFieldCannotChange": "Los campos ocultos no se pueden cambiar.",
+        "convertToGroup": "Convertir en grupo"
+    },
+    "inputs": {
+        "invalidDate": "Fecha no válida",
+        "removeValue": "Quitar {{value}}",
+        "localTime": "Hora local ({{timezone}}): {{date}}",
+        "utcTime": "Hora UTC: {{date}}",
+        "valuesSelected_one": "{{formattedCount}} valor seleccionado",
+        "valuesSelected_other": "{{formattedCount}} valores seleccionados",
+        "moreValues_one": "+{{formattedCount}} más",
+        "moreValues_other": "+{{formattedCount}} más",
+        "manageMoreValues_one": "Gestionar {{formattedCount}} valor de filtro más",
+        "manageMoreValues_other": "Gestionar {{formattedCount}} valores de filtro más",
+        "editFilterValues": "Editar valores del filtro",
+        "typeValueAndPressEnter": "Escribe un valor y pulsa Intro",
+        "weekCommencing": "semana que comienza el"
+    },
+    "manageValues": {
+        "selectValue": "Seleccionar {{value}}"
+    },
+    "timeZonePicker": {
+        "placeholder": "Seleccionar zona horaria",
+        "localOption": "{{label}} - Local"
+    }
+}

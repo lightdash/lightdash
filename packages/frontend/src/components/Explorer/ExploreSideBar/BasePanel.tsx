@@ -15,6 +15,7 @@ import {
 } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useCallback, useMemo, useState, useTransition } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import { AddDataModal } from '../../../features/externalSources/components/AddDataModal';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
@@ -57,6 +58,7 @@ type Props = {
 };
 
 const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
+    const { t } = useTranslation('explorer');
     const navigate = useNavigate();
     const location = useLocation();
     const projectUuid = useProjectUuid();
@@ -232,7 +234,7 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
         return (
             <SuboptimalState
                 icon={IconAlertCircle}
-                title="Could not load explores"
+                title={t('exploreSidebar.loadError')}
             />
         );
     }
@@ -262,7 +264,12 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
                             <Group justify="space-between" wrap="nowrap">
                                 <PageBreadcrumbs
                                     size="md"
-                                    items={[{ title: 'Tables', active: true }]}
+                                    items={[
+                                        {
+                                            title: t('exploreSidebar.tables'),
+                                            active: true,
+                                        },
+                                    ]}
                                 />
                                 {canShowAddData && (
                                     <Can
@@ -284,7 +291,7 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
                                             }
                                             onClick={openAddDataModal}
                                         >
-                                            Add data
+                                            {t('exploreSidebar.addData')}
                                         </Button>
                                     </Can>
                                 )}
@@ -297,7 +304,9 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
                             rightSection={
                                 search ? (
                                     <ActionIcon
-                                        aria-label="Clear search"
+                                        aria-label={t(
+                                            'exploreSidebar.clearSearch',
+                                        )}
                                         onMouseDown={(event) =>
                                             event.preventDefault()
                                         }
@@ -307,7 +316,7 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
                                     </ActionIcon>
                                 ) : null
                             }
-                            placeholder="Search tables"
+                            placeholder={t('exploreSidebar.searchTables')}
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             // Typed anchor for scope walkthroughs: the list
@@ -369,7 +378,7 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
     return (
         <SuboptimalState
             icon={IconAlertTriangle}
-            title="Could not load explores"
+            title={t('exploreSidebar.loadError')}
         />
     );
 };

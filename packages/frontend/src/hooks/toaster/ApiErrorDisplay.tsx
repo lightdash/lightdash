@@ -14,12 +14,14 @@ import { modals } from '@mantine/modals';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { defaultContext, type QueryClient } from '@tanstack/react-query';
 import { useContext, useLayoutEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import { getSharedSignInExpiry } from '../../components/ProjectConnection/SharedSignIn/sharedSignInCopy';
 import { SharedSignInExpiredMessage } from '../../components/ProjectConnection/SharedSignIn/SharedSignInExpiredMessage';
 import { SnowflakeFormInput } from '../../components/UserSettings/MyWarehouseConnectionsPanel/WarehouseFormInputs';
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
+import i18n from '../../i18n/i18n';
 import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
 import { getFromInMemoryStorage } from '../../utils/inMemoryStorage';
 import {
@@ -46,6 +48,7 @@ const ErrorMessage = ({
     withCopy?: boolean;
     defaultExpanded?: boolean;
 }) => {
+    const { t } = useTranslation('app');
     const messageRef = useRef<HTMLParagraphElement>(null);
     const [isClamped, setIsClamped] = useState(false);
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
@@ -95,7 +98,9 @@ const ErrorMessage = ({
                         underline="always"
                         onClick={() => setIsExpanded(!isExpanded)}
                     >
-                        {isExpanded ? 'Show less' : 'View full error'}
+                        {isExpanded
+                            ? t('apiErrorDisplay.showLess')
+                            : t('apiErrorDisplay.viewFullError')}
                     </Anchor>
                     {withCopy && (
                         <CopyErrorButton
@@ -115,38 +120,46 @@ export const CopyErrorButton = ({
 }: {
     value: string;
     color: string;
-}) => (
-    <CopyActionIcon
-        value={value}
-        copyLabel="Copy error"
-        tooltipPosition="right"
-        aria-label="Copy error details"
-        color={color}
-        size="xs"
-        variant="transparent"
-    />
-);
+}) => {
+    const { t } = useTranslation('app');
+    return (
+        <CopyActionIcon
+            value={value}
+            copyLabel={t('apiErrorDisplay.copyError')}
+            tooltipPosition="right"
+            aria-label={t('apiErrorDisplay.copyErrorDetails')}
+            color={color}
+            size="xs"
+            variant="transparent"
+        />
+    );
+};
 
-const CopyErrorIdButton = ({ value }: { value: string }) => (
-    <CopyButton value={value}>
-        {({ copied, copy }) => (
-            <Button
-                size="compact-xs"
-                variant="subtle"
-                leftSection={
-                    <MantineIcon icon={copied ? IconCheck : IconCopy} />
-                }
-                onClick={copy}
-            >
-                {copied ? 'Copied' : 'Copy error'}
-            </Button>
-        )}
-    </CopyButton>
-);
+const CopyErrorIdButton = ({ value }: { value: string }) => {
+    const { t } = useTranslation('app');
+    return (
+        <CopyButton value={value}>
+            {({ copied, copy }) => (
+                <Button
+                    size="compact-xs"
+                    variant="subtle"
+                    leftSection={
+                        <MantineIcon icon={copied ? IconCheck : IconCopy} />
+                    }
+                    onClick={copy}
+                >
+                    {copied
+                        ? t('apiErrorDisplay.copied')
+                        : t('apiErrorDisplay.copyError')}
+                </Button>
+            )}
+        </CopyButton>
+    );
+};
 
 const openSupportModal = () =>
     modals.open({
-        title: 'Share with Lightdash Support',
+        title: i18n.t('apiErrorDisplay.shareWithSupport', { ns: 'app' }),
         size: 'lg',
         children: <SupportDrawerContent />,
         yOffset: 100,
@@ -162,6 +175,7 @@ const NetworkFailureMessage = ({
     apiError: ApiErrorDetail;
     showSupportButton: boolean;
 }) => {
+    const { t } = useTranslation('app');
     if (!isNetworkDiagnostics(apiError.data)) {
         return (
             <Text mb={0} fz="xs">
@@ -188,13 +202,15 @@ const NetworkFailureMessage = ({
                             }
                             onClick={copy}
                         >
-                            {copied ? 'Copied' : 'Copy diagnostics'}
+                            {copied
+                                ? t('apiErrorDisplay.copied')
+                                : t('apiErrorDisplay.copyDiagnostics')}
                         </Button>
                     )}
                 </CopyButton>
                 {showSupportButton && (
                     <Button size="compact-xs" onClick={openSupportModal}>
-                        Notify support
+                        {t('apiErrorDisplay.notifySupport')}
                     </Button>
                 )}
             </Group>
@@ -203,6 +219,7 @@ const NetworkFailureMessage = ({
 };
 
 const GoogleSheetsReauthMessage = ({ message }: { message: string }) => {
+    const { t } = useTranslation('app');
     const { mutate: openLoginPopup } = useGoogleLoginPopup('gdrive');
 
     return (
@@ -214,7 +231,7 @@ const GoogleSheetsReauthMessage = ({ message }: { message: string }) => {
                 type="button"
                 onClick={() => openLoginPopup()}
             >
-                Re-authenticate with Google
+                {t('apiErrorDisplay.reauthGoogle')}
             </Anchor>
         </Text>
     );
@@ -225,6 +242,7 @@ const PreviewSignInExpiredMessage = ({
 }: {
     apiError: ApiErrorDetail;
 }) => {
+    const { t } = useTranslation('app');
     const isEmbedded = useIsEmbedded();
     const { upstreamProjectUuid } = apiError.data;
     return (
@@ -235,7 +253,7 @@ const PreviewSignInExpiredMessage = ({
                     inherit
                     href={`/generalSettings/projectManagement/${upstreamProjectUuid}/settings`}
                 >
-                    Open the connection settings
+                    {t('apiErrorDisplay.openConnectionSettings')}
                 </Anchor>
             )}
         </Text>
@@ -251,6 +269,7 @@ const ApiErrorDisplayStatic = ({
     defaultExpanded?: boolean;
     queryClient: QueryClient | undefined;
 }) => {
+    const { t } = useTranslation('app');
     const sharedSignIn = getSharedSignInExpiry(apiError);
     if (sharedSignIn) {
         return (
@@ -290,18 +309,20 @@ const ApiErrorDisplayStatic = ({
                     defaultExpanded={defaultExpanded}
                 />
                 <Text mb={0} fz="xs" fw="bold">
-                    Contact support with the following information:
+                    {t('apiErrorDisplay.contactSupport')}
                 </Text>
                 <Group gap="xxs" align="flex-start">
                     <Text mb={0} fz="xs" fw="bold">
-                        Error ID:{' '}
+                        {t('apiErrorDisplay.errorId')}{' '}
                         <Code fz="xs" className={styles.code}>
-                            {apiError.sentryEventId || 'n/a'}
+                            {apiError.sentryEventId ||
+                                t('apiErrorDisplay.notAvailable')}
                         </Code>
                         <br />
-                        Trace ID:{' '}
+                        {t('apiErrorDisplay.traceId')}{' '}
                         <Code fz="xs" className={styles.code}>
-                            {apiError.sentryTraceId || 'n/a'}
+                            {apiError.sentryTraceId ||
+                                t('apiErrorDisplay.notAvailable')}
                         </Code>
                     </Text>
                     <CopyErrorButton
@@ -329,6 +350,7 @@ const ApiErrorDisplayWithHealth = ({
     defaultExpanded?: boolean;
     queryClient: QueryClient;
 }) => {
+    const { t } = useTranslation('app');
     const isDark = useComputedColorScheme() === 'dark';
     const isEmbedded = useIsEmbedded();
     const health = useHealth();
@@ -375,7 +397,7 @@ const ApiErrorDisplayWithHealth = ({
                     <Modal
                         opened={true}
                         onClose={() => onClose?.()}
-                        title="Snowflake Authentication Error"
+                        title={t('apiErrorDisplay.snowflakeAuthError')}
                         centered
                         size="md"
                     >
@@ -385,7 +407,7 @@ const ApiErrorDisplayWithHealth = ({
                             </Text>
 
                             <Text mb={0}>
-                                You can try to reauthenticate with Snowflake:
+                                {t('apiErrorDisplay.reauthSnowflake')}
                             </Text>
 
                             <SnowflakeFormInput
@@ -416,7 +438,7 @@ const ApiErrorDisplayWithHealth = ({
                     />
                     <Group gap="xs">
                         <Button size="compact-xs" onClick={openSupportModal}>
-                            Notify support
+                            {t('apiErrorDisplay.notifySupport')}
                         </Button>
                         <CopyErrorIdButton
                             value={errorClipboardValue(apiError)}
@@ -435,18 +457,20 @@ const ApiErrorDisplayWithHealth = ({
                     defaultExpanded={defaultExpanded}
                 />
                 <Text mb={0} fz="xs" fw="bold">
-                    Contact support with the following information:
+                    {t('apiErrorDisplay.contactSupport')}
                 </Text>
                 <Group gap="xxs" align="flex-start">
                     <Text mb={0} fz="xs" fw="bold">
-                        Error ID:{' '}
+                        {t('apiErrorDisplay.errorId')}{' '}
                         <Code fz="xs" className={styles.code}>
-                            {apiError.sentryEventId || 'n/a'}
+                            {apiError.sentryEventId ||
+                                t('apiErrorDisplay.notAvailable')}
                         </Code>
                         <br />
-                        Trace ID:{' '}
+                        {t('apiErrorDisplay.traceId')}{' '}
                         <Code fz="xs" className={styles.code}>
-                            {apiError.sentryTraceId || 'n/a'}
+                            {apiError.sentryTraceId ||
+                                t('apiErrorDisplay.notAvailable')}
                         </Code>
                     </Text>
                     <CopyErrorButton

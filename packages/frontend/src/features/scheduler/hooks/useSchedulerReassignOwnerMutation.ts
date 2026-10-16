@@ -4,6 +4,7 @@ import {
     type SchedulerAndTargets,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -20,6 +21,7 @@ const reassignSchedulerOwner = async (
 export const useSchedulerReassignOwnerMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('scheduler');
 
     return useMutation<
         SchedulerAndTargets[],
@@ -35,14 +37,12 @@ export const useSchedulerReassignOwnerMutation = (projectUuid: string) => {
 
             const count = variables.schedulerUuids.length;
             showToastSuccess({
-                title: `Successfully reassigned ${count} scheduled ${
-                    count === 1 ? 'delivery' : 'deliveries'
-                }`,
+                title: t('toasts.reassigned', { count }),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to reassign scheduled delivery owner',
+                title: t('toasts.reassignFailed'),
                 apiError: error,
             });
         },

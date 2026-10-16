@@ -5,6 +5,7 @@ import {
 import { Stack, Text } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import VizSchemaChangesList from '../../../features/chartTypes/components/VizSchemaChangesList';
 import Callout from '../../common/Callout';
 import MantineModal from '../../common/MantineModal';
@@ -26,6 +27,7 @@ const DataAppVizUpgradeModal: FC<Props> = ({
     onClose,
     onUpgrade,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const removesSomething =
         changes.fields.removed.length > 0 ||
         changes.configOptions.removed.length > 0;
@@ -34,29 +36,27 @@ const DataAppVizUpgradeModal: FC<Props> = ({
         <MantineModal
             opened
             onClose={onClose}
-            title="Upgrade chart type"
+            title={t('dataAppViz.upgradeModal.title')}
             subtitle={typeName}
             icon={IconSparkles}
             size="md"
-            confirmLabel="Upgrade"
+            confirmLabel={t('dataAppViz.upgradeModal.confirm')}
             onConfirm={onUpgrade}
         >
             <Stack gap="md">
                 <Text fz="sm">
-                    Only this chart moves to the latest version. Nothing is
-                    saved until you save the chart.
+                    {t('dataAppViz.upgradeModal.onlyThisChart')}
                 </Text>
                 {removesSomething && (
                     <Callout variant="warning">
-                        Removed fields lose their mapping and removed options
-                        lose their values.
+                        {t('dataAppViz.upgradeModal.removedWarning')}
                     </Callout>
                 )}
                 {hasDataAppVizSchemaChanges(changes) ? (
                     <VizSchemaChangesList changes={changes} />
                 ) : (
                     <Text fz="sm" c="dimmed">
-                        Same fields and options; only the rendering changed.
+                        {t('dataAppViz.upgradeModal.onlyRenderingChanged')}
                     </Text>
                 )}
             </Stack>

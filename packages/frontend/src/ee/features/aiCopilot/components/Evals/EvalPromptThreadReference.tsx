@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { IconExternalLink, IconMessageCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useEvalSectionContext } from '../../hooks/useEvalSectionContext';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
@@ -30,6 +31,7 @@ export const EvalPromptThreadReference: FC<Props> = ({
     promptUuid,
     openInSidebar = false,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const {
         data: thread,
         isLoading,
@@ -56,7 +58,7 @@ export const EvalPromptThreadReference: FC<Props> = ({
                     <MantineIcon icon={IconMessageCircle} color="dimmed" />
                     <Loader size="sm" />
                     <Text size="sm" c="dimmed">
-                        Loading thread reference...
+                        {t('evals.threadReference.loading')}
                     </Text>
                 </Group>
             </Card>
@@ -68,7 +70,7 @@ export const EvalPromptThreadReference: FC<Props> = ({
             <Alert color="red" p="sm">
                 <Group gap="sm">
                     <MantineIcon icon={IconMessageCircle} />
-                    <Text size="sm">Failed to load thread reference</Text>
+                    <Text size="sm">{t('evals.threadReference.failed')}</Text>
                 </Group>
             </Alert>
         );
@@ -106,7 +108,7 @@ export const EvalPromptThreadReference: FC<Props> = ({
                             <Text size="xs" c="dimmed" lineClamp={2} mt={2}>
                                 {promptMessage
                                     ? promptMessage.message
-                                    : 'No prompt found'}{' '}
+                                    : t('evals.threadReference.noPrompt')}{' '}
                                 •{' '}
                                 {new Date(
                                     thread.createdAt,

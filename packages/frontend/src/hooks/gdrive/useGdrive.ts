@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import { convertDateFilters } from '../../utils/dateFilter';
 import useHealth from '../health/useHealth';
@@ -72,6 +73,7 @@ export const useGoogleLoginPopup = (
     loginPath: 'gdrive' | 'bigquery',
     onLogin?: () => void,
 ) => {
+    const { t } = useTranslation('app');
     const { showToastError } = useToaster();
     const health = useHealth();
     const queryClient = useQueryClient();
@@ -91,14 +93,15 @@ export const useGoogleLoginPopup = (
         },
         onError: (error: Error) => {
             showToastError({
-                title: 'Authentication failed',
-                subtitle: error.message || 'Please try again',
+                title: t('useGdrive.authenticationFailed'),
+                subtitle: error.message || t('common.pleaseTryAgain'),
             });
         },
     });
 };
 
 export const useGdriveAccessToken = () => {
+    const { t } = useTranslation('app');
     const { showToastError } = useToaster();
     const isAuthConcludedWithSuccess = useRef(false);
     const health = useHealth();
@@ -120,8 +123,9 @@ export const useGdriveAccessToken = () => {
             // show error if they concluded the auth flow without the necessary scopes
             if (isAuthConcludedWithSuccess.current && error) {
                 showToastError({
-                    title: 'Authentication failed',
-                    subtitle: error?.error?.message || 'Please try again',
+                    title: t('useGdrive.authenticationFailed'),
+                    subtitle:
+                        error?.error?.message || t('common.pleaseTryAgain'),
                 });
                 isAuthConcludedWithSuccess.current = false;
             } else {
@@ -131,7 +135,7 @@ export const useGdriveAccessToken = () => {
                 }
             }
         }
-    }, [error, health.data?.siteUrl, openLoginPopup, showToastError]);
+    }, [error, health.data?.siteUrl, openLoginPopup, showToastError, t]);
 
     return {
         mutate,

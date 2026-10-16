@@ -1,11 +1,13 @@
 import { rolePresets, type RoleLevel } from '@lightdash/common';
 import { Stack } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
 import { RoleBuilder } from '../../features/customRoles/components/RoleBuilder';
 import { useCustomRoles } from '../../features/customRoles/useCustomRoles';
 
 export const CustomRoleCreate = () => {
+    const { t } = useTranslation('customRoles');
     const navigate = useNavigate();
     const { createRole } = useCustomRoles();
 
@@ -36,11 +38,11 @@ export const CustomRoleCreate = () => {
             <PageBreadcrumbs
                 items={[
                     {
-                        title: 'Custom roles',
+                        title: t('page.title'),
                         to: '/generalSettings/customRoles',
                     },
                     {
-                        title: 'Create custom role',
+                        title: t('page.createTitle'),
                         active: true,
                     },
                 ]}

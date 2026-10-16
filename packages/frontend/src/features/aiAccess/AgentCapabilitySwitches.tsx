@@ -8,6 +8,7 @@ import {
     Switch,
     Text,
 } from '@mantine/core';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import Callout from '../../components/common/Callout';
 import { agentPageCapabilityLabels } from './agentCapabilityLabels';
@@ -74,6 +75,7 @@ export const AgentCapabilitySwitches = ({
 }) => {
     const rows = Object.values(draft.systemRoleMatrix);
     const firstRow = new Set(rows[0]);
+    const { t } = useTranslation('aiAccess');
     const allowed = new Set(draft.allowedCapabilities);
     const sameRows = rows.every(
         (row) =>
@@ -85,7 +87,7 @@ export const AgentCapabilitySwitches = ({
         <Stack gap="md">
             <Stack gap="xs">
                 <Text size="xs" fw={500} c="dimmed">
-                    READ AND QUERY
+                    {t('capabilitySwitches.readAndQuery')}
                 </Text>
                 <CapabilitySwitchGroup
                     capabilities={readAndQueryCapabilities}
@@ -96,7 +98,7 @@ export const AgentCapabilitySwitches = ({
             </Stack>
             <Stack gap="xs">
                 <Text size="xs" fw={500} c="dimmed">
-                    MAKE CHANGES
+                    {t('capabilitySwitches.makeChanges')}
                 </Text>
                 <CapabilitySwitchGroup
                     capabilities={changes}
@@ -110,16 +112,17 @@ export const AgentCapabilitySwitches = ({
                     <Accordion.Control>
                         <Stack gap={0}>
                             <Text size="sm" fw={500}>
-                                Developer and admin
+                                {t('capabilitySwitches.developerTitle')}
                             </Text>
                             <Text size="xs" c="dimmed">
-                                Deploy and upload, Git repository changes (dbt),
-                                Administration, External tools.{' '}
+                                {t('capabilitySwitches.developerDescription')}{' '}
                                 {developerCount === 4
-                                    ? 'All on.'
+                                    ? t('capabilitySwitches.allOn')
                                     : developerCount === 0
-                                      ? 'All off.'
-                                      : `${developerCount} on.`}
+                                      ? t('capabilitySwitches.allOff')
+                                      : t('capabilitySwitches.countOn', {
+                                            count: developerCount,
+                                        })}
                             </Text>
                         </Stack>
                     </Accordion.Control>
@@ -137,14 +140,16 @@ export const AgentCapabilitySwitches = ({
                         <Stack gap={0}>
                             <Group gap="xs">
                                 <Text size="sm" fw={500}>
-                                    Different limits per role
+                                    {t('capabilitySwitches.perRoleTitle')}
                                 </Text>
-                                <Badge size="xs">Advanced</Badge>
+                                <Badge size="xs">
+                                    {t('capabilitySwitches.advanced')}
+                                </Badge>
                             </Group>
                             <Text size="xs" c="dimmed">
                                 {sameRows
-                                    ? 'All roles get the same today.'
-                                    : 'Roles have different limits today.'}
+                                    ? t('capabilitySwitches.sameRoles')
+                                    : t('capabilitySwitches.differentRoles')}
                             </Text>
                         </Stack>
                     </Accordion.Control>
@@ -162,24 +167,26 @@ export const AgentCapabilitySwitches = ({
             </Accordion>
             <Callout variant="info">
                 <Stack gap="xs">
+                    <Text size="sm">{t('capabilitySwitches.limitsApply')}</Text>
                     <Text size="sm">
-                        These limits apply to every role, custom roles included.
-                        A person never gets more than their own permissions.
-                    </Text>
-                    <Text size="sm">
-                        Custom roles keep their own agent permissions.{' '}
-                        <Anchor
-                            component={Link}
-                            to="/generalSettings/customRoles"
-                            size="sm"
-                        >
-                            Custom roles
-                        </Anchor>
+                        <Trans
+                            t={t}
+                            i18nKey="capabilitySwitches.customRolesNote"
+                            components={{
+                                anchor: (
+                                    <Anchor
+                                        component={Link}
+                                        to="/generalSettings/customRoles"
+                                        size="sm"
+                                    />
+                                ),
+                            }}
+                        />
                     </Text>
                 </Stack>
             </Callout>
             {draft.allowedCapabilities.length === 0 && (
-                <Text size="sm">Agents are turned off for everyone.</Text>
+                <Text size="sm">{t('capabilitySwitches.turnedOff')}</Text>
             )}
         </Stack>
     );

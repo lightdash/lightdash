@@ -26,8 +26,3 @@ export const fromOptionValue = (
     }
     return null;
 };
-
-export const BUILT_IN_VEGA_LABEL = 'Vega (JSON editor)';
-export const BUILT_IN_VEGA_DESCRIPTION = 'Write Vega-Lite JSON by hand';
-export const BUILT_IN_GROUP = 'Built in';
-export const PROJECT_GROUP = 'Custom';

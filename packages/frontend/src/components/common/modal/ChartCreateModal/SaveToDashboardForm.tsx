@@ -14,6 +14,7 @@ import {
 import { type UseFormReturnType } from '@mantine/form';
 import { IconArrowLeft, IconPlus } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../MantineIcon';
 import {
     type SaveToDashboardFormType,
@@ -47,12 +48,14 @@ const SaveToDashboardForm = <
     onStartCreatingNewSpaceForDashboard,
     onCancelCreatingNewSpaceForDashboard,
 }: Props<T>) => {
+    const { t } = useTranslation('modals');
     const groupedDashboardItems = useMemo(() => {
         const groupedBySpace = dashboards.reduce<
             Record<string, { value: string; label: string }[]>
         >((acc, d) => {
             const spaceName =
-                spaces.find((s) => s.uuid === d.spaceUuid)?.name ?? 'Other';
+                spaces.find((s) => s.uuid === d.spaceUuid)?.name ??
+                t('saveToDashboardForm.otherSpaceGroup');
             if (!acc[spaceName]) acc[spaceName] = [];
             acc[spaceName].push({ value: d.uuid, label: d.name });
             return acc;
@@ -62,23 +65,23 @@ const SaveToDashboardForm = <
             group,
             items,
         }));
-    }, [dashboards, spaces]);
+    }, [dashboards, spaces, t]);
 
     if (isCreatingNewDashboard) {
         return (
             <Stack gap="md">
                 <TextInput
                     id="new-dashboard-name"
-                    label="Name your dashboard"
-                    placeholder="eg. KPI dashboard"
+                    label={t('dashboardCreate.nameLabel')}
+                    placeholder={t('dashboardCreate.namePlaceholder')}
                     required
                     {...form.getInputProps('newDashboardName')}
                     value={form.values.newDashboardName ?? ''}
                 />
                 <Textarea
                     id="new-dashboard-description"
-                    label="Dashboard description"
-                    placeholder="A few words to give your team some context"
+                    label={t('dashboardCreate.descriptionLabel')}
+                    placeholder={t('descriptionPlaceholder')}
                     autosize
                     maxRows={3}
                     {...form.getInputProps('newDashboardDescription')}
@@ -88,7 +91,7 @@ const SaveToDashboardForm = <
                     <>
                         <Select
                             id="new-dashboard-space"
-                            label="Select a space"
+                            label={t('saveToDashboardForm.selectSpace')}
                             data={spaces.map((s) => ({
                                 value: s.uuid,
                                 label: s.name,
@@ -104,7 +107,7 @@ const SaveToDashboardForm = <
                         >
                             <Group gap="two">
                                 <MantineIcon icon={IconPlus} />
-                                Create new space
+                                {t('saveToDashboardForm.createNewSpace')}
                             </Group>
                         </Anchor>
                     </>
@@ -112,8 +115,8 @@ const SaveToDashboardForm = <
                     <>
                         <TextInput
                             id="new-dashboard-new-space"
-                            label="Name your new space"
-                            placeholder="eg. KPIs"
+                            label={t('saveToDashboardForm.newSpaceNameLabel')}
+                            placeholder={t('spaceAction.namePlaceholder')}
                             required
                             {...form.getInputProps('newSpaceName')}
                             value={form.values.newSpaceName ?? ''}
@@ -125,7 +128,9 @@ const SaveToDashboardForm = <
                             >
                                 <Group gap="two">
                                     <MantineIcon icon={IconArrowLeft} />
-                                    Save to existing space
+                                    {t(
+                                        'saveToDashboardForm.saveToExistingSpace',
+                                    )}
                                 </Group>
                             </Anchor>
                         )}
@@ -138,7 +143,7 @@ const SaveToDashboardForm = <
                     >
                         <Group gap="two">
                             <MantineIcon icon={IconArrowLeft} />
-                            Save to existing dashboard
+                            {t('saveToDashboardForm.saveToExistingDashboard')}
                         </Group>
                     </Anchor>
                 )}
@@ -150,11 +155,11 @@ const SaveToDashboardForm = <
         <Stack gap="md">
             <Select
                 id="select-dashboard"
-                label="Dashboard"
+                label={t('saveToDashboardForm.dashboardLabel')}
                 data={groupedDashboardItems}
                 rightSection={isLoading ? <Loader size="xs" /> : undefined}
                 searchable
-                nothingFoundMessage="No matching dashboards found"
+                nothingFoundMessage={t('saveToDashboardForm.noDashboardsFound')}
                 required
                 {...form.getInputProps('dashboardUuid')}
                 value={form.values.dashboardUuid ?? null}
@@ -162,7 +167,7 @@ const SaveToDashboardForm = <
             <Anchor component="span" onClick={onStartCreatingNewDashboard}>
                 <Group gap="two">
                     <MantineIcon icon={IconPlus} />
-                    Create new dashboard
+                    {t('saveToDashboardForm.createNewDashboard')}
                 </Group>
             </Anchor>
         </Stack>

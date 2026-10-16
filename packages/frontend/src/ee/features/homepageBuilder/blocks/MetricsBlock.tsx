@@ -25,6 +25,7 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconChartDots, IconHash, IconPlus, IconX } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
@@ -51,6 +52,7 @@ const MetricKpiCard: FC<{
     metricRef: HomepageMetricRef;
     projectUuid: string;
 }> = ({ metricRef, projectUuid }) => {
+    const { t } = useTranslation('homepageBuilder');
     const dateRange = useMemo(
         () => getDefaultDateRangeFromInterval(KPI_TIME_FRAME),
         [],
@@ -122,7 +124,7 @@ const MetricKpiCard: FC<{
                 </div>
                 {totalQuery.isError ? (
                     <Text size="sm" c="dimmed">
-                        Couldn’t load this metric
+                        {t('metrics.loadFailed')}
                     </Text>
                 ) : (
                     <>
@@ -167,7 +169,7 @@ const MetricKpiCard: FC<{
                                 </span>
                             )}
                             <Text size="xs" c="dimmed" truncate miw={0}>
-                                vs previous period
+                                {t('metrics.vsPreviousPeriod')}
                             </Text>
                         </Group>
                     </>
@@ -185,6 +187,7 @@ const MetricsPickerModal: FC<{
     atLimit: boolean;
     onAdd: (metricRef: HomepageMetricRef) => void;
 }> = ({ opened, onClose, projectUuid, selected, atLimit, onAdd }) => {
+    const { t } = useTranslation('homepageBuilder');
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const { data, fetchNextPage, hasNextPage, isFetching } = useMetricsCatalog({
@@ -220,12 +223,12 @@ const MetricsPickerModal: FC<{
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Choose metrics"
+            title={t('metrics.picker.title')}
             size="lg"
         >
             <Stack gap="sm">
                 <TextInput
-                    placeholder="Search metrics…"
+                    placeholder={t('metrics.picker.search')}
                     value={search}
                     onChange={(e) => setSearch(e.currentTarget.value)}
                     rightSection={isFetching ? <Loader size="xs" /> : null}
@@ -233,8 +236,7 @@ const MetricsPickerModal: FC<{
                 />
                 {atLimit && (
                     <Text size="xs" c="dimmed">
-                        You can show up to {MAX_METRICS} metrics. Remove one to
-                        add another.
+                        {t('metrics.picker.limit', { max: MAX_METRICS })}
                     </Text>
                 )}
                 <Stack
@@ -274,7 +276,7 @@ const MetricsPickerModal: FC<{
                         ))}
                     {!atLimit && results.length === 0 && !isFetching && (
                         <Text size="sm" c="dimmed" p="sm">
-                            No matching metrics.
+                            {t('metrics.picker.empty')}
                         </Text>
                     )}
                     {!atLimit && isFetching && (
@@ -321,6 +323,7 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
     onChange,
     itemSpan,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const [isPickerOpen, setIsPickerOpen] = useState(false);
     if (block.type !== 'metrics') return null;
 
@@ -329,7 +332,7 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
     return (
         <Stack gap="xs">
             <TextInput
-                label="Title"
+                label={t('blockBuild.title')}
                 size="xs"
                 fw={600}
                 value={block.config.title}
@@ -364,7 +367,9 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
                                 </Box>
                                 <ActionIcon
                                     size="sm"
-                                    aria-label={`Remove metric ${metricRef.label}`}
+                                    aria-label={t('metrics.remove', {
+                                        label: metricRef.label,
+                                    })}
                                     onClick={() =>
                                         onChange({
                                             ...block,
@@ -397,8 +402,8 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
                 onClick={() => setIsPickerOpen(true)}
             >
                 {atLimit
-                    ? `Metric limit reached (${MAX_METRICS})`
-                    : 'Choose metrics from catalog…'}
+                    ? t('metrics.limitReached', { max: MAX_METRICS })
+                    : t('metrics.chooseFromCatalog')}
             </Button>
             <MetricsPickerModal
                 opened={isPickerOpen}

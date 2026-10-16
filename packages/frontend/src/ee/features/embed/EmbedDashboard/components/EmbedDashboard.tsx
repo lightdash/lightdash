@@ -13,6 +13,7 @@ import { Box, Button, Group, Tabs, TextInput } from '@mantine/core';
 import { IconCheck, IconPencil, IconUnlink, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -90,6 +91,16 @@ const EmbedTileLoadTracker: FC<{
     return null;
 };
 
+const EmptyTabState: FC = () => {
+    const { t } = useTranslation('embed');
+    return (
+        <SuboptimalState
+            title={t('dashboard.emptyTab')}
+            description={t('dashboard.emptyTabDescription')}
+        />
+    );
+};
+
 const EmbedDashboardGrid: FC<{
     filteredTiles: DashboardTile[];
     layouts: DashboardLayouts;
@@ -137,10 +148,7 @@ const EmbedDashboardGrid: FC<{
                     textAlign: 'center',
                 }}
             >
-                <SuboptimalState
-                    title="Tab is empty"
-                    description="This tab has no tiles"
-                />
+                <EmptyTabState />
             </div>
         ) : (
             <div className={tabStyles.tabGridContainer}>
@@ -314,6 +322,7 @@ const EmbedDashboard: FC<{
     isEditMode: controlledIsEditMode,
     onEditModeChange,
 }) => {
+    const { t } = useTranslation('embed');
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const activeTab = useDashboardContext((c) => c.activeTab);
     const setActiveTab = useDashboardContext((c) => c.setActiveTab);
@@ -819,7 +828,7 @@ const EmbedDashboard: FC<{
     if (!projectUuid) {
         return (
             <div style={{ marginTop: '20px' }}>
-                <SuboptimalState title="Missing project UUID" />
+                <SuboptimalState title={t('missingProjectUuid')} />
             </div>
         );
     }
@@ -827,11 +836,11 @@ const EmbedDashboard: FC<{
         return (
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState
-                    title="Error loading dashboard"
+                    title={t('dashboard.loadError')}
                     icon={IconUnlink}
                     description={
                         dashboardError.error.message.includes('jwt expired')
-                            ? 'This embed link has expired'
+                            ? t('expired')
                             : dashboardError.error.message
                     }
                 />
@@ -842,7 +851,7 @@ const EmbedDashboard: FC<{
     if (!dashboard) {
         return (
             <div style={{ marginTop: '20px' }}>
-                <SuboptimalState title="Loading..." loading />
+                <SuboptimalState title={t('loading')} loading />
             </div>
         );
     }
@@ -923,7 +932,7 @@ const EmbedDashboard: FC<{
             >
                 {canWriteDashboard && isEditMode ? (
                     <TextInput
-                        aria-label="Dashboard title"
+                        aria-label={t('dashboard.titleLabel')}
                         value={draftDashboardName}
                         onChange={(event) =>
                             setDraftDashboardName(event.currentTarget.value)
@@ -990,8 +999,8 @@ const EmbedDashboard: FC<{
                     {renderDashboardEditToolbar()}
                     <Box mt="lg">
                         <SuboptimalState
-                            title="Empty dashboard"
-                            description="This dashboard has no tiles"
+                            title={t('dashboard.empty')}
+                            description={t('dashboard.emptyDescription')}
                         />
                     </Box>
                 </>

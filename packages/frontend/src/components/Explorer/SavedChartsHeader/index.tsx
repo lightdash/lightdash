@@ -12,6 +12,7 @@ import {
     IconStarFilled,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useBlocker, useLocation, useNavigate } from 'react-router';
 import {
     PendingReviewBadge,
@@ -153,6 +154,7 @@ const verifiedTourProps = {
 };
 
 const SavedChartsHeader: FC = () => {
+    const { t } = useTranslation('explorer');
     const authoringEnabled = useContentAuthoringEnabled();
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const compact = useCompactContentHeader();
@@ -232,15 +234,14 @@ const SavedChartsHeader: FC = () => {
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {
             if (hasUnsavedChanges && isEditMode) {
-                const message =
-                    'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?';
+                const message = t('explorerHeader.unsavedDashboardChanges');
                 event.returnValue = message;
                 return message;
             }
         };
         window.addEventListener('beforeunload', checkReload);
         return () => window.removeEventListener('beforeunload', checkReload);
-    }, [hasUnsavedChanges, isEditMode]);
+    }, [hasUnsavedChanges, isEditMode, t]);
 
     // Block navigating away if there are unsaved changes
     const blocker = useBlocker(({ currentLocation, nextLocation }) =>
@@ -355,9 +356,9 @@ const SavedChartsHeader: FC = () => {
                         blocker.reset();
                     }}
                     role="alertdialog"
-                    title="Unsaved changes"
+                    title={t('savedChartHeader.unsavedChanges.title')}
                     icon={IconAlertCircle}
-                    cancelLabel="Stay"
+                    cancelLabel={t('savedChartHeader.unsavedChanges.stay')}
                     actions={
                         <Button
                             color="red"
@@ -365,13 +366,12 @@ const SavedChartsHeader: FC = () => {
                                 blocker.proceed();
                             }}
                         >
-                            Leave
+                            {t('savedChartHeader.unsavedChanges.leave')}
                         </Button>
                     }
                 >
                     <Text fw={500}>
-                        You have unsaved changes to your chart! Are you sure you
-                        want to leave without saving?
+                        {t('savedChartHeader.unsavedChanges.description')}
                     </Text>
                 </MantineModal>
             )}
@@ -452,7 +452,9 @@ const SavedChartsHeader: FC = () => {
                                 <ConnectionBadge name={connectionName} />
                                 {savedChart.hasUnpublishedChanges && (
                                     <Tooltip
-                                        label="Only you can see these changes. A reviewer can write them back to the repo from Content review."
+                                        label={t(
+                                            'savedChartHeader.unpublished.tooltip',
+                                        )}
                                         maw={280}
                                     >
                                         <Badge
@@ -460,7 +462,9 @@ const SavedChartsHeader: FC = () => {
                                             variant="dot"
                                             size="sm"
                                         >
-                                            Unpublished changes
+                                            {t(
+                                                'savedChartHeader.unpublished.badge',
+                                            )}
                                         </Badge>
                                     </Tooltip>
                                 )}
@@ -472,11 +476,9 @@ const SavedChartsHeader: FC = () => {
                                         variant="dot"
                                         size="sm"
                                     >
-                                        {savedChart.draftsAwaitingReview} draft
-                                        {savedChart.draftsAwaitingReview === 1
-                                            ? ''
-                                            : 's'}{' '}
-                                        to review
+                                        {t('savedChartHeader.draftsToReview', {
+                                            count: savedChart.draftsAwaitingReview,
+                                        })}
                                     </Badge>
                                 )}
                                 {contentReview.pendingRequest && (
@@ -488,8 +490,22 @@ const SavedChartsHeader: FC = () => {
                                     <Tooltip
                                         label={
                                             savedChart?.verification?.verifiedBy
-                                                ? `Verified by ${savedChart.verification.verifiedBy.firstName} ${savedChart.verification.verifiedBy.lastName}`
-                                                : 'Verified'
+                                                ? t(
+                                                      'savedChartHeader.verifiedBy',
+                                                      {
+                                                          firstName:
+                                                              savedChart
+                                                                  .verification
+                                                                  .verifiedBy
+                                                                  .firstName,
+                                                          lastName:
+                                                              savedChart
+                                                                  .verification
+                                                                  .verifiedBy
+                                                                  .lastName,
+                                                      },
+                                                  )
+                                                : t('savedChartHeader.verified')
                                         }
                                         zIndex={10000}
                                     >
@@ -606,7 +622,9 @@ const SavedChartsHeader: FC = () => {
                                                     data-tour-anchor="edit-chart"
                                                     data-tour-hint="Edit the chart"
                                                 >
-                                                    Edit chart
+                                                    {t(
+                                                        'savedChartHeader.editChart',
+                                                    )}
                                                 </Button>
                                             )}
                                             <ShareShortLinkButton
@@ -625,8 +643,12 @@ const SavedChartsHeader: FC = () => {
                                             }
                                             cancelLabel={
                                                 isFromDashboard
-                                                    ? 'Cancel changes'
-                                                    : 'Cancel'
+                                                    ? t(
+                                                          'savedChartHeader.cancelChanges',
+                                                      )
+                                                    : t('actions.cancel', {
+                                                          ns: 'common',
+                                                      })
                                             }
                                             cancelDisabled={
                                                 isChartTypeAuthoring ||
@@ -638,12 +660,16 @@ const SavedChartsHeader: FC = () => {
                                                 isFromDashboard ? (
                                                     <Tooltip
                                                         offset={-1}
-                                                        label="Return to dashboard"
+                                                        label={t(
+                                                            'savedChartHeader.returnToDashboard',
+                                                        )}
                                                         position="bottom"
                                                     >
                                                         <ActionIcon
                                                             variant="default"
-                                                            aria-label="Return to dashboard"
+                                                            aria-label={t(
+                                                                'savedChartHeader.returnToDashboard',
+                                                            )}
                                                             onClick={
                                                                 handleGoBackClick
                                                             }
@@ -683,15 +709,17 @@ const SavedChartsHeader: FC = () => {
                                 })
                             }
                         >
-                            {isChartFavorited ? 'Favorited' : 'Favorite'}
+                            {isChartFavorited
+                                ? t('savedChartHeader.favorited')
+                                : t('savedChartHeader.favorite')}
                         </Button>
                     )}
                     {showFullscreenToggle && (!compact || isFullscreen) && (
                         <Tooltip
                             label={
                                 isFullscreen
-                                    ? 'Exit Fullscreen Mode'
-                                    : 'Enter Fullscreen Mode'
+                                    ? t('savedChartHeader.exitFullscreen')
+                                    : t('savedChartHeader.enterFullscreen')
                             }
                             position="bottom"
                             openDelay={200}
@@ -703,8 +731,8 @@ const SavedChartsHeader: FC = () => {
                             <ActionIcon
                                 aria-label={
                                     isFullscreen
-                                        ? 'Exit Fullscreen Mode'
-                                        : 'Enter Fullscreen Mode'
+                                        ? t('savedChartHeader.exitFullscreen')
+                                        : t('savedChartHeader.enterFullscreen')
                                 }
                                 variant="default"
                                 onClick={handleToggleFullscreen}
@@ -767,7 +795,7 @@ const SavedChartsHeader: FC = () => {
                                             }
                                             onClick={editChart}
                                         >
-                                            Edit chart
+                                            {t('savedChartHeader.editChart')}
                                         </Menu.Item>
                                     )}
                                     {canExploreFromHere && (
@@ -782,7 +810,7 @@ const SavedChartsHeader: FC = () => {
                                     }
                                     onClick={() => setIsDetailsOpen(true)}
                                 >
-                                    Details
+                                    {t('savedChartHeader.details')}
                                 </Menu.Item>
                             )}
                             {compact && showFullscreenToggle && (
@@ -792,7 +820,7 @@ const SavedChartsHeader: FC = () => {
                                     }
                                     onClick={handleToggleFullscreen}
                                 >
-                                    Enter fullscreen
+                                    {t('savedChartHeader.enterFullscreenShort')}
                                 </Menu.Item>
                             )}
                         </ChartActionsMenu>
@@ -803,7 +831,7 @@ const SavedChartsHeader: FC = () => {
             {isDetailsOpen && savedChart && projectUuid && (
                 <MantineModal
                     opened
-                    title="Chart details"
+                    title={t('savedChartHeader.chartDetails')}
                     onClose={() => setIsDetailsOpen(false)}
                 >
                     <ResourceInfoPopupContent

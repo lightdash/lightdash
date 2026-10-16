@@ -19,6 +19,7 @@ import {
 import { IconMoon, IconPlus, IconSun } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { filterOperatorLabel } from '../../common/Filters/FilterInputs/constants';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
@@ -45,6 +46,7 @@ export const BigNumberConditionalFormattingItem: FC<Props> = ({
     onChange,
     onRemove,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const { colorScheme } = useMantineColorScheme();
     const [openConditions, setOpenConditions] = useState<string[]>(() =>
         isConditionalFormattingConfigWithSingleColor(value)
@@ -142,14 +144,20 @@ export const BigNumberConditionalFormattingItem: FC<Props> = ({
         [onChange, value],
     );
 
-    const controlLabel = `Rule ${configIndex}`;
+    const controlLabel = t('bigNumber.conditionalFormatting.ruleNumber', {
+        number: configIndex,
+    });
     const accordionValue = `${configIndex}`;
 
     const description = useMemo(() => {
         if (isConditionalFormattingConfigWithColorRange(value)) {
-            const min = value.rule.min === 'auto' ? 'auto' : value.rule.min;
-            const max = value.rule.max === 'auto' ? 'auto' : value.rule.max;
-            return `Range ${min}–${max}`;
+            const auto = t('bigNumber.conditionalFormatting.auto');
+            const min = value.rule.min === 'auto' ? auto : value.rule.min;
+            const max = value.rule.max === 'auto' ? auto : value.rule.max;
+            return t('bigNumber.conditionalFormatting.rangeSummary', {
+                min,
+                max,
+            });
         }
 
         if (
@@ -164,15 +172,16 @@ export const BigNumberConditionalFormattingItem: FC<Props> = ({
                 : '';
             const ruleStr = values ? `${operator} ${values}` : operator;
             const extraCount = value.rules.length - 1;
-            const extra =
-                extraCount > 0
-                    ? ` +${extraCount} ${extraCount === 1 ? 'rule' : 'rules'}`
-                    : '';
-            return `${ruleStr}${extra}`;
+            return extraCount > 0
+                ? t('bigNumber.conditionalFormatting.ruleSummaryWithExtra', {
+                      rule: ruleStr,
+                      count: extraCount,
+                  })
+                : ruleStr;
         }
 
         return undefined;
-    }, [value]);
+    }, [value, t]);
 
     const lightColor = isConditionalFormattingConfigWithSingleColor(value)
         ? value.color
@@ -211,7 +220,7 @@ export const BigNumberConditionalFormattingItem: FC<Props> = ({
                         <Group>
                             <Group gap="xs">
                                 <Config.Label icon={IconSun}>
-                                    Light
+                                    {t('bigNumber.conditionalFormatting.light')}
                                 </Config.Label>
                                 <ColorSelector
                                     color={lightColor}
@@ -222,7 +231,7 @@ export const BigNumberConditionalFormattingItem: FC<Props> = ({
 
                             <Group gap="xs">
                                 <Config.Label icon={IconMoon}>
-                                    Dark
+                                    {t('bigNumber.conditionalFormatting.dark')}
                                 </Config.Label>
                                 <ColorSelector
                                     color={darkColor}
@@ -235,7 +244,11 @@ export const BigNumberConditionalFormattingItem: FC<Props> = ({
                         {isConditionalFormattingConfigWithSingleColor(value) ? (
                             <>
                                 <Flex justify="space-between">
-                                    <Config.Label>Conditions</Config.Label>
+                                    <Config.Label>
+                                        {t(
+                                            'bigNumber.conditionalFormatting.conditions',
+                                        )}
+                                    </Config.Label>
                                     <Button
                                         size="compact-xs"
                                         variant="subtle"
@@ -244,7 +257,7 @@ export const BigNumberConditionalFormattingItem: FC<Props> = ({
                                         }
                                         onClick={handleAddRule}
                                     >
-                                        Add
+                                        {t('actions.add', { ns: 'common' })}
                                     </Button>
                                 </Flex>
                                 <Accordion

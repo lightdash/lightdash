@@ -12,6 +12,7 @@ import {
 } from '@lightdash/common';
 import { Group, Stack, Text } from '@mantine/core';
 import { useId, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { poolKeyForSlot } from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
 import { getDataAppVizFieldItems } from '../../../features/chartTypes/utils/getDataAppVizFieldItems';
 import FieldSelect from '../../common/FieldSelect';
@@ -46,6 +47,7 @@ const DataAppVizSettings: FC<Props> = ({
     fieldMapping,
     onFieldChange,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const guidanceIdPrefix = useId();
     const { addableItems, addFieldToQuery, isFieldPending } =
         useAddFieldsToQuery();
@@ -77,7 +79,7 @@ const DataAppVizSettings: FC<Props> = ({
         <Stack>
             {fields.length === 0 && (
                 <Text c="dimmed" size="sm">
-                    This chart type has no fields to map.
+                    {t('dataAppViz.settings.noFieldsToMap')}
                 </Text>
             )}
 
@@ -124,7 +126,9 @@ const DataAppVizSettings: FC<Props> = ({
                                         items.length === 0 &&
                                         addItems.length === 0
                                     }
-                                    emptyPlaceholder={`You need at least one ${poolKeyForSlot(field)} in your chart to set this field`}
+                                    emptyPlaceholder={t(
+                                        `dataAppViz.settings.needAtLeastOne.${poolKeyForSlot(field)}`,
+                                    )}
                                     isFieldPending={isFieldPending}
                                     onAddToQuery={addFieldToQuery}
                                     onChange={(ids) =>
@@ -153,8 +157,15 @@ const DataAppVizSettings: FC<Props> = ({
                                         placeholder={
                                             items.length === 0 &&
                                             addItems.length === 0
-                                                ? `You need at least one ${poolKeyForSlot(field)} in your chart to set this field`
-                                                : `Select ${field.label.toLowerCase()}`
+                                                ? t(
+                                                      `dataAppViz.settings.needAtLeastOne.${poolKeyForSlot(field)}`,
+                                                  )
+                                                : t(
+                                                      'dataAppViz.settings.selectField',
+                                                      {
+                                                          label: field.label.toLowerCase(),
+                                                      },
+                                                  )
                                         }
                                         disabled={
                                             items.length === 0 &&

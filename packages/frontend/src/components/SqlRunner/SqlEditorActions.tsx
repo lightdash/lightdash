@@ -6,6 +6,7 @@ import {
     IconTextWrapDisabled,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CopyActionIcon } from '../common/CopyActionIcon';
 import MantineIcon from '../common/MantineIcon';
 
@@ -15,10 +16,11 @@ export const SqlEditorActions: FC<{
     onToggleSoftWrap: () => void;
     onFormat?: () => void;
 }> = ({ isSoftWrapEnabled, onToggleSoftWrap, clipboardContent, onFormat }) => {
+    const { t } = useTranslation('sqlRunner');
     return (
         <Group pos="absolute" bottom={5} right={12} gap="xxs">
             {onFormat && (
-                <Tooltip label="Format SQL" position="left">
+                <Tooltip label={t('editorActions.formatSql')} position="left">
                     <ActionIcon
                         onClick={onFormat}
                         color="ldLight"
@@ -31,8 +33,8 @@ export const SqlEditorActions: FC<{
             <Tooltip
                 label={
                     isSoftWrapEnabled
-                        ? 'Disable editor soft-wrapping'
-                        : 'Enable editor soft-wrapping'
+                        ? t('editorActions.disableSoftWrap')
+                        : t('editorActions.enableSoftWrap')
                 }
                 position="left"
             >
@@ -51,7 +53,7 @@ export const SqlEditorActions: FC<{
             <CopyActionIcon
                 value={clipboardContent ?? ''}
                 icon={IconClipboard}
-                copiedLabel="Copied to clipboard!"
+                copiedLabel={t('feedback.copiedToClipboard', { ns: 'common' })}
                 tooltipPosition="right"
                 variant="outline"
             />

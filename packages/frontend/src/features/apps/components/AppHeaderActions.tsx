@@ -1,6 +1,7 @@
 import { ActionIcon, Divider, Tooltip } from '@mantine/core';
 import { IconPencil, IconRefresh } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ShareLinkButton } from '../../../components/common/ShareLinkButton';
 import AppActionsMenu, { type AppActionsMenuProps } from './AppActionsMenu';
@@ -62,12 +63,13 @@ const AppHeaderActions: FC<Props> = ({
     analysisToggle = null,
     ...menuProps
 }) => {
+    const { t } = useTranslation('apps');
     return (
         <>
             {onEdit && (
                 <>
                     <Tooltip
-                        label="Continue building"
+                        label={t('header.continueBuilding')}
                         position="bottom"
                         openDelay={200}
                         transitionProps={{
@@ -76,7 +78,7 @@ const AppHeaderActions: FC<Props> = ({
                         }}
                     >
                         <ActionIcon
-                            aria-label="Continue building"
+                            aria-label={t('header.continueBuilding')}
                             // Anchor for scope walkthroughs (data-tour-via):
                             // from the running app into the builder.
                             data-tour-anchor="app-continue-building"
@@ -97,7 +99,7 @@ const AppHeaderActions: FC<Props> = ({
                 </>
             )}
             <Tooltip
-                label="Refresh to re-run queries"
+                label={t('header.refreshTooltip')}
                 position="bottom"
                 openDelay={200}
                 transitionProps={{
@@ -110,7 +112,7 @@ const AppHeaderActions: FC<Props> = ({
                     size="md"
                     disabled={refreshDisabled}
                     onClick={onRefresh}
-                    aria-label="Refresh"
+                    aria-label={t('actionsMenu.refresh')}
                 >
                     <MantineIcon icon={IconRefresh} />
                 </ActionIcon>
@@ -118,12 +120,15 @@ const AppHeaderActions: FC<Props> = ({
             {analysisToggle}
             {fullscreenToggle}
             {shareUrl && (
-                <ShareLinkButton url={shareUrl} label="Copy link to the app" />
+                <ShareLinkButton url={shareUrl} label={t('header.copyLink')} />
             )}
             <AppActionsMenu
                 {...menuProps}
                 onRefresh={null}
-                viewNetwork={{ label: 'View network', onClick: onViewNetwork }}
+                viewNetwork={{
+                    label: t('header.viewNetwork'),
+                    onClick: onViewNetwork,
+                }}
             />
         </>
     );

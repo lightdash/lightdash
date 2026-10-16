@@ -1,11 +1,13 @@
 import { Alert, Anchor, Stack, Text } from '@mantine/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 import { useFormContext } from '../formContext';
 import BooleanSwitch from '../Inputs/BooleanSwitch';
 
 const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
     return (
         <Stack>
@@ -14,42 +16,46 @@ const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 icon={<MantineIcon icon={IconExclamationCircle} />}
             >
                 <Text fz="sm">
-                    This project is deployed using the CLI. To refresh native
-                    YAML and edit source files in Lightdash, select GitHub above
-                    and choose Native Lightdash YAML. You can also deploy with{' '}
-                    <Anchor
-                        href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy"
-                        target="_blank"
-                        rel="noreferrer"
-                        fz="sm"
-                    >
-                        lightdash deploy
-                    </Anchor>{' '}
-                    or automate deployments with a GitHub action.
+                    <Trans
+                        t={t}
+                        i18nKey="dbtForms.none.cliDeployed"
+                        components={{
+                            deployLink: (
+                                <Anchor
+                                    href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    fz="sm"
+                                />
+                            ),
+                        }}
+                    />
                 </Text>
             </Alert>
 
             <BooleanSwitch
-                onLabel="Yes"
-                offLabel="No"
+                onLabel={t('state.yes', { ns: 'common' })}
+                offLabel={t('state.no', { ns: 'common' })}
                 disabled={disabled}
                 {...form.getInputProps('dbt.hideRefreshButton')}
                 name="dbt.hideRefreshButton"
-                label="Hide refresh button in the app"
+                label={t('dbtForms.none.hideRefreshButton')}
                 description={
                     <Text fz="sm">
-                        This will hide the refresh button from the explore page.
-                        Read more about your{' '}
-                        <Anchor
-                            href={
-                                'https://docs.lightdash.com/references/dbt-projects'
-                            }
-                            target="_blank"
-                            rel="noreferrer"
-                            fz="sm"
-                        >
-                            options for refreshing dbt here
-                        </Anchor>
+                        <Trans
+                            t={t}
+                            i18nKey="dbtForms.none.hideRefreshButtonDescription"
+                            components={{
+                                docsLink: (
+                                    <Anchor
+                                        href="https://docs.lightdash.com/references/dbt-projects"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        fz="sm"
+                                    />
+                                ),
+                            }}
+                        />
                     </Text>
                 }
             />

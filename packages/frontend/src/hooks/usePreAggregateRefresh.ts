@@ -1,6 +1,7 @@
 import { type ApiError } from '@lightdash/common';
 import { IconRefreshDot } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import useSchedulerJobsContext from '../providers/SchedulerJobs/useSchedulerJobsContext';
 import useToaster from './toaster/useToaster';
@@ -21,6 +22,7 @@ export const useRefreshAllPreAggregates = (
     options: RefreshOptions = {},
 ) => {
     const { showToast = true } = options;
+    const { t } = useTranslation('app');
     const { showToastApiError } = useToaster();
     const { registerJobs } = useSchedulerJobsContext();
     const queryClient = useQueryClient();
@@ -38,7 +40,7 @@ export const useRefreshAllPreAggregates = (
                     jobIds: data.jobIds,
                     showToast,
                     toastKey: 'pre-aggregate-rebuild',
-                    toastTitle: 'Rebuilding pre-aggregates',
+                    toastTitle: t('usePreAggregateRefresh.rebuildingAll'),
                     toastIcon: IconRefreshDot,
                     onComplete: () => {
                         void queryClient.invalidateQueries({
@@ -52,7 +54,9 @@ export const useRefreshAllPreAggregates = (
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to rebuild pre-aggregates',
+                    title: t(
+                        'usePreAggregateRefresh.failedToRebuildPreAggregates',
+                    ),
                     apiError: error,
                 });
             },
@@ -75,6 +79,7 @@ export const useRefreshPreAggregateByDefinitionName = (
     options: RefreshOptions = {},
 ) => {
     const { showToast = true } = options;
+    const { t } = useTranslation('app');
     const { showToastApiError } = useToaster();
     const { registerJobs } = useSchedulerJobsContext();
     const queryClient = useQueryClient();
@@ -97,7 +102,7 @@ export const useRefreshPreAggregateByDefinitionName = (
                     label: preAggregateDefinitionName,
                     showToast,
                     toastKey: 'pre-aggregate-rebuild',
-                    toastTitle: 'Rebuilding pre-aggregate',
+                    toastTitle: t('usePreAggregateRefresh.rebuildingOne'),
                     toastIcon: IconRefreshDot,
                     onComplete: () => {
                         void queryClient.invalidateQueries({
@@ -111,7 +116,9 @@ export const useRefreshPreAggregateByDefinitionName = (
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to rebuild pre-aggregate',
+                    title: t(
+                        'usePreAggregateRefresh.failedToRebuildPreAggregate',
+                    ),
                     apiError: error,
                 });
             },

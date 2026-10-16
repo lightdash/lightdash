@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import {
@@ -31,6 +32,7 @@ const LightdashAnalyticsPanel = ({
 }: {
     activeProjectUuid?: string;
 }) => {
+    const { t } = useTranslation('userSettings');
     const status = useAnalyticsProject();
     const createProject = useCreateAnalyticsProject();
     const deleteProject = useDeleteAnalyticsProject();
@@ -46,18 +48,22 @@ const LightdashAnalyticsPanel = ({
 
     return (
         <SettingsPage
-            title="Lightdash analytics"
+            title={t('lightdashAnalyticsPanel.title')}
             isBeta
-            description="Explore your organization's AI usage and query activity."
+            description={t('lightdashAnalyticsPanel.description')}
         >
             <SettingsCard>
                 {status.isLoading ? (
-                    <EmptyStateLoader title="Loading analytics project" />
+                    <EmptyStateLoader
+                        title={t('lightdashAnalyticsPanel.loadingProject')}
+                    />
                 ) : status.isError ? (
                     <Stack gap="md">
                         <Callout
                             variant="danger"
-                            title="Unable to load analytics project"
+                            title={t(
+                                'lightdashAnalyticsPanel.errors.loadProject',
+                            )}
                         >
                             {status.error.error.message}
                         </Callout>
@@ -66,7 +72,7 @@ const LightdashAnalyticsPanel = ({
                                 variant="default"
                                 onClick={() => void status.refetch()}
                             >
-                                Retry
+                                {t('actions.retry', { ns: 'common' })}
                             </Button>
                         </Group>
                     </Stack>
@@ -75,27 +81,39 @@ const LightdashAnalyticsPanel = ({
                         <Stack gap="xs">
                             <Title order={5}>
                                 {analyticsProject
-                                    ? 'Your analytics project'
-                                    : 'Create your analytics project'}
+                                    ? t('lightdashAnalyticsPanel.project.title')
+                                    : t(
+                                          'lightdashAnalyticsPanel.project.createTitle',
+                                      )}
                             </Title>
                             <Text fz="sm" c="dimmed">
                                 {analyticsProject
-                                    ? 'Open your dedicated project to explore AI usage and query events.'
-                                    : 'Create a dedicated project with built-in AI usage and query event models. No connection setup is needed.'}
+                                    ? t(
+                                          'lightdashAnalyticsPanel.project.description',
+                                      )
+                                    : t(
+                                          'lightdashAnalyticsPanel.project.createDescription',
+                                      )}
                             </Text>
                         </Stack>
                         {analyticsProject && (
                             <Text fz="xs" c="dimmed">
-                                Created{' '}
-                                {new Date(
-                                    analyticsProject.createdAt,
-                                ).toLocaleString()}
+                                {t(
+                                    'lightdashAnalyticsPanel.project.createdAt',
+                                    {
+                                        date: new Date(
+                                            analyticsProject.createdAt,
+                                        ).toLocaleString(),
+                                    },
+                                )}
                             </Text>
                         )}
                         {createProject.isError && (
                             <Callout
                                 variant="danger"
-                                title="Unable to create analytics project"
+                                title={t(
+                                    'lightdashAnalyticsPanel.errors.createProject',
+                                )}
                             >
                                 {createProject.error.error.message}
                             </Callout>
@@ -107,7 +125,9 @@ const LightdashAnalyticsPanel = ({
                                         component={Link}
                                         to={analyticsProject.url}
                                     >
-                                        Explore
+                                        {t(
+                                            'lightdashAnalyticsPanel.actions.explore',
+                                        )}
                                     </Button>
                                     {analyticsProject.hasContentUpdates !==
                                         false && (
@@ -117,7 +137,15 @@ const LightdashAnalyticsPanel = ({
                                                 focus: true,
                                                 touch: true,
                                             }}
-                                            label={`${analyticsProject.hasContentUpdates ? 'New analytics content is available. Sync to update your models and dashboards. ' : ''}Updates built-in dashboards and charts, replacing edits to them. Custom dashboards and copies are kept. Duplicate built-in dashboards to keep your edits.`}
+                                            label={
+                                                analyticsProject.hasContentUpdates
+                                                    ? t(
+                                                          'lightdashAnalyticsPanel.sync.tooltipWithUpdates',
+                                                      )
+                                                    : t(
+                                                          'lightdashAnalyticsPanel.sync.tooltip',
+                                                      )
+                                            }
                                         >
                                             <Button
                                                 variant="default"
@@ -128,7 +156,9 @@ const LightdashAnalyticsPanel = ({
                                                             color="blue"
                                                             aria-hidden={false}
                                                             role="img"
-                                                            aria-label="New analytics content available"
+                                                            aria-label={t(
+                                                                'lightdashAnalyticsPanel.sync.newContentAriaLabel',
+                                                            )}
                                                         />
                                                     ) : undefined
                                                 }
@@ -139,7 +169,9 @@ const LightdashAnalyticsPanel = ({
                                                     installSampleContent.mutate()
                                                 }
                                             >
-                                                Sync content
+                                                {t(
+                                                    'lightdashAnalyticsPanel.sync.button',
+                                                )}
                                             </Button>
                                         </Tooltip>
                                     )}
@@ -153,7 +185,9 @@ const LightdashAnalyticsPanel = ({
                                             );
                                         }}
                                     >
-                                        Delete
+                                        {t('actions.delete', {
+                                            ns: 'common',
+                                        })}
                                     </Button>
                                 </>
                             ) : (
@@ -161,14 +195,16 @@ const LightdashAnalyticsPanel = ({
                                     loading={createProject.isLoading}
                                     onClick={() => createProject.mutate()}
                                 >
-                                    Create
+                                    {t('actions.create', { ns: 'common' })}
                                 </Button>
                             )}
                         </Group>
                         {installSampleContent.isError && (
                             <Callout
                                 variant="danger"
-                                title="Unable to sync analytics content"
+                                title={t(
+                                    'lightdashAnalyticsPanel.errors.syncContent',
+                                )}
                             >
                                 {installSampleContent.error.error.message}
                             </Callout>
@@ -179,13 +215,21 @@ const LightdashAnalyticsPanel = ({
             {status.isSuccess && analyticsProject && (
                 <SettingsCard>
                     <Stack gap="md">
-                        <Title order={5}>Dashboards</Title>
+                        <Title order={5}>
+                            {t('lightdashAnalyticsPanel.dashboards.title')}
+                        </Title>
                         {dashboards.isLoading ? (
-                            <EmptyStateLoader title="Loading dashboards" />
+                            <EmptyStateLoader
+                                title={t(
+                                    'lightdashAnalyticsPanel.dashboards.loading',
+                                )}
+                            />
                         ) : dashboards.isError ? (
                             <Callout
                                 variant="danger"
-                                title="Unable to load dashboards"
+                                title={t(
+                                    'lightdashAnalyticsPanel.errors.loadDashboards',
+                                )}
                             >
                                 {dashboards.error.error.message}
                             </Callout>
@@ -205,18 +249,20 @@ const LightdashAnalyticsPanel = ({
                                         </Text>
                                     )}
                                     <Text fz="xs" c="dimmed">
-                                        Updated{' '}
-                                        {new Date(
-                                            dashboard.updatedAt,
-                                        ).toLocaleString()}
+                                        {t(
+                                            'lightdashAnalyticsPanel.dashboards.updatedAt',
+                                            {
+                                                date: new Date(
+                                                    dashboard.updatedAt,
+                                                ).toLocaleString(),
+                                            },
+                                        )}
                                     </Text>
                                 </Stack>
                             ))
                         ) : (
                             <Text fz="sm" c="dimmed">
-                                No dashboards yet. Save a dashboard in your
-                                analytics project, then reload this page to see
-                                it here.
+                                {t('lightdashAnalyticsPanel.dashboards.empty')}
                             </Text>
                         )}
                     </Stack>
@@ -227,9 +273,11 @@ const LightdashAnalyticsPanel = ({
                 onClose={() => {
                     if (!deleteProject.isLoading) setDeleteTarget(null);
                 }}
-                title="Delete analytics project?"
+                title={t('lightdashAnalyticsPanel.deleteModal.title')}
                 variant="delete"
-                description="This permanently deletes the analytics project and its saved charts and dashboards. The collected usage events in storage are not deleted. You can create a new analytics project afterwards."
+                description={t(
+                    'lightdashAnalyticsPanel.deleteModal.description',
+                )}
                 confirmLoading={deleteProject.isLoading}
                 onConfirm={() => {
                     if (deleteTarget)
@@ -246,7 +294,9 @@ const LightdashAnalyticsPanel = ({
                 {deleteProject.isError && (
                     <Callout
                         variant="danger"
-                        title="Unable to delete analytics project"
+                        title={t(
+                            'lightdashAnalyticsPanel.errors.deleteProject',
+                        )}
                     >
                         {deleteProject.error.error.message}
                     </Callout>

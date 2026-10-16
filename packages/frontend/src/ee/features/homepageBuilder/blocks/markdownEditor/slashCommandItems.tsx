@@ -13,6 +13,7 @@ import {
 } from '@tabler/icons-react';
 import { type Editor, type Range } from '@tiptap/react';
 import { type SuggestionItem } from '../../../../../components/common/SuggestionList/SuggestionList';
+import i18n from '../../../../../i18n/i18n';
 
 export type SlashCommandItem = SuggestionItem & {
     description: string;
@@ -20,94 +21,68 @@ export type SlashCommandItem = SuggestionItem & {
     run: (editor: Editor, range: Range) => void;
 };
 
+// Getters keep the copy lazy: resolved at render, never at module load.
+const slashItem = (
+    id: string,
+    icon: TablerIcon,
+    run: SlashCommandItem['run'],
+): SlashCommandItem => ({
+    id,
+    icon,
+    run,
+    get label() {
+        return i18n.t(`slashCommands.${id}.label`, { ns: 'homepageBuilder' });
+    },
+    get description() {
+        return i18n.t(`slashCommands.${id}.description`, {
+            ns: 'homepageBuilder',
+        });
+    },
+});
+
 export const SLASH_COMMAND_ITEMS: SlashCommandItem[] = [
-    {
-        id: 'text',
-        label: 'Text',
-        description: 'Plain paragraph',
-        icon: IconPilcrow,
-        run: (editor, range) =>
-            editor.chain().focus().deleteRange(range).setParagraph().run(),
-    },
-    {
-        id: 'heading1',
-        label: 'Heading 1',
-        description: 'Big section heading',
-        icon: IconH1,
-        run: (editor, range) =>
-            editor
-                .chain()
-                .focus()
-                .deleteRange(range)
-                .setNode('heading', { level: 1 })
-                .run(),
-    },
-    {
-        id: 'heading2',
-        label: 'Heading 2',
-        description: 'Medium section heading',
-        icon: IconH2,
-        run: (editor, range) =>
-            editor
-                .chain()
-                .focus()
-                .deleteRange(range)
-                .setNode('heading', { level: 2 })
-                .run(),
-    },
-    {
-        id: 'heading3',
-        label: 'Heading 3',
-        description: 'Small section heading',
-        icon: IconH3,
-        run: (editor, range) =>
-            editor
-                .chain()
-                .focus()
-                .deleteRange(range)
-                .setNode('heading', { level: 3 })
-                .run(),
-    },
-    {
-        id: 'bulletList',
-        label: 'Bulleted list',
-        description: 'Simple unordered list',
-        icon: IconList,
-        run: (editor, range) =>
-            editor.chain().focus().deleteRange(range).toggleBulletList().run(),
-    },
-    {
-        id: 'orderedList',
-        label: 'Numbered list',
-        description: 'Ordered list with numbers',
-        icon: IconListNumbers,
-        run: (editor, range) =>
-            editor.chain().focus().deleteRange(range).toggleOrderedList().run(),
-    },
-    {
-        id: 'blockquote',
-        label: 'Quote',
-        description: 'Indented callout text',
-        icon: IconBlockquote,
-        run: (editor, range) =>
-            editor.chain().focus().deleteRange(range).toggleBlockquote().run(),
-    },
-    {
-        id: 'codeBlock',
-        label: 'Code block',
-        description: 'Monospaced code snippet',
-        icon: IconCode,
-        run: (editor, range) =>
-            editor.chain().focus().deleteRange(range).toggleCodeBlock().run(),
-    },
-    {
-        id: 'divider',
-        label: 'Divider',
-        description: 'Horizontal rule',
-        icon: IconMinus,
-        run: (editor, range) =>
-            editor.chain().focus().deleteRange(range).setHorizontalRule().run(),
-    },
+    slashItem('text', IconPilcrow, (editor, range) =>
+        editor.chain().focus().deleteRange(range).setParagraph().run(),
+    ),
+    slashItem('heading1', IconH1, (editor, range) =>
+        editor
+            .chain()
+            .focus()
+            .deleteRange(range)
+            .setNode('heading', { level: 1 })
+            .run(),
+    ),
+    slashItem('heading2', IconH2, (editor, range) =>
+        editor
+            .chain()
+            .focus()
+            .deleteRange(range)
+            .setNode('heading', { level: 2 })
+            .run(),
+    ),
+    slashItem('heading3', IconH3, (editor, range) =>
+        editor
+            .chain()
+            .focus()
+            .deleteRange(range)
+            .setNode('heading', { level: 3 })
+            .run(),
+    ),
+    slashItem('bulletList', IconList, (editor, range) =>
+        editor.chain().focus().deleteRange(range).toggleBulletList().run(),
+    ),
+    slashItem('orderedList', IconListNumbers, (editor, range) =>
+        editor.chain().focus().deleteRange(range).toggleOrderedList().run(),
+    ),
+    slashItem('blockquote', IconBlockquote, (editor, range) =>
+        editor.chain().focus().deleteRange(range).toggleBlockquote().run(),
+    ),
+    slashItem('codeBlock', IconCode, (editor, range) =>
+        editor.chain().focus().deleteRange(range).toggleCodeBlock().run(),
+    ),
+    slashItem('divider', IconMinus, (editor, range) =>
+        editor.chain().focus().deleteRange(range).setHorizontalRule().run(),
+    ),
 ];
 
 export const createSlashCommandItems = (options?: {
@@ -117,15 +92,9 @@ export const createSlashCommandItems = (options?: {
     const { onInsertImage } = options;
     return [
         ...SLASH_COMMAND_ITEMS,
-        {
-            id: 'image',
-            label: 'Image',
-            description: 'Upload an image',
-            icon: IconPhoto,
-            run: (editor, range) => {
-                editor.chain().focus().deleteRange(range).run();
-                onInsertImage();
-            },
-        },
+        slashItem('image', IconPhoto, (editor, range) => {
+            editor.chain().focus().deleteRange(range).run();
+            onInsertImage();
+        }),
     ];
 };

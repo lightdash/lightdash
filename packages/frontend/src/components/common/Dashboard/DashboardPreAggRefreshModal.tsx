@@ -1,6 +1,7 @@
 import { Code, List, Text } from '@mantine/core';
 import { IconRefreshDot } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useRefreshPreAggregateByDefinitionName } from '../../../hooks/usePreAggregateRefresh';
 import MantineModal from '../MantineModal';
 
@@ -17,6 +18,7 @@ const DashboardPreAggRefreshModal: FC<DashboardPreAggRefreshModalProps> = ({
     projectUuid,
     preAggregateNames,
 }) => {
+    const { t } = useTranslation('modals');
     const { mutateAsync: refreshByName, isLoading } =
         useRefreshPreAggregateByDefinitionName(projectUuid);
 
@@ -29,17 +31,17 @@ const DashboardPreAggRefreshModal: FC<DashboardPreAggRefreshModalProps> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Rebuild pre-aggregates"
+            title={t('dashboard.preAggRefresh.title')}
             icon={IconRefreshDot}
             size="lg"
             onConfirm={handleConfirm}
-            confirmLabel="Rebuild"
+            confirmLabel={t('dashboard.preAggRefresh.confirm')}
             confirmLoading={isLoading}
         >
             <Text fz="sm">
-                This will rebuild {preAggregateNames.length} pre-aggregate
-                {preAggregateNames.length === 1 ? '' : 's'} used by this
-                dashboard:
+                {t('dashboard.preAggRefresh.body', {
+                    count: preAggregateNames.length,
+                })}
             </Text>
             <List fz="sm" spacing={4}>
                 {preAggregateNames.map((name) => (

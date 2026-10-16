@@ -28,8 +28,10 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import { pollForResults } from '../features/queryRunner/executeQuery';
+import i18n from '../i18n/i18n';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
 
@@ -83,7 +85,8 @@ const getAsyncQueryErrorType = (
 };
 
 export const getAsyncQueryError = (message: string | null): ApiError => {
-    const errorMessage = message || 'Query failed';
+    const errorMessage =
+        message || i18n.t('useQueryResults.queryFailed', { ns: 'app' });
     const { name, statusCode } = getAsyncQueryErrorType(errorMessage);
 
     return {
@@ -370,11 +373,12 @@ export const useInfiniteQueryResults = (
     chartName?: string,
     resultsUrl: string | null = null,
 ): InfiniteQueryResults => {
+    const { t } = useTranslation('app');
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
         forbiddenToastTitle: chartName
-            ? `Error running query for chart '${chartName}'`
-            : 'Error running query',
+            ? t('useQueryResults.errorRunningQueryForChart', { chartName })
+            : t('useQueryResults.errorRunningQuery'),
         chartName,
     });
     const [fetchArgs, setFetchArgs] = useState<{
@@ -487,7 +491,9 @@ export const useInfiniteQueryResults = (
                         error: {
                             name: 'Error',
                             statusCode: 500,
-                            message: 'Query cancelled',
+                            message: i18n.t('useQueryResults.queryCancelled', {
+                                ns: 'app',
+                            }),
                             data: {},
                         },
                     };

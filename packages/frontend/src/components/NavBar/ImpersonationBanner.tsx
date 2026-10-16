@@ -1,5 +1,6 @@
 import { Button, Center, Group, Text } from '@mantine/core';
 import { IconEye } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import {
     useImpersonation,
     useStopImpersonation,
@@ -9,6 +10,7 @@ import { BANNER_HEIGHT } from '../common/Page/constants';
 import classes from './ImpersonationBanner.module.css';
 
 export const ImpersonationBanner = () => {
+    const { t } = useTranslation('navigation');
     const { impersonation } = useImpersonation();
     const { mutate: stopImpersonating, isLoading } = useStopImpersonation();
 
@@ -27,7 +29,7 @@ export const ImpersonationBanner = () => {
             <Group gap="sm">
                 <MantineIcon icon={IconEye} color="white" size="sm" />
                 <Text c="white" fw={500} fz="xs">
-                    You are impersonating another user
+                    {t('impersonation.message')}
                 </Text>
                 <Button
                     size="compact-xs"
@@ -36,7 +38,7 @@ export const ImpersonationBanner = () => {
                     onClick={() => stopImpersonating()}
                     loading={isLoading}
                 >
-                    Stop impersonating
+                    {t('impersonation.stop')}
                 </Button>
             </Group>
         </Center>

@@ -18,16 +18,14 @@ import {
     IconPuzzle,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
 import { getChartTypeIcon } from '../../../features/chartTypes/utils/chartTypeIcons';
 import MantineIcon from '../../common/MantineIcon';
 import {
-    BUILT_IN_GROUP,
-    BUILT_IN_VEGA_DESCRIPTION,
-    BUILT_IN_VEGA_LABEL,
     fromOptionValue,
-    PROJECT_GROUP,
     toOptionValue,
     type CustomChartTypeOption,
 } from './customChartTypeOption';
@@ -61,31 +59,29 @@ type CustomChartTypeItem = {
 };
 
 const CREATE_NEW_CHART_TYPE_OPTION_VALUE = '__create_new_chart_type__';
-const CREATE_LABEL = 'Create new chart type';
 const BROWSE_GALLERY_OPTION_VALUE = '__browse_gallery__';
-const BROWSE_LABEL = 'Browse chart types';
 
-const fieldSummary = (dataAppViz: DataAppViz): string => {
-    const count = dataAppViz.schema?.fields.length ?? 0;
-    return `${count} field${count === 1 ? '' : 's'}`;
-};
+const fieldSummary = (dataAppViz: DataAppViz, t: TFunction): string =>
+    t('customChartType.fieldCount', {
+        count: dataAppViz.schema?.fields.length ?? 0,
+    });
 
-const toItem = (dataAppViz: DataAppViz): CustomChartTypeItem => ({
+const toItem = (dataAppViz: DataAppViz, t: TFunction): CustomChartTypeItem => ({
     value: toOptionValue({
         kind: 'projectType',
         dataAppVizUuid: dataAppViz.dataAppVizUuid,
     }),
     label: getAppDisplayName(dataAppViz.name, dataAppViz.dataAppVizUuid),
-    description: dataAppViz.description || fieldSummary(dataAppViz),
+    description: dataAppViz.description || fieldSummary(dataAppViz, t),
     icon: getChartTypeIcon(dataAppViz.icon),
 });
 
-const VEGA_ITEM: CustomChartTypeItem = {
+const getVegaItem = (t: TFunction): CustomChartTypeItem => ({
     value: toOptionValue({ kind: 'builtInVega' }),
-    label: BUILT_IN_VEGA_LABEL,
-    description: BUILT_IN_VEGA_DESCRIPTION,
+    label: t('customChartType.builtInVegaLabel'),
+    description: t('customChartType.builtInVegaDescription'),
     icon: IconCode,
-};
+});
 
 const matchesSearch = (item: CustomChartTypeItem, search: string): boolean =>
     item.label.toLowerCase().includes(search.trim().toLowerCase());
@@ -110,6 +106,8 @@ const CustomChartTypePicker: FC<Props> = ({
     onCreateNew,
     onBrowseGallery,
 }) => {
+    const { t } = useTranslation('vizConfig');
+    const vegaItem = useMemo(() => getVegaItem(t), [t]);
     const combobox = useCombobox({
         onDropdownClose: () => combobox.resetSelectedOption(),
     });
@@ -122,7 +120,7 @@ const CustomChartTypePicker: FC<Props> = ({
         selected === null
             ? null
             : selected.kind === 'builtInVega'
-              ? BUILT_IN_VEGA_LABEL
+              ? vegaItem.label
               : selectedDataAppViz
                 ? getAppDisplayName(
                       selectedDataAppViz.name,
@@ -151,7 +149,7 @@ const CustomChartTypePicker: FC<Props> = ({
 
     const projectItems = useMemo(() => {
         const dataAppVizs = data?.pages.flatMap((page) => page.data) ?? [];
-        const items = dataAppVizs.map(toItem);
+        const items = dataAppVizs.map((viz) => toItem(viz, t));
         // Keep the current selection displayable even when it is not in the
         // active (filtered) page.
         if (
@@ -165,14 +163,14 @@ const CustomChartTypePicker: FC<Props> = ({
                     }),
             )
         ) {
-            items.unshift(toItem(selectedDataAppViz));
+            items.unshift(toItem(selectedDataAppViz, t));
         }
         return items;
-    }, [data?.pages, selectedDataAppViz]);
+    }, [data?.pages, selectedDataAppViz, t]);
 
     const builtInItems =
-        onSelectVega !== null && matchesSearch(VEGA_ITEM, debouncedSearch)
-            ? [VEGA_ITEM]
+        onSelectVega !== null && matchesSearch(vegaItem, debouncedSearch)
+            ? [vegaItem]
             : [];
     const hasOptions = builtInItems.length > 0 || projectItems.length > 0;
 
@@ -235,7 +233,7 @@ const CustomChartTypePicker: FC<Props> = ({
             <CloseButton
                 size="sm"
                 variant="transparent"
-                aria-label="Clear custom chart type"
+                aria-label={t('customChartType.clear')}
                 // The input's blur would close the dropdown and swallow the click.
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => {
@@ -254,7 +252,7 @@ const CustomChartTypePicker: FC<Props> = ({
                 <InputBase
                     disabled={disabled}
                     value={search === null ? (selectedLabel ?? '') : search}
-                    placeholder="Search custom chart types…"
+                    placeholder={t('customChartType.searchPlaceholder')}
                     leftSection={<MantineIcon icon={selectedIcon} />}
                     rightSection={decoration}
                     rightSectionPointerEvents={isClearable ? 'auto' : 'none'}
@@ -276,20 +274,24 @@ const CustomChartTypePicker: FC<Props> = ({
                 <Combobox.Options>
                     <ScrollArea.Autosize mah={250} type="scroll">
                         {builtInItems.length > 0 && (
-                            <Combobox.Group label={BUILT_IN_GROUP}>
+                            <Combobox.Group
+                                label={t('customChartType.builtInGroup')}
+                            >
                                 {builtInItems.map(renderItem)}
                             </Combobox.Group>
                         )}
                         {projectItems.length > 0 && (
-                            <Combobox.Group label={PROJECT_GROUP}>
+                            <Combobox.Group
+                                label={t('customChartType.projectGroup')}
+                            >
                                 {projectItems.map(renderItem)}
                             </Combobox.Group>
                         )}
                         {!hasOptions && (
                             <Combobox.Empty>
                                 {error
-                                    ? 'Failed to load custom chart types'
-                                    : 'No custom chart types match your search'}
+                                    ? t('customChartType.loadFailed')
+                                    : t('customChartType.noMatches')}
                             </Combobox.Empty>
                         )}
                     </ScrollArea.Autosize>
@@ -305,7 +307,7 @@ const CustomChartTypePicker: FC<Props> = ({
                                     <Group gap="xs" wrap="nowrap">
                                         <MantineIcon icon={IconPlus} />
                                         <Text size="sm" truncate="end">
-                                            {CREATE_LABEL}
+                                            {t('customChartType.createNew')}
                                         </Text>
                                     </Group>
                                 </Combobox.Option>
@@ -317,7 +319,7 @@ const CustomChartTypePicker: FC<Props> = ({
                                     <Group gap="xs" wrap="nowrap">
                                         <MantineIcon icon={IconLayoutGrid} />
                                         <Text size="sm" truncate="end">
-                                            {BROWSE_LABEL}
+                                            {t('customChartType.browse')}
                                         </Text>
                                     </Group>
                                 </Combobox.Option>

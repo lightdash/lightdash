@@ -4,6 +4,7 @@ import {
     PullRequestSource,
     PullRequestState,
 } from '@lightdash/common';
+import i18n from '../../i18n/i18n';
 import { type PullRequestRow } from './types';
 
 export const DEFAULT_PULL_REQUESTS_PAGE_SIZE = 25;
@@ -17,17 +18,19 @@ export type PullRequestThreadPreviewTarget = {
 export const getSourceLabel = (source: PullRequestSource): string => {
     switch (source) {
         case PullRequestSource.CUSTOM_METRIC:
-            return 'Custom metric';
+            return i18n.t('pullRequests.sources.customMetric', { ns: 'app' });
         case PullRequestSource.CUSTOM_DIMENSION:
-            return 'Custom dimension';
+            return i18n.t('pullRequests.sources.customDimension', {
+                ns: 'app',
+            });
         case PullRequestSource.SQL_RUNNER:
-            return 'SQL runner';
+            return i18n.t('pullRequests.sources.sqlRunner', { ns: 'app' });
         case PullRequestSource.SOURCE_EDITOR:
-            return 'Source editor';
+            return i18n.t('pullRequests.sources.sourceEditor', { ns: 'app' });
         case PullRequestSource.AI_AGENT:
-            return 'AI agent';
+            return i18n.t('pullRequests.sources.aiAgent', { ns: 'app' });
         case PullRequestSource.CONTENT_AS_CODE:
-            return 'Content as code';
+            return i18n.t('pullRequests.sources.contentAsCode', { ns: 'app' });
         default:
             return assertUnreachable(source, `Unknown source ${source}`);
     }

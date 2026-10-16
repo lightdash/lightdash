@@ -1,0 +1,151 @@
+{
+    "groups": {
+        "foundations": {
+            "label": "Fundamentos",
+            "description": "Conviértete en un usuario experto de Lightdash"
+        },
+        "content": {
+            "label": "Contenido",
+            "description": "Crea y mantén gráficos, dashboards y espacios"
+        },
+        "sharing": {
+            "label": "Compartir",
+            "description": "Envía, programa y comenta respuestas fiables"
+        },
+        "embed": {
+            "label": "Integración",
+            "description": "Incluye gráficos y dashboards dentro de otros productos"
+        },
+        "data": {
+            "label": "Datos",
+            "description": "Da forma, inspecciona y amplía los datos disponibles en Lightdash"
+        },
+        "ai": {
+            "label": "IA",
+            "description": "Haz mejores preguntas y gestiona flujos de trabajo con IA"
+        },
+        "projectManagement": {
+            "label": "Gestión de proyectos",
+            "description": "Mantén en buen estado el acceso y la entrega de los proyectos"
+        },
+        "spotlight": {
+            "label": "Destacados",
+            "description": "Aprende áreas del producto de actualidad y flujos de trabajo avanzados"
+        },
+        "organizationManagement": {
+            "label": "Organización",
+            "description": "Administra personas, roles y la configuración de la organización"
+        },
+        "developer": {
+            "label": "Desarrollador",
+            "description": "Modela la capa semántica y gestiona contenido como código con la CLI"
+        }
+    },
+    "roles": {
+        "viewer": "Lector",
+        "interactiveViewer": "Lector interactivo",
+        "editor": "Editor",
+        "developer": "Desarrollador",
+        "admin": "Administrador"
+    },
+    "library": {
+        "roleAndAbove": "{{role}} o superior",
+        "greeting": "{{greeting}}. ¿Qué quieres aprender?",
+        "search": "Buscar en la biblioteca",
+        "upNext": "A continuación",
+        "everyModule": "Todos los módulos",
+        "whatYouCanDo": "Lo que puedes hacer",
+        "progress": "{{done}} de {{total}} completados",
+        "groupsAriaLabel": "Grupos de la biblioteca",
+        "all": "Todos",
+        "filter": "Filtrar",
+        "show": "Mostrar",
+        "showExtraModules": "Mostrar módulos adicionales",
+        "extraModules": "Módulos adicionales",
+        "comingSoon": "Próximamente",
+        "noMatches": "Ningún módulo coincide con esta búsqueda."
+    },
+    "enable": {
+        "overline": "Aprender",
+        "title": "Gana confianza con Lightdash, paso a paso",
+        "lede": "Sigue recorridos guiados en un proyecto de ejemplo, una función cada vez.",
+        "notEnabled": "Aún no habilitado",
+        "adminTitle": "Habilita Aprender para tu organización",
+        "adminIntro": "Al habilitarlo ocurren tres cosas:",
+        "effects": {
+            "createsProject": "se crea un proyecto llamado Training (sample data), con un pequeño conjunto de datos integrado;",
+            "grantsPermissions": "todos reciben permisos para practicar allí, y solo allí;",
+            "makesAdmin": "pasas a ser administrador de ese proyecto."
+        },
+        "button": "Habilitar Aprender",
+        "askAdminTitle": "Pide a un administrador que habilite Aprender",
+        "askAdminBody": "Un administrador de la organización activa Aprender desde esta página. Cuando lo haga, podrás empezar cualquier recorrido de aquí."
+    },
+    "done": {
+        "subtitle": "Módulo completado",
+        "backToLibrary": "Volver a la biblioteca",
+        "next": "Siguiente: {{title}}",
+        "progress": "Has completado todos los pasos. Módulos completados: <b>{{done}} de {{total}}</b>.",
+        "recommendedNext": "Siguiente recomendado",
+        "recommendation": "Recomendación",
+        "allCompleteTitle": "Has completado todos los recorridos disponibles",
+        "allCompleteBody": "No queda nada por recomendar. Vuelve a empezar cualquier recorrido desde la biblioteca."
+    },
+    "link": {
+        "label": "Aprender"
+    },
+    "card": {
+        "complete": "Completado",
+        "steps_one": "{{count}} paso",
+        "steps_other": "{{count}} pasos",
+        "comingSoon": "Próximamente",
+        "startAgain": "Empezar de nuevo",
+        "resume": "Reanudar",
+        "start": "Empezar"
+    },
+    "walkthrough": {
+        "startFailed": "No se pudo iniciar el recorrido"
+    },
+    "terminal": {
+        "status": {
+            "queued": "En cola",
+            "running": "En ejecución",
+            "finished": "Finalizado",
+            "failed": "Fallido",
+            "failedWithCode": "Fallido (código de salida {{exitCode}})",
+            "timedOut": "Tiempo agotado"
+        },
+        "commandLabel": "Comando",
+        "run": "Ejecutar",
+        "empty": "Ejecuta un comando para ver su salida aquí",
+        "errors": {
+            "missingSubcommand": "Escribe un subcomando, por ejemplo: dbt parse",
+            "unknownTool": "Los comandos empiezan por lightdash o dbt",
+            "readOutputFailed": "No se pudo leer la salida del comando"
+        }
+    },
+    "editor": {
+        "state": {
+            "saved": "Guardado",
+            "dirty": "Cambios sin guardar",
+            "saving": "Guardando…",
+            "readonly": "Solo lectura",
+            "invalid": "YAML no válido"
+        },
+        "unknownKey": "Clave desconocida \"{{key}}\". ¿Quisiste decir \"{{suggestion}}\"?",
+        "addHighlightedLines": "Añade las líneas resaltadas y vuelve a comprobar"
+    },
+    "workspace": {
+        "saveFailed": "No se pudo guardar el archivo",
+        "fixThenRun": "{{problem}} y vuelve a ejecutar el comando",
+        "saveFailedNothingRan": "No se pudo guardar el archivo, así que no se ejecutó nada",
+        "runFailed": "No se pudo ejecutar ese comando",
+        "title": "Espacio de trabajo",
+        "resizeFileTree": "Cambiar el tamaño del árbol de archivos",
+        "fileTreeLoadFailed": "No se pudo cargar el árbol de archivos",
+        "resizeTerminal": "Cambiar el tamaño del terminal",
+        "fileLoadFailed": "No se pudo cargar el archivo",
+        "loadingFile": "Cargando archivo…",
+        "pickFile": "Elige un archivo para empezar"
+    }
+}

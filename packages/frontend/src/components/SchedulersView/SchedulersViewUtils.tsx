@@ -29,6 +29,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { GSheetsIconFilled } from '../../components/common/GSheetsIcon';
+import i18n from '../../i18n/i18n';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
 
@@ -145,19 +146,35 @@ export const getLogStatusIconWithoutTooltip = (
 export const getRunStatusConfig = (status: SchedulerRunStatus) => {
     switch (status) {
         case SchedulerRunStatus.COMPLETED:
-            return { color: 'green', icon: IconCheck, label: 'Completed' };
+            return {
+                color: 'green',
+                icon: IconCheck,
+                label: i18n.t('runStatus.completed', { ns: 'scheduler' }),
+            };
         case SchedulerRunStatus.PARTIAL_FAILURE:
             return {
                 color: 'yellow',
                 icon: IconAlertCircle,
-                label: 'Partial failure',
+                label: i18n.t('runStatus.partialFailure', { ns: 'scheduler' }),
             };
         case SchedulerRunStatus.FAILED:
-            return { color: 'red', icon: IconAlertCircle, label: 'Failed' };
+            return {
+                color: 'red',
+                icon: IconAlertCircle,
+                label: i18n.t('runStatus.failed', { ns: 'scheduler' }),
+            };
         case SchedulerRunStatus.RUNNING:
-            return { color: 'blue', icon: IconRun, label: 'Running' };
+            return {
+                color: 'blue',
+                icon: IconRun,
+                label: i18n.t('runStatus.running', { ns: 'scheduler' }),
+            };
         case SchedulerRunStatus.SCHEDULED:
-            return { color: 'gray', icon: IconClock, label: 'Scheduled' };
+            return {
+                color: 'gray',
+                icon: IconClock,
+                label: i18n.t('runStatus.scheduled', { ns: 'scheduler' }),
+            };
         default:
             return assertUnreachable(status, 'Unknown scheduler run status');
     }
@@ -252,33 +269,21 @@ export const formatTime = (date: Date) =>
 
 export const formatTaskName = (task: string, targetCount?: number): string => {
     const taskLower = task.toLowerCase();
-    if (taskLower.includes('slackbatch')) {
+    const batchChannels: Array<[string, string]> = [
+        ['slackbatch', 'slack'],
+        ['emailbatch', 'email'],
+        ['msteamsbatch', 'msTeams'],
+        ['googlechatbatch', 'googleChat'],
+    ];
+    const batch = batchChannels.find(([match]) => taskLower.includes(match));
+    if (batch) {
+        const channel = batch[1];
         return targetCount
-            ? `Slack (${targetCount} ${
-                  targetCount === 1 ? 'target' : 'targets'
-              })`
-            : 'Slack Notifications';
-    }
-    if (taskLower.includes('emailbatch')) {
-        return targetCount
-            ? `Email (${targetCount} ${
-                  targetCount === 1 ? 'target' : 'targets'
-              })`
-            : 'Email Notifications';
-    }
-    if (taskLower.includes('msteamsbatch')) {
-        return targetCount
-            ? `MS Teams (${targetCount} ${
-                  targetCount === 1 ? 'target' : 'targets'
-              })`
-            : 'MS Teams Notifications';
-    }
-    if (taskLower.includes('googlechatbatch')) {
-        return targetCount
-            ? `Google Chat (${targetCount} ${
-                  targetCount === 1 ? 'target' : 'targets'
-              })`
-            : 'Google Chat Notifications';
+            ? i18n.t(`taskName.${channel}Targets`, {
+                  ns: 'scheduler',
+                  count: targetCount,
+              })
+            : i18n.t(`taskName.${channel}Notifications`, { ns: 'scheduler' });
     }
 
     // Convert camelCase to Title Case with spaces

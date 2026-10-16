@@ -3,45 +3,51 @@ import {
     type AiAgentJevChoice,
     type AiAgentJevDecision,
 } from '@lightdash/common';
+import i18n from '../../../../../i18n/i18n';
 
-const EDIT_LABELS: Record<string, string> = {
-    chart_type: 'chart type',
-    filter_values: 'filter',
-    filter_period: 'date range',
-    add_field: 'breakdown',
+const EDIT_LABEL_KEYS: Record<string, string> = {
+    chart_type: 'chartType',
+    filter_values: 'filterValues',
+    filter_period: 'filterPeriod',
+    add_field: 'addField',
     sort: 'sort',
-    remove_filter: 'filter removal',
-    filter_number: 'threshold filter',
-    filter_boolean: 'yes/no filter',
-    filter_text: 'text match',
-    filter_blank: 'blank filter',
-    acknowledgement: 'quick reply',
-    show_query: 'query summary',
-    download_help: 'download help',
-    add_metric: 'metric addition',
-    remove_metric: 'metric removal',
-    swap_metric: 'metric swap',
-    remove_field: 'breakdown removal',
-    swap_field: 'breakdown swap',
-    change_grain: 'time grain change',
-    clear_filters: 'clear filters',
-    clear_sort: 'clear sort',
+    remove_filter: 'removeFilter',
+    filter_number: 'filterNumber',
+    filter_boolean: 'filterBoolean',
+    filter_text: 'filterText',
+    filter_blank: 'filterBlank',
+    acknowledgement: 'acknowledgement',
+    show_query: 'showQuery',
+    download_help: 'downloadHelp',
+    add_metric: 'addMetric',
+    remove_metric: 'removeMetric',
+    swap_metric: 'swapMetric',
+    remove_field: 'removeField',
+    swap_field: 'swapField',
+    change_grain: 'changeGrain',
+    clear_filters: 'clearFilters',
+    clear_sort: 'clearSort',
     stack: 'stack',
     unstack: 'unstack',
-    swap_axes: 'swap axes',
-    split_series: 'split series',
-    compound: 'multi-step edit',
+    swap_axes: 'swapAxes',
+    split_series: 'splitSeries',
+    compound: 'compound',
     undo: 'undo',
-    rename_document: 'Document rename',
-    rename_chart: 'chart rename',
-    remove_chart: 'chart removal',
-    move_chart: 'chart move',
+    rename_document: 'renameDocument',
+    rename_chart: 'renameChart',
+    remove_chart: 'removeChart',
+    move_chart: 'moveChart',
 };
+
+const tr = (key: string, options?: Record<string, unknown>) =>
+    i18n.t(`battle.jev.${key}`, { ns: 'aiCopilotAdmin', ...options });
 
 const editLabel = (decision: AiAgentJevDecision) =>
     decision.editKind === null
-        ? 'edit'
-        : (EDIT_LABELS[decision.editKind] ?? decision.editKind);
+        ? tr('defaultEdit')
+        : EDIT_LABEL_KEYS[decision.editKind]
+          ? tr(`editKinds.${EDIT_LABEL_KEYS[decision.editKind]}`)
+          : decision.editKind;
 
 type JevDecisionSummary = {
     applied: boolean;
@@ -59,7 +65,7 @@ const handoff = (
     reasonCode: string | null = null,
 ): JevDecisionSummary => ({
     applied: false,
-    badge: `Agent · ${badge}`,
+    badge: tr('agentBadge', { badge }),
     title,
     description,
     reasonCode,
@@ -77,55 +83,55 @@ export const describeJevDecision = (
     if (decision.applied)
         return {
             applied: true,
-            badge: `${name} · ${edit}`,
-            title: `${name} applied the ${edit}`,
-            description: `${name} made the change directly, so the agent model never ran and spent no tokens.`,
+            badge: tr('applied.badge', { name, edit }),
+            title: tr('applied.title', { name, edit }),
+            description: tr('applied.description', { name }),
             reasonCode: null,
         };
     switch (decision.outcome) {
         case 'routed':
         case 'not_an_edit':
             return handoff(
-                'new question',
-                'New question for the agent',
-                `${name} read this as a new question rather than a change to the current chart, so the agent answered it.`,
+                tr('routed.badge'),
+                tr('routed.title'),
+                tr('routed.description', { name }),
             );
         case 'clarify':
             return {
                 applied: true,
-                badge: `${name} · clarifying question`,
-                title: `${name} asked which one you meant`,
-                description: `The request fit more than one option about equally, so ${name} offered the choices instead of guessing. The agent model did not run.`,
+                badge: tr('clarify.badge', { name }),
+                title: tr('clarify.title', { name }),
+                description: tr('clarify.description', { name }),
                 reasonCode: null,
             };
         case 'unresolved':
             return handoff(
-                `${name} unsure`,
-                `${name} was not confident`,
-                `${name} looked for a direct chart edit but was not sure enough to apply one, so the agent took over.`,
+                tr('unresolved.badge', { name }),
+                tr('unresolved.title', { name }),
+                tr('unresolved.description', { name }),
                 decision.reason,
             );
         case 'instant_reply':
             return {
                 applied: true,
-                badge: `${name} · ${edit}`,
-                title: `${name} answered directly`,
-                description: `This was a small follow-up ${name} could answer from the chart itself, so the agent model did not run.`,
+                badge: tr('instantReply.badge', { name, edit }),
+                title: tr('instantReply.title', { name }),
+                description: tr('instantReply.description', { name }),
                 reasonCode: null,
             };
         case 'unavailable':
             return handoff(
-                `${name} unavailable`,
-                `${name} did not answer`,
-                `${name} did not respond in time, so the agent handled the turn as usual.`,
+                tr('unavailable.badge', { name }),
+                tr('unavailable.title', { name }),
+                tr('unavailable.description', { name }),
             );
         case 'intent':
         case 'compound':
         case 'needs_values':
             return handoff(
                 edit,
-                `${name} passed the ${edit} to the agent`,
-                `${name} worked out the ${edit} but it needed more than a direct edit, so the agent finished it.`,
+                tr('handedOff.title', { name, edit }),
+                tr('handedOff.description', { name, edit }),
                 decision.fallbackReason,
             );
         default:

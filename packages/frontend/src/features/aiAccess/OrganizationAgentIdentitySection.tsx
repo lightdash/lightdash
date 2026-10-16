@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { Box, Group, Stack, Text, Title } from '@mantine/core';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { AgentIdentityChip } from './AgentIdentityChip';
 import classes from './AgentIdentityChip.module.css';
@@ -149,6 +150,7 @@ export const OrganizationAgentIdentityCard = ({
     projects: Pick<OrganizationProject, 'warehouseType'>[];
     canEdit: boolean;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const [shownWarehouses, setShownWarehouses] = useState<Set<WarehouseTypes>>(
         () => new Set(),
     );
@@ -173,10 +175,10 @@ export const OrganizationAgentIdentityCard = ({
     return (
         <SettingsCard>
             <Stack gap="md">
-                <Title order={5}>Identity</Title>
+                <Title order={5}>{t('identitySection.title')}</Title>
                 {rules.length === 0 ? (
                     <Text size="sm" c="dimmed">
-                        No warehouses in use yet.
+                        {t('identitySection.noWarehouses')}
                     </Text>
                 ) : (
                     <Group gap="xs">

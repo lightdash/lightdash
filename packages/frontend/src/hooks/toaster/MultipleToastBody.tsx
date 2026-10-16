@@ -9,6 +9,7 @@ import {
 import { IconX } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import rehypeExternalLinks from 'rehype-external-links';
 import MantineIcon from '../../components/common/MantineIcon';
 import ApiErrorDisplay, { CopyErrorButton } from './ApiErrorDisplay';
@@ -23,6 +24,7 @@ const MultipleToastBody = ({
     toastsData: NotificationData[];
     onDismissError?: (messageKey: string) => void;
 }) => {
+    const { t } = useTranslation('app');
     const [expanded, setExpanded] = useState(false);
     const newest = toastsData[toastsData.length - 1];
     const older = toastsData.slice(0, -1).reverse();
@@ -51,7 +53,13 @@ const MultipleToastBody = ({
                         className={styles.toggle}
                         onClick={() => setExpanded(!expanded)}
                     >
-                        {`${expanded ? 'Hide' : 'Show'} ${older.length} older`}
+                        {expanded
+                            ? t('multipleToast.hideOlder', {
+                                  count: older.length,
+                              })
+                            : t('multipleToast.showOlder', {
+                                  count: older.length,
+                              })}
                     </UnstyledButton>
 
                     <Collapse expanded={expanded}>
@@ -106,7 +114,9 @@ const MultipleToastBody = ({
                                             )}
                                         {onDismissError && messageKey && (
                                             <ActionIcon
-                                                aria-label="Dismiss error"
+                                                aria-label={t(
+                                                    'multipleToast.dismissError',
+                                                )}
                                                 className={styles.olderDismiss}
                                                 size="xs"
                                                 variant="transparent"

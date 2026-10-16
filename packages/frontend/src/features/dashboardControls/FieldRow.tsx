@@ -9,9 +9,9 @@ import {
 } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
-import { pluralizeTiles } from './fieldLabels';
 import classes from './FieldsAndTiles.module.css';
 
 type Props = {
@@ -40,58 +40,67 @@ export const FieldRow: FC<Props> = ({
     onToggleHighlight,
     onHoverChange,
     onRemove,
-}) => (
-    <Stack
-        className={
-            isHighlighted
-                ? `${classes.row} ${classes.rowHighlighted}`
-                : classes.row
-        }
-        gap={0}
-        data-waiting={isWaiting || undefined}
-        onMouseEnter={() => onHoverChange(true)}
-        onMouseLeave={() => onHoverChange(false)}
-    >
-        <Group className={classes.rowHeader} gap="xs" wrap="nowrap">
-            <UnstyledButton
-                className={classes.rowMain}
-                data-highlighted={isHighlighted || undefined}
-                aria-pressed={isHighlighted}
-                onClick={onToggleHighlight}
-                onFocus={() => onHoverChange(true)}
-                onBlur={() => onHoverChange(false)}
-            >
-                <Group gap="xs" wrap="nowrap" className={classes.rowLabel}>
-                    {field !== null && (
-                        <FieldIcon item={field} size={14} aria-hidden />
-                    )}
-                    <Text fz="sm" fw={600} truncate>
-                        {label}
-                    </Text>
-                </Group>
-            </UnstyledButton>
-            <Tooltip label="Remove field">
-                <ActionIcon
-                    className={classes.rowRemove}
-                    size="sm"
-                    variant="subtle"
-                    color="gray"
-                    flex="0 0 auto"
-                    aria-label={`Remove field ${label}`}
-                    onClick={onRemove}
-                >
-                    <MantineIcon icon={IconTrash} />
-                </ActionIcon>
-            </Tooltip>
-        </Group>
-        <Text
-            key={`${applied}/${possible}`}
-            fz="xs"
-            c="dimmed"
-            truncate
-            className={classes.rowCount}
+}) => {
+    const { t } = useTranslation('dashboardFilters');
+    return (
+        <Stack
+            className={
+                isHighlighted
+                    ? `${classes.row} ${classes.rowHighlighted}`
+                    : classes.row
+            }
+            gap={0}
+            data-waiting={isWaiting || undefined}
+            onMouseEnter={() => onHoverChange(true)}
+            onMouseLeave={() => onHoverChange(false)}
         >
-            {`${tableLabel} · ${applied} of ${possible} ${pluralizeTiles(possible)}`}
-        </Text>
-    </Stack>
-);
+            <Group className={classes.rowHeader} gap="xs" wrap="nowrap">
+                <UnstyledButton
+                    className={classes.rowMain}
+                    data-highlighted={isHighlighted || undefined}
+                    aria-pressed={isHighlighted}
+                    onClick={onToggleHighlight}
+                    onFocus={() => onHoverChange(true)}
+                    onBlur={() => onHoverChange(false)}
+                >
+                    <Group gap="xs" wrap="nowrap" className={classes.rowLabel}>
+                        {field !== null && (
+                            <FieldIcon item={field} size={14} aria-hidden />
+                        )}
+                        <Text fz="sm" fw={600} truncate>
+                            {label}
+                        </Text>
+                    </Group>
+                </UnstyledButton>
+                <Tooltip label={t('controls.fieldRow.removeField')}>
+                    <ActionIcon
+                        className={classes.rowRemove}
+                        size="sm"
+                        variant="subtle"
+                        color="gray"
+                        flex="0 0 auto"
+                        aria-label={t('controls.fieldRow.removeFieldNamed', {
+                            label,
+                        })}
+                        onClick={onRemove}
+                    >
+                        <MantineIcon icon={IconTrash} />
+                    </ActionIcon>
+                </Tooltip>
+            </Group>
+            <Text
+                key={`${applied}/${possible}`}
+                fz="xs"
+                c="dimmed"
+                truncate
+                className={classes.rowCount}
+            >
+                {t('controls.fieldRow.count', {
+                    table: tableLabel,
+                    applied,
+                    count: possible,
+                })}
+            </Text>
+        </Stack>
+    );
+};

@@ -6,8 +6,10 @@ import {
 import { Button, Group, type DefaultMantineColor } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import { type Icon } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
-import { useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -54,9 +56,10 @@ export interface DeleteSpaceModalBody
     onClose: () => void;
 }
 
-const validate = z.object({
-    name: z.string().min(1, { message: 'Name is required' }),
-});
+const getValidationSchema = (t: TFunction) =>
+    z.object({
+        name: z.string().min(1, { message: t('spaceAction.nameRequired') }),
+    });
 
 const SpaceModal: FC<ActionModalProps> = ({
     data,
@@ -72,7 +75,9 @@ const SpaceModal: FC<ActionModalProps> = ({
     onSubmitForm,
     parentSpaceUuid,
 }) => {
+    const { t } = useTranslation('modals');
     const { showToastError } = useToaster();
+    const validate = useMemo(() => getValidationSchema(t), [t]);
 
     const isNestedSpace = !!parentSpaceUuid;
     const [inheritanceValue, setInheritanceValue] = useState<InheritanceType>(
@@ -98,7 +103,7 @@ const SpaceModal: FC<ActionModalProps> = ({
             }
         } catch (e: any) {
             showToastError({
-                title: 'Error saving',
+                title: t('spaceAction.errorSaving'),
                 subtitle: getErrorMessage(e),
             });
         }

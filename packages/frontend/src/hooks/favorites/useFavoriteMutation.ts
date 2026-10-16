@@ -4,6 +4,7 @@ import {
     type ToggleFavoriteResponse,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -25,6 +26,7 @@ const toggleFavorite = async (
 
 export const useFavoriteMutation = (projectUuid: string | undefined) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
 
     return useMutation<
@@ -43,13 +45,13 @@ export const useFavoriteMutation = (projectUuid: string | undefined) => {
             await queryClient.invalidateQueries(['favorites', projectUuid]);
             showToastSuccess({
                 title: data.isFavorite
-                    ? 'Added to favorites'
-                    : 'Removed from favorites',
+                    ? t('useFavoriteMutation.added')
+                    : t('useFavoriteMutation.removed'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Could not update favorite',
+                title: t('useFavoriteMutation.couldNotUpdateFavorite'),
                 apiError: error,
             });
         },

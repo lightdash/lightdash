@@ -1,11 +1,13 @@
 import { Button } from '@mantine/core';
 import { IconBrandSlack } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 import { EmptyState } from '../../components/common/EmptyState';
 import MantineIcon from '../../components/common/MantineIcon';
 
 const SlackAuthSuccess = () => {
+    const { t } = useTranslation('eeMisc');
     const [searchParams] = useSearchParams();
 
     const slackUrl = useMemo(() => {
@@ -41,10 +43,12 @@ const SlackAuthSuccess = () => {
                     size="5xl"
                 />
             }
-            title="Slack connected successfully!"
-            description="Your Slack account is now connected to Lightdash. You can now use AI Agent by mentioning the bot in your Slack channels."
+            title={t('slackAuth.title')}
+            description={t('slackAuth.description')}
         >
-            <Button onClick={() => window.open(slackUrl)}>Open Slack</Button>
+            <Button onClick={() => window.open(slackUrl)}>
+                {t('slackAuth.openSlack')}
+            </Button>
         </EmptyState>
     );
 };

@@ -1,0 +1,842 @@
+{
+    "runQuerySettings": {
+        "cancelQuery": "Cancel query",
+        "querySettings": "Query settings",
+        "timezone": "Timezone",
+        "rowLimit": "Row limit",
+        "autoFetch": {
+            "label": "Auto-fetch results",
+            "tooltip": "Automatically re-run query on change (e.g. add fields, change sort)"
+        },
+        "preAggregateCache": {
+            "label": "Use pre-aggregate cache",
+            "tooltip": "Route queries through pre-aggregate cache when available"
+        }
+    },
+    "sortButton": {
+        "noSort": "No sort",
+        "fieldCount_one": "{{count}} field",
+        "fieldCount_other": "{{count}} fields",
+        "sortedBy": "Sorted by",
+        "sortBy": "Sort by",
+        "thenBy": "then by",
+        "nulls": "Nulls",
+        "nullsOrder": {
+            "default": "Default",
+            "first": "First",
+            "last": "Last"
+        },
+        "removeSort": "Remove sort",
+        "addSort": "Add sort",
+        "columnPlaceholder": "Column"
+    },
+    "refreshButton": {
+        "ctrlKey": "Ctrl",
+        "runQuery": "Run query"
+    },
+    "exploreFromHere": {
+        "label": "Explore from here"
+    },
+    "queryCostEstimate": {
+        "unavailable": "Estimate unavailable",
+        "estimatedTooltip": "Estimated {{bytes}} processed, from a free dry run. Dry runs can underreport tables with row-level security or external data."
+    },
+    "queryCostConfirmModal": {
+        "title": "Run a large query?",
+        "confirm": "Run query",
+        "body": "A dry run estimates this query will process <bytes>{{bytes}}</bytes>, above the {{threshold}} confirmation threshold for this connection.",
+        "hint": "To scan less, filter on a partitioned date, shorten the date range or select fewer fields."
+    },
+    "queryRunner": {
+        "errors": {
+            "sqlQueryFailed": "Error executing SQL query",
+            "unexpectedStatus": "Unexpected query status",
+            "pivotConfigRequired": "Pivot configuration is required"
+        }
+    },
+    "parameters": {
+        "shadowedReservedName": "Parameter {{paramKey}} overrides the system variable of the same name and takes priority over it.",
+        "selection": {
+            "loading": "Loading parameters...",
+            "loadFailed": "Failed to load parameters",
+            "empty": "No parameters available",
+            "paramLoadFailed": "Error loading parameter",
+            "unpin": "Unpin parameter",
+            "pin": "Pin parameter",
+            "clearAllTooltip": "Clear all parameter values",
+            "clearAll": "Clear all"
+        },
+        "input": {
+            "defaultValue": "{{value}} (default)",
+            "chooseValue": "Choose value...",
+            "addCustomValue": "Add \"{{value}}\"",
+            "refresh": "Options loaded at {{loadedAt}} - ↻ Click to refresh",
+            "refreshWithLimit": "Showing first {{count}} results. Options loaded at {{loadedAt}} - ↻ Click to refresh",
+            "dimensionValues": "Dimension values"
+        },
+        "anyValue": "any value"
+    },
+    "virtualView": {
+        "resourceType": "virtual view",
+        "delete": {
+            "title": "Delete virtual view",
+            "description": "This action cannot be undone and charts based on this virtual view will break."
+        },
+        "create": {
+            "title": "Create virtual view",
+            "nameLabel": "Name",
+            "nameRequired": "Name is required",
+            "info": "Create a virtual view so others can reuse this query in Lightdash. The query won't be saved to or managed in your dbt project.",
+            "infoWithWriteBack": "Create a virtual view so others can reuse this query in Lightdash. The query won't be saved to or managed in your dbt project. If you're expecting to reuse this query regularly, we suggest writing it back to dbt."
+        },
+        "edit": {
+            "unsavedTitle": "You have unsaved changes",
+            "unsavedDescription": "Are you sure you want to leave this page? Changes you've made to your query will not be saved.",
+            "discardAndContinue": "Discard & continue",
+            "loadingSqlRunner": "Loading SQL Runner..."
+        },
+        "changesReview": {
+            "title": "Schema changes detected",
+            "saveAnyway": "Save Anyway",
+            "columnChanges": "Column changes",
+            "newColumnsAdded_one": "{{count}} new column added",
+            "newColumnsAdded_other": "{{count}} new columns added",
+            "showLess": "Show less",
+            "showMore_one": "Show {{count}} more",
+            "showMore_other": "Show {{count}} more",
+            "affectedCharts_one": "Affected charts ({{count}})",
+            "affectedCharts_other": "Affected charts ({{count}})",
+            "warning": "These changes could break existing content using this virtual view.",
+            "columnDeleted": "<column>{{reference}}</column> has been deleted",
+            "columnTypeChanged": "<column>{{reference}}</column> type changed: <before>{{oldType}}</before> → <after>{{newType}}</after>"
+        },
+        "header": {
+            "errorRunningQuery": "Error running query",
+            "noResults": "No results returned",
+            "noColumns": "No columns returned",
+            "validating": "Validating your changes...",
+            "editing": "Editing",
+            "noChanges": "No changes to save"
+        },
+        "toast": {
+            "created": "Success! Virtual view created",
+            "queryFromNew": "Query from new virtual view",
+            "createFailed": "Error creating virtual view",
+            "updated": "Success! Virtual view updated",
+            "updateFailed": "Error updating virtual view",
+            "deleted": "Success! Virtual view deleted",
+            "deleteFailed": "Error deleting virtual view"
+        }
+    },
+    "quickCalculations": {
+        "title": "Add quick calculation",
+        "calculationName": "{{calculation}} of {{field}}"
+    },
+    "cellContextMenu": {
+        "copiedToClipboard": "Copied to clipboard!",
+        "underlyingDataFailed": "Could not open underlying data",
+        "copyValue": "Copy value",
+        "viewUnderlyingData": "View underlying data"
+    },
+    "columnHeaderMenu": {
+        "sort": {
+            "title": "Sorting",
+            "direction": "Sort <bold>{{label}}</bold>",
+            "remove": "Remove sort"
+        },
+        "format": {
+            "title": "Format",
+            "edit": "Edit format"
+        },
+        "editCalculation": "Edit calculation",
+        "remove": "Remove",
+        "addPeriodComparison": "Add period comparison",
+        "createCustomMetric": "Create custom metric",
+        "filterByQuoted": "Filter by <label>\"{{label}}\"</label>",
+        "filterBy": "Filter by <label>{{label}}</label>",
+        "editCustomMetric": "Edit custom metric",
+        "deleteCustomMetric": "Delete custom metric",
+        "editCustomDimension": "Edit custom dimension",
+        "deleteCustomDimension": "Delete custom dimension",
+        "contextMenu": "Context menu"
+    },
+    "queryLoadingState": {
+        "queued": {
+            "title": "Your query is queued...",
+            "description": "We’ll start processing your query as soon as possible."
+        },
+        "executing": "Executing query...",
+        "loading": "Loading results"
+    },
+    "emptyStates": {
+        "noColumns": {
+            "title": "Pick a metric & select its dimensions",
+            "description": "What's your data question? Select the <metric>metric</metric> you want to calculate and the <dimension>dimension(s)</dimension> you want to split it by.",
+            "examples": {
+                "signupsPerDay": "eg. How many <metric>total signups</metric> per <dimension>day</dimension>?",
+                "orderCountByLocation": "eg. What is the <metric>total order count</metric> by <dimension>location</dimension>?",
+                "followersEveryWeek": "eg. How many <metric>new followers</metric> every <dimension>week</dimension>?",
+                "orderCountByStatus": "eg. What is the <metric>total order count</metric> split by <dimension>status</dimension>?"
+            }
+        },
+        "noTableSelected": {
+            "title": "Select a table",
+            "description": "To run a query, first select the table that you would like to explore."
+        },
+        "loadingTables": "Loading tables...",
+        "idle": "Run query to see your results",
+        "noResults": {
+            "title": "Query returned no results",
+            "description": "This query ran successfully but returned no results"
+        },
+        "error": {
+            "title": "Error loading results",
+            "fallbackMessage": "There was an error loading the results",
+            "openConnectionSettings": "Open the connection settings",
+            "learnHowToResolve": "Learn how to resolve this in our documentation"
+        },
+        "missingParameters": {
+            "title": "Missing required parameters",
+            "description": "This query requires additional parameters to run.",
+            "provide_one": "Please provide the following parameter:",
+            "provide_other": "Please provide the following parameters:"
+        }
+    },
+    "urlMenuItems": {
+        "addFieldsToUse": "To use this action add {{fields}} to your query",
+        "fieldSeparator": " and ",
+        "actionNotAvailable": "Action not available for this query"
+    },
+    "resultsCard": {
+        "title": "Results",
+        "viewModes": {
+            "results": "Results",
+            "chartResults": "Chart results"
+        }
+    },
+    "explorerResults": {
+        "idle": {
+            "pickDimensions": "Pick one or more <highlight>dimensions</highlight> to split your selected metric by.",
+            "pickMetric": "Pick a <highlight>metric</highlight> to make calculations across your selected dimensions.",
+            "runQuery": "Run query to view your results and visualize them as a chart."
+        },
+        "groupedError": "Error loading grouped results",
+        "jsonFieldHeading": "Field: {{name}}"
+    },
+    "filtersCard": {
+        "title": "Filters",
+        "noFilters": "This chart has no filters",
+        "activeFilters_one": "{{count}} active filter",
+        "activeFilters_other": "{{count}} active filters",
+        "mustBeInEditMode": "You must be in 'edit' or 'explore' mode to change the filters",
+        "unknownField": "Tried to reference field with unknown id: {{fieldId}}"
+    },
+    "formatSummary": {
+        "types": {
+            "bytesSi": "Bytes (SI)",
+            "bytesIec": "Bytes (IEC)",
+            "date": "Date",
+            "timestamp": "Timestamp",
+            "default": "Default",
+            "percent": "Percent",
+            "currency": "Currency",
+            "number": "Number",
+            "id": "ID",
+            "custom": "Custom"
+        },
+        "decimals_one": "{{count}} decimal",
+        "decimals_other": "{{count}} decimals",
+        "currencyWithCode": "Currency ({{currency}})",
+        "customWithExpression": "Custom ({{expression}})",
+        "separator": "separator {{separator}}",
+        "prefix": "prefix {{prefix}}",
+        "suffix": "suffix {{suffix}}",
+        "partSeparator": ", "
+    },
+    "formatForm": {
+        "defaultSeparator": "Default separator",
+        "invalidFormat": "Invalid format",
+        "format": "Format",
+        "default": "Default",
+        "custom": "Custom",
+        "formatType": "Format type",
+        "customFormat": "Custom format",
+        "customFormatPlaceholder": "e.g. dd/mm/yyyy or mmmm d, yyyy",
+        "result": "Result",
+        "commonFormats": "Common formats",
+        "formatExpression": "Format expression",
+        "formatExpressionPlaceholder": "e.g. #,##0.00",
+        "buildAtCustomFormats": "Build your format at customformats.com",
+        "currency": "Currency",
+        "decimalPlaces": "Decimal places",
+        "auto": "Auto",
+        "separatorStyle": "Separator style",
+        "compact": "Compact",
+        "compactPlaceholder": {
+            "bytesSi": "e.g. kilobytes (KB)",
+            "bytesIec": "e.g. kibibytes (KiB)",
+            "number": "e.g. thousands (K)"
+        },
+        "prefix": "Prefix",
+        "prefixPlaceholder": "e.g. $",
+        "suffix": "Suffix",
+        "suffixPlaceholder": "e.g. km/h",
+        "expressionSummary": "Format expression: <value>{{expression}}</value>",
+        "runtimeOnly": "runtime only",
+        "defaultExpression": "default"
+    },
+    "formatModal": {
+        "titleDimension": "Format dimension",
+        "titleMetric": "Format metric",
+        "titleField": "Format field",
+        "saveChanges": "Save changes",
+        "reset": "Reset"
+    },
+    "parametersCard": {
+        "title": "Parameters",
+        "noModel": "No model selected"
+    },
+    "sqlCard": {
+        "title": "SQL",
+        "openInSqlRunner": "Open in SQL Runner",
+        "copySql": "Copy SQL",
+        "copied": "Copied to clipboard",
+        "baseQuery": "Base Query",
+        "chartQuery": "Chart Query",
+        "previewUnavailable": {
+            "title": "SQL preview unavailable",
+            "description": "This chart contains custom SQL fields that you don't have permission to view."
+        }
+    },
+    "quickFilter": {
+        "showOnly": "Show only",
+        "exclude": "Exclude"
+    },
+    "compilationIssues": {
+        "warnings_one": "Compilation warnings ({{count}})",
+        "warnings_other": "Compilation warnings ({{count}})",
+        "errors_one": "Compilation errors ({{count}})",
+        "errors_other": "Compilation errors ({{count}})"
+    },
+    "exploreSidebar": {
+        "sections": {
+            "externalSources": "External sources",
+            "virtualViews": "Virtual Views",
+            "preAggregates": "Pre-aggregates"
+        },
+        "connectionFilter": {
+            "label": "Filter tables by connection",
+            "all": "All connections"
+        },
+        "connectionEmpty": {
+            "noSearchMatches": "No tables match your search on {{connectionName}}",
+            "noTables": "No tables on {{connectionName}}",
+            "clearSearchHint": "Clear the search, or pick another connection.",
+            "nothingModelled": "Nothing is modelled on this connection yet. Pick another connection to see its tables."
+        },
+        "loadError": "Could not load explores",
+        "tables": "Tables",
+        "addData": "Add data",
+        "clearSearch": "Clear search",
+        "searchTables": "Search tables"
+    },
+    "explorePanel": {
+        "tables": "Tables",
+        "virtualViewActions": "Virtual view actions",
+        "editVirtualView": "Edit virtual view",
+        "contentAsCode": "Content as code",
+        "viewAsCode": "View as code",
+        "queryOptions": "Query options",
+        "viewSourceCode": "View source code",
+        "mergeAnotherQuery": "Merge another query"
+    },
+    "exploreTree": {
+        "clearSearch": "Clear search",
+        "searchPlaceholder": "Search metrics + dimensions",
+        "sections": {
+            "missingFields": "Missing fields",
+            "dimensions": "Dimensions",
+            "metrics": "Metrics",
+            "customMetrics": "Custom metrics",
+            "customDimensions": "Custom dimensions",
+            "noDimensions": "No dimensions defined in your dbt project",
+            "noMetrics": "No metrics defined in your dbt project. Click to view docs and learn how to add a metric to your project.",
+            "customMetricsHelp": "Add custom metrics by hovering over the dimension of your choice & selecting the three-dot Action Menu. Click to view docs.",
+            "duplicateMetricId": "A metric with this ID already exists in the table. Rename your custom metric to prevent conflicts."
+        },
+        "sectionHeader": {
+            "addCustomDimension": "Add a custom dimension with SQL",
+            "writeBackMetrics": "Write back custom metrics",
+            "writeBackDimensions": "Write back custom dimensions"
+        },
+        "removeMissingField": "Remove missing field \"{{fieldId}}\".",
+        "timezone": {
+            "dateShifts": "Calendar date, shifts with the chart's timezone",
+            "timestampShifts": "Timestamp, shifts with the chart's timezone",
+            "dateUnaffected": "Calendar date, not affected by the chart's timezone",
+            "timestampUnaffected": "Timestamp shown as stored, not affected by the chart's timezone"
+        },
+        "node": {
+            "fieldNoLongerAvailable": "This field from '{{table}}' table is no longer available",
+            "dashboardOnly": "Only available in this dashboard",
+            "locatedLevelsDeep_one": "Located {{count}} level deep",
+            "locatedLevelsDeep_other": "Located {{count}} levels deep",
+            "isFiltered": "This field is filtered",
+            "addFilter": "Click here to add filter",
+            "deleteCustomMetric": "Delete custom metric",
+            "hiddenInDbt": "This field has been hidden in the dbt project. It's recommend to remove it from the query"
+        },
+        "selectedFields": {
+            "fieldIsFiltered": "Field is filtered",
+            "addFilter": "Add filter",
+            "heading": "Selected",
+            "allFields": "All fields"
+        },
+        "actions": {
+            "copyOf": "Copy {{name}}",
+            "addFilter": "Add filter",
+            "createCustomMetric": "Create custom metric",
+            "editCustomMetric": "Edit custom metric",
+            "deleteCustomMetric": "Delete custom metric",
+            "customMetricDuplicated": "Copy of Custom metric added successfully",
+            "duplicateCustomMetric": "Duplicate custom metric",
+            "writeBack": "Write back to project",
+            "viewDescription": "View description",
+            "editCustomDimension": "Edit custom dimension",
+            "customDimensionDuplicated": "Copy of Custom Dimension added successfully",
+            "duplicateCustomDimension": "Duplicate custom dimension",
+            "deleteCustomDimension": "Delete custom dimension",
+            "addCustomMetrics": "Add custom metrics",
+            "addCustomDimensions": "Add custom dimensions",
+            "viewOptions": "View options"
+        }
+    },
+    "itemDetail": {
+        "copyValue": "Copy {{label}}",
+        "modelName": "Model name",
+        "dbtPackage": "dbt package",
+        "yamlFile": "YAML file",
+        "sqlFile": "SQL file",
+        "description": "Description",
+        "noDescription": "No description available.",
+        "preview": {
+            "sourceField": "Source field",
+            "sourceMetric": "Source metric",
+            "readFullDescription": "Read full description",
+            "sql": "SQL",
+            "showOriginalSql": "Show original SQL",
+            "showCompiledSql": "Show compiled SQL",
+            "originalSql": "Original SQL",
+            "compiledSql": "Compiled SQL",
+            "filters": "Filters",
+            "completed": "completed"
+        }
+    },
+    "customMetric": {
+        "defaultLabel": "{{type}} of {{field}}",
+        "labelRequired": "Label is required",
+        "percentileRange": "Percentile must be a number between 0 and 100",
+        "addedSuccess": "Custom metric added successfully",
+        "label": "Label",
+        "percentile": "Percentile",
+        "quickCreate": {
+            "title": "New custom metric",
+            "format": "Format",
+            "moreOptions": "More options"
+        },
+        "copyOfLabel": "Copy of {{label}}",
+        "toast": {
+            "updatedAcrossDashboard": "Custom metric updated across this dashboard",
+            "updateFailed": "Failed to update custom metric",
+            "cannotMoveTable": "Shared metrics cannot move to another table",
+            "cannotMoveTableHint": "Pick a source field from the same table, or create a new metric instead.",
+            "prepareUpdateFailed": "Failed to prepare metric update",
+            "rebuiltOn": "Custom metric rebuilt on {{field}}",
+            "editedSuccess": "Custom metric edited successfully"
+        },
+        "modal": {
+            "editTitle": "Edit Custom Metric",
+            "createTitle": "Create Custom Metric",
+            "saveChanges": "Save changes",
+            "labelPlaceholder": "Enter custom metric label",
+            "sourceField": "Source field",
+            "sourceFieldDescription": "The field this metric aggregates over.",
+            "sourceFieldEditDescription": "The field this metric aggregates over. Pick a different one to rebuild it without recreating it.",
+            "noCompatibleFields": "No compatible fields on this table",
+            "sourceFieldChange": {
+                "title": "Source field will change",
+                "description": "This metric will be rebuilt to aggregate <field>{{field}}</field>. Filters and format options are preserved, and the metric ID stays the same so saved charts and dashboards keep working."
+            },
+            "sourceMetric": "Source metric",
+            "sourceMetricDescription": "The metric this custom metric is based on.",
+            "type": "Type",
+            "typeDescription": "Metric type",
+            "sql": "SQL",
+            "sqlAggregatesDescription": "SQL this metric aggregates",
+            "format": "Format",
+            "filters": "Filters",
+            "optional": "(optional)"
+        },
+        "filters": {
+            "addFilter": "Add filter"
+        },
+        "errors": {
+            "idMatchesDimension": "This ID matches a model dimension. Create a custom dimension with a different name before creating the metric",
+            "idExists": "Metric with this ID already exists",
+            "labelExists": "Metric with this label already exists"
+        }
+    },
+    "registryImpact": {
+        "removeTitle": "Remove metric from this dashboard",
+        "updateTitle": "Update metric in this dashboard",
+        "removeMetric": "Remove metric",
+        "updateMetric": "Update metric",
+        "updateMetricAndCharts_one": "Update metric and {{count}} chart",
+        "updateMetricAndCharts_other": "Update metric and {{count}} charts",
+        "sharedWithDashboard": "<metric>{{metricLabel}}</metric> is shared with every chart in this dashboard.",
+        "chartsKeepCopy": "These charts use it and keep their own copy:",
+        "chartsWillUpdate": "These charts use it and will be updated:",
+        "noChartsRemove": "No saved charts use it — only the shared definition is removed.",
+        "noChartsUpdate": "No saved charts use it yet — only the shared definition changes.",
+        "noLongerOffered": "It will no longer be offered when building charts in this dashboard.",
+        "outsideUnaffected": "Charts outside this dashboard are not affected."
+    },
+    "writeBack": {
+        "title": "Write back to project",
+        "prDisabled": "Pull requests can only be opened for GitHub, GitLab or Bitbucket Cloud connected projects",
+        "unknownError": "unknown error",
+        "errorPreview": "Error: {{title}}\n{{message}}",
+        "creatingPullRequest": "Creating pull request...",
+        "openPullRequest": "Open Pull Request",
+        "generatingPreview": "Generating warehouse-aware preview...",
+        "binOrderingWarning": "Existing saved charts will keep using this custom bin so their ordering is unchanged. After merging and refreshing your project, use the new YAML dimension in new charts and add a separate numeric ordering dimension in your model when bin order matters.",
+        "customDimension": {
+            "unsupportedDefinition": "Unsupported dimension definition",
+            "singleDescription": "Convert this custom dimension into a dimension in your project. This will create a new branch and open a pull request.",
+            "singleIntro": "Create a pull request in your project's git repository for the following custom dimension:",
+            "showCode": "Show dimension code",
+            "selectToOpen": "Select dimensions to open a pull request",
+            "multiDescription": "Create a pull request in your project's git repository for the following dimensions",
+            "available_one": "Available custom dimensions ({{count}} selected)",
+            "available_other": "Available custom dimensions ({{count}} selected)",
+            "yamlToBeCreated": "Dimension YAML to be created:"
+        },
+        "customMetric": {
+            "unsupportedDefinition": "Unsupported metric definition",
+            "singleDescription": "Convert this custom metric into a metric in your project. This will create a new branch and open a pull request.",
+            "singleIntro": "Create a pull request in your project's git repository for the following custom metric:",
+            "showCode": "Show metric code",
+            "selectToOpen": "Select metrics to open a pull request",
+            "multiDescription": "Create a pull request in your project's git repository for the following metrics",
+            "available_one": "Available custom metrics ({{count}} selected)",
+            "available_other": "Available custom metrics ({{count}} selected)",
+            "yamlToBeCreated": "Metric YAML to be created:"
+        },
+        "prCreated": "Your pull request <anchor>#{{number}}</anchor> was successfully created on git.",
+        "refreshAfterMerge": "Once it is merged, refresh your project to see your updated metrics and dimensions.",
+        "toast": {
+            "dimensionSuccess": "Success! Custom dimension was written back.",
+            "dimensionFailed": "Failed to write back custom dimension",
+            "metricSuccess": "Success! Custom metric was written back.",
+            "metricFailed": "Failed to write back custom metric"
+        }
+    },
+    "explorerHeader": {
+        "mergeLimitWarning": "The merged result reached its limit of {{limit}} rows, so this is the first {{limit}} rows of the merge. Each query ran whole; only the merged result is cut. To see more, increase the row limit or narrow the filters on either query.",
+        "limitWarning": "Query limit of {{limit}} reached. There may be additional results that have not been displayed. To see more, increase the query limit or try narrowing filters.",
+        "saveDisabled": {
+            "finishChartType": "Finish editing the chart type first",
+            "embedNotAllowed": "This embed token does not allow saving charts",
+            "noPermission": "You don't have permission to save charts in this project"
+        },
+        "unsavedDashboardChanges": "You have unsaved changes to your dashboard! Are you sure you want to leave without saving?",
+        "mergeOutOfDate": {
+            "tooltip": "A query in this merge changed since it last ran. Run the query to see the merged result for the current queries.",
+            "badge": "Results out of date"
+        },
+        "resultsMayBeIncomplete": "Results may be incomplete",
+        "copyDebugData": "Copy chart debug data",
+        "copied": "Copied!"
+    },
+    "queryWarnings": {
+        "title": "Query warnings"
+    },
+    "customDimension": {
+        "errors": {
+            "modelDimensionExists": "A model dimension with this ID already exists",
+            "labelExistsWithCalculation": "Dimension/Table calculation with this label already exists",
+            "sqlRequired": "SQL is required",
+            "invalidReferences": "Invalid field references in SQL. References must be of the format \"table.field\", e.g \"orders.id\"",
+            "invalidReferenceOrName": "Invalid field reference in SQL or dimension name",
+            "labelExists": "Dimension with this label already exists",
+            "groupNameRequired": "Group name is required",
+            "groupNeedsValue": "Each group must have at least one value",
+            "valueRequired": "Value is required"
+        },
+        "toast": {
+            "edited": "Custom dimension edited successfully",
+            "added": "Custom dimension added successfully",
+            "createFailed": "Error creating custom dimension"
+        },
+        "modal": {
+            "editTitle": "Edit Custom Dimension",
+            "createTitle": "Create Custom Dimension",
+            "titleWithName": "{{title}} - {{name}}",
+            "expandCollapse": "Expand/Collapse",
+            "saveChanges": "Save changes",
+            "label": "Label",
+            "labelPlaceholder": "Enter custom dimension label",
+            "dimensionType": "Dimension Type",
+            "sqlPlaceholder": "Enter SQL",
+            "aiTitle": "Generate and improve your custom dimension with AI"
+        },
+        "dimensionTypes": {
+            "string": "String",
+            "number": "Number",
+            "timestamp": "Timestamp",
+            "date": "Date",
+            "boolean": "Boolean"
+        },
+        "bin": {
+            "groupName": "Group {{number}}",
+            "matchTypes": {
+                "exact": "is",
+                "startsWith": "starts with",
+                "endsWith": "ends with",
+                "includes": "includes"
+            },
+            "valuePlaceholder": "Enter a value",
+            "moveToGroup": "Move to group",
+            "groupNameLabel": "Group name",
+            "groupNamePlaceholder": "e.g. North America",
+            "addValue": "+ Add a value",
+            "groupIntro": "Group values into custom categories. Ungrouped values will be labeled \"Other\".",
+            "binType": "Bin type",
+            "fixedNumber": "Fixed number of bins",
+            "fixedWidth": "Fixed Width",
+            "customRange": "Custom range",
+            "binNumber": "Bin number",
+            "binWidth": "Bin width",
+            "range": "Range",
+            "lessThan": "<{{to}}",
+            "atLeast": "≥{{from}}",
+            "andAbove": "and above",
+            "between": "≥{{from}} and <{{to}}",
+            "to": "to",
+            "addRange": "+ Add a range",
+            "groups": "Groups",
+            "addGroup": "+ Add a group",
+            "otherHint": "Values not assigned to any group will be labeled \"Other\"."
+        }
+    },
+    "periodComparison": {
+        "finerPeriod": "Your results are grouped by a finer time period",
+        "title": "Add period comparison",
+        "confirm": "Add comparison",
+        "exists": {
+            "title": "This comparison already exists",
+            "description": "A period comparison with the same time dimension and offset already exists for this metric. Choose a different time dimension or offset."
+        },
+        "timeDimension": "Time dimension",
+        "selectTimeDimension": "Select time dimension",
+        "addTimeDimension": "Add a time dimension to enable comparison",
+        "offset": "Offset",
+        "granularity": "{{granularity}} granularity",
+        "granularityFromDimension": "Granularity derived from dimension",
+        "willCreate": "This will create: <name>{{metric}} ({{period}})</name>"
+    },
+    "visualizationWarning": {
+        "unusedDimensions": "Your query includes dimensions that are not used in the chart configuration (x-axis, y-axis, or group by): {{dimensions}}. Remove them from the query to avoid incorrect results.",
+        "pivotMismatch": "Please re-run the query to fetch the latest data with correct group by settings.",
+        "columnLimit": "This query exceeds the maximum number of columns ({{limit}}). Showing the first {{limit}} columns.",
+        "badge": "Results may be incorrect"
+    },
+    "visualizationConfig": {
+        "vegaUnavailable": "Vega charts can't be edited in embedded views."
+    },
+    "visualizationCard": {
+        "charts": "Charts",
+        "chart": "Chart",
+        "closeConfigure": "Close configure",
+        "configure": "Configure"
+    },
+    "chartTypes": {
+        "mixed": "Mixed",
+        "custom": "Custom",
+        "customChartType": "Custom chart type",
+        "table": "Table",
+        "bar": "Bar chart",
+        "horizontalBar": "Horizontal bar chart",
+        "line": "Line chart",
+        "area": "Area chart",
+        "scatter": "Scatter chart",
+        "pie": "Pie chart",
+        "funnel": "Funnel chart",
+        "treemap": "Treemap",
+        "gauge": "Gauge",
+        "sankey": "Sankey",
+        "map": "Map",
+        "bigValue": "Big value",
+        "vega": "Vega (JSON editor)"
+    },
+    "chartGallery": {
+        "addMenu": {
+            "addChartType": "Add chart type",
+            "browseLibrary": "Browse the chart library",
+            "browseLibraryDescription": "Ready-made chart types, installed in one click",
+            "createOwn": "Create your own",
+            "createOwnDescription": "Describe a chart type in Chart Studio",
+            "addFromLibrary": "Add chart type from the library",
+            "addInStudio": "Add chart type in Chart Studio"
+        },
+        "provenance": {
+            "official": "Built by Lightdash",
+            "custom": "Custom chart type, built by your team"
+        },
+        "card": {
+            "configureItem": "Configure {{label}}",
+            "configure": "Configure",
+            "moreActions": "More actions for {{label}}",
+            "editChartType": "Edit chart type",
+            "fork": "Fork to customize"
+        },
+        "searchPlaceholder": "Search the gallery",
+        "searchLabel": "Search chart types",
+        "chartTypes": "Chart types",
+        "loadMoreLabel": "Load more chart types",
+        "showMoreLabel_one": "Show {{count}} more chart type",
+        "showMoreLabel_other": "Show {{count}} more chart types",
+        "loadMore": "Load more",
+        "moreCount_one": "+{{count}} more",
+        "moreCount_other": "+{{count}} more",
+        "loading": "Loading chart types…",
+        "fieldCount_one": "{{count}} field",
+        "fieldCount_other": "{{count}} fields",
+        "noMatches": "No chart types match your search",
+        "loadFailed": "Failed to load chart types",
+        "runQueryFirst": "Run your query to pick a chart type.",
+        "selectedUnavailable": "Selected chart type is unavailable",
+        "loadingSelected": "Loading selected chart type…",
+        "forkDefaultName": "{{name}} (custom)"
+    },
+    "chartSidebar": {
+        "newChartType": "New chart type",
+        "close": "Close visualization config",
+        "generatedOptions": "Generated options",
+        "backToConfig": "Back to configuration",
+        "chooseChartType": "Choose chart type",
+        "customBadge": "Custom",
+        "changeChartType": "Change chart type",
+        "change": "Change",
+        "editChartType": "Edit chart type"
+    },
+    "chartStudio": {
+        "status": {
+            "buildingElapsed": "Building {{elapsed}}",
+            "building": "Building",
+            "ready": "v{{version}} ready"
+        },
+        "backToChart": "Back to chart",
+        "title": "Chart Studio",
+        "description": "Chart type description",
+        "editDetails": "Edit details",
+        "editDetailsLabel": "Edit chart type details",
+        "upgradeAvailable": "Upgrade available",
+        "history": "History",
+        "close": "Close Chart Studio",
+        "resourceLabel": "Chart Type",
+        "configuration": "Chart type configuration",
+        "toast": {
+            "forbidden": "You cannot author this chart type",
+            "discarded": "Chart type discarded",
+            "thisChartType": "this chart type",
+            "chartUses": "Chart now uses {{typeName}}",
+            "chartUsesVersion": "Chart now uses {{typeName}} v{{version}}"
+        },
+        "exitConfirm": {
+            "title": "Build in progress",
+            "discards": "Leaving now discards the build that is still running.",
+            "keepsRunning": "The build keeps running and lands in version history when it finishes.",
+            "keepBuilding": "Keep building",
+            "discardAndLeave": "Discard and leave",
+            "leave": "Leave"
+        }
+    },
+    "chartActions": {
+        "label": "Chart actions",
+        "more": "More",
+        "manage": "Manage",
+        "duplicate": "Duplicate",
+        "addToDashboard": "Add to dashboard",
+        "moveToSpace": "Move to space",
+        "requestReview": "Request review",
+        "unpinFromHomepage": "Unpin from homepage",
+        "pinToHomepage": "Pin to homepage",
+        "share": "Share",
+        "moveChart": "Move chart",
+        "versionHistory": "Version history",
+        "changeExplore": "Change explore",
+        "promoteDisabled": "You must enable first an upstream project in settings > Data ops",
+        "promoteChart": "Promote chart",
+        "removeVerification": "Remove verification",
+        "verify": "Verify",
+        "contentAsCode": "Content as code",
+        "viewAsCode": "View as code",
+        "changeSlug": "Change URL slug",
+        "integrations": "Integrations",
+        "scheduledDeliveries": "Scheduled deliveries",
+        "alerts": "Alerts",
+        "googleSheetsSync": "Google Sheets Sync"
+    },
+    "savedChartHeader": {
+        "unsavedChanges": {
+            "title": "Unsaved changes",
+            "stay": "Stay",
+            "leave": "Leave",
+            "description": "You have unsaved changes to your chart! Are you sure you want to leave without saving?"
+        },
+        "unpublished": {
+            "tooltip": "Only you can see these changes. A reviewer can write them back to the repo from Content review.",
+            "badge": "Unpublished changes"
+        },
+        "draftsToReview_one": "{{count}} draft to review",
+        "draftsToReview_other": "{{count}} drafts to review",
+        "verifiedBy": "Verified by {{firstName}} {{lastName}}",
+        "verified": "Verified",
+        "editChart": "Edit chart",
+        "cancelChanges": "Cancel changes",
+        "returnToDashboard": "Return to dashboard",
+        "favorited": "Favorited",
+        "favorite": "Favorite",
+        "exitFullscreen": "Exit Fullscreen Mode",
+        "enterFullscreen": "Enter Fullscreen Mode",
+        "details": "Details",
+        "enterFullscreenShort": "Enter fullscreen",
+        "chartDetails": "Chart details"
+    },
+    "titleBreadcrumbs": {
+        "space": "Space: <name>{{name}}</name>",
+        "dashboard": "Dashboard: <name>{{name}}</name>"
+    },
+    "saveChart": {
+        "mergeIncomplete": "Finish configuring the merge before saving.",
+        "duplicateMetricId": "A custom metric ID matches an existing table metric. Rename it to avoid conflicts.",
+        "saveChanges": "Save changes",
+        "saveChart": "Save chart",
+        "saveAsNew": "Save as new chart",
+        "verified": {
+            "title": "Save verified chart",
+            "warnRemoval": "This chart is verified. Saving your changes will remove its verified status until someone verifies it again.",
+            "saveAnyway": "Save anyway",
+            "keepQuestion": "Keep this chart verified after saving?",
+            "saveAndVerify": "Save & verify"
+        }
+    },
+    "spaceMenu": {
+        "removeFromFavorites": "Remove from favorites",
+        "addToFavorites": "Add to favorites",
+        "updateSpace": "Update space",
+        "move": "Move",
+        "deleteSpace": "Delete space"
+    }
+}

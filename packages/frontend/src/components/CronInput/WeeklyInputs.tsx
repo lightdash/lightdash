@@ -1,5 +1,6 @@
 import { Group, Input } from '@mantine/core';
 import React, { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getWeeklyCronExpression, parseCronExpression } from './cronInputUtils';
 import TimePicker from './TimePicker';
 import WeekDaySelect from './WeekDaySelect';
@@ -9,6 +10,7 @@ const WeeklyInputs: FC<{
     cronExpression: string;
     onChange: (value: string) => void;
 }> = ({ disabled, cronExpression, onChange }) => {
+    const { t } = useTranslation('scheduler');
     const { minutes, hours, weekDay } = parseCronExpression(cronExpression);
 
     const onDayChange = (newWeekday: number) => {
@@ -22,9 +24,9 @@ const WeeklyInputs: FC<{
     };
     return (
         <Group wrap="nowrap" gap="sm">
-            <Input.Label>on</Input.Label>
+            <Input.Label>{t('cronInput.on')}</Input.Label>
             <WeekDaySelect value={weekDay} onChange={onDayChange} />
-            <Input.Label>at</Input.Label>
+            <Input.Label>{t('cronInput.at')}</Input.Label>
             <TimePicker
                 disabled={disabled}
                 cronExpression={cronExpression}

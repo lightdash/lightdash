@@ -2,16 +2,18 @@ import { type PreAggregateMaterializationSummary } from '@lightdash/common';
 import { Badge, Tooltip } from '@mantine/core';
 import { IconDatabaseExport } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../common/MantineIcon';
 
 export const StatusBadge: FC<{
     summary: PreAggregateMaterializationSummary;
 }> = ({ summary }) => {
+    const { t } = useTranslation('app');
     if (summary.definitionError) {
         return (
             <Tooltip label={summary.definitionError} maw={300}>
                 <Badge color="red" size="sm">
-                    Definition error
+                    {t('preAggregateMaterializations.definitionError')}
                 </Badge>
             </Tooltip>
         );
@@ -19,7 +21,7 @@ export const StatusBadge: FC<{
 
     if (summary.externalTable) {
         return (
-            <Tooltip label="Served from a customer-managed warehouse table">
+            <Tooltip label={t('preAggregateMaterializations.externalTooltip')}>
                 <Badge
                     color="indigo"
                     size="sm"
@@ -27,14 +29,18 @@ export const StatusBadge: FC<{
                         <MantineIcon icon={IconDatabaseExport} size="xs" />
                     }
                 >
-                    External
+                    {t('preAggregateMaterializations.status.external')}
                 </Badge>
             </Tooltip>
         );
     }
 
     if (!summary.materialization) {
-        return <Badge size="sm">Never materialized</Badge>;
+        return (
+            <Badge size="sm">
+                {t('preAggregateMaterializations.status.never_materialized')}
+            </Badge>
+        );
     }
 
     const { status, errorMessage } = summary.materialization;
@@ -43,25 +49,35 @@ export const StatusBadge: FC<{
         case 'active':
             return (
                 <Badge color="green" size="sm">
-                    Active
+                    {t('preAggregateMaterializations.status.active')}
                 </Badge>
             );
         case 'in_progress':
             return (
                 <Badge color="blue" size="sm">
-                    Building
+                    {t('preAggregateMaterializations.status.in_progress')}
                 </Badge>
             );
         case 'failed':
             return (
-                <Tooltip label={errorMessage ?? 'Unknown error'} maw={300}>
+                <Tooltip
+                    label={
+                        errorMessage ??
+                        t('preAggregateMaterializations.unknownError')
+                    }
+                    maw={300}
+                >
                     <Badge color="red" size="sm">
-                        Failed
+                        {t('preAggregateMaterializations.status.failed')}
                     </Badge>
                 </Tooltip>
             );
         case 'superseded':
-            return <Badge size="sm">Superseded</Badge>;
+            return (
+                <Badge size="sm">
+                    {t('preAggregateMaterializations.status.superseded')}
+                </Badge>
+            );
         default:
             return <Badge size="sm">{status}</Badge>;
     }

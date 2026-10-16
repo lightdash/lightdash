@@ -17,6 +17,7 @@ import {
     IconCircleCheck,
 } from '@tabler/icons-react';
 import { type FC, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import ForbiddenPanel from '../../components/ForbiddenPanel';
@@ -32,8 +33,8 @@ import {
     accessNote,
     buildLearnCatalogue,
     focusModules,
-    GROUP_DESCRIPTIONS,
-    GROUP_LABELS,
+    getGroupDescription,
+    getGroupLabel,
     GROUP_ORDER,
     holds,
     isComplete,
@@ -80,6 +81,7 @@ const ModuleCard: FC<{
     opening: boolean;
     onStart: (scope: string) => void;
 }> = ({ module, state, note, opening, onStart }) => {
+    const { t } = useTranslation('learn');
     const Glyph = GROUP_ICONS[module.group];
     const shot = thumbnailFor(module.scope);
     return (
@@ -112,13 +114,13 @@ const ModuleCard: FC<{
                     {state === 'done' ? (
                         <span className={styles.done}>
                             <MantineIcon icon={IconCircleCheck} size={14} />
-                            Complete
+                            {t('card.complete')}
                         </span>
                     ) : (
                         <span>
                             {module.available
-                                ? `${module.stepCount} steps`
-                                : 'Coming Soon'}
+                                ? t('card.steps', { count: module.stepCount })
+                                : t('card.comingSoon')}
                         </span>
                     )}
                     {note && <span>{note}</span>}
@@ -131,12 +133,12 @@ const ModuleCard: FC<{
                     onClick={() => onStart(module.scope)}
                 >
                     {!module.available
-                        ? 'Coming Soon'
+                        ? t('card.comingSoon')
                         : state === 'done'
-                          ? 'Start again'
+                          ? t('card.startAgain')
                           : state === 'started'
-                            ? 'Resume'
-                            : 'Start'}
+                            ? t('card.resume')
+                            : t('card.start')}
                 </Button>
             </Box>
         </Box>
@@ -148,6 +150,7 @@ const ModuleCard: FC<{
  * registry. Walkthroughs open a training copy; unsupported modules remain Coming Soon.
  */
 const LearnPage: FC = () => {
+    const { t } = useTranslation('learn');
     const { user } = useApp();
     const { data: learnFlag, isLoading: isLearnFlagLoading } =
         useServerFeatureFlag(FeatureFlags.EnableLearn);
@@ -383,15 +386,16 @@ const LearnPage: FC = () => {
             <Box className={styles.main}>
                 <Box component="header" className={styles.homeHead}>
                     <h1 className={styles.greeting}>
-                        {getGreeting(user.data?.firstName)}. What do you want to
-                        learn?
+                        {t('library.greeting', {
+                            greeting: getGreeting(user.data?.firstName),
+                        })}
                     </h1>
                     <TextInput
                         className={styles.search}
                         size="md"
                         radius="md"
-                        placeholder="Search the library"
-                        aria-label="Search the library"
+                        placeholder={t('library.search')}
+                        aria-label={t('library.search')}
                         leftSection={<MantineIcon icon={IconSearch} />}
                         value={query}
                         onChange={(event) =>
@@ -406,7 +410,7 @@ const LearnPage: FC = () => {
                     >
                         <h2 className={styles.sectionTitle}>
                             <MantineIcon icon={IconPlayerPlay} size={14} />
-                            Up next
+                            {t('library.upNext')}
                         </h2>
                         <Box
                             component="article"
@@ -422,12 +426,16 @@ const LearnPage: FC = () => {
                             </span>
                             <Box className={styles.heroBody}>
                                 <span className={styles.overline}>
-                                    {GROUP_LABELS[upNext.group]}
+                                    {getGroupLabel(upNext.group)}
                                 </span>
                                 <h3>{upNext.title}</h3>
                                 <p>{upNext.blurb}</p>
                                 <Box className={styles.heroFoot}>
-                                    <span>{`${upNext.stepCount} steps`}</span>
+                                    <span>
+                                        {t('card.steps', {
+                                            count: upNext.stepCount,
+                                        })}
+                                    </span>
                                     <Button
                                         variant="filled"
                                         color="indigo"
@@ -442,7 +450,7 @@ const LearnPage: FC = () => {
                                             )
                                         }
                                     >
-                                        Start
+                                        {t('card.start')}
                                     </Button>
                                 </Box>
                             </Box>
@@ -451,20 +459,25 @@ const LearnPage: FC = () => {
                 )}
                 <Box className={styles.libraryBar}>
                     <span className={styles.libraryHeading}>
-                        {showExtra ? 'Every module' : 'What you can do'}
+                        {showExtra
+                            ? t('library.everyModule')
+                            : t('library.whatYouCanDo')}
                     </span>
                     <span
                         className={styles.libraryCount}
                         data-learn-progress={`${doneCount}/${available.length}`}
                     >
-                        {doneCount} of {available.length} complete
+                        {t('library.progress', {
+                            done: doneCount,
+                            total: available.length,
+                        })}
                     </span>
                 </Box>
                 <Box className={styles.tabBar}>
                     <Box
                         component="nav"
                         className={styles.tabs}
-                        aria-label="Library groups"
+                        aria-label={t('library.groupsAriaLabel')}
                     >
                         <UnstyledButton
                             type="button"
@@ -474,7 +487,7 @@ const LearnPage: FC = () => {
                             aria-pressed={groupFilter === null}
                             onClick={() => setFilters({ group: null })}
                         >
-                            All
+                            {t('library.all')}
                         </UnstyledButton>
                         {groups.map((group) => (
                             <UnstyledButton
@@ -492,7 +505,7 @@ const LearnPage: FC = () => {
                                     className={styles.chipSwatch}
                                     aria-hidden
                                 />
-                                {GROUP_LABELS[group]}
+                                {getGroupLabel(group)}
                             </UnstyledButton>
                         ))}
                     </Box>
@@ -502,7 +515,7 @@ const LearnPage: FC = () => {
                         closeOnItemClick={false}
                     >
                         <Menu.Target>
-                            <Tooltip label="Filter" withArrow>
+                            <Tooltip label={t('library.filter')} withArrow>
                                 <UnstyledButton
                                     type="button"
                                     className={`${styles.iconButton} ${
@@ -510,7 +523,7 @@ const LearnPage: FC = () => {
                                             ? styles.iconButtonOn
                                             : ''
                                     }`}
-                                    aria-label="Filter"
+                                    aria-label={t('library.filter')}
                                     aria-haspopup="menu"
                                     data-learn-filter
                                 >
@@ -519,7 +532,7 @@ const LearnPage: FC = () => {
                             </Tooltip>
                         </Menu.Target>
                         <Menu.Dropdown>
-                            <Menu.Label>Show</Menu.Label>
+                            <Menu.Label>{t('library.show')}</Menu.Label>
                             <Menu.Item
                                 onClick={() =>
                                     setFilters({ showExtra: !showExtra })
@@ -533,9 +546,9 @@ const LearnPage: FC = () => {
                                     ) : null
                                 }
                                 aria-checked={showExtra}
-                                aria-label="Show extra modules"
+                                aria-label={t('library.showExtraModules')}
                             >
-                                Extra modules
+                                {t('library.extraModules')}
                             </Menu.Item>
                             <Menu.Item
                                 onClick={() =>
@@ -550,17 +563,15 @@ const LearnPage: FC = () => {
                                     ) : null
                                 }
                                 aria-checked={showSoon}
-                                aria-label="Coming soon"
+                                aria-label={t('library.comingSoon')}
                             >
-                                Coming soon
+                                {t('library.comingSoon')}
                             </Menu.Item>
                         </Menu.Dropdown>
                     </Menu>
                 </Box>
                 {groups.length === 0 && (
-                    <Box className={styles.empty}>
-                        No modules match this search.
-                    </Box>
+                    <Box className={styles.empty}>{t('library.noMatches')}</Box>
                 )}
                 {shownGroups.map((group) => (
                     <Box
@@ -572,9 +583,9 @@ const LearnPage: FC = () => {
                     >
                         <h2 className={styles.sectionTitle}>
                             <MantineIcon icon={IconLayoutGrid} size={14} />
-                            {GROUP_LABELS[group]}
+                            {getGroupLabel(group)}
                             <span className={styles.sectionDesc}>
-                                {GROUP_DESCRIPTIONS[group]}
+                                {getGroupDescription(group)}
                             </span>
                         </h2>
                         <Box className={styles.grid}>

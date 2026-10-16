@@ -5,6 +5,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 
 const projectAiCredentialQueryKey = (projectUuid: string) =>
     ['project-ai-credential', projectUuid] as const;
@@ -32,14 +33,20 @@ export const useSetProjectAiProviderCredential = (projectUuid: string) => {
                 body: JSON.stringify({ credentialUuid }),
             }),
         onSuccess: async () => {
-            showToastSuccess({ title: 'Project AI credential updated' });
+            showToastSuccess({
+                title: i18n.t('toasts.projectCredential.updated', {
+                    ns: 'aiAgent',
+                }),
+            });
             await queryClient.invalidateQueries(
                 projectAiCredentialQueryKey(projectUuid),
             );
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to update project AI credential',
+                title: i18n.t('toasts.projectCredential.updateFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             }),
     });

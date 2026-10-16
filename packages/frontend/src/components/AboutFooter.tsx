@@ -13,6 +13,7 @@ import {
 } from '@mantine/core';
 import { IconBook, IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import WhatsNewDrawer from '../ee/features/releaseHighlights/WhatsNewDrawer';
 import useApp from '../providers/App/useApp';
 import {
@@ -35,6 +36,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
     minimal,
     maxWidth = PAGE_CONTENT_WIDTH,
 }) => {
+    const { t } = useTranslation('app');
     const [isOpen, setIsOpen] = useState(false);
     const [isWhatsNewOpen, setIsWhatsNewOpen] = useState(false);
     const { health: healthState } = useApp();
@@ -47,20 +49,20 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
     const licenseStatus = healthState.data?.license;
     const licenseDisplay = licenseStatus?.valid
         ? {
-              badge: 'Valid',
+              badge: t('aboutFooter.license.valid'),
               color: 'green',
-              description: 'Enterprise features are enabled.',
+              description: t('aboutFooter.license.validDescription'),
           }
         : licenseStatus?.hasLicenseKey
           ? {
-                badge: 'Not valid',
+                badge: t('aboutFooter.license.invalid'),
                 color: 'red',
-                description: 'The configured license key is not valid.',
+                description: t('aboutFooter.license.invalidDescription'),
             }
           : {
-                badge: 'No license',
+                badge: t('aboutFooter.license.none'),
                 color: 'gray',
-                description: 'No enterprise license key is configured.',
+                description: t('aboutFooter.license.noneDescription'),
             };
 
     const versionButton = (
@@ -73,7 +75,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
             loading={healthState.isInitialLoading}
             onClick={() => setIsOpen(true)}
         >
-            {!minimal && 'Lightdash - '}
+            {!minimal && t('aboutFooter.versionPrefix')}
             {healthState.data && `v${healthState.data.version}`}
         </Button>
     );
@@ -106,10 +108,10 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                 radius="xs"
                                 size="xs"
                                 className={classes.updateBadge}
-                                aria-label="New version available! Open what's new"
+                                aria-label={t('aboutFooter.newVersionAria')}
                                 onClick={() => setIsWhatsNewOpen(true)}
                             >
-                                New version available!
+                                {t('aboutFooter.newVersion')}
                             </Badge>
                         </Group>
                     ) : (
@@ -145,7 +147,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                             size="xs"
                             fw="500"
                         >
-                            Documentation
+                            {t('aboutFooter.documentation')}
                         </MantineLinkButton>
                     )}
                 </Group>
@@ -161,7 +163,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
             <MantineModal
                 opened={isOpen}
                 onClose={() => setIsOpen(false)}
-                title="About Lightdash"
+                title={t('aboutFooter.aboutTitle')}
                 icon={IconInfoCircle}
                 size="md"
                 modalBodyProps={{ py: 'lg' }}
@@ -173,20 +175,20 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                     <Stack gap="md">
                         <Text fz="sm" c="dimmed">
                             {isCloud
-                                ? 'Instance details.'
-                                : 'Instance details and licensing status.'}
+                                ? t('aboutFooter.instanceDetails')
+                                : t('aboutFooter.instanceDetailsAndLicense')}
                         </Text>
 
                         <Paper radius="md" p="md">
                             <Stack gap="md">
                                 <Group justify="space-between" wrap="nowrap">
                                     <Text fz="sm" c="dimmed">
-                                        Version
+                                        {t('aboutFooter.version')}
                                     </Text>
                                     <Text fz="sm" fw={600}>
                                         {healthState.data
                                             ? `v${healthState.data.version}`
-                                            : 'n/a'}
+                                            : t('aboutFooter.notAvailable')}
                                     </Text>
                                 </Group>
 
@@ -201,7 +203,9 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                         >
                                             <Box>
                                                 <Text fz="sm" fw={500}>
-                                                    Enterprise license
+                                                    {t(
+                                                        'aboutFooter.enterpriseLicense',
+                                                    )}
                                                 </Text>
                                                 <Text fz="xs" c="dimmed">
                                                     {licenseDisplay.description}
@@ -230,7 +234,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                     <MantineIcon icon={IconBook} size="sm" />
                                 }
                             >
-                                Documentation
+                                {t('aboutFooter.documentation')}
                             </MantineLinkButton>
                             <MantineLinkButton
                                 href="https://github.com/lightdash/lightdash"

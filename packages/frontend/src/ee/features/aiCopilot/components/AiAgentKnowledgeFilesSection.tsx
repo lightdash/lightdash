@@ -33,6 +33,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { EmptyState } from '../../../../components/common/EmptyState';
 import EmptyStateLoader from '../../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -40,6 +41,7 @@ import MantineModal, {
     type MantineModalProps,
 } from '../../../../components/common/MantineModal';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 import { formatFileSize } from '../../../../utils/formatters';
 import {
     useAiAgentDocuments,
@@ -123,16 +125,25 @@ const getPendingActionModalConfig = (
     switch (action.type) {
         case 'delete':
             return {
-                title: 'Delete knowledge document',
+                title: i18n.t('knowledge.deleteTitle', { ns: 'aiAgent' }),
                 variant: 'delete',
-                resourceType: 'knowledge document',
+                resourceType: i18n.t('knowledge.resourceType', {
+                    ns: 'aiAgent',
+                }),
                 resourceLabel: action.document.name,
             };
         case 'enableFullContext':
             return {
-                title: 'Always include in context?',
-                description: `The full content of “${action.document.name}” will be added to every session. This uses more tokens and may increase response time.`,
-                confirmLabel: 'Always include',
+                title: i18n.t('knowledge.alwaysIncludeTitle', {
+                    ns: 'aiAgent',
+                }),
+                description: i18n.t('knowledge.alwaysIncludeDescription', {
+                    ns: 'aiAgent',
+                    name: action.document.name,
+                }),
+                confirmLabel: i18n.t('knowledge.alwaysInclude', {
+                    ns: 'aiAgent',
+                }),
                 variant: 'default',
             };
         default:
@@ -159,44 +170,47 @@ const FileRow = ({
     warning,
     selected,
     onSelect,
-}: FileRowProps) => (
-    <UnstyledButton
-        onClick={onSelect}
-        className={styles.fileRow}
-        data-selected={selected || undefined}
-        // Anchor for scope walkthroughs (data-tour-via), by name
-        data-tour-anchor="knowledge-document"
-        data-tour-hint="Choose a document"
-        data-tour-hint-named="Choose {value}"
-        data-tour-value={name}
-    >
-        <Group gap="sm" wrap="nowrap" align="flex-start">
-            <MantineIcon
-                icon={icon}
-                color="dimmed"
-                className={styles.fileIcon}
-            />
-            <Stack gap={2} miw={0} flex={1}>
-                <Group gap={6} wrap="nowrap">
-                    <Text size="sm" fw={500} truncate>
-                        {name}
-                    </Text>
-                    {warning && (
-                        <Tooltip label="This document may not be relevant to the project">
-                            <MantineIcon
-                                icon={IconAlertTriangle}
-                                color="orange"
-                                size="sm"
-                                className={styles.fileIcon}
-                            />
-                        </Tooltip>
-                    )}
-                </Group>
-                {meta}
-            </Stack>
-        </Group>
-    </UnstyledButton>
-);
+}: FileRowProps) => {
+    const { t } = useTranslation('aiAgent');
+    return (
+        <UnstyledButton
+            onClick={onSelect}
+            className={styles.fileRow}
+            data-selected={selected || undefined}
+            // Anchor for scope walkthroughs (data-tour-via), by name
+            data-tour-anchor="knowledge-document"
+            data-tour-hint="Choose a document"
+            data-tour-hint-named="Choose {value}"
+            data-tour-value={name}
+        >
+            <Group gap="sm" wrap="nowrap" align="flex-start">
+                <MantineIcon
+                    icon={icon}
+                    color="dimmed"
+                    className={styles.fileIcon}
+                />
+                <Stack gap={2} miw={0} flex={1}>
+                    <Group gap={6} wrap="nowrap">
+                        <Text size="sm" fw={500} truncate>
+                            {name}
+                        </Text>
+                        {warning && (
+                            <Tooltip label={t('knowledge.mayNotBeRelevant')}>
+                                <MantineIcon
+                                    icon={IconAlertTriangle}
+                                    color="orange"
+                                    size="sm"
+                                    className={styles.fileIcon}
+                                />
+                            </Tooltip>
+                        )}
+                    </Group>
+                    {meta}
+                </Stack>
+            </Group>
+        </UnstyledButton>
+    );
+};
 
 type UsageOptionProps = {
     value: UsageMode;
@@ -251,6 +265,7 @@ export const AiAgentKnowledgeFilesSection = ({
     projectUuid,
     withHeading,
 }: Props) => {
+    const { t } = useTranslation('aiAgent');
     const { data, isLoading } = useAiAgentDocuments(projectUuid, agentUuid);
     const createDocument = useCreateAiAgentDocument(projectUuid, agentUuid);
     const deleteDocument = useDeleteAiAgentDocument(projectUuid, agentUuid);
@@ -303,13 +318,15 @@ export const AiAgentKnowledgeFilesSection = ({
                     file.size > AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES
                 ) {
                     showToastError({
-                        title: `Skipped ${file.name}`,
+                        title: t('knowledge.skipped', { name: file.name }),
                         subtitle:
                             file.size > AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES
-                                ? `Exceeds ${formatFileSize(
-                                      AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
-                                  )} limit.`
-                                : 'Only .md and .txt files are supported.',
+                                ? t('knowledge.exceedsLimit', {
+                                      limit: formatFileSize(
+                                          AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
+                                      ),
+                                  })
+                                : t('knowledge.unsupportedType'),
                     });
                     continue;
                 }
@@ -361,7 +378,7 @@ export const AiAgentKnowledgeFilesSection = ({
                 }
             }
         },
-        [createDocument, showToastError],
+        [createDocument, showToastError, t],
     );
 
     const handleUsageChange = useCallback(
@@ -435,7 +452,7 @@ export const AiAgentKnowledgeFilesSection = ({
                     size="xs"
                     leftSection={<MantineIcon icon={IconUpload} />}
                 >
-                    Upload
+                    {t('knowledge.upload')}
                 </Button>
             )}
         </FileButton>
@@ -446,12 +463,10 @@ export const AiAgentKnowledgeFilesSection = ({
             {withHeading && (
                 <Box>
                     <Title order={6} c="ldGray.7" size="sm" fw={500}>
-                        Knowledge documents
+                        {t('knowledge.heading')}
                     </Title>
                     <Text c="dimmed" size="xs">
-                        Reference documents can be retrieved when relevant or
-                        always included in the agent context. A short summary is
-                        generated for each file.
+                        {t('knowledge.headingDescription')}
                     </Text>
                 </Box>
             )}
@@ -476,7 +491,7 @@ export const AiAgentKnowledgeFilesSection = ({
                             }
                             gap="xs"
                             titleProps={{ order: 6 }}
-                            title="No knowledge document yet"
+                            title={t('knowledge.empty')}
                         >
                             {uploadButton}
                         </EmptyState>
@@ -498,8 +513,9 @@ export const AiAgentKnowledgeFilesSection = ({
                                     className={styles.listHeader}
                                 >
                                     <Text size="sm" c="dimmed">
-                                        {fileCount}{' '}
-                                        {fileCount === 1 ? 'file' : 'files'}
+                                        {t('knowledge.fileCount', {
+                                            count: fileCount,
+                                        })}
                                     </Text>
                                     {uploadButton}
                                 </Group>
@@ -529,7 +545,9 @@ export const AiAgentKnowledgeFilesSection = ({
                                                             size="xs"
                                                             c="dimmed"
                                                         >
-                                                            Generating summary…
+                                                            {t(
+                                                                'knowledge.generatingSummaryEllipsis',
+                                                            )}
                                                         </Text>
                                                     </Skeleton>
                                                 }
@@ -573,8 +591,12 @@ export const AiAgentKnowledgeFilesSection = ({
                                                         )}{' '}
                                                         ·{' '}
                                                         {doc.alwaysIncludeInContext
-                                                            ? 'Always included'
-                                                            : 'When relevant'}
+                                                            ? t(
+                                                                  'knowledge.alwaysIncluded',
+                                                              )
+                                                            : t(
+                                                                  'knowledge.whenRelevant',
+                                                              )}
                                                     </Text>
                                                 }
                                             />
@@ -618,10 +640,15 @@ export const AiAgentKnowledgeFilesSection = ({
                                                               selectedDocument!
                                                                   .contentSizeBytes,
                                                           ),
-                                                          `Uploaded ${formatUploadDate(
-                                                              selectedDocument!
-                                                                  .createdAt,
-                                                          )}`,
+                                                          t(
+                                                              'knowledge.uploaded',
+                                                              {
+                                                                  date: formatUploadDate(
+                                                                      selectedDocument!
+                                                                          .createdAt,
+                                                                  ),
+                                                              },
+                                                          ),
                                                       ].join(' · ')}
                                             </Text>
                                         </Stack>
@@ -644,13 +671,19 @@ export const AiAgentKnowledgeFilesSection = ({
                                                     data-tour-anchor="knowledge-document-open"
                                                     data-tour-hint="Open the document"
                                                 >
-                                                    Preview
+                                                    {t('knowledge.preview')}
                                                 </Button>
-                                                <Tooltip label="Delete document">
+                                                <Tooltip
+                                                    label={t(
+                                                        'knowledge.deleteDocument',
+                                                    )}
+                                                >
                                                     <ActionIcon
                                                         variant="default"
                                                         size="input-xs"
-                                                        aria-label="Delete document"
+                                                        aria-label={t(
+                                                            'knowledge.deleteDocument',
+                                                        )}
                                                         loading={
                                                             deleteDocument.isLoading &&
                                                             deleteDocument.variables ===
@@ -688,19 +721,19 @@ export const AiAgentKnowledgeFilesSection = ({
                                                 fw={600}
                                             >
                                                 {selectedPending
-                                                    ? 'Generating summary'
-                                                    : 'AI summary'}
+                                                    ? t(
+                                                          'knowledge.generatingSummary',
+                                                      )
+                                                    : t('knowledge.aiSummary')}
                                             </Text>
                                         </Group>
 
                                         {selectedPending ? (
                                             <Skeleton visible radius="sm">
                                                 <Text size="xs">
-                                                    Generating a short summary
-                                                    so the agent knows when to
-                                                    reference this document.
-                                                    This usually takes a few
-                                                    seconds.
+                                                    {t(
+                                                        'knowledge.generatingSummaryHelp',
+                                                    )}
                                                 </Text>
                                             </Skeleton>
                                         ) : (
@@ -734,10 +767,12 @@ export const AiAgentKnowledgeFilesSection = ({
 
                                             <Stack gap="xs">
                                                 <Text size="xs" fw={500}>
-                                                    How the agent uses it
+                                                    {t('knowledge.usageTitle')}
                                                 </Text>
                                                 <Radio.Group
-                                                    aria-label="How the agent uses this document"
+                                                    aria-label={t(
+                                                        'knowledge.usageAria',
+                                                    )}
                                                     value={getUsageMode(
                                                         selectedDocument.alwaysIncludeInContext,
                                                     )}
@@ -754,8 +789,12 @@ export const AiAgentKnowledgeFilesSection = ({
                                                     >
                                                         <UsageOption
                                                             value="retrieve"
-                                                            title="Retrieve when relevant"
-                                                            description="Searched only when a question needs it."
+                                                            title={t(
+                                                                'knowledge.retrieveTitle',
+                                                            )}
+                                                            description={t(
+                                                                'knowledge.retrieveDescription',
+                                                            )}
                                                             disabled={
                                                                 updateDocument.isLoading
                                                             }
@@ -765,8 +804,12 @@ export const AiAgentKnowledgeFilesSection = ({
                                                         />
                                                         <UsageOption
                                                             value="always"
-                                                            title="Always include"
-                                                            description="Full document added to every session. Uses more tokens."
+                                                            title={t(
+                                                                'knowledge.alwaysInclude',
+                                                            )}
+                                                            description={t(
+                                                                'knowledge.alwaysIncludeOptionDescription',
+                                                            )}
                                                             disabled={
                                                                 updateDocument.isLoading
                                                             }

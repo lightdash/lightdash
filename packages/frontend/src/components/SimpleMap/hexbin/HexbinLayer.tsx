@@ -6,6 +6,7 @@ import {
 import { scaleLinear } from 'd3-scale';
 import type * as L from 'leaflet';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Polygon, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import type { ScatterPoint } from '../../../hooks/leaflet/useLeafletMapConfig';
 import {
@@ -90,6 +91,7 @@ const HexbinLayer = ({
     emptyBinColor,
     onTruncated,
 }: Props) => {
+    const { t } = useTranslation('visualization');
     const emptyFill = emptyBinColor ? parseHexColor(emptyBinColor) : null;
     const map = useMap();
     const [zoom, setZoom] = useState<number>(map.getZoom());
@@ -200,13 +202,24 @@ const HexbinLayer = ({
                     >
                         <Tooltip sticky>
                             <div>
-                                <div>Count: {bin.count}</div>
+                                <div>
+                                    {t('map.hexbin.count', {
+                                        count: bin.count,
+                                    })}
+                                </div>
                                 {isFieldColor &&
                                     aggValue(bin, aggregation) !== null && (
                                         <div>
-                                            {valueFieldLabel ?? 'Value'} (
-                                            {aggregation}):{' '}
-                                            {aggValue(bin, aggregation)}
+                                            {t('map.hexbin.valueLine', {
+                                                label:
+                                                    valueFieldLabel ??
+                                                    t('map.hexbin.value'),
+                                                aggregation,
+                                                value: aggValue(
+                                                    bin,
+                                                    aggregation,
+                                                ),
+                                            })}
                                         </div>
                                     )}
                             </div>

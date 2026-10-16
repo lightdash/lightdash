@@ -1,0 +1,163 @@
+{
+    "page": {
+        "title": "Mi historial de consultas",
+        "detailsTitle": "Detalles de la consulta",
+        "warehouseTimeLast7Days": "{{time}} de tiempo de almacén en los últimos 7 días"
+    },
+    "format": {
+        "now": "ahora",
+        "minutesAgo": "hace {{count}} min",
+        "since": "Desde {{time}}"
+    },
+    "windows": {
+        "lastFewMinutes": "Últimos minutos",
+        "lastHour": "Última hora",
+        "last24Hours": "Últimas 24 horas",
+        "last7Days": "Últimos 7 días",
+        "last30Days": "Últimos 30 días"
+    },
+    "triggers": {
+        "interactive": "Interactivas",
+        "apps": "Apps",
+        "scheduled": "Programadas",
+        "all": "Todas",
+        "allWithCount": "{{label}} ({{count}})"
+    },
+    "languages": {
+        "semantic": "Semántica",
+        "sql": "SQL"
+    },
+    "statuses": {
+        "ready": "Lista",
+        "running": "En ejecución",
+        "queued": "En cola",
+        "failed": "Fallida",
+        "cancelled": "Cancelada",
+        "expired": "Caducada"
+    },
+    "toolbar": {
+        "querySource": "Origen de la consulta",
+        "language": "Lenguaje",
+        "status": "Estado",
+        "clear": "Limpiar",
+        "searchPlaceholder": "Buscar campos, tablas o SQL"
+    },
+    "queryCell": {
+        "servedFromCache": "Servida desde caché"
+    },
+    "table": {
+        "columns": {
+            "query": "Consulta",
+            "language": "Lenguaje",
+            "trigger": "Origen",
+            "runTime": "Tiempo de ejecución",
+            "rows": "Filas",
+            "when": "Cuándo"
+        },
+        "runs_one": "{{formattedCount}} ejecución",
+        "runs_other": "{{formattedCount}} ejecuciones",
+        "showMore": "Mostrar {{count}} más",
+        "entityName": "consultas",
+        "emptyMessage": "No hay consultas en los últimos 30 días",
+        "filteredMessage": "Ninguna consulta coincide con estos filtros",
+        "loadingMore": "Cargando más",
+        "scrollForMore": "Desplázate para ver más",
+        "allResultsLoaded": "Todos los resultados cargados"
+    },
+    "detail": {
+        "aiContext": "Sobre los resultados de mi consulta \"{{title}}\" ({{rowCount}} filas): {{prompt}}",
+        "unknownRowCount": "desconocido",
+        "rows_one": "{{formattedCount}} fila",
+        "rows_other": "{{formattedCount}} filas",
+        "cachedUntil": "en caché hasta las {{time}}",
+        "cancelQuery": "Cancelar consulta",
+        "openInSqlRunner": "Abrir en SQL Runner",
+        "fixInExplore": "Corregir en Explorar",
+        "openInExplore": "Abrir en Explorar",
+        "queryFailed": "La consulta falló",
+        "stillRunning": "La consulta sigue en ejecución",
+        "resultsUnavailable": "Los resultados ya no están disponibles. Vuelve a ejecutar la consulta para verlos.",
+        "previousQuery": "Consulta anterior",
+        "nextQuery": "Consulta siguiente",
+        "close": "Cerrar",
+        "closePanel": "Cerrar panel",
+        "timings": {
+            "total": "Total",
+            "queued": "En cola",
+            "warehouse": "Almacén",
+            "fetch": "Obtención"
+        },
+        "results": "Resultados",
+        "sql": "SQL",
+        "lines_one": "{{count}} línea",
+        "lines_other": "{{count}} líneas",
+        "askAiPlaceholder": "Pregunta a la IA sobre estos resultados",
+        "rerun": "Volver a ejecutar"
+    },
+    "rerun": {
+        "cannotRerun": "Esta consulta no se puede volver a ejecutar"
+    },
+    "dataAppActivity": {
+        "settingsPage": {
+            "title": "Actividad",
+            "description": "Consulta quién generó cada app de datos, cuándo y con qué modelo."
+        },
+        "tokens": {
+            "input": "Entrada: {{value}}",
+            "output": "Salida: {{value}}",
+            "cached": "En caché: {{value}}",
+            "turns_one": "{{count}} turno",
+            "turns_other": "{{count}} turnos",
+            "estimatedCostUnavailable": "Coste estimado: no disponible",
+            "estimatedCost": "Coste estimado: {{cost}}"
+        },
+        "noPrompt": "Sin prompt",
+        "columns": {
+            "when": "Cuándo",
+            "user": "Usuario",
+            "name": "Nombre",
+            "project": "Proyecto",
+            "type": "Tipo",
+            "model": "Modelo",
+            "status": "Estado",
+            "tokens": "Tokens",
+            "prompt": "Prompt"
+        },
+        "unknownUser": "Usuario desconocido",
+        "deletedUser": "Usuario eliminado",
+        "customChartType": "Tipo de gráfico personalizado",
+        "dataApp": "App de datos",
+        "deleted": "Eliminada",
+        "created": "Creación",
+        "iteration": "Iteración",
+        "emptyState": {
+            "entityName": "generaciones",
+            "emptyMessage": "Todavía no se ha generado ninguna app de datos.",
+            "filteredMessage": "Ninguna generación coincide con estos filtros."
+        },
+        "periods": {
+            "all": "Todo el tiempo",
+            "7d": "7 días",
+            "30d": "30 días",
+            "90d": "90 días"
+        },
+        "kinds": {
+            "all": "Todas las creaciones",
+            "apps": "Apps",
+            "chartTypes": "Tipos de gráfico"
+        },
+        "filters": {
+            "projects": "Proyectos",
+            "projectsTooltip": "Filtrar la actividad por proyecto",
+            "users": "Usuarios",
+            "usersTooltip": "Filtrar la actividad por quién la generó",
+            "models": "Modelos",
+            "modelsTooltip": "Filtrar la actividad por el modelo que la creó",
+            "clearAll": "Limpiar todos los filtros"
+        },
+        "loading": "Cargando...",
+        "partialCount": "{{current}} de {{total}} generaciones",
+        "totalCount_one": "{{count}} generación",
+        "totalCount_other": "{{count}} generaciones"
+    }
+}

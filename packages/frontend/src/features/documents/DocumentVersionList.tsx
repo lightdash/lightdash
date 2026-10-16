@@ -1,5 +1,6 @@
 import { type DocumentVersionSummary } from '@lightdash/common';
 import { Badge, Button, NavLink, Stack, Text } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
 import { formatVersionTime, getVersionAuthor } from './documentVersions';
@@ -19,23 +20,24 @@ const DocumentVersionList = ({
     selectedVersionUuid,
     onSelect,
 }: Props) => {
+    const { t } = useTranslation('documents');
     const versions = useDocumentVersions(projectUuid, documentUuid);
     if (versions.isInitialLoading) {
-        return <SuboptimalState title="Loading versions" loading />;
+        return <SuboptimalState title={t('versionList.loading')} loading />;
     }
     if (versions.error) {
         return (
             <InlineErrorState
-                message="Version history could not be loaded."
+                message={t('versionList.loadFailed')}
                 onRetry={() => void versions.refetch()}
             />
         );
     }
     const items = versions.data?.pages.flatMap((page) => page.items) ?? [];
     return (
-        <Stack gap="xxs" role="group" aria-label="Document versions">
+        <Stack gap="xxs" role="group" aria-label={t('versionList.ariaLabel')}>
             <Text fz="xs" fw={500} c="dimmed" mb="xs">
-                Version history
+                {t('versionList.title')}
             </Text>
             {items.map((version, index) => {
                 const timestamp = formatVersionTime(version.createdAt);
@@ -47,12 +49,18 @@ const DocumentVersionList = ({
                         type="button"
                         active={selected}
                         aria-pressed={selected}
-                        aria-label={`Version ${version.versionNumber}, saved ${timestamp} by ${getVersionAuthor(version)}`}
+                        aria-label={t('versionList.versionAriaLabel', {
+                            number: version.versionNumber,
+                            timestamp,
+                            author: getVersionAuthor(version),
+                        })}
                         label={timestamp}
                         description={getVersionAuthor(version)}
                         rightSection={
                             index === 0 ? (
-                                <Badge size="xs">Current</Badge>
+                                <Badge size="xs">
+                                    {t('versionList.current')}
+                                </Badge>
                             ) : null
                         }
                         onClick={() => onSelect(version)}
@@ -66,7 +74,7 @@ const DocumentVersionList = ({
                     loading={versions.isFetchingNextPage}
                     onClick={() => void versions.fetchNextPage()}
                 >
-                    Load older versions
+                    {t('versionList.loadOlder')}
                 </Button>
             )}
         </Stack>

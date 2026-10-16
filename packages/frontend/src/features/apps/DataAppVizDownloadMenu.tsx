@@ -1,5 +1,6 @@
 import { ActionIcon, Button, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import {
     COLLAPSABLE_CARD_ACTION_ICON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
@@ -16,6 +17,7 @@ import { useChartVersionPreview } from './ChartVersionPreview/useChartVersionPre
 
 /** Export a custom chart only when Explorer displays its saved state. */
 const DataAppVizDownloadMenu = ({ projectUuid }: { projectUuid: string }) => {
+    const { t } = useTranslation('apps');
     const savedChart = useExplorerSelector(selectSavedChart);
     const hasUnsavedChanges = useExplorerSelector(selectHasUnsavedChanges);
     const dateZoom = useDateZoomGranularitySearch();
@@ -54,7 +56,7 @@ const DataAppVizDownloadMenu = ({ projectUuid }: { projectUuid: string }) => {
                         })
                     }
                 >
-                    Export PNG
+                    {t('viz.exportPng')}
                 </Button>
             </Popover.Dropdown>
         </Popover>

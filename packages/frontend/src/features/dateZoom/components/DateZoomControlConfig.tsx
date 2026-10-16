@@ -30,6 +30,7 @@ import {
     IconClock,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
@@ -66,6 +67,7 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
     onSave,
     popoverProps,
 }) => {
+    const { t } = useTranslation('dashboard');
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const chartZoomableFieldsByTileUuid = useDashboardContext(
@@ -143,10 +145,10 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
         if (customItems.length === 0) return standardItems;
         if (standardItems.length === 0) return customItems;
         return [
-            { group: 'Standard', items: standardItems },
-            { group: 'Custom', items: customItems },
+            { group: t('dateZoom.config.standard'), items: standardItems },
+            { group: t('dateZoom.custom'), items: customItems },
         ];
-    }, [dateZoomGranularities, availableCustomGranularities]);
+    }, [dateZoomGranularities, availableCustomGranularities, t]);
 
     // Chart tiles a control can touch: those that expose a zoomable date field
     // (a date/timestamp dimension the chart queries) OR reference the reserved
@@ -171,7 +173,8 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
                 const label =
                     (tile.properties.title?.length
                         ? tile.properties.title
-                        : tile.properties.chartName) || 'Untitled chart';
+                        : tile.properties.chartName) ||
+                    t('dateZoom.config.untitledChart');
                 return {
                     tile,
                     tabUuid: tile.tabUuid ?? undefined,
@@ -191,6 +194,7 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
         tileParameterReferences,
         config,
         draft.uuid,
+        t,
     ]);
 
     type EligibleTile = (typeof eligibleTiles)[number];
@@ -358,12 +362,16 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
                 />
                 {conflictControl ? (
                     <Box ml="xl" mt="xxs">
-                        <Badge size="sm">In {conflictControl.name}</Badge>
+                        <Badge size="sm">
+                            {t('dateZoom.config.inControl', {
+                                name: conflictControl.name,
+                            })}
+                        </Badge>
                     </Box>
                 ) : isChecked && isParamOnly ? (
                     <Box ml="xl" mt="xxs">
                         <Text fz="xs" c="dimmed">
-                            Follows the selected granularity via{' '}
+                            {t('dateZoom.config.followsVia')}{' '}
                             <Code fz="xs">{'${ld.parameters.date_zoom}'}</Code>
                         </Text>
                     </Box>
@@ -373,7 +381,7 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
                             w="100%"
                             size="xs"
                             allowDeselect={false}
-                            placeholder="Date field"
+                            placeholder={t('dateZoom.config.dateField')}
                             leftSection={<MantineIcon icon={IconClock} />}
                             data={zoomableFields.map((field) => ({
                                 value: field.fieldId,
@@ -424,7 +432,11 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
                 <Flex align="center" gap="xxs">
                     <ActionIcon
                         size="xs"
-                        aria-label={isCollapsed ? 'Expand tab' : 'Collapse tab'}
+                        aria-label={
+                            isCollapsed
+                                ? t('dateZoom.config.expandTab')
+                                : t('dateZoom.config.collapseTab')
+                        }
                         onClick={() =>
                             setCollapsedTabs((prev) => ({
                                 ...prev,
@@ -452,8 +464,10 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
                                 </Text>
                                 {isCollapsed && (
                                     <Text fz="xs" c="dimmed">
-                                        ({groupSelectedCount} of{' '}
-                                        {group.tiles.length} selected)
+                                        {t('dateZoom.config.selectedOfTotal', {
+                                            selected: groupSelectedCount,
+                                            total: group.tiles.length,
+                                        })}
                                     </Text>
                                 )}
                             </Group>
@@ -481,16 +495,22 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
                 }
             >
                 <Tabs.List mb="md">
-                    <Tabs.Tab value={ControlTab.SETTINGS}>Settings</Tabs.Tab>
-                    <Tabs.Tab value={ControlTab.TILES}>Chart tiles</Tabs.Tab>
+                    <Tabs.Tab value={ControlTab.SETTINGS}>
+                        {t('dateZoom.config.settingsTab')}
+                    </Tabs.Tab>
+                    <Tabs.Tab value={ControlTab.TILES}>
+                        {t('dateZoom.config.chartTilesTab')}
+                    </Tabs.Tab>
                 </Tabs.List>
 
                 <Tabs.Panel value={ControlTab.SETTINGS} w={360}>
                     <Stack gap="md">
                         <TextInput
                             size="xs"
-                            label="Control name"
-                            placeholder="e.g. Revenue zoom"
+                            label={t('dateZoom.config.controlName')}
+                            placeholder={t(
+                                'dateZoom.config.controlNamePlaceholder',
+                            )}
                             value={draft.name}
                             onChange={(e) => {
                                 const name = e.currentTarget.value;
@@ -500,7 +520,7 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
 
                         <Select
                             size="xs"
-                            label="Default granularity"
+                            label={t('dateZoom.config.defaultGranularity')}
                             data={granularityData}
                             value={String(draft.granularity)}
                             allowDeselect={false}
@@ -522,17 +542,17 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
                                 c={targetCount === 0 ? 'red' : 'dimmed'}
                             >
                                 {targetCount === 0
-                                    ? 'Select at least one chart'
-                                    : `Targeting ${targetCount} ${
-                                          targetCount === 1 ? 'chart' : 'charts'
-                                      }`}
+                                    ? t('dateZoom.config.selectAtLeastOne')
+                                    : t('dateZoom.config.targeting', {
+                                          count: targetCount,
+                                      })}
                             </Text>
                             <Button
                                 variant="subtle"
                                 size="xs"
                                 onClick={() => setSelectedTab(ControlTab.TILES)}
                             >
-                                Edit charts
+                                {t('dateZoom.config.editCharts')}
                             </Button>
                         </Group>
                     </Stack>
@@ -541,7 +561,7 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
                 <Tabs.Panel value={ControlTab.TILES} w={440}>
                     {eligibleTiles.length === 0 ? (
                         <Text fz="xs" c="dimmed">
-                            No chart tiles with a date dimension to zoom.
+                            {t('dateZoom.config.noEligibleTiles')}
                         </Text>
                     ) : (
                         <Stack gap="xl" className={styles.tileScrollArea}>
@@ -552,7 +572,7 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
                                 indeterminate={isIndeterminate}
                                 disabled={selectableTiles.length === 0}
                                 classNames={{ input: styles.checkboxInput }}
-                                label="Select all"
+                                label={t('dateZoom.config.selectAll')}
                                 onChange={() =>
                                     toggleMany(selectableTiles, allSelected)
                                 }
@@ -571,7 +591,7 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
                     }
                     onClick={handleSave}
                 >
-                    Save changes
+                    {t('dateZoom.config.saveChanges')}
                 </Button>
             </Group>
         </Stack>

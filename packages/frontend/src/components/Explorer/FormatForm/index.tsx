@@ -32,7 +32,9 @@ import {
     IconClockHour4,
     IconExternalLink,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useMemo, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { type ValueOf } from 'type-fest';
 import { optionalNumber } from '../../../utils/numberInputUtils';
 import MantineIcon from '../../common/MantineIcon';
@@ -69,10 +71,10 @@ const dateFormatTypeOptions = [
     CustomFormatType.TIMESTAMP,
 ];
 
-const formatSeparatorOptions = [
+const getFormatSeparatorOptions = (t: TFunction) => [
     {
         value: NumberSeparator.DEFAULT,
-        label: 'Default separator',
+        label: t('formatForm.defaultSeparator'),
     },
     {
         value: NumberSeparator.COMMA_PERIOD,
@@ -137,6 +139,11 @@ export const FormatForm: FC<Props> = ({
     itemType,
     compact = false,
 }) => {
+    const { t } = useTranslation('explorer');
+    const formatSeparatorOptions = useMemo(
+        () => getFormatSeparatorOptions(t),
+        [t],
+    );
     const formatType = format.type;
     const formatExpression = convertCustomFormatToFormatExpression(format);
     const usesRuntimeOnlyFormatExpression =
@@ -199,11 +206,14 @@ export const FormatForm: FC<Props> = ({
         if (!isDateType) return null;
         if (!format.custom) return null;
         try {
-            return formatValueWithExpression(format.custom, sampleDate);
+            return {
+                value: formatValueWithExpression(format.custom, sampleDate),
+                isInvalid: false,
+            };
         } catch {
-            return 'Invalid format';
+            return { value: t('formatForm.invalidFormat'), isInvalid: true };
         }
-    }, [isDateType, format.custom, sampleDate]);
+    }, [isDateType, format.custom, sampleDate, t]);
 
     return (
         <Grid gap="md" columns={12}>
@@ -212,17 +222,20 @@ export const FormatForm: FC<Props> = ({
                 <Grid.Col span={12}>
                     <Stack gap="xs">
                         <Text size="sm" fw={500}>
-                            Format
+                            {t('formatForm.format')}
                         </Text>
                         <SegmentedControl
                             w="fit-content"
                             size="sm"
                             data={[
                                 {
-                                    label: 'Default',
+                                    label: t('formatForm.default'),
                                     value: CustomFormatType.DEFAULT,
                                 },
-                                { label: 'Custom', value: 'custom' },
+                                {
+                                    label: t('formatForm.custom'),
+                                    value: 'custom',
+                                },
                             ]}
                             value={
                                 format.type === CustomFormatType.DEFAULT
@@ -249,7 +262,7 @@ export const FormatForm: FC<Props> = ({
             ) : (
                 <Grid.Col span={compact ? 12 : 4}>
                     <Select
-                        label="Format type"
+                        label={t('formatForm.formatType')}
                         data={formatTypeOptions.map((type) => ({
                             value: type,
                             label: getFormatTypeLabel(type),
@@ -302,14 +315,16 @@ export const FormatForm: FC<Props> = ({
                                         color="dimmed"
                                     />
                                 }
-                                label="Custom format"
-                                placeholder="e.g. dd/mm/yyyy or mmmm d, yyyy"
+                                label={t('formatForm.customFormat')}
+                                placeholder={t(
+                                    'formatForm.customFormatPlaceholder',
+                                )}
                                 {...formatInputProps('custom')}
                             />
                             {format.custom && (
                                 <Box pb={2}>
                                     <Text size="xs" c="dimmed" fw={500} mb={4}>
-                                        Result
+                                        {t('formatForm.result')}
                                     </Text>
                                     <Paper
                                         px="md"
@@ -322,12 +337,12 @@ export const FormatForm: FC<Props> = ({
                                             size="sm"
                                             fw={600}
                                             c={
-                                                datePreview === 'Invalid format'
+                                                datePreview?.isInvalid
                                                     ? 'red.6'
                                                     : 'inherit'
                                             }
                                         >
-                                            {datePreview || '...'}
+                                            {datePreview?.value || '...'}
                                         </Text>
                                     </Paper>
                                 </Box>
@@ -337,7 +352,7 @@ export const FormatForm: FC<Props> = ({
                         <Stack gap="xs">
                             <Group gap="xs">
                                 <Text size="xs" c="dimmed" fw={500}>
-                                    Common formats
+                                    {t('formatForm.commonFormats')}
                                 </Text>
                                 <Anchor
                                     href="https://customformats.com"
@@ -390,8 +405,10 @@ export const FormatForm: FC<Props> = ({
             {formatType === CustomFormatType.CUSTOM && !isDateField && (
                 <Grid.Col span={12}>
                     <TextInput
-                        label="Format expression"
-                        placeholder="e.g. #,##0.00"
+                        label={t('formatForm.formatExpression')}
+                        placeholder={t(
+                            'formatForm.formatExpressionPlaceholder',
+                        )}
                         description={
                             <Group gap="two">
                                 <MantineIcon
@@ -404,7 +421,7 @@ export const FormatForm: FC<Props> = ({
                                     target="_blank"
                                     size="xs"
                                 >
-                                    Build your format at customformats.com
+                                    {t('formatForm.buildAtCustomFormats')}
                                 </Anchor>
                             </Group>
                         }
@@ -426,7 +443,7 @@ export const FormatForm: FC<Props> = ({
                         <Grid.Col span={compact ? 12 : 4}>
                             <Select
                                 searchable
-                                label="Currency"
+                                label={t('formatForm.currency')}
                                 data={formatCurrencyOptions}
                                 {...formatInputProps('currency')}
                             />
@@ -435,8 +452,8 @@ export const FormatForm: FC<Props> = ({
                     <Grid.Col span={compact ? 12 : 4}>
                         <NumberInput
                             min={0}
-                            label="Decimal places"
-                            placeholder="Auto"
+                            label={t('formatForm.decimalPlaces')}
+                            placeholder={t('formatForm.auto')}
                             {...{
                                 ...formatInputProps('round'),
                                 onChange: (value) => {
@@ -450,7 +467,7 @@ export const FormatForm: FC<Props> = ({
                     </Grid.Col>
                     <Grid.Col span={compact ? 12 : 4}>
                         <Select
-                            label="Separator style"
+                            label={t('formatForm.separatorStyle')}
                             data={formatSeparatorOptions}
                             {...formatInputProps('separator')}
                         />
@@ -469,13 +486,17 @@ export const FormatForm: FC<Props> = ({
                     <Grid.Col span={12}>
                         <Select
                             clearable
-                            label="Compact"
+                            label={t('formatForm.compact')}
                             placeholder={
                                 formatType === CustomFormatType.BYTES_SI
-                                    ? 'e.g. kilobytes (KB)'
+                                    ? t('formatForm.compactPlaceholder.bytesSi')
                                     : formatType === CustomFormatType.BYTES_IEC
-                                      ? 'e.g. kibibytes (KiB)'
-                                      : 'e.g. thousands (K)'
+                                      ? t(
+                                            'formatForm.compactPlaceholder.bytesIec',
+                                        )
+                                      : t(
+                                            'formatForm.compactPlaceholder.number',
+                                        )
                             }
                             data={getCompactOptionsForFormatType(
                                 formatType,
@@ -502,15 +523,19 @@ export const FormatForm: FC<Props> = ({
                         <>
                             <Grid.Col span={compact ? 12 : 4}>
                                 <TextInput
-                                    label="Prefix"
-                                    placeholder="e.g. $"
+                                    label={t('formatForm.prefix')}
+                                    placeholder={t(
+                                        'formatForm.prefixPlaceholder',
+                                    )}
                                     {...formatInputProps('prefix')}
                                 />
                             </Grid.Col>
                             <Grid.Col span={compact ? 12 : 4}>
                                 <TextInput
-                                    label="Suffix"
-                                    placeholder="e.g. km/h"
+                                    label={t('formatForm.suffix')}
+                                    placeholder={t(
+                                        'formatForm.suffixPlaceholder',
+                                    )}
                                     {...formatInputProps('suffix')}
                                 />
                             </Grid.Col>
@@ -529,12 +554,19 @@ export const FormatForm: FC<Props> = ({
             ].includes(formatType) && (
                 <Grid.Col span={12}>
                     <Text size="xs" c="ldGray.5">
-                        Format expression:{' '}
-                        <Text span fw={500} c="ldGray.7">
-                            {usesRuntimeOnlyFormatExpression
-                                ? 'runtime only'
-                                : formatExpression || 'default'}
-                        </Text>
+                        <Trans
+                            t={t}
+                            i18nKey="formatForm.expressionSummary"
+                            values={{
+                                expression: usesRuntimeOnlyFormatExpression
+                                    ? t('formatForm.runtimeOnly')
+                                    : formatExpression ||
+                                      t('formatForm.defaultExpression'),
+                            }}
+                            components={{
+                                value: <Text span fw={500} c="ldGray.7" />,
+                            }}
+                        />
                     </Text>
                 </Grid.Col>
             )}

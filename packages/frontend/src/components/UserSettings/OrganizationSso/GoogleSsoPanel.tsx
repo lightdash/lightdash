@@ -18,6 +18,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import useHealth from '../../../hooks/health/useHealth';
 import {
@@ -46,6 +47,7 @@ type FormValues = {
 };
 
 const GoogleSsoPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { data: existing, isLoading } = useGoogleSsoConfig();
     const { data: health } = useHealth();
     const { data: oktaConfig } = useOktaSsoConfig();
@@ -81,7 +83,7 @@ const GoogleSsoPanel: FC = () => {
         validate: {
             emailDomains: (value, values) =>
                 values.overrideEmailDomains && value.length === 0
-                    ? 'Add at least one domain when override is enabled'
+                    ? t('organizationSso.ssoPanel.validation.domainsRequired')
                     : null,
         },
     });
@@ -146,22 +148,20 @@ const GoogleSsoPanel: FC = () => {
                                 w={28}
                                 h={28}
                                 mt={2}
-                                alt="Google logo"
+                                alt={t('organizationSso.ssoPanel.logoAlt', {
+                                    provider: 'Google',
+                                })}
                             />
                             <Stack gap={2}>
                                 <Title order={5}>Google</Title>
                                 <Text c="dimmed" size="sm" maw={460}>
-                                    Single sign-on with Google using Lightdash's
-                                    shared Google app — no credentials required.
-                                    Users whose email matches the discovery
-                                    whitelist see a "Sign in with Google"
-                                    button.
+                                    {t('organizationSso.google.description')}
                                 </Text>
                             </Stack>
                         </Group>
                         {isConfigured ? (
                             <Switch
-                                label="Enabled"
+                                label={t('organizationSso.ssoPanel.enabled')}
                                 labelPosition="left"
                                 checked={form.values.enabled}
                                 disabled={upsert.isLoading}
@@ -173,7 +173,7 @@ const GoogleSsoPanel: FC = () => {
                             />
                         ) : (
                             <Badge variant="outline" size="lg">
-                                Using defaults
+                                {t('organizationSso.google.usingDefaults')}
                             </Badge>
                         )}
                     </Group>
@@ -183,13 +183,15 @@ const GoogleSsoPanel: FC = () => {
                             variant="info"
                             title={
                                 hasOtherProviderEnabled
-                                    ? 'Google is hidden during sign-in'
-                                    : 'Google sign-in is on by default'
+                                    ? t('organizationSso.google.hiddenTitle')
+                                    : t(
+                                          'organizationSso.google.onByDefaultTitle',
+                                      )
                             }
                         >
                             {hasOtherProviderEnabled
-                                ? "You've configured other SSO providers for your organization, so they take over sign-in for your domains and Google isn't shown. Set up Google here if you also want to offer it alongside them."
-                                : "Google sign-in is available by default using Lightdash's shared Google app. Set up a configuration here to restrict it to specific email domains or to disable password sign-in."}
+                                ? t('organizationSso.google.hiddenBody')
+                                : t('organizationSso.google.onByDefaultBody')}
                         </Callout>
                     )}
 
@@ -207,8 +209,12 @@ const GoogleSsoPanel: FC = () => {
                             onClick={() => toggleOpen()}
                         >
                             {isOpen
-                                ? 'Hide configuration'
-                                : 'Edit configuration'}
+                                ? t(
+                                      'organizationSso.ssoPanel.hideConfiguration',
+                                  )
+                                : t(
+                                      'organizationSso.ssoPanel.editConfiguration',
+                                  )}
                         </Button>
                     ) : (
                         !isOpen && (
@@ -217,7 +223,9 @@ const GoogleSsoPanel: FC = () => {
                                 w="fit-content"
                                 onClick={() => toggleOpen()}
                             >
-                                Set up Google
+                                {t('organizationSso.ssoPanel.setUp', {
+                                    provider: 'Google',
+                                })}
                             </Button>
                         )
                     )}
@@ -227,7 +235,11 @@ const GoogleSsoPanel: FC = () => {
                             <Divider />
                             <form onSubmit={handleSubmit}>
                                 <Stack>
-                                    <Title order={6}>Discovery</Title>
+                                    <Title order={6}>
+                                        {t(
+                                            'organizationSso.ssoPanel.discovery',
+                                        )}
+                                    </Title>
                                     <SsoMethodDomainsField
                                         providerLabel="Google"
                                         override={
@@ -250,11 +262,17 @@ const GoogleSsoPanel: FC = () => {
                                     />
 
                                     <Title order={6} mt="md">
-                                        Password sign-in
+                                        {t(
+                                            'organizationSso.ssoPanel.passwordSignIn',
+                                        )}
                                     </Title>
                                     <Checkbox
-                                        label="Allow password sign-in for users matching this method"
-                                        description="When unchecked, users whose email domain matches will not see the password input. Lenient rule: if any matching method allows password, it is shown."
+                                        label={t(
+                                            'organizationSso.ssoPanel.allowPassword',
+                                        )}
+                                        description={t(
+                                            'organizationSso.google.allowPasswordDescription',
+                                        )}
                                         checked={form.values.allowPassword}
                                         onChange={(event) =>
                                             form.setFieldValue(
@@ -278,7 +296,9 @@ const GoogleSsoPanel: FC = () => {
                                                     setDeleteOpen(true)
                                                 }
                                             >
-                                                Remove configuration
+                                                {t(
+                                                    'organizationSso.ssoPanel.removeConfiguration',
+                                                )}
                                             </Button>
                                         ) : (
                                             <div />
@@ -289,8 +309,13 @@ const GoogleSsoPanel: FC = () => {
                                             disabled={upsert.isLoading}
                                         >
                                             {existing
-                                                ? 'Save changes'
-                                                : 'Enable Google'}
+                                                ? t(
+                                                      'organizationSso.ssoPanel.saveChanges',
+                                                  )
+                                                : t(
+                                                      'organizationSso.ssoPanel.enable',
+                                                      { provider: 'Google' },
+                                                  )}
                                         </Button>
                                     </Group>
                                 </Stack>
@@ -305,9 +330,11 @@ const GoogleSsoPanel: FC = () => {
                     opened
                     onClose={() => setDeleteOpen(false)}
                     role="alertdialog"
-                    title="Remove Google configuration"
+                    title={t('organizationSso.ssoPanel.removeModalTitle', {
+                        provider: 'Google',
+                    })}
                     icon={IconShieldCheck}
-                    cancelLabel="Cancel"
+                    cancelLabel={t('actions.cancel', { ns: 'common' })}
                     actions={
                         <Button
                             color="red"
@@ -317,14 +344,11 @@ const GoogleSsoPanel: FC = () => {
                                 setDeleteOpen(false);
                             }}
                         >
-                            Remove
+                            {t('actions.remove', { ns: 'common' })}
                         </Button>
                     }
                 >
-                    <Text>
-                        After removing this configuration, Google sign-in for
-                        this organization reverts to the instance default.
-                    </Text>
+                    <Text>{t('organizationSso.google.removeModalBody')}</Text>
                 </MantineModal>
             )}
         </SettingsCard>

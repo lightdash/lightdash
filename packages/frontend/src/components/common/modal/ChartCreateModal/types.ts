@@ -1,10 +1,14 @@
 import { z } from 'zod';
+import i18n from '../../../../i18n/i18n';
 
 export const saveToDashboardSchema = z.object({
     dashboardUuid: z.string().nullable(),
     newDashboardName: z
         .string()
-        .min(1, 'Dashboard name is required')
+        .min(1, {
+            error: () =>
+                i18n.t('validation.dashboardNameRequired', { ns: 'modals' }),
+        })
         .nullable(),
     newDashboardDescription: z.string().nullable(),
 });
@@ -13,7 +17,13 @@ export type SaveToDashboardFormType = z.infer<typeof saveToDashboardSchema>;
 
 export const saveToSpaceSchema = z.object({
     spaceUuid: z.string().nullable(),
-    newSpaceName: z.string().min(1, 'Space name is required').nullable(),
+    newSpaceName: z
+        .string()
+        .min(1, {
+            error: () =>
+                i18n.t('validation.spaceNameRequired', { ns: 'modals' }),
+        })
+        .nullable(),
 });
 
 export type SaveToSpaceFormType = z.infer<typeof saveToSpaceSchema>;

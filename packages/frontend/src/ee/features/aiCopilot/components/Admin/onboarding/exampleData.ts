@@ -3,6 +3,7 @@ import {
     type AiAgentReviewRemediation,
     PullRequestProvider,
 } from '@lightdash/common';
+import { type TFunction } from 'i18next';
 
 // Sample cards shown while the onboarding tour runs so admins see what the
 // board looks like across the lifecycle. Identified by a sentinel uuid prefix
@@ -89,13 +90,14 @@ const makeExampleRemediation = (
     updatedAt: EXAMPLE_SEEN_AT,
 });
 
-export const EXAMPLE_REVIEW_ITEMS: AiAgentReviewItemSummary[] = [
+export const getExampleReviewItems = (
+    t: TFunction,
+): AiAgentReviewItemSummary[] => [
     // To Do — eligible, so the card shows the Start button the tour points at.
     makeExampleReviewItem({
         uuid: `${EXAMPLE_REVIEW_ITEM_PREFIX}todo`,
-        title: 'No metric for weekly active users',
-        description:
-            'Someone asked for weekly active users. There was no metric for it, so the agent estimated.',
+        title: t('onboarding.examples.todo.title'),
+        description: t('onboarding.examples.todo.description'),
         primaryRootCause: 'semantic_layer',
         ownerType: 'semantic_layer_owner',
         writebackEligible: true,
@@ -109,9 +111,8 @@ export const EXAMPLE_REVIEW_ITEMS: AiAgentReviewItemSummary[] = [
     // In Progress — a PR is open and the workspace is ready to follow the fix.
     makeExampleReviewItem({
         uuid: `${EXAMPLE_REVIEW_ITEM_PREFIX}in-progress`,
-        title: 'Agent didn’t know what “active user” means',
-        description:
-            'Someone asked for active users. The agent guessed instead of using your definition.',
+        title: t('onboarding.examples.inProgress.title'),
+        description: t('onboarding.examples.inProgress.description'),
         primaryRootCause: 'project_context',
         ownerType: 'unknown',
         status: 'in_progress',
@@ -124,9 +125,8 @@ export const EXAMPLE_REVIEW_ITEMS: AiAgentReviewItemSummary[] = [
     // Done — merged, so the card lands in the Done lane.
     makeExampleReviewItem({
         uuid: `${EXAMPLE_REVIEW_ITEM_PREFIX}done`,
-        title: 'Revenue excluded refunds',
-        description:
-            'Someone asked for revenue. The agent left out refunds, so the number was too high.',
+        title: t('onboarding.examples.done.title'),
+        description: t('onboarding.examples.done.description'),
         primaryRootCause: 'semantic_layer',
         ownerType: 'semantic_layer_owner',
         status: 'resolved',

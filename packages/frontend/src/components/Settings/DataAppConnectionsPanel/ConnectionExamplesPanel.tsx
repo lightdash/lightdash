@@ -22,8 +22,10 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
-import { type ClipboardEvent, type FC, useState } from 'react';
+import { type ClipboardEvent, type FC, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { ConnectionTestResult } from '../../../features/externalConnections/components/ConnectionTestResult';
@@ -95,23 +97,26 @@ const parsePathInput = (
     return { path: pathPart, query };
 };
 
-const exampleFormSchema = z.object({
-    method: z.enum(EXTERNAL_CONNECTION_METHODS),
-    path: z.string().min(1, 'Path is required'),
-    queryParams: z.array(
-        z.object({
-            uuid: z.string(),
-            key: z.string(),
-            value: z.string(),
+const getExampleFormSchema = (t: TFunction<'settings'>) =>
+    z.object({
+        method: z.enum(EXTERNAL_CONNECTION_METHODS),
+        path: z
+            .string()
+            .min(1, t('dataAppConnections.validation.pathFieldRequired')),
+        queryParams: z.array(
+            z.object({
+                uuid: z.string(),
+                key: z.string(),
+                value: z.string(),
+            }),
+        ),
+        requestBody: z.string().refine(isValidJson, {
+            message: t('dataAppConnections.validation.invalidRequestBody'),
         }),
-    ),
-    requestBody: z.string().refine(isValidJson, {
-        message: 'Request body must be valid JSON',
-    }),
-    sampleLabel: z.string(),
-});
+        sampleLabel: z.string(),
+    });
 
-type ExampleFormValues = z.infer<typeof exampleFormSchema>;
+type ExampleFormValues = z.infer<ReturnType<typeof getExampleFormSchema>>;
 
 type SampleRowProps = {
     sample: ExternalConnectionSample;
@@ -124,6 +129,7 @@ const SampleRow: FC<SampleRowProps> = ({
     projectUuid,
     connectionUuid,
 }) => {
+    const { t } = useTranslation('settings');
     const deleteMutation = useDeleteConnectionSample();
 
     const label =
@@ -169,8 +175,12 @@ const SampleRow: FC<SampleRowProps> = ({
                 <ConfirmDeleteButton
                     size="sm"
                     loading={deleteMutation.isLoading}
-                    aria-label="Delete sample"
-                    tooltip="Click again to confirm"
+                    aria-label={t(
+                        'dataAppConnections.examples.deleteSampleAria',
+                    )}
+                    tooltip={t(
+                        'dataAppConnections.examples.confirmDeleteTooltip',
+                    )}
                     onConfirm={handleDelete}
                 >
                     <MantineIcon icon={IconTrash} size="sm" />
@@ -201,6 +211,8 @@ export const ConnectionExamplesPanel: FC<Props> = ({
     onQueueSample,
     onClearQueuedSample,
 }) => {
+    const { t } = useTranslation('settings');
+    const exampleFormSchema = useMemo(() => getExampleFormSchema(t), [t]);
     const form = useForm<ExampleFormValues>({
         initialValues: {
             method: 'GET',
@@ -307,17 +319,15 @@ export const ConnectionExamplesPanel: FC<Props> = ({
         <Stack gap="md">
             <Stack gap="xs">
                 <Text fw={500} fz="sm">
-                    Test connection and add examples
+                    {t('dataAppConnections.examples.title')}
                 </Text>
                 <Text c="dimmed" fz="xs">
-                    Send a real request through this connection and optionally
-                    save it as a sample for app generation.
+                    {t('dataAppConnections.examples.description')}
                 </Text>
                 {isSampleQueued && (
                     <Group gap="xs">
                         <Text c="dimmed" fz="xs">
-                            A tested sample is queued and will be added when you
-                            save the connection.
+                            {t('dataAppConnections.examples.sampleQueued')}
                         </Text>
                         <Button
                             type="button"
@@ -325,7 +335,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                             size="compact-xs"
                             onClick={onClearQueuedSample}
                         >
-                            Remove
+                            {t('dataAppConnections.examples.remove')}
                         </Button>
                     </Group>
                 )}
@@ -333,15 +343,14 @@ export const ConnectionExamplesPanel: FC<Props> = ({
 
             {methodOptions.length === 0 && (
                 <Text c="dimmed" fz="sm">
-                    This image-only connection does not allow proxied requests,
-                    so there is nothing to test here.
+                    {t('dataAppConnections.test.imageOnly')}
                 </Text>
             )}
 
             {methodOptions.length > 0 && (
                 <Group align="flex-end" gap="xs">
                     <Select
-                        label="Method"
+                        label={t('dataAppConnections.test.method')}
                         w={110}
                         allowDeselect={false}
                         value={method}
@@ -356,7 +365,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                         data={methodOptions}
                     />
                     <TextInput
-                        label="Path"
+                        label={t('dataAppConnections.test.path')}
                         placeholder="/v1/endpoint"
                         flex={1}
                         onPaste={handlePathPaste}
@@ -368,18 +377,20 @@ export const ConnectionExamplesPanel: FC<Props> = ({
             {methodOptions.length > 0 && (
                 <Stack gap={4}>
                     <Text fz="sm" fw={500}>
-                        Query params
+                        {t('dataAppConnections.examples.queryParams')}
                     </Text>
                     <Text c="dimmed" fz="xs">
-                        Sent as URL query params. Tip: paste a URL with a query
-                        string into the path field to fill these in
-                        automatically.
+                        {t(
+                            'dataAppConnections.examples.queryParamsDescription',
+                        )}
                     </Text>
                     {form.values.queryParams.map((param, index) => (
                         <Group key={param.uuid} gap="xs" wrap="nowrap">
                             <TextInput
                                 size="xs"
-                                placeholder="key"
+                                placeholder={t(
+                                    'dataAppConnections.examples.keyPlaceholder',
+                                )}
                                 flex={1}
                                 {...form.getInputProps(
                                     `queryParams.${index}.key`,
@@ -387,7 +398,9 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                             />
                             <TextInput
                                 size="xs"
-                                placeholder="value"
+                                placeholder={t(
+                                    'dataAppConnections.examples.valuePlaceholder',
+                                )}
                                 flex={1}
                                 {...form.getInputProps(
                                     `queryParams.${index}.value`,
@@ -416,14 +429,14 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                             })
                         }
                     >
-                        Add query param
+                        {t('dataAppConnections.examples.addQueryParam')}
                     </Button>
                 </Stack>
             )}
 
             {methodOptions.length > 0 && method !== 'GET' && (
                 <Textarea
-                    label="Request body (JSON)"
+                    label={t('dataAppConnections.test.requestBodyJson')}
                     placeholder='{"key": "value"}'
                     rows={4}
                     ff="monospace"
@@ -439,7 +452,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                         onClick={handleTest}
                         loading={testMutation.isLoading}
                     >
-                        Send test request
+                        {t('dataAppConnections.examples.sendTestRequest')}
                     </Button>
                 </Group>
             )}
@@ -451,8 +464,12 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                     {validTestResponse.status < 300 && (
                         <>
                             <TextInput
-                                label="Sample label (optional)"
-                                placeholder="e.g. Current weather Berlin"
+                                label={t(
+                                    'dataAppConnections.examples.sampleLabel',
+                                )}
+                                placeholder={t(
+                                    'dataAppConnections.examples.sampleLabelPlaceholder',
+                                )}
                                 size="xs"
                                 {...form.getInputProps('sampleLabel')}
                             />
@@ -468,13 +485,21 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                                     loading={saveSampleMutation.isLoading}
                                 >
                                     {hasUnsavedChanges
-                                        ? 'Save with connection'
-                                        : 'Save as sample'}
+                                        ? t(
+                                              'dataAppConnections.examples.saveWithConnection',
+                                          )
+                                        : t(
+                                              'dataAppConnections.examples.saveAsSample',
+                                          )}
                                 </Button>
                                 <Text fz="xs" c="dimmed">
                                     {hasUnsavedChanges
-                                        ? 'The sample will be added after you save the connection.'
-                                        : 'Saved samples ground Claude in the API response shape.'}
+                                        ? t(
+                                              'dataAppConnections.examples.savedAfterConnection',
+                                          )
+                                        : t(
+                                              'dataAppConnections.examples.samplesGround',
+                                          )}
                                 </Text>
                             </Group>
                         </>
@@ -486,7 +511,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
 
             <Stack gap="xs">
                 <Text fw={500} fz="sm">
-                    Saved samples
+                    {t('dataAppConnections.examples.savedSamples')}
                 </Text>
 
                 {samples && samples.length > 0 ? (
@@ -505,8 +530,8 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                 ) : (
                     <Text fz="xs" c="dimmed">
                         {methodOptions.length === 0
-                            ? 'No saved samples yet.'
-                            : 'No saved samples yet — run a test above and save it.'}
+                            ? t('dataAppConnections.examples.noSamples')
+                            : t('dataAppConnections.examples.noSamplesRunTest')}
                     </Text>
                 )}
             </Stack>

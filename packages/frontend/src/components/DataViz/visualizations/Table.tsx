@@ -17,6 +17,7 @@ import {
 import { IconArrowDown, IconArrowUp, IconCopy } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import { clsx } from 'clsx';
+import { useTranslation } from 'react-i18next';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { JsonCellMenuItem } from '../../common/JsonViewer/JsonCellViewer';
 import {
@@ -54,6 +55,7 @@ const SqlRunnerCellContextMenu = ({
     cell,
     onViewJsonCell,
 }: CellContextMenuProps) => {
+    const { t } = useTranslation('dataViz');
     const { showToastSuccess } = useToaster();
     const value = cell.getValue();
     const jsonValue = getJsonCellValue(value) ?? getJsonLikeString(value);
@@ -64,10 +66,14 @@ const SqlRunnerCellContextMenu = ({
                 leftSection={<MantineIcon icon={IconCopy} />}
                 onClick={() => {
                     void navigator.clipboard?.writeText(String(value ?? ''));
-                    showToastSuccess({ title: 'Copied to clipboard!' });
+                    showToastSuccess({
+                        title: t('feedback.copiedToClipboard', {
+                            ns: 'common',
+                        }),
+                    });
                 }}
             >
-                Copy value
+                {t('table.copyValue')}
             </Menu.Item>
 
             {jsonValue && onViewJsonCell ? (

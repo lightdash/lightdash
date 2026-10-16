@@ -11,6 +11,7 @@ import {
     type Icon,
 } from '@tabler/icons-react';
 import { useState, type FC, type MouseEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { getResourceUrl } from '../../../../components/common/ResourceView/resourceUtils';
@@ -43,6 +44,7 @@ const FavoritePills: FC<{
     emptyText: string | null;
     justify?: 'flex-start' | 'center';
 }> = ({ projectUuid, isInteractive, emptyText, justify = 'flex-start' }) => {
+    const { t } = useTranslation('homepageBuilder');
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const { data: favorites } = useFavorites(projectUuid);
     const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
@@ -96,7 +98,9 @@ const FavoritePills: FC<{
                             size={13}
                             color="ldGray.7"
                             className={classes.clickable}
-                            aria-label={`Remove ${item.data.name} from favorites`}
+                            aria-label={t('favorites.remove', {
+                                name: item.data.name,
+                            })}
                             onClick={(e) => handleUnfavorite(e, item)}
                         />
                     ) : (
@@ -114,7 +118,9 @@ const FavoritePills: FC<{
                     className={classes.favPillMore}
                     onClick={() => setExpanded((prev) => !prev)}
                 >
-                    {expanded ? 'Show less' : `+${hiddenCount} more`}
+                    {expanded
+                        ? t('favorites.showLess')
+                        : t('favorites.more', { count: hiddenCount })}
                 </button>
             ) : null}
         </Group>
@@ -128,28 +134,32 @@ const FavoritesSection: FC<{
     title: string;
     isInteractive: boolean;
     emptyText: string | null;
-}> = ({ projectUuid, title, isInteractive, emptyText }) => (
-    <Stack gap={0}>
-        <BlockHeader
-            icon={IconStar}
-            title={title}
-            pill="Only you see this"
-            centered
-        />
-        <FavoritePills
-            projectUuid={projectUuid}
-            isInteractive={isInteractive}
-            justify="center"
-            emptyText={emptyText}
-        />
-    </Stack>
-);
+}> = ({ projectUuid, title, isInteractive, emptyText }) => {
+    const { t } = useTranslation('homepageBuilder');
+    return (
+        <Stack gap={0}>
+            <BlockHeader
+                icon={IconStar}
+                title={title}
+                pill={t('favorites.onlyYou')}
+                centered
+            />
+            <FavoritePills
+                projectUuid={projectUuid}
+                isInteractive={isInteractive}
+                justify="center"
+                emptyText={emptyText}
+            />
+        </Stack>
+    );
+};
 
 /** Favorites pinned above the hero. Hides itself entirely when the user has no
  * favorites — day-0 shouldn't open with an empty shelf. */
 export const PersonalFavoritesBar: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const { data: favorites } = useFavorites(projectUuid);
 
     if (!favorites || favorites.length === 0) {
@@ -160,7 +170,7 @@ export const PersonalFavoritesBar: FC<{ projectUuid: string }> = ({
         <div className={layout.favBar}>
             <FavoritesSection
                 projectUuid={projectUuid}
-                title="My favorites"
+                title={t('blockDefaults.favoritesTitle')}
                 isInteractive
                 emptyText={null}
             />
@@ -172,13 +182,14 @@ export const FavoritesBlockView: FC<BlockComponentProps> = ({
     block,
     projectUuid,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     if (block.type !== 'favorites') return null;
     return (
         <FavoritesSection
             projectUuid={projectUuid}
             title={block.config.title}
             isInteractive
-            emptyText="Star content to keep it here — each person sees their own favorites."
+            emptyText={t('favorites.empty')}
         />
     );
 };
@@ -187,25 +198,23 @@ export const FavoritesBlockBuild: FC<BuildComponentProps> = ({
     block,
     projectUuid,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     if (block.type !== 'favorites') return null;
     return (
         <Stack gap={0}>
             <BlockHeader
                 icon={IconStar}
                 title={block.config.title}
-                pill="Personal per viewer"
+                pill={t('favorites.personalPerViewer')}
                 centered
             />
             <FavoritePills
                 projectUuid={projectUuid}
                 isInteractive={false}
                 justify="center"
-                emptyText="Empty until this viewer stars something — each person sees their own favorites here."
+                emptyText={t('favorites.buildEmpty')}
             />
-            <div className={classes.buildHint}>
-                Showing your favorites as a sample — every viewer sees their
-                own.
-            </div>
+            <div className={classes.buildHint}>{t('favorites.buildHint')}</div>
         </Stack>
     );
 };

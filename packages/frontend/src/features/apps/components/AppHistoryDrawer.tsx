@@ -1,5 +1,6 @@
 import { Drawer } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import classes from './AppHistoryDrawer.module.css';
 import AppVersionHistoryPanel, {
     type AppVersionHistoryPanelProps,
@@ -28,28 +29,31 @@ type Props = Pick<
  * slid over the chat. "Back to chat" and the overlay both close it; the
  * host owns what Preview and Restore do.
  */
-const AppHistoryDrawer: FC<Props> = ({ opened, onClose, ...panelProps }) => (
-    <Drawer.Root
-        opened={opened}
-        onClose={onClose}
-        position="left"
-        size="lg"
-        lockScroll={false}
-        classNames={{ inner: classes.inner, content: classes.content }}
-    >
-        <Drawer.Overlay opacity={0.1} blur={0} />
-        <Drawer.Content aria-label="Project history">
-            <Drawer.Body className={classes.body}>
-                <AppVersionHistoryPanel
-                    {...panelProps}
-                    onBack={onClose}
-                    onClose={null}
-                    emptyPromptLabel={null}
-                    olderVersionTime="relative"
-                />
-            </Drawer.Body>
-        </Drawer.Content>
-    </Drawer.Root>
-);
+const AppHistoryDrawer: FC<Props> = ({ opened, onClose, ...panelProps }) => {
+    const { t } = useTranslation('apps');
+    return (
+        <Drawer.Root
+            opened={opened}
+            onClose={onClose}
+            position="left"
+            size="lg"
+            lockScroll={false}
+            classNames={{ inner: classes.inner, content: classes.content }}
+        >
+            <Drawer.Overlay opacity={0.1} blur={0} />
+            <Drawer.Content aria-label={t('historyDrawer.ariaLabel')}>
+                <Drawer.Body className={classes.body}>
+                    <AppVersionHistoryPanel
+                        {...panelProps}
+                        onBack={onClose}
+                        onClose={null}
+                        emptyPromptLabel={null}
+                        olderVersionTime="relative"
+                    />
+                </Drawer.Body>
+            </Drawer.Content>
+        </Drawer.Root>
+    );
+};
 
 export default AppHistoryDrawer;

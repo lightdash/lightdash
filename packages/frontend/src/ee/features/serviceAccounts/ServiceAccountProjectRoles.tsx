@@ -10,6 +10,7 @@ import {
 import { type FormArrayElement, type UseFormReturnType } from '@mantine/form';
 import { IconPlus, IconX } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
     DEFAULT_PROJECT_ROLE_SELECTION,
@@ -47,6 +48,7 @@ export const ServiceAccountProjectRoles = <
     rolesLoading,
     disabled,
 }: Props<T, TransformedValues>) => {
+    const { t } = useTranslation('serviceAccounts');
     const projectOptions = useMemo(
         () =>
             projects.map((p) => ({
@@ -80,18 +82,18 @@ export const ServiceAccountProjectRoles = <
     return (
         <Stack gap="xs">
             <Text size="sm" fw={500}>
-                Project access
+                {t('projectAccess.title')}
             </Text>
             {form.values.projectRoles.length === 0 && (
                 <Text size="xs" c="dimmed">
-                    No projects added yet.
+                    {t('projectAccess.noneAdded')}
                 </Text>
             )}
             {form.values.projectRoles.map((_, idx) => (
                 <Group key={idx} gap="xs" wrap="nowrap">
                     <Select
                         flex={1}
-                        placeholder="Pick a project"
+                        placeholder={t('projectAccess.pickProject')}
                         data={projectOptionsForRow(idx)}
                         searchable
                         disabled={disabled}
@@ -108,7 +110,7 @@ export const ServiceAccountProjectRoles = <
                             `projectRoles.${idx}.roleSelection`,
                         )}
                     />
-                    <Tooltip label="Remove">
+                    <Tooltip label={t('actions.remove', { ns: 'common' })}>
                         <ActionIcon
                             disabled={disabled}
                             onClick={() =>
@@ -136,7 +138,7 @@ export const ServiceAccountProjectRoles = <
                 onClick={addProjectRow}
                 className={classes.addProjectButton}
             >
-                Add project
+                {t('projectAccess.addProject')}
             </Button>
         </Stack>
     );

@@ -5,6 +5,7 @@ import {
 import { Box, Divider } from '@mantine/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { memo, useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getConnectionName } from '../../common/connectionName';
 import ExploreNavLink from './ExploreNavLink';
 import {
@@ -35,6 +36,7 @@ export type VirtualListItem =
     | {
           type: 'section-header';
           id: string;
+          sectionId: string;
           label: string;
           isExpanded: boolean;
       };
@@ -79,6 +81,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
     connections,
     onExploreClick,
 }) => {
+    const { t } = useTranslation('explorer');
     const [expandedGroupPaths, setExpandedGroupPaths] = useState<Set<string>>(
         new Set(),
     );
@@ -176,7 +179,8 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
             items.push({
                 type: 'section-header',
                 id: `section-${itemId++}`,
-                label: 'External sources',
+                sectionId: 'External sources',
+                label: t('exploreSidebar.sections.externalSources'),
                 isExpanded: isExternalSourcesExpanded,
             });
             if (isExternalSourcesExpanded) {
@@ -198,7 +202,8 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
             items.push({
                 type: 'section-header',
                 id: `section-${itemId++}`,
-                label: 'Virtual Views',
+                sectionId: 'Virtual Views',
+                label: t('exploreSidebar.sections.virtualViews'),
                 isExpanded: isVirtualViewsExpanded,
             });
             if (isVirtualViewsExpanded) {
@@ -220,7 +225,8 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
             items.push({
                 type: 'section-header',
                 id: `section-${itemId++}`,
-                label: 'Pre-aggregates',
+                sectionId: 'Pre-aggregates',
+                label: t('exploreSidebar.sections.preAggregates'),
                 isExpanded: isPreAggregatesExpanded,
             });
             if (isPreAggregatesExpanded) {
@@ -244,6 +250,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
         externalSourceExplores,
         expandedGroupPaths,
         expandedSections,
+        t,
         searchQuery,
     ]);
 
@@ -320,8 +327,9 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                         <SectionHeader
                             key={item.id}
                             label={item.label}
+                            tourValue={item.sectionId}
                             isExpanded={item.isExpanded}
-                            onToggle={() => toggleSection(item.label)}
+                            onToggle={() => toggleSection(item.sectionId)}
                         />
                     );
                 default:

@@ -5,6 +5,7 @@ import {
     WorkerPoolContextProvider,
 } from '@pierre/diffs/react';
 import { type CSSProperties, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
@@ -24,6 +25,7 @@ export const ProjectContextDiffPreview: FC<ProjectContextDiffPreviewProps> = ({
     after,
     op,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const colorScheme = useComputedColorScheme('light');
 
     // Pierre's <Virtualizer> IS the scroll viewport its virtualizer tracks —
@@ -58,8 +60,8 @@ export const ProjectContextDiffPreview: FC<ProjectContextDiffPreviewProps> = ({
                         renderHeaderMetadata={() => (
                             <Text fz="xs" c="dimmed">
                                 {op === 'update'
-                                    ? 'Updates entry'
-                                    : 'Adds entry'}
+                                    ? t('contextDiff.updatesEntry')
+                                    : t('contextDiff.addsEntry')}
                             </Text>
                         )}
                         options={{

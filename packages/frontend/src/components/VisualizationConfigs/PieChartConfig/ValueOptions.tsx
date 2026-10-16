@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { Checkbox, Group, SegmentedControl } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
 
@@ -43,72 +44,91 @@ export const ValueOptions: FC<ValueOptionsProps> = ({
     onToggleShowValue,
     onToggleShowPercentage,
     onValueLabelColorChange,
-}) => (
-    <>
-        <Group gap="xs" wrap="nowrap">
-            <Config.Label>Value position</Config.Label>
-            <SegmentedControl
-                value={isValueLabelOverriden ? 'mixed' : valueLabel}
-                data={[
-                    ...(isValueLabelOverriden ? [['mixed', 'Mixed']] : []),
-                    ...Object.entries(PieChartValueLabels),
-                ].map(([value, label]) => ({
-                    value,
-                    label,
-                    disabled: value === 'mixed',
-                }))}
-                onChange={(value: string) => {
-                    onValueLabelChange(value as PieChartValueLabel);
-                }}
-            />
-        </Group>
+}) => {
+    const { t } = useTranslation('vizConfig');
+    return (
+        <>
+            <Group gap="xs" wrap="nowrap">
+                <Config.Label>
+                    {t('pie.valueOptions.valuePosition')}
+                </Config.Label>
+                <SegmentedControl
+                    value={isValueLabelOverriden ? 'mixed' : valueLabel}
+                    data={[
+                        ...(isValueLabelOverriden
+                            ? [['mixed', t('pie.valueOptions.mixed')]]
+                            : []),
+                        ...Object.keys(PieChartValueLabels).map((key) => [
+                            key,
+                            t(`pie.valueOptions.positions.${key}`),
+                        ]),
+                    ].map(([value, label]) => ({
+                        value,
+                        label,
+                        disabled: value === 'mixed',
+                    }))}
+                    onChange={(value: string) => {
+                        onValueLabelChange(value as PieChartValueLabel);
+                    }}
+                />
+            </Group>
 
-        {valueLabel !== 'hidden' && (
-            <>
-                <Group gap="xs">
-                    <Checkbox
-                        size="xs"
-                        indeterminate={isShowValueOverriden}
-                        checked={showValue}
-                        onChange={(newValue) =>
-                            onToggleShowValue(newValue.currentTarget.checked)
-                        }
-                        label="Show value"
-                    />
-
-                    <Checkbox
-                        size="xs"
-                        indeterminate={isShowPercentageOverriden}
-                        checked={showPercentage}
-                        onChange={(newValue) =>
-                            onToggleShowPercentage(
-                                newValue.currentTarget.checked,
-                            )
-                        }
-                        label="Show percentage"
-                    />
-                </Group>
-
-                {onValueLabelColorChange && (
-                    <Group gap="xs" wrap="nowrap">
-                        <Config.Label>Label color</Config.Label>
-                        <ColorSelector
-                            color={valueLabelColor}
-                            defaultColor={defaultValueLabelColor}
-                            swatches={swatches}
-                            withAlpha
-                            ariaLabel="Select value label color"
-                            onColorChange={onValueLabelColorChange}
-                            onColorReset={
-                                valueLabelColor
-                                    ? () => onValueLabelColorChange(undefined)
-                                    : undefined
+            {valueLabel !== 'hidden' && (
+                <>
+                    <Group gap="xs">
+                        <Checkbox
+                            size="xs"
+                            indeterminate={isShowValueOverriden}
+                            checked={showValue}
+                            onChange={(newValue) =>
+                                onToggleShowValue(
+                                    newValue.currentTarget.checked,
+                                )
                             }
-                            resetLabel="Use automatic color"
+                            label={t('pie.valueOptions.showValue')}
+                        />
+
+                        <Checkbox
+                            size="xs"
+                            indeterminate={isShowPercentageOverriden}
+                            checked={showPercentage}
+                            onChange={(newValue) =>
+                                onToggleShowPercentage(
+                                    newValue.currentTarget.checked,
+                                )
+                            }
+                            label={t('pie.valueOptions.showPercentage')}
                         />
                     </Group>
-                )}
-            </>
-        )}
-    </>
-);
+
+                    {onValueLabelColorChange && (
+                        <Group gap="xs" wrap="nowrap">
+                            <Config.Label>
+                                {t('pie.valueOptions.labelColor')}
+                            </Config.Label>
+                            <ColorSelector
+                                color={valueLabelColor}
+                                defaultColor={defaultValueLabelColor}
+                                swatches={swatches}
+                                withAlpha
+                                ariaLabel={t(
+                                    'pie.valueOptions.selectValueLabelColor',
+                                )}
+                                onColorChange={onValueLabelColorChange}
+                                onColorReset={
+                                    valueLabelColor
+                                        ? () =>
+                                              onValueLabelColorChange(undefined)
+                                        : undefined
+                                }
+                                resetLabel={t(
+                                    'pie.valueOptions.useAutomaticColor',
+                                )}
+                            />
+                        </Group>
+                    )}
+                </>
+            )}
+        </>
+    );
+};

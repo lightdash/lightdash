@@ -7,6 +7,7 @@ import {
     type UpdateColorPalette,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -49,6 +50,7 @@ const setActiveColorPaletteApi = async (colorPaletteUuid: string) =>
     });
 
 export const useCreateColorPalette = () => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -61,12 +63,16 @@ export const useCreateColorPalette = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries(['color_palettes']);
             showToastSuccess({
-                title: 'Color palette created successfully',
+                title: t(
+                    'useOrganizationAppearance.colorPaletteCreatedSuccessfully',
+                ),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to create color palette',
+                title: t(
+                    'useOrganizationAppearance.failedToCreateColorPalette',
+                ),
                 apiError: error,
             });
         },
@@ -90,6 +96,7 @@ export const useColorPalettes = ({
 };
 
 export const useUpdateColorPalette = () => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -102,12 +109,16 @@ export const useUpdateColorPalette = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries(['color_palettes']);
             showToastSuccess({
-                title: 'Color palette updated successfully',
+                title: t(
+                    'useOrganizationAppearance.colorPaletteUpdatedSuccessfully',
+                ),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update color palette',
+                title: t(
+                    'useOrganizationAppearance.failedToUpdateColorPalette',
+                ),
                 apiError: error,
             });
         },
@@ -115,6 +126,7 @@ export const useUpdateColorPalette = () => {
 };
 
 export const useDeleteColorPalette = () => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -125,12 +137,17 @@ export const useDeleteColorPalette = () => {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['color_palettes']);
                 showToastSuccess({
-                    title: 'Color palette deleted successfully',
+                    title: t(
+                        'useOrganizationAppearance.colorPaletteDeletedSuccessfully',
+                    ),
                 });
             },
             onError: ({ error }, colorPaletteUuid) => {
                 showToastApiError({
-                    title: `Failed to delete color palette ${colorPaletteUuid}`,
+                    title: t(
+                        'useOrganizationAppearance.failedToDeleteColorPalette',
+                        { colorPaletteUuid },
+                    ),
                     apiError: error,
                 });
             },
@@ -139,6 +156,7 @@ export const useDeleteColorPalette = () => {
 };
 
 export const useSetActiveColorPalette = () => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -149,12 +167,16 @@ export const useSetActiveColorPalette = () => {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['color_palettes']);
                 showToastSuccess({
-                    title: 'Active color palette updated successfully',
+                    title: t(
+                        'useOrganizationAppearance.activeColorPaletteUpdatedSuccessfully',
+                    ),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to set active color palette',
+                    title: t(
+                        'useOrganizationAppearance.failedToSetActiveColorPalette',
+                    ),
                     apiError: error,
                 });
             },

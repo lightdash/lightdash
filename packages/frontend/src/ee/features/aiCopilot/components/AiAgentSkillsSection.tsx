@@ -27,6 +27,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { EmptyState } from '../../../../components/common/EmptyState';
 import InlineErrorState from '../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -94,6 +95,7 @@ const AddSkillMenu = ({
     onBind: (skillUuid: string) => void;
     onCreate: () => void;
 }) => {
+    const { t } = useTranslation('aiAgent');
     const combobox = useCombobox({
         onDropdownClose: () => {
             combobox.resetSelectedOption();
@@ -136,7 +138,9 @@ const AddSkillMenu = ({
                     rightSection={<MantineIcon icon={IconChevronDown} />}
                     onClick={() => combobox.toggleDropdown()}
                 >
-                    {trigger === 'library' ? 'Library' : 'Add skill'}
+                    {trigger === 'library'
+                        ? t('skills.library')
+                        : t('skills.addSkill')}
                 </Button>
             </Combobox.Target>
             <Combobox.Dropdown>
@@ -148,7 +152,7 @@ const AddSkillMenu = ({
                             onChange={(event) =>
                                 setSearch(event.currentTarget.value)
                             }
-                            placeholder="Search library"
+                            placeholder={t('skills.searchLibrary')}
                             leftSection={
                                 <MantineIcon icon={IconSearch} color="dimmed" />
                             }
@@ -177,11 +181,11 @@ const AddSkillMenu = ({
                                                 /{skill.name}
                                             </Text>
                                             <Text size="xs" c="dimmed">
-                                                v
-                                                {
-                                                    skill.currentVersion
-                                                        .versionNumber
-                                                }
+                                                {t('skills.version', {
+                                                    version:
+                                                        skill.currentVersion
+                                                            .versionNumber,
+                                                })}
                                             </Text>
                                         </Group>
                                         <Text
@@ -197,7 +201,9 @@ const AddSkillMenu = ({
                             {matches.length === 0 ? (
                                 <Combobox.Empty>
                                     <Text size="xs" c="dimmed" py="xs">
-                                        No skill matches "{search.trim()}"
+                                        {t('skills.noMatch', {
+                                            search: search.trim(),
+                                        })}
                                     </Text>
                                 </Combobox.Empty>
                             ) : null}
@@ -211,11 +217,10 @@ const AddSkillMenu = ({
                             color="ldGray.5"
                         />
                         <Text size="xs" fw={500}>
-                            No skills to add
+                            {t('skills.noneToAdd')}
                         </Text>
                         <Text size="xs" c="dimmed" ta="center">
-                            Skills you create are saved to the library so any
-                            agent can use them.
+                            {t('skills.noneToAddHelp')}
                         </Text>
                     </Stack>
                 )}
@@ -225,7 +230,7 @@ const AddSkillMenu = ({
                             <Group gap={6} wrap="nowrap">
                                 <MantineIcon icon={IconPlus} size="sm" />
                                 <Text size="xs" fw={500}>
-                                    Create new skill
+                                    {t('skills.createNew')}
                                 </Text>
                             </Group>
                         </Combobox.Option>
@@ -245,6 +250,7 @@ export const AiAgentSkillsSection = ({
     projectUuid,
     organizationUuid,
 }: Props) => {
+    const { t } = useTranslation('aiAgent');
     const { user } = useApp();
     const ability = user.data?.ability;
     const projectSkillSubject = subject('AiAgentSkill', {
@@ -297,7 +303,7 @@ export const AiAgentSkillsSection = ({
             return (
                 <Paper variant="dotted" p="sm">
                     <Text size="xs" c="dimmed" ta="center">
-                        You can add skills once this agent is created.
+                        {t('skills.afterCreate')}
                     </Text>
                 </Paper>
             );
@@ -306,8 +312,7 @@ export const AiAgentSkillsSection = ({
             return (
                 <InlineErrorState
                     message={
-                        listing.error.error.message ??
-                        'Could not load this agent’s skills'
+                        listing.error.error.message ?? t('skills.loadFailed')
                     }
                 />
             );
@@ -315,7 +320,7 @@ export const AiAgentSkillsSection = ({
         if (listing.isLoading) {
             return (
                 <Text size="xs" c="dimmed" ta="center" p="sm">
-                    Loading skills…
+                    {t('skills.loading')}
                 </Text>
             );
         }
@@ -332,7 +337,7 @@ export const AiAgentSkillsSection = ({
                             }
                             gap="xs"
                             titleProps={{ order: 6 }}
-                            title="No skills yet"
+                            title={t('skills.empty')}
                         >
                             {canAdd ? addSkillMenu('add') : null}
                         </EmptyState>
@@ -348,7 +353,9 @@ export const AiAgentSkillsSection = ({
                 icon={IconLicense}
                 tag={
                     <Text size="xs" c="dimmed">
-                        v{skill.currentVersion.versionNumber}
+                        {t('skills.version', {
+                            version: skill.currentVersion.versionNumber,
+                        })}
                     </Text>
                 }
                 menu={
@@ -356,7 +363,9 @@ export const AiAgentSkillsSection = ({
                         <Menu position="bottom-end" withinPortal>
                             <Menu.Target>
                                 <ActionIcon
-                                    aria-label={`Actions for /${skill.name}`}
+                                    aria-label={t('skills.actionsFor', {
+                                        name: skill.name,
+                                    })}
                                     loading={setSkills.isLoading}
                                 >
                                     <MantineIcon icon={IconDots} />
@@ -371,14 +380,14 @@ export const AiAgentSkillsSection = ({
                                         setModal({ mode: 'edit', skill })
                                     }
                                 >
-                                    Edit skill
+                                    {t('skills.edit')}
                                 </Menu.Item>
                                 <Menu.Item
                                     color="red"
                                     leftSection={<MantineIcon icon={IconX} />}
                                     onClick={() => unbind(skill.uuid)}
                                 >
-                                    Remove from this agent
+                                    {t('skills.removeFromAgent')}
                                 </Menu.Item>
                             </Menu.Dropdown>
                         </Menu>
@@ -409,8 +418,8 @@ export const AiAgentSkillsSection = ({
 
     return (
         <AgentSettingsSubsection
-            title="Skills"
-            description="Used for matching tasks. Reusable workflows the agent loads when relevant or users invoke with /."
+            title={t('skills.title')}
+            description={t('skills.description')}
             action={showAction ? addSkillMenu('library') : null}
         >
             {body}

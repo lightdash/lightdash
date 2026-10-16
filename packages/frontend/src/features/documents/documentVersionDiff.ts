@@ -40,7 +40,7 @@ type PlacedChart = {
     position: number;
 };
 
-const UNSUPPORTED_CHART_NAME = 'Chart from a newer version';
+export const UNSUPPORTED_CHART_NAME = 'Chart from a newer version';
 
 const getText = (content: DocumentContent): string[] =>
     getDocumentChartBlocks(content)

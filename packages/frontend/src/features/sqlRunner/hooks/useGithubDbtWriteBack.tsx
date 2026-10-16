@@ -4,6 +4,7 @@ import {
     type VizColumn,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -31,6 +32,7 @@ const createPullRequest = async ({
  * This hook is used to create a pull request with the SQL query and columns from the SQL runner
  */
 export const useGithubDbtWriteBack = () => {
+    const { t } = useTranslation('sqlRunner');
     const { showToastError } = useToaster();
 
     return useMutation<
@@ -44,7 +46,7 @@ export const useGithubDbtWriteBack = () => {
         },
         onError: (e) => {
             showToastError({
-                title: 'Failed to create a pull request',
+                title: t('toasts.createPullRequestFailed'),
                 subtitle: e.error.message,
             });
         },

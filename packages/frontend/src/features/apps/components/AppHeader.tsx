@@ -7,6 +7,7 @@ import {
 import { ActionIcon, Group, Popover, Title, Tooltip } from '@mantine/core';
 import { IconCircleCheckFilled, IconInfoCircle } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FavoriteActionIcon } from '../../../components/common/FavoriteActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import PageHeader from '../../../components/common/Page/PageHeader';
@@ -66,6 +67,7 @@ const appInSpaceTourProps = {
 };
 
 const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
+    const { t } = useTranslation('apps');
     const displayName = getAppDisplayName(app.name, app.uuid);
 
     const { data: favorites } = useFavorites(projectUuid);
@@ -99,7 +101,7 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                     }}
                 >
                     <Popover.Target>
-                        <ActionIcon size="md" aria-label="App information">
+                        <ActionIcon size="md" aria-label={t('header.info')}>
                             <MantineIcon icon={IconInfoCircle} />
                         </ActionIcon>
                     </Popover.Target>
@@ -123,7 +125,9 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
 
                 {app.verification && (
                     <Tooltip
-                        label={`Verified by ${app.verification.verifiedBy.firstName} ${app.verification.verifiedBy.lastName}`}
+                        label={t('header.verifiedBy', {
+                            name: `${app.verification.verifiedBy.firstName} ${app.verification.verifiedBy.lastName}`,
+                        })}
                     >
                         <IconCircleCheckFilled
                             size={16}

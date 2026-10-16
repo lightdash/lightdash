@@ -15,6 +15,7 @@ import {
     type VisibilityState,
 } from '@tanstack/react-table';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import classes from './ContentTable.module.css';
 import {
     type ContentTableColumnDef,
@@ -214,6 +215,7 @@ const getDisplayColumnMaxSize = <TData extends RowData>(
 export const useContentTable = <TData extends RowData>(
     options: ContentTableOptions<TData>,
 ): ContentTableInstance<TData> => {
+    const { t } = useTranslation('commonUi');
     const [internalSorting, setInternalSorting] = useState<SortingState>(
         options.initialState?.sorting ?? [],
     );
@@ -336,7 +338,7 @@ export const useContentTable = <TData extends RowData>(
                 header: ({ table }) => (
                     <div className={classes.rowSelectContent}>
                         <Checkbox
-                            aria-label="Select all rows"
+                            aria-label={t('contentTable.selectAllRows')}
                             checked={table.getIsAllRowsSelected()}
                             indeterminate={table.getIsSomeRowsSelected()}
                             onChange={table.getToggleAllRowsSelectedHandler()}
@@ -348,7 +350,7 @@ export const useContentTable = <TData extends RowData>(
                 cell: ({ row }) => (
                     <div className={classes.rowSelectContent}>
                         <Checkbox
-                            aria-label="Select row"
+                            aria-label={t('contentTable.selectRow')}
                             checked={row.getIsSelected()}
                             disabled={!row.getCanSelect()}
                             onChange={row.getToggleSelectedHandler()}
@@ -431,6 +433,7 @@ export const useContentTable = <TData extends RowData>(
         optionColumns,
         positionActionsColumn,
         renderRowActions,
+        t,
     ]);
 
     const table = useReactTable({

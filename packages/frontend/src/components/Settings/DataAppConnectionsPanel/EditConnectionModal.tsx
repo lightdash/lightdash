@@ -7,6 +7,7 @@ import { Button, Stack, Tabs, Text, Textarea } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     isValidGoogleOAuthScope,
     isValidOAuthScope,
@@ -96,6 +97,7 @@ const EditConnectionModalContent: FC<Props> = ({
     projectUuid,
     connection,
 }) => {
+    const { t } = useTranslation('settings');
     const { mutateAsync, isLoading: isUpdating } =
         useUpdateExternalConnection();
     const { mutateAsync: saveSample, isLoading: isSavingSample } =
@@ -133,18 +135,22 @@ const EditConnectionModalContent: FC<Props> = ({
         },
         validate: {
             name: (value) =>
-                value.trim().length === 0 ? 'Name is required' : null,
+                value.trim().length === 0
+                    ? t('dataAppConnections.validation.nameRequired')
+                    : null,
             origin: (value) =>
                 value.startsWith('https://')
                     ? null
-                    : 'Origin must start with https://',
+                    : t('dataAppConnections.validation.originHttps'),
             secret: (value, values) => {
                 // Blank keeps the stored secret; only validate a new one.
                 if (values.type === 'google_service_account' && value) {
                     try {
                         JSON.parse(value);
                     } catch {
-                        return 'Paste valid service account JSON';
+                        return t(
+                            'dataAppConnections.validation.invalidServiceAccountJson',
+                        );
                     }
                 }
                 if (values.type === 'oauth_client_credentials' && !value) {
@@ -152,7 +158,9 @@ const EditConnectionModalContent: FC<Props> = ({
                         connection.type !== 'oauth_client_credentials' ||
                         !connection.hasSecret
                     ) {
-                        return 'Client secret is required';
+                        return t(
+                            'dataAppConnections.validation.clientSecretRequired',
+                        );
                     }
                     if (
                         values.oauthTokenUrl.trim() !==
@@ -160,7 +168,9 @@ const EditConnectionModalContent: FC<Props> = ({
                         values.oauthClientId.trim() !==
                             (connection.oauthClientId ?? '')
                     ) {
-                        return 'Re-enter the client secret when changing the token URL or client ID';
+                        return t(
+                            'dataAppConnections.validation.reenterClientSecret',
+                        );
                     }
                 }
                 return null;
@@ -175,13 +185,17 @@ const EditConnectionModalContent: FC<Props> = ({
                     values.type === 'google_service_account' &&
                     value.length === 0
                 )
-                    return 'Add at least one OAuth scope';
+                    return t('dataAppConnections.validation.scopeRequired');
                 const isValid =
                     values.type === 'google_service_account'
                         ? isValidGoogleOAuthScope
                         : isValidOAuthScope;
                 const invalid = value.find((s) => !isValid(s));
-                return invalid ? `Invalid OAuth scope: ${invalid}` : null;
+                return invalid
+                    ? t('dataAppConnections.validation.invalidScope', {
+                          scope: invalid,
+                      })
+                    : null;
             },
             oauthTokenUrl: (value, values) =>
                 values.type === 'oauth_client_credentials'
@@ -190,16 +204,18 @@ const EditConnectionModalContent: FC<Props> = ({
             oauthClientId: (value, values) =>
                 values.type === 'oauth_client_credentials' &&
                 value.trim().length === 0
-                    ? 'Client ID is required'
+                    ? t('dataAppConnections.validation.clientIdRequired')
                     : null,
             customHeaders: validateCustomHeaderRows,
             allowedMethods: (value, values) =>
                 value.length === 0 && !values.allowBrowserImages
-                    ? 'Select at least one method or allow public images'
+                    ? t('dataAppConnections.validation.methodRequired')
                     : null,
             allowBrowserImages: (value, values) => {
                 if (value && values.type !== 'none') {
-                    return 'Public browser images require no authentication';
+                    return t(
+                        'dataAppConnections.validation.publicImagesNoAuth',
+                    );
                 }
                 return null;
             },
@@ -209,7 +225,7 @@ const EditConnectionModalContent: FC<Props> = ({
                     .map((p) => p.value.trim())
                     .filter(Boolean);
                 return nonEmpty.length === 0
-                    ? 'Add at least one path, or allow all paths'
+                    ? t('dataAppConnections.validation.pathRequired')
                     : null;
             },
         },
@@ -262,16 +278,22 @@ const EditConnectionModalContent: FC<Props> = ({
                     disabled={isSaving}
                     loading={isSaving}
                 >
-                    Save connection
+                    {t('dataAppConnections.edit.saveConnection')}
                 </Button>
             }
         >
             <form id={FORM_ID} onSubmit={form.onSubmit(handleSubmit)}>
                 <Tabs defaultValue="details" keepMounted={false}>
                     <Tabs.List mb="md">
-                        <Tabs.Tab value="details">Connection details</Tabs.Tab>
-                        <Tabs.Tab value="instructions">Instructions</Tabs.Tab>
-                        <Tabs.Tab value="examples">Examples</Tabs.Tab>
+                        <Tabs.Tab value="details">
+                            {t('dataAppConnections.edit.tabs.details')}
+                        </Tabs.Tab>
+                        <Tabs.Tab value="instructions">
+                            {t('dataAppConnections.edit.tabs.instructions')}
+                        </Tabs.Tab>
+                        <Tabs.Tab value="examples">
+                            {t('dataAppConnections.edit.tabs.examples')}
+                        </Tabs.Tab>
                     </Tabs.List>
 
                     <Tabs.Panel value="details">
@@ -285,15 +307,15 @@ const EditConnectionModalContent: FC<Props> = ({
                     <Tabs.Panel value="instructions">
                         <Stack gap="sm">
                             <Text c="dimmed" fz="sm">
-                                Notes on how apps should use this API — auth
-                                quirks, pagination, which endpoints matter,
-                                response caveats. Passed to the app builder when
-                                generating apps, alongside the technical spec.
-                                Markdown is supported.
+                                {t('dataAppConnections.edit.instructionsIntro')}
                             </Text>
                             <Textarea
-                                aria-label="Usage instructions"
-                                placeholder="e.g. Paginate with ?page= and ?per_page=. The /issues endpoint returns open issues only unless state=all is passed."
+                                aria-label={t(
+                                    'dataAppConnections.edit.instructionsAria',
+                                )}
+                                placeholder={t(
+                                    'dataAppConnections.edit.instructionsPlaceholder',
+                                )}
                                 autosize
                                 minRows={10}
                                 maxRows={24}

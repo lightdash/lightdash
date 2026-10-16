@@ -1,4 +1,5 @@
 import { type DashboardFilterRule } from '@lightdash/common';
+import i18n from '../../../i18n/i18n';
 import { type EventData } from '../../../providers/Tracking/types';
 import { EventName } from '../../../types/Events';
 
@@ -10,13 +11,10 @@ type FilterLockContext = {
 };
 
 export const getFilterLockLabel = (isLocked: boolean, hasTabs: boolean) =>
-    isLocked
-        ? hasTabs
-            ? 'Unlock filter on this tab'
-            : 'Unlock filter'
-        : hasTabs
-          ? 'Lock filter on this tab'
-          : 'Lock filter';
+    i18n.t(isLocked ? 'lock.unlockFilter' : 'lock.lockFilter', {
+        ns: 'dashboardFilters',
+        context: hasTabs ? 'tab' : undefined,
+    });
 
 // On tab-less dashboards we store the dashboard uuid as a sentinel
 // in lockedTabUuids so the same shape can express "locked

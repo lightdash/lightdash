@@ -15,6 +15,7 @@ import { useForm } from '@mantine/form';
 import { IconLayoutDashboard, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal, {
@@ -66,6 +67,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
     onClose,
     ...modalProps
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const { user } = useApp();
     const navigate = useNavigate();
     const openEmbedDashboard = useEmbedAiAgentDashboardOpener(projectUuid);
@@ -90,9 +92,9 @@ export const AiDashboardSaveModal: FC<Props> = ({
     const validate = useMemo(
         () => ({
             dashboardName: (value: string) =>
-                value.length === 0 ? 'Dashboard name is required' : null,
+                value.length === 0 ? t('saveDashboard.nameRequired') : null,
         }),
-        [],
+        [t],
     );
 
     const form = useForm<FormValues>({
@@ -210,11 +212,10 @@ export const AiDashboardSaveModal: FC<Props> = ({
                 const cachedVizQueries = getCachedVizQueries();
                 if (cachedVizQueries.some((q) => !q)) {
                     showToastApiError({
-                        title: 'Failed to save dashboard',
+                        title: t('saveDashboard.saveFailed'),
                         apiError: {
                             name: 'ValidationError',
-                            message:
-                                "Some visualizations didn't run successfully. ",
+                            message: t('saveDashboard.visualizationsFailed'),
                             statusCode: 400,
                             data: {},
                         },
@@ -260,9 +261,9 @@ export const AiDashboardSaveModal: FC<Props> = ({
                 });
 
                 showToastSuccess({
-                    title: 'Dashboard created successfully!',
+                    title: t('saveDashboard.created'),
                     action: {
-                        children: 'Open dashboard',
+                        children: t('saveDashboard.openDashboard'),
                         onClick: () =>
                             openEmbedDashboard
                                 ? openEmbedDashboard(dashboard.uuid, null)
@@ -277,7 +278,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
             } catch (error) {
                 console.error(error);
                 showToastApiError({
-                    title: 'Failed to create dashboard',
+                    title: t('saveDashboard.createFailed'),
                     apiError: error as any,
                 });
                 setCurrentStep(ModalStep.SelectDestination);
@@ -297,6 +298,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
             handleClose,
             getCachedVizQueries,
             updateArtifactVersion,
+            t,
         ],
     );
 
@@ -327,7 +329,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
     return (
         <MantineModal
             {...modalProps}
-            title="Save Dashboard"
+            title={t('saveDashboard.title')}
             onClose={handleClose}
             size="lg"
             icon={IconLayoutDashboard}
@@ -339,7 +341,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
                         leftSection={<MantineIcon icon={IconPlus} />}
                         onClick={openCreateSpaceForm}
                     >
-                        New Space
+                        {t('saveDashboard.newSpace')}
                     </Button>
                 ) : null
             }
@@ -347,7 +349,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
                 <>
                     {currentStep === ModalStep.SelectDestination && (
                         <Button onClick={handleBack} variant="default">
-                            Back
+                            {t('actions.back', { ns: 'common' })}
                         </Button>
                     )}
                     <Button
@@ -360,8 +362,8 @@ export const AiDashboardSaveModal: FC<Props> = ({
                         form="dashboard-save-form"
                     >
                         {currentStep === ModalStep.InitialInfo
-                            ? 'Next'
-                            : 'Save'}
+                            ? t('actions.next', { ns: 'common' })
+                            : t('actions.save', { ns: 'common' })}
                     </Button>
                 </>
             }
@@ -383,14 +385,16 @@ export const AiDashboardSaveModal: FC<Props> = ({
                 {currentStep === ModalStep.InitialInfo && (
                     <Stack gap="md">
                         <TextInput
-                            label="Dashboard name"
-                            placeholder="eg. Sales KPI Dashboard"
+                            label={t('saveDashboard.nameLabel')}
+                            placeholder={t('saveDashboard.namePlaceholder')}
                             required
                             {...form.getInputProps('dashboardName')}
                         />
                         <Textarea
-                            label="Dashboard description"
-                            placeholder="A few words to give your team some context"
+                            label={t('saveDashboard.descriptionLabel')}
+                            placeholder={t(
+                                'saveDashboard.descriptionPlaceholder',
+                            )}
                             autosize
                             maxRows={3}
                             {...form.getInputProps('dashboardDescription')}

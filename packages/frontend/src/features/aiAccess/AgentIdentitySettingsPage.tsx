@@ -1,5 +1,6 @@
 import { Stack } from '@mantine/core';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import PageBreadcrumbs from '../../components/common/PageBreadcrumbs';
@@ -61,6 +62,7 @@ const useAgentSettingsData = (access: AgentSettingsAccess) => {
 };
 
 const AgentSettingsContent = ({ access }: { access: AgentSettingsAccess }) => {
+    const { t } = useTranslation('aiAccess');
     const { user } = useApp();
     const {
         identity,
@@ -75,7 +77,7 @@ const AgentSettingsContent = ({ access }: { access: AgentSettingsAccess }) => {
     const hasError = failed.length > 0;
     const error = hasError ? (
         <InlineErrorState
-            message="Could not load agent settings."
+            message={t('settingsPage.loadError')}
             onRetry={() => {
                 failed.forEach((query) => void query.refetch());
             }}
@@ -112,6 +114,7 @@ export const AgentIdentitySettingsPage = ({
 }: {
     access: AgentSettingsAccess;
 }) => {
+    const { t } = useTranslation('aiAccess');
     if (!access.agentsPage) return null;
     return (
         <Stack gap="sm">
@@ -119,14 +122,14 @@ export const AgentIdentitySettingsPage = ({
                 <PageBreadcrumbs
                     size="sm"
                     items={[
-                        { title: 'Organization settings' },
-                        { title: 'Agents', active: true },
+                        { title: t('settingsPage.organizationSettings') },
+                        { title: t('settingsPage.title'), active: true },
                     ]}
                 />
             </SettingsPageContainer>
             <SettingsPage
-                title="Agents"
-                description="Who agents run as, and what they may do. Agents are Ask AI, the Slack agent, MCP clients and the CLI."
+                title={t('settingsPage.title')}
+                description={t('settingsPage.description')}
             >
                 <AgentSettingsContent access={access} />
             </SettingsPage>

@@ -7,6 +7,7 @@ import {
 import { Menu, Text } from '@mantine/core';
 import { IconArrowBarToDown } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
@@ -29,6 +30,7 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
     valueLabel,
     trackingData,
 }) => {
+    const { t } = useTranslation('app');
     const { explore, metricQuery, openDrillDownModal } =
         useMetricQueryDataContext();
     const { track } = useTracking();
@@ -90,12 +92,12 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
                 leftSection={<MantineIcon icon={IconArrowBarToDown} />}
                 onClick={handleDrillInto}
             >
-                <>
-                    Drill into{' '}
-                    <Text span fw="bold">
-                        {value}
-                    </Text>
-                </>
+                <Trans
+                    t={t}
+                    i18nKey="metricQueryData.drillIntoMenu"
+                    values={{ value }}
+                    components={{ value: <Text span fw="bold" /> }}
+                />
             </Menu.Item>
         );
     }

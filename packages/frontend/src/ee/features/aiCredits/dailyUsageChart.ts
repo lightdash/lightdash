@@ -5,6 +5,7 @@ import {
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import escape from 'lodash/escape';
+import i18n from '../../../i18n/i18n';
 
 dayjs.extend(utc);
 
@@ -61,7 +62,10 @@ export const toAiCreditChartBuckets = (
             (week + 1) * DAYS_PER_WEEK,
         );
         return {
-            label: `Week of ${formatDay(days[0].date)}`,
+            label: i18n.t('chart.weekOf', {
+                ns: 'eeMisc',
+                date: formatDay(days[0].date),
+            }),
             credits: sumColumns(
                 days.map((day) => day.credits),
                 usage.series.length,
@@ -116,15 +120,15 @@ export const renderAiCreditTooltip = (
                 `<span style="display:flex;align-items:center;gap:6px">` +
                 `<span style="width:8px;height:8px;border-radius:50%;background:${escape(row.color)}"></span>` +
                 `${escape(row.label)}</span>` +
-                `<b>${escape(formatCredits(row.credits))} credits</b></div>`,
+                `<b>${escape(i18n.t('chart.credits', { ns: 'eeMisc', credits: formatCredits(row.credits) }))}</b></div>`,
         )
         .join('');
     const credited = rows.filter((row) => row.credits > 0);
     const total =
         credited.length > 1
             ? `<div style="display:flex;justify-content:space-between;gap:8px;margin-top:4px;padding-top:4px;border-top:1px solid var(--mantine-color-default-border)">` +
-              `<span>Total</span>` +
-              `<b>${escape(formatCredits(credited.reduce((sum, row) => sum + row.credits, 0)))} credits</b></div>`
+              `<span>${escape(i18n.t('chart.total', { ns: 'eeMisc' }))}</span>` +
+              `<b>${escape(i18n.t('chart.credits', { ns: 'eeMisc', credits: formatCredits(credited.reduce((sum, row) => sum + row.credits, 0)) }))}</b></div>`
             : '';
     return `<div style="margin-bottom:4px">${escape(title)}</div>${items}${total}`;
 };

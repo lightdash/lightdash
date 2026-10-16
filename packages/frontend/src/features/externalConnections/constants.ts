@@ -1,3 +1,5 @@
+import i18n from '../../i18n/i18n';
+
 // Suggested Google OAuth scopes shown in the connection forms; admins can type
 // any valid scope.
 export const SUGGESTED_GOOGLE_SCOPES = [
@@ -21,11 +23,19 @@ export const validateOAuthTokenUrl = (value: string): string | null => {
     try {
         url = new URL(value);
     } catch {
-        return 'Enter a valid token URL';
+        return i18n.t('externalConnections.validation.tokenUrlInvalid', {
+            ns: 'sync',
+        });
     }
-    if (url.protocol !== 'https:') return 'Token URL must start with https://';
+    if (url.protocol !== 'https:') {
+        return i18n.t('externalConnections.validation.tokenUrlHttps', {
+            ns: 'sync',
+        });
+    }
     if (url.username || url.password || url.hash) {
-        return 'Token URL must not contain credentials or a fragment';
+        return i18n.t('externalConnections.validation.tokenUrlCredentials', {
+            ns: 'sync',
+        });
     }
     return null;
 };

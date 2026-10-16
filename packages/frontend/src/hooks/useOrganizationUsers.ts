@@ -16,6 +16,7 @@ import {
 } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
@@ -174,18 +175,19 @@ export const useInfiniteOrganizationUsers = (
 
 export const useDeleteOrganizationUserMutation = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(deleteUserQuery, {
         mutationKey: ['organization_users_delete'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(['organization_users']);
             showToastSuccess({
-                title: `Success! User was deleted.`,
+                title: t('useOrganizationUsers.successUserWasDeleted'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to delete user`,
+                title: t('useOrganizationUsers.failedToDeleteUser'),
                 apiError: error,
             });
         },
@@ -261,6 +263,7 @@ const reassignUserDashboardsQuery = async ({
     });
 
 export const useReassignUserDashboardsMutation = () => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         ApiReassignUserDashboardsResponse['results'],
@@ -270,14 +273,14 @@ export const useReassignUserDashboardsMutation = () => {
         mutationKey: ['reassign_user_dashboards'],
         onSuccess: async (data) => {
             showToastSuccess({
-                title: `Success! ${data.reassignedCount} ${
-                    data.reassignedCount === 1 ? 'dashboard' : 'dashboards'
-                } transferred.`,
+                title: t('useOrganizationUsers.dashboardsTransferred', {
+                    count: data.reassignedCount,
+                }),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to transfer dashboards`,
+                title: t('useOrganizationUsers.failedToTransferDashboards'),
                 apiError: error,
             });
         },
@@ -285,6 +288,7 @@ export const useReassignUserDashboardsMutation = () => {
 };
 
 export const useReassignUserSchedulersMutation = () => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         ApiReassignUserSchedulersResponse['results'],
@@ -294,14 +298,16 @@ export const useReassignUserSchedulersMutation = () => {
         mutationKey: ['reassign_user_schedulers'],
         onSuccess: async (data) => {
             showToastSuccess({
-                title: `Success! ${data.reassignedCount} scheduled ${
-                    data.reassignedCount === 1 ? 'delivery' : 'deliveries'
-                } reassigned.`,
+                title: t('useOrganizationUsers.deliveriesReassigned', {
+                    count: data.reassignedCount,
+                }),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to reassign scheduled deliveries`,
+                title: t(
+                    'useOrganizationUsers.failedToReassignScheduledDeliveries',
+                ),
                 apiError: error,
             });
         },

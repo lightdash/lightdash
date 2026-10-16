@@ -1,5 +1,6 @@
 import type { AiAgentToolCall, AiAgentToolResult } from '@lightdash/common';
 import { Code, Divider, Stack, Text } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import { RankingDisplay } from './RankingDisplay';
 import { parseToolResultMetadata } from './utils';
 
@@ -7,12 +8,13 @@ export const ToolResults: React.FC<{
     toolCall: AiAgentToolCall;
     toolResult: AiAgentToolResult | undefined;
 }> = ({ toolCall, toolResult }) => {
+    const { t } = useTranslation('common');
     if (toolResult?.metadata?.status === 'error') {
         return (
             <Stack gap="xs">
                 <Divider />
                 <Text fw={500} size="xs" c="red.7">
-                    Error
+                    {t('state.error')}
                 </Text>
                 <Code
                     block

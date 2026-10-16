@@ -4,6 +4,7 @@ import {
     type LearnSandboxCommandRequest,
     type LearnSandboxTool,
 } from '@lightdash/common';
+import i18n from '../../i18n/i18n';
 
 /**
  * Matches the "(command <uuid>)" suffix the backend appends to the 409
@@ -39,14 +40,20 @@ export const parseCommand = (
 ): LearnSandboxCommandRequest | { error: string } => {
     const tokens = tokenize(input.trim());
     if (tokens.length === 0) {
-        return { error: 'Type a subcommand, for example: dbt parse' };
+        return {
+            error: i18n.t('terminal.errors.missingSubcommand', { ns: 'learn' }),
+        };
     }
     const [tool, subcommand, ...args] = tokens;
     if (!ALLOWED_TOOLS.includes(tool as LearnSandboxTool)) {
-        return { error: 'Commands start with lightdash or dbt' };
+        return {
+            error: i18n.t('terminal.errors.unknownTool', { ns: 'learn' }),
+        };
     }
     if (!subcommand) {
-        return { error: 'Type a subcommand, for example: dbt parse' };
+        return {
+            error: i18n.t('terminal.errors.missingSubcommand', { ns: 'learn' }),
+        };
     }
     if (
         !LEARN_TERMINAL_SUBCOMMANDS[tool as LearnSandboxTool].includes(

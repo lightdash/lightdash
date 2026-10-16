@@ -1,6 +1,7 @@
 import { type GaugeSection } from '@lightdash/common';
 import { Accordion, Stack } from '@mantine/core';
 import { memo, useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import accordionClasses from '../common/Accordion.module.css';
@@ -10,6 +11,7 @@ import { useControlledAccordion } from '../common/hooks/useControlledAccordion';
 import GaugeSectionComponent from './GaugeSection';
 
 const GaugeSections: FC = memo(() => {
+    const { t } = useTranslation('vizConfig');
     const { openItems, handleAccordionChange, addNewItem, removeItem } =
         useControlledAccordion();
 
@@ -83,7 +85,9 @@ const GaugeSections: FC = memo(() => {
         <Config>
             <Config.Section>
                 <Config.Group>
-                    <Config.Heading>Sections</Config.Heading>
+                    <Config.Heading>
+                        {t('gauge.sections.heading')}
+                    </Config.Heading>
                     <AddButton onClick={addSection} />
                 </Config.Group>
 

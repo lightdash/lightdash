@@ -1,5 +1,6 @@
 import { Anchor, Box, Divider, Group, Paper, Stack, Text } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import ErrorState from '../../../components/common/ErrorState';
 import PageSpinner from '../../../components/PageSpinner';
@@ -13,6 +14,7 @@ import {
 import styles from './AiAgentMemoryPage.module.css';
 
 const AiAgentMemoryPage = () => {
+    const { t } = useTranslation('eeMisc');
     const { agentUuid, slug } = useParams();
     const projectUuid = useProjectUuid();
     const agentMemoryQuery = useAiAgentMemory({
@@ -43,7 +45,7 @@ const AiAgentMemoryPage = () => {
                     className={styles.backLink}
                 >
                     <IconArrowLeft size={14} />
-                    Back to AI agents
+                    {t('agents.backToAgents')}
                 </Anchor>
 
                 <Paper className={styles.surface}>

@@ -1,42 +1,42 @@
 import { Stack, Text } from '@mantine/core';
+import { type TFunction } from 'i18next';
 import { type GuidedTourStep } from '../../../../../../components/common/GuidedTour';
 import { ReviewsLoopDiagram } from './ReviewsLoopDiagram';
 
 // First-visit tour for the Issues board. All step copy lives here.
-export const REVIEWS_TOUR_STEPS: GuidedTourStep[] = [
+export const getReviewsTourSteps = (t: TFunction): GuidedTourStep[] => [
     {
         target: '[data-tour="reviews-intro"]',
-        title: 'Start here',
-        body: 'These are answers your agents probably got wrong. We group them by what caused them, and you work them left to right.',
+        title: t('onboarding.tour.intro.title'),
+        body: t('onboarding.tour.intro.body'),
     },
     {
         target: '[data-tour="reviews-card"]',
-        title: 'Each card is one finding',
-        body: 'Click a card to inspect the thread and the suggested fix. Semantic layer and Project context are the kinds you can usually fix from here.',
+        title: t('onboarding.tour.card.title'),
+        body: t('onboarding.tour.card.body'),
     },
     {
         target: '[data-tour="reviews-pr"]',
-        title: 'Open a pull request',
-        body: 'When a fix is ready, Start opens a pull request in your repo. The card moves to In Progress and tracks the PR.',
+        title: t('onboarding.tour.pr.title'),
+        body: t('onboarding.tour.pr.body'),
     },
     {
         target: '[data-tour="reviews-workspace"]',
-        title: 'Follow the fix',
-        body: 'Open the workspace to watch the fix come together and pick up where it left off.',
+        title: t('onboarding.tour.workspace.title'),
+        body: t('onboarding.tour.workspace.body'),
     },
     {
         target: '[data-tour="reviews-in-progress"]',
-        title: 'Build and verify',
-        body: 'In the workspace the fix builds in a throwaway preview, then your agent re-answers the original question to check it actually worked.',
+        title: t('onboarding.tour.inProgress.title'),
+        body: t('onboarding.tour.inProgress.body'),
     },
     {
         target: null,
-        title: 'What happens after you merge',
+        title: t('onboarding.tour.afterMerge.title'),
         body: (
             <Stack gap="sm">
                 <Text fz="sm" c="dimmed">
-                    Merge and the card lands in Done. The agent uses the fix on
-                    its next answer:
+                    {t('onboarding.tour.afterMerge.body')}
                 </Text>
                 <ReviewsLoopDiagram />
             </Stack>

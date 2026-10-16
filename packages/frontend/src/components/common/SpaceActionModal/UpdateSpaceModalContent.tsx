@@ -1,5 +1,6 @@
 import { Stack, TextInput } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type SpaceModalBody } from '.';
 import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
 import useHealth from '../../../hooks/health/useHealth';
@@ -12,6 +13,7 @@ type Props = SpaceModalBody & {
 };
 
 const UpdateSpaceModalContent: FC<Props> = ({ form, projectUuid }) => {
+    const { t } = useTranslation('modals');
     const { data: project } = useProject(projectUuid);
     const { data: palettes = [] } = useColorPalettes();
     const { data: health } = useHealth();
@@ -24,24 +26,25 @@ const UpdateSpaceModalContent: FC<Props> = ({ form, projectUuid }) => {
         form.values.breadcrumbs && form.values.breadcrumbs.length >= 2
             ? form.values.breadcrumbs[form.values.breadcrumbs.length - 2]
             : undefined;
-    const parentLabel = parentBreadcrumb?.name ?? project?.name ?? 'project';
+    const parentLabel =
+        parentBreadcrumb?.name ??
+        project?.name ??
+        t('spaceAction.projectFallback');
 
     return (
         <Stack gap="md">
             <TextInput
                 {...form.getInputProps('name')}
-                label="Enter a memorable name for your space"
-                placeholder="eg. KPIs"
+                label={t('spaceAction.nameLabel')}
+                placeholder={t('spaceAction.namePlaceholder')}
             />
             {overrideActive && (
                 <Callout variant="info">
-                    A color palette override is set in your instance
-                    configuration. Space-level selection is disabled while the
-                    override is active.
+                    {t('spaceAction.paletteOverrideActive')}
                 </Callout>
             )}
             <PalettePicker
-                label="Color palette"
+                label={t('spaceAction.colorPalette')}
                 size="sm"
                 value={form.values.colorPaletteUuid ?? null}
                 onChange={(next) =>

@@ -4,6 +4,7 @@ import {
     type PartitionColumn,
 } from '@lightdash/common';
 import Fuse from 'fuse.js';
+import i18n from '../../../i18n/i18n';
 import { type TablesBySchema } from '../hooks/useTables';
 
 export type SchemaTables = NonNullable<TablesBySchema>[number] & {
@@ -64,7 +65,6 @@ export type TableTypeFilter = 'tables' | 'views';
 export const MIN_TABLE_SEARCH_LENGTH = 2;
 
 export const DEV_SCHEMAS_GROUP_ID = 'group:dev-schemas';
-const DEV_SCHEMAS_GROUP_LABEL = 'dev & pr schemas';
 
 // dbt Cloud CI schemas pile up fast and are rarely what someone is looking for
 const DEV_SCHEMA_PATTERN = /^dbt_cloud_pr_/i;
@@ -245,7 +245,7 @@ export const buildTableRows = (
     const group: TableRow = {
         type: 'group',
         id: DEV_SCHEMAS_GROUP_ID,
-        label: DEV_SCHEMAS_GROUP_LABEL,
+        label: i18n.t('tables.devSchemasGroup', { ns: 'sqlRunner' }),
         isExpanded: grouping.isGroupExpanded,
         schemaCount: devSchemas.length,
     };
@@ -287,8 +287,16 @@ export const buildRecentRows = (
     });
     if (rows.length === 0) return [];
     return [
-        { type: 'section', id: RECENT_SECTION_ID, label: 'Recent' },
+        {
+            type: 'section',
+            id: RECENT_SECTION_ID,
+            label: i18n.t('tables.recent', { ns: 'sqlRunner' }),
+        },
         ...rows,
-        { type: 'section', id: ALL_SCHEMAS_SECTION_ID, label: 'All schemas' },
+        {
+            type: 'section',
+            id: ALL_SCHEMAS_SECTION_ID,
+            label: i18n.t('tables.allSchemas', { ns: 'sqlRunner' }),
+        },
     ];
 };

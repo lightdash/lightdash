@@ -6,6 +6,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import { createMentionMarkdownExtension } from '../../../ee/features/homepageBuilder/blocks/markdownEditor/contentMentionMarkdown';
 import { SlashCommand } from '../../../ee/features/homepageBuilder/blocks/markdownEditor/SlashCommandExtension';
+import i18n from '../../../i18n/i18n';
 import {
     DOCUMENT_CHART_NODE,
     DocumentChartNode,
@@ -69,7 +70,8 @@ export const createDocumentEditorExtensions = ({
         ? [
               EmptyLineCleanup,
               Placeholder.configure({
-                  placeholder: "Write something, or type '/' for blocks…",
+                  placeholder: () =>
+                      i18n.t('editor.bodyPlaceholder', { ns: 'documents' }),
               }),
               SlashCommand.configure({
                   items: createDocumentSlashCommandItems({

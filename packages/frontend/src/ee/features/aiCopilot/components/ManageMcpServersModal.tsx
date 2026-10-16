@@ -11,6 +11,7 @@ import {
 } from '@mantine/core';
 import { IconDots, IconPencil, IconPlug, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { useProject } from '../../../../hooks/useProject';
@@ -28,12 +29,6 @@ import {
     getMcpServerIconColor,
 } from './mcpServerLabels';
 
-const describeAgentCount = (count: number) =>
-    count === 1 ? '1 agent' : `${count} agents`;
-
-const formatAttachedAgents = (count: number) =>
-    `Attached to ${describeAgentCount(count)}`;
-
 type RenameInputProps = {
     initialName: string;
     onSubmit: (name: string) => void;
@@ -45,6 +40,7 @@ const McpServerRenameInput: FC<RenameInputProps> = ({
     onSubmit,
     onCancel,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const [draft, setDraft] = useState(initialName);
     const [settled, setSettled] = useState(false);
 
@@ -67,7 +63,7 @@ const McpServerRenameInput: FC<RenameInputProps> = ({
         <TextInput
             size="xs"
             autoFocus
-            aria-label="MCP server name"
+            aria-label={t('manageMcp.serverName')}
             value={draft}
             onChange={(event) => setDraft(event.currentTarget.value)}
             onFocus={(event) => event.currentTarget.select()}
@@ -101,79 +97,88 @@ const McpServerRow: FC<RowProps> = ({
     onRename,
     onCancelRename,
     onDelete,
-}) => (
-    <Box className={styles.row}>
-        <AiMcpServerIcon
-            color={getMcpServerIconColor(mcpServer.connectionStatus)}
-            name={mcpServer.name}
-            size={32}
-            src={mcpServer.iconUrl}
-        />
-        <Box className={styles.rowBody}>
-            {isRenaming ? (
-                <McpServerRenameInput
-                    initialName={mcpServer.name}
-                    onSubmit={onRename}
-                    onCancel={onCancelRename}
-                />
-            ) : (
-                <Text className={styles.rowTitle} truncate>
-                    {mcpServer.name}
+}) => {
+    const { t } = useTranslation('aiAgent');
+    return (
+        <Box className={styles.row}>
+            <AiMcpServerIcon
+                color={getMcpServerIconColor(mcpServer.connectionStatus)}
+                name={mcpServer.name}
+                size={32}
+                src={mcpServer.iconUrl}
+            />
+            <Box className={styles.rowBody}>
+                {isRenaming ? (
+                    <McpServerRenameInput
+                        initialName={mcpServer.name}
+                        onSubmit={onRename}
+                        onCancel={onCancelRename}
+                    />
+                ) : (
+                    <Text className={styles.rowTitle} truncate>
+                        {mcpServer.name}
+                    </Text>
+                )}
+                <Text className={styles.rowMeta} truncate>
+                    {mcpServer.url}
                 </Text>
-            )}
-            <Text className={styles.rowMeta} truncate>
-                {mcpServer.url}
-            </Text>
-            <Text className={styles.rowMeta}>
-                {formatAttachedAgents(mcpServer.attachedAgentCount)}
-            </Text>
+                <Text className={styles.rowMeta}>
+                    {t('manageMcp.attachedTo', {
+                        count: mcpServer.attachedAgentCount,
+                    })}
+                </Text>
+            </Box>
+            <Group gap="xs" wrap="nowrap">
+                <Badge size="xs" variant="light" color="gray">
+                    {getMcpAuthTypeLabel(mcpServer.authType)}
+                </Badge>
+                <Badge
+                    size="xs"
+                    variant="light"
+                    color={getMcpConnectionStatusColor(
+                        mcpServer.connectionStatus,
+                    )}
+                >
+                    {getMcpConnectionStatusLabel(mcpServer)}
+                </Badge>
+                <Menu
+                    position="bottom-end"
+                    withArrow
+                    width={160}
+                    returnFocus={false}
+                >
+                    <Menu.Target>
+                        <ActionIcon
+                            variant="subtle"
+                            color="ldGray"
+                            size="sm"
+                            aria-label={t('manageMcp.actionsFor', {
+                                name: mcpServer.name,
+                            })}
+                        >
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconPencil} />}
+                            onClick={onStartRename}
+                        >
+                            {t('sidebar.rename')}
+                        </Menu.Item>
+                        <Menu.Item
+                            color="red"
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            onClick={onDelete}
+                        >
+                            {t('actions.delete', { ns: 'common' })}
+                        </Menu.Item>
+                    </Menu.Dropdown>
+                </Menu>
+            </Group>
         </Box>
-        <Group gap="xs" wrap="nowrap">
-            <Badge size="xs" variant="light" color="gray">
-                {getMcpAuthTypeLabel(mcpServer.authType)}
-            </Badge>
-            <Badge
-                size="xs"
-                variant="light"
-                color={getMcpConnectionStatusColor(mcpServer.connectionStatus)}
-            >
-                {getMcpConnectionStatusLabel(mcpServer)}
-            </Badge>
-            <Menu
-                position="bottom-end"
-                withArrow
-                width={160}
-                returnFocus={false}
-            >
-                <Menu.Target>
-                    <ActionIcon
-                        variant="subtle"
-                        color="ldGray"
-                        size="sm"
-                        aria-label={`Actions for ${mcpServer.name}`}
-                    >
-                        <MantineIcon icon={IconDots} />
-                    </ActionIcon>
-                </Menu.Target>
-                <Menu.Dropdown>
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconPencil} />}
-                        onClick={onStartRename}
-                    >
-                        Rename
-                    </Menu.Item>
-                    <Menu.Item
-                        color="red"
-                        leftSection={<MantineIcon icon={IconTrash} />}
-                        onClick={onDelete}
-                    >
-                        Delete
-                    </Menu.Item>
-                </Menu.Dropdown>
-            </Menu>
-        </Group>
-    </Box>
-);
+    );
+};
 
 type Props = {
     opened: boolean;
@@ -188,6 +193,7 @@ export const ManageMcpServersModal: FC<Props> = ({
     projectUuid,
     onDeleted,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const { data: project } = useProject(projectUuid);
     const {
         data: mcpServers,
@@ -218,19 +224,19 @@ export const ManageMcpServersModal: FC<Props> = ({
     if (isLoading) {
         content = (
             <Text size="sm" c="dimmed" ta="center" py="xl">
-                Loading MCP servers…
+                {t('manageMcp.loading')}
             </Text>
         );
     } else if (isError) {
         content = (
             <Text size="sm" c="red" ta="center" py="xl">
-                Failed to load MCP servers.
+                {t('manageMcp.loadFailed')}
             </Text>
         );
     } else if (!mcpServers || mcpServers.length === 0) {
         content = (
             <Text size="sm" c="dimmed" ta="center" py="xl">
-                No MCP servers in this project yet.
+                {t('manageMcp.empty')}
             </Text>
         );
     } else {
@@ -264,10 +270,12 @@ export const ManageMcpServersModal: FC<Props> = ({
                 onClose={onClose}
                 icon={IconPlug}
                 size="48rem"
-                title="MCP servers"
-                subtitle={`Servers available to every agent in ${
-                    project?.name ?? 'this project'
-                }.`}
+                title={t('mcpInput.section.title')}
+                subtitle={
+                    project?.name
+                        ? t('manageMcp.subtitle', { project: project.name })
+                        : t('manageMcp.subtitleThisProject')
+                }
                 modalBodyProps={{ px: 0, py: 0 }}
                 bodyScrollAreaMaxHeight="60vh"
             >
@@ -276,15 +284,16 @@ export const ManageMcpServersModal: FC<Props> = ({
             <MantineModal
                 opened={serverToDelete !== null}
                 onClose={() => setServerToDelete(null)}
-                title="Delete MCP server"
+                title={t('manageMcp.deleteTitle')}
                 variant="delete"
-                resourceType="MCP server"
+                resourceType={t('manageMcp.resourceType')}
                 resourceLabel={serverToDelete?.name}
                 description={
                     serverToDelete
-                        ? `Deleting "${serverToDelete.name}" detaches it from ${describeAgentCount(
-                              serverToDelete.attachedAgentCount,
-                          )} and removes the shared sign-in and every user's personal sign-in. This cannot be undone.`
+                        ? t('manageMcp.deleteDescription', {
+                              name: serverToDelete.name,
+                              count: serverToDelete.attachedAgentCount,
+                          })
                         : undefined
                 }
                 onConfirm={handleConfirmDelete}

@@ -1,6 +1,7 @@
 import { type TableCalculation } from '@lightdash/common';
 import { type ModalProps } from '@mantine/core';
 import { useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../../components/common/MantineModal';
 import {
     explorerActions,
@@ -17,6 +18,7 @@ export const DeleteTableCalculationModal: FC<Props> = ({
     tableCalculation,
     onClose,
 }) => {
+    const { t } = useTranslation('tableCalculation');
     const dispatch = useExplorerDispatch();
     const { track } = useTracking();
 
@@ -32,9 +34,9 @@ export const DeleteTableCalculationModal: FC<Props> = ({
         <MantineModal
             opened
             onClose={onClose}
-            title="Delete Table Calculation"
+            title={t('deleteModal.title')}
             variant="delete"
-            resourceType="table calculation"
+            resourceType={t('deleteModal.resourceType')}
             onConfirm={handleConfirm}
         />
     );

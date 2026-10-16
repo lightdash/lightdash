@@ -78,6 +78,7 @@ import React, {
     type FC,
     type RefObject,
 } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { v4 as uuid4 } from 'uuid';
 import { useProjectColorPalette } from '../../hooks/appearance/useProjectColorPalette';
 import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
@@ -656,6 +657,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
         const { showToastSuccess } = useToaster();
         const clipboard = useClipboard({ timeout: 200 });
         const getUiString = useUiStrings();
+        const { t } = useTranslation('dashboard');
         const { track } = useTracking();
         const ability = useAbilityContext();
         const { data: account } = useAccount();
@@ -898,8 +900,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             const value = viewUnderlyingDataOptions.value.formatted;
 
             clipboard.copy(value);
-            showToastSuccess({ title: 'Copied to clipboard!' });
-        }, [viewUnderlyingDataOptions, clipboard, showToastSuccess]);
+            showToastSuccess({
+                title: t('feedback.copiedToClipboard', { ns: 'common' }),
+            });
+        }, [viewUnderlyingDataOptions, clipboard, showToastSuccess, t]);
 
         const {
             data: duplicatedChart,
@@ -908,7 +912,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
         } = useDuplicateChartMutation({
             showRedirectButton: false,
             autoRedirect: false,
-            successMessage: `Chart duplicated and added at the bottom of this dashboard`,
+            successMessage: t('tile.duplicatedSuccess'),
         });
 
         useEffect(() => {
@@ -1185,21 +1189,24 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             if (!canManageChartSpace) {
                 return (
                     <Text>
-                        Cannot edit chart belonging to space:{' '}
-                        <Text span fw={500}>
-                            {chart.spaceName}
-                        </Text>
+                        <Trans
+                            t={t}
+                            i18nKey="tile.cannotEditInSpace"
+                            values={{ spaceName: chart.spaceName }}
+                            components={{ bold: <Text span fw={500} /> }}
+                        />
                     </Text>
                 );
             }
 
-            return <Text>You do not have permission to edit this chart</Text>;
+            return <Text>{t('tile.noEditPermission')}</Text>;
         }, [
             chart.organizationUuid,
             chart.projectUuid,
             chart.spaceName,
             chart.spaceUuid,
             ability,
+            t,
         ]);
         const downloadPivotConfig = getPivotConfig(chart);
 
@@ -1248,12 +1255,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                         fw={500}
                                                         fz="xs"
                                                     >
-                                                        Dashboard filter
-                                                        {appliedFilterItems.length >
-                                                        1
-                                                            ? 's'
-                                                            : ''}{' '}
-                                                        applied:
+                                                        {t(
+                                                            'tile.filters.dashboardFiltersApplied',
+                                                            {
+                                                                count: appliedFilterItems.length,
+                                                            },
+                                                        )}
                                                     </Text>
                                                     {appliedFilterItems.map(
                                                         ({
@@ -1300,7 +1307,15 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     field,
                                                                 )
                                                             )
-                                                                return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
+                                                                return t(
+                                                                    'tile.filters.unknownField',
+                                                                    {
+                                                                        fieldId:
+                                                                            filterRule
+                                                                                .target
+                                                                                .fieldId,
+                                                                    },
+                                                                );
 
                                                             const filterRuleLabels =
                                                                 getConditionalRuleLabelFromItem(
@@ -1354,9 +1369,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                             span
                                                                             inherit
                                                                         >
-                                                                            is
-                                                                            any
-                                                                            value
+                                                                            {t(
+                                                                                'tile.filters.isAnyValue',
+                                                                            )}
                                                                         </Text>
                                                                     ) : (
                                                                         <>
@@ -1396,12 +1411,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                         fw={500}
                                                         fz="xs"
                                                     >
-                                                        Chart filter
-                                                        {chartFilterItems.length >
-                                                        1
-                                                            ? 's'
-                                                            : ''}
-                                                        :
+                                                        {t(
+                                                            'tile.filters.chartFilters',
+                                                            {
+                                                                count: chartFilterItems.length,
+                                                            },
+                                                        )}
                                                     </Text>
                                                     {chartFilterItems.map(
                                                         ({
@@ -1430,7 +1445,15 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     field,
                                                                 )
                                                             )
-                                                                return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
+                                                                return t(
+                                                                    'tile.filters.unknownField',
+                                                                    {
+                                                                        fieldId:
+                                                                            filterRule
+                                                                                .target
+                                                                                .fieldId,
+                                                                    },
+                                                                );
                                                             const filterRuleLabels =
                                                                 getConditionalRuleLabelFromItem(
                                                                     filterRule,
@@ -1493,9 +1516,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                                 ruleStrikeStyle
                                                                             }
                                                                         >
-                                                                            is
-                                                                            any
-                                                                            value
+                                                                            {t(
+                                                                                'tile.filters.isAnyValue',
+                                                                            )}
                                                                         </Text>
                                                                     ) : (
                                                                         <>
@@ -1536,9 +1559,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                             fs="italic"
                                                                         >
                                                                             {' '}
-                                                                            (overridden
-                                                                            by
-                                                                            dashboard)
+                                                                            {t(
+                                                                                'tile.filters.overriddenByDashboard',
+                                                                            )}
                                                                         </Text>
                                                                     )}
                                                                 </Badge>
@@ -1572,7 +1595,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                             style={{ overflowY: 'auto' }}
                                         >
                                             <Text c="ldGray.7" fw={500} mb="xs">
-                                                Parameters
+                                                {t('tile.parameters')}
                                             </Text>
                                             <Stack
                                                 gap="xs"
@@ -1742,15 +1765,15 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
 
                                 <Tooltip
                                     disabled={!isEditMode}
-                                    label="Finish editing dashboard to use these actions"
+                                    label={t('tile.finishEditingToUseActions')}
                                 >
                                     <Box>
                                         {userCanViewExplore &&
                                             chartPathname && (
                                                 <Tooltip
-                                                    label={
-                                                        'This chart contains custom dimensions, you will not be able to run custom SQL on explore.'
-                                                    }
+                                                    label={t(
+                                                        'tile.customDimensionsWarning',
+                                                    )}
                                                     position="top-start"
                                                     disabled={
                                                         !cannotUseCustomDimensions
@@ -1873,7 +1896,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                     }
                                                     disabled={isEditMode}
                                                 >
-                                                    Move to space
+                                                    {t('tile.moveToSpace')}
                                                 </Menu.Item>
                                             )}
 
@@ -1897,7 +1920,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                         )
                                                     }
                                                 >
-                                                    Rebuild pre-aggregate
+                                                    {t(
+                                                        'tile.rebuildPreAggregate',
+                                                    )}
                                                 </Menu.Item>
                                             )}
                                     </Box>
@@ -1910,13 +1935,16 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                         onClick={() =>
                                             duplicateChart({
                                                 uuid: savedChartUuid,
-                                                name: `Copy of ${chart.name}`,
+                                                name: t(
+                                                    'tabs.duplicateModal.copyOf',
+                                                    { name: chart.name },
+                                                ),
                                                 description: chart.description,
                                             })
                                         }
                                         disabled={!isEditMode}
                                     >
-                                        Duplicate chart
+                                        {t('tile.duplicateChart')}
                                     </Menu.Item>
                                 )}
                             </>
@@ -1961,7 +1989,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                         }
                                         onClick={handleCopyToClipboard}
                                     >
-                                        Copy value
+                                        {t('tile.copyValue')}
                                     </Menu.Item>
                                 )}
                                 {metricQuery && canViewUnderlyingData && (
@@ -2105,6 +2133,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
 ) => {
     const authoringEnabled = useContentAuthoringEnabled();
     const getUiString = useUiStrings();
+    const { t } = useTranslation('dashboard');
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -2308,7 +2337,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                                     }
                                     onClick={() => onEditChart(chart)}
                                 >
-                                    Edit chart
+                                    {t('tile.editChart')}
                                 </Menu.Item>
                             )}
                             {isEmbeddedExploreEnabled && (
@@ -2504,6 +2533,7 @@ export const GenericDashboardChartTile: FC<
     darkColorPaletteOverride,
     ...rest
 }) => {
+    const { t } = useTranslation('dashboard');
     const projectUuid = useProjectUuid();
     const { user } = useApp();
 
@@ -2582,7 +2612,7 @@ export const GenericDashboardChartTile: FC<
         const tileTitle =
             tile.properties.title ||
             tile.properties.chartName ||
-            'Deleted chart';
+            t('tile.deletedChart');
 
         return (
             <TileBase
@@ -2604,7 +2634,7 @@ export const GenericDashboardChartTile: FC<
                     title={tileTitle}
                     description={
                         getDashboardTileErrorMessage(error) ||
-                        'Error running query'
+                        t('tile.queryError')
                     }
                 />
             </TileBase>
@@ -2690,18 +2720,19 @@ export const GenericDashboardChartTile: FC<
 };
 
 const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
+    const { t } = useTranslation('dashboard');
     // Handle orphaned tiles where the chart was deleted but tile remains
     const orphanedChartError = useMemo((): ClientSideError | null => {
         if (props.tile.properties.savedChartUuid === null) {
             return {
                 error: {
                     name: 'ChartDeleted',
-                    message: 'This chart has been deleted.',
+                    message: t('tile.chartDeleted'),
                 },
             };
         }
         return null;
-    }, [props.tile.properties.savedChartUuid]);
+    }, [props.tile.properties.savedChartUuid, t]);
 
     const readyQuery = useDashboardChartReadyQuery(
         props.tile.uuid,

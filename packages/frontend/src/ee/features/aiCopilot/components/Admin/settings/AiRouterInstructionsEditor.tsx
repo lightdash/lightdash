@@ -4,6 +4,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { generateSuggestionWrapper } from '../../../../../../features/comments/components/CommentWithMentions/generateSuggestionWrapper';
 import { type SuggestionsItem } from '../../../../../../features/comments/types';
 import { instructionTextToHtml } from '../../../utils/aiRouterInstructions';
@@ -41,6 +42,7 @@ export const AiRouterInstructionsEditor: FC<Props> = ({
     disabled = false,
     onChange,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const editor = useEditor({
         extensions: [
             StarterKit.configure({
@@ -52,8 +54,7 @@ export const AiRouterInstructionsEditor: FC<Props> = ({
                 trailingNode: false,
             }),
             Placeholder.configure({
-                placeholder:
-                    'e.g. Route billing and invoicing questions to @Finance Agent. Type @ to tag an agent.',
+                placeholder: t('settings.routing.placeholder'),
             }),
             RouterMention.configure({
                 suggestion: generateSuggestionWrapper(suggestions),
@@ -82,7 +83,7 @@ export const AiRouterInstructionsEditor: FC<Props> = ({
         content: instructionTextToHtml(initialInstruction),
         editorProps: {
             attributes: {
-                'aria-label': 'Routing instructions',
+                'aria-label': t('settings.routing.editorAria'),
                 'aria-multiline': 'true',
                 role: 'textbox',
             },

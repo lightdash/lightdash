@@ -1,13 +1,15 @@
-export const THREAD_RETENTION_PRESETS: { hours: number; label: string }[] = [
-    { hours: 1, label: '1 hour' },
-    { hours: 24, label: '24 hours' },
-    { hours: 168, label: '7 days' },
-    { hours: 720, label: '30 days' },
-    { hours: 2160, label: '90 days' },
+import i18n from '../../../../i18n/i18n';
+
+export const THREAD_RETENTION_PRESETS: { hours: number }[] = [
+    { hours: 1 },
+    { hours: 24 },
+    { hours: 168 },
+    { hours: 720 },
+    { hours: 2160 },
 ];
 
-export const formatRetentionHours = (hours: number): string => {
-    const preset = THREAD_RETENTION_PRESETS.find((p) => p.hours === hours);
-    if (preset) return preset.label;
-    return hours % 24 === 0 ? `${hours / 24} days` : `${hours} hours`;
-};
+// 24 is shown as "24 hours" (preset), other multiples of 24 as days
+export const formatRetentionHours = (hours: number): string =>
+    hours % 24 === 0 && hours !== 24
+        ? i18n.t('retention.days', { ns: 'aiAgent', count: hours / 24 })
+        : i18n.t('retention.hours', { ns: 'aiAgent', count: hours });

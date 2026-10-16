@@ -12,6 +12,7 @@ import {
     IconTerminal2,
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router';
 import DocumentCreateModal from '../../features/documents/DocumentCreateModal';
 import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
@@ -35,6 +36,7 @@ type Props = {
 };
 
 const ExploreMenu: FC<Props> = memo((props) => {
+    const { t } = useTranslation('navigation');
     const menuProps = useNavBarMenuProps();
     const { projectUuid, projectUrlIdentifier: projectUrlIdentifierProp } =
         props;
@@ -87,7 +89,7 @@ const ExploreMenu: FC<Props> = memo((props) => {
                 >
                     <Menu.Target>
                         <Button
-                            aria-label="New"
+                            aria-label={t('new.label')}
                             variant="default"
                             size="xs"
                             fz="sm"
@@ -102,7 +104,7 @@ const ExploreMenu: FC<Props> = memo((props) => {
                             data-tour-nav="new"
                             data-tour-hint="Click New"
                         >
-                            New
+                            {t('new.label')}
                         </Button>
                     </Menu.Target>
 
@@ -110,8 +112,8 @@ const ExploreMenu: FC<Props> = memo((props) => {
                         {contentAuthoringEnabled && (
                             <LargeMenuItem
                                 component={Link}
-                                title="Chart"
-                                description="Build queries and save them as charts."
+                                title={t('new.chart.title')}
+                                description={t('new.chart.description')}
                                 to={`/projects/${projectUrlIdentifier}/tables`}
                                 icon={IconTable}
                                 data-tour-nav="new-chart"
@@ -131,8 +133,10 @@ const ExploreMenu: FC<Props> = memo((props) => {
                                 >
                                     <LargeMenuItem
                                         component={Link}
-                                        title="Query using SQL runner"
-                                        description="Access your database to run ad-hoc queries."
+                                        title={t('new.sqlRunner.title')}
+                                        description={t(
+                                            'new.sqlRunner.description',
+                                        )}
                                         to={`/projects/${projectUrlIdentifier}/sql-runner`}
                                         data-tour-nav="new-sql-runner"
                                         data-tour-hint="Choose Query using SQL runner"
@@ -157,8 +161,8 @@ const ExploreMenu: FC<Props> = memo((props) => {
                             )}
                         {contentAuthoringEnabled && userCanCreateDashboards && (
                             <LargeMenuItem
-                                title="Dashboard"
-                                description="Arrange multiple charts into a single view."
+                                title={t('new.dashboard.title')}
+                                description={t('new.dashboard.description')}
                                 onClick={() => setIsCreateDashboardOpen(true)}
                                 icon={IconLayoutDashboard}
                                 data-testid="ExploreMenu/NewDashboardButton"
@@ -171,8 +175,8 @@ const ExploreMenu: FC<Props> = memo((props) => {
                             documentsFlag.data?.enabled &&
                             userCanCreateDocuments && (
                                 <LargeMenuItem
-                                    title="Document"
-                                    description="Write up analysis with live charts."
+                                    title={t('new.document.title')}
+                                    description={t('new.document.description')}
                                     onClick={() =>
                                         setIsCreateDocumentOpen(true)
                                     }
@@ -198,8 +202,8 @@ const ExploreMenu: FC<Props> = memo((props) => {
                                     // Navigation anchor for scope walkthroughs (data-tour-via)
                                     data-tour-nav="new-app"
                                     data-tour-hint="Choose Data App"
-                                    title="Data App"
-                                    description="Build an interactive app powered by your data."
+                                    title={t('new.dataApp.title')}
+                                    description={t('new.dataApp.description')}
                                     to={`/projects/${projectUuid}/apps/generate`}
                                     icon={IconAppWindow}
                                     isBeta
@@ -215,8 +219,8 @@ const ExploreMenu: FC<Props> = memo((props) => {
                             })}
                         >
                             <LargeMenuItem
-                                title="Space"
-                                description="Organize your saved charts and dashboards."
+                                title={t('new.space.title')}
+                                description={t('new.space.description')}
                                 onClick={() => setIsCreateSpaceOpen(true)}
                                 icon={IconFolder}
                             />
@@ -230,8 +234,10 @@ const ExploreMenu: FC<Props> = memo((props) => {
                     <SpaceActionModal
                         projectUuid={projectUuid}
                         actionType={ActionType.CREATE}
-                        title="Create new space"
-                        confirmButtonLabel="Create"
+                        title={t('new.createSpace')}
+                        confirmButtonLabel={t('actions.create', {
+                            ns: 'common',
+                        })}
                         icon={IconFolderPlus}
                         onClose={() => setIsCreateSpaceOpen(false)}
                         onSubmitForm={(space) => {

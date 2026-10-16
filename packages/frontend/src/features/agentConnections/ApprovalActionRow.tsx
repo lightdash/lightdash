@@ -11,6 +11,7 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useId } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../components/common/MantineIcon';
 import { type getApprovalActions } from './approvalSelection';
 
@@ -29,6 +30,7 @@ export const ApprovalActionRow = ({
     disabled,
     onChange,
 }: Props) => {
+    const { t } = useTranslation('aiAccess');
     const descriptionId = useId();
     const reasons = [
         ...new Set(action.blocked.map(({ reason }) => reason).filter(Boolean)),
@@ -37,20 +39,26 @@ export const ApprovalActionRow = ({
     const mixed = action.offered > 0 && action.offered < projectCount;
     const warning =
         action.capability === AgentCapability.Delete
-            ? 'Deleted content cannot be restored by the agent.'
+            ? t('agentConnections.actionRow.deleteWarning')
             : action.capability === AgentCapability.Publish
-              ? 'Other people will see what the agent publishes.'
+              ? t('agentConnections.actionRow.publishWarning')
               : null;
     const restrictions = [
         ...(mixed
             ? [
-                  `Available in ${action.offered} of ${projectCount} selected projects`,
+                  t('agentConnections.actionRow.availableIn', {
+                      offered: action.offered,
+                      count: projectCount,
+                  }),
               ]
             : []),
         ...(blockedEverywhere && reasons.length === 1
             ? reasons
-            : action.blocked.map(
-                  (blocked) => `${blocked.name}: ${blocked.reason}`,
+            : action.blocked.map((blocked) =>
+                  t('agentConnections.actionRow.blockedReason', {
+                      name: blocked.name,
+                      reason: blocked.reason,
+                  }),
               )),
     ];
     const showRestrictions = blockedEverywhere || mixed;
@@ -80,7 +88,12 @@ export const ApprovalActionRow = ({
                             </Stack>
                         }
                     >
-                        <ActionIcon size="xs" aria-label="Why this is limited">
+                        <ActionIcon
+                            size="xs"
+                            aria-label={t(
+                                'agentConnections.actionRow.whyLimited',
+                            )}
+                        >
                             <MantineIcon
                                 icon={IconInfoCircle}
                                 color="dimmed"

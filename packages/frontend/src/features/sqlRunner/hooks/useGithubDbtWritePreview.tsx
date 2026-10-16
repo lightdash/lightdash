@@ -4,6 +4,7 @@ import {
     type VizColumn,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -31,6 +32,7 @@ const createPullRequest = async ({
  * This hook is used to get the preview (files and repo) of a pull request with the SQL query and columns from the SQL runner
  */
 export const useGithubDbtWritePreview = () => {
+    const { t } = useTranslation('sqlRunner');
     const { showToastError } = useToaster();
 
     return useMutation<
@@ -42,7 +44,7 @@ export const useGithubDbtWritePreview = () => {
 
         onError: (error) => {
             showToastError({
-                title: 'Failed to preview dbt writeback',
+                title: t('toasts.writePreviewFailed'),
                 subtitle: error.error.message,
             });
         },

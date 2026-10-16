@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { Box, Button, Group, ScrollArea, Stack } from '@mantine/core';
 import { IconPlayerPlay } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import {
     useEffect,
     useRef,
@@ -11,6 +12,7 @@ import {
     type KeyboardEvent,
     type UIEvent,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../components/common/MantineIcon';
 // eslint-disable-next-line css-modules/no-unused-class -- classes shared across learnSandbox files
 import styles from './LearnWorkspace.module.css';
@@ -37,9 +39,8 @@ export type TerminalOutput = {
     isActive: boolean;
 };
 
-const EMPTY_STATE_LABEL = 'Run a command to see its output here';
-
 const getStatusLabel = (
+    t: TFunction,
     status: LearnCommandStatus | null,
     exitCode: number | null,
 ): string => {
@@ -47,15 +48,17 @@ const getStatusLabel = (
         case null:
             return '';
         case 'queued':
-            return 'Queued';
+            return t('terminal.status.queued');
         case 'running':
-            return 'Running';
+            return t('terminal.status.running');
         case 'done':
-            return 'Finished';
+            return t('terminal.status.finished');
         case 'error':
-            return exitCode === null ? 'Failed' : `Failed (exit ${exitCode})`;
+            return exitCode === null
+                ? t('terminal.status.failed')
+                : t('terminal.status.failedWithCode', { exitCode });
         case 'timeout':
-            return 'Timed out';
+            return t('terminal.status.timedOut');
         default:
             return '';
     }
@@ -102,6 +105,7 @@ const Terminal: FC<TerminalProps> = ({
     disabled,
     output,
 }) => {
+    const { t } = useTranslation('learn');
     const viewportRef = useRef<HTMLDivElement>(null);
     const runButtonRef = useRef<HTMLButtonElement>(null);
     const shouldFollowRef = useRef(true);
@@ -148,7 +152,7 @@ const Terminal: FC<TerminalProps> = ({
         output.startedAt,
         output.finishedAt,
     );
-    const statusLabel = getStatusLabel(output.status, output.exitCode);
+    const statusLabel = getStatusLabel(t, output.status, output.exitCode);
     const statusText =
         statusLabel && elapsedSeconds !== null
             ? `${statusLabel} · ${elapsedSeconds}s`
@@ -168,7 +172,7 @@ const Terminal: FC<TerminalProps> = ({
             <Group className={styles.terminalBar} gap="xs" wrap="nowrap">
                 <input
                     className={styles.terminalInput}
-                    aria-label="Command"
+                    aria-label={t('terminal.commandLabel')}
                     value={value}
                     onChange={(event) =>
                         onValueChange(event.currentTarget.value)
@@ -190,7 +194,7 @@ const Terminal: FC<TerminalProps> = ({
                     onClick={handleRun}
                     leftSection={<MantineIcon icon={IconPlayerPlay} />}
                 >
-                    Run
+                    {t('terminal.run')}
                 </Button>
             </Group>
             <Group className={styles.terminalChips} gap="xs" wrap="wrap">
@@ -224,7 +228,7 @@ const Terminal: FC<TerminalProps> = ({
                     <Stack gap={4} p="md">
                         {isEmpty ? (
                             <span className={styles.terminalLine}>
-                                {EMPTY_STATE_LABEL}
+                                {t('terminal.empty')}
                             </span>
                         ) : null}
                         {output.chunks.map((chunk) => (

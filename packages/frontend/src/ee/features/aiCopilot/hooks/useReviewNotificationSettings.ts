@@ -22,6 +22,7 @@ import {
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 
 const reviewApi = lightdashApi; // pragma: allowlist secret
 
@@ -71,7 +72,9 @@ export const useUpdateReviewNotificationSettings = (
         mutationFn: updateReviewNotificationSettings,
         onSuccess: async (data, variables, context) => {
             showToastSuccess({
-                title: 'Success! Review notification settings updated',
+                title: i18n.t('toasts.reviewNotifications.updated', {
+                    ns: 'aiAgent',
+                }),
             });
             queryClient.setQueryData<Settings | undefined>(
                 QUERY_KEY,
@@ -82,7 +85,9 @@ export const useUpdateReviewNotificationSettings = (
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update review notification settings',
+                title: i18n.t('toasts.reviewNotifications.updateFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -123,11 +128,17 @@ export const useUpdateReviewLinearRouting = () => {
         mutationFn: updateReviewLinearRouting,
         onSuccess: async (routing) => {
             queryClient.setQueryData(LINEAR_ROUTING_QUERY_KEY, routing);
-            showToastSuccess({ title: 'Linear destination updated' });
+            showToastSuccess({
+                title: i18n.t('toasts.reviewNotifications.linearUpdated', {
+                    ns: 'aiAgent',
+                }),
+            });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update Linear destination',
+                title: i18n.t('toasts.reviewNotifications.linearUpdateFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -150,15 +161,21 @@ export const useBackfillReviewLinearIssues = () => {
             showToastSuccess({
                 title:
                     result.queuedCount === 0
-                        ? 'No existing findings needed a Linear issue'
-                        : `Creating Linear issues for ${result.queuedCount} existing ${
-                              result.queuedCount === 1 ? 'finding' : 'findings'
-                          }`,
+                        ? i18n.t(
+                              'toasts.reviewNotifications.linearNoneNeeded',
+                              { ns: 'aiAgent' },
+                          )
+                        : i18n.t('toasts.reviewNotifications.linearCreating', {
+                              ns: 'aiAgent',
+                              count: result.queuedCount,
+                          }),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to export existing findings to Linear',
+                title: i18n.t('toasts.reviewNotifications.linearExportFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -196,11 +213,17 @@ export const useUpdateReviewJiraRouting = () => {
             }),
         onSuccess: (routing) => {
             queryClient.setQueryData(JIRA_ROUTING_QUERY_KEY, routing);
-            showToastSuccess({ title: 'Jira destination updated' });
+            showToastSuccess({
+                title: i18n.t('toasts.reviewNotifications.jiraUpdated', {
+                    ns: 'aiAgent',
+                }),
+            });
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to update Jira destination',
+                title: i18n.t('toasts.reviewNotifications.jiraUpdateFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             }),
     });
@@ -219,14 +242,19 @@ export const useBackfillReviewJiraIssues = () => {
             showToastSuccess({
                 title:
                     result.queuedCount === 0
-                        ? 'No existing findings needed a Jira issue'
-                        : `Creating Jira issues for ${result.queuedCount} existing ${
-                              result.queuedCount === 1 ? 'finding' : 'findings'
-                          }`,
+                        ? i18n.t('toasts.reviewNotifications.jiraNoneNeeded', {
+                              ns: 'aiAgent',
+                          })
+                        : i18n.t('toasts.reviewNotifications.jiraCreating', {
+                              ns: 'aiAgent',
+                              count: result.queuedCount,
+                          }),
             }),
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to export existing findings to Jira',
+                title: i18n.t('toasts.reviewNotifications.jiraExportFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             }),
     });

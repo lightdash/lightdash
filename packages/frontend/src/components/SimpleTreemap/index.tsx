@@ -1,6 +1,7 @@
 import { IconChartTreemap } from '@tabler/icons-react';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import { memo, useCallback, useEffect, useMemo, useRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useEchartsTreemapConfig from '../../hooks/echarts/useEchartsTreemapConfig';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -8,15 +9,18 @@ import EChartsReact from '../EChartsReactWrapper';
 import { isTreemapVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 
-const EmptyChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <SuboptimalState
-            title="No data available"
-            description="Query metrics and dimensions with results."
-            icon={IconChartTreemap}
-        />
-    </div>
-);
+const EmptyChart = () => {
+    const { t } = useTranslation('visualization');
+    return (
+        <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
+            <SuboptimalState
+                title={t('emptyState.noDataTitle')}
+                description={t('emptyState.noDataDescription')}
+                icon={IconChartTreemap}
+            />
+        </div>
+    );
+};
 
 type SimpleTreemapProps = Omit<EChartsReactProps, 'option'> & {
     isInDashboard: boolean;

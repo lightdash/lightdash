@@ -38,6 +38,7 @@ import {
     type FC,
     type MouseEventHandler,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { AiAgentIcon } from '../../../ee/features/aiCopilot/components/AiAgentIcon';
@@ -74,6 +75,7 @@ interface Props {
 }
 
 const Omnibar: FC<Props> = ({ projectUuid }) => {
+    const { t } = useTranslation('omnibar');
     const compact = useMatches(
         { base: true, sm: false },
         { getInitialValueInEffect: false },
@@ -313,7 +315,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                 ? [
                       {
                           key: 'recently-viewed',
-                          label: 'Recently viewed',
+                          label: t('recentlyViewed'),
                           items: recentItems,
                           totalCount: recentItems.length,
                           collapsed: false,
@@ -337,6 +339,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
         searchResults,
         searchGroups,
         collapsedGroupKeys,
+        t,
     ]);
 
     useEffect(() => {
@@ -392,7 +395,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             >
                 {(style) => (
                     <OmnibarTarget
-                        placeholder="Search"
+                        placeholder={t('target.placeholder')}
                         style={style}
                         onOpen={handleOmnibarOpenInputClick}
                     />
@@ -406,7 +409,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             <MantineBaseProvider withCssVariables={false}>
                 <Modal
                     fullScreen={compact}
-                    aria-label="Search content and settings"
+                    aria-label={t('ariaLabel')}
                     withCloseButton={false}
                     size={rem(960)}
                     closeOnClickOutside
@@ -435,15 +438,19 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                 />
                             )}
                             <TextInput
-                                aria-label="Search content and settings"
+                                aria-label={t('ariaLabel')}
                                 miw={0}
                                 variant="unstyled"
                                 size="md"
                                 data-autofocus
                                 flex={1}
-                                placeholder={`Search ${
-                                    projectData?.name ?? 'in your project'
-                                }...`}
+                                placeholder={
+                                    projectData?.name
+                                        ? t('input.placeholder', {
+                                              project: projectData.name,
+                                          })
+                                        : t('input.placeholderFallback')
+                                }
                                 classNames={{
                                     input: classes.input,
                                 }}
@@ -457,7 +464,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                             />
                             {query ? (
                                 <ActionIcon
-                                    aria-label="Clear search"
+                                    aria-label={t('input.clear')}
                                     size={compact ? 'lg' : 'sm'}
                                     onClick={() => setQuery('')}
                                 >
@@ -470,7 +477,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                     color="gray"
                                     onClick={handleOmnibarClose}
                                 >
-                                    Close
+                                    {t('actions.close')}
                                 </Button>
                             )}
                         </Group>
@@ -491,7 +498,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                             variant="subtle"
                                             onClick={() => setPreviewItem(null)}
                                         >
-                                            Back to results
+                                            {t('actions.backToResults')}
                                         </Button>
                                         <Button
                                             onClick={() =>
@@ -501,7 +508,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                                 )
                                             }
                                         >
-                                            Open
+                                            {t('actions.open')}
                                         </Button>
                                     </Group>
                                     <OmnibarPreview
@@ -524,35 +531,49 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                 isLoadingRecentContent ? (
                                     <OmnibarEmptyState
                                         variant="loading"
-                                        title="Loading recently viewed..."
+                                        title={t('emptyState.loadingRecent')}
                                     />
                                 ) : !hasEnteredQuery && hasActiveFilters ? (
                                     <OmnibarEmptyState
-                                        title="Search with these filters"
-                                        hint="Start typing to apply them."
+                                        title={t(
+                                            'emptyState.searchWithFilters',
+                                        )}
+                                        hint={t('emptyState.startTyping')}
                                     />
                                 ) : !hasEnteredQuery ? (
                                     <OmnibarEmptyState
-                                        title={`Search ${
-                                            projectData?.name ?? 'your project'
-                                        }`}
-                                        hint="Find dashboards, charts, spaces, tables, fields and more."
+                                        title={
+                                            projectData?.name
+                                                ? t(
+                                                      'emptyState.searchProject',
+                                                      {
+                                                          project:
+                                                              projectData.name,
+                                                      },
+                                                  )
+                                                : t(
+                                                      'emptyState.searchYourProject',
+                                                  )
+                                        }
+                                        hint={t('emptyState.searchHint')}
                                     />
                                 ) : !hasEnteredMinQueryLength ? (
                                     <OmnibarEmptyState
-                                        title="Keep typing..."
-                                        hint="Search kicks in at 3 characters."
+                                        title={t('emptyState.keepTyping')}
+                                        hint={t('emptyState.minLengthHint')}
                                     />
                                 ) : !searchResults ? (
                                     <OmnibarEmptyState
                                         variant="loading"
-                                        title="Searching..."
+                                        title={t('emptyState.searching')}
                                     />
                                 ) : (
                                     <OmnibarEmptyState
                                         variant="no-results"
-                                        title={`No results for "${query}"`}
-                                        hint="Try a different term, or adjust the filters."
+                                        title={t('emptyState.noResults', {
+                                            query,
+                                        })}
+                                        hint={t('emptyState.noResultsHint')}
                                     />
                                 )
                             ) : (
@@ -614,19 +635,19 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                     <Kbd size="xs">↑</Kbd>
                                     <Kbd size="xs">↓</Kbd>
                                     <Text size="xs" c="dimmed">
-                                        Navigate
+                                        {t('actions.navigate')}
                                     </Text>
                                 </Group>
                                 <Group gap="xxs">
                                     <Kbd size="xs">↵</Kbd>
                                     <Text size="xs" c="dimmed">
-                                        Open
+                                        {t('actions.open')}
                                     </Text>
                                 </Group>
                                 <Group gap="xxs">
                                     <Kbd size="xs">esc</Kbd>
                                     <Text size="xs" c="dimmed">
-                                        Close
+                                        {t('actions.close')}
                                     </Text>
                                 </Group>
                             </Group>
@@ -644,7 +665,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                             )
                                         }
                                     >
-                                        Ask AI
+                                        {t('actions.askAi')}
                                     </Button>
                                 )}
                                 {canManageExplore && (
@@ -664,7 +685,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                             )
                                         }
                                     >
-                                        Run query
+                                        {t('actions.runQuery')}
                                     </Button>
                                 )}
                                 {canManageProject && (
@@ -684,7 +705,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                             )
                                         }
                                     >
-                                        Settings
+                                        {t('actions.settings')}
                                     </Button>
                                 )}
                             </Group>

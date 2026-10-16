@@ -12,7 +12,9 @@ import {
     IconSparkles,
 } from '@tabler/icons-react';
 import { useCallback, useId, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import i18n from '../../../../i18n/i18n';
 import { useProjectUpdateAiAgentMutation } from '../hooks/useProjectAiAgents';
 import {
     useAgentAiMcpServers,
@@ -25,10 +27,8 @@ import styles from './AiAgentNewThreadMcpConnections.module.css';
 import { AiMcpServerIcon } from './AiMcpServerIcon';
 import { GithubMcpConnectModal } from './GithubMcpConnectModal';
 import {
-    GITHUB_MCP_CONNECTED_HEADLINE,
-    GITHUB_MCP_CONNECTED_SUMMARY,
-    GITHUB_MCP_SUGGESTED_PROMPT,
-    GITHUB_MCP_VALUE_SUMMARY,
+    getGithubMcpSuggestedPrompt,
+    getGithubMcpValueSummary,
 } from './githubMcpValueContent';
 
 const needsPersonalOauthConnection = (
@@ -51,19 +51,23 @@ const getConnectionActionLabel = (
         mcpServer.connectionStatus === 'connected' &&
         mcpServer.credentialScope === 'shared'
     ) {
-        return 'Sign in';
+        return i18n.t('mcpConnections.signIn', { ns: 'aiAgent' });
     }
 
     if (mcpServer.connectionStatus === 'error') {
-        return 'Sign in';
+        return i18n.t('mcpConnections.signIn', { ns: 'aiAgent' });
     }
 
-    return 'Sign in';
+    return i18n.t('mcpConnections.signIn', { ns: 'aiAgent' });
 };
 
 const getMultiAppConnectionActionLabel = (
     mcpServer: Pick<AiMcpServer, 'name'>,
-) => `Sign in to ${mcpServer.name}`;
+) =>
+    i18n.t('mcpInput.oauthAction.signIn', {
+        ns: 'aiAgent',
+        name: mcpServer.name,
+    });
 
 const getConnectionNote = (
     mcpServer: Pick<AiMcpServer, 'connectionStatus' | 'credentialScope'>,
@@ -72,36 +76,38 @@ const getConnectionNote = (
         mcpServer.connectionStatus === 'connected' &&
         mcpServer.credentialScope === 'shared'
     ) {
-        return 'Some tools are using a shared project connection. Connect your own account if you want to use your personal access.';
+        return i18n.t('mcpConnections.notes.shared', { ns: 'aiAgent' });
     }
 
     if (mcpServer.connectionStatus === 'error') {
-        return 'One or more sign-ins did not finish. Reconnect to use those tools.';
+        return i18n.t('mcpConnections.notes.error', { ns: 'aiAgent' });
     }
 
     if (mcpServer.connectionStatus === 'connecting') {
-        return 'Finish the sign-in window to keep going.';
+        return i18n.t('mcpConnections.notes.connecting', { ns: 'aiAgent' });
     }
 
     return null;
 };
 
-const formatAppNames = (names: string[]) => {
-    if (names.length === 0) return '';
-    if (names.length === 1) return names[0];
-    if (names.length === 2) return `${names[0]} and ${names[1]}`;
-
-    return `${names.slice(0, -1).join(', ')}, and ${names.at(-1)}`;
-};
+const formatAppNames = (names: string[]) =>
+    new Intl.ListFormat(i18n.language, {
+        style: 'long',
+        type: 'conjunction',
+    }).format(names);
 
 const getConnectionSummary = (appNames: string[]) => {
     if (appNames.length === 1) {
-        return `This agent can use ${appNames[0]} if you connect it.`;
+        return i18n.t('mcpConnections.summarySingle', {
+            ns: 'aiAgent',
+            name: appNames[0],
+        });
     }
 
-    return `This agent can use ${formatAppNames(
-        appNames,
-    )}. Connect the apps you want to use in this thread.`;
+    return i18n.t('mcpConnections.summaryMultiple', {
+        ns: 'aiAgent',
+        names: formatAppNames(appNames),
+    });
 };
 
 const getConnectionIconColor = (
@@ -136,6 +142,7 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
     agentUuid,
     onSuggestedPrompt,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const sectionTitleId = useId();
     const [justConnectedGithub, setJustConnectedGithub] = useState(false);
     const {
@@ -281,7 +288,7 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                 radius="md"
                 p="md"
                 component="section"
-                aria-label={GITHUB_MCP_CONNECTED_HEADLINE}
+                aria-label={t('githubMcp.connectedHeadline')}
             >
                 <Group align="flex-start" gap="sm" wrap="nowrap">
                     <Paper p="xxs" radius="sm">
@@ -294,10 +301,10 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                     <Stack gap="xs" flex={1} miw={0}>
                         <Stack gap={2}>
                             <Text size="sm" fw={600}>
-                                {GITHUB_MCP_CONNECTED_HEADLINE}
+                                {t('githubMcp.connectedHeadline')}
                             </Text>
                             <Text size="sm" c="dimmed">
-                                {GITHUB_MCP_CONNECTED_SUMMARY}
+                                {t('githubMcp.connectedSummary')}
                             </Text>
                         </Stack>
                         {onSuggestedPrompt && (
@@ -310,12 +317,12 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                                     }
                                     onClick={() => {
                                         onSuggestedPrompt(
-                                            GITHUB_MCP_SUGGESTED_PROMPT,
+                                            getGithubMcpSuggestedPrompt(),
                                         );
                                         setJustConnectedGithub(false);
                                     }}
                                 >
-                                    {GITHUB_MCP_SUGGESTED_PROMPT}
+                                    {getGithubMcpSuggestedPrompt()}
                                 </Button>
                                 <Button
                                     size="xs"
@@ -325,7 +332,7 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                                         setJustConnectedGithub(false)
                                     }
                                 >
-                                    Dismiss
+                                    {t('mcpConnections.dismiss')}
                                 </Button>
                             </Group>
                         )}
@@ -342,7 +349,7 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
     const isGithubOnly =
         canOneClickConnectGithub && mcpServersNeedingConnection.length === 0;
     const sectionSummary = isGithubOnly
-        ? GITHUB_MCP_VALUE_SUMMARY
+        ? getGithubMcpValueSummary()
         : getConnectionSummary(appNames);
 
     const githubConnectButton = canOneClickConnectGithub ? (
@@ -363,7 +370,7 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                     : githubConfirmModalHandlers.open
             }
         >
-            GitHub
+            {t('mcpConnections.github')}
         </Button>
     ) : null;
 

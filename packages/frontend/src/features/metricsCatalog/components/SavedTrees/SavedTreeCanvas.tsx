@@ -29,6 +29,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useBlocker, useNavigate } from 'react-router';
 import { BASE_API_URL } from '../../../../api';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -72,6 +73,7 @@ type SavedTreeCanvasProps = {
 
 const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
     const getUiString = useUiStrings();
+    const { t } = useTranslation('metricsCatalog');
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const { user } = useApp();
@@ -390,8 +392,8 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
         return (
             <Center h={{ base: 180, md: '100%' }} px="xs">
                 <SuboptimalState
-                    title="No tree selected"
-                    description="Select a tree from the sidebar or create a new one"
+                    title={t('savedTree.noTreeSelected')}
+                    description={t('savedTree.noTreeSelectedDescription')}
                 />
             </Center>
         );
@@ -406,8 +408,8 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                         <TextInput
                             required
                             variant="subtle"
-                            placeholder="Tree name"
-                            aria-label="Tree name"
+                            placeholder={t('savedTree.treeName')}
+                            aria-label={t('savedTree.treeName')}
                             data-tour-anchor="tree-name"
                             data-tour-hint="Name your tree"
                             data-tour-input="true"
@@ -427,7 +429,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                             color="gray"
                             onClick={handleDiscardClick}
                         >
-                            Cancel
+                            {t('savedTree.cancel')}
                         </Button>
                         <Button
                             size="compact-sm"
@@ -443,7 +445,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                             disabled={!treeName.trim() || !hasNodes}
                             loading={isCreating || isUpdating}
                         >
-                            Save
+                            {t('savedTree.save')}
                         </Button>
                     </Group>
                 </Group>
@@ -467,24 +469,24 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                 <MantineModal
                     opened={discardModalOpened}
                     onClose={closeDiscardModal}
-                    title="Discard changes"
-                    description="Are you sure you want to discard your unsaved changes?"
-                    confirmLabel="Discard"
+                    title={t('savedTree.discardTitle')}
+                    description={t('savedTree.discardDescription')}
+                    confirmLabel={t('savedTree.discard')}
                     onConfirm={handleDiscard}
-                    cancelLabel="Keep editing"
+                    cancelLabel={t('savedTree.keepEditing')}
                 />
                 {blocker.state === 'blocked' && (
                     <MantineModal
                         opened
                         onClose={() => blocker.reset()}
-                        title="Unsaved changes"
-                        description="You have unsaved changes. Are you sure you want to leave?"
-                        confirmLabel="Leave"
+                        title={t('savedTree.unsavedTitle')}
+                        description={t('savedTree.unsavedDescription')}
+                        confirmLabel={t('savedTree.leave')}
                         onConfirm={() => {
                             handleDiscard();
                             blocker.proceed();
                         }}
-                        cancelLabel="Stay"
+                        cancelLabel={t('savedTree.stay')}
                     />
                 )}
             </Stack>
@@ -528,7 +530,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                                     <MantineIcon icon={IconLock} size={12} />
                                 }
                             >
-                                Editing by {lockerName}
+                                {t('savedTree.editingBy', { name: lockerName })}
                             </Badge>
                         )}
                     </Group>
@@ -540,11 +542,11 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                             h="1.75rem"
                             onClick={handleBack}
                         >
-                            Close
+                            {t('savedTree.close')}
                         </Button>
                         <ShareLinkButton
                             url={`${window.location.origin}/projects/${projectUuid}/metrics/canvas/${treeDetails.slug}`}
-                            label="Copy link to tree"
+                            label={t('savedTree.copyLink')}
                         />
                         {canManageMetricsTree && (
                             <Menu position="bottom-end" withArrow>
@@ -561,7 +563,12 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                                 <Menu.Dropdown>
                                     {lockByOther ? (
                                         <Tooltip
-                                            label={`Being edited by ${lockerName}`}
+                                            label={t(
+                                                'savedTree.beingEditedBy',
+                                                {
+                                                    name: lockerName,
+                                                },
+                                            )}
                                         >
                                             <Menu.Item
                                                 leftSection={
@@ -571,7 +578,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                                                 }
                                                 disabled
                                             >
-                                                Edit
+                                                {t('savedTree.edit')}
                                             </Menu.Item>
                                         </Tooltip>
                                     ) : (
@@ -583,12 +590,21 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                                             }
                                             onClick={handleEditClick}
                                         >
-                                            Edit
+                                            {t('savedTree.edit')}
                                         </Menu.Item>
                                     )}
                                     <Menu.Divider />
                                     <Tooltip
-                                        label={`Cannot delete while being edited${lockerName ? ` by ${lockerName}` : ''}`}
+                                        label={
+                                            lockerName
+                                                ? t(
+                                                      'savedTree.cannotDeleteWhileEditedBy',
+                                                      { name: lockerName },
+                                                  )
+                                                : t(
+                                                      'savedTree.cannotDeleteWhileEdited',
+                                                  )
+                                        }
                                         disabled={!isLocked}
                                     >
                                         <Menu.Item
@@ -601,7 +617,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                                                 setIsDeleteModalOpen(true)
                                             }
                                         >
-                                            Delete
+                                            {t('savedTree.delete')}
                                         </Menu.Item>
                                     </Tooltip>
                                 </Menu.Dropdown>
@@ -639,9 +655,9 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                 <MantineModal
                     opened={isDeleteModalOpen}
                     onClose={() => setIsDeleteModalOpen(false)}
-                    title="Delete metrics tree"
+                    title={t('savedTree.deleteTitle')}
                     variant="delete"
-                    resourceType="metrics tree"
+                    resourceType={t('savedTree.resourceType')}
                     resourceLabel={treeDetails.name}
                     onConfirm={handleDelete}
                     confirmLoading={isDeleting}

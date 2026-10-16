@@ -6,6 +6,7 @@ import {
     type TablerIconsProps,
 } from '@tabler/icons-react';
 import type { JSX } from 'react';
+import i18n from '../../../../../../../i18n/i18n';
 import { type LiveActivityToolGroup } from '../LiveActivityCard';
 
 type ActivityTitle = {
@@ -39,11 +40,14 @@ const SEARCH_TOOLS = new Set([
  * activity bento. The title morphs based on what tools the agent actually
  * used.
  */
+const title = (key: string) =>
+    i18n.t(`activityTitle.${key}`, { ns: 'aiCopilotChat' });
+
 export const getActivityTitle = (
     toolGroups: LiveActivityToolGroup[],
 ): ActivityTitle => {
     if (toolGroups.length === 0) {
-        return { title: 'Steps taken', icon: IconRoute };
+        return { title: title('stepsTaken'), icon: IconRoute };
     }
     const toolNames = toolGroups.flatMap((g) =>
         g.calls.map((call) => call.toolName),
@@ -59,24 +63,24 @@ export const getActivityTitle = (
 
     if (hasDashboard) {
         return {
-            title: 'How this dashboard was built',
+            title: title('dashboardBuilt'),
             icon: IconLayoutDashboard,
         };
     }
     if (hasCreateContent) {
         return {
-            title: 'How this content was created',
+            title: title('contentCreated'),
             icon: IconLayoutDashboard,
         };
     }
     if (hasQuery) {
-        return { title: 'How this chart was built', icon: IconChartLine };
+        return { title: title('chartBuilt'), icon: IconChartLine };
     }
     if (hasRunSql) {
-        return { title: 'How this was calculated', icon: IconChartLine };
+        return { title: title('calculated'), icon: IconChartLine };
     }
     if (onlySearches) {
-        return { title: 'Research steps', icon: IconSearch };
+        return { title: title('researchSteps'), icon: IconSearch };
     }
-    return { title: 'Steps taken', icon: IconRoute };
+    return { title: title('stepsTaken'), icon: IconRoute };
 };

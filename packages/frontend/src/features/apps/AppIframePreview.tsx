@@ -17,6 +17,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type DeliveryCaptureAccumulator } from './deliveryCapture/deliveryCaptureAccumulator';
 import {
     useAppSdkBridge,
@@ -238,6 +239,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         },
         ref,
     ) => {
+        const { t } = useTranslation('apps');
         const iframeRef = useRef<HTMLIFrameElement>(null);
         // Resolves to an exact light/dark (embed routes force it from
         // `?theme=`), so this is the scheme the surrounding page renders in.
@@ -452,7 +454,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
                     visibility:
                         loadedSrc === effectiveSrc ? 'visible' : 'hidden',
                 }}
-                title="App preview"
+                title={t('preview.iframeTitle')}
                 sandbox="allow-scripts allow-forms allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
                 allow=""
                 onLoad={handleLoad}

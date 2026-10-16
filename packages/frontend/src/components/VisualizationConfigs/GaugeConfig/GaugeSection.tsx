@@ -12,6 +12,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { memo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FieldSelect from '../../common/FieldSelect';
 import { NumberInput } from '../../common/NumberInput';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
@@ -30,6 +31,7 @@ export type Props = {
 
 const GaugeSectionComponent: FC<Props> = memo(
     ({ index, onClick, section, onUpdate, onRemove }) => {
+        const { t } = useTranslation('vizConfig');
         const { colorPalette, visualizationConfig } = useVisualizationContext();
 
         if (!isGaugeVisualizationConfig(visualizationConfig)) {
@@ -69,7 +71,9 @@ const GaugeSectionComponent: FC<Props> = memo(
         return (
             <Accordion.Item value={`${index}`}>
                 <AccordionControl
-                    label={`Section ${index + 1}`}
+                    label={t('gauge.sections.sectionNumber', {
+                        number: index + 1,
+                    })}
                     description={description}
                     onControlClick={onClick}
                     onRemove={() => onRemove(index)}
@@ -89,8 +93,10 @@ const GaugeSectionComponent: FC<Props> = memo(
                             {minValueMode === GaugeValueMode.FIXED ? (
                                 <NumberInput
                                     size="xs"
-                                    label="Min value"
-                                    description="Set the minimum value for the section"
+                                    label={t('gauge.sections.minValue')}
+                                    description={t(
+                                        'gauge.sections.minValueDescription',
+                                    )}
                                     value={section.min}
                                     onChange={(value) =>
                                         onUpdate(index, { min: Number(value) })
@@ -100,8 +106,10 @@ const GaugeSectionComponent: FC<Props> = memo(
                                 />
                             ) : (
                                 <FieldSelect
-                                    label="Min value"
-                                    description="Select a field to use as the minimum value"
+                                    label={t('gauge.sections.minValue')}
+                                    description={t(
+                                        'gauge.sections.minFieldDescription',
+                                    )}
                                     item={minField}
                                     items={numericMetricsList}
                                     onChange={(newValue) => {
@@ -135,16 +143,28 @@ const GaugeSectionComponent: FC<Props> = memo(
                                 data={[
                                     {
                                         label: (
-                                            <Tooltip label="Set the minimum value">
-                                                <Center>Value</Center>
+                                            <Tooltip
+                                                label={t(
+                                                    'gauge.sections.setMinValue',
+                                                )}
+                                            >
+                                                <Center>
+                                                    {t('gauge.sections.value')}
+                                                </Center>
                                             </Tooltip>
                                         ),
                                         value: GaugeValueMode.FIXED,
                                     },
                                     {
                                         label: (
-                                            <Tooltip label="Select a field to use as the maximum value">
-                                                <Center>Field</Center>
+                                            <Tooltip
+                                                label={t(
+                                                    'gauge.sections.maxFieldDescription',
+                                                )}
+                                            >
+                                                <Center>
+                                                    {t('gauge.sections.field')}
+                                                </Center>
                                             </Tooltip>
                                         ),
                                         value: GaugeValueMode.FIELD,
@@ -157,8 +177,10 @@ const GaugeSectionComponent: FC<Props> = memo(
                             {maxValueMode === GaugeValueMode.FIXED ? (
                                 <NumberInput
                                     size="xs"
-                                    label="Max value"
-                                    description="Set the maximum value for the section"
+                                    label={t('gauge.sections.maxValue')}
+                                    description={t(
+                                        'gauge.sections.maxValueDescription',
+                                    )}
                                     value={section.max}
                                     onChange={(value) =>
                                         onUpdate(index, { max: Number(value) })
@@ -168,8 +190,10 @@ const GaugeSectionComponent: FC<Props> = memo(
                                 />
                             ) : (
                                 <FieldSelect
-                                    label="Max value"
-                                    description="Select a field to use as the maximum value"
+                                    label={t('gauge.sections.maxValue')}
+                                    description={t(
+                                        'gauge.sections.maxFieldDescription',
+                                    )}
                                     item={maxField}
                                     items={numericMetricsList}
                                     onChange={(newValue) => {
@@ -203,16 +227,28 @@ const GaugeSectionComponent: FC<Props> = memo(
                                 data={[
                                     {
                                         label: (
-                                            <Tooltip label="Set the maximum value">
-                                                <Center>Value</Center>
+                                            <Tooltip
+                                                label={t(
+                                                    'gauge.sections.setMaxValue',
+                                                )}
+                                            >
+                                                <Center>
+                                                    {t('gauge.sections.value')}
+                                                </Center>
                                             </Tooltip>
                                         ),
                                         value: GaugeValueMode.FIXED,
                                     },
                                     {
                                         label: (
-                                            <Tooltip label="Select a field to use as the maximum value">
-                                                <Center>Field</Center>
+                                            <Tooltip
+                                                label={t(
+                                                    'gauge.sections.maxFieldDescription',
+                                                )}
+                                            >
+                                                <Center>
+                                                    {t('gauge.sections.field')}
+                                                </Center>
                                             </Tooltip>
                                         ),
                                         value: GaugeValueMode.FIELD,

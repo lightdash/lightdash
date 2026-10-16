@@ -2,6 +2,7 @@ import { Box, Button, Stack } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import confetti from 'canvas-confetti';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -17,6 +18,7 @@ interface ConnectSuccessProps {
 }
 
 const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
+    const { t } = useTranslation('projectConnection');
     const { track } = useTracking();
     const { data: organization } = useOrganization();
 
@@ -25,7 +27,7 @@ const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
             <ProjectCreationCard>
                 <Stack align="center" gap="xl">
                     <OnboardingTitle>
-                        Your project's been created!
+                        {t('connectFlow.success.title')}
                     </OnboardingTitle>
 
                     <Box
@@ -79,7 +81,7 @@ const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
                             });
                         }}
                     >
-                        Let's do some data!
+                        {t('connectFlow.success.button')}
                     </Button>
                 </Stack>
             </ProjectCreationCard>

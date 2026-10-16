@@ -1,4 +1,5 @@
 import { type NumberInputProps } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import { NumberInput } from '../common/NumberInput';
 import { type Props } from './index';
 
@@ -16,6 +17,7 @@ const LimitInput = ({
     size,
     numberInputProps,
 }: LimitInputProps) => {
+    const { t } = useTranslation('explorer');
     if (!maxLimit) return null;
 
     return (
@@ -30,7 +32,7 @@ const LimitInput = ({
             max={maxLimit}
             step={100}
             size={size}
-            label="Row limit"
+            label={t('runQuerySettings.rowLimit')}
             clampBehavior="strict"
             {...numberInputProps}
         />

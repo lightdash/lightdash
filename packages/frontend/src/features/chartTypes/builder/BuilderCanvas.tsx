@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { Box, Divider, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { type FC, type ReactNode, type RefObject } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedColorPalette';
 import { type AppIframePreviewHandle } from '../../apps/AppIframePreview';
 import AppPreview from '../../apps/components/AppPreview';
@@ -119,6 +120,7 @@ const BuilderCanvas: FC<Props> = ({
     savedChartSource = null,
     exploreSource = null,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const attachedChart = savedChartSource?.attached ?? null;
     const attachedExplore = exploreSource?.attached ?? null;
     const hasPreview = appUuid !== null && previewVersion !== null;
@@ -190,12 +192,11 @@ const BuilderCanvas: FC<Props> = ({
                     <SkeletonBars projectUuid={projectUuid} />
                     <Stack gap={4} align="center">
                         <Text size="md" fw={600} c="ldGray.8">
-                            Building your chart type…
+                            {t('canvas.building')}
                         </Text>
                         {clarifierUnavailable && (
                             <Text fz="xs" c="dimmed" ta="center" maw={340}>
-                                Couldn’t reach the clarifier, so this is
-                                building from your prompt as written.
+                                {t('canvas.clarifierUnavailable')}
                             </Text>
                         )}
                     </Stack>
@@ -203,13 +204,13 @@ const BuilderCanvas: FC<Props> = ({
             ) : isLoadingExisting ? null : failureMessage !== null ? (
                 <Stack gap="xs" align="center">
                     <Text size="md" fw={600} c="ldGray.8">
-                        The build failed
+                        {t('canvas.buildFailed')}
                     </Text>
                     <Text fz="xs" c="dimmed" maw={400} ta="center" lh={1.5}>
                         {failureMessage}
                     </Text>
                     <Text fz="xs" c="dimmed" ta="center">
-                        Ask for a change below to try again.
+                        {t('canvas.askForChange')}
                     </Text>
                 </Stack>
             ) : (
@@ -221,11 +222,10 @@ const BuilderCanvas: FC<Props> = ({
                 >
                     <Stack gap="xs" align="center">
                         <Title order={1} size="md" fw={600} c="ldGray.8">
-                            Create with Chart Studio
+                            {t('canvas.createTitle')}
                         </Title>
                         <Text fz="xs" c="dimmed" maw={400} ta="center" lh={1.5}>
-                            Describe the chart you’ve always wanted, or start
-                            from an example.
+                            {t('canvas.createDescription')}
                         </Text>
                     </Stack>
                     {onPickExample && (
@@ -244,8 +244,8 @@ const BuilderCanvas: FC<Props> = ({
                                 className={classes.sourceDivider}
                                 label={
                                     attachedCard
-                                        ? 'Preview data'
-                                        : 'Preview data (optional)'
+                                        ? t('canvas.previewData')
+                                        : t('canvas.previewDataOptional')
                                 }
                                 labelPosition="center"
                             />

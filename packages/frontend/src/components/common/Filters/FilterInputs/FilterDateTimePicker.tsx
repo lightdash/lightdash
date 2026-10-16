@@ -13,6 +13,7 @@ import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useProject } from '../../../../hooks/useProject';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useFiltersContext from '../useFiltersContext';
@@ -61,6 +62,7 @@ const FilterDateTimePicker: FC<Props> = ({
     maxDate,
     ...rest
 }) => {
+    const { t } = useTranslation('filters');
     const displayFormat = 'YYYY-MM-DD HH:mm:ss';
     const [replacementValue, setReplacementValue] = useState<string | null>(
         null,
@@ -135,12 +137,17 @@ const FilterDateTimePicker: FC<Props> = ({
     const subtext = useMemo(() => {
         if (!value) return '';
         if (projectTimezone) {
-            return `Local time (${browserTimezone}): ${dayjs(value)
-                .tz(browserTimezone)
-                .format(SUBTEXT_DATE_FORMAT)}`;
+            return t('inputs.localTime', {
+                timezone: browserTimezone,
+                date: dayjs(value)
+                    .tz(browserTimezone)
+                    .format(SUBTEXT_DATE_FORMAT),
+            });
         }
-        return `UTC time: ${dayjs(value).utc().format(SUBTEXT_DATE_FORMAT)}`;
-    }, [value, projectTimezone, browserTimezone]);
+        return t('inputs.utcTime', {
+            date: dayjs(value).utc().format(SUBTEXT_DATE_FORMAT),
+        });
+    }, [value, projectTimezone, browserTimezone, t]);
 
     const sideLabel = projectTimezone
         ? (getTimezoneLabel(projectTimezone) ?? projectTimezone)

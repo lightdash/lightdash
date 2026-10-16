@@ -3,6 +3,7 @@ import { type AgentOnboardingRun } from '@lightdash/common';
 import { Anchor } from '@mantine/core';
 import { captureException } from '@sentry/react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import {
     getPlaygroundSetupFailure,
@@ -19,17 +20,17 @@ import { isPlaygroundProvisioningSource } from '../../../utils/playgroundProject
 
 type DemoOfferType = 'provision_demo' | 'open_existing_demo';
 
-const DEMO_OFFER_FAILURE_MESSAGES: Record<PlaygroundSetupFailure, string> = {
-    unavailable: "Demo projects aren't available on this instance.",
-    'previously-removed':
-        "Your organization's demo project was removed and can't be set up again.",
-    forbidden: "You don't have permission to create a demo project.",
-    unknown: 'Something went wrong while preparing your demo project.',
+const DEMO_OFFER_FAILURE_KEYS: Record<PlaygroundSetupFailure, string> = {
+    unavailable: 'demoOffer.failures.unavailable',
+    'previously-removed': 'demoOffer.failures.previouslyRemoved',
+    forbidden: 'demoOffer.failures.forbidden',
+    unknown: 'demoOffer.failures.unknown',
 };
 
 export const AgentOnboardingDemoOffer: FC<{ run: AgentOnboardingRun }> = ({
     run,
 }) => {
+    const { t } = useTranslation('agentOnboarding');
     const navigate = useNavigate();
     const { health, user } = useApp();
     const { track, data: trackingData } = useTracking();
@@ -141,28 +142,40 @@ export const AgentOnboardingDemoOffer: FC<{ run: AgentOnboardingRun }> = ({
     const canRetry =
         failure === null || isRetryablePlaygroundSetupFailure(failure);
     const actionLabel = isProvisioning
-        ? 'setting up your demo project…'
+        ? t('demoOffer.actions.settingUp')
         : failure !== null
-          ? 'try again'
+          ? t('demoOffer.actions.tryAgain')
           : offerType === 'open_existing_demo'
-            ? 'open the demo project'
-            : 'explore sample data';
+            ? t('demoOffer.actions.openDemo')
+            : t('demoOffer.actions.exploreSampleData');
+
+    const actionAnchor = (
+        <Anchor
+            component="button"
+            type="button"
+            fz="sm"
+            disabled={isProvisioning}
+            onClick={() => void openDemo(offerType)}
+        >
+            {actionLabel}
+        </Anchor>
+    );
+
+    if (failure === null) {
+        return (
+            <Trans
+                t={t}
+                i18nKey="demoOffer.offer"
+                values={{ action: actionLabel }}
+                components={{ action: actionAnchor }}
+            />
+        );
+    }
 
     return (
         <>
-            {failure ? DEMO_OFFER_FAILURE_MESSAGES[failure] : 'You can also'}{' '}
-            {canRetry ? (
-                <Anchor
-                    component="button"
-                    type="button"
-                    fz="sm"
-                    disabled={isProvisioning}
-                    onClick={() => void openDemo(offerType)}
-                >
-                    {actionLabel}
-                </Anchor>
-            ) : null}
-            {failure === null ? ' while you wait.' : null}
+            {t(DEMO_OFFER_FAILURE_KEYS[failure])}{' '}
+            {canRetry ? actionAnchor : null}
         </>
     );
 };

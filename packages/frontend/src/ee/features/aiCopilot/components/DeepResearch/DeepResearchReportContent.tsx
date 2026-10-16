@@ -1,6 +1,7 @@
 import { type ParsedDeepResearchReport } from '@lightdash/common';
 import { Box, Stack } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReportChartFrame from '../../../../../features/documents/presentation/ReportChartFrame';
 import styles from '../../../../../features/documents/presentation/ReportPresentation.module.css';
 import ReportSection from '../../../../../features/documents/presentation/ReportSection';
@@ -24,6 +25,7 @@ export const DeepResearchReportContent: FC<Props> = ({
     runUuid,
     renderEvidence,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const renderMarkdown = (markdown: string, className: string) => (
         <DeepResearchMarkdownReport
             markdown={markdown}
@@ -84,7 +86,10 @@ export const DeepResearchReportContent: FC<Props> = ({
                 </ReportSection>
             ))}
 
-            <ReportSection variant="conclusion" title="Conclusion">
+            <ReportSection
+                variant="conclusion"
+                title={t('deepResearch.conclusion')}
+            >
                 {renderMarkdown(
                     report.conclusionMarkdown,
                     styles.reportConclusionProse,

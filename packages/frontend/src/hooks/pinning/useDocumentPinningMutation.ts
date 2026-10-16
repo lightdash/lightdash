@@ -1,10 +1,12 @@
 import { type ApiError, type TogglePinnedItemInfo } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
 export const useDocumentPinningMutation = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
         TogglePinnedItemInfo,
@@ -33,13 +35,13 @@ export const useDocumentPinningMutation = () => {
                 );
                 showToastSuccess({
                     title: isPinned
-                        ? 'Success! Document was pinned to homepage'
-                        : 'Success! Document was unpinned from homepage',
+                        ? t('useDocumentPinningMutation.pinned')
+                        : t('useDocumentPinningMutation.unpinned'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to pin document',
+                    title: t('useDocumentPinningMutation.failedToPinDocument'),
                     apiError: error,
                 });
             },

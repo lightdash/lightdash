@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 import {
     approveContentReviewRequest,
     cancelContentReviewRequest,
@@ -26,6 +27,9 @@ import {
     rejectContentReviewRequest,
     updateContentReviewSettings,
 } from '../api';
+
+const tr = (key: string, options?: Record<string, unknown>) =>
+    i18n.t(`contentReview.${key}`, { ns: 'eeMisc', ...options });
 
 const CONTENT_REVIEW_QUERY_KEY = 'content-review';
 
@@ -75,15 +79,17 @@ export const useCreateContentReviewRequest = (projectUuid: string) => {
         onSuccess: async (detail) => {
             await invalidate(projectUuid);
             showToastSuccess({
-                title: 'Review requested',
+                title: tr('toasts.requested'),
                 subtitle: detail.targetSpaceName
-                    ? `Reviewers for ${detail.targetSpaceName} have been notified`
+                    ? tr('toasts.reviewersNotified', {
+                          space: detail.targetSpaceName,
+                      })
                     : undefined,
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to request a review',
+                title: tr('toasts.requestFailed'),
                 apiError: error,
             });
         },
@@ -99,11 +105,11 @@ export const useCancelContentReviewRequest = (projectUuid: string) => {
             mutationKey: ['content-review-request-cancel'],
             onSuccess: async () => {
                 await invalidate(projectUuid);
-                showToastSuccess({ title: 'Review request cancelled' });
+                showToastSuccess({ title: tr('toasts.cancelled') });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to cancel the review request',
+                    title: tr('toasts.cancelFailed'),
                     apiError: error,
                 });
             },
@@ -164,16 +170,18 @@ export const useApproveContentReviewRequest = (projectUuid: string) => {
                 await queryClient.invalidateQueries(['verified-content']);
                 showToastSuccess({
                     title: detail.verifiedOnApprove
-                        ? 'Request approved and content verified'
-                        : 'Request approved',
+                        ? tr('toasts.approvedVerified')
+                        : tr('toasts.approved'),
                     subtitle: detail.targetSpaceName
-                        ? `Moved to ${detail.targetSpaceName}`
+                        ? tr('toasts.movedTo', {
+                              space: detail.targetSpaceName,
+                          })
                         : undefined,
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to approve the request',
+                    title: tr('toasts.approveFailed'),
                     apiError: error,
                 });
             },
@@ -195,11 +203,11 @@ export const useRejectContentReviewRequest = (projectUuid: string) => {
             mutationKey: ['content-review-request-reject'],
             onSuccess: async () => {
                 await invalidate(projectUuid);
-                showToastSuccess({ title: 'Request rejected' });
+                showToastSuccess({ title: tr('toasts.rejected') });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to reject the request',
+                    title: tr('toasts.rejectFailed'),
                     apiError: error,
                 });
             },
@@ -228,11 +236,11 @@ export const useUpdateContentReviewSettings = (projectUuid: string) => {
         mutationKey: ['content-review-settings-update'],
         onSuccess: async () => {
             await invalidate(projectUuid);
-            showToastSuccess({ title: 'Review settings saved' });
+            showToastSuccess({ title: tr('toasts.settingsSaved') });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to save review settings',
+                title: tr('toasts.settingsSaveFailed'),
                 apiError: error,
             });
         },

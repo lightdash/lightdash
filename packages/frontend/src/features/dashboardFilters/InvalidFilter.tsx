@@ -2,6 +2,7 @@ import { type DashboardFilterRule } from '@lightdash/common';
 import { ActionIcon, Button, Text, Tooltip } from '@mantine/core';
 import { IconAlertTriangle, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 
@@ -13,6 +14,7 @@ type Props = {
 
 const InvalidFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
     const getUiString = useUiStrings();
+    const { t } = useTranslation('dashboardFilters');
     return (
         <Tooltip
             position="top-start"
@@ -21,7 +23,7 @@ const InvalidFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
             label={
                 <Text size="xs">
                     <Text span c="dimmed">
-                        Tried to reference field with unknown id:
+                        {t('invalidFilter.unknownFieldId')}
                     </Text>{' '}
                     {filterRule.target.fieldId}
                 </Text>

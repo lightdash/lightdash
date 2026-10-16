@@ -34,6 +34,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FieldSelect from '../../../common/FieldSelect';
 import FilterDatePicker from '../../../common/Filters/FilterInputs/FilterDatePicker';
 import FilterMonthAndYearPicker from '../../../common/Filters/FilterInputs/FilterMonthAndYearPicker';
@@ -98,6 +99,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
     size,
     radius = 'md',
 }) => {
+    const { t } = useTranslation('vizConfig');
     const inputProps = { label, size, radius };
     if (isCustomDimension(field)) return <></>;
     if (isDateItem(field)) {
@@ -192,13 +194,13 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
             title={
                 isNumericItem(field)
                     ? ''
-                    : 'Selected field must be of type Number'
+                    : t('referenceLines.fieldMustBeNumber')
             }
             value={value}
             onChange={(e) => {
                 onChange(e.target.value);
             }}
-            placeholder="Line value"
+            placeholder={t('referenceLines.lineValue')}
         />
     );
 };
@@ -214,6 +216,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
     updateReferenceLine,
     removeReferenceLine,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig, colorPalette } = useVisualizationContext();
 
     const isCartesianChart =
@@ -312,13 +315,16 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
             (isTableCalculation(selectedField) && !selectedField.type));
 
     const averageAvailable = isNumericField && markLineKey === 'yAxis';
-    const controlLabel = `Line ${index}`;
+    const controlLabel = t('referenceLines.lineLabel', { index });
     const accordionValue = `${index}`;
 
     const description = useMemo(() => {
         if (!selectedField || !value) return undefined;
-        return `${getItemLabelWithoutTableName(selectedField)} is ${value}`;
-    }, [selectedField, value]);
+        return t('referenceLines.description', {
+            field: getItemLabelWithoutTableName(selectedField),
+            value,
+        });
+    }, [selectedField, value, t]);
 
     const onControlClick = useCallback(
         () =>
@@ -359,10 +365,14 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                 <Stack gap="xs" className={classes.panelStack}>
                     <FieldSelect
                         size="xs"
-                        label={<Config.Label>Field</Config.Label>}
+                        label={
+                            <Config.Label>
+                                {t('referenceLines.field')}
+                            </Config.Label>
+                        }
                         item={selectedField}
                         items={fieldsInAxes}
-                        placeholder="Search field..."
+                        placeholder={t('referenceLines.searchField')}
                         onChange={(newField) => {
                             setSelectedField(newField);
                             if (newField !== undefined)
@@ -376,7 +386,11 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
 
                     <Group wrap="nowrap" grow align="baseline" gap="sm">
                         <ReferenceLineValue
-                            label={<Config.Label>Value</Config.Label>}
+                            label={
+                                <Config.Label>
+                                    {t('referenceLines.value')}
+                                </Config.Label>
+                            }
                             field={selectedField}
                             size="xs"
                             startOfWeek={startOfWeek}
@@ -392,12 +406,16 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                             }}
                         />
                         <TextInput
-                            label={<Config.Label>Label</Config.Label>}
+                            label={
+                                <Config.Label>
+                                    {t('referenceLines.label')}
+                                </Config.Label>
+                            }
                             value={label}
                             size="xs"
                             placeholder={
                                 useAverage && averageAvailable
-                                    ? (value ?? 'Average')
+                                    ? (value ?? t('referenceLines.average'))
                                     : (value ?? '')
                             }
                             onChange={(e) => {
@@ -418,7 +436,9 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                             flex="1"
                             size="xs"
                             label={
-                                <Config.Label>Use series average</Config.Label>
+                                <Config.Label>
+                                    {t('referenceLines.useSeriesAverage')}
+                                </Config.Label>
                             }
                             disabled={!averageAvailable}
                             checked={useAverage && averageAvailable}
@@ -436,7 +456,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                         />
                         <Group wrap="nowrap" flex="1" gap="sm">
                             <Config.Label className={classes.positionLabel}>
-                                Position
+                                {t('referenceLines.position')}
                             </Config.Label>
                             <SegmentedControl
                                 w="100%"

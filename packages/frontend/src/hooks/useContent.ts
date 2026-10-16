@@ -1,6 +1,6 @@
 import {
     assertUnreachable,
-    ContentType,
+    type ContentType,
     type ApiContentActionBody,
     type ApiContentBulkActionBody,
     type ApiContentResponse,
@@ -17,8 +17,10 @@ import {
     type UseInfiniteQueryOptions,
     type UseMutationOptions,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { lightdashApi } from '../api';
+import i18n from '../i18n/i18n';
 import useApp from '../providers/App/useApp';
 import useToaster from './toaster/useToaster';
 
@@ -46,7 +48,7 @@ export type ContentArgs = {
 };
 
 const contentTypeLabel = (contentType: ContentType): string =>
-    contentType === ContentType.DATA_APP ? 'data app' : contentType;
+    i18n.t(`useContent.types.${contentType}`, { ns: 'app' });
 
 function createQueryString(params: Record<string, any>): string {
     const query = new URLSearchParams();
@@ -155,6 +157,7 @@ export const useContentAction = (
         ApiContentActionBody
     >,
 ) => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -187,11 +190,11 @@ export const useContentAction = (
             switch (action.type) {
                 case 'move':
                     return showToastSuccess({
-                        title: `Successfully moved ${contentTypeLabel(
-                            variables.item.contentType,
-                        )} to a space`,
+                        title: t('useContent.movedOne', {
+                            type: contentTypeLabel(variables.item.contentType),
+                        }),
                         action: {
-                            children: 'Go to space',
+                            children: t('useContent.goToSpace'),
                             icon: IconArrowRight,
                             onClick: () =>
                                 navigate(
@@ -205,12 +208,12 @@ export const useContentAction = (
                 case 'delete':
                     await queryClient.invalidateQueries(['deletedContent']);
                     return showToastSuccess({
-                        title: `Successfully deleted ${contentTypeLabel(
-                            item.contentType,
-                        )}.`,
+                        title: t('useContent.deletedOne', {
+                            type: contentTypeLabel(item.contentType),
+                        }),
                         action: isSoftDeleteEnabled
                             ? {
-                                  children: 'Go to recently deleted',
+                                  children: t('useContent.goToRecentlyDeleted'),
                                   icon: IconArrowRight,
                                   onClick: () =>
                                       navigate(
@@ -229,7 +232,10 @@ export const useContentAction = (
         },
         onError: (error, variables, context) => {
             showToastApiError({
-                title: `Failed to ${variables.action.type} content`,
+                title:
+                    variables.action.type === 'move'
+                        ? t('useContent.failedToMoveContent')
+                        : t('useContent.failedToDeleteContent'),
                 apiError: error.error,
             });
 
@@ -246,6 +252,7 @@ export const useContentBulkAction = (
         ApiContentBulkActionBody
     >,
 ) => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -276,11 +283,11 @@ export const useContentBulkAction = (
             switch (action.type) {
                 case 'move':
                     return showToastSuccess({
-                        title: `Successfully moved ${content.length} ${
-                            content.length === 1 ? 'item' : 'items'
-                        } to a space`,
+                        title: t('useContent.movedItems', {
+                            count: content.length,
+                        }),
                         action: {
-                            children: 'Go to space',
+                            children: t('useContent.goToSpace'),
                             icon: IconArrowRight,
                             onClick: () =>
                                 navigate(
@@ -294,12 +301,12 @@ export const useContentBulkAction = (
                 case 'delete':
                     await queryClient.invalidateQueries(['deletedContent']);
                     return showToastSuccess({
-                        title: `Successfully deleted ${content.length} ${
-                            content.length === 1 ? 'item' : 'items'
-                        }.`,
+                        title: t('useContent.deletedItems', {
+                            count: content.length,
+                        }),
                         action: isSoftDeleteEnabled
                             ? {
-                                  children: 'Go to recently deleted',
+                                  children: t('useContent.goToRecentlyDeleted'),
                                   icon: IconArrowRight,
                                   onClick: () =>
                                       navigate(
@@ -318,7 +325,7 @@ export const useContentBulkAction = (
         },
         onError: (error, variables, context) => {
             showToastApiError({
-                title: `Failed to move content`,
+                title: t('useContent.failedToMoveContent'),
                 apiError: error.error,
             });
 

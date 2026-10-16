@@ -1,6 +1,7 @@
 import { getAppDisplayName } from '@lightdash/common';
 import { type ModalProps } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDeleteApp } from '../../../features/apps/hooks/useDeleteApp';
 import useApp from '../../../providers/App/useApp';
 import MantineModal from '../MantineModal';
@@ -20,6 +21,7 @@ const AppDeleteModal: FC<AppDeleteModalProps> = ({
     name,
     onConfirm,
 }) => {
+    const { t } = useTranslation('modals');
     const { health } = useApp();
     const softDeleteEnabled = health.data?.softDelete.enabled;
     const retentionDays = health.data?.softDelete.retentionDays;
@@ -32,16 +34,16 @@ const AppDeleteModal: FC<AppDeleteModalProps> = ({
     };
 
     const description = softDeleteEnabled
-        ? `This app will be moved to Recently deleted and permanently removed after ${retentionDays} days.`
-        : 'This app and all of its versions will be permanently deleted, including any built artifacts in storage.';
+        ? t('appDelete.softDeleteDescription', { count: retentionDays })
+        : t('appDelete.permanentDescription');
 
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Delete app"
+            title={t('appDelete.title')}
             variant="delete"
-            resourceType="app"
+            resourceType={t('resourceTypes.app')}
             resourceLabel={getAppDisplayName(name, uuid)}
             description={description}
             onConfirm={handleConfirm}

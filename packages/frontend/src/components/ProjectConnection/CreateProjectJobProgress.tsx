@@ -18,6 +18,7 @@ import {
     IconCircleCheckFilled,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { jobStatusLabel, runningStepsInfo } from '../../hooks/useRefreshServer';
 import MantineIcon from '../common/MantineIcon';
 
@@ -38,6 +39,7 @@ const StepIcon: FC<{ step: JobStep }> = ({ step }) => {
 };
 
 const CreateProjectJobProgress: FC<{ job: Job }> = ({ job }) => {
+    const { t } = useTranslation('projectConnection');
     const hasFailed = job.jobStatus === JobStatusType.ERROR;
     const isDone = job.jobStatus === JobStatusType.DONE;
     const { completedStepsMessage, numberOfCompletedSteps, totalSteps } =
@@ -70,7 +72,9 @@ const CreateProjectJobProgress: FC<{ job: Job }> = ({ job }) => {
                             size="sm"
                         />
                         <Text size="xs" c="dimmed">
-                            {`${completedStepsMessage} steps complete`}
+                            {t('jobProgress.stepsComplete', {
+                                steps: completedStepsMessage,
+                            })}
                         </Text>
                     </Stack>
                 )}
@@ -95,10 +99,10 @@ const CreateProjectJobProgress: FC<{ job: Job }> = ({ job }) => {
                 </Stack>
 
                 {hasFailed && (
-                    <Alert color="red" title="We couldn't create your project">
+                    <Alert color="red" title={t('jobProgress.failedTitle')}>
                         <Text size="sm">
                             {failedStep?.stepError ??
-                                'Check your connection details and try again.'}
+                                t('jobProgress.failedDescription')}
                         </Text>
                     </Alert>
                 )}

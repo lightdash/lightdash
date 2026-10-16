@@ -1,0 +1,348 @@
+{
+    "queryTimezone": {
+        "title": "Time zone behavior",
+        "description": {
+            "timezoneSupport": "The time zone used for date filters, time grouping, and how dates appear in charts and tables. This does not change your database's session time zone.",
+            "legacy": "Controls what \"today\", \"this week\", and other \"in the current\" date filters mean. For example, if set to US/Eastern, \"today\" means midnight-to-midnight New York time instead of UTC. This does not change your database's session time zone."
+        },
+        "form": {
+            "timezoneLabel": "Default time zone",
+            "timezonePlaceholder": "Server default (UTC)",
+            "filterInputs": {
+                "label": "Project time zone in filter inputs",
+                "description": "Interpret absolute dates in the project's time zone instead of the user's browser."
+            }
+        },
+        "toast": {
+            "updateSuccess": "Successfully updated project's time zone settings",
+            "updateFailed": "Failed to update project's time zone settings"
+        }
+    },
+    "agentDataScope": {
+        "title": "Warehouse access",
+        "description": "Control which warehouse schemas and catalogs AI agents can query with SQL.",
+        "callout": {
+            "title": "How agent data scope works",
+            "emptyFields": "Leave every field empty to let AI agents query the entire warehouse connection.",
+            "exclusions": "Use exclusions to block known schemas or catalogs. Use allow lists when agents should query only an approved set; newly added schemas are not included automatically.",
+            "semanticLayer": "Agents query the semantic layer by default; direct SQL requires approval for every query and is available only to users with SQL Runner access. These rules apply to AI agents only. They do not change warehouse permissions or restrict SQL Runner users. Use warehouse grants to enforce security."
+        },
+        "form": {
+            "allowedSchemas": {
+                "label": "Allowed schemas",
+                "description": "The agent can only read from these. Empty means no restriction.",
+                "placeholder": "All schemas (no restriction)"
+            },
+            "allowedCatalogs": {
+                "label": "Allowed catalogs",
+                "description": "Optional. Restricts which catalogs/databases the schemas above may be read from.",
+                "placeholder": "Any catalog"
+            },
+            "excludedSchemas": {
+                "label": "Excluded schemas",
+                "description": "The agent can never read these, even if the allow list above would permit them."
+            },
+            "excludedCatalogs": {
+                "label": "Excluded catalogs",
+                "description": "Optional. The agent can never read these catalogs/databases."
+            },
+            "nothingExcluded": "Nothing excluded",
+            "saveChanges": "Save changes"
+        },
+        "toast": {
+            "updateSuccess": "Successfully updated the agent's data scope",
+            "updateFailed": "Failed to update the agent's data scope"
+        }
+    },
+    "appearance": {
+        "colorPalette": "Color palette",
+        "description": "Choose which organization color palette charts in this project should use, or inherit the organization's active palette.",
+        "managedAt": "Palettes are managed at the <link>organization level</link>.",
+        "overrideActive": "A color palette override is set in your instance configuration. Project-level selection is disabled while the override is active.",
+        "manageOrgPalettes": "Manage organization palettes"
+    },
+    "parameters": {
+        "title": "Defined parameters",
+        "searchPlaceholder": "Search parameters by name, label, description, or model",
+        "loadFailed": "Failed to load parameters",
+        "viewConfiguration": "View configuration",
+        "configModal": {
+            "title": "Parameter configuration: {{parameterName}}"
+        },
+        "source": {
+            "config": "Lightdash Config",
+            "model": "{{modelName}} Model"
+        },
+        "table": {
+            "parameter": "Parameter",
+            "source": "Source"
+        },
+        "empty": {
+            "noSearchResults": "No parameters found matching your search",
+            "noParameters": "No parameters configured for this project"
+        }
+    },
+    "tablesConfiguration": {
+        "title": "Table selection",
+        "selectedModels_one": "You have selected <b>{{count}}</b> model",
+        "selectedModels_other": "You have selected <b>{{count}}</b> models",
+        "showList": "(show list)",
+        "hideList": "(hide list)",
+        "all": {
+            "label": "Show entire project",
+            "description": "Show all of the models in your dbt project in Lightdash."
+        },
+        "withTags": {
+            "label": "Show models with any of these tags",
+            "description": "Write a list of tags you want to include, separated by commas. Virtual views are included by default.",
+            "tags": "Tags",
+            "placeholder": "e.g lightdash, prod",
+            "noTags": "Your dbt project has no tags available"
+        },
+        "withNames": {
+            "label": "Show models in this list",
+            "description": "Write a list of models you want to include, separated by commas. Virtual views are included by default.",
+            "names": "Names",
+            "placeholder": "e.g users, orders"
+        },
+        "loading": "Loading...",
+        "noResults": "No results found",
+        "saveChanges": "Save changes"
+    },
+    "resultsCache": {
+        "title": "Cache duration",
+        "description": "How long cached results are kept before Lightdash queries the warehouse again.",
+        "duration": {
+            "days_one": "{{count}} day",
+            "days_other": "{{count}} days",
+            "hours_one": "{{count}} hour",
+            "hours_other": "{{count}} hours",
+            "minutes_one": "{{count}} minute",
+            "minutes_other": "{{count}} minutes",
+            "hint": "= {{duration}}"
+        },
+        "form": {
+            "useDefault": {
+                "label": "Use the default cache duration",
+                "description": "Cached results expire after {{duration}}."
+            },
+            "ttlLabel": "Cache duration (minutes)",
+            "ttlInvalid": "Enter a whole number of minutes between {{min}} and {{max}} (30 days)"
+        }
+    },
+    "previewExpiration": {
+        "title": "Preview projects",
+        "description": "Control how long preview projects created from this project stick around before they're auto-deleted. Users can override the duration with <code>--expires-in</code>, but values above the maximum are silently capped.",
+        "approxDays_one": "≈ {{count}} day",
+        "approxDays_other": "≈ {{count}} days",
+        "approxDaysDecimal": "≈ {{days}} days",
+        "form": {
+            "defaultLabel": "Default preview expiration (hours)",
+            "maxLabel": "Maximum preview expiration (hours)",
+            "minHoursError": "Must be a whole number of hours, at least 1",
+            "exceedsMaxError": "Must be less than or equal to the maximum"
+        }
+    },
+    "scheduler": {
+        "toast": {
+            "fieldUpdated": {
+                "schedulerTimezone": "Default time zone updated",
+                "schedulerFailureNotifyRecipients": "Notify recipients if a delivery fails updated",
+                "schedulerFailureIncludeContact": "Include a contact in failure messages updated",
+                "schedulerFailureContactOverride": "Custom contact sentence updated"
+            },
+            "settingsUpdated": "Scheduled delivery settings updated",
+            "updateFailed": "Failed to update project's scheduled delivery settings"
+        },
+        "deliveryDefaults": {
+            "title": "Delivery defaults",
+            "description": "Default settings applied to all of this project's scheduled deliveries. Owners can override these per-delivery when creating or editing a scheduler."
+        },
+        "form": {
+            "timezone": {
+                "label": "Default time zone",
+                "tooltip": "Default time zone for the project's scheduled deliveries"
+            },
+            "errorHandling": "Error handling",
+            "notifyRecipients": {
+                "label": "Notify recipients if a delivery fails",
+                "description": "When a scheduled delivery fails, send a minimal failure message to every recipient (in addition to the existing email to the delivery owner)."
+            },
+            "includeContact": {
+                "label": "Include a contact in failure messages",
+                "description": "Add a line telling recipients who to contact about the failure."
+            },
+            "contactOverride": {
+                "label": "Custom contact sentence (optional)",
+                "description": "Replaces the default \"You can also reach out to <delivery owner> for details.\" line appended to the failure message.",
+                "placeholder": "You can also reach out to data-support@example.com for details."
+            }
+        }
+    },
+    "usageAnalytics": {
+        "userActivity": "User Activity"
+    },
+    "validator": {
+        "page": {
+            "title": "Validator",
+            "description": "Find content errors and issues across this project.",
+            "runValidation": "Run validation"
+        },
+        "noErrors": "No validation errors found",
+        "listSeparator": ", ",
+        "andSeparator": " and ",
+        "errorTypes": {
+            "chart": "Chart",
+            "sorting": "Sorting",
+            "filter": "Filter",
+            "metric": "Metric",
+            "model": "Model",
+            "dimension": "Dimension",
+            "customMetric": "Custom metric",
+            "chartConfiguration": "Chart configuration",
+            "exploreSplit": "Explore split"
+        },
+        "sourceTypes": {
+            "chart": "Chart",
+            "dashboard": "Dashboard",
+            "dataApp": "Data app",
+            "table": "Table"
+        },
+        "counts": {
+            "charts_one": "{{count}} chart",
+            "charts_other": "{{count}} charts",
+            "dashboards_one": "{{count}} dashboard",
+            "dashboards_other": "{{count}} dashboards",
+            "tables_one": "{{count}} table",
+            "tables_other": "{{count}} tables",
+            "dataApps_one": "{{count}} data app",
+            "dataApps_other": "{{count}} data apps",
+            "errors_one": "{{count}} error",
+            "errors_other": "{{count}} errors",
+            "items_one": "{{count}} item",
+            "items_other": "{{count}} items",
+            "views_one": "{{count}} view",
+            "views_other": "{{count}} views"
+        },
+        "summary": {
+            "header": "{{errors}} across {{items}}, grouped by cause",
+            "modelFailedToCompile": "Model {{tableName}} failed to compile",
+            "modelNoLongerExists": "Model {{tableName}} no longer exists",
+            "typeWithName": "{{errorType}}: {{name}}",
+            "typeErrors": "{{errorType}} errors",
+            "deleteGroupTooltip": "Delete all content referencing this model"
+        },
+        "bulkDelete": {
+            "title": "Delete broken content",
+            "confirm_one": "Delete {{count}} item",
+            "confirm_other": "Delete {{count}} items",
+            "warning": "This will delete {{content}} from this project.",
+            "softDeleteNote": "Deleted content can be restored from recently deleted.",
+            "cannotUndo": "This cannot be undone.",
+            "itemMeta": "({{contentType}}, {{views}})"
+        },
+        "errorMessage": {
+            "typeError": "{{errorType}} error",
+            "typeWarning": "{{errorType}} warning",
+            "modelFailedToCompile": "Model <mark>{{tableName}}</mark> failed to compile",
+            "modelNoLongerExists": "Model <mark>{{tableName}}</mark> no longer exists",
+            "fieldNoLongerExists": "<mark>{{fieldName}}</mark> no longer exists",
+            "tableNotUsedByAnyChart": "<mark>{{fieldName}}</mark> references table <mark>{{tableName}}</mark> which is not used by any chart on this dashboard",
+            "tableNoLongerExists": "Table <mark>{{tableName}}</mark> no longer exists",
+            "fieldTableMismatch": "<mark>{{fieldName}}</mark> does not match table <mark>{{tableName}}</mark>",
+            "chartBroken": "<mark>{{chartName}}</mark> is broken"
+        },
+        "chartConfigModal": {
+            "title": "Chart configuration issue",
+            "editChart": "Edit chart",
+            "chart": "Chart: <link>{{name}}</link>",
+            "unusedDimension": "Unused dimension in query",
+            "unusedDimensionDescription": "The dimension <b>{{fieldName}}</b> is included in this chart's query but is not being used in the chart configuration (x-axis, y-axis, or group by).",
+            "unmappedWarning": "Dimensions that are not mapped to the chart configuration can cause incorrect or unexpected results.",
+            "toFix": "To fix this issue, either:",
+            "fixRemove": "1. Remove the unused dimension from the query",
+            "fixAdd": "2. Add the dimension to the x-axis, y-axis, or group by configuration"
+        },
+        "toolbar": {
+            "searchPlaceholder": "Search by name or error...",
+            "filterBySourceType": "Filter by source type",
+            "source": "Source",
+            "filterBySource": "Filter by source:",
+            "includeWarnings": "Include chart configuration warnings",
+            "warnings": "Warnings",
+            "resetFilters": "Reset filters",
+            "deleteContent": "Delete content ({{count}})",
+            "clear": "Clear",
+            "lastValidated": "Last validated: {{time}}"
+        },
+        "table": {
+            "name": "Name",
+            "error": "Error",
+            "lastEditedBy": "Last edited by <b>{{name}}</b>",
+            "dismissError": "Dismiss Error",
+            "fix": "Fix"
+        }
+    },
+    "validatorFix": {
+        "common": {
+            "rename": "Rename",
+            "field": "Field",
+            "model": "Model",
+            "oldField": "Old field",
+            "newField": "New field",
+            "oldModel": "Old model",
+            "newModel": "New model",
+            "selectFieldPlaceholder": "Select a field to rename to",
+            "selectModelPlaceholder": "Select a model to rename to",
+            "noFieldsOnExplore": "Could not find any fields on explore {{table}}. Perhaps you want to replace the model instead?",
+            "fixAllTooltip": "Check this to rename all occurrences of this field in other charts and dashboards.",
+            "fixAllOccurrences": "Fix all occurrences ({{count}})"
+        },
+        "chartModal": {
+            "title": "Fix validation error",
+            "confirmRename": "Confirm rename",
+            "previewChanges": "Preview changes",
+            "fixError": "Fix chart error: <link>{{name}}</link>",
+            "previewWarning_one": "This will rename \"{{from}}\" to \"{{to}}\" in {{count}} resource across the project.",
+            "previewWarning_other": "This will rename \"{{from}}\" to \"{{to}}\" in {{count}} resources across the project.",
+            "chartsCount": "Charts ({{count}})",
+            "dashboardsCount": "Dashboards ({{count}})",
+            "alertsCount_one": "+ {{count}} alert",
+            "alertsCount_other": "+ {{count}} alerts",
+            "schedulersCount_one": "+ {{count}} scheduled delivery",
+            "schedulersCount_other": "+ {{count}} scheduled deliveries",
+            "noOtherResources": "No other resources will be affected. The rename will only apply to the current chart.",
+            "info": "You can rename the missing dimension by renaming the affected field or model using the drop down below.",
+            "oldModelPlaceholder": "Enter the table name (e.g., customers)",
+            "fieldNotInBaseModel": "The field <code>{{field}}</code> doesn't belong to the base model for chart: <code>{{model}}</code>. Verify the old model name is correct before renaming.",
+            "notUsedElsewhere_field": "This field is not used in any other charts.",
+            "notUsedElsewhere_model": "This model is not used in any other charts."
+        },
+        "dashboardModal": {
+            "title": "Fix dashboard filter error",
+            "fixError": "Fix dashboard filter error: <link>{{name}}</link>",
+            "info": "You can fix the broken filter by renaming the affected field or model using the drop down below.",
+            "notUsedElsewhere_field": "This field is not used in any other dashboards or charts.",
+            "notUsedElsewhere_model": "This model is not used in any other dashboards or charts."
+        },
+        "toasts": {
+            "open": "Open",
+            "renamedOnChart_field": "Success! Field \"{{from}}\" was renamed on chart.",
+            "renamedOnChart_model": "Success! Model \"{{from}}\" was renamed on chart.",
+            "updatingInCharts_field": "Updating field \"{{from}}\" in other charts...",
+            "updatingInCharts_model": "Updating model \"{{from}}\" in other charts...",
+            "renamedOnCharts_field": "Success! Field \"{{from}}\" was renamed on {{chartCount}} charts",
+            "renamedOnCharts_model": "Success! Model \"{{from}}\" was renamed on {{chartCount}} charts",
+            "renameOthersFailed_field": "Unable to rename other fields",
+            "renameOthersFailed_model": "Unable to rename other models",
+            "renameChartFailed": "Unable to rename chart",
+            "renamedOnDashboard_field": "Success! Field \"{{from}}\" was renamed on dashboard.",
+            "renamedOnDashboard_model": "Success! Model \"{{from}}\" was renamed on dashboard.",
+            "updatingInChartsAndDashboards_field": "Updating field \"{{from}}\" in other charts and dashboards...",
+            "updatingInChartsAndDashboards_model": "Updating model \"{{from}}\" in other charts and dashboards...",
+            "renamedOnChartsAndDashboards_field": "Success! Field \"{{from}}\" was renamed on {{chartCount}} charts and {{dashboardCount}} dashboards",
+            "renamedOnChartsAndDashboards_model": "Success! Model \"{{from}}\" was renamed on {{chartCount}} charts and {{dashboardCount}} dashboards",
+            "renameDashboardFilterFailed": "Unable to rename dashboard filter"
+        }
+    }
+}

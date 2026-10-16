@@ -7,8 +7,8 @@ import {
 } from '@lightdash/common';
 import { Group, Stack } from '@mantine/core';
 import { IconPercentage } from '@tabler/icons-react';
-import capitalize from 'lodash/capitalize';
 import { startTransition, useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../ColorSelector';
 import { RangeBoundInput } from '../common/RangeBoundInput';
@@ -37,6 +37,7 @@ const ConditionalFormattingItemColorRange: FC<Props> = ({
     onChangeMinMax,
     onChangeColorRange,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const handleOnChangeColorRange = useCallback(
         (newColor: string, rangeName: string) => {
             startTransition(() => {
@@ -53,8 +54,24 @@ const ConditionalFormattingItemColorRange: FC<Props> = ({
             {groups.map(([rangeName, minMaxName]) => (
                 <Group key={rangeName} gap="xs" wrap="nowrap" align="end">
                     <RangeBoundInput
-                        label={`${capitalize(minMaxName)} value`}
-                        autoLabel={`${capitalize(minMaxName)} value in table`}
+                        label={
+                            minMaxName === 'min'
+                                ? t(
+                                      'tableConditionalFormatting.colorRange.minValue',
+                                  )
+                                : t(
+                                      'tableConditionalFormatting.colorRange.maxValue',
+                                  )
+                        }
+                        autoLabel={
+                            minMaxName === 'min'
+                                ? t(
+                                      'tableConditionalFormatting.colorRange.minValueInTable',
+                                  )
+                                : t(
+                                      'tableConditionalFormatting.colorRange.maxValueInTable',
+                                  )
+                        }
                         value={config.rule[minMaxName]}
                         onChange={(newValue) =>
                             onChangeMinMax({ [minMaxName]: newValue })

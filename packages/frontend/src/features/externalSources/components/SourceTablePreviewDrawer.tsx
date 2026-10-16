@@ -11,6 +11,7 @@ import {
 } from '@mantine/core';
 import { IconColumns3, IconEye, IconTable } from '@tabler/icons-react';
 import { useRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import LightTable from '../../../components/common/LightTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
@@ -35,6 +36,7 @@ export const SourceTablePreviewDrawer: FC<Props> = ({
     tableLabel,
     onClose,
 }) => {
+    const { t } = useTranslation('sync');
     const previewTableRef = useRef<HTMLDivElement>(null);
     const columnsTableRef = useRef<HTMLDivElement>(null);
     const previewResult = useExternalSourceTablePreview({
@@ -68,7 +70,7 @@ export const SourceTablePreviewDrawer: FC<Props> = ({
             {previewResult.isError && (
                 <SuboptimalState
                     icon={IconTable}
-                    title="Couldn't load the preview"
+                    title={t('externalSources.preview.loadFailed')}
                     description={previewResult.error.error.message}
                 />
             )}
@@ -81,7 +83,7 @@ export const SourceTablePreviewDrawer: FC<Props> = ({
                                 <MantineIcon icon={IconEye} size="sm" />
                             }
                         >
-                            Data preview
+                            {t('externalSources.preview.dataTab')}
                         </Tabs.Tab>
                         <Tabs.Tab
                             value="columns"
@@ -89,16 +91,22 @@ export const SourceTablePreviewDrawer: FC<Props> = ({
                                 <MantineIcon icon={IconColumns3} size="sm" />
                             }
                         >
-                            Columns · {columns.length}
+                            {t('externalSources.preview.columnsTab', {
+                                count: columns.length,
+                            })}
                         </Tabs.Tab>
                     </Tabs.List>
                     <Tabs.Panel value="preview" pt="md">
                         <Stack gap="sm">
                             <Group justify="space-between">
                                 <Text fz="xs" c="dimmed">
-                                    First {preview.sampleRows.length} rows
+                                    {t('externalSources.preview.firstRows', {
+                                        count: preview.sampleRows.length,
+                                    })}
                                 </Text>
-                                <Badge size="xs">Read only</Badge>
+                                <Badge size="xs">
+                                    {t('externalSources.preview.readOnly')}
+                                </Badge>
                             </Group>
                             <ScrollArea type="auto">
                                 <LightTable
@@ -169,10 +177,10 @@ export const SourceTablePreviewDrawer: FC<Props> = ({
                             <LightTable.Head withSticky>
                                 <LightTable.Row index={0}>
                                     <LightTable.CellHead withBoldFont>
-                                        Column
+                                        {t('externalSources.preview.column')}
                                     </LightTable.CellHead>
                                     <LightTable.CellHead withBoldFont>
-                                        Type
+                                        {t('externalSources.preview.type')}
                                     </LightTable.CellHead>
                                 </LightTable.Row>
                             </LightTable.Head>

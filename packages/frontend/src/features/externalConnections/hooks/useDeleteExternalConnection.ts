@@ -1,5 +1,6 @@
 import { type ApiError } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -21,17 +22,20 @@ const deleteExternalConnection = async ({
 export const useDeleteExternalConnection = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('sync');
     return useMutation<undefined, ApiError, DeleteParams>({
         mutationFn: deleteExternalConnection,
         onSuccess: async (_data, variables) => {
             await queryClient.invalidateQueries({
                 queryKey: ['external-connections', variables.projectUuid],
             });
-            showToastSuccess({ title: 'Connection deleted' });
+            showToastSuccess({
+                title: t('externalConnections.toasts.deleted'),
+            });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to delete connection',
+                title: t('externalConnections.toasts.deleteFailed'),
                 apiError: error,
             });
         },

@@ -3,6 +3,7 @@ import { Button, Stack, Textarea, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useUpdateOAuthClient } from '../../../hooks/useOAuthClients';
 import MantineModal from '../../common/MantineModal';
 
@@ -10,6 +11,7 @@ export const EditOAuthClientModal: FC<{
     client: OAuthClientSummary;
     onClose: () => void;
 }> = ({ client, onClose }) => {
+    const { t } = useTranslation('userSettings');
     const { mutate: updateClient, isLoading } = useUpdateOAuthClient();
 
     const form = useForm({
@@ -19,10 +21,12 @@ export const EditOAuthClientModal: FC<{
         },
         validate: {
             clientName: (value) =>
-                value.trim().length === 0 ? 'Name is required' : null,
+                value.trim().length === 0
+                    ? t('oauthClientsPanel.form.nameRequired')
+                    : null,
             redirectUris: (value) => {
                 if (value.trim().length === 0)
-                    return 'At least one redirect URI is required';
+                    return t('oauthClientsPanel.form.redirectUriRequired');
                 const uris = value
                     .split('\n')
                     .map((u) => u.trim())
@@ -31,7 +35,7 @@ export const EditOAuthClientModal: FC<{
                     try {
                         new URL(uri);
                     } catch {
-                        return `Invalid URI: ${uri}`;
+                        return t('oauthClientsPanel.form.invalidUri', { uri });
                     }
                 }
                 return null;
@@ -57,7 +61,7 @@ export const EditOAuthClientModal: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            title="Edit OAuth application"
+            title={t('oauthClientsPanel.editModal.title')}
             icon={IconPencil}
             actions={
                 <Button
@@ -65,24 +69,26 @@ export const EditOAuthClientModal: FC<{
                     form="edit-oauth-client-form"
                     loading={isLoading}
                 >
-                    Save changes
+                    {t('oauthClientsPanel.editModal.submit')}
                 </Button>
             }
         >
             <form id="edit-oauth-client-form" onSubmit={handleOnSubmit}>
                 <Stack>
                     <TextInput
-                        label="Application name"
+                        label={t('oauthClientsPanel.form.applicationName')}
                         disabled={isLoading}
                         required
                         {...form.getInputProps('clientName')}
                     />
                     <Textarea
-                        label="Redirect URI"
+                        label={t('oauthClientsPanel.form.redirectUri')}
                         disabled={isLoading}
                         placeholder="https://myapp.example.com/callback"
                         required
-                        description="One URI per line for multiple redirect URIs"
+                        description={t(
+                            'oauthClientsPanel.form.redirectUriDescription',
+                        )}
                         minRows={3}
                         {...form.getInputProps('redirectUris')}
                     />

@@ -6,6 +6,7 @@ import {
 import { Text } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../components/common/Callout';
 import TransferItemsModal from '../../../components/common/TransferItemsModal/TransferItemsModal';
 import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
@@ -32,6 +33,7 @@ type FavoritePersonalDataAppModalProps = {
 export const FavoritePersonalDataAppModal: FC<
     FavoritePersonalDataAppModalProps
 > = ({ projectUuid, app, opened, onClose }) => {
+    const { t } = useTranslation('apps');
     const queryClient = useQueryClient();
     const { mutateAsync: contentAction, isLoading: isMovingToSpace } =
         useContentAction(projectUuid);
@@ -43,20 +45,17 @@ export const FavoritePersonalDataAppModal: FC<
             projectUuid={projectUuid}
             opened={opened}
             onClose={onClose}
-            title="Add data app to a space"
+            title={t('favoritePersonal.title')}
             description={
                 <Callout variant="info">
-                    <Text fz="sm">
-                        Data apps must be in a space to be favorited.
-                    </Text>
+                    <Text fz="sm">{t('favoritePersonal.mustBeInSpace')}</Text>
                     <Text fz="sm" mt="xs">
-                        Would you like to move this data app to a space and
-                        favorite it?
+                        {t('favoritePersonal.question')}
                     </Text>
                 </Callout>
             }
-            confirmLabel="Move and favorite"
-            createSpaceConfirmLabel="Create space, move and favorite"
+            confirmLabel={t('favoritePersonal.confirm')}
+            createSpaceConfirmLabel={t('favoritePersonal.createSpaceConfirm')}
             items={[
                 {
                     type: ResourceViewItemType.DATA_APP,

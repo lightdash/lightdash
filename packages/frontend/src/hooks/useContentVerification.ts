@@ -4,6 +4,7 @@ import {
     type ContentVerificationInfo,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 
@@ -25,6 +26,7 @@ const unverifyChart = async (chartUuid: string): Promise<void> => {
 };
 
 export const useVerifyChartMutation = () => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -41,12 +43,12 @@ export const useVerifyChartMutation = () => {
                 ]);
                 await queryClient.invalidateQueries(['verified-content']);
                 showToastSuccess({
-                    title: 'Chart verified',
+                    title: t('useContentVerification.chartVerified'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to verify chart',
+                    title: t('useContentVerification.failedToVerifyChart'),
                     apiError: error,
                 });
             },
@@ -55,6 +57,7 @@ export const useVerifyChartMutation = () => {
 };
 
 export const useUnverifyChartMutation = () => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -71,12 +74,14 @@ export const useUnverifyChartMutation = () => {
                 ]);
                 await queryClient.invalidateQueries(['verified-content']);
                 showToastSuccess({
-                    title: 'Chart verification removed',
+                    title: t('useContentVerification.chartVerificationRemoved'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to remove chart verification',
+                    title: t(
+                        'useContentVerification.failedToRemoveChartVerification',
+                    ),
                     apiError: error,
                 });
             },
@@ -104,6 +109,7 @@ const unverifyDashboard = async (dashboardUuid: string): Promise<void> => {
 };
 
 export const useVerifyDashboardMutation = () => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -121,12 +127,12 @@ export const useVerifyDashboardMutation = () => {
                 ]);
                 await queryClient.invalidateQueries(['verified-content']);
                 showToastSuccess({
-                    title: 'Dashboard verified',
+                    title: t('useContentVerification.dashboardVerified'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to verify dashboard',
+                    title: t('useContentVerification.failedToVerifyDashboard'),
                     apiError: error,
                 });
             },
@@ -162,6 +168,7 @@ const unverifyDataApp = async ({
 };
 
 export const useVerifyDataAppMutation = () => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -178,12 +185,12 @@ export const useVerifyDataAppMutation = () => {
             await queryClient.invalidateQueries(['verified-content-homepage']);
             await queryClient.invalidateQueries(['verified-content']);
             showToastSuccess({
-                title: 'Data app verified',
+                title: t('useContentVerification.dataAppVerified'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to verify data app',
+                title: t('useContentVerification.failedToVerifyDataApp'),
                 apiError: error,
             });
         },
@@ -191,6 +198,7 @@ export const useVerifyDataAppMutation = () => {
 };
 
 export const useUnverifyDataAppMutation = () => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -207,12 +215,14 @@ export const useUnverifyDataAppMutation = () => {
             await queryClient.invalidateQueries(['verified-content-homepage']);
             await queryClient.invalidateQueries(['verified-content']);
             showToastSuccess({
-                title: 'Data app verification removed',
+                title: t('useContentVerification.dataAppVerificationRemoved'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to remove data app verification',
+                title: t(
+                    'useContentVerification.failedToRemoveDataAppVerification',
+                ),
                 apiError: error,
             });
         },
@@ -220,6 +230,7 @@ export const useUnverifyDataAppMutation = () => {
 };
 
 export const useUnverifyDashboardMutation = () => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -237,12 +248,16 @@ export const useUnverifyDashboardMutation = () => {
                 ]);
                 await queryClient.invalidateQueries(['verified-content']);
                 showToastSuccess({
-                    title: 'Dashboard verification removed',
+                    title: t(
+                        'useContentVerification.dashboardVerificationRemoved',
+                    ),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to remove dashboard verification',
+                    title: t(
+                        'useContentVerification.failedToRemoveDashboardVerification',
+                    ),
                     apiError: error,
                 });
             },
@@ -272,6 +287,7 @@ const invalidateDocumentVerification = async (
 };
 
 export const useVerifyDocumentMutation = () => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -290,11 +306,13 @@ export const useVerifyDocumentMutation = () => {
             mutationKey: ['document_verify'],
             onSuccess: async () => {
                 await invalidateDocumentVerification(queryClient);
-                showToastSuccess({ title: 'Document verified' });
+                showToastSuccess({
+                    title: t('useContentVerification.documentVerified'),
+                });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to verify Document',
+                    title: t('useContentVerification.failedToVerifyDocument'),
                     apiError: error,
                 });
             },
@@ -303,6 +321,7 @@ export const useVerifyDocumentMutation = () => {
 };
 
 export const useUnverifyDocumentMutation = () => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -318,11 +337,17 @@ export const useUnverifyDocumentMutation = () => {
             mutationKey: ['document_unverify'],
             onSuccess: async () => {
                 await invalidateDocumentVerification(queryClient);
-                showToastSuccess({ title: 'Document verification removed' });
+                showToastSuccess({
+                    title: t(
+                        'useContentVerification.documentVerificationRemoved',
+                    ),
+                });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to remove Document verification',
+                    title: t(
+                        'useContentVerification.failedToRemoveDocumentVerification',
+                    ),
                     apiError: error,
                 });
             },

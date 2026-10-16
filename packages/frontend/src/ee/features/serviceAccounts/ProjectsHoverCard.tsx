@@ -1,6 +1,7 @@
 import { ProjectMemberRoleLabels } from '@lightdash/common';
 import { HoverCard, Loader, Stack, Text } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useServiceAccountProjectGrants } from './useProjectAccess';
 
 type Props = {
@@ -19,23 +20,29 @@ type Props = {
 export const ProjectsHoverCard: FC<Props> = ({
     serviceAccountUuid,
     children,
-}) => (
-    <HoverCard position="bottom-start" withArrow openDelay={150}>
-        <HoverCard.Target>{children}</HoverCard.Target>
-        <HoverCard.Dropdown w={280}>
-            <Stack gap={6}>
-                <Text size="xs" fw={600} c="dimmed">
-                    Project access
-                </Text>
-                <ProjectsHoverList serviceAccountUuid={serviceAccountUuid} />
-            </Stack>
-        </HoverCard.Dropdown>
-    </HoverCard>
-);
+}) => {
+    const { t } = useTranslation('serviceAccounts');
+    return (
+        <HoverCard position="bottom-start" withArrow openDelay={150}>
+            <HoverCard.Target>{children}</HoverCard.Target>
+            <HoverCard.Dropdown w={280}>
+                <Stack gap={6}>
+                    <Text size="xs" fw={600} c="dimmed">
+                        {t('projectAccess.title')}
+                    </Text>
+                    <ProjectsHoverList
+                        serviceAccountUuid={serviceAccountUuid}
+                    />
+                </Stack>
+            </HoverCard.Dropdown>
+        </HoverCard>
+    );
+};
 
 const ProjectsHoverList: FC<{ serviceAccountUuid: string }> = ({
     serviceAccountUuid,
 }) => {
+    const { t } = useTranslation('serviceAccounts');
     const { data, isLoading } =
         useServiceAccountProjectGrants(serviceAccountUuid);
 
@@ -45,7 +52,7 @@ const ProjectsHoverList: FC<{ serviceAccountUuid: string }> = ({
     if (!data || data.length === 0) {
         return (
             <Text size="xs" c="dimmed">
-                No projects.
+                {t('projectAccess.noProjects')}
             </Text>
         );
     }

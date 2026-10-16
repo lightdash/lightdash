@@ -9,6 +9,7 @@ import {
     useRef,
     type FC,
 } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { dark as vegaDarkTheme } from 'vega-themes';
 import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisualizationConfig';
 import LoadingChart from '../common/LoadingChart';
@@ -33,6 +34,7 @@ const CustomVisualization: FC<Props> = ({
     onScreenshotError,
     ...props
 }) => {
+    const { t } = useTranslation('visualization');
     const { colorScheme } = useMantineColorScheme();
     const isDarkMode = colorScheme === 'dark';
 
@@ -106,18 +108,21 @@ const CustomVisualization: FC<Props> = ({
         return (
             <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
                 <SuboptimalState
-                    title="No visualization loaded"
+                    title={t('customVis.noVisualization')}
                     description={
                         <Text>
-                            Start by entering your{' '}
-                            <Anchor
-                                href="https://vega.github.io/vega-lite/examples/"
-                                target="_blank"
-                            >
-                                Vega-Lite JSON
-                            </Anchor>{' '}
-                            code or choose from our pre-built templates to
-                            create your chart.
+                            <Trans
+                                t={t}
+                                i18nKey="customVis.startHint"
+                                components={{
+                                    link: (
+                                        <Anchor
+                                            href="https://vega.github.io/vega-lite/examples/"
+                                            target="_blank"
+                                        />
+                                    ),
+                                }}
+                            />
                         </Text>
                     }
                     icon={IconGraphOff}
@@ -136,8 +141,8 @@ const CustomVisualization: FC<Props> = ({
         return (
             <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
                 <SuboptimalState
-                    title="No data available"
-                    description="Query metrics and dimensions with results."
+                    title={t('emptyState.noDataTitle')}
+                    description={t('emptyState.noDataDescription')}
                     icon={IconGraphOff}
                 />
             </div>

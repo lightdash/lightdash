@@ -38,6 +38,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { usePaginatedSchedulers } from '../../features/scheduler/hooks/useScheduler';
 import { useSchedulerFilters } from '../../features/scheduler/hooks/useSchedulerFilters';
@@ -86,6 +87,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
     onSlackChannelIdsChange,
     isUserScope = false,
 }) => {
+    const { t } = useTranslation('scheduler');
     const theme = useMantineTheme();
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
@@ -230,7 +232,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         const baseColumns: ContentTableColumnDef<SchedulerItem>[] = [
             {
                 accessorKey: 'name',
-                header: 'Name',
+                header: t('schedulersTable.columns.name'),
                 enableSorting: true,
                 size: 300,
                 Header: ({ column }) => (
@@ -245,15 +247,15 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                     const format = () => {
                         switch (item.format) {
                             case SchedulerFormat.CSV:
-                                return 'CSV';
+                                return t('schedulersTable.format.csv');
                             case SchedulerFormat.XLSX:
-                                return 'XLSX';
+                                return t('schedulersTable.format.xlsx');
                             case SchedulerFormat.IMAGE:
-                                return 'Image';
+                                return t('formats.image');
                             case SchedulerFormat.GSHEETS:
-                                return 'Google Sheets';
+                                return t('formats.googleSheets');
                             case SchedulerFormat.PDF:
-                                return 'PDF';
+                                return t('formats.pdf');
                             default:
                                 return assertUnreachable(
                                     item.format,
@@ -281,7 +283,9 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                         label={
                                             <Stack gap="one" fz="xs">
                                                 <Text c="ldGray.5" fz="xs">
-                                                    Schedule type:{' '}
+                                                    {t(
+                                                        'schedulersTable.scheduleType',
+                                                    )}{' '}
                                                     <Text
                                                         c="white"
                                                         span
@@ -292,14 +296,18 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                                 </Text>
                                                 {!isUserScope && (
                                                     <Text c="ldGray.5" fz="xs">
-                                                        Created by:{' '}
+                                                        {t(
+                                                            'schedulersTable.createdBy',
+                                                        )}{' '}
                                                         <Text
                                                             c="white"
                                                             span
                                                             fz="xs"
                                                         >
                                                             {item.createdByName ||
-                                                                'n/a'}
+                                                                t(
+                                                                    'schedulersTable.notAvailable',
+                                                                )}
                                                         </Text>
                                                     </Text>
                                                 )}
@@ -368,7 +376,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         if (!isUserScope) {
             baseColumns.push({
                 accessorKey: 'createdByName',
-                header: 'Owner',
+                header: t('schedulersTable.columns.owner'),
                 enableSorting: false,
                 size: 150,
                 Header: ({ column }) => (
@@ -381,7 +389,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                     const item = row.original;
                     return (
                         <Text fz="xs" c="dimmed">
-                            {item.createdByName || 'Unknown'}
+                            {item.createdByName || t('schedulersTable.unknown')}
                         </Text>
                     );
                 },
@@ -392,7 +400,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         if (isUserScope) {
             baseColumns.push({
                 accessorKey: 'projectName',
-                header: 'Project',
+                header: t('schedulersTable.columns.project'),
                 enableSorting: false,
                 size: 150,
                 Header: ({ column }) => (
@@ -408,7 +416,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                     const item = row.original;
                     return (
                         <Text fz="xs" c="dimmed">
-                            {item.projectName || 'Unknown'}
+                            {item.projectName || t('schedulersTable.unknown')}
                         </Text>
                     );
                 },
@@ -418,7 +426,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         // Last Run column
         baseColumns.push({
             accessorKey: 'lastRunStatus',
-            header: 'Last Run',
+            header: t('schedulersTable.columns.lastRun'),
             enableSorting: false,
             size: 160,
             Header: ({ column }) => (
@@ -434,7 +442,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                 if (!latestRun) {
                     return (
                         <Text fz="xs" c="dimmed">
-                            No runs yet
+                            {t('schedulersTable.noRunsYet')}
                         </Text>
                     );
                 }
@@ -448,20 +456,27 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                             label={
                                 <Stack gap="xxs">
                                     <Text fz="xs">
-                                        Last run:{' '}
-                                        {new Date(
-                                            latestRun.scheduledTime,
-                                        ).toLocaleString()}
+                                        {t('schedulersTable.lastRun', {
+                                            time: new Date(
+                                                latestRun.scheduledTime,
+                                            ).toLocaleString(),
+                                        })}
                                     </Text>
                                     {latestRun.logCounts && (
                                         <Text fz="xs" c="ldGray.5">
-                                            {latestRun.logCounts.completed}{' '}
-                                            completed,{' '}
-                                            {latestRun.logCounts.error} failed
+                                            {t('schedulersTable.logCounts', {
+                                                completed:
+                                                    latestRun.logCounts
+                                                        .completed,
+                                                failed: latestRun.logCounts
+                                                    .error,
+                                            })}
                                         </Text>
                                     )}
                                     <Text fz="xs" c="ldGray.4" fs="italic">
-                                        Click to view run history
+                                        {t(
+                                            'schedulersTable.clickToViewRunHistory',
+                                        )}
                                     </Text>
                                 </Stack>
                             }
@@ -499,16 +514,19 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                         label={
                             <Stack gap="xxs">
                                 <Text fz="xs">
-                                    Last run:{' '}
-                                    {new Date(
-                                        latestRun.scheduledTime,
-                                    ).toLocaleString()}
+                                    {t('schedulersTable.lastRun', {
+                                        time: new Date(
+                                            latestRun.scheduledTime,
+                                        ).toLocaleString(),
+                                    })}
                                 </Text>
                                 {latestRun.logCounts && (
                                     <Text fz="xs" c="ldGray.5">
-                                        {latestRun.logCounts.completed}{' '}
-                                        completed, {latestRun.logCounts.error}{' '}
-                                        failed
+                                        {t('schedulersTable.logCounts', {
+                                            completed:
+                                                latestRun.logCounts.completed,
+                                            failed: latestRun.logCounts.error,
+                                        })}
                                     </Text>
                                 )}
                             </Stack>
@@ -536,7 +554,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         // Destinations column
         baseColumns.push({
             accessorKey: 'destinations',
-            header: 'Destinations',
+            header: t('schedulersTable.columns.destinations'),
             enableSorting: false,
             size: 140,
             Header: ({ column }) => (
@@ -554,17 +572,18 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                 let slackChannels: string[] = [];
                 let msTeamsTargets: string[] = [];
                 let googleChatTargets: string[] = [];
-                currentTargets.map((t) => {
-                    if (isSlackTarget(t)) {
+                currentTargets.map((target) => {
+                    if (isSlackTarget(target)) {
                         return slackChannels.push(
-                            getSlackChannelName(t.channel) || t.channel,
+                            getSlackChannelName(target.channel) ||
+                                target.channel,
                         );
-                    } else if (isGoogleChatTarget(t)) {
-                        return googleChatTargets.push(t.googleChatWebhook);
-                    } else if (isMsTeamsTarget(t)) {
-                        return msTeamsTargets.push(t.webhook);
-                    } else if (isEmailTarget(t)) {
-                        return emails.push(t.recipient);
+                    } else if (isGoogleChatTarget(target)) {
+                        return googleChatTargets.push(target.googleChatWebhook);
+                    } else if (isMsTeamsTarget(target)) {
+                        return msTeamsTargets.push(target.webhook);
+                    } else if (isEmailTarget(target)) {
+                        return emails.push(target.recipient);
                     }
                     return undefined;
                 });
@@ -586,8 +605,10 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                     />
                                     <Text fz="xs" c="dimmed">
                                         {slackChannels.length > 0
-                                            ? 'Email,'
-                                            : 'Email'}
+                                            ? t(
+                                                  'schedulersTable.emailWithSeparator',
+                                              )
+                                            : t('destinations.email')}
                                     </Text>
                                 </Group>
                             </Tooltip>
@@ -610,7 +631,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                         }}
                                     />
                                     <Text fz="xs" c="dimmed">
-                                        Slack
+                                        {t('destinations.slack')}
                                     </Text>
                                 </Group>
                             </Tooltip>
@@ -635,7 +656,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                             rel="noreferrer"
                                             td="underline"
                                         >
-                                            Google Sheets
+                                            {t('formats.googleSheets')}
                                         </Anchor>
                                     </Group>
                                 </Tooltip>
@@ -658,7 +679,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                         }}
                                     />
                                     <Text fz="xs" c="dimmed">
-                                        Google Chat
+                                        {t('destinations.googleChat')}
                                     </Text>
                                 </Group>
                             </Tooltip>
@@ -669,7 +690,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                             msTeamsTargets.length === 0 &&
                             googleChatTargets.length === 0 && (
                                 <Text fz="xs" c="dimmed">
-                                    No destinations
+                                    {t('schedulersTable.noDestinations')}
                                 </Text>
                             )}
                     </Group>
@@ -680,7 +701,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         // Frequency column
         baseColumns.push({
             accessorKey: 'frequency',
-            header: 'Frequency',
+            header: t('schedulersTable.columns.frequency'),
             enableSorting: false,
             size: 150,
             Header: ({ column }) => (
@@ -708,7 +729,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         // Created column
         baseColumns.push({
             accessorKey: 'createdAt',
-            header: 'Created',
+            header: t('schedulersTable.columns.created'),
             enableSorting: true,
             size: 130,
             Header: ({ column }) => (
@@ -768,6 +789,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         getSlackChannelName,
         setSearchParams,
         handleReassignOwner,
+        t,
     ]);
 
     const table = useContentTable({

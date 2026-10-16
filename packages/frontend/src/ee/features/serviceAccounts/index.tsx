@@ -2,6 +2,7 @@ import { Button } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus, IconUsersGroup } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { SettingsEmptyState } from '../../../components/common/Settings/SettingsEmptyState';
 import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
@@ -10,6 +11,7 @@ import { ServiceAccountsTable } from './ServiceAccountsTable';
 import { useServiceAccounts } from './useServiceAccounts';
 
 export function ServiceAccountsPage() {
+    const { t } = useTranslation('serviceAccounts');
     const [opened, { open, close }] = useDisclosure(false);
     const { listAccounts, createAccount, deleteAccount } = useServiceAccounts();
     const [token, setToken] = useState<string>();
@@ -36,23 +38,23 @@ export function ServiceAccountsPage() {
     // organizations that have not created a service account yet.
     return (
         <SettingsPage
-            title="Service accounts"
-            description="Manage non-human accounts used for automated access to Lightdash."
+            title={t('page.title')}
+            description={t('page.description')}
             actions={
                 <Button
                     size="xs"
                     leftSection={<MantineIcon icon={IconPlus} />}
                     onClick={open}
                 >
-                    Add service account
+                    {t('page.add')}
                 </Button>
             }
         >
             {!isInitialLoading && !hasAccounts ? (
                 <SettingsEmptyState
                     icon={IconUsersGroup}
-                    title="No service accounts"
-                    description="Create a service account for automated access to Lightdash."
+                    title={t('page.emptyTitle')}
+                    description={t('page.emptyDescription')}
                 />
             ) : (
                 <ServiceAccountsTable

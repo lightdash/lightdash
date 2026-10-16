@@ -18,6 +18,7 @@ import {
 } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../common/MantineModal';
 import DataAppTileEditForm from './DataAppTileEditForm';
 import HeadingTileForm from './HeadingTileForm';
@@ -43,19 +44,26 @@ const TileUpdateModal = <T extends Tile>({
     onConfirm,
     className,
 }: TileUpdateModalProps<T>) => {
+    const { t } = useTranslation('dashboard');
     const getValidators = () => {
         const urlValidator = {
             url: (value: string | undefined) =>
-                getLoomId(value) ? null : 'Loom url not valid',
+                getLoomId(value)
+                    ? null
+                    : t('tileForms.validation.invalidLoomUrl'),
         };
         const titleValidator = {
             title: (value: string | undefined) => {
-                return !value || !value.length ? 'Required field' : null;
+                return !value || !value.length
+                    ? t('tileForms.validation.required')
+                    : null;
             },
         };
         const textValidator = {
             text: (value: string | undefined) =>
-                !value || !value.length ? 'Required field' : null,
+                !value || !value.length
+                    ? t('tileForms.validation.required')
+                    : null,
         };
 
         if (tile.type === DashboardTileTypes.LOOM)
@@ -111,21 +119,21 @@ const TileUpdateModal = <T extends Tile>({
         const { type } = tile;
         switch (type) {
             case DashboardTileTypes.MARKDOWN:
-                return 'Edit markdown tile';
+                return t('tileForms.editTitle.markdown');
             case DashboardTileTypes.LOOM:
-                return 'Edit loom tile';
+                return t('tileForms.editTitle.loom');
             case DashboardTileTypes.HEADING:
-                return 'Edit heading tile';
+                return t('tileForms.editTitle.heading');
             case DashboardTileTypes.DATA_APP:
-                return 'Edit data app tile';
+                return t('tileForms.editTitle.dataApp');
             case DashboardTileTypes.SAVED_CHART:
-                return 'Edit saved_chart tile';
+                return t('tileForms.editTitle.savedChart');
             case DashboardTileTypes.SQL_CHART:
-                return 'Edit sql_chart tile';
+                return t('tileForms.editTitle.sqlChart');
             default:
                 return assertUnreachable(type, 'Tile type not supported');
         }
-    }, [tile]);
+    }, [tile, t]);
 
     return (
         <MantineModal
@@ -141,7 +149,7 @@ const TileUpdateModal = <T extends Tile>({
                     form="update-tile-form"
                     disabled={!form.isValid()}
                 >
-                    Save
+                    {t('actions.save', { ns: 'common' })}
                 </Button>
             }
         >

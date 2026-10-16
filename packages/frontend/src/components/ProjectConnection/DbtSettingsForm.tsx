@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { TextInput, Stack, Anchor, Select } from '@mantine/core';
 import { useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import useApp from '../../providers/App/useApp';
 import AzureDevOpsForm from './DbtForms/AzureDevOpsForm';
 import BitBucketForm from './DbtForms/BitBucketForm';
@@ -33,6 +34,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     disabled,
     defaultType,
 }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
     const { isDbtSource, projectUuid } = useProjectFormContext();
     const selectedWarehouse = form.values.warehouse?.type;
@@ -160,7 +162,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                         });
                     }}
                     defaultValue={DbtProjectType.GITHUB}
-                    label="Type"
+                    label={t('warehouseSettings.type')}
                     data={options}
                     required
                     disabled={disabled}
@@ -175,15 +177,10 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                                 <TextInput
                                     name="dbt.target"
                                     {...form.getInputProps('dbt.target')}
-                                    label="Target name"
+                                    label={t('dbtSettings.targetName')}
                                     description={
                                         <p>
-                                            The name Lightdash gives the dbt
-                                            target it compiles with. Set it to
-                                            match the target your dbt code
-                                            branches on. It does not change
-                                            which database or schema your models
-                                            are read from.
+                                            {t('dbtSettings.targetDescription')}
                                         </p>
                                     }
                                     disabled={disabled}
@@ -217,21 +214,23 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                                     <TextInput
                                         name="dbt.selector"
                                         {...form.getInputProps('dbt.selector')}
-                                        label="dbt selector"
+                                        label={t('dbtSettings.selector')}
                                         description={
                                             <p>
-                                                Add dbt selectors to filter out
-                                                models from your dbt project.
-                                                You can see more details in{' '}
-                                                <Anchor
-                                                    inherit
-                                                    href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#dbt-selector"
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                >
-                                                    our docs
-                                                </Anchor>
-                                                .
+                                                <Trans
+                                                    t={t}
+                                                    i18nKey="dbtSettings.selectorDescription"
+                                                    components={{
+                                                        docsLink: (
+                                                            <Anchor
+                                                                inherit
+                                                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#dbt-selector"
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                            />
+                                                        ),
+                                                    }}
+                                                />
                                             </p>
                                         }
                                         disabled={disabled}
@@ -241,7 +240,9 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
 
                                 <MultiKeyValuePairsInput
                                     name="dbt.environment"
-                                    label="Environment variables"
+                                    label={t(
+                                        'dbtSettings.environmentVariables',
+                                    )}
                                     documentationUrl={`${baseDocUrl}${typeDocUrls[type].env}`}
                                     disabled={disabled}
                                 />
@@ -251,7 +252,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                             isSectionOpen={isAdvancedSettingsOpen}
                             onClick={toggleAdvancedSettingsOpen}
                         >
-                            Advanced configuration options
+                            {t('dbtSettings.advancedOptions')}
                         </FormCollapseButton>
                     </>
                 )}

@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { Center, Loader, Stack, Text } from '@mantine/core';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FiltersProvider from '../../../../components/common/Filters/FiltersProvider';
 import { useExploreByProjectUuid } from '../../../../hooks/useExplore';
 import { useProject } from '../../../../hooks/useProject';
@@ -53,6 +54,7 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
     filtersWithUnmetRequirements,
     readOnly = false,
 }) => {
+    const { t } = useTranslation('scheduler');
     const { data: project, isInitialLoading: isLoadingProject } = useProject(
         savedChart.projectUuid,
     );
@@ -134,7 +136,7 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
         return (
             <Center component={Stack} h={100}>
                 <Loader color="gray" />
-                <Text c="dimmed">Loading chart filters...</Text>
+                <Text c="dimmed">{t('chartFilters.loading')}</Text>
             </Center>
         );
     }
@@ -178,9 +180,7 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
             {readOnly && hasRules ? (
                 <Stack mb="sm">
                     <Text fz="xs" c="dimmed">
-                        Adjusting these filters for a delivery needs explore
-                        access to the project. The delivery uses the chart's
-                        saved filters.
+                        {t('chartFilters.readOnlyNotice')}
                     </Text>
                     {sections.map(({ chartRules }) =>
                         chartRules.map((chartRule) => (
@@ -200,7 +200,7 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
                 <Stack mb="sm">
                     {filtersWithUnmetRequirements.length > 0 && (
                         <Text fz="xs" c="dimmed">
-                            All required filters must have values
+                            {t('chartFilters.allRequired')}
                         </Text>
                     )}
                     {sections.map(
@@ -215,7 +215,9 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
                                         <RemovedSchedulerFilterItem
                                             key={chartRule.id}
                                             savedFilter={chartRule}
-                                            defaultLabel="Uses chart default"
+                                            defaultLabel={t(
+                                                'chartFilters.usesChartDefault',
+                                            )}
                                             onRestore={() =>
                                                 handleRestoreFilter(
                                                     section,
@@ -264,15 +266,16 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
                                                 draftRule.id,
                                             )
                                         }
-                                        removeTooltip="Remove filter — the delivery will use the chart default"
+                                        removeTooltip={t(
+                                            'chartFilters.removeTooltip',
+                                        )}
                                     />
                                 );
                             }),
                     )}
                     {hasOrphans && (
                         <Text fz="xs" c="dimmed" mt="xs">
-                            The following filters are applied to this scheduled
-                            delivery but no longer exist in the chart
+                            {t('chartFilters.orphanNotice')}
                         </Text>
                     )}
                     {sections.map(({ section, orphanOverrides, draftRules }) =>
@@ -319,7 +322,7 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
                 </Stack>
             ) : (
                 <Center component={Stack} h={100}>
-                    <Text c="dimmed">No filters defined for this chart.</Text>
+                    <Text c="dimmed">{t('chartFilters.empty')}</Text>
                 </Center>
             )}
         </FiltersProvider>

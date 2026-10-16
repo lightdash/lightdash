@@ -1,6 +1,7 @@
 import { WarehouseTypes } from '@lightdash/common';
 import { TextInput, Stack, Anchor, PasswordInput } from '@mantine/core';
 import React, { type FC, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
@@ -16,13 +17,14 @@ export const ClickhouseSchemaInput: FC<{
     disabled: boolean;
     description?: ReactNode;
 }> = ({ disabled, description }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
 
     return (
         <TextInput
             name="warehouse.schema"
-            label="Schema"
-            description={description ?? 'This is the schema name.'}
+            label={t('warehouseFields.schema')}
+            description={description ?? t('warehouseFields.schemaDescription')}
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
@@ -33,6 +35,7 @@ export const ClickhouseSchemaInput: FC<{
 const ClickhouseForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const { t } = useTranslation('projectConnection');
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
@@ -48,8 +51,8 @@ const ClickhouseForm: FC<{
             <Stack mt="xs">
                 <TextInput
                     name="warehouse.host"
-                    label="Host"
-                    description="This is the host where the database is running."
+                    label={t('warehouseFields.host')}
+                    description={t('warehouseFields.hostDescription')}
                     required
                     {...form.getInputProps('warehouse.host')}
                     disabled={disabled}
@@ -57,8 +60,8 @@ const ClickhouseForm: FC<{
                 />
                 <TextInput
                     name="warehouse.user"
-                    label="User"
-                    description="This is the database user name."
+                    label={t('warehouseFields.user')}
+                    description={t('warehouseFields.userDescription')}
                     required={requireSecrets}
                     {...form.getInputProps('warehouse.user')}
                     placeholder={
@@ -70,8 +73,8 @@ const ClickhouseForm: FC<{
                 />
                 <PasswordInput
                     name="warehouse.password"
-                    label="Password"
-                    description="This is the database user password."
+                    label={t('warehouseFields.password')}
+                    description={t('warehouseFields.passwordDescription')}
                     required={requireSecrets}
                     placeholder={
                         disabled || !requireSecrets
@@ -86,7 +89,7 @@ const ClickhouseForm: FC<{
                     <Stack mt="xs">
                         <BooleanSwitch
                             name="warehouse.requireUserCredentials"
-                            label="Require users to provide their own credentials"
+                            label={t('warehouseFields.requireUserCredentials')}
                             {...form.getInputProps(
                                 'warehouse.requireUserCredentials',
                                 { type: 'checkbox' },
@@ -101,29 +104,31 @@ const ClickhouseForm: FC<{
                             name="warehouse.port"
                             {...form.getInputProps('warehouse.port')}
                             defaultValue={ClickhouseDefaultValues.port}
-                            label="Port"
-                            description="This is the port where the database is running."
+                            label={t('warehouseFields.port')}
+                            description={t('warehouseFields.portDescription')}
                             required
                             disabled={disabled}
                         />
 
                         <BooleanSwitch
                             name="warehouse.secure"
-                            label="Use HTTPS"
+                            label={t('warehouseFields.useHttps')}
                             description={
                                 <p>
-                                    This controls whether to use HTTPS to
-                                    connect to ClickHouse. You can see more
-                                    details in{' '}
-                                    <Anchor
-                                        inherit
-                                        target="_blank"
-                                        href="https://docs.getdbt.com/reference/warehouse-setups/clickhouse-setup"
-                                        rel="noreferrer"
-                                    >
-                                        dbt documentation
-                                    </Anchor>
-                                    .
+                                    <Trans
+                                        t={t}
+                                        i18nKey="warehouseFields.useHttpsDescription"
+                                        components={{
+                                            docsLink: (
+                                                <Anchor
+                                                    inherit
+                                                    target="_blank"
+                                                    href="https://docs.getdbt.com/reference/warehouse-setups/clickhouse-setup"
+                                                    rel="noreferrer"
+                                                />
+                                            ),
+                                        }}
+                                    />
                                 </p>
                             }
                             {...form.getInputProps('warehouse.secure', {
@@ -139,11 +144,12 @@ const ClickhouseForm: FC<{
                                 ClickhouseDefaultValues.timeoutSeconds
                             }
                             {...form.getInputProps('warehouse.timeoutSeconds')}
-                            label="Timeout in seconds"
+                            label={t('warehouseFields.timeoutSeconds')}
                             description={
                                 <p>
-                                    If a query takes longer than this timeout to
-                                    complete, then the query will be cancelled.
+                                    {t(
+                                        'warehouseFields.queryTimeoutDescription',
+                                    )}
                                 </p>
                             }
                             required
@@ -155,7 +161,7 @@ const ClickhouseForm: FC<{
                     </Stack>
                 </FormSection>
                 <FormCollapseButton isSectionOpen={isOpen} onClick={toggleOpen}>
-                    Advanced configuration options
+                    {t('dbtSettings.advancedOptions')}
                 </FormCollapseButton>
             </Stack>
         </>

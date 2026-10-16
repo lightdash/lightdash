@@ -10,6 +10,7 @@ import {
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import styles from './AiArtifactButton.module.css';
 
@@ -26,6 +27,7 @@ export const AiArtifactButton: FC<AiArtifactButtonProps> = ({
     isArtifactOpen = false,
     artifact,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const displayTitle = artifact?.title;
 
     const ArtifactIcon = useMemo(() => {
@@ -68,7 +70,9 @@ export const AiArtifactButton: FC<AiArtifactButtonProps> = ({
 
                 <Box className={styles.content}>
                     {isLoading ? (
-                        <Text className={styles.loadingLabel}>Creating…</Text>
+                        <Text className={styles.loadingLabel}>
+                            {t('artifactButton.creating')}
+                        </Text>
                     ) : (
                         displayTitle && (
                             <Text className={styles.title}>{displayTitle}</Text>

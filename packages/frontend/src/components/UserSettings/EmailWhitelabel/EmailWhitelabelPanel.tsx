@@ -15,7 +15,9 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconInfoCircle, IconTrash } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import {
     useDeleteEmailWhitelabel,
     useEmailWhitelabel,
@@ -29,15 +31,17 @@ import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
 
-const STATUS_BADGE: Record<
+const getStatusBadge = (
+    t: TFunction<'userSettings'>,
+): Record<
     OrganizationEmailWhitelabel['status'],
     { label: string; color: string }
-> = {
-    pending: { label: 'Pending verification', color: 'gray' },
-    verified: { label: 'Verified', color: 'green' },
-    enabled: { label: 'Enabled', color: 'green' },
-    failed: { label: 'Verification failed', color: 'red' },
-};
+> => ({
+    pending: { label: t('emailWhitelabel.status.pending'), color: 'gray' },
+    verified: { label: t('emailWhitelabel.status.verified'), color: 'green' },
+    enabled: { label: t('emailWhitelabel.status.enabled'), color: 'green' },
+    failed: { label: t('emailWhitelabel.status.failed'), color: 'red' },
+});
 
 /**
  * DNS providers manage records relative to the zone (e.g. acmecorp.com), so
@@ -68,57 +72,74 @@ const CopyValue: FC<{ value: string }> = ({ value }) => (
 const DnsRecordsTable: FC<{ records: EmailDnsRecord[]; domain: string }> = ({
     records,
     domain,
-}) => (
-    <Table withTableBorder>
-        <Table.Thead>
-            <Table.Tr>
-                <Table.Th>Type</Table.Th>
-                <Table.Th>Name / Host</Table.Th>
-                <Table.Th>Value</Table.Th>
-                <Table.Th>Status</Table.Th>
-            </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-            {records.map((record) => (
-                <Table.Tr key={`${record.purpose}-${record.name}`}>
-                    <Table.Td>
-                        <Text size="xs" fw={500}>
-                            {record.type}
-                        </Text>
-                        <Text size="xs" c="dimmed">
-                            {record.purpose === 'dkim' ? 'DKIM' : 'Return-Path'}
-                        </Text>
-                    </Table.Td>
-                    <Table.Td w={220}>
-                        <Tooltip label={`Full record name: ${record.name}`}>
-                            <div>
-                                <CopyValue
-                                    value={toZoneRelativeName(
-                                        record.name,
-                                        domain,
-                                    )}
-                                />
-                            </div>
-                        </Tooltip>
-                    </Table.Td>
-                    <Table.Td>
-                        <CopyValue value={record.value} />
-                    </Table.Td>
-                    <Table.Td w={100}>
-                        <Badge
-                            color={record.verified ? 'green' : 'gray'}
-                            size="sm"
-                        >
-                            {record.verified ? 'Verified' : 'Pending'}
-                        </Badge>
-                    </Table.Td>
+}) => {
+    const { t } = useTranslation('userSettings');
+    return (
+        <Table withTableBorder>
+            <Table.Thead>
+                <Table.Tr>
+                    <Table.Th>{t('emailWhitelabel.dnsTable.type')}</Table.Th>
+                    <Table.Th>
+                        {t('emailWhitelabel.dnsTable.nameHost')}
+                    </Table.Th>
+                    <Table.Th>{t('emailWhitelabel.dnsTable.value')}</Table.Th>
+                    <Table.Th>{t('emailWhitelabel.dnsTable.status')}</Table.Th>
                 </Table.Tr>
-            ))}
-        </Table.Tbody>
-    </Table>
-);
+            </Table.Thead>
+            <Table.Tbody>
+                {records.map((record) => (
+                    <Table.Tr key={`${record.purpose}-${record.name}`}>
+                        <Table.Td>
+                            <Text size="xs" fw={500}>
+                                {record.type}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                                {record.purpose === 'dkim'
+                                    ? 'DKIM'
+                                    : 'Return-Path'}
+                            </Text>
+                        </Table.Td>
+                        <Table.Td w={220}>
+                            <Tooltip
+                                label={t(
+                                    'emailWhitelabel.dnsTable.fullRecordName',
+                                    {
+                                        name: record.name,
+                                    },
+                                )}
+                            >
+                                <div>
+                                    <CopyValue
+                                        value={toZoneRelativeName(
+                                            record.name,
+                                            domain,
+                                        )}
+                                    />
+                                </div>
+                            </Tooltip>
+                        </Table.Td>
+                        <Table.Td>
+                            <CopyValue value={record.value} />
+                        </Table.Td>
+                        <Table.Td w={100}>
+                            <Badge
+                                color={record.verified ? 'green' : 'gray'}
+                                size="sm"
+                            >
+                                {record.verified
+                                    ? t('emailWhitelabel.dnsTable.verified')
+                                    : t('emailWhitelabel.dnsTable.pending')}
+                            </Badge>
+                        </Table.Td>
+                    </Table.Tr>
+                ))}
+            </Table.Tbody>
+        </Table>
+    );
+};
 
 const SetupForm: FC = () => {
+    const { t } = useTranslation('userSettings');
     const setup = useSetupEmailWhitelabel();
     const form = useForm({
         initialValues: { domain: '', fromEmail: '', fromName: '' },
@@ -143,29 +164,37 @@ const SetupForm: FC = () => {
         >
             <Stack gap="md">
                 <TextInput
-                    label="Sending domain"
-                    description="We suggest a subdomain like reports.yourcompany.com to keep it isolated from your primary mail reputation."
+                    label={t('emailWhitelabel.setupForm.sendingDomain')}
+                    description={t(
+                        'emailWhitelabel.setupForm.sendingDomainDescription',
+                    )}
                     placeholder="reports.yourcompany.com"
                     required
                     {...form.getInputProps('domain')}
                     onBlur={handleDomainBlur}
                 />
                 <TextInput
-                    label="From address"
-                    description="Must be an address at the sending domain."
+                    label={t('emailWhitelabel.setupForm.fromAddress')}
+                    description={t(
+                        'emailWhitelabel.setupForm.fromAddressDescription',
+                    )}
                     placeholder="reports@reports.yourcompany.com"
                     required
                     {...form.getInputProps('fromEmail')}
                 />
                 <TextInput
-                    label="From name"
-                    description="Optional display name shown in the From header."
-                    placeholder="Your Company Reports"
+                    label={t('emailWhitelabel.setupForm.fromName')}
+                    description={t(
+                        'emailWhitelabel.setupForm.fromNameDescription',
+                    )}
+                    placeholder={t(
+                        'emailWhitelabel.setupForm.fromNamePlaceholder',
+                    )}
                     {...form.getInputProps('fromName')}
                 />
                 <Group justify="flex-end">
                     <Button type="submit" loading={setup.isLoading}>
-                        Set up domain
+                        {t('emailWhitelabel.setupForm.submit')}
                     </Button>
                 </Group>
             </Stack>
@@ -179,7 +208,8 @@ const ConfiguredView: FC<{ config: OrganizationEmailWhitelabel }> = ({
     const verify = useVerifyEmailWhitelabel();
     const update = useUpdateEmailWhitelabel();
     const remove = useDeleteEmailWhitelabel();
-    const badge = STATUS_BADGE[config.status];
+    const { t } = useTranslation('userSettings');
+    const badge = getStatusBadge(t)[config.status];
 
     return (
         <Stack gap="md">
@@ -191,7 +221,7 @@ const ConfiguredView: FC<{ config: OrganizationEmailWhitelabel }> = ({
                     </Badge>
                 </Group>
                 <Switch
-                    label="Send from this domain"
+                    label={t('emailWhitelabel.configuredView.sendFromDomain')}
                     checked={config.isEnabled}
                     disabled={!config.isVerified || update.isLoading}
                     onChange={(event) =>
@@ -203,12 +233,12 @@ const ConfiguredView: FC<{ config: OrganizationEmailWhitelabel }> = ({
             </Group>
 
             <Text size="sm" c="dimmed">
-                Report emails will send from{' '}
-                <Text span fw={500}>
-                    {config.fromEmail}
-                </Text>
-                . Add the DNS records below at your DNS provider, then verify.
-                Both records must verify before you can enable sending.
+                <Trans
+                    t={t}
+                    i18nKey="emailWhitelabel.configuredView.instructions"
+                    values={{ email: config.fromEmail }}
+                    components={{ b: <Text span fw={500} /> }}
+                />
             </Text>
 
             <Stack gap="xs">
@@ -218,7 +248,9 @@ const ConfiguredView: FC<{ config: OrganizationEmailWhitelabel }> = ({
                 />
 
                 <Tooltip
-                    label="Cloudflare proxies CNAME records by default, which breaks verification. Edit the Return-Path record in Cloudflare and switch the proxy status (orange cloud) to “DNS Only” — it will never verify while proxied."
+                    label={t(
+                        'emailWhitelabel.configuredView.cloudflareTooltip',
+                    )}
                     w={320}
                 >
                     <Group gap={4} w="fit-content">
@@ -228,8 +260,7 @@ const ConfiguredView: FC<{ config: OrganizationEmailWhitelabel }> = ({
                             color="dimmed"
                         />
                         <Text size="xs" c="dimmed">
-                            Using Cloudflare? Set the Return-Path record to DNS
-                            Only.
+                            {t('emailWhitelabel.configuredView.cloudflareHint')}
                         </Text>
                     </Group>
                 </Tooltip>
@@ -244,14 +275,16 @@ const ConfiguredView: FC<{ config: OrganizationEmailWhitelabel }> = ({
                     loading={remove.isLoading}
                     onClick={() => remove.mutate()}
                 >
-                    Remove domain
+                    {t('emailWhitelabel.configuredView.removeDomain')}
                 </Button>
                 <Button
                     loading={verify.isLoading}
                     disabled={config.isVerified}
                     onClick={() => verify.mutate()}
                 >
-                    {config.isVerified ? 'Verified' : 'Verify DNS records'}
+                    {config.isVerified
+                        ? t('emailWhitelabel.configuredView.verified')
+                        : t('emailWhitelabel.configuredView.verifyDnsRecords')}
                 </Button>
             </Group>
         </Stack>
@@ -259,18 +292,18 @@ const ConfiguredView: FC<{ config: OrganizationEmailWhitelabel }> = ({
 };
 
 const EmailWhitelabelPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { data: config, isInitialLoading } = useEmailWhitelabel();
 
     return (
         <SettingsPage
-            title="Email sending domain"
-            description="Send report emails from your own domain instead of a Lightdash address."
+            title={t('emailWhitelabel.panel.title')}
+            description={t('emailWhitelabel.panel.description')}
         >
             <SettingsCard>
                 <Stack gap="md">
                     <Text c="dimmed" size="sm">
-                        Until your domain is verified and enabled, emails send
-                        from Lightdash with your address as reply-to.
+                        {t('emailWhitelabel.panel.fallbackNotice')}
                     </Text>
                     {isInitialLoading ? (
                         <EmptyStateLoader mih={60} />

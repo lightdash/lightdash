@@ -8,6 +8,7 @@ import {
     IconDownload,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../components/common/Callout';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import ErrorState from '../../../components/common/ErrorState';
@@ -37,6 +38,7 @@ const ContentAsCodeModal: FC<ContentAsCodeModalProps> = ({
     contentJson,
     downloadFileName,
 }) => {
+    const { t } = useTranslation('contentAsCode');
     const clipboard = useClipboard({ timeout: 1_000 });
     const [format, setFormat] = useState('yaml');
     const { contentYaml, isLoading, error } = contentAsCode;
@@ -66,10 +68,10 @@ const ContentAsCodeModal: FC<ContentAsCodeModalProps> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title={`View ${resourceLabel} as code`}
+            title={t('asCodeModal.title', { resource: resourceLabel })}
             icon={IconCode}
             size="xl"
-            cancelLabel="Close"
+            cancelLabel={t('actions.close', { ns: 'common' })}
             actions={
                 <>
                     {downloadFileName && (
@@ -79,7 +81,7 @@ const ContentAsCodeModal: FC<ContentAsCodeModalProps> = ({
                             leftSection={<MantineIcon icon={IconDownload} />}
                             onClick={handleDownload}
                         >
-                            Download {formatLabel}
+                            {t('asCodeModal.download', { format: formatLabel })}
                         </Button>
                     )}
                     <Button
@@ -91,7 +93,9 @@ const ContentAsCodeModal: FC<ContentAsCodeModalProps> = ({
                         }
                         onClick={() => content && clipboard.copy(content)}
                     >
-                        {clipboard.copied ? 'Copied' : `Copy ${formatLabel}`}
+                        {clipboard.copied
+                            ? t('asCodeModal.copied')
+                            : t('asCodeModal.copy', { format: formatLabel })}
                     </Button>
                 </>
             }
@@ -101,15 +105,22 @@ const ContentAsCodeModal: FC<ContentAsCodeModalProps> = ({
             {isLoading && (
                 <EmptyStateLoader
                     mih={320}
-                    title={`Generating ${resourceLabel} YAML`}
+                    title={t('asCodeModal.generating', {
+                        resource: resourceLabel,
+                    })}
                 />
             )}
 
             {error && <ErrorState error={error.error} hasMarginTop={false} />}
 
             {!isLoading && !error && !contentYaml && (
-                <Callout variant="warning" title="Content not found">
-                    Could not generate content as code for this {resourceLabel}.
+                <Callout
+                    variant="warning"
+                    title={t('asCodeModal.notFoundTitle')}
+                >
+                    {t('asCodeModal.notFoundDescription', {
+                        resource: resourceLabel,
+                    })}
                 </Callout>
             )}
 
@@ -117,7 +128,7 @@ const ContentAsCodeModal: FC<ContentAsCodeModalProps> = ({
                 <Stack gap="xs">
                     {contentJson && (
                         <SegmentedControl
-                            aria-label="Code format"
+                            aria-label={t('asCodeModal.formatAriaLabel')}
                             value={format}
                             onChange={(value) => {
                                 setFormat(value);
@@ -130,8 +141,7 @@ const ContentAsCodeModal: FC<ContentAsCodeModalProps> = ({
                         />
                     )}
                     <Text fz="sm" c="dimmed">
-                        This {formatLabel} is compatible with Lightdash content
-                        as code.
+                        {t('asCodeModal.compatible', { format: formatLabel })}
                     </Text>
                     <Code block>{content}</Code>
                 </Stack>

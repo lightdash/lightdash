@@ -2,6 +2,7 @@ import { interpolateUiString, type CatalogItem } from '@lightdash/common';
 import { Group, ActionIcon, Badge, Tooltip } from '@mantine/core';
 import { IconCode, IconX } from '@tabler/icons-react';
 import type { CSSProperties, FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { useCategoryColors } from '../styles/useCategoryColors';
@@ -25,6 +26,7 @@ export const CatalogCategory: FC<Props> = ({
 }) => {
     const colors = useCategoryColors(category.color);
     const getUiString = useUiStrings();
+    const { t } = useTranslation('metricsCatalog');
 
     const categoryVars = {
         '--category-text-color': colors.textColor,
@@ -51,7 +53,7 @@ export const CatalogCategory: FC<Props> = ({
                         position="top"
                         openDelay={200}
                         fz="xs"
-                        label="This category cannot be removed from this metric because it was defined in the .yml file."
+                        label={t('category.yamlCannotRemove')}
                     >
                         <MantineIcon
                             icon={IconCode}

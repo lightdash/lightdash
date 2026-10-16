@@ -20,6 +20,7 @@ import {
     IconNotebook,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -61,6 +62,7 @@ import { useAiAgentStoreDispatch } from '../../features/aiCopilot/store/hooks';
 import classes from './AgentsRouterPage.module.css';
 
 const AgentsRouterPage = () => {
+    const { t } = useTranslation('eeMisc');
     const projectUuid = useProjectUuid();
     const navigate = useNavigate();
     const location = useLocation();
@@ -322,15 +324,17 @@ const AgentsRouterPage = () => {
 
     const isWorking = isRouting || isCreating;
     const workingLabel = isRouting
-        ? 'Finding the right agent…'
+        ? t('agents.router.finding')
         : isCreating
-          ? 'Opening the conversation…'
+          ? t('agents.router.opening')
           : null;
 
-    const title = project?.name ? `Ask ${project.name}` : 'Ask this project';
+    const title = project?.name
+        ? t('agents.router.askProject', { name: project.name })
+        : t('agents.router.askThisProject');
     const placeholder = project?.name
-        ? `Ask ${project.name} anything...`
-        : 'Ask anything about your data...';
+        ? t('agents.router.askProjectAnything', { name: project.name })
+        : t('agents.router.askAnything');
     const settingsHref = projectUuid
         ? `/generalSettings/ai/agents?projects=${projectUuid}`
         : '/generalSettings/ai/agents';
@@ -366,7 +370,9 @@ const AgentsRouterPage = () => {
                                     size="sm"
                                     color="dimmed"
                                 />
-                                <Text size="xs">Memories</Text>
+                                <Text size="xs">
+                                    {t('agents.router.memories')}
+                                </Text>
                             </Group>
                         </UnstyledButton>
                     )}
@@ -404,7 +410,7 @@ const AgentsRouterPage = () => {
                                     c="dimmed"
                                     tt="uppercase"
                                 >
-                                    Pinned context
+                                    {t('agents.pinnedContext')}
                                 </Text>
                                 <Group gap="xs" wrap="wrap">
                                     {previewItems.map((item) => (
@@ -476,7 +482,7 @@ const AgentsRouterPage = () => {
                             <Stack gap="xs" className={classes.pickerStack}>
                                 <div className={classes.pickerHeader}>
                                     <Text size="sm" fw={600}>
-                                        Which agent should answer?
+                                        {t('agents.router.whichAgent')}
                                     </Text>
                                     {phase.decision.decision.reasoning && (
                                         <Popover
@@ -487,7 +493,9 @@ const AgentsRouterPage = () => {
                                             <Popover.Target>
                                                 <ActionIcon
                                                     size="sm"
-                                                    aria-label="Why these agents?"
+                                                    aria-label={t(
+                                                        'agents.router.whyAgents',
+                                                    )}
                                                 >
                                                     <MantineIcon
                                                         icon={IconInfoCircle}
@@ -520,7 +528,10 @@ const AgentsRouterPage = () => {
                                                         ? classes.recommended
                                                         : ''
                                                 }`}
-                                                aria-label={`Send to ${c.name}`}
+                                                aria-label={t(
+                                                    'agents.router.sendTo',
+                                                    { name: c.name },
+                                                )}
                                             >
                                                 <Group
                                                     gap="sm"
@@ -553,7 +564,9 @@ const AgentsRouterPage = () => {
                                                                     size="xs"
                                                                     color="violet"
                                                                 >
-                                                                    Recommended
+                                                                    {t(
+                                                                        'agents.router.recommended',
+                                                                    )}
                                                                 </Badge>
                                                             )}
                                                         </Group>

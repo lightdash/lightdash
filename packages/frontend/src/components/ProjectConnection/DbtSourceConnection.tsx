@@ -6,6 +6,7 @@ import {
 import { Alert, Button, Group, Select, Stack, Text } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useBindDbtSource } from '../../hooks/useDbtSourceBindings';
 import { useJob, useRefreshServer } from '../../hooks/useRefreshServer';
 import MantineIcon from '../common/MantineIcon';
@@ -20,11 +21,16 @@ const originalConnectionOf = (bindings: DbtSourceBindings) =>
 
 export const PrimaryDbtSourceConnection: FC<{
     bindings: DbtSourceBindings;
-}> = ({ bindings }) => (
-    <Text size="xs" c="dimmed">
-        Always runs on {originalConnectionOf(bindings)?.name}
-    </Text>
-);
+}> = ({ bindings }) => {
+    const { t } = useTranslation('projectConnection');
+    return (
+        <Text size="xs" c="dimmed">
+            {t('dbtSourceConnection.alwaysRunsOn', {
+                name: originalConnectionOf(bindings)?.name,
+            })}
+        </Text>
+    );
+};
 
 export const DbtSourceConnectionSelect: FC<{
     projectUuid: string;
@@ -32,6 +38,7 @@ export const DbtSourceConnectionSelect: FC<{
     bindings: DbtSourceBindings;
     onRebound: (rebound: ReboundDbtSource) => void;
 }> = ({ projectUuid, source, bindings, onRebound }) => {
+    const { t } = useTranslation('projectConnection');
     const bindMutation = useBindDbtSource(projectUuid);
     const boundConnectionUuid =
         bindings.sources.find(
@@ -76,7 +83,9 @@ export const DbtSourceConnectionSelect: FC<{
             <Select
                 size="xs"
                 w={200}
-                aria-label={`Connection for ${source.name}`}
+                aria-label={t('dbtSourceConnection.connectionFor', {
+                    name: source.name,
+                })}
                 data={bindings.connections.map((connection) => ({
                     value: connection.warehouseConnectionUuid,
                     label: connection.name,
@@ -99,6 +108,7 @@ export const DbtSourceReboundNote: FC<{
     rebound: ReboundDbtSource;
     onDismiss: () => void;
 }> = ({ rebound, onDismiss }) => {
+    const { t } = useTranslation('projectConnection');
     const { mutate: compile, isLoading } = useRefreshServer();
     const [compileJobUuid, setCompileJobUuid] = useState<string>();
     useJob(
@@ -117,9 +127,10 @@ export const DbtSourceReboundNote: FC<{
         >
             <Stack gap="xs">
                 <Text size="sm">
-                    {rebound.sourceName} now runs on {rebound.connectionName}.
-                    Its explores move to {rebound.connectionName} on the next
-                    compile. Until then they keep running on the old connection.
+                    {t('dbtSourceConnection.reboundNote', {
+                        source: rebound.sourceName,
+                        connection: rebound.connectionName,
+                    })}
                 </Text>
                 <Group>
                     <Button
@@ -136,7 +147,7 @@ export const DbtSourceReboundNote: FC<{
                             )
                         }
                     >
-                        Compile now
+                        {t('dbtSourceConnection.compileNow')}
                     </Button>
                 </Group>
             </Stack>

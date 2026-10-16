@@ -34,6 +34,7 @@ import {
 } from '@tabler/icons-react';
 import groupBy from 'lodash/groupBy';
 import { memo, useEffect, useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal, {
@@ -56,6 +57,7 @@ export type VirtualViewState = {
 };
 
 const DiffListItem: FC<{ diff: ColumnDiff }> = memo(({ diff }) => {
+    const { t } = useTranslation('explorer');
     return (
         <Group gap="xs" wrap="nowrap">
             <MantineIcon
@@ -65,24 +67,31 @@ const DiffListItem: FC<{ diff: ColumnDiff }> = memo(({ diff }) => {
             />
             {diff.type === 'deleted' ? (
                 <Text fz="sm" c="gray.7">
-                    <Text span fw={600} c="gray.8" fz="sm">
-                        {diff.reference}
-                    </Text>{' '}
-                    has been deleted
+                    <Trans
+                        t={t}
+                        i18nKey="virtualView.changesReview.columnDeleted"
+                        values={{ reference: diff.reference }}
+                        components={{
+                            column: <Text span fw={600} c="gray.8" fz="sm" />,
+                        }}
+                    />
                 </Text>
             ) : (
                 <Text fz="sm" c="gray.7">
-                    <Text span fw={600} c="gray.8">
-                        {diff.reference}
-                    </Text>{' '}
-                    type changed:{' '}
-                    <Text span fw={500} c="gray.6">
-                        {diff.oldType}
-                    </Text>{' '}
-                    →{' '}
-                    <Text span fw={500} c="gray.8">
-                        {diff.newType}
-                    </Text>
+                    <Trans
+                        t={t}
+                        i18nKey="virtualView.changesReview.columnTypeChanged"
+                        values={{
+                            reference: diff.reference,
+                            oldType: diff.oldType,
+                            newType: diff.newType,
+                        }}
+                        components={{
+                            column: <Text span fw={600} c="gray.8" />,
+                            before: <Text span fw={500} c="gray.6" />,
+                            after: <Text span fw={500} c="gray.8" />,
+                        }}
+                    />
                 </Text>
             )}
         </Group>
@@ -133,6 +142,7 @@ const ChangesReviewModal: FC<
         onSave: () => void;
     }
 > = ({ opened, onClose, columnDiffs, chartValidationErrors, onSave }) => {
+    const { t } = useTranslation('explorer');
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const newColumnsAddedNr = columnDiffs.filter(
         (diff) => diff.type === 'added',
@@ -163,11 +173,11 @@ const ChangesReviewModal: FC<
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Schema changes detected"
+            title={t('virtualView.changesReview.title')}
             icon={IconAlertCircle}
             actions={
                 <Button color="orange" onClick={onSave}>
-                    Save Anyway
+                    {t('virtualView.changesReview.saveAnyway')}
                 </Button>
             }
         >
@@ -175,7 +185,7 @@ const ChangesReviewModal: FC<
                 {/* Column Changes Section */}
                 <Stack gap="xs">
                     <Text fz="sm" fw={500} c="ldGray.7">
-                        Column changes
+                        {t('virtualView.changesReview.columnChanges')}
                     </Text>
                     <Paper p="sm" radius="md" bg="ldGray.0">
                         <Stack gap="xs">
@@ -187,8 +197,10 @@ const ChangesReviewModal: FC<
                                         size={16}
                                     />
                                     <Text fz="sm" c="ldGray.7">
-                                        {newColumnsAddedNr} new column
-                                        {newColumnsAddedNr > 1 ? 's' : ''} added
+                                        {t(
+                                            'virtualView.changesReview.newColumnsAdded',
+                                            { count: newColumnsAddedNr },
+                                        )}
                                     </Text>
                                 </Group>
                             )}
@@ -209,10 +221,17 @@ const ChangesReviewModal: FC<
                                     }
                                 >
                                     {showAllDiffs
-                                        ? 'Show less'
-                                        : `Show ${
-                                              affectedColumns.length - 3
-                                          } more`}
+                                        ? t(
+                                              'virtualView.changesReview.showLess',
+                                          )
+                                        : t(
+                                              'virtualView.changesReview.showMore',
+                                              {
+                                                  count:
+                                                      affectedColumns.length -
+                                                      3,
+                                              },
+                                          )}
                                 </Button>
                             )}
                         </Stack>
@@ -223,7 +242,9 @@ const ChangesReviewModal: FC<
                 {chartErrorEntries.length > 0 && (
                     <Stack gap="xs">
                         <Text fz="sm" fw={500} c="ldGray.7">
-                            Affected charts ({chartErrorEntries.length})
+                            {t('virtualView.changesReview.affectedCharts', {
+                                count: chartErrorEntries.length,
+                            })}
                         </Text>
                         <Paper p="sm" radius="md" bg="ldGray.0">
                             <Stack gap="xs">
@@ -259,10 +280,17 @@ const ChangesReviewModal: FC<
                                         }
                                     >
                                         {showAllChartErrors
-                                            ? 'Show less'
-                                            : `Show ${
-                                                  chartErrorEntries.length - 3
-                                              } more`}
+                                            ? t(
+                                                  'virtualView.changesReview.showLess',
+                                              )
+                                            : t(
+                                                  'virtualView.changesReview.showMore',
+                                                  {
+                                                      count:
+                                                          chartErrorEntries.length -
+                                                          3,
+                                                  },
+                                              )}
                                     </Button>
                                 )}
                             </Stack>
@@ -272,8 +300,7 @@ const ChangesReviewModal: FC<
 
                 {/* Warning Footer */}
                 <Text fz="sm" c="dimmed">
-                    These changes could break existing content using this
-                    virtual view.
+                    {t('virtualView.changesReview.warning')}
                 </Text>
             </Stack>
         </MantineModal>
@@ -283,6 +310,7 @@ const ChangesReviewModal: FC<
 export const HeaderVirtualView: FC<{
     virtualViewState: VirtualViewState;
 }> = ({ virtualViewState }) => {
+    const { t } = useTranslation('explorer');
     const { showToastError } = useToaster();
 
     const [initialColumns, setInitialColumns] = useState<
@@ -361,15 +389,15 @@ export const HeaderVirtualView: FC<{
                 columnsFromQuery = results.columns;
             } else {
                 showToastError({
-                    title: 'Error running query',
-                    subtitle: 'No results returned',
+                    title: t('virtualView.header.errorRunningQuery'),
+                    subtitle: t('virtualView.header.noResults'),
                 });
                 return;
             }
         } catch (error: unknown) {
             if (isApiError(error)) {
                 showToastError({
-                    title: 'Error running query',
+                    title: t('virtualView.header.errorRunningQuery'),
                     subtitle: error.error.message,
                 });
             }
@@ -379,8 +407,8 @@ export const HeaderVirtualView: FC<{
         // It's possible that the query returned no columns
         if (!columnsFromQuery) {
             return showToastError({
-                title: 'Error running query',
-                subtitle: 'No columns returned',
+                title: t('virtualView.header.errorRunningQuery'),
+                subtitle: t('virtualView.header.noColumns'),
             });
         }
 
@@ -526,7 +554,9 @@ export const HeaderVirtualView: FC<{
                         <Center h="95vh" w="95vw">
                             <Stack align="center" justify="center">
                                 <Loader />
-                                <Text fw={500}>Validating your changes...</Text>
+                                <Text fw={500}>
+                                    {t('virtualView.header.validating')}
+                                </Text>
                             </Stack>
                         </Center>
                     ),
@@ -538,7 +568,7 @@ export const HeaderVirtualView: FC<{
                     <Paper p="xxs" radius="sm">
                         <MantineIcon icon={IconTableAlias} />
                     </Paper>
-                    Editing
+                    {t('virtualView.header.editing')}
                     <TextInput
                         data-tour-anchor="virtual-view-edit-name"
                         data-tour-hint="Rename the virtual view"
@@ -553,7 +583,10 @@ export const HeaderVirtualView: FC<{
             </Group>
 
             <Group gap="sm">
-                <Tooltip label="No changes to save" disabled={hasChanges}>
+                <Tooltip
+                    label={t('virtualView.header.noChanges')}
+                    disabled={hasChanges}
+                >
                     <Box>
                         <Button
                             size="xs"
@@ -575,7 +608,7 @@ export const HeaderVirtualView: FC<{
                             data-tour-interactive="true"
                             data-tour-via='[data-tour-nav="new"] >> [data-tour-nav="new-sql-runner"] >> [data-tour-anchor="sql-runner-editor"] >> [data-tour-anchor="sql-runner-run"] >> [data-tour-anchor="sql-cta-menu"] >> [data-tour-anchor="sql-cta-virtual-view"] >> [data-tour-anchor="sql-create-virtual-view"] >> [data-tour-anchor="virtual-view-name"] >> [data-tour-anchor="virtual-view-create-submit"] >> [data-tour-nav="new"] >> [data-tour-nav="new-chart"] >> [data-tour-anchor="explore-search"] >> [data-tour-anchor="explore-section"][data-tour-value="Virtual Views"] >> [data-tour-anchor="explore-table"][data-tour-value="Orders by status"] >> [data-tour-anchor="virtual-view-actions"] >> [data-tour-anchor="virtual-view-edit"] >> [data-tour-anchor="virtual-view-discard"]? >> [data-tour-anchor="virtual-view-edit-name"]'
                         >
-                            Save
+                            {t('actions.save', { ns: 'common' })}
                         </Button>
                     </Box>
                 </Tooltip>
@@ -586,7 +619,7 @@ export const HeaderVirtualView: FC<{
                         virtualViewState.onCloseEditVirtualView();
                     }}
                 >
-                    Cancel
+                    {t('actions.cancel', { ns: 'common' })}
                 </Button>
             </Group>
 

@@ -20,7 +20,9 @@ import {
     VisuallyHidden,
 } from '@mantine/core';
 import { IconInfoCircle, IconSparkles } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import OrderedDataAppVizFieldSelect from '../../../components/VisualizationConfigs/DataAppVizConfig/OrderedDataAppVizFieldSelect';
@@ -91,24 +93,31 @@ type Props = {
     sourceHint: { text: string; isAiPicked: boolean } | null;
 };
 
-const aiPickTooltip = (pick: ChartInputAiPick) =>
+const aiPickTooltip = (t: TFunction, pick: ChartInputAiPick) =>
     pick.alsoFits.length > 0
-        ? `${pick.reason} Also fits: ${pick.alsoFits.join(', ')}.`
+        ? t('inputs.alsoFits', {
+              reason: pick.reason,
+              fields: pick.alsoFits.join(', '),
+          })
         : pick.reason;
 
-const AiPickMark: FC<{ pick: ChartInputAiPick }> = ({ pick }) => (
-    <Tooltip label={aiPickTooltip(pick)} position="top" multiline maw={280}>
-        <Box
-            component="span"
-            role="img"
-            tabIndex={0}
-            aria-label={`Picked for your prompt. ${aiPickTooltip(pick)}`}
-            className={classes.aiMark}
-        >
-            <MantineIcon icon={IconSparkles} size={14} color="indigo.4" />
-        </Box>
-    </Tooltip>
-);
+const AiPickMark: FC<{ pick: ChartInputAiPick }> = ({ pick }) => {
+    const { t } = useTranslation('chartTypes');
+    const tooltip = aiPickTooltip(t, pick);
+    return (
+        <Tooltip label={tooltip} position="top" multiline maw={280}>
+            <Box
+                component="span"
+                role="img"
+                tabIndex={0}
+                aria-label={t('inputs.pickedForPrompt', { tooltip })}
+                className={classes.aiMark}
+            >
+                <MantineIcon icon={IconSparkles} size={14} color="indigo.4" />
+            </Box>
+        </Tooltip>
+    );
+};
 
 const BindingControl: FC<{
     field: DataAppVizField;
@@ -116,6 +125,7 @@ const BindingControl: FC<{
     pools: Pools;
     addPools: Pools;
 }> = ({ field, binding, pools, addPools }) => {
+    const { t } = useTranslation('chartTypes');
     const aiPick = binding.aiPicks[field.name] ?? null;
     const poolItems = pools[poolKeyForSlot(field)];
     const poolAddItems = addPools[poolKeyForSlot(field)];
@@ -139,7 +149,7 @@ const BindingControl: FC<{
             <FieldSelect
                 size="xs"
                 aria-label={field.label}
-                placeholder="Picking a field"
+                placeholder={t('inputs.pickingField')}
                 disabled
                 loading
                 items={[]}
@@ -158,7 +168,9 @@ const BindingControl: FC<{
                 selectedIds={selectedIds}
                 addDisabled={hasNoItems}
                 addPosition="footer"
-                emptyPlaceholder={`This query has no ${poolKeyForSlot(field)} to pick`}
+                emptyPlaceholder={t(
+                    `inputs.noneToPick.${poolKeyForSlot(field)}`,
+                )}
                 isFieldPending={addToQuery?.isPending}
                 onChange={(ids) => binding.onFieldChange(field.name, ids)}
             />
@@ -187,8 +199,10 @@ const BindingControl: FC<{
             aria-label={field.label}
             placeholder={
                 hasNoItems
-                    ? `This query has no ${poolKeyForSlot(field)} to pick`
-                    : `Select ${field.label.toLowerCase()}`
+                    ? t(`inputs.noneToPick.${poolKeyForSlot(field)}`)
+                    : t('testInputs.selectField', {
+                          label: field.label.toLowerCase(),
+                      })
             }
             disabled={hasNoItems}
             item={[...items, ...addItems].find(
@@ -222,6 +236,7 @@ const ChartInputsList: FC<Props> = ({
     binding = null,
     sourceHint,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const pools = useMemo(() => {
         const { dimensions, metrics } = getDataAppVizFieldItems(
             binding?.itemsMap ?? {},
@@ -247,7 +262,7 @@ const ChartInputsList: FC<Props> = ({
         <Stack gap="xs">
             <Stack gap="xxs">
                 <Text component="h3" fz="sm" fw={600}>
-                    Chart inputs
+                    {t('inputs.title')}
                 </Text>
                 {sourceHint !== null && (
                     <Group gap={4} wrap="nowrap" align="flex-start">
@@ -310,7 +325,9 @@ const ChartInputsList: FC<Props> = ({
                                                 variant="subtle"
                                                 color="ldGray"
                                                 size="xs"
-                                                aria-label={`About ${field.label}`}
+                                                aria-label={t('inputs.about', {
+                                                    label: field.label,
+                                                })}
                                             >
                                                 <MantineIcon
                                                     icon={IconInfoCircle}
@@ -323,7 +340,7 @@ const ChartInputsList: FC<Props> = ({
                                 <Group gap={4} wrap="nowrap" flex="0 0 auto">
                                     {field.required && (
                                         <VisuallyHidden>
-                                            Required
+                                            {t('inputs.required')}
                                         </VisuallyHidden>
                                     )}
                                     {multipleAiPick && (
@@ -331,7 +348,7 @@ const ChartInputsList: FC<Props> = ({
                                     )}
                                     {isUnbound && (
                                         <Badge size="xs" color="orange">
-                                            not mapped
+                                            {t('inputs.notMapped')}
                                         </Badge>
                                     )}
                                     <DataAppVizFieldTypeBadge
@@ -354,9 +371,9 @@ const ChartInputsList: FC<Props> = ({
                                     />
                                     {isUnbound && (
                                         <Text size="xs" c="dimmed" mt={4}>
-                                            Preview renders without{' '}
-                                            {field.label} until a field is
-                                            chosen.
+                                            {t('inputs.rendersWithout', {
+                                                label: field.label,
+                                            })}
                                         </Text>
                                     )}
                                 </Box>

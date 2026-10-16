@@ -11,6 +11,7 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import TimeZonePicker from '../../../components/common/TimeZonePicker';
 import { CronInternalInputs } from '../../../components/CronInput';
@@ -38,6 +39,7 @@ export const SyncModalForm: FC<Props> = ({
     isApp = false,
     supportsFilters = false,
 }) => {
+    const { t } = useTranslation('sync');
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
 
@@ -59,11 +61,11 @@ export const SyncModalForm: FC<Props> = ({
         >
             <Stack>
                 <TextInput
-                    label="Name the Sync"
+                    label={t('form.nameLabel')}
                     required
                     {...form.getInputProps('name')}
                 />
-                <Input.Wrapper label="Set the frequency" required>
+                <Input.Wrapper label={t('form.frequencyLabel')} required>
                     <Box w="100%">
                         <CronInternalInputs
                             disabled={false}
@@ -74,11 +76,13 @@ export const SyncModalForm: FC<Props> = ({
                             <TimeZonePicker
                                 size="sm"
                                 flex={1}
-                                placeholder={`Project Default ${
+                                placeholder={
                                     projectDefaultOffsetString
-                                        ? `(UTC ${projectDefaultOffsetString})`
-                                        : ''
-                                }`}
+                                        ? t('form.timezoneDefaultWithOffset', {
+                                              offset: projectDefaultOffsetString,
+                                          })
+                                        : t('form.timezoneDefault')
+                                }
                                 maw={350}
                                 searchable
                                 clearable
@@ -96,8 +100,8 @@ export const SyncModalForm: FC<Props> = ({
 
                 {supportsFilters && (
                     <Switch
-                        label="Show filters applied"
-                        description="Add a fixed three-row filter summary above the synced data"
+                        label={t('form.showFiltersLabel')}
+                        description={t('form.showFiltersDescription')}
                         {...form.getInputProps('showFilters', {
                             type: 'checkbox',
                         })}
@@ -106,8 +110,7 @@ export const SyncModalForm: FC<Props> = ({
 
                 {isApp && (
                     <Text size="xs" c="dimmed">
-                        Each query in the app is written to its own tab, named
-                        after the query.
+                        {t('form.appTabsHint')}
                     </Text>
                 )}
 
@@ -115,14 +118,13 @@ export const SyncModalForm: FC<Props> = ({
                     <>
                         <Group>
                             <Switch
-                                label="Save in a new tab"
+                                label={t('form.saveInNewTab')}
                                 {...form.getInputProps('saveInNewTab', {
                                     type: 'checkbox',
                                 })}
                             ></Switch>
                             <Tooltip
-                                label={`Type a tab name to save the sync in, instead of overriding the first existing tab in the Google sheet.
-                                This will create a new tab if it doesn't exist. We will still create a tab called metadata with the Sync information.`}
+                                label={t('form.saveInNewTabTooltip')}
                                 position="right"
                                 maw={400}
                             >
@@ -135,7 +137,7 @@ export const SyncModalForm: FC<Props> = ({
                         {form.values.saveInNewTab && (
                             <TextInput
                                 required
-                                label="Tab name"
+                                label={t('form.tabNameLabel')}
                                 placeholder="Sheet1"
                                 {...form.getInputProps('options.tabName')}
                             />

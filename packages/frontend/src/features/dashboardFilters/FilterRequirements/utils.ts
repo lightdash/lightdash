@@ -3,6 +3,7 @@ import {
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { getConditionalRuleLabelFromItem } from '../../../components/common/Filters/FilterInputs/utils';
+import i18n from '../../../i18n/i18n';
 import { type SelectableFilter } from './FilterSelect';
 import { type DashboardFilterFieldResolver } from './useDashboardFilterField';
 
@@ -22,10 +23,14 @@ export const getRequirementIneligibilityReason = (
     filterRule: DashboardFilterRule,
 ): string | null => {
     if (filterRule.required || filterRule.requiredGroupId) {
-        return 'Already part of a filter rule';
+        return i18n.t('requirements.ineligible.alreadyInRule', {
+            ns: 'dashboardFilters',
+        });
     }
     if (!isValuelessDashboardFilterRule(filterRule)) {
-        return 'Has a default value, so the rule would always be satisfied';
+        return i18n.t('requirements.ineligible.hasDefault', {
+            ns: 'dashboardFilters',
+        });
     }
     return null;
 };

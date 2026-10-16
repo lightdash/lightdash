@@ -4,6 +4,7 @@ import '@mantine/dates/styles.css';
 import '@mantine/tiptap/styles.css';
 import '../src/styles/global.css';
 import './styles/sdk.css';
+import '../src/i18n/i18n';
 import {
     assertUnreachable,
     FilterOperator,

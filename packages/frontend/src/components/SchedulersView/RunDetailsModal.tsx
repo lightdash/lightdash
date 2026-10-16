@@ -30,7 +30,9 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
+import { type TFunction } from 'i18next';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import classes from './RunDetailsModal.module.css';
@@ -73,12 +75,9 @@ const formatTimeOnly = (date: Date): string => {
     return dayjs(date).format('hh:mm A');
 };
 
-// Helper to pluralize a word based on count
-const pluralize = (count: number, singular: string, plural?: string): string =>
-    count === 1 ? singular : (plural ?? `${singular}s`);
-
 // Helper to build job status summary text
 const buildJobStatusSummary = (
+    t: TFunction,
     completedCount: number,
     errorCount: number,
     partialFailureCount: number,
@@ -88,30 +87,28 @@ const buildJobStatusSummary = (
 
     if (completedCount > 0) {
         parts.push(
-            `${completedCount} ${pluralize(completedCount, 'job')} completed`,
+            t('runDetails.summary.jobsCompleted', { count: completedCount }),
         );
     }
     if (errorCount > 0) {
-        parts.push(`${errorCount} ${pluralize(errorCount, 'job')} failed`);
+        parts.push(t('runDetails.summary.jobsFailed', { count: errorCount }));
     }
     if (batchPartialFailureCount > 0) {
         parts.push(
-            `${batchPartialFailureCount} ${pluralize(
-                batchPartialFailureCount,
-                'job',
-            )} partially failed`,
+            t('runDetails.summary.jobsPartiallyFailed', {
+                count: batchPartialFailureCount,
+            }),
         );
     }
     if (partialFailureCount > 0) {
         parts.push(
-            `${partialFailureCount} ${pluralize(
-                partialFailureCount,
-                'chart',
-            )} failed to export`,
+            t('runDetails.summary.chartsFailedToExport', {
+                count: partialFailureCount,
+            }),
         );
     }
 
-    return parts.join(', ');
+    return parts.join(t('runDetails.summary.separator'));
 };
 
 // Helper to format duration between two dates
@@ -135,14 +132,17 @@ const JobTimingInfo: FC<{
     completedAt: Date | null;
     status: SchedulerJobStatus;
 }> = ({ startedAt, completedAt, status }) => {
+    const { t } = useTranslation('scheduler');
     const endLabel =
-        status === SchedulerJobStatus.ERROR ? 'failed' : 'completed';
+        status === SchedulerJobStatus.ERROR
+            ? t('runDetails.timing.failed')
+            : t('runDetails.timing.completed');
 
     return (
         <Group gap="md" wrap="nowrap" w={240}>
             <Stack gap={4}>
                 <Text fz="xs" c="dimmed">
-                    started
+                    {t('runDetails.timing.started')}
                 </Text>
                 <Text fz="xs" className={classes.timestampCell}>
                     {startedAt ? formatTimeOnly(startedAt) : '-'}
@@ -158,7 +158,7 @@ const JobTimingInfo: FC<{
             </Stack>
             <Stack gap={4}>
                 <Text fz="xs" c="dimmed">
-                    duration
+                    {t('runDetails.timing.duration')}
                 </Text>
                 <Text fz="xs" className={classes.timestampCell}>
                     {startedAt && completedAt
@@ -174,6 +174,7 @@ const PartialFailureText: FC<{
     failure: PartialFailure;
     theme: MantineTheme;
 }> = ({ failure, theme }) => {
+    const { t } = useTranslation('scheduler');
     switch (failure.type) {
         case PartialFailureType.DASHBOARD_CHART:
         case PartialFailureType.DASHBOARD_SQL_CHART:
@@ -205,7 +206,7 @@ const PartialFailureText: FC<{
                     }}
                 >
                     <Text fz="xs" fw={500} c="orange.9">
-                        No recipients configured for this scheduled delivery
+                        {t('runDetails.partialFailure.noRecipients')}
                     </Text>
                 </Stack>
             );
@@ -220,7 +221,7 @@ const PartialFailureText: FC<{
                     }}
                 >
                     <Text fz="xs" fw={500} c="orange.9">
-                        AI summary could not be generated
+                        {t('runDetails.partialFailure.aiSummaryFailed')}
                     </Text>
                     <Code c="orange.9" bg="transparent" fz="11px" p={0}>
                         {failure.error}
@@ -259,7 +260,7 @@ const PartialFailureText: FC<{
                         {failure.label}
                     </Text>
                     <Code c="orange.9" bg="transparent" fz="11px" p={0}>
-                        did not run in this delivery
+                        {t('runDetails.partialFailure.didNotRun')}
                     </Code>
                 </Stack>
             );
@@ -274,7 +275,10 @@ const PartialFailureText: FC<{
                     }}
                 >
                     <Text fz="xs" fw={500} c="orange.9">
-                        {`${failure.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})`}
+                        {t('runDetails.partialFailure.queriesDropped', {
+                            count: failure.droppedCount,
+                            limit: MAX_DELIVERY_QUERIES,
+                        })}
                     </Text>
                 </Stack>
             );
@@ -312,6 +316,7 @@ const JobRow: FC<{
     getTargetDisplayName,
     getFormatDisplayName,
 }) => {
+    const { t } = useTranslation('scheduler');
     const isError = job.finalStatus === SchedulerJobStatus.ERROR;
     const isPartialFailure =
         job.task === 'handleScheduledDelivery' &&
@@ -365,35 +370,36 @@ const JobRow: FC<{
         const parts: string[] = [];
         if (chartFailureCount > 0) {
             parts.push(
-                `${chartFailureCount} failing ${pluralize(
-                    chartFailureCount,
-                    'chart',
-                )}`,
+                t('runDetails.partialFailureMessage.failingCharts', {
+                    count: chartFailureCount,
+                }),
             );
         }
         if (queryFailureCount > 0) {
             parts.push(
-                `${queryFailureCount} failing ${pluralize(
-                    queryFailureCount,
-                    'query',
-                    'queries',
-                )}`,
+                t('runDetails.partialFailureMessage.failingQueries', {
+                    count: queryFailureCount,
+                }),
             );
         }
         if (hasMissingTargets) {
-            parts.push('missing recipients');
+            parts.push(t('runDetails.partialFailureMessage.missingRecipients'));
         }
         if (otherIssueCount > 0) {
             parts.push(
-                `${otherIssueCount} ${pluralize(otherIssueCount, 'issue')}`,
+                t('runDetails.partialFailureMessage.issues', {
+                    count: otherIssueCount,
+                }),
             );
         }
-        return `Completed with ${parts.join(' and ')}`;
+        return t('runDetails.partialFailureMessage.completedWith', {
+            issues: parts.join(t('runDetails.partialFailureMessage.and')),
+        });
     };
 
     const statusMessage = isError ? (
         <Text fz="xs" c="red.7">
-            Job failed
+            {t('runDetails.jobFailed')}
         </Text>
     ) : isPartialFailure ? (
         <Text fz="xs" c="orange.7">
@@ -401,7 +407,7 @@ const JobRow: FC<{
         </Text>
     ) : (
         <Text fz="xs" c="green.7">
-            Completed successfully
+            {t('runDetails.completedSuccessfully')}
         </Text>
     );
 
@@ -410,7 +416,9 @@ const JobRow: FC<{
         job.task === 'handleScheduledDelivery'
             ? run && (
                   <Text fz="xs" c="dimmed">
-                      {`Generate ${getFormatDisplayName(run.format)}`}
+                      {t('runDetails.generateFormat', {
+                          format: getFormatDisplayName(run.format),
+                      })}
                   </Text>
               )
             : job.target && (
@@ -507,6 +515,7 @@ const JobStatusSummaryHeader: FC<{
     batchPartialFailureCount,
     theme,
 }) => {
+    const { t } = useTranslation('scheduler');
     const allSuccessful =
         errorCount === 0 &&
         completedCount > 0 &&
@@ -529,8 +538,9 @@ const JobStatusSummaryHeader: FC<{
                     theme,
                 )}
                 <Text fz="sm" fw={600}>
-                    {completedCount} {pluralize(completedCount, 'job')}{' '}
-                    completed successfully
+                    {t('runDetails.summary.allJobsCompleted', {
+                        count: completedCount,
+                    })}
                 </Text>
             </>
         );
@@ -544,7 +554,7 @@ const JobStatusSummaryHeader: FC<{
                     theme,
                 )}
                 <Text fz="sm" fw={600}>
-                    All jobs failed
+                    {t('runDetails.summary.allJobsFailed')}
                 </Text>
             </>
         );
@@ -560,6 +570,7 @@ const JobStatusSummaryHeader: FC<{
                 />
                 <Text fz="sm" fw={600}>
                     {buildJobStatusSummary(
+                        t,
                         completedCount,
                         errorCount,
                         partialFailureCount,
@@ -572,7 +583,7 @@ const JobStatusSummaryHeader: FC<{
 
     return (
         <Text fz="sm" fw={600}>
-            Jobs ({totalCount})
+            {t('runDetails.summary.jobsTotal', { count: totalCount })}
         </Text>
     );
 };
@@ -582,6 +593,7 @@ const BatchJobRow: FC<{
     theme: MantineTheme;
     getSlackChannelName: (channelId: string) => string | null;
 }> = ({ job, theme, getSlackChannelName }) => {
+    const { t } = useTranslation('scheduler');
     const { batchResult } = job;
     if (!batchResult) return null;
 
@@ -641,8 +653,10 @@ const BatchJobRow: FC<{
                         {formatTaskName(job.task, batchResult.total)}
                     </Text>
                     <Text fz="xs" c={getStatusColor()}>
-                        {batchResult.succeeded}/{batchResult.total} delivered
-                        successfully
+                        {t('runDetails.batchDelivered', {
+                            succeeded: batchResult.succeeded,
+                            total: batchResult.total,
+                        })}
                     </Text>
                 </Stack>
                 <JobTimingInfo
@@ -688,21 +702,22 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
     isLoading,
     getSlackChannelName,
 }) => {
+    const { t } = useTranslation('scheduler');
     const theme = useMantineTheme();
 
     // Helper to format SchedulerFormat enum
     const getFormatDisplayName = (format: SchedulerFormat): string => {
         switch (format) {
             case SchedulerFormat.CSV:
-                return 'CSV';
+                return t('schedulersTable.format.csv');
             case SchedulerFormat.XLSX:
-                return 'Excel';
+                return t('runDetails.format.excel');
             case SchedulerFormat.IMAGE:
-                return 'Image';
+                return t('formats.image');
             case SchedulerFormat.GSHEETS:
-                return 'Google Sheets';
+                return t('formats.googleSheets');
             case SchedulerFormat.PDF:
-                return 'PDF';
+                return t('formats.pdf');
             default:
                 return format;
         }
@@ -860,7 +875,7 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                         variant="subtle"
                         leftSection={<MantineIcon icon={IconChevronLeft} />}
                     >
-                        Back
+                        {t('actions.back', { ns: 'common' })}
                     </Button>
                 ) : undefined
             }
@@ -882,8 +897,8 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                                 />
                                 <Text fz="xs" c="dimmed">
                                     {run.resourceType === 'chart'
-                                        ? 'Chart'
-                                        : 'Dashboard'}
+                                        ? t('runDetails.chart')
+                                        : t('runDetails.dashboard')}
                                 </Text>
                             </Group>
                             <Text fz="sm" fw={500}>
@@ -892,7 +907,7 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                         </Box>
                         <Box>
                             <Text fz="xs" c="dimmed">
-                                Created by
+                                {t('runDetails.createdBy')}
                             </Text>
                             <Text fz="sm" fw={500}>
                                 {run.createdByUserName}
@@ -902,7 +917,7 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                     <Group gap="xl">
                         <Box>
                             <Text fz="xs" c="dimmed">
-                                Scheduled
+                                {t('runDetails.scheduled')}
                             </Text>
                             <Text fz="sm" fw={500}>
                                 {formatTime(run.scheduledTime)}
@@ -910,7 +925,7 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                         </Box>
                         <Box>
                             <Text fz="xs" c="dimmed">
-                                Started
+                                {t('runDetails.started')}
                             </Text>
                             <Text fz="sm" fw={500}>
                                 {formatTime(run.createdAt)}
@@ -970,7 +985,7 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                         </Stack>
                     ) : (
                         <Text fz="sm" c="dimmed">
-                            No jobs found
+                            {t('runDetails.noJobsFound')}
                         </Text>
                     )}
                 </Box>

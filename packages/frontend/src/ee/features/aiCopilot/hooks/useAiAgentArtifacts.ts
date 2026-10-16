@@ -19,6 +19,7 @@ import {
     isAiAgentAuthorizationError,
 } from '../../../../features/aiAccess/errors';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 import { getAiAgentApiBase, getAiAgentPageBase } from './aiAgentRouting';
 
@@ -136,8 +137,12 @@ export const useAiAgentArtifact = ({
             } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
                     title: versionUuid
-                        ? 'Failed to fetch artifact version'
-                        : 'Failed to fetch artifact',
+                        ? i18n.t('toasts.artifacts.fetchVersionFailed', {
+                              ns: 'aiAgent',
+                          })
+                        : i18n.t('toasts.artifacts.fetchFailed', {
+                              ns: 'aiAgent',
+                          }),
                     apiError: error.error,
                 });
             }
@@ -222,12 +227,19 @@ export const useSetArtifactVersionVerified = (
 
             showToastSuccess({
                 title: verified
-                    ? 'Added to verified answers list'
-                    : 'Removed from verified answers list',
+                    ? i18n.t('toasts.artifacts.verifiedAdded', {
+                          ns: 'aiAgent',
+                      })
+                    : i18n.t('toasts.artifacts.verifiedRemoved', {
+                          ns: 'aiAgent',
+                      }),
                 action:
                     showSuccessAction && verified
                         ? {
-                              children: 'Go to verified answers',
+                              children: i18n.t(
+                                  'toasts.artifacts.goToVerifiedAnswers',
+                                  { ns: 'aiAgent' },
+                              ),
                               onClick: () => {
                                   void navigate(
                                       `/projects/${projectUuid}/ai-agents/${agentUuid}/edit/verified-artifacts`,
@@ -245,7 +257,9 @@ export const useSetArtifactVersionVerified = (
                 );
             } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
-                    title: 'Failed to update answer verification',
+                    title: i18n.t('toasts.artifacts.verificationUpdateFailed', {
+                        ns: 'aiAgent',
+                    }),
                     apiError: error,
                 });
             }
@@ -297,7 +311,9 @@ export const useUpdateComposerVizConfig = ({
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Chart change not saved',
+                title: i18n.t('toasts.artifacts.chartChangeNotSaved', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },

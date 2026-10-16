@@ -9,6 +9,7 @@ import {
 } from '@mantine/core';
 import { IconPencil, IconSparkles } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import ClarificationQuestionList from '../../apps/components/ClarificationQuestionList';
 import classes from './ClarifyingQuestions.module.css';
@@ -36,6 +37,7 @@ const ClarifyingQuestions: FC<Props> = ({
     onSkip,
     onBuild,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const answeredCount = answers.filter(
         (answer) => answer.trim().length > 0,
     ).length;
@@ -44,7 +46,7 @@ const ClarifyingQuestions: FC<Props> = ({
         <Box
             className={classes.sheet}
             role="group"
-            aria-label="Questions before building"
+            aria-label={t('clarifying.aria')}
         >
             <Box className={classes.sheetHeader}>
                 <MantineIcon icon={IconSparkles} size={14} color="dimmed" />
@@ -57,11 +59,11 @@ const ClarifyingQuestions: FC<Props> = ({
                 >
                     {prompt}
                 </Text>
-                <Tooltip label="Edit the prompt instead">
+                <Tooltip label={t('clarifying.editPrompt')}>
                     <ActionIcon
                         color="ldGray"
                         size="xs"
-                        aria-label="Edit the prompt instead"
+                        aria-label={t('clarifying.editPrompt')}
                         onClick={onEditPrompt}
                     >
                         <MantineIcon icon={IconPencil} size={13} />
@@ -83,13 +85,16 @@ const ClarifyingQuestions: FC<Props> = ({
                     fw={500}
                     onClick={onSkip}
                 >
-                    Skip and build anyway
+                    {t('clarifying.skip')}
                 </Anchor>
                 <Text fz="xs" c="dimmed">
-                    {answeredCount} of {questions.length} answered
+                    {t('clarifying.answered', {
+                        answered: answeredCount,
+                        total: questions.length,
+                    })}
                 </Text>
                 <Button size="xs" onClick={onBuild}>
-                    Build
+                    {t('clarifying.build')}
                 </Button>
             </Group>
         </Box>

@@ -15,6 +15,7 @@ import {
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -85,6 +86,7 @@ const createSavedMetricsTree = async (
 export const useCreateSavedMetricsTree = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('metricsCatalog');
 
     return useMutation<
         ApiCreateMetricsTreeResponse['results'],
@@ -98,11 +100,11 @@ export const useCreateSavedMetricsTree = () => {
             void queryClient.invalidateQueries({
                 queryKey: ['metrics-trees', variables.projectUuid],
             });
-            showToastSuccess({ title: 'Metrics tree saved successfully' });
+            showToastSuccess({ title: t('toasts.treeSaved') });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to save metrics tree',
+                title: t('toasts.treeSaveFailed'),
                 apiError: error,
             });
         },
@@ -125,6 +127,7 @@ const acquireTreeLock = async (
 export const useAcquireTreeLock = () => {
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
+    const { t } = useTranslation('metricsCatalog');
 
     return useMutation<
         ApiMetricsTreeLockResponse['results'],
@@ -155,7 +158,7 @@ export const useAcquireTreeLock = () => {
                 ],
             });
             showToastApiError({
-                title: 'Failed to acquire edit lock',
+                title: t('toasts.lockFailed'),
                 apiError: error,
             });
         },
@@ -274,6 +277,7 @@ const deleteSavedMetricsTree = async (
 export const useDeleteSavedMetricsTree = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('metricsCatalog');
 
     return useMutation<
         undefined,
@@ -294,7 +298,7 @@ export const useDeleteSavedMetricsTree = () => {
                     variables.metricsTreeUuid,
                 ],
             });
-            showToastSuccess({ title: 'Metrics tree deleted successfully' });
+            showToastSuccess({ title: t('toasts.treeDeleted') });
         },
         onError: ({ error }, variables) => {
             void queryClient.invalidateQueries({
@@ -305,7 +309,7 @@ export const useDeleteSavedMetricsTree = () => {
                 ],
             });
             showToastApiError({
-                title: 'Failed to delete metrics tree',
+                title: t('toasts.treeDeleteFailed'),
                 apiError: error,
             });
         },
@@ -329,6 +333,7 @@ const updateSavedMetricsTree = async (
 export const useUpdateSavedMetricsTree = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('metricsCatalog');
 
     return useMutation<
         ApiUpdateMetricsTreeResponse['results'],
@@ -353,11 +358,11 @@ export const useUpdateSavedMetricsTree = () => {
             void queryClient.invalidateQueries({
                 queryKey: ['metrics-trees', variables.projectUuid],
             });
-            showToastSuccess({ title: 'Metrics tree updated successfully' });
+            showToastSuccess({ title: t('toasts.treeUpdated') });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update metrics tree',
+                title: t('toasts.treeUpdateFailed'),
                 apiError: error,
             });
         },

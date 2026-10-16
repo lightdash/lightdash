@@ -20,6 +20,7 @@ import {
     IconNotebook,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import Callout from '../../../../../components/common/Callout';
@@ -68,6 +69,7 @@ const SourceRow: FC<{
     source: AiAgentMemorySource;
     projectUuid: string;
 }> = ({ source, projectUuid }) => {
+    const { t } = useTranslation('aiAgent');
     const threadPath = source.agentUuid
         ? `/projects/${projectUuid}/ai-agents/${source.agentUuid}/threads/${source.threadUuid}`
         : null;
@@ -77,7 +79,7 @@ const SourceRow: FC<{
             <Group justify="space-between" align="flex-start" wrap="nowrap">
                 <Box miw={0}>
                     <Text fw={500} size="sm" lineClamp={1}>
-                        {source.threadTitle ?? 'AI agent thread'}
+                        {source.threadTitle ?? t('memory.defaultThreadTitle')}
                     </Text>
                     <AiMarkdown className={styles.sourceSummary}>
                         {source.threadSummary}
@@ -89,7 +91,7 @@ const SourceRow: FC<{
                         to={threadPath}
                         className={styles.sourceLink}
                     >
-                        Open thread
+                        {t('memory.openThread')}
                         <IconArrowRight size={13} />
                     </Anchor>
                 ) : null}
@@ -103,6 +105,7 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
     projectUuid,
     agentUuid,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const replacementPath =
         memory.replacementSlug && agentUuid
             ? `/projects/${projectUuid}/ai-agents/${agentUuid}/memories/${memory.replacementSlug}`
@@ -122,9 +125,9 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
     const sourceDescription =
         memory.provenance.type === 'consolidated'
             ? sources.length > 0
-                ? `Consolidated from ${sources.length} memories`
-                : 'Consolidated memory'
-            : 'Extracted from one thread';
+                ? t('memory.consolidatedFrom', { count: sources.length })
+                : t('memory.consolidated')
+            : t('memory.extractedFromThread');
 
     return (
         <Box className={styles.layout}>
@@ -134,7 +137,7 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                         mb="xl"
                         color="gray"
                         variant="info"
-                        title={`This memory is ${memory.status}`}
+                        title={t(`memory.statusCallout.${memory.status}`)}
                         icon={<IconHistory size={17} />}
                         classNames={{
                             title: styles.statusCalloutText,
@@ -149,7 +152,7 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                                 fz="xs"
                                 fw={600}
                             >
-                                View the promotion proposal
+                                {t('memory.viewPromotionProposal')}
                             </Anchor>
                         ) : replacementPath ? (
                             <Anchor
@@ -159,16 +162,18 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                                 fz="xs"
                                 fw={600}
                             >
-                                View the current memory
+                                {t('memory.viewCurrentMemory')}
                             </Anchor>
                         ) : (
-                            'It remains available for audit history.'
+                            t('memory.auditHistory')
                         )}
                     </Callout>
                 ) : null}
 
                 <Stack gap="md">
-                    <Text className={styles.sectionLabel}>Memory</Text>
+                    <Text className={styles.sectionLabel}>
+                        {t('memory.memory')}
+                    </Text>
                     <AiMarkdown className={styles.memoryContent}>
                         {sections.memory}
                     </AiMarkdown>
@@ -190,8 +195,10 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                         <Accordion.Item value="evidence">
                             <Accordion.Control>
                                 <DisclosureLabel
-                                    title="Evidence"
-                                    description="Why this memory was learned"
+                                    title={t('memory.evidence')}
+                                    description={t(
+                                        'memory.evidenceDescription',
+                                    )}
                                 />
                             </Accordion.Control>
                             <Accordion.Panel>
@@ -208,8 +215,8 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                         <Accordion.Item value="apply">
                             <Accordion.Control>
                                 <DisclosureLabel
-                                    title="Apply"
-                                    description="When and how to use it"
+                                    title={t('memory.apply')}
+                                    description={t('memory.applyDescription')}
                                 />
                             </Accordion.Control>
                             <Accordion.Panel>
@@ -225,7 +232,7 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                     <Accordion.Item value="source">
                         <Accordion.Control>
                             <DisclosureLabel
-                                title="Source"
+                                title={t('memory.source')}
                                 description={sourceDescription}
                             />
                         </Accordion.Control>
@@ -241,7 +248,7 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                                     ))
                                 ) : (
                                     <Text size="xs" c="dimmed" p="md">
-                                        No source threads recorded
+                                        {t('memory.noSources')}
                                     </Text>
                                 )}
                             </Box>
@@ -253,7 +260,7 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
             <Divider orientation="vertical" className={styles.divider} />
 
             <Stack className={styles.rail} gap={0}>
-                <RailRow label="Status">
+                <RailRow label={t('memory.rail.status')}>
                     <MemoryStatusMenu
                         projectUuid={projectUuid}
                         memoryUuid={memory.uuid}
@@ -261,24 +268,26 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                         status={memory.status}
                     />
                 </RailRow>
-                <RailRow label="Saved">
+                <RailRow label={t('memory.rail.saved')}>
                     <Text className={styles.railText}>
                         {new Date(memory.generatedAt).toLocaleDateString()}
                     </Text>
                 </RailRow>
-                <RailRow label="Citations">
+                <RailRow label={t('memory.rail.citations')}>
                     <Text className={styles.railText}>
                         {memory.citedCount.toLocaleString()}
                     </Text>
                 </RailRow>
-                <RailRow label="Slug">
+                <RailRow label={t('memory.rail.slug')}>
                     <Text className={styles.slug} lineClamp={2}>
                         {memory.slug}
                     </Text>
                 </RailRow>
 
                 <Stack gap="sm" className={styles.railSection}>
-                    <Text className={styles.sectionLabel}>Terms</Text>
+                    <Text className={styles.sectionLabel}>
+                        {t('memory.terms')}
+                    </Text>
                     {memory.terms.length > 0 ? (
                         <Group gap={6}>
                             {memory.terms.map((term) => (
@@ -289,13 +298,15 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                         </Group>
                     ) : (
                         <Text size="xs" c="dimmed">
-                            No retrieval terms
+                            {t('memory.noTerms')}
                         </Text>
                     )}
                 </Stack>
 
                 <Stack gap="sm" className={styles.railSection}>
-                    <Text className={styles.sectionLabel}>Catalog objects</Text>
+                    <Text className={styles.sectionLabel}>
+                        {t('memory.catalogObjects')}
+                    </Text>
                     {memory.objects.length > 0 ? (
                         <Stack gap={8}>
                             {memory.objects.map((object) => {
@@ -321,8 +332,10 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                                                 lineClamp={1}
                                             >
                                                 {object.type === 'field'
-                                                    ? `Field in ${explore}`
-                                                    : 'Explore'}
+                                                    ? t('memory.fieldIn', {
+                                                          explore,
+                                                      })
+                                                    : t('memory.explore')}
                                             </Text>
                                         </Box>
                                         <IconExternalLink
@@ -335,7 +348,7 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                         </Stack>
                     ) : (
                         <Text size="xs" c="dimmed">
-                            No catalog objects
+                            {t('memory.noCatalogObjects')}
                         </Text>
                     )}
                 </Stack>

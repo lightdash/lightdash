@@ -1,0 +1,126 @@
+{
+    "labels": {
+        "firstData": "First data",
+        "combinedData": "Combined data",
+        "chooseDataToCombine": "Choose data to combine",
+        "firstTable": "First table",
+        "secondTable": "Second table",
+        "thisQuery": "this query",
+        "otherQuery": "the other query",
+        "theSecondTable": "the second table",
+        "theJoinKey": "the join key",
+        "and": "AND"
+    },
+    "setupProgress": {
+        "chooseTable": {
+            "title": "Choose a table",
+            "description": "Pick the data you want to combine with this query."
+        },
+        "selectFields": {
+            "title": "Select fields",
+            "metricAndDimension": "Add a metric and a dimension to match on.",
+            "dimension": "Add a dimension to match on.",
+            "metric": "Add at least one metric."
+        },
+        "matchQueries": {
+            "title": "Match the queries",
+            "description": "Choose corresponding fields in the relationship."
+        },
+        "review": {
+            "title": "Review the relationship",
+            "description": "Check what to keep, then run the merged query."
+        }
+    },
+    "provenance": {
+        "firstResult": "First result",
+        "secondResult": "Second result",
+        "from": "From {{source}}",
+        "sharedJoinKey": "Shared join key: {{labels}}",
+        "calculated": "Calculated after merging both queries"
+    },
+    "setup": {
+        "addMetricFrom": "Add at least one metric from {{label}}",
+        "pickJoinFields": "Pick a field from each query to join on",
+        "cannotJoin": "These queries cannot be joined on that field",
+        "fieldInOneQuery": "A field is only in one of the queries"
+    },
+    "sidebar": {
+        "selectDataAndFields": "Select data and fields",
+        "chooseFields": "Choose fields",
+        "selectedCount": "{{count}} selected",
+        "removeCombinedData": "Remove combined data",
+        "firstSuffix": "{{label}} · First",
+        "secondSuffix": "{{label}} · Second",
+        "selectedForResult": "Selected for result · {{count}}",
+        "dataSources": "Data sources"
+    },
+    "sourceTree": {
+        "backToFields": "Back to fields",
+        "changeTable": "Change table"
+    },
+    "readOnlyBar": {
+        "keep": "Keep {{label}}",
+        "matchesOnly": "Matches only",
+        "keepAllRows": "Keep all rows",
+        "matchedOn": "Matched on <bold>{{keys}}</bold> · {{keep}}",
+        "runFailed": "The merge failed to run"
+    },
+    "relationshipCard": {
+        "title": "Relationship"
+    },
+    "joinTypes": {
+        "inner": "Inner",
+        "left": "Left",
+        "fullOuter": "Full outer",
+        "innerHelp": "Inner join · Only the {{field}} values in both {{thisQuery}} and {{otherQuery}}. Everything unmatched is dropped.",
+        "leftHelp": "Left join · Only the {{field}} values in {{thisQuery}}. Anything found solely in {{otherQuery}} is dropped.",
+        "fullOuterHelp": "Full outer join · Every {{field}} from either query. Where one side has no match, its columns are blank.",
+        "optionAriaLabel": "{{label}}: {{help}}"
+    },
+    "joinBar": {
+        "joinType": "Join type",
+        "matchSummary": "match <bold>{{thisQuery}}</bold> and <bold>{{otherQuery}}</bold> on a shared field",
+        "joinedOnSummary": "joined on <bold>{{keys}}</bold> · <bold>{{keep}}</bold>",
+        "done": "Done",
+        "edit": "Edit",
+        "joinConditions": "Join conditions",
+        "suggested": "Suggested:",
+        "useSuggestion": "Use suggestion",
+        "joinFieldAriaLabel": "{{label}} join field",
+        "chooseField": "Choose a field",
+        "removeJoinCondition": "Remove join condition {{index}}",
+        "addJoinCondition": "Add join condition",
+        "emptySource": "{{emptyLabel}}'s columns are blank on every row: its query returned no rows matching {{otherLabel}} on {{field}}.",
+        "fanOut_one": "{{split}} is split by {{fields}}, which {{other}} does not have. Merging would repeat {{other}}'s rows once per value. Remove it, select it on both queries and join on it",
+        "fanOut_other": "{{split}} is split by {{fields}}, which {{other}} does not have. Merging would repeat {{other}}'s rows once per value. Remove them, select them on both queries and join on them",
+        "fanOutRepeat": ", or <anchor>repeat {{other}}'s values on every {{split}} row</anchor>",
+        "fieldsSeparator": " and ",
+        "repeating": "{{repeating}}'s values repeat on every {{other}} row with the same {{field}}. Its columns have no totals here.",
+        "stopRepeating": "Stop repeating",
+        "somethingWentWrong": "Something went wrong"
+    },
+    "filtersCard": {
+        "noFilters": "No filters",
+        "activeCount": "{{count}} active",
+        "title": "Filters",
+        "activeFilters_one": "{{count}} active filter",
+        "activeFilters_other": "{{count}} active filters",
+        "sharedFiltersHint": "Filters on a matching field apply to both queries. Other filters stay with their query."
+    },
+    "tableCalculation": {
+        "idExists": "Table calculation ID \"{{name}}\" already exists.",
+        "formulaTooLong": "Formula must be {{max}} characters or fewer",
+        "unknownFields_one": "Unknown merged field: {{fields}}",
+        "unknownFields_other": "Unknown merged fields: {{fields}}",
+        "invalidFormula": "Invalid formula",
+        "nameRequired": "Name is required",
+        "editTitle": "Edit Table Calculation",
+        "createTitle": "Create Table Calculation",
+        "saveChanges": "Save changes",
+        "createFormula": "Create formula",
+        "formula": "Formula",
+        "name": "Name",
+        "deleteTitle": "Delete Table Calculation",
+        "resourceType": "table calculation"
+    }
+}

@@ -20,6 +20,7 @@ import {
 import DiffsWorkerUrl from '@pierre/diffs/worker/worker.js?worker&url';
 import { IconFileDiff } from '@tabler/icons-react';
 import { useMemo, useState, type CSSProperties, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../../../../../components/common/MantineModal';
 import { usePullRequestDiff } from '../../../hooks/usePullRequestDiff';
 
@@ -128,6 +129,7 @@ const SingleFileDiff: FC<{ patch: string }> = ({ patch }) => {
 // keeps each diff a single file (what PatchDiff wants) and makes a large
 // many-file PR easy to navigate.
 const DiffBrowser: FC<{ patch: string }> = ({ patch }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const files = useMemo(() => splitPatchIntoFiles(patch), [patch]);
     const [selectedKey, setSelectedKey] = useState(files[0]?.key);
     const selected =
@@ -136,7 +138,7 @@ const DiffBrowser: FC<{ patch: string }> = ({ patch }) => {
     if (!selected) {
         return (
             <Text size="sm" c="dimmed" py="md">
-                This pull request has no file changes.
+                {t('diff.noFileChanges')}
             </Text>
         );
     }
@@ -150,7 +152,7 @@ const DiffBrowser: FC<{ patch: string }> = ({ patch }) => {
                 style={{ overflowY: 'auto', overflowX: 'hidden' }}
             >
                 <Text size="xs" c="dimmed" fw={600} px="xs" pb={4}>
-                    {files.length} file{files.length > 1 ? 's' : ''} changed
+                    {t('diff.filesChanged', { count: files.length })}
                 </Text>
                 {files.map((file) => (
                     <NavLink
@@ -201,6 +203,7 @@ export const WritebackDiffModal: FC<{
     opened: boolean;
     onClose: () => void;
 }> = ({ projectUuid, prUrl, commitSha, opened, onClose }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const { data, isInitialLoading, isError } = usePullRequestDiff(
         projectUuid,
         prUrl,
@@ -212,7 +215,7 @@ export const WritebackDiffModal: FC<{
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Pull request diff"
+            title={t('diff.title')}
             icon={IconFileDiff}
             size="90%"
             bodyScrollAreaMaxHeight={BODY_MAX_HEIGHT}
@@ -224,7 +227,7 @@ export const WritebackDiffModal: FC<{
                 </Center>
             ) : isError || !data || !data.diff ? (
                 <Text size="sm" c="dimmed" py="md">
-                    Couldn't load the diff for this pull request.
+                    {t('diff.loadFailed')}
                 </Text>
             ) : (
                 <DiffBrowser patch={data.diff} />

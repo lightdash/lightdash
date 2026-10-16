@@ -12,6 +12,9 @@ import {
     IconLayoutDashboard,
     IconTerminal2,
 } from '@tabler/icons-react';
+import i18n from '../../../i18n/i18n';
+
+const tr = (key: string) => i18n.t(`contentReview.${key}`, { ns: 'eeMisc' });
 
 export const getContentTypeIcon = (contentType: ContentReviewContentType) => {
     switch (contentType) {
@@ -56,13 +59,13 @@ export const getContentTypeNoun = (
 ): string => {
     switch (contentType) {
         case ContentReviewContentType.CHART:
-            return 'chart';
+            return tr('noun.chart');
         case ContentReviewContentType.SQL_CHART:
-            return 'SQL chart';
+            return tr('noun.sqlChart');
         case ContentReviewContentType.DASHBOARD:
-            return 'dashboard';
+            return tr('noun.dashboard');
         case ContentReviewContentType.DOCUMENT:
-            return 'Document';
+            return tr('noun.document');
         default:
             return assertUnreachable(
                 contentType,
@@ -104,13 +107,13 @@ export const getContentTypeLabel = (
 ): string => {
     switch (contentType) {
         case ContentReviewContentType.CHART:
-            return 'Chart';
+            return tr('type.chart');
         case ContentReviewContentType.SQL_CHART:
-            return 'SQL chart';
+            return tr('type.sqlChart');
         case ContentReviewContentType.DASHBOARD:
-            return 'Dashboard';
+            return tr('type.dashboard');
         case ContentReviewContentType.DOCUMENT:
-            return 'Document';
+            return tr('type.document');
         default:
             return assertUnreachable(
                 contentType,
@@ -124,12 +127,12 @@ export const getSimilarityMatchLabel = (
 ): string => {
     switch (reason) {
         case 'potential_duplicate':
-            return 'Potential duplicate';
+            return tr('match.potentialDuplicate');
         case 'related':
-            return 'Related analysis';
+            return tr('match.related');
         case 'same_name':
-            return 'Same name';
+            return tr('match.sameName');
         default:
-            return 'Similar name';
+            return tr('match.similarName');
     }
 };

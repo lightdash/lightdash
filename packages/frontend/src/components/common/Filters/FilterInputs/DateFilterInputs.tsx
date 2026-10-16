@@ -16,6 +16,7 @@ import {
 } from '@lightdash/common';
 import { Checkbox, Flex, Stack, Text } from '@mantine/core';
 import dayjs from 'dayjs';
+import { useTranslation } from 'react-i18next';
 import { type FilterInputsProps } from '.';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import { NumberInput } from '../../NumberInput';
@@ -50,6 +51,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
 ) => {
     const { field, rule, onChange, popoverProps, disabled, filterType } = props;
     const { startOfWeek } = useFiltersContext();
+    const { t } = useTranslation('filters');
     const getUiString = useUiStrings();
 
     const isTimestamp =
@@ -156,7 +158,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                                 className={classes.weekPrefix}
                                 size="xs"
                             >
-                                week commencing
+                                {t('inputs.weekCommencing')}
                             </Text>
 
                             {renderMultiDatePicker(coarseTimeFrame)}
@@ -189,7 +191,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                                     className={classes.weekPrefix}
                                     size="xs"
                                 >
-                                    week commencing
+                                    {t('inputs.weekCommencing')}
                                 </Text>
 
                                 <FilterWeekPicker

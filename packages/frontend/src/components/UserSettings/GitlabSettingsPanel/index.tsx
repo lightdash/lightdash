@@ -12,6 +12,7 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import gitlabIcon from '../../../svgs/gitlab-icon.svg';
 import {
     useDeleteGitlabInstallationMutation,
@@ -23,6 +24,7 @@ import { SettingsGridCard } from '../../common/Settings/SettingsCard';
 const GITLAB_INSTALL_URL = `/api/v1/gitlab/install`;
 
 const GitlabSettingsPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { data, isError, isInitialLoading } = useGitlabRepositories();
     const deleteGitlabInstallationMutation =
         useDeleteGitlabInstallationMutation();
@@ -44,9 +46,7 @@ const GitlabSettingsPanel: FC = () => {
 
             <Stack>
                 <Text c="dimmed" fz="xs">
-                    Connect your GitLab account to enable write-back
-                    functionality and create merge requests directly from
-                    Lightdash.
+                    {t('gitlabSettingsPanel.description')}
                 </Text>
 
                 {isValidGitlabInstallation && data.length === 0 && (
@@ -54,14 +54,12 @@ const GitlabSettingsPanel: FC = () => {
                         color="blue"
                         icon={<MantineIcon icon={IconAlertCircle} />}
                     >
-                        Your GitLab integration doesn't have access to any
-                        projects.
+                        {t('gitlabSettingsPanel.noProjects')}
                     </Alert>
                 )}
                 {isValidGitlabInstallation && data && data.length > 0 && (
                     <Text c="dimmed" fz="xs">
-                        Your GitLab integration has access to the following
-                        projects:
+                        {t('gitlabSettingsPanel.projectsAccess')}
                         <ul>
                             {data.map((repo) => (
                                 <li key={repo.fullName}>{repo.fullName}</li>
@@ -94,7 +92,7 @@ const GitlabSettingsPanel: FC = () => {
                                     );
                                 }}
                             >
-                                Reconnect
+                                {t('gitlabSettingsPanel.reconnect')}
                             </Button>
                             <Button
                                 size="xs"
@@ -106,7 +104,7 @@ const GitlabSettingsPanel: FC = () => {
                                 }
                                 leftSection={<MantineIcon icon={IconTrash} />}
                             >
-                                Delete
+                                {t('actions.delete', { ns: 'common' })}
                             </Button>
                         </Group>
                     </Stack>
@@ -118,7 +116,7 @@ const GitlabSettingsPanel: FC = () => {
                             target="_blank"
                             href={GITLAB_INSTALL_URL}
                         >
-                            Install
+                            {t('gitlabSettingsPanel.install')}
                         </Button>
                     </Flex>
                 )}

@@ -1,5 +1,6 @@
 import { type ApiError, type RoleAssignment } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
@@ -33,6 +34,7 @@ export const useUpsertProjectGroupRoleAssignmentMutation = (
     projectId: string,
 ) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation(
@@ -56,12 +58,16 @@ export const useUpsertProjectGroupRoleAssignmentMutation = (
                     'groupAccesses',
                 ]);
                 showToastSuccess({
-                    title: 'Success! Group project role assignment updated.',
+                    title: t(
+                        'useProjectGroupRoles.successGroupProjectRoleAssignmentUpdated',
+                    ),
                 });
             },
             onError: ({ error }: { error: any }) => {
                 showToastApiError({
-                    title: 'Failed to update group project role assignment',
+                    title: t(
+                        'useProjectGroupRoles.failedToUpdateGroupProjectRole',
+                    ),
                     apiError: error,
                 });
             },
@@ -73,6 +79,7 @@ export const useDeleteProjectGroupRoleAssignmentMutation = (
     projectId: string,
 ) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation(
@@ -96,12 +103,16 @@ export const useDeleteProjectGroupRoleAssignmentMutation = (
                     'groupAccesses',
                 ]);
                 showToastSuccess({
-                    title: 'Success! Group project role assignment deleted.',
+                    title: t(
+                        'useProjectGroupRoles.successGroupProjectRoleAssignmentDeleted',
+                    ),
                 });
             },
             onError: ({ error }: { error: any }) => {
                 showToastApiError({
-                    title: 'Failed to delete group project role assignment',
+                    title: t(
+                        'useProjectGroupRoles.failedToDeleteGroupProjectRole',
+                    ),
                     apiError: error,
                 });
             },

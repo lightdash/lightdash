@@ -8,6 +8,7 @@ import {
     useQueryClient,
     type UseMutationOptions,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -54,6 +55,7 @@ export const useProjectUserWarehouseCredentialsPreferenceMutation = (
     options?: UseMutationOptions<null, ApiError, UpdateCredentialsPreference>,
 ) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<null, ApiError, UpdateCredentialsPreference>(
         ({ projectUuid, userWarehouseCredentialsUuid }) =>
@@ -68,13 +70,17 @@ export const useProjectUserWarehouseCredentialsPreferenceMutation = (
                     'project-user-warehouse-credentials-preference',
                 ]);
                 showToastSuccess({
-                    title: 'Credentials preference saved successfully',
+                    title: t(
+                        'useProjectUserWarehouseCredentialsPreference.credentialsPreferenceSavedSuccessfully',
+                    ),
                 });
                 options?.onSuccess?.(...args);
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to save credentials preference`,
+                    title: t(
+                        'useProjectUserWarehouseCredentialsPreference.failedToSaveCredentialsPreference',
+                    ),
                     apiError: error,
                 });
             },

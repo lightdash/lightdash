@@ -11,6 +11,7 @@ import {
     useMutation,
     useQueryClient,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -84,6 +85,7 @@ const createAppScheduler = (
 export const useAppSchedulerCreateMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('scheduler');
     return useMutation<
         SchedulerAndTargets,
         ApiError,
@@ -99,12 +101,12 @@ export const useAppSchedulerCreateMutation = (projectUuid: string) => {
                     variables.resourceUuid,
                 ]);
                 showToastSuccess({
-                    title: 'Success! Scheduled delivery was created.',
+                    title: t('toasts.created'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to create scheduled delivery',
+                    title: t('toasts.createFailed'),
                     apiError: error,
                 });
             },

@@ -4,14 +4,20 @@ import {
 } from '@lightdash/common';
 import { List, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../common/Callout';
 
-const FEATURE_LABELS: Record<SlackFeature, string> = {
-    [SlackFeature.SCHEDULED_DELIVERIES]: 'Scheduled deliveries',
-    [SlackFeature.CUSTOM_APP_PROFILE]: 'Custom app profile photo',
-    [SlackFeature.LINK_UNFURLING]: 'Link previews',
-    [SlackFeature.WRITEBACK_REACTIONS]: 'Writeback confirmations',
-    [SlackFeature.AI_AGENT]: 'AI agents',
+const FEATURE_LABEL_KEYS: Record<SlackFeature, string> = {
+    [SlackFeature.SCHEDULED_DELIVERIES]:
+        'slackSettingsPanel.missingScopes.features.scheduledDeliveries',
+    [SlackFeature.CUSTOM_APP_PROFILE]:
+        'slackSettingsPanel.missingScopes.features.customAppProfile',
+    [SlackFeature.LINK_UNFURLING]:
+        'slackSettingsPanel.missingScopes.features.linkUnfurling',
+    [SlackFeature.WRITEBACK_REACTIONS]:
+        'slackSettingsPanel.missingScopes.features.writebackReactions',
+    [SlackFeature.AI_AGENT]:
+        'slackSettingsPanel.missingScopes.features.aiAgent',
 };
 
 type Props = {
@@ -19,6 +25,7 @@ type Props = {
 };
 
 export const SlackMissingScopesAlert: FC<Props> = ({ features }) => {
+    const { t } = useTranslation('userSettings');
     const unavailable = Object.values(SlackFeature).filter(
         (feature) => !features[feature].available,
     );
@@ -27,14 +34,13 @@ export const SlackMissingScopesAlert: FC<Props> = ({ features }) => {
     return (
         <Callout variant="warning">
             <Text pb="xs">
-                The installed Slack app is missing scopes for some features.
-                Reinstall the Slack integration to grant them.
+                {t('slackSettingsPanel.missingScopes.description')}
             </Text>
             <List size="sm">
                 {unavailable.map((feature) => (
                     <List.Item key={feature}>
                         <Text span fw={600}>
-                            {FEATURE_LABELS[feature]}
+                            {t(FEATURE_LABEL_KEYS[feature])}
                         </Text>
                         : {features[feature].missingScopes.join(', ')}
                     </List.Item>

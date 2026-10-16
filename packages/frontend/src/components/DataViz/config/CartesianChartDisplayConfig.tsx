@@ -1,5 +1,6 @@
 import { VizIndexType, type ChartKind } from '@lightdash/common';
 import { TextInput, Group, Stack } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,
@@ -21,6 +22,7 @@ export const CartesianChartDisplayConfig = ({
     selectedChartType: ChartKind;
     actions: BarChartActionsType | LineChartActionsType;
 }) => {
+    const { t } = useTranslation('dataViz');
     const dispatch = useVizDispatch();
 
     const currentConfig = useVizSelector((state) =>
@@ -53,9 +55,13 @@ export const CartesianChartDisplayConfig = ({
         <Stack gap="xl" mt="sm">
             <Config>
                 <Config.Section>
-                    <Config.Heading>{`X-axis`}</Config.Heading>
+                    <Config.Heading>
+                        {t('cartesian.display.xAxis')}
+                    </Config.Heading>
                     <Group wrap="nowrap" w="100%">
-                        <Config.Label>{`Label`}</Config.Label>
+                        <Config.Label>
+                            {t('cartesian.display.label')}
+                        </Config.Label>
                         <TextInput
                             size="xs"
                             w="100%"
@@ -71,7 +77,9 @@ export const CartesianChartDisplayConfig = ({
                     </Group>
                     {xAxisType === VizIndexType.TIME && (
                         <Config.Group>
-                            <Config.Label>{`Format`}</Config.Label>
+                            <Config.Label>
+                                {t('cartesian.display.format')}
+                            </Config.Label>
                             <CartesianChartXAxisDateFormatConfig
                                 dateFormat={xAxisDateFormat}
                                 onChangeDateFormat={(value) => {
@@ -89,11 +97,15 @@ export const CartesianChartDisplayConfig = ({
             {leftYAxisFields.length > 0 && (
                 <Config>
                     <Config.Section>
-                        <Config.Heading>{`Y-axis ${
-                            rightYAxisFields.length > 0 ? '(left)' : ''
-                        }`}</Config.Heading>
+                        <Config.Heading>
+                            {rightYAxisFields.length > 0
+                                ? t('cartesian.display.yAxisLeft')
+                                : t('cartesian.display.yAxis')}
+                        </Config.Heading>
                         <Group wrap="nowrap" w="100%">
-                            <Config.Label>{`Label`}</Config.Label>
+                            <Config.Label>
+                                {t('cartesian.display.label')}
+                            </Config.Label>
                             <TextInput
                                 size="xs"
                                 w="100%"
@@ -110,7 +122,9 @@ export const CartesianChartDisplayConfig = ({
                         </Group>
 
                         <Config.Group>
-                            <Config.Label>{`Format`}</Config.Label>
+                            <Config.Label>
+                                {t('cartesian.display.format')}
+                            </Config.Label>
                             <CartesianChartFormatConfig
                                 format={
                                     currentConfig?.display?.yAxis?.[0]?.format
@@ -131,9 +145,13 @@ export const CartesianChartDisplayConfig = ({
             {rightYAxisFields.length > 0 && (
                 <Config>
                     <Config.Section>
-                        <Config.Heading>{`Y-axis (right)`}</Config.Heading>
+                        <Config.Heading>
+                            {t('cartesian.display.yAxisRight')}
+                        </Config.Heading>
                         <Group wrap="nowrap" w="100%">
-                            <Config.Label>{`Label`}</Config.Label>
+                            <Config.Label>
+                                {t('cartesian.display.label')}
+                            </Config.Label>
                             <TextInput
                                 size="xs"
                                 w="100%"
@@ -150,7 +168,9 @@ export const CartesianChartDisplayConfig = ({
                         </Group>
 
                         <Config.Group>
-                            <Config.Label>{`Format`}</Config.Label>
+                            <Config.Label>
+                                {t('cartesian.display.format')}
+                            </Config.Label>
                             <CartesianChartFormatConfig
                                 format={
                                     currentConfig?.display?.yAxis?.[1]?.format

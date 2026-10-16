@@ -33,6 +33,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
@@ -61,6 +62,7 @@ const ThreadRenameInput: FC<ThreadRenameInputProps> = ({
     onSubmit,
     onCancel,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const [draft, setDraft] = useState(initialTitle);
     const settledRef = useRef(false);
 
@@ -84,7 +86,7 @@ const ThreadRenameInput: FC<ThreadRenameInputProps> = ({
             <TextInput
                 size="xs"
                 autoFocus
-                aria-label="Thread title"
+                aria-label={t('sidebar.threadTitle')}
                 maxLength={AI_AGENT_THREAD_TITLE_MAX_LENGTH}
                 value={draft}
                 onChange={(event) => setDraft(event.currentTarget.value)}
@@ -125,6 +127,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
     onRename,
     onTogglePin,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const isPinned = thread.pinnedAt !== null;
     const threadTitle = (thread.title || thread.firstMessage.message).trim();
     const hasTitle = threadTitle.length > 0;
@@ -177,7 +180,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
                     c={hasTitle ? 'ldGray.9' : 'dimmed'}
                     fs={hasTitle ? undefined : 'italic'}
                 >
-                    {hasTitle ? threadTitle : 'Untitled thread'}
+                    {hasTitle ? threadTitle : t('sidebar.untitledThread')}
                 </TruncatedText>
             }
             description={
@@ -194,9 +197,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
                 <Group gap={4} wrap="nowrap">
                     {thread.createdFrom === 'slack' && (
                         <Box ml="xs">
-                            <Tooltip
-                                label={'Threads created in slack are read only'}
-                            >
+                            <Tooltip label={t('sidebar.slackReadOnly')}>
                                 <IconBrandSlack size={18} stroke={1} />
                             </Tooltip>
                         </Box>
@@ -207,7 +208,10 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
                             width={160}
                             returnFocus={false}
                         >
-                            <Tooltip label="Thread options" position="right">
+                            <Tooltip
+                                label={t('sidebar.threadOptions')}
+                                position="right"
+                            >
                                 <Box
                                     component="span"
                                     className={classes.threadMenuButton}
@@ -217,7 +221,9 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
                                             size="xs"
                                             color="gray"
                                             variant="subtle"
-                                            aria-label="Thread options"
+                                            aria-label={t(
+                                                'sidebar.threadOptions',
+                                            )}
                                             onClick={(event) => {
                                                 event.preventDefault();
                                                 event.stopPropagation();
@@ -250,7 +256,9 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
                                     }
                                     onClick={() => onTogglePin(thread)}
                                 >
-                                    {isPinned ? 'Unpin' : 'Pin'}
+                                    {isPinned
+                                        ? t('sidebar.unpin')
+                                        : t('sidebar.pin')}
                                 </Menu.Item>
                                 <Menu.Item
                                     leftSection={
@@ -258,7 +266,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
                                     }
                                     onClick={() => setIsRenaming(true)}
                                 >
-                                    Rename
+                                    {t('sidebar.rename')}
                                 </Menu.Item>
                                 {canDelete && (
                                     <Menu.Item
@@ -268,7 +276,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
                                         }
                                         onClick={() => onDelete(thread)}
                                     >
-                                        Delete
+                                        {t('actions.delete', { ns: 'common' })}
                                     </Menu.Item>
                                 )}
                             </Menu.Dropdown>
@@ -303,34 +311,40 @@ const ThreadGroup: FC<ThreadGroupProps> = ({
     onDelete,
     onRename,
     onTogglePin,
-}) => (
-    <Stack component="section" aria-label={title} gap="xs">
-        <Group gap="xs" mx="xs" c="dimmed" wrap="nowrap">
-            <MantineIcon
-                icon={{ Pinned: IconPin, Recent: IconHistory }[title]}
-                size={16}
-            />
-            <Title order={6} c="dimmed" size="xs">
-                {title}
-            </Title>
-        </Group>
-        <Box>
-            {threads.map((thread) => (
-                <ThreadNavLink
-                    key={thread.uuid}
-                    thread={thread}
-                    isActive={thread.uuid === threadUuid}
-                    projectUuid={projectUuid}
-                    showAgentName={showAgentName}
-                    deletionDisabled={deletionDisabled}
-                    onDelete={onDelete}
-                    onRename={onRename}
-                    onTogglePin={onTogglePin}
+}) => {
+    const { t } = useTranslation('aiAgent');
+    const label = t(
+        { Pinned: 'sidebar.pinned', Recent: 'sidebar.recent' }[title],
+    );
+    return (
+        <Stack component="section" aria-label={label} gap="xs">
+            <Group gap="xs" mx="xs" c="dimmed" wrap="nowrap">
+                <MantineIcon
+                    icon={{ Pinned: IconPin, Recent: IconHistory }[title]}
+                    size={16}
                 />
-            ))}
-        </Box>
-    </Stack>
-);
+                <Title order={6} c="dimmed" size="xs">
+                    {label}
+                </Title>
+            </Group>
+            <Box>
+                {threads.map((thread) => (
+                    <ThreadNavLink
+                        key={thread.uuid}
+                        thread={thread}
+                        isActive={thread.uuid === threadUuid}
+                        projectUuid={projectUuid}
+                        showAgentName={showAgentName}
+                        deletionDisabled={deletionDisabled}
+                        onDelete={onDelete}
+                        onRename={onRename}
+                        onTogglePin={onTogglePin}
+                    />
+                ))}
+            </Box>
+        </Stack>
+    );
+};
 
 type ThreadListProps = {
     projectUuid: string;
@@ -345,6 +359,7 @@ const ThreadList: FC<ThreadListProps> = ({
     agentUuid,
     showAgentName = false,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isSuccess } =
         useInfiniteAiAgentThreads(projectUuid, { agentUuid });
 
@@ -439,7 +454,7 @@ const ThreadList: FC<ThreadListProps> = ({
                                 c="dimmed"
                                 ta="center"
                             >
-                                No threads yet
+                                {t('sidebar.noThreads')}
                             </Text>
                         </Paper>
                     )}
@@ -454,7 +469,7 @@ const ThreadList: FC<ThreadListProps> = ({
                             onClick={() => fetchNextPage()}
                             leftSection={<MantineIcon icon={IconChevronDown} />}
                         >
-                            View more
+                            {t('sidebar.viewMore')}
                         </Button>
                     )}
                 </Box>
@@ -462,10 +477,10 @@ const ThreadList: FC<ThreadListProps> = ({
                 <MantineModal
                     opened={threadToDelete !== null}
                     onClose={() => setThreadToDelete(null)}
-                    title="Delete thread"
+                    title={t('sidebar.deleteThread')}
                     variant="delete"
-                    resourceType="thread"
-                    description="The whole conversation and everything derived from it will be permanently deleted. This action cannot be undone."
+                    resourceType={t('sidebar.resourceType')}
+                    description={t('sidebar.deleteThreadDescription')}
                     onConfirm={handleConfirmDelete}
                     confirmLoading={isDeletingThread}
                 />
@@ -474,33 +489,36 @@ const ThreadList: FC<ThreadListProps> = ({
     );
 };
 
-const TrialAlert = () => (
-    <Alert
-        icon={<AiAgentIcon size={14} />}
-        variant="outline"
-        color="indigo.6"
-        bg="indigo.0"
-        fz="xs"
-        p="xs"
-        title={
-            <Text size="xs" fw={500}>
-                You're currently using AI agents in free trial mode
-            </Text>
-        }
-    >
-        <Button
-            size="compact-xs"
-            variant="light"
-            color="indigo"
-            leftSection={<MantineIcon icon={IconInfoCircle} size="sm" />}
-            component={Link}
-            to="https://docs.lightdash.com/guides/ai-agents"
-            target="_blank"
+const TrialAlert = () => {
+    const { t } = useTranslation('aiAgent');
+    return (
+        <Alert
+            icon={<AiAgentIcon size={14} />}
+            variant="outline"
+            color="indigo.6"
+            bg="indigo.0"
+            fz="xs"
+            p="xs"
+            title={
+                <Text size="xs" fw={500}>
+                    {t('sidebar.trial')}
+                </Text>
+            }
         >
-            Learn more
-        </Button>
-    </Alert>
-);
+            <Button
+                size="compact-xs"
+                variant="light"
+                color="indigo"
+                leftSection={<MantineIcon icon={IconInfoCircle} size="sm" />}
+                component={Link}
+                to="https://docs.lightdash.com/guides/ai-agents"
+                target="_blank"
+            >
+                {t('form.learnMore')}
+            </Button>
+        </Alert>
+    );
+};
 
 type AgentSidebarProps = {
     agent: AiAgent;

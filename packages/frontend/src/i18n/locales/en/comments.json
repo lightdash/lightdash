@@ -1,0 +1,41 @@
+{
+    "form": {
+        "reply": "Reply",
+        "addComment": "Add comment",
+        "placeholder": "Add comment (type @ to tag someone)"
+    },
+    "detail": {
+        "resolve": "Resolve",
+        "unresolve": "Unresolve"
+    },
+    "mentions": {
+        "noSpaceAccess": "User doesn't have access to this Dashboard's space"
+    },
+    "tileFallbackTitle": {
+        "chart": "Untitled chart",
+        "markdown": "Markdown",
+        "loom": "Loom video",
+        "heading": "Heading",
+        "dataApp": "Data app"
+    },
+    "panel": {
+        "removedTileTitle": "Tile no longer on this dashboard",
+        "removedTilesSection": "No longer on this dashboard",
+        "dashboardSection": "Dashboard",
+        "title": "Comments",
+        "close": "Close comments",
+        "goToTile": "Go to tile",
+        "goToTileNamed": "Go to tile {{title}}",
+        "openCount": "{{count}} open",
+        "resolvedCount": "{{count}} resolved",
+        "noOpenComments": "No open comments",
+        "emptyCanCreate": "Use a tile’s comment button to start a thread.",
+        "emptyViewOnly": "Threads started on any tile will show up here.",
+        "showResolved": "Show resolved ({{count}})",
+        "hideResolved": "Hide resolved ({{count}})"
+    },
+    "replies": {
+        "count_one": "{{count}} reply",
+        "count_other": "{{count}} replies"
+    }
+}

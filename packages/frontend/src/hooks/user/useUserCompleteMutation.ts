@@ -4,6 +4,7 @@ import {
     type LightdashUser,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 import { type UserWithAbility } from './useUser';
@@ -23,6 +24,7 @@ export const useUserCompleteMutation = (
     options?: UserCompleteMutationOptions,
 ) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError } = useToaster();
     return useMutation<LightdashUser, ApiError, CompleteUserArgs>(
         completeUserQuery,
@@ -41,7 +43,7 @@ export const useUserCompleteMutation = (
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to complete setup',
+                    title: t('useUserCompleteMutation.failedToCompleteSetup'),
                     apiError: error,
                 });
             },

@@ -4,6 +4,7 @@ import { useForm } from '@mantine/form';
 import { IconCopy } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import MantineModal from '../../components/common/MantineModal';
 
@@ -18,16 +19,19 @@ const DuplicateTabModal: FC<DuplicateTabModalProps> = ({
     tab,
     onConfirm,
 }) => {
+    const { t } = useTranslation('dashboard');
     const formSchema = z.object({
         name: z
             .string()
             .trim()
-            .min(1, { message: 'Tab name is required' })
-            .max(255, { message: 'Tab name must be at most 255 characters' }),
+            .min(1, { message: t('tabs.duplicateModal.nameRequired') })
+            .max(255, { message: t('tabs.duplicateModal.nameTooLong') }),
     });
 
     const form = useForm<{ name: string }>({
-        initialValues: { name: `Copy of ${tab.name}` },
+        initialValues: {
+            name: t('tabs.duplicateModal.copyOf', { name: tab.name }),
+        },
         validate: zodResolver(formSchema),
         validateInputOnChange: true,
         validateInputOnBlur: true,
@@ -47,7 +51,7 @@ const DuplicateTabModal: FC<DuplicateTabModalProps> = ({
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title="Duplicate Tab"
+            title={t('tabs.duplicateModal.title')}
             icon={IconCopy}
             size="sm"
             actions={
@@ -56,15 +60,17 @@ const DuplicateTabModal: FC<DuplicateTabModalProps> = ({
                     form="duplicate-tab-form"
                     disabled={!form.isValid()}
                 >
-                    Create duplicate
+                    {t('tabs.duplicateModal.confirm')}
                 </Button>
             }
         >
             <form id="duplicate-tab-form" onSubmit={handleConfirm}>
                 <TextInput
-                    label="Tab name"
+                    label={t('tabs.tabName')}
                     required
-                    placeholder={`Copy of ${tab.name}`}
+                    placeholder={t('tabs.duplicateModal.copyOf', {
+                        name: tab.name,
+                    })}
                     data-autofocus
                     {...form.getInputProps('name')}
                 />

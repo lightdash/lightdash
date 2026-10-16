@@ -1,5 +1,6 @@
 import { Text } from '@mantine/core';
 import { useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import MantineModal from '../../components/common/MantineModal';
 import { useRevokeAgentConnection } from './api';
@@ -12,6 +13,7 @@ export const RevokeAgentConnectionModal = ({
     connection: AgentConnectionRecord;
     onClose: () => void;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const revoke = useRevokeAgentConnection();
     const submitting = useRef(false);
     const confirm = async () => {
@@ -27,18 +29,18 @@ export const RevokeAgentConnectionModal = ({
     return (
         <MantineModal
             opened
-            title="Revoke this connection?"
+            title={t('agentConnections.revoke.title')}
             variant="delete"
             size="sm"
             onClose={() => {
                 if (!submitting.current) onClose();
             }}
-            confirmLabel="Revoke"
+            confirmLabel={t('agentConnections.revoke.confirm')}
             confirmDisabled={revoke.isLoading}
             confirmLoading={revoke.isLoading}
             cancelDisabled={revoke.isLoading}
             onConfirm={() => void confirm()}
-            description="Its credential will stop working. Warehouse sign-ins stay connected."
+            description={t('agentConnections.revoke.description')}
         >
             <Text>{connection.name}</Text>
             {revoke.error && (

@@ -1,0 +1,123 @@
+{
+    "activity": {
+        "waiting": "Waiting for the agent to start…",
+        "title": "Activity",
+        "show": "Show",
+        "hide": "Hide"
+    },
+    "files": {
+        "previewUnavailable": "Preview unavailable",
+        "binaryFile": "This file is binary or uses an unsupported encoding.",
+        "loadFailed": "This file could not be loaded.",
+        "selectFile": "Select a file to preview it.",
+        "empty": {
+            "liveTitle": "Exploring your warehouse",
+            "doneTitle": "No files were generated",
+            "liveDescription": "Your semantic layer files appear here the moment the agent starts writing them.",
+            "doneDescription": "The run ended before any project files were written."
+        },
+        "resize": "Resize file tree and preview",
+        "followingLatest": "Following latest",
+        "followLatest": "Follow latest",
+        "expandPreview": "Expand preview",
+        "expandFilePreview": "Expand file preview",
+        "filePreview": "File preview"
+    },
+    "pageTitle": "Project setup",
+    "progress": {
+        "stagesLabel": "Setup stages",
+        "stages": {
+            "explore": {
+                "label": "Explore your warehouse",
+                "activeLabel": "Exploring your warehouse",
+                "description": "Reads your tables to find a useful starting point."
+            },
+            "semantic_layer": {
+                "label": "Build the semantic layer",
+                "activeLabel": "Building the semantic layer",
+                "description": "Turns your data into reusable metrics and dimensions."
+            },
+            "dashboard": {
+                "label": "Create a starter dashboard",
+                "activeLabel": "Creating a starter dashboard",
+                "description": "Puts the first charts and filters together for you."
+            },
+            "ready": {
+                "label": "Verify and hand off",
+                "activeLabel": "Verifying and handing off",
+                "description": "Checks everything works and opens the project."
+            }
+        }
+    },
+    "run": {
+        "status": {
+            "queued": "Queued",
+            "running": "Running",
+            "completed": "Complete",
+            "failed": "Needs attention",
+            "cancelled": "Cancelled"
+        },
+        "statusMessage": {
+            "queued": "Your setup is queued and will begin shortly.",
+            "running": "You can leave this page and return at any time.",
+            "completed": "Your semantic layer and starter dashboard are ready.",
+            "failed": "The setup run could not be completed. You can try again.",
+            "cancelled": "This setup run was cancelled. You can start a new run."
+        },
+        "cancelling": "Cancelling…",
+        "cancelSetup": "Cancel setup",
+        "skipToProject": "Skip to project",
+        "viewDashboard": "View dashboard",
+        "openProject": "Open project",
+        "tryAgain": "Try again",
+        "notFound": "This onboarding run could not be found.",
+        "title": "Building your Lightdash project",
+        "stopping": "Stopping the setup run…",
+        "setupStopped": "Setup stopped",
+        "progress": "Progress",
+        "generatedFiles": "Generated files",
+        "fileCount_one": "{{count}} file",
+        "fileCount_other": "{{count}} files"
+    },
+    "errors": {
+        "startFailed": "Failed to start project setup",
+        "cancelFailed": "Failed to cancel project setup"
+    },
+    "start": {
+        "title": "Set up your semantic layer",
+        "subtitle": "Turn your warehouse tables into metrics and dimensions your team can explore."
+    },
+    "completion": {
+        "title": "Your Lightdash project is ready",
+        "subtitle": "The semantic layer and starter dashboard have been generated."
+    },
+    "demoOffer": {
+        "failures": {
+            "unavailable": "Demo projects aren't available on this instance.",
+            "previouslyRemoved": "Your organization's demo project was removed and can't be set up again.",
+            "forbidden": "You don't have permission to create a demo project.",
+            "unknown": "Something went wrong while preparing your demo project."
+        },
+        "actions": {
+            "settingUp": "setting up your demo project…",
+            "tryAgain": "try again",
+            "openDemo": "open the demo project",
+            "exploreSampleData": "explore sample data"
+        },
+        "offer": "You can also <action>{{action}}</action> while you wait."
+    },
+    "launch": {
+        "localPrompt": {
+            "title": "Complete your project setup",
+            "description": "Copy the prompt below and run it with your coding agent to finish setting up your Lightdash project.",
+            "copied": "Prompt copied",
+            "copy": "Copy prompt"
+        },
+        "managed": {
+            "title": "Let Lightdash build it for you",
+            "description": "We’ll explore your warehouse, create a semantic layer, and build a starter dashboard. You can follow every step.",
+            "runForMe": "Run it for me",
+            "useOwnAgent": "Use my own coding agent instead"
+        }
+    }
+}

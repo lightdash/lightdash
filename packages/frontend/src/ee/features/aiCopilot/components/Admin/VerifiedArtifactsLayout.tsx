@@ -2,6 +2,7 @@ import { type AiAgentVerifiedArtifact } from '@lightdash/common';
 import { Box, Stack, Text } from '@mantine/core';
 import { IconGripVertical } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
@@ -21,6 +22,7 @@ import styles from './VerifiedArtifactsLayout.module.css';
 import { VerifiedArtifactsTable } from './VerifiedArtifactsTable';
 
 export const VerifiedArtifactsLayout: FC = () => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const { agentUuid } = useParams();
     const projectUuid = useProjectUuid();
     const dispatch = useAiAgentStoreDispatch();
@@ -69,11 +71,10 @@ export const VerifiedArtifactsLayout: FC = () => {
                     <Stack gap="md">
                         <Stack gap="xs">
                             <Text size="lg" fw={500}>
-                                Verified Answers
+                                {t('verifiedArtifacts.title')}
                             </Text>
                             <Text size="sm" c="dimmed">
-                                Manage verified charts and dashboards that the
-                                AI agent can reference in conversations.
+                                {t('verifiedArtifacts.description')}
                             </Text>
                         </Stack>
                     </Stack>

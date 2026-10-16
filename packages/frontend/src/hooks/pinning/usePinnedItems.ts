@@ -4,6 +4,7 @@ import {
     type UpdatePinnedItemOrder,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -41,6 +42,7 @@ export const useReorder = (
     pinnedlistUuid: string,
 ) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError } = useToaster();
     return useMutation<PinnedItems, ApiError, PinnedItems>(
         (pinnedItems) => {
@@ -73,7 +75,7 @@ export const useReorder = (
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Could not re-order pinned items`,
+                    title: t('usePinnedItems.couldNotReOrderPinnedItems'),
                     apiError: error,
                 });
             },

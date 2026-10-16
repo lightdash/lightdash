@@ -1,5 +1,6 @@
 import { IconListCheck } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { SettingsValidator } from '../../../../../components/SettingsValidator';
 
@@ -14,11 +15,12 @@ export const ReviewValidationModal: FC<Props> = ({
     onClose,
     projectUuid,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Validator"
+            title={t('reviews.validation.modalTitle')}
             icon={IconListCheck}
             size="80vw"
             modalBodyProps={{ px: 0, py: 0 }}

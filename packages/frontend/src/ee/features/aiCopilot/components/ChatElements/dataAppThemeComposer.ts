@@ -1,4 +1,5 @@
 import { type ApiOrganizationDesign } from '@lightdash/common';
+import i18n from '../../../../../i18n/i18n';
 
 // The composer's theme control stays out of the way until the draft reads as
 // a data app request; from then on it stays while that composer is mounted.
@@ -8,9 +9,6 @@ const DATA_APP_DRAFT_MARKERS =
 
 export const isDataAppDraft = (text: string): boolean =>
     DATA_APP_DRAFT_MARKERS.test(text);
-
-export const THEME_CONTROL_TOOLTIP =
-    'Theme for the data app this prompt builds';
 
 /** The theme picked for the prompt being composed. */
 export type ComposerTheme = {
@@ -29,10 +27,22 @@ export const getThemeControlLabel = (
     value: ComposerTheme | null,
     themes: ComposerThemeOption[],
 ): { label: string; detail: string | null } => {
-    if (value) return { label: `Theme: ${value.name}`, detail: null };
+    if (value)
+        return {
+            label: i18n.t('contextItems.theme', {
+                ns: 'aiCopilotChat',
+                name: value.name,
+            }),
+            detail: null,
+        };
     const defaultTheme = themes.find((theme) => theme.isDefault);
     return {
-        label: 'Apply theme',
-        detail: defaultTheme ? `Default: ${defaultTheme.name}` : null,
+        label: i18n.t('theme.apply', { ns: 'aiCopilotChat' }),
+        detail: defaultTheme
+            ? i18n.t('theme.default', {
+                  ns: 'aiCopilotChat',
+                  name: defaultTheme.name,
+              })
+            : null,
     };
 };

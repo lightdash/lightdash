@@ -5,6 +5,7 @@ import {
     type ApiError,
 } from '@lightdash/common';
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getDashboard } from '../../../hooks/dashboard/useDashboard';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { getSavedQuery } from '../../../hooks/useSavedQuery';
@@ -35,6 +36,7 @@ export const useAttachResourceLink = ({
     onSelectChart: (chart: SelectedChart) => void;
     onSelectDashboard: (dashboard: SelectedDashboard) => void;
 }) => {
+    const { t } = useTranslation('apps');
     const { showToastError, showToastApiError } = useToaster();
     const [isResolvingLink, setIsResolvingLink] = useState(false);
 
@@ -53,11 +55,12 @@ export const useAttachResourceLink = ({
                 showToastError({
                     title:
                         link.type === 'chart'
-                            ? "That's a chart link"
-                            : "That's a dashboard link",
-                    subtitle: `Attach it from the ${
-                        link.type === 'chart' ? 'Queries' : 'Dashboard'
-                    } menu instead.`,
+                            ? t('attachLink.chartLink.title')
+                            : t('attachLink.dashboardLink.title'),
+                    subtitle:
+                        link.type === 'chart'
+                            ? t('attachLink.chartLink.subtitle')
+                            : t('attachLink.dashboardLink.subtitle'),
                 });
                 return 'rejected';
             }
@@ -65,24 +68,21 @@ export const useAttachResourceLink = ({
             switch (link.type) {
                 case 'shortLink':
                     showToastError({
-                        title: "Short links can't be attached yet",
-                        subtitle:
-                            "Open the chart or dashboard and paste the URL from your browser's address bar instead.",
+                        title: t('attachLink.shortLink.title'),
+                        subtitle: t('attachLink.shortLink.subtitle'),
                     });
                     return 'rejected';
                 case 'exploreState':
                     showToastError({
-                        title: 'That link points to an exploration',
-                        subtitle:
-                            'Only saved charts and dashboards can be attached. Save the chart first, then paste its link.',
+                        title: t('attachLink.exploration.title'),
+                        subtitle: t('attachLink.exploration.subtitle'),
                     });
                     return 'rejected';
                 case 'chart':
                     if (link.projectUuid !== projectUuid) {
                         showToastError({
-                            title: 'That chart is in a different project',
-                            subtitle:
-                                'Data apps can only use content from the project they are built in.',
+                            title: t('attachLink.otherProject.chart'),
+                            subtitle: t('attachLink.otherProject.subtitle'),
                         });
                         return 'rejected';
                     }
@@ -106,7 +106,7 @@ export const useAttachResourceLink = ({
                         return 'attached';
                     } catch (e) {
                         showToastApiError({
-                            title: "Couldn't attach that chart",
+                            title: t('attachLink.chartFailed'),
                             apiError: (e as ApiError).error,
                         });
                         return 'rejected';
@@ -116,9 +116,8 @@ export const useAttachResourceLink = ({
                 case 'dashboard':
                     if (link.projectUuid !== projectUuid) {
                         showToastError({
-                            title: 'That dashboard is in a different project',
-                            subtitle:
-                                'Data apps can only use content from the project they are built in.',
+                            title: t('attachLink.otherProject.dashboard'),
+                            subtitle: t('attachLink.otherProject.subtitle'),
                         });
                         return 'rejected';
                     }
@@ -136,7 +135,7 @@ export const useAttachResourceLink = ({
                         return 'attached';
                     } catch (e) {
                         showToastApiError({
-                            title: "Couldn't attach that dashboard",
+                            title: t('attachLink.dashboardFailed'),
                             apiError: (e as ApiError).error,
                         });
                         return 'rejected';
@@ -153,6 +152,7 @@ export const useAttachResourceLink = ({
             onSelectDashboard,
             showToastError,
             showToastApiError,
+            t,
         ],
     );
 

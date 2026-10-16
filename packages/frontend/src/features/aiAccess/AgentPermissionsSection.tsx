@@ -4,6 +4,7 @@ import {
     type Group as OrganizationGroup,
 } from '@lightdash/common';
 import { Anchor, Button, Group, Stack, Text, Title } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../components/common/Callout';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { AgentCapabilityChoices } from './AgentCapabilityChoices';
@@ -32,6 +33,7 @@ export const AgentPermissionsSection = ({
     loadError: boolean;
     mcpSettings: ApiAiOrganizationSettingsResponse['results'] | null;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const {
         baseline,
         form,
@@ -55,35 +57,32 @@ export const AgentPermissionsSection = ({
         <SettingsCard>
             <Stack gap="lg">
                 <Stack gap="xs">
-                    <Title order={5}>Permissions</Title>
+                    <Title order={5}>{t('permissionsSection.title')}</Title>
                     <Text size="sm" c="dimmed">
-                        What agents may do for a person. Agents never get more
-                        than the person has.
+                        {t('permissionsSection.description')}
                     </Text>
                 </Stack>
                 {conflict && (
                     <Callout
                         variant="warning"
-                        title="Agent permissions changed"
+                        title={t('permissionsSection.conflictTitle')}
                     >
                         <Stack gap="sm">
                             <Text size="sm">
-                                Someone changed the saved permissions. Your
-                                unsaved changes are still shown. Reload the
-                                latest permissions to discard them.
+                                {t('permissionsSection.conflictDescription')}
                             </Text>
                             <Button
                                 variant="default"
                                 disabled={saving}
                                 onClick={() => void reload()}
                             >
-                                Reload latest
+                                {t('permissionsSection.reloadLatest')}
                             </Button>
                         </Stack>
                     </Callout>
                 )}
                 <Stack gap="sm">
-                    <Title order={5}>What agents can do</Title>
+                    <Title order={5}>{t('capabilityChoices.ariaLabel')}</Title>
                     <AgentCapabilityChoices
                         choice={choice}
                         current={getAgentPermissionChoice(baseline)}
@@ -123,28 +122,29 @@ export const AgentPermissionsSection = ({
                     <AgentMcpAccessSwitch
                         settings={mcpSettings}
                         setting="mcpAgentsEnabled"
-                        label="Agents over MCP"
-                        description="MCP clients can use this organization's agents and their context. Per-agent access still applies."
+                        label={t('permissionsSection.mcpLabel')}
+                        description={t('permissionsSection.mcpDescription')}
                     />
                 )}
                 <Stack gap="md" className={classes.footer}>
                     <Text size="sm" c="dimmed">
-                        Personal access tokens are not limited. An agent that
-                        uses a person's token has that person's access.{' '}
+                        {t('permissionsSection.patNote')}{' '}
                         <Anchor
                             href="https://docs.lightdash.com/references/personal_tokens"
                             target="_blank"
                             rel="noreferrer"
                             size="sm"
                         >
-                            Learn more
+                            {t('learnMore')}
                         </Anchor>
                     </Text>
                     <Group justify="flex-end">
                         <Text size="sm" c="dimmed" role="status">
                             {count === 0
-                                ? 'No changes'
-                                : `${count} unsaved ${count === 1 ? 'change' : 'changes'}`}
+                                ? t('permissionsSection.noChanges')
+                                : t('permissionsSection.unsavedChanges', {
+                                      count,
+                                  })}
                         </Text>
                         {count > 0 && (
                             <Button
@@ -152,14 +152,14 @@ export const AgentPermissionsSection = ({
                                 disabled={saving}
                                 onClick={() => accept(policy)}
                             >
-                                Discard
+                                {t('permissionsSection.discard')}
                             </Button>
                         )}
                         <Button
                             disabled={saveDisabled}
                             onClick={() => setReviewOpened(true)}
                         >
-                            Review and save
+                            {t('permissionsSection.reviewAndSave')}
                         </Button>
                     </Group>
                 </Stack>

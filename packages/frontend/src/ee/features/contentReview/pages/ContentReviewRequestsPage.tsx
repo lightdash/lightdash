@@ -16,7 +16,9 @@ import {
     Title,
 } from '@mantine/core';
 import { IconFolder, IconInbox, IconSettings } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useNavigate } from 'react-router';
 import {
     ContentTable,
@@ -42,15 +44,29 @@ import {
 
 const PAGE_SIZE = 200;
 
-const STATUS_OPTIONS: {
+const getStatusOptions = (
+    t: TFunction,
+): {
     value: ContentReviewRequestStatus | 'all';
     label: string;
-}[] = [
-    { value: 'all', label: 'All statuses' },
-    { value: ContentReviewRequestStatus.PENDING, label: 'Waiting for review' },
-    { value: ContentReviewRequestStatus.APPROVED, label: 'Approved' },
-    { value: ContentReviewRequestStatus.REJECTED, label: 'Rejected' },
-    { value: ContentReviewRequestStatus.CANCELLED, label: 'Cancelled' },
+}[] => [
+    { value: 'all', label: t('contentReview.status.all') },
+    {
+        value: ContentReviewRequestStatus.PENDING,
+        label: t('contentReview.status.pending'),
+    },
+    {
+        value: ContentReviewRequestStatus.APPROVED,
+        label: t('contentReview.status.approved'),
+    },
+    {
+        value: ContentReviewRequestStatus.REJECTED,
+        label: t('contentReview.status.rejected'),
+    },
+    {
+        value: ContentReviewRequestStatus.CANCELLED,
+        label: t('contentReview.status.cancelled'),
+    },
 ];
 
 const RequestedAgo: FC<{ createdAt: Date }> = ({ createdAt }) => {
@@ -63,6 +79,7 @@ const RequestedAgo: FC<{ createdAt: Date }> = ({ createdAt }) => {
 };
 
 const ContentReviewRequestsPage: FC = () => {
+    const { t } = useTranslation('eeMisc');
     const projectUuid = useProjectUuid();
     const navigate = useNavigate();
     const { user } = useApp();
@@ -102,7 +119,7 @@ const ContentReviewRequestsPage: FC = () => {
             () => [
                 {
                     accessorKey: 'content',
-                    header: 'Content',
+                    header: t('contentReview.list.content'),
                     enableSorting: false,
                     size: 320,
                     Cell: ({ row }) => {
@@ -134,7 +151,7 @@ const ContentReviewRequestsPage: FC = () => {
                                         </Anchor>
                                     ) : (
                                         <Text fz="sm" c="dimmed" fs="italic">
-                                            Deleted content
+                                            {t('contentReview.deletedContent')}
                                         </Text>
                                     )}
                                     <Text fz="xs" c="dimmed">
@@ -147,7 +164,7 @@ const ContentReviewRequestsPage: FC = () => {
                 },
                 {
                     accessorKey: 'requestedBy',
-                    header: 'Requested by',
+                    header: t('contentReview.list.requestedBy'),
                     enableSorting: false,
                     size: 180,
                     Cell: ({ row }) => (
@@ -158,7 +175,7 @@ const ContentReviewRequestsPage: FC = () => {
                 },
                 {
                     accessorKey: 'targetSpaceName',
-                    header: 'Moving to',
+                    header: t('contentReview.list.movingTo'),
                     enableSorting: false,
                     size: 180,
                     Cell: ({ row }) => (
@@ -166,14 +183,14 @@ const ContentReviewRequestsPage: FC = () => {
                             <MantineIcon icon={IconFolder} color="dimmed" />
                             <Text fz="sm" truncate="end">
                                 {row.original.targetSpaceName ??
-                                    'Deleted space'}
+                                    t('contentReview.deletedSpace')}
                             </Text>
                         </Group>
                     ),
                 },
                 {
                     accessorKey: 'status',
-                    header: 'Status',
+                    header: t('roadmap.details.status'),
                     enableSorting: false,
                     size: 110,
                     Cell: ({ row }) => (
@@ -184,7 +201,7 @@ const ContentReviewRequestsPage: FC = () => {
                 },
                 {
                     accessorKey: 'createdAt',
-                    header: 'Requested',
+                    header: t('contentReview.list.requested'),
                     enableSorting: false,
                     size: 140,
                     Cell: ({ row }) => (
@@ -192,7 +209,7 @@ const ContentReviewRequestsPage: FC = () => {
                     ),
                 },
             ],
-            [projectUuid],
+            [projectUuid, t],
         );
 
     const table = useContentTable({
@@ -221,13 +238,13 @@ const ContentReviewRequestsPage: FC = () => {
                 <MantineIcon icon={IconInbox} size="xl" color="dimmed" />
                 <Text fz="sm" fw={500}>
                     {view === ContentReviewRequestView.TO_REVIEW
-                        ? 'Nothing waiting for your review'
-                        : 'You have not requested any reviews yet'}
+                        ? t('contentReview.list.emptyToReview')
+                        : t('contentReview.list.emptyMine')}
                 </Text>
                 <Text fz="xs" c="dimmed" ta="center" maw={360}>
                     {view === ContentReviewRequestView.TO_REVIEW
-                        ? 'Requests to move content into spaces you can edit will show up here.'
-                        : 'Open a chart or dashboard in your personal space and choose Request review.'}
+                        ? t('contentReview.list.emptyToReviewDescription')
+                        : t('contentReview.list.emptyMineDescription')}
                 </Text>
             </Stack>
         ),
@@ -240,17 +257,18 @@ const ContentReviewRequestsPage: FC = () => {
 
     return (
         <Page
-            title="Review requests"
+            title={t('contentReview.reviewRequests')}
             withCenteredContent
             withXLargePaddedContent
         >
             <Stack gap="lg" w="100%" maw={1200} miw={0}>
                 <Group justify="space-between" align="flex-start">
                     <Stack gap={4}>
-                        <Title order={3}>Review requests</Title>
+                        <Title order={3}>
+                            {t('contentReview.reviewRequests')}
+                        </Title>
                         <Text fz="sm" c="dimmed">
-                            Charts and dashboards waiting to move from a
-                            personal space into a shared one.
+                            {t('contentReview.list.description')}
                         </Text>
                     </Stack>
                     {canManageSettings && (
@@ -261,7 +279,7 @@ const ContentReviewRequestsPage: FC = () => {
                             size="xs"
                             leftSection={<MantineIcon icon={IconSettings} />}
                         >
-                            Review settings
+                            {t('contentReview.list.settings')}
                         </Button>
                     )}
                 </Group>
@@ -280,16 +298,16 @@ const ContentReviewRequestsPage: FC = () => {
                         data={[
                             {
                                 value: ContentReviewRequestView.TO_REVIEW,
-                                label: 'To review',
+                                label: t('contentReview.list.toReview'),
                             },
                             {
                                 value: ContentReviewRequestView.MINE,
-                                label: 'My requests',
+                                label: t('contentReview.list.mine'),
                             },
                         ]}
                     />
                     <Select
-                        aria-label="Review status"
+                        aria-label={t('contentReview.list.statusFilter')}
                         size="xs"
                         w={160}
                         value={status}
@@ -299,7 +317,7 @@ const ContentReviewRequestsPage: FC = () => {
                                     'all',
                             )
                         }
-                        data={STATUS_OPTIONS}
+                        data={getStatusOptions(t)}
                         allowDeselect={false}
                     />
                 </Group>

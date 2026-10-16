@@ -14,6 +14,7 @@ import {
     IconWorld,
 } from '@tabler/icons-react';
 import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../common/MantineIcon';
 import { generateVegaTemplate } from '../utils/templates';
 import { TemplateType } from '../utils/vegaTemplates';
@@ -36,6 +37,16 @@ const getTemplateIcon = (template: TemplateType) => {
 
     return IconChartBar;
 };
+
+const TEMPLATE_LABEL_KEYS: Record<TemplateType, string> = {
+    [TemplateType.BAR_CHART]: 'customVis.templates.barChart',
+    [TemplateType.HEATMAP]: 'customVis.templates.heatmap',
+    [TemplateType.BUBBLE_PLOTS]: 'customVis.templates.bubblePlots',
+    [TemplateType.FUNNEL_CHART]: 'customVis.templates.funnelChart',
+    [TemplateType.WATERFALL_CHART]: 'customVis.templates.waterfallChart',
+    [TemplateType.MAP]: 'customVis.templates.worldMap',
+};
+
 export const SelectTemplate = ({
     itemsMap,
     isCustomConfig,
@@ -46,6 +57,7 @@ export const SelectTemplate = ({
     isEditorEmpty: boolean;
     setEditorConfig: (config: string) => void;
 }) => {
+    const { t } = useTranslation('vizConfig');
     const loadTemplate = useCallback(
         (template: TemplateType) => {
             if (!isCustomConfig) return null;
@@ -83,14 +95,11 @@ export const SelectTemplate = ({
                             <MantineIcon icon={getTemplateIcon(template)} />
                         }
                     >
-                        {template}
+                        {t(TEMPLATE_LABEL_KEYS[template])}
                     </Menu.Item>
                 ))}
                 <Menu.Divider />
-                <Menu.Label>
-                    Selecting a new template will reset the config. Use "ctrl+z"
-                    to undo.
-                </Menu.Label>
+                <Menu.Label>{t('customVis.templateResetWarning')}</Menu.Label>
             </Menu.Dropdown>
             <Menu.Target>
                 <Button
@@ -99,7 +108,7 @@ export const SelectTemplate = ({
                     fz="xs"
                     leftSection={<MantineIcon icon={IconPlus} />}
                 >
-                    Insert template
+                    {t('customVis.insertTemplate')}
                 </Button>
             </Menu.Target>
         </Menu>

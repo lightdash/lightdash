@@ -8,10 +8,12 @@ const bigNumberCompactOptions = [
     Compact.TRILLIONS,
 ];
 
-export const StyleOptions = [
-    { value: '', label: 'None' },
+export const getStyleOptions = (noneLabel: string) => [
+    { value: '', label: noneLabel },
     ...bigNumberCompactOptions.map((compact) => ({
         value: compact,
         label: CompactConfigMap[compact].label,
     })),
 ];
+
+export const StyleOptions = getStyleOptions('None');

@@ -1,4 +1,5 @@
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import ContentAsCodeModal from '../../../../features/contentAsCode/components/ContentAsCodeModal';
 import { useAiAgentAsCode } from '../hooks/useAiAgentAsCode';
 
@@ -15,6 +16,7 @@ const AiAgentAsCodeModal: FC<AiAgentAsCodeModalProps> = ({
     projectUuid,
     agentUuid,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const aiAgentAsCode = useAiAgentAsCode({
         projectUuid,
         agentUuid,
@@ -25,7 +27,7 @@ const AiAgentAsCodeModal: FC<AiAgentAsCodeModalProps> = ({
         <ContentAsCodeModal
             opened={opened}
             onClose={onClose}
-            resourceLabel="AI agent"
+            resourceLabel={t('sqlApproval.defaultAgentName')}
             contentAsCode={aiAgentAsCode}
         />
     );

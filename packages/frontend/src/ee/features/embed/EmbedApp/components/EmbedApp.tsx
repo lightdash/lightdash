@@ -1,6 +1,7 @@
 import { Box, Loader, Stack } from '@mantine/core';
 import { IconAppsOff } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import AppIframePreview from '../../../../../features/apps/AppIframePreview';
 import { getVisiblePreviewTokenError } from '../../../../../features/apps/hooks/previewTokenQueryOptions';
@@ -20,6 +21,7 @@ type Props = {
  * `dataApp` JWT); the sandboxed iframe + postMessage bridge are identical.
  */
 const EmbedApp: FC<Props> = ({ appUuid, projectUuid }) => {
+    const { t } = useTranslation('embed');
     const previewOrigin = usePreviewOrigin();
     const tokenQuery = useEmbedAppPreviewToken(projectUuid, appUuid);
 
@@ -40,14 +42,14 @@ const EmbedApp: FC<Props> = ({ appUuid, projectUuid }) => {
             {isNotFound ? (
                 <SuboptimalState
                     icon={IconAppsOff}
-                    title="Data app not available"
-                    description="This data app no longer exists or hasn't finished building yet."
+                    title={t('dataApp.notAvailable')}
+                    description={t('dataApp.notAvailableDescription')}
                 />
             ) : isForbidden ? (
                 <SuboptimalState
                     icon={IconAppsOff}
-                    title="No access"
-                    description="This data app isn't authorized for this embed."
+                    title={t('dataApp.noAccess')}
+                    description={t('dataApp.noAccessDescription')}
                 />
             ) : tokenQuery.isLoading || !previewUrl || !tokenQuery.data ? (
                 <Stack align="center" justify="center" h="100%">

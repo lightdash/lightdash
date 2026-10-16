@@ -9,6 +9,7 @@ import {
 } from '@mantine/core';
 import { IconChevronDown, IconX } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import Tree from '../../../../components/common/Tree/Tree';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
@@ -25,6 +26,7 @@ export const SpaceAccessSelect: FC<SpaceAccessSelectProps> = ({
     value,
     onChange,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const { data: spaces = [], isLoading: isLoadingSpaces } = useSpaceSummaries(
         projectUuid,
         true,
@@ -34,7 +36,7 @@ export const SpaceAccessSelect: FC<SpaceAccessSelectProps> = ({
     if (isLoadingSpaces) {
         return (
             <Text fz="xs" c="dimmed">
-                Loading spaces...
+                {t('spaceAccess.loading')}
             </Text>
         );
     }
@@ -59,12 +61,13 @@ export const SpaceAccessSelect: FC<SpaceAccessSelectProps> = ({
                             c={value.length === 0 ? 'dimmed' : undefined}
                         >
                             {isLoadingSpaces
-                                ? 'Loading spaces...'
+                                ? t('spaceAccess.loading')
                                 : value.length === 0
-                                  ? 'All spaces (click to restrict)'
-                                  : `${value.length} of ${spaces.length} space${
-                                        spaces.length !== 1 ? 's' : ''
-                                    } selected`}
+                                  ? t('spaceAccess.allSpacesRestrict')
+                                  : t('spaceAccess.selectedOfTotal', {
+                                        selected: value.length,
+                                        count: spaces.length,
+                                    })}
                         </Text>
                         <MantineIcon
                             icon={IconChevronDown}
@@ -84,8 +87,9 @@ export const SpaceAccessSelect: FC<SpaceAccessSelectProps> = ({
                             {value.length > 0 && (
                                 <Group justify="space-between">
                                     <Text fz="xs" c="dimmed">
-                                        {value.length} space
-                                        {value.length !== 1 ? 's' : ''} selected
+                                        {t('spaceAccess.selected', {
+                                            count: value.length,
+                                        })}
                                     </Text>
                                     <Button
                                         variant="subtle"
@@ -98,7 +102,7 @@ export const SpaceAccessSelect: FC<SpaceAccessSelectProps> = ({
                                         }
                                         onClick={() => onChange([])}
                                     >
-                                        Clear selection
+                                        {t('spaceAccess.clear')}
                                     </Button>
                                 </Group>
                             )}
@@ -111,12 +115,14 @@ export const SpaceAccessSelect: FC<SpaceAccessSelectProps> = ({
                                         ta="center"
                                         py="md"
                                     >
-                                        No spaces found
+                                        {t('spaceAccess.none')}
                                     </Text>
                                 ) : (
                                     <Tree
                                         type="multiple"
-                                        topLevelLabel="All spaces"
+                                        topLevelLabel={t(
+                                            'spaceAccess.allSpaces',
+                                        )}
                                         isExpanded={isExpanded}
                                         data={spaces}
                                         values={value}

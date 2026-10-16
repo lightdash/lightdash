@@ -9,6 +9,7 @@ import {
 import { IconPencil, IconVariable } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 import styles from './EditableText.module.css';
 
@@ -27,6 +28,7 @@ export const EditableText: FC<Props> = ({
     granularityFields,
     ...props
 }) => {
+    const { t } = useTranslation('vizConfig');
     const inputRef = useRef<HTMLInputElement>(null);
 
     const handleIconClick = () => {
@@ -92,7 +94,7 @@ export const EditableText: FC<Props> = ({
                                 </Menu.Target>
                                 <Menu.Dropdown>
                                     <Menu.Label>
-                                        Insert date granularity
+                                        {t('common.insertDateGranularity')}
                                     </Menu.Label>
                                     {granularityFields.map((field) => (
                                         <Menu.Item

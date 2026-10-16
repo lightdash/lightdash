@@ -7,6 +7,7 @@ import {
     type WarehouseConnectionSwitchResult,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 
@@ -51,6 +52,7 @@ export const useSwitchToMultipleConnections = (
     options: { onSuccess: () => void },
 ) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         WarehouseConnectionSwitchResult,
@@ -69,13 +71,17 @@ export const useSwitchToMultipleConnections = (
                 await queryClient.invalidateQueries(['projects', projectUuid]);
                 await queryClient.invalidateQueries(['project', projectUuid]);
                 showToastSuccess({
-                    title: 'Multiple connections enabled',
+                    title: t(
+                        'useWarehouseConnectionSwitch.multipleConnectionsEnabled',
+                    ),
                 });
                 options.onSuccess();
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to enable multiple connections',
+                    title: t(
+                        'useWarehouseConnectionSwitch.failedToEnableMultipleConnections',
+                    ),
                     apiError: error,
                 });
             },

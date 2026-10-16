@@ -5,6 +5,7 @@ import {
 import { Button, Group, Loader, Stack, Text } from '@mantine/core';
 import { IconUpload } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../components/common/Callout';
 import MantineModal from '../../../components/common/MantineModal';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -30,6 +31,7 @@ export const ReplaceCsvFileModal: FC<Props> = ({
     opened,
     onClose,
 }) => {
+    const { t } = useTranslation('sync');
     const { showToastSuccess } = useToaster();
     const replaceMutation = useReplaceCsvFile(projectUuid);
     const [isIngesting, setIsIngesting] = useState(false);
@@ -53,7 +55,11 @@ export const ReplaceCsvFileModal: FC<Props> = ({
     useEffect(() => {
         if (!isReady) return;
         void invalidateTables(projectUuid);
-        showToastSuccess({ title: `${tableLabel} re-imported` });
+        showToastSuccess({
+            title: t('externalSources.replace.reimported', {
+                table: tableLabel,
+            }),
+        });
         handleClose();
         // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once on the ready transition
     }, [isReady]);
@@ -62,7 +68,7 @@ export const ReplaceCsvFileModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title="Replace file"
+            title={t('externalSources.replace.title')}
             icon={IconUpload}
             size="lg"
         >
@@ -71,10 +77,9 @@ export const ReplaceCsvFileModal: FC<Props> = ({
                     <>
                         <Callout
                             variant="warning"
-                            title="Replacing re-imports the table"
+                            title={t('externalSources.replace.warningTitle')}
                         >
-                            Charts built on columns the new file drops will stop
-                            working.
+                            {t('externalSources.replace.warningDescription')}
                         </Callout>
                         <CsvDropzone
                             isUploading={replaceMutation.isLoading}
@@ -95,10 +100,10 @@ export const ReplaceCsvFileModal: FC<Props> = ({
                         <Stack gap="md">
                             <Callout
                                 variant="danger"
-                                title="We couldn't import this file"
+                                title={t('externalSources.importFailedTitle')}
                             >
                                 {source.errorMessage ??
-                                    'Something went wrong while re-importing the table.'}
+                                    t('externalSources.replace.genericError')}
                             </Callout>
                             <Group justify="flex-end">
                                 <Button
@@ -108,7 +113,7 @@ export const ReplaceCsvFileModal: FC<Props> = ({
                                         setIsIngesting(false);
                                     }}
                                 >
-                                    Try another file
+                                    {t('externalSources.tryAnotherFile')}
                                 </Button>
                             </Group>
                         </Stack>
@@ -116,7 +121,9 @@ export const ReplaceCsvFileModal: FC<Props> = ({
                         <Stack gap="xs" align="center" py="lg">
                             <Loader size="sm" />
                             <Text fz="sm" fw={500}>
-                                Re-importing {tableLabel}…
+                                {t('externalSources.replace.reimporting', {
+                                    table: tableLabel,
+                                })}
                             </Text>
                         </Stack>
                     ))}

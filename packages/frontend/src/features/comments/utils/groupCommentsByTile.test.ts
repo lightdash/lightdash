@@ -8,8 +8,8 @@ import {
     countThreads,
     getTileTitle,
     groupCommentsByTile,
-    REMOVED_TILE_TITLE,
-    REMOVED_TILES_SECTION_LABEL,
+    getRemovedTileTitle,
+    getRemovedTilesSectionLabel,
     sectionGroupsByTab,
 } from './groupCommentsByTile';
 
@@ -107,7 +107,7 @@ describe('groupCommentsByTile', () => {
 
         expect(groups.map((group) => group.tileUuid)).toEqual(['a', 'removed']);
         expect(groups[1]).toMatchObject({
-            title: REMOVED_TILE_TITLE,
+            title: getRemovedTileTitle(),
             tileType: null,
             tabUuid: null,
         });
@@ -188,7 +188,7 @@ describe('sectionGroupsByTab', () => {
         ).toEqual([
             { label: 'Dashboard', isRemoved: false, tiles: ['a'] },
             {
-                label: REMOVED_TILES_SECTION_LABEL,
+                label: getRemovedTilesSectionLabel(),
                 isRemoved: true,
                 tiles: ['gone'],
             },
@@ -206,7 +206,7 @@ describe('sectionGroupsByTab', () => {
 
         expect(sections.map((section) => section.label)).toEqual([
             'Revenue',
-            REMOVED_TILES_SECTION_LABEL,
+            getRemovedTilesSectionLabel(),
         ]);
         expect(sections[1].tabUuid).toBeNull();
     });

@@ -5,6 +5,7 @@ import {
 import { Group, Skeleton, Stack } from '@mantine/core';
 import { IconClock } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { FavoriteActionIcon } from '../../../../components/common/FavoriteActionIcon';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
@@ -86,6 +87,7 @@ const RecentRow: FC<{
 };
 
 export const RecentList: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+    const { t } = useTranslation('homepageBuilder');
     const { recents, contents, isLoading } = useRecentContents(projectUuid);
     const starFor = useHomepageFavorites(projectUuid);
 
@@ -99,11 +101,7 @@ export const RecentList: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         );
     }
     if (contents.length === 0) {
-        return (
-            <div className={classes.dashedEmpty}>
-                Charts, dashboards and data apps you open will show up here.
-            </div>
-        );
+        return <div className={classes.dashedEmpty}>{t('recent.empty')}</div>;
     }
     const viewedAtByUuid = new Map(
         recents.map((item) => [item.uuid, item.viewedAt]),
@@ -127,13 +125,14 @@ export const RecentBlockView: FC<BlockComponentProps> = ({
     block,
     projectUuid,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     if (block.type !== 'recent') return null;
     return (
         <Stack gap={0}>
             <BlockHeader
                 icon={IconClock}
                 title={block.config.title}
-                pill="Personal per viewer"
+                pill={t('favorites.personalPerViewer')}
             />
             <RecentList projectUuid={projectUuid} />
         </Stack>
@@ -144,19 +143,17 @@ export const RecentBlockBuild: FC<BuildComponentProps> = ({
     block,
     projectUuid,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     if (block.type !== 'recent') return null;
     return (
         <Stack gap={0}>
             <BlockHeader
                 icon={IconClock}
                 title={block.config.title}
-                pill="Personal per viewer"
+                pill={t('favorites.personalPerViewer')}
             />
             <RecentList projectUuid={projectUuid} />
-            <div className={classes.buildHint}>
-                Showing your recent activity as a sample — every viewer sees
-                their own.
-            </div>
+            <div className={classes.buildHint}>{t('recent.buildHint')}</div>
         </Stack>
     );
 };

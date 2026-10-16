@@ -2,6 +2,7 @@ import { type WarehouseTypes } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CreateProjectConnection } from '../..';
 import MantineIcon from '../../../common/MantineIcon';
 import { OnboardingTitle } from '../common/OnboardingTitle';
@@ -24,6 +25,7 @@ const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
     successRedirect,
     celebrateOnSuccess = false,
 }) => {
+    const { t } = useTranslation('projectConnection');
     return (
         <>
             <Stack align="flex-start">
@@ -33,11 +35,13 @@ const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
                     leftSection={<MantineIcon icon={IconChevronLeft} />}
                     onClick={onBack}
                 >
-                    Back
+                    {t('actions.back', { ns: 'common' })}
                 </Button>
 
                 <OnboardingTitle>
-                    Create a {getWarehouseLabel(selectedWarehouse)} connection
+                    {t('connectFlow.manual.createConnection', {
+                        warehouse: getWarehouseLabel(selectedWarehouse),
+                    })}
                 </OnboardingTitle>
 
                 <CreateProjectConnection

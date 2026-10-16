@@ -2,6 +2,7 @@ import { RoadmapFollowProjectRequestSchema } from '@lightdash/common';
 import { Box, Button, Textarea } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../components/common/Callout';
 import MantineModal from '../../../components/common/MantineModal';
 
@@ -16,6 +17,7 @@ export function FollowProjectModal({
     onSubmit: (note: string) => Promise<boolean>;
     onClose: () => void;
 }) {
+    const { t } = useTranslation('eeMisc');
     const form = useForm({
         initialValues: { note: '' },
         validate: zodResolver(RoadmapFollowProjectRequestSchema),
@@ -28,7 +30,7 @@ export function FollowProjectModal({
     return (
         <MantineModal
             opened
-            title={`Follow "${projectTitle}"`}
+            title={t('roadmap.follow.modalTitle', { title: projectTitle })}
             size="lg"
             onClose={() => {
                 if (!isLoading) onClose();
@@ -42,7 +44,7 @@ export function FollowProjectModal({
                     loading={isLoading}
                     disabled={!form.isValid()}
                 >
-                    Send request
+                    {t('roadmap.follow.sendRequest')}
                 </Button>
             }
         >
@@ -52,8 +54,8 @@ export function FollowProjectModal({
                 onSubmit={handleSubmit}
             >
                 <Textarea
-                    label="Why are you interested in this feature?"
-                    placeholder="Tell us how your team would use it."
+                    label={t('roadmap.follow.noteLabel')}
+                    placeholder={t('roadmap.follow.notePlaceholder')}
                     required
                     data-autofocus
                     autosize
@@ -64,9 +66,7 @@ export function FollowProjectModal({
                     {...form.getInputProps('note')}
                 />
                 <Callout variant="neutral" mt="sm" px="sm" py="xs">
-                    Your organization and user details, including your name and
-                    email address, will be shared with the Lightdash team along
-                    with your note.
+                    {t('roadmap.follow.privacyNote')}
                 </Callout>
             </Box>
         </MantineModal>

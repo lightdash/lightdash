@@ -1,6 +1,7 @@
 import { type ActionIconProps, type MantineSize } from '@mantine/core';
 import clsx from 'clsx';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FavoriteActionIcon } from '../../../../../components/common/FavoriteActionIcon';
 import {
     useDeleteUserAgentPreferences,
@@ -23,6 +24,7 @@ export const DefaultAgentButton: React.FC<Props> = ({
     disabled,
     ...props
 }) => {
+    const { t } = useTranslation('aiAgent');
     const [hasInteracted, setHasInteracted] = useState(false);
     const { data: userAgentPreferences, isLoading: isLoadingPreferences } =
         useGetUserAgentPreferences(projectUuid);
@@ -37,9 +39,7 @@ export const DefaultAgentButton: React.FC<Props> = ({
         <FavoriteActionIcon
             {...props}
             isFavorite={isDefault}
-            label={
-                isDefault ? 'Remove as default agent' : 'Set as default agent'
-            }
+            label={isDefault ? t('defaultAgent.remove') : t('defaultAgent.set')}
             aria-pressed={isDefault}
             aria-busy={isSettingDefault || isRemovingDefault}
             data-starred={isDefault}

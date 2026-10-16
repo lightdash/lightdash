@@ -5,6 +5,7 @@ import {
     IconStackFront,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../common/MantineIcon';
 import styles from './seriesDrawOrder.module.css';
 
@@ -21,39 +22,42 @@ type SeriesDrawOrderBarProps = {
 export const SeriesDrawOrderBar: FC<SeriesDrawOrderBarProps> = ({
     canReorder,
     onReverse,
-}) => (
-    <Group className={styles.orderBar} px="xs" py="two" wrap="nowrap">
-        <MantineIcon icon={IconStack2} color="dimmed" />
-        <Text size="xs" c="dimmed">
-            Draw order{' '}
-            <Text span inherit fw={600}>
-                Back
+}) => {
+    const { t } = useTranslation('vizConfig');
+    return (
+        <Group className={styles.orderBar} px="xs" py="two" wrap="nowrap">
+            <MantineIcon icon={IconStack2} color="dimmed" />
+            <Text size="xs" c="dimmed">
+                {t('series.drawOrder.label')}{' '}
+                <Text span inherit fw={600}>
+                    {t('series.drawOrder.back')}
+                </Text>
+                {' → '}
+                <Text span inherit fw={600}>
+                    {t('series.drawOrder.front')}
+                </Text>
             </Text>
-            {' → '}
-            <Text span inherit fw={600}>
-                Front
-            </Text>
-        </Text>
-        {canReorder && (
-            <Tooltip
-                label="Flip the order of every series"
-                position="top"
-                openDelay={300}
-            >
-                <Button
-                    ml="auto"
-                    variant="subtle"
-                    color="gray"
-                    size="compact-xs"
-                    leftSection={<MantineIcon icon={IconArrowsUpDown} />}
-                    onClick={onReverse}
+            {canReorder && (
+                <Tooltip
+                    label={t('series.drawOrder.reverseTooltip')}
+                    position="top"
+                    openDelay={300}
                 >
-                    Reverse
-                </Button>
-            </Tooltip>
-        )}
-    </Group>
-);
+                    <Button
+                        ml="auto"
+                        variant="subtle"
+                        color="gray"
+                        size="compact-xs"
+                        leftSection={<MantineIcon icon={IconArrowsUpDown} />}
+                        onClick={onReverse}
+                    >
+                        {t('series.drawOrder.reverse')}
+                    </Button>
+                </Tooltip>
+            )}
+        </Group>
+    );
+};
 
 type SeriesDepthControlProps = {
     control: SeriesDrawOrderControl;
@@ -62,21 +66,28 @@ type SeriesDepthControlProps = {
 // Fixed-width slot so revealing the action on hover can't resize the series name field.
 export const SeriesDepthControl: FC<SeriesDepthControlProps> = ({
     control,
-}) => (
-    <Group className={styles.depthSlot} justify="flex-end" wrap="nowrap">
-        {control.isFront ? (
-            <Badge size="xs">Front</Badge>
-        ) : (
-            <Tooltip label="Bring to front" position="top" openDelay={300}>
-                <ActionIcon
-                    className={styles.frontAction}
-                    size="sm"
-                    aria-label="Bring to front"
-                    onClick={control.onBringToFront}
+}) => {
+    const { t } = useTranslation('vizConfig');
+    return (
+        <Group className={styles.depthSlot} justify="flex-end" wrap="nowrap">
+            {control.isFront ? (
+                <Badge size="xs">{t('series.drawOrder.front')}</Badge>
+            ) : (
+                <Tooltip
+                    label={t('series.drawOrder.bringToFront')}
+                    position="top"
+                    openDelay={300}
                 >
-                    <MantineIcon icon={IconStackFront} />
-                </ActionIcon>
-            </Tooltip>
-        )}
-    </Group>
-);
+                    <ActionIcon
+                        className={styles.frontAction}
+                        size="sm"
+                        aria-label={t('series.drawOrder.bringToFront')}
+                        onClick={control.onBringToFront}
+                    >
+                        <MantineIcon icon={IconStackFront} />
+                    </ActionIcon>
+                </Tooltip>
+            )}
+        </Group>
+    );
+};

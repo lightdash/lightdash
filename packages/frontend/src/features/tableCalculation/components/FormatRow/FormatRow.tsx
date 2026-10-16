@@ -40,7 +40,9 @@ import {
     IconExternalLink,
     IconToggleLeft,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { NumberInput } from '../../../../components/common/NumberInput';
@@ -73,38 +75,50 @@ type DatePill = CustomFormatType.DEFAULT | CustomFormatType.CUSTOM;
 const NUMERIC_SAMPLE = 1234.5678;
 
 const dataTypeMeta = {
-    [TableCalculationType.NUMBER]: { label: 'Number', icon: Icon123 },
-    [TableCalculationType.STRING]: { label: 'String', icon: IconAbc },
-    [TableCalculationType.DATE]: { label: 'Date', icon: IconCalendar },
+    [TableCalculationType.NUMBER]: {
+        labelKey: 'formatRow.dataTypes.number',
+        icon: Icon123,
+    },
+    [TableCalculationType.STRING]: {
+        labelKey: 'formatRow.dataTypes.string',
+        icon: IconAbc,
+    },
+    [TableCalculationType.DATE]: {
+        labelKey: 'formatRow.dataTypes.date',
+        icon: IconCalendar,
+    },
     [TableCalculationType.TIMESTAMP]: {
-        label: 'Timestamp',
+        labelKey: 'formatRow.dataTypes.timestamp',
         icon: IconClockHour4,
     },
     [TableCalculationType.BOOLEAN]: {
-        label: 'Boolean',
+        labelKey: 'formatRow.dataTypes.boolean',
         icon: IconToggleLeft,
     },
 } as const satisfies Record<
     TableCalculationType,
-    { label: string; icon: typeof Icon123 }
+    { labelKey: string; icon: typeof Icon123 }
 >;
 
-const numericPills: { value: NumericPill; label: string }[] = [
-    { value: CustomFormatType.DEFAULT, label: 'Plain' },
-    { value: CustomFormatType.NUMBER, label: 'Number' },
-    { value: CustomFormatType.CURRENCY, label: 'Currency' },
-    { value: CustomFormatType.PERCENT, label: 'Percent' },
-    { value: 'bytes', label: 'Bytes' },
-    { value: CustomFormatType.CUSTOM, label: 'Custom' },
+const numericPills: { value: NumericPill; labelKey: string }[] = [
+    { value: CustomFormatType.DEFAULT, labelKey: 'formatRow.pills.plain' },
+    { value: CustomFormatType.NUMBER, labelKey: 'formatRow.pills.number' },
+    { value: CustomFormatType.CURRENCY, labelKey: 'formatRow.pills.currency' },
+    { value: CustomFormatType.PERCENT, labelKey: 'formatRow.pills.percent' },
+    { value: 'bytes', labelKey: 'formatRow.pills.bytes' },
+    { value: CustomFormatType.CUSTOM, labelKey: 'formatRow.pills.custom' },
 ];
 
-const datePills: { value: DatePill; label: string }[] = [
-    { value: CustomFormatType.DEFAULT, label: 'Default' },
-    { value: CustomFormatType.CUSTOM, label: 'Custom' },
+const datePills: { value: DatePill; labelKey: string }[] = [
+    { value: CustomFormatType.DEFAULT, labelKey: 'formatRow.pills.default' },
+    { value: CustomFormatType.CUSTOM, labelKey: 'formatRow.pills.custom' },
 ];
 
-const separatorOptions: ComboboxItem[] = [
-    { value: NumberSeparator.DEFAULT, label: 'Default separator' },
+const getSeparatorOptions = (t: TFunction): ComboboxItem[] => [
+    {
+        value: NumberSeparator.DEFAULT,
+        label: t('formatRow.defaultSeparator'),
+    },
     { value: NumberSeparator.COMMA_PERIOD, label: '100,000.00' },
     { value: NumberSeparator.SPACE_PERIOD, label: '100 000.00' },
     { value: NumberSeparator.PERIOD_COMMA, label: '100.000,00' },
@@ -189,6 +203,7 @@ const getDatePillValue = (
 };
 
 const getPreviewValue = (
+    t: TFunction,
     format: CustomFormat,
     dataType: TableCalculationType,
 ): string | null => {
@@ -197,7 +212,7 @@ const getPreviewValue = (
             return 'true';
         }
         if (dataType === TableCalculationType.STRING) {
-            return 'Sample text';
+            return t('formatRow.sampleText');
         }
         if (isDateLike(dataType)) {
             const sample = new Date();
@@ -233,7 +248,7 @@ const getPreviewValue = (
         }
         return formatValueWithExpression(expression, NUMERIC_SAMPLE);
     } catch {
-        return 'Invalid format';
+        return t('formatRow.invalidFormat');
     }
 };
 
@@ -243,7 +258,7 @@ const renderDataTypeOption = ({ option }: { option: ComboboxItem }) => {
         <Group gap="xs" wrap="nowrap">
             <MantineIcon icon={meta.icon} size="sm" />
             <Text size="sm" fw={500}>
-                {meta.label}
+                {option.label}
             </Text>
         </Group>
     );
@@ -256,16 +271,18 @@ export const FormatRow: FC<Props> = ({
     dataType,
     onDataTypeChange,
 }) => {
+    const { t } = useTranslation('tableCalculation');
     const dataTypeOptions = useMemo(
         () =>
             (Object.keys(dataTypeMeta) as TableCalculationType[]).map(
                 (value) => ({
                     value,
-                    label: dataTypeMeta[value].label,
+                    label: t(dataTypeMeta[value].labelKey),
                 }),
             ),
-        [],
+        [t],
     );
+    const separatorOptions = useMemo(() => getSeparatorOptions(t), [t]);
 
     const selectedDataTypeMeta = dataTypeMeta[dataType];
 
@@ -284,8 +301,8 @@ export const FormatRow: FC<Props> = ({
     );
 
     const previewValue = useMemo(
-        () => getPreviewValue(format, dataType),
-        [format, dataType],
+        () => getPreviewValue(t, format, dataType),
+        [t, format, dataType],
     );
 
     const compactValidValue = useMemo(() => {
@@ -386,7 +403,7 @@ export const FormatRow: FC<Props> = ({
         <Group justify="space-between" align="center" wrap="nowrap">
             <Group gap="md" align="center" wrap="nowrap">
                 <Text size="sm" fw={600}>
-                    Format
+                    {t('formatRow.title')}
                 </Text>
                 {dataTypeSelect}
             </Group>
@@ -415,7 +432,7 @@ export const FormatRow: FC<Props> = ({
                 <Box className={`${classes.card} ${classes.cardEmpty}`}>
                     <Box className={classes.emptyBody}>
                         <Text size="xs" c="dimmed" fs="italic">
-                            No formatting options for this type
+                            {t('formatRow.noOptionsForType')}
                         </Text>
                     </Box>
                 </Box>
@@ -450,7 +467,7 @@ export const FormatRow: FC<Props> = ({
                                     onClick={() => onPillClick(p.value)}
                                     className={classes.pillButton}
                                 >
-                                    {p.label}
+                                    {t(p.labelKey)}
                                 </Button>
                             );
                         })}
@@ -462,7 +479,7 @@ export const FormatRow: FC<Props> = ({
                 <Box className={classes.subBody}>
                     {isPlainNumeric && (
                         <Text size="xs" c="dimmed" fs="italic">
-                            No further options for this preset
+                            {t('formatRow.noOptionsForPreset')}
                         </Text>
                     )}
 
@@ -472,8 +489,8 @@ export const FormatRow: FC<Props> = ({
                                 className={classes.subFieldInputNarrow}
                                 size="xs"
                                 min={0}
-                                label="Decimals"
-                                placeholder="Auto"
+                                label={t('formatRow.decimals')}
+                                placeholder={t('formatRow.auto')}
                                 {...{
                                     ...formatInputProps('round'),
                                     onChange: (value) =>
@@ -487,8 +504,8 @@ export const FormatRow: FC<Props> = ({
                                 className={classes.subFieldSelectNarrow}
                                 size="xs"
                                 clearable
-                                label="Compact"
-                                placeholder="None"
+                                label={t('formatRow.compact')}
+                                placeholder={t('formatRow.none')}
                                 data={compactSelectData}
                                 value={compactValidValue}
                                 onChange={(value) =>
@@ -503,21 +520,21 @@ export const FormatRow: FC<Props> = ({
                             <TextInput
                                 className={classes.subFieldTextNarrow}
                                 size="xs"
-                                label="Prefix"
+                                label={t('formatRow.prefix')}
                                 placeholder="$"
                                 {...formatInputProps('prefix')}
                             />
                             <TextInput
                                 className={classes.subFieldTextNarrow}
                                 size="xs"
-                                label="Suffix"
-                                placeholder="km/h"
+                                label={t('formatRow.suffix')}
+                                placeholder={t('formatRow.suffixPlaceholder')}
                                 {...formatInputProps('suffix')}
                             />
                             <Select
                                 className={classes.subFieldSeparator}
                                 size="xs"
-                                label="Separator"
+                                label={t('formatRow.separator')}
                                 data={separatorOptions}
                                 {...formatInputProps('separator')}
                             />
@@ -530,8 +547,8 @@ export const FormatRow: FC<Props> = ({
                                 className={classes.subFieldCurrency}
                                 size="xs"
                                 searchable
-                                label="Currency"
-                                placeholder="Pick a currency"
+                                label={t('formatRow.currency')}
+                                placeholder={t('formatRow.currencyPlaceholder')}
                                 data={currencyOptions}
                                 {...formatInputProps('currency')}
                             />
@@ -539,8 +556,8 @@ export const FormatRow: FC<Props> = ({
                                 className={classes.subFieldInput}
                                 size="xs"
                                 min={0}
-                                label="Decimals"
-                                placeholder="Auto"
+                                label={t('formatRow.decimals')}
+                                placeholder={t('formatRow.auto')}
                                 {...{
                                     ...formatInputProps('round'),
                                     onChange: (value) =>
@@ -554,8 +571,8 @@ export const FormatRow: FC<Props> = ({
                                 className={classes.subFieldSelect}
                                 size="xs"
                                 clearable
-                                label="Compact"
-                                placeholder="None"
+                                label={t('formatRow.compact')}
+                                placeholder={t('formatRow.none')}
                                 data={compactSelectData}
                                 value={compactValidValue}
                                 onChange={(value) =>
@@ -575,8 +592,8 @@ export const FormatRow: FC<Props> = ({
                             className={classes.subFieldInput}
                             size="xs"
                             min={0}
-                            label="Decimals"
-                            placeholder="Auto"
+                            label={t('formatRow.decimals')}
+                            placeholder={t('formatRow.auto')}
                             {...{
                                 ...formatInputProps('round'),
                                 onChange: (value) =>
@@ -593,7 +610,7 @@ export const FormatRow: FC<Props> = ({
                             <Select
                                 className={classes.subFieldSelect}
                                 size="xs"
-                                label="Unit system"
+                                label={t('formatRow.unitSystem')}
                                 data={bytesUnitOptions}
                                 value={
                                     format.type === CustomFormatType.BYTES_IEC
@@ -609,8 +626,8 @@ export const FormatRow: FC<Props> = ({
                                 className={classes.subFieldSelect}
                                 size="xs"
                                 clearable
-                                label="Compact"
-                                placeholder="None"
+                                label={t('formatRow.compact')}
+                                placeholder={t('formatRow.none')}
                                 data={compactSelectData}
                                 value={compactValidValue}
                                 onChange={(value) =>
@@ -628,7 +645,7 @@ export const FormatRow: FC<Props> = ({
                     {isNumeric && format.type === CustomFormatType.CUSTOM && (
                         <TextInput
                             size="xs"
-                            placeholder="e.g. #,##0.00"
+                            placeholder={t('formatRow.expressionPlaceholder')}
                             label={
                                 <Group
                                     justify="space-between"
@@ -637,7 +654,7 @@ export const FormatRow: FC<Props> = ({
                                     gap={6}
                                 >
                                     <Text size="xs" fw={500} c="ldGray.7">
-                                        Format expression
+                                        {t('formatRow.formatExpression')}
                                     </Text>
                                     <Anchor
                                         href="https://customformats.com"
@@ -650,7 +667,9 @@ export const FormatRow: FC<Props> = ({
                                                 icon={IconExternalLink}
                                                 size="sm"
                                             />
-                                            Build at customformats.com
+                                            {t(
+                                                'formatRow.buildAtCustomFormats',
+                                            )}
                                         </Group>
                                     </Anchor>
                                 </Group>
@@ -662,7 +681,7 @@ export const FormatRow: FC<Props> = ({
 
                     {!isNumeric && datePill === CustomFormatType.DEFAULT && (
                         <Text size="xs" c="dimmed" fs="italic">
-                            No further options for this preset
+                            {t('formatRow.noOptionsForPreset')}
                         </Text>
                     )}
 
@@ -686,6 +705,7 @@ const DateFormatBody: FC<{
     setFormatFieldValue: Props['setFormatFieldValue'];
     isTimestamp: boolean;
 }> = ({ formatInputProps, setFormatFieldValue, isTimestamp }) => {
+    const { t } = useTranslation('tableCalculation');
     const presets = isTimestamp ? TIMESTAMP_FORMATS : DATE_FORMATS;
     const sample = useMemo(() => new Date(), []);
     const examples = useMemo(
@@ -700,7 +720,7 @@ const DateFormatBody: FC<{
     return (
         <TextInput
             size="xs"
-            placeholder="e.g. dd/mm/yyyy or mmmm d, yyyy"
+            placeholder={t('formatRow.dateFormatPlaceholder')}
             label={
                 <Group
                     justify="space-between"
@@ -709,7 +729,9 @@ const DateFormatBody: FC<{
                     gap={6}
                 >
                     <Text size="xs" fw={500} c="ldGray.7">
-                        {isTimestamp ? 'Timestamp format' : 'Date format'}
+                        {isTimestamp
+                            ? t('formatRow.timestampFormat')
+                            : t('formatRow.dateFormat')}
                     </Text>
                     <Anchor
                         href="https://customformats.com"
@@ -719,7 +741,7 @@ const DateFormatBody: FC<{
                     >
                         <Group gap={4} wrap="nowrap">
                             <MantineIcon icon={IconExternalLink} size="sm" />
-                            Build at customformats.com
+                            {t('formatRow.buildAtCustomFormats')}
                         </Group>
                     </Anchor>
                 </Group>
@@ -734,8 +756,11 @@ const DateFormatBody: FC<{
             rightSection={
                 <Menu position="bottom-end" width={240}>
                     <Menu.Target>
-                        <Tooltip label="Pick a preset">
-                            <ActionIcon size="sm" aria-label="Pick a preset">
+                        <Tooltip label={t('formatRow.pickPreset')}>
+                            <ActionIcon
+                                size="sm"
+                                aria-label={t('formatRow.pickPreset')}
+                            >
                                 <MantineIcon icon={IconChevronDown} size="sm" />
                             </ActionIcon>
                         </Tooltip>

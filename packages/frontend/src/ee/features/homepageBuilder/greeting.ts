@@ -1,9 +1,13 @@
-import { HOMEPAGE_DEFAULT_GREETING_SUBTITLE } from '@lightdash/common';
+import i18n from '../../../i18n/i18n';
 import { dayPart } from './blocks/dayPart';
 
-export const DEFAULT_GREETING_SUBTITLE = HOMEPAGE_DEFAULT_GREETING_SUBTITLE;
+export const getDefaultGreetingSubtitle = (): string =>
+    i18n.t('greeting.defaultSubtitle', { ns: 'homepageBuilder' });
 
 export const getGreeting = (firstName: string | undefined): string => {
     const name = firstName?.trim();
-    return `Good ${dayPart(new Date().getHours())}${name ? `, ${name}` : ''}`;
+    const part = dayPart(new Date().getHours());
+    return name
+        ? i18n.t(`greeting.${part}WithName`, { ns: 'homepageBuilder', name })
+        : i18n.t(`greeting.${part}`, { ns: 'homepageBuilder' });
 };

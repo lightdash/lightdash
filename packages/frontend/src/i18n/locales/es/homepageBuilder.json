@@ -1,0 +1,738 @@
+{
+    "blockLibrary": {
+        "askAiHero": {
+            "label": "Preguntar a la IA",
+            "description": "Compositor de chat con IA con sugerencias en vivo y un saludo."
+        },
+        "greeting": {
+            "label": "Saludo",
+            "description": "Una bienvenida según la hora del día, personalizada para cada usuario."
+        },
+        "quickActions": {
+            "label": "Acciones rápidas",
+            "description": "Tarjetas de acción principales: adapta la acción principal a cada público."
+        },
+        "cta": {
+            "label": "Llamada a la acción",
+            "description": "Un banner con los colores de la marca y un único botón."
+        },
+        "metrics": {
+            "label": "Métricas",
+            "description": "Tarjetas de KPI del catálogo de métricas, con variaciones."
+        },
+        "collection": {
+            "label": "Colección",
+            "description": "Un conjunto seleccionado de dashboards, gráficos, espacios y data apps."
+        },
+        "resources": {
+            "label": "Recursos",
+            "description": "Tarjetas enriquecidas: data apps, artefactos de Claude, YouTube, documentación, enlaces."
+        },
+        "announcements": {
+            "label": "Anuncios",
+            "description": "Novedades del equipo de datos, las más recientes primero."
+        },
+        "favorites": {
+            "label": "Favoritos",
+            "description": "El contenido destacado de cada usuario, visible solo para él."
+        },
+        "recent": {
+            "label": "Vistos recientemente",
+            "description": "Los gráficos y dashboards abiertos recientemente por cada usuario."
+        },
+        "markdown": {
+            "label": "Texto / banner",
+            "description": "Texto Markdown, notas o un banner de bienvenida."
+        }
+    },
+    "blockDefaults": {
+        "ctaButtonLabel": "Ejecutar una consulta",
+        "metricsTitle": "Este mes",
+        "collectionTitle": "Dashboards clave",
+        "resourcesTitle": "Primeros pasos",
+        "announcementsTitle": "Del equipo de datos",
+        "favoritesTitle": "Mis favoritos",
+        "recentTitle": "Vistos recientemente",
+        "markdownContent": "## Nueva sección\n\nEdítame."
+    },
+    "starter": {
+        "startHere": "Empieza aquí",
+        "mostPopular": "Más populares",
+        "verified": "Verificados",
+        "pinned": "Fijados"
+    },
+    "greeting": {
+        "defaultSubtitle": "Retoma donde lo dejaste o empieza algo nuevo.",
+        "morning": "Buenos días",
+        "afternoon": "Buenas tardes",
+        "evening": "Buenas noches",
+        "morningWithName": "Buenos días, {{name}}",
+        "afternoonWithName": "Buenas tardes, {{name}}",
+        "eveningWithName": "Buenas noches, {{name}}"
+    },
+    "resolution": {
+        "steps": {
+            "groupPriority": "Prioridad de grupo",
+            "role": "Rol",
+            "projectDefault": "Predeterminado del proyecto"
+        },
+        "reason": {
+            "group": "mediante el grupo {{group}} (prioridad {{priority}})",
+            "unknownGroup": "desconocido",
+            "role": "mediante el rol {{role}}",
+            "default": "predeterminado del proyecto"
+        }
+    },
+    "published": {
+        "personalPlaceholder": "Personal para cada usuario: el usuario de destino ve aquí su propio contenido."
+    },
+    "editor": {
+        "addBlock": "Añadir bloque",
+        "endZoneEmpty": "Aún no hay bloques: haz clic o arrastra uno desde la biblioteca.",
+        "endZone": "Arrastra un bloque aquí o haz clic en uno de la biblioteca.",
+        "addColumn": "Añadir columna",
+        "blockCard": {
+            "drag": "Arrastrar bloque {{block}}",
+            "moveUp": "Subir",
+            "moveDown": "Bajar",
+            "duplicate": "Duplicar",
+            "remove": "Quitar"
+        },
+        "toolbar": {
+            "exit": "Salir",
+            "editingLive": "Editando: <strong>{{name}} (publicada)</strong>",
+            "editingDraft": "Editando: <strong>{{name}} (borrador)</strong>",
+            "projectHomepages": "Páginas de inicio del proyecto",
+            "liveItem": "{{name}} · publicada",
+            "newHomepage": "Nueva página de inicio…",
+            "deleteHomepage": "Eliminar esta página de inicio",
+            "saving": "Guardando…",
+            "draftSaved": "Borrador guardado",
+            "revertToPublished": "Volver a la versión publicada",
+            "backToEditing": "Volver a editar",
+            "preview": "Vista previa",
+            "publish": "Publicar"
+        },
+        "conflict": {
+            "message": "Esta página de inicio se modificó en otro lugar: tus últimos cambios aquí no se pueden guardar.",
+            "reload": "Recargar página de inicio"
+        },
+        "rail": {
+            "title": "Bloques",
+            "hint": "Haz clic para añadir o arrastra un bloque a la página."
+        },
+        "revertModal": {
+            "title": "Volver a la versión publicada",
+            "description": "Esto descarta tus cambios sin publicar y restaura la última versión publicada de esta página de inicio. No se puede deshacer.",
+            "confirm": "Revertir borrador"
+        },
+        "deleteModal": {
+            "title": "Eliminar página de inicio"
+        }
+    },
+    "publish": {
+        "title": "Publicar página de inicio",
+        "roleDescriptions": {
+            "viewer": "Consumidores de dashboards de solo lectura",
+            "interactiveViewer": "Pueden explorar los datos detrás de los dashboards",
+            "editor": "Crea gráficos y dashboards",
+            "developer": "Trabaja en el propio modelo de datos",
+            "admin": "Control total del proyecto"
+        },
+        "confirm": {
+            "everyone": "Publicar para todos",
+            "groups_one": "Publicar para {{count}} grupo",
+            "groups_other": "Publicar para {{count}} grupos",
+            "roles_one": "Publicar para {{count}} rol",
+            "roles_other": "Publicar para {{count}} roles",
+            "publish": "Publicar"
+        },
+        "draftAnnouncements_one": "Al publicar también se publicará {{count}} anuncio en borrador.",
+        "draftAnnouncements_other": "Al publicar también se publicarán {{count}} anuncios en borrador.",
+        "draftAnnouncementsWithSlack_one": "Al publicar también se publicará {{count}} anuncio en borrador y se enviarán las notificaciones de Slack en cola.",
+        "draftAnnouncementsWithSlack_other": "Al publicar también se publicarán {{count}} anuncios en borrador y se enviarán las notificaciones de Slack en cola.",
+        "nowOn": "ahora en {{name}}",
+        "chooseWho": "Elige quién llega a <name>{{name}}</name> al abrir este proyecto.",
+        "modes": {
+            "everyone": "Todos",
+            "groups": "Por grupo",
+            "roles": "Por rol"
+        },
+        "everyoneInfo": "Esta será la <strong>página de partida</strong> para todos, salvo que un grupo al que pertenezcan tenga su propia página de inicio.",
+        "noGroups": "Aún no hay grupos en esta organización.",
+        "priority": {
+            "title": "Si alguien está en más de un grupo",
+            "description": "Gana la página de inicio del grupo con mayor prioridad.",
+            "target": "→ {{name}}",
+            "moveUp": "Subir {{name}}",
+            "moveDown": "Bajar {{name}}"
+        },
+        "groupWinsOverRole": "Una asignación por grupo siempre prevalece sobre una por rol.",
+        "resolves": "Resolución:"
+    },
+    "adminControls": {
+        "switchBack": {
+            "ariaLabel": "Volver a la página de inicio clásica",
+            "label": "Página de inicio clásica",
+            "title": "¿Volver a la página de inicio clásica?",
+            "confirm": "Volver",
+            "description": "Esto desactiva la nueva página de inicio en todos los proyectos de tu organización. Las páginas de inicio publicadas se conservan y todo vuelve a estar exactamente igual si la activas de nuevo."
+        },
+        "newHomepage": "Nueva página de inicio",
+        "customize": "Personalizar página de inicio"
+    },
+    "preview": {
+        "viewingAs": "Viendo como",
+        "viewTypes": {
+            "everyone": "Todos",
+            "user": "Usuario",
+            "group": "Grupo",
+            "role": "Rol"
+        },
+        "pickUser": "Elige un usuario",
+        "pickGroup": "Elige un grupo",
+        "pickRole": "Elige un rol",
+        "resolvedWithReason": "{{name}} · {{reason}}",
+        "noHomepageApplies": "No se aplica ninguna página de inicio publicada: este usuario verá la página predeterminada inicial."
+    },
+    "create": {
+        "title": "Crear una página de inicio",
+        "confirm": "Crear página de inicio",
+        "description": "Diseña una página de inicio para este proyecto. Al publicarla, será lo que todos vean al entrar en Lightdash.",
+        "name": "Nombre",
+        "namePlaceholder": "p. ej., Página de inicio del equipo",
+        "startFrom": "Empezar desde",
+        "blank": "En blanco",
+        "duplicate": "Duplicar “{{name}}”"
+    },
+    "promo": {
+        "mock": {
+            "askSubtitle": "¿Qué quieres saber?",
+            "composerPlaceholder": "Pregunta lo que quieras sobre tus datos…",
+            "runQuery": "Ejecutar una consulta",
+            "dashboards": "Dashboards",
+            "spaces": "Espacios"
+        },
+        "presets": {
+            "askFirst": {
+                "title": "Primero preguntar",
+                "description": "Se abre con el compositor de Preguntar a la IA y el contenido seleccionado debajo."
+            },
+            "contentFirst": {
+                "title": "Primero el contenido",
+                "description": "Se abre con tu contenido; Preguntar a la IA queda como acción rápida."
+            },
+            "yourHomepage": {
+                "title": "Tu página de inicio",
+                "description": "Se abre con tu contenido: acciones rápidas, espacios y elementos recientes."
+            }
+        },
+        "features": {
+            "collections": {
+                "label": "Colecciones",
+                "description": "Selecciona gráficos, dashboards y espacios, o mantenlos actualizados con los más vistos y fijados."
+            },
+            "announcements": {
+                "label": "Anuncios de datos",
+                "description": "Publica lanzamientos, incidencias y cambios de esquema directamente en la portada."
+            },
+            "resources": {
+                "label": "Recursos",
+                "description": "Enlaza runbooks, vídeos, documentación y herramientas de cualquier parte de la web."
+            },
+            "audiences": {
+                "label": "Públicos",
+                "description": "Publica distintas páginas de inicio para distintos grupos y roles."
+            }
+        },
+        "modal": {
+            "liveTitle": "Tu nueva página de inicio ya está publicada",
+            "title": "Conoce la nueva página de inicio",
+            "liveSubtitle": "Todos en tu organización llegan ahora a ella.",
+            "subtitle": "Bloques combinables, colecciones seleccionadas y anuncios, publicados para todo tu equipo.",
+            "done": "Hecho",
+            "notNow": "Ahora no",
+            "customize": "Personalizarla",
+            "turnOn": "Activar en todos los proyectos",
+            "whatTeamSees": "Esto es lo que ve tu equipo ahora.",
+            "opensOnAsk": "Ahora todos los proyectos se abren con el compositor de Preguntar a la IA. Puedes personalizar la página de inicio de cada proyecto, o cambiar cómo se abre, desde el editor.",
+            "opensOnContent": "Ahora todos los proyectos se abren con su contenido. Puedes personalizar la página de inicio de cada proyecto, o cambiar cómo se abre, desde el editor.",
+            "pickHowItOpens": "Elige cómo se abre. Así es como podría verse",
+            "couldLookLike": "Así es como podría verse",
+            "turnsOnFor": "Activa la nueva página de inicio en <strong>todos los proyectos de tu organización</strong>. Puedes volver atrás en cualquier momento."
+        },
+        "card": {
+            "title": "Llega una nueva página de inicio",
+            "new": "Nuevo",
+            "description": "Una página de inicio seleccionada para todo tu equipo, con bloques, colecciones y anuncios que tú compones.",
+            "tryNow": "¡Pruébala ya!",
+            "dismiss": "Descartar"
+        }
+    },
+    "noProject": {
+        "title": "Empecemos",
+        "connectDescription": "Conecta tu data warehouse para empezar a explorar y crear dashboards.",
+        "connectWarehouse": "Conectar un data warehouse"
+    },
+    "stars": {
+        "charts": {
+            "mrr": "Ingresos recurrentes mensuales",
+            "signupsByChannel": "Registros por canal",
+            "ordersPerWeek": "Pedidos por semana",
+            "activeWorkspaces": "Espacios de trabajo activos",
+            "revenueBySegment": "Ingresos por segmento",
+            "churnRateOverTime": "Tasa de abandono en el tiempo"
+        },
+        "dashboards": {
+            "companyKpis": "KPIs de la empresa",
+            "growthOverview": "Resumen de crecimiento"
+        },
+        "kpis": {
+            "totalRevenue": "Ingresos totales",
+            "weeklyActiveUsers": "Usuarios activos semanales",
+            "conversionRate": "Tasa de conversión",
+            "avgOrderValue": "Valor medio del pedido",
+            "newSignups": "Nuevos registros",
+            "churnRate": "Tasa de abandono"
+        },
+        "chips": {
+            "askAi": "Preguntar a la IA",
+            "runQuery": "Ejecutar una consulta",
+            "browseDashboards": "Ver dashboards",
+            "browseSpaces": "Ver espacios"
+        },
+        "media": {
+            "dataAppsVideo": {
+                "title": "¿Qué puedes construir con las Data Apps de Lightdash? 3 ejemplos reales",
+                "subtitle": "¡Oliver nos enseña cómo construir data apps!"
+            },
+            "biAsCode": {
+                "title": "BI como código",
+                "subtitle": "Crear contenido con código"
+            }
+        },
+        "chartMeta": "Gráfico · {{views}} visualizaciones",
+        "dashboardMeta": "Dashboard · {{views}} visualizaciones"
+    },
+    "builder": {
+        "defaultName": "Página de inicio"
+    },
+    "askInput": {
+        "askAgent": "Pregunta a {{name}}…",
+        "askAnything": "Pregunta lo que quieras sobre tus datos…",
+        "noAgents": "Configura un agente de IA para activar Preguntar a la IA aquí: <anchor>ir a la configuración</anchor>.",
+        "cannotStartConversations": "Tu rol puede ver los agentes de IA, pero no puede iniciar conversaciones. Pide acceso a un administrador del espacio de trabajo.",
+        "connectData": "Conecta tus datos para empezar a hacer preguntas",
+        "adminMustConnect": "Un administrador de la organización tendrá que conectar el data warehouse antes de que puedas hacer preguntas"
+    },
+    "askAiHero": {
+        "greetingQuestion": "{{greeting}}. ¿Qué quieres saber?",
+        "showGreeting": "Mostrar saludo"
+    },
+    "heroDensity": {
+        "label": "Tamaño de apertura",
+        "auto": "Automático",
+        "compact": "Compacto",
+        "full": "Pantalla completa",
+        "fullDescription": "Ocupa toda la vista inicial: el contenido de abajo empieza fuera de la pantalla.",
+        "autoDescription": "Se ajusta a su propio contenido, así lo que añadas debajo sigue visible."
+    },
+    "greetingBlock": {
+        "subtitleLabel": "Línea bajo el saludo"
+    },
+    "contentLayout": {
+        "cards": "Tarjetas",
+        "compact": "Compacto"
+    },
+    "keySpaces": {
+        "title": "Espacios",
+        "itemCount_one": "{{count}} elemento",
+        "itemCount_other": "{{count}} elementos"
+    },
+    "contentCard": {
+        "verified": "Verificado por el equipo de datos",
+        "updated": "actualizado {{timeAgo}}",
+        "inSpace": "en {{space}}",
+        "kinds": {
+            "chart": "Gráfico",
+            "dashboard": "Dashboard",
+            "space": "Espacio",
+            "dataApp": "Data app",
+            "document": "Documento"
+        },
+        "removeFromCollection": "Quitar {{name}} de la colección"
+    },
+    "favorites": {
+        "remove": "Quitar {{name}} de favoritos",
+        "showLess": "Mostrar menos",
+        "more_one": "{{count}} más",
+        "more_other": "{{count}} más",
+        "onlyYou": "Solo tú ves esto",
+        "empty": "Marca contenido con una estrella para tenerlo aquí: cada persona ve sus propios favoritos.",
+        "personalPerViewer": "Personal para cada usuario",
+        "buildEmpty": "Vacío hasta que este usuario marque algo con una estrella: cada persona ve aquí sus propios favoritos.",
+        "buildHint": "Se muestran tus favoritos como ejemplo: cada usuario ve los suyos."
+    },
+    "recent": {
+        "empty": "Los gráficos, dashboards y data apps que abras aparecerán aquí.",
+        "buildHint": "Se muestra tu actividad reciente como ejemplo: cada usuario ve la suya."
+    },
+    "dataAppPicker": {
+        "added": "Añadida",
+        "search": "Buscar data apps...",
+        "empty": "No se encontraron data apps.",
+        "loadMore": "Cargar más",
+        "title": "Añadir data apps"
+    },
+    "blockBuild": {
+        "title": "Título"
+    },
+    "metrics": {
+        "loadFailed": "No se pudo cargar esta métrica",
+        "vsPreviousPeriod": "vs. periodo anterior",
+        "picker": {
+            "title": "Elegir métricas",
+            "search": "Buscar métricas…",
+            "limit": "Puedes mostrar hasta {{max}} métricas. Quita una para añadir otra.",
+            "empty": "No hay métricas coincidentes."
+        },
+        "remove": "Quitar métrica {{label}}",
+        "limitReached": "Límite de métricas alcanzado ({{max}})",
+        "chooseFromCatalog": "Elegir métricas del catálogo…"
+    },
+    "quickActions": {
+        "static": {
+            "askAi": {
+                "title": "Preguntar a la IA",
+                "description": "Haz una pregunta en lenguaje natural."
+            },
+            "runQuery": {
+                "title": "Ejecutar una consulta",
+                "description": "Explora tus datos y responde a una pregunta de negocio."
+            },
+            "browseDashboards": {
+                "title": "Ver dashboards",
+                "description": "Mira lo que tu equipo ya ha creado."
+            },
+            "browseSpaces": {
+                "title": "Ver espacios",
+                "description": "Contenido organizado por equipo y tema."
+            },
+            "mySpace": {
+                "title": "Mi espacio",
+                "description": "Tu espacio personal."
+            }
+        },
+        "hints": {
+            "askAi": "Se oculta automáticamente para usuarios sin acceso a la IA.",
+            "mySpace": "Solo se muestra a usuarios que tienen un espacio personal."
+        },
+        "openDashboard": "Abrir este dashboard.",
+        "openSpace": "Abrir este espacio.",
+        "mySpacePlaceholder": "Se resuelve al espacio personal de cada usuario.",
+        "picker": {
+            "dashboardTitle": "Elige un dashboard",
+            "dashboardSearch": "Buscar dashboards…",
+            "spaceTitle": "Elige un espacio",
+            "spaceSearch": "Buscar espacios…"
+        },
+        "primaryAction": "Acción principal",
+        "makePrimary": "Hacer principal",
+        "makePrimaryAria": "Hacer de {{title}} la acción principal",
+        "moveEarlier": "Mover {{title}} antes",
+        "moveLater": "Mover {{title}} después",
+        "remove": "Quitar {{title}}",
+        "addAction": "Añadir acción",
+        "specificDashboard": "Un dashboard concreto…",
+        "specificSpace": "Un espacio concreto…"
+    },
+    "cta": {
+        "themes": {
+            "brand": "Marca",
+            "accent": "Acento",
+            "dark": "Oscuro",
+            "neutral": "Neutro"
+        },
+        "themeAria": "Tema {{theme}}",
+        "customColor": "Personalizado",
+        "customLink": "Enlace personalizado",
+        "titlePlaceholder": "Opcional: déjalo vacío para un banner solo con botón",
+        "supportingLine": "Línea de apoyo",
+        "optional": "Opcional",
+        "buttonLabel": "Texto del botón",
+        "buttonLeadsTo": "El botón lleva a",
+        "url": "URL",
+        "theme": "Tema",
+        "background": "Fondo",
+        "backgrounds": {
+            "none": "Ninguno",
+            "card": "Tarjeta",
+            "themed": "Con tema"
+        },
+        "align": "Alineación",
+        "alignments": {
+            "left": "Izquierda",
+            "middle": "Centro",
+            "right": "Derecha"
+        },
+        "brandHint": "Marca, Acento y los degradados usan los colores de marca de tu organización definidos en Configuración → Apariencia."
+    },
+    "toasts": {
+        "homepageDeleted": "Página de inicio eliminada",
+        "deleteFailed": "No se pudo eliminar la página de inicio",
+        "createFailed": "No se pudo crear la página de inicio",
+        "saveDraftFailed": "No se pudo guardar el borrador",
+        "reorderFailed": "No se pudo reordenar la prioridad de los grupos",
+        "draftReverted": "Borrador revertido a la versión publicada",
+        "revertFailed": "No se pudo revertir el borrador",
+        "published": "Página de inicio publicada",
+        "publishFailed": "No se pudo publicar la página de inicio",
+        "postAnnouncementFailed": "No se pudo publicar el anuncio",
+        "updateAnnouncementFailed": "No se pudo actualizar el anuncio",
+        "deleteAnnouncementFailed": "No se pudo eliminar el anuncio",
+        "uploadImageFailed": "No se pudo subir la imagen",
+        "updateSettingsFailed": "No se pudo actualizar la configuración de la página de inicio",
+        "updateChecklistFailed": "No se pudo actualizar la lista de configuración"
+    },
+    "checklist": {
+        "setUp": "Configurar",
+        "resume": "Reanudar",
+        "connected": "Conectado",
+        "title": "Termina la configuración",
+        "skipped": "Omitido",
+        "restoreStep": "Restaurar este paso",
+        "restoreAria": "Restaurar {{title}}",
+        "skipStep": "Omitir este paso",
+        "skipAria": "Omitir {{title}}",
+        "previousStep": "Paso anterior",
+        "nextStep": "Paso siguiente",
+        "actions": {
+            "connectWarehouse": {
+                "title": "Conectar un data warehouse",
+                "subtitle": "Consulta tus datos directamente"
+            },
+            "addSemanticLayer": {
+                "title": "Añadir una capa semántica",
+                "subtitle": "Respuestas basadas en las definiciones de tu negocio"
+            },
+            "connectSourceControl": {
+                "title": "Configura tu dbt",
+                "subtitle": "Despliega con la CLI o conecta tu repositorio"
+            },
+            "connectSlack": {
+                "title": "Conectar Slack",
+                "subtitle": "Pregunta a Aurora desde tus canales"
+            }
+        }
+    },
+    "resources": {
+        "kinds": {
+            "video": "Vídeo",
+            "doc": "Documento",
+            "link": "Enlace",
+            "claude": "Claude",
+            "youtube": "YouTube",
+            "dataApp": "Data app"
+        },
+        "kindAria": "Tipo de recurso",
+        "remove": "Quitar {{title}}",
+        "titlePlaceholder": "Título",
+        "descriptionPlaceholder": "Descripción",
+        "showDescriptions": "Mostrar descripciones",
+        "pastePlaceholder": "Pega un artefacto de Claude, un vídeo de YouTube o cualquier enlace…",
+        "addDataApp": "Añadir data app",
+        "addLink": "Añadir enlace",
+        "addResource": "Añadir recurso",
+        "buildHint": "Pega varios enlaces (uno por línea) para añadirlos todos a la vez, o añade una data app con el botón de app."
+    },
+    "collection": {
+        "addContent": "Añadir contenido",
+        "items": "Elementos",
+        "showAtMost": "Mostrar como máximo",
+        "verifiedOnly": "Solo verificados",
+        "noMatches": "Aún no hay nada que cumpla esta regla. El bloque no se mostrará hasta que lo haya.",
+        "personalHint": "Se muestran tus propios elementos como ejemplo: cada usuario ve los suyos.",
+        "dynamicHint": "Se actualiza solo a medida que cambia el proyecto.",
+        "importPinned": "Importar elementos fijados",
+        "sources": {
+            "manual": {
+                "label": "Selección manual",
+                "hint": "Exactamente los elementos que elijas."
+            },
+            "mostViewed": {
+                "label": "Más vistos",
+                "hint": "Lo que la gente de este proyecto abre realmente."
+            },
+            "pinned": {
+                "label": "Fijados",
+                "hint": "Sigue la lista de fijados del proyecto: los nuevos aparecen aquí."
+            },
+            "favorites": {
+                "label": "Favoritos",
+                "hint": "Los favoritos de cada usuario."
+            },
+            "recentlyViewed": {
+                "label": "Vistos recientemente",
+                "hint": "El historial de cada usuario."
+            },
+            "recentlyUpdated": {
+                "label": "Actualizados recientemente",
+                "hint": "Contenido modificado recientemente. Refleja cambios, no importancia."
+            },
+            "verified": {
+                "label": "Verificados",
+                "hint": "Los gráficos y dashboards verificados por los administradores de este proyecto."
+            }
+        },
+        "contentTypes": {
+            "dashboards": "Dashboards",
+            "charts": "Gráficos",
+            "apps": "Apps",
+            "spaces": "Espacios",
+            "documents": "Documentos"
+        },
+        "picker": {
+            "addSpaceItself": "Añadir el propio espacio",
+            "emptySpace": "Este espacio no tiene gráficos ni dashboards.",
+            "selectAll": "Seleccionar todo ({{count}})",
+            "tabs": {
+                "content": "Gráficos y dashboards",
+                "apps": "Data apps",
+                "documents": "Documentos"
+            },
+            "selectedCount": "{{count}} seleccionados",
+            "pickSpace": "Elige un espacio a la izquierda para añadirlo o ver sus gráficos y dashboards.",
+            "searchDocuments": "Buscar documentos...",
+            "noDocuments": "No se encontraron documentos.",
+            "apply": "Aplicar"
+        }
+    },
+    "announcements": {
+        "categories": {
+            "launch": "Lanzamiento",
+            "update": "Actualización",
+            "heads_up": "Aviso"
+        },
+        "timestampBy": "{{timeAgo}} por {{author}}",
+        "readMore": "Leer más",
+        "scheduledAt": "Programado · {{date}}",
+        "draft": "Borrador",
+        "showFewer": "Mostrar menos",
+        "showEarlier_one": "Mostrar {{count}} anuncio anterior",
+        "showEarlier_other": "Mostrar {{count}} anuncios anteriores",
+        "loadFailed": "No se pudieron cargar los anuncios. Prueba a recargar la página.",
+        "actions": {
+            "publishNow": "Publicar ahora",
+            "publishNowAria": "Publicar el anuncio ahora",
+            "unpin": "Desfijar",
+            "pinToTop": "Fijar arriba",
+            "pin": "Fijar",
+            "editAria": "Editar anuncio",
+            "deleteAria": "Eliminar anuncio"
+        },
+        "publishModal": {
+            "title": "Publicar anuncio",
+            "noSlack": "“{{title}}” se publica en la página de inicio inmediatamente.",
+            "withSlack": "“{{title}}” se publica en la página de inicio inmediatamente y avisa en Slack.",
+            "noSlackReplacingSchedule": "“{{title}}” se publica en la página de inicio inmediatamente, sustituyendo su programación.",
+            "withSlackReplacingSchedule": "“{{title}}” se publica en la página de inicio inmediatamente y avisa en Slack, sustituyendo su programación."
+        },
+        "deleteModal": {
+            "title": "Eliminar anuncio"
+        },
+        "new": "Nuevo anuncio",
+        "edit": "Editar anuncio",
+        "emptyView": "Aún no hay anuncios: comparte tu primera novedad. Los usuarios no ven este bloque mientras esté vacío.",
+        "emptyBuild": "Aún no hay anuncios: comparte tu primera novedad. El bloque permanece oculto en la página de inicio hasta que haya algo que mostrar.",
+        "collapseAfterFirst": "Contraer todos menos el primer anuncio",
+        "schedule": {
+            "label": "Programar publicación",
+            "date": "Fecha",
+            "time": "Hora"
+        },
+        "save": {
+            "scheduleWithSlack": "Programar y poner en cola Slack",
+            "schedule": "Programar",
+            "postWithSlack": "Publicar y enviar a Slack",
+            "post": "Publicar",
+            "draftWithSlack": "Crear borrador y poner en cola Slack",
+            "draft": "Crear borrador"
+        },
+        "hints": {
+            "pastTime": "Elige una hora de publicación futura.",
+            "scheduled": "Se publica automáticamente el {{date}} (tu hora local).",
+            "scheduledWithSlack": "Se publica automáticamente el {{date}} (tu hora local) y entonces avisa en Slack.",
+            "live": "Se publica en la página de inicio inmediatamente.",
+            "liveWithSlack": "Se publica en la página de inicio inmediatamente y avisa en Slack.",
+            "draft": "Guardado como borrador. Se publica cuando publiques la página de inicio.",
+            "draftWithSlack": "Guardado como borrador. El anuncio y su notificación de Slack se publican cuando publiques la página de inicio."
+        },
+        "form": {
+            "titlePlaceholder": "Título del anuncio",
+            "category": "Categoría",
+            "noCategory": "Ninguna",
+            "notifySlack": "Avisar en Slack",
+            "noNotification": "Sin notificación",
+            "bodyTooLong": "El cuerpo tiene {{length}} caracteres: recórtalo a {{max}} o menos."
+        }
+    },
+    "slashCommands": {
+        "text": {
+            "label": "Texto",
+            "description": "Párrafo simple"
+        },
+        "heading1": {
+            "label": "Título 1",
+            "description": "Título de sección grande"
+        },
+        "heading2": {
+            "label": "Título 2",
+            "description": "Título de sección mediano"
+        },
+        "heading3": {
+            "label": "Título 3",
+            "description": "Título de sección pequeño"
+        },
+        "bulletList": {
+            "label": "Lista con viñetas",
+            "description": "Lista sin orden"
+        },
+        "orderedList": {
+            "label": "Lista numerada",
+            "description": "Lista ordenada con números"
+        },
+        "blockquote": {
+            "label": "Cita",
+            "description": "Texto destacado con sangría"
+        },
+        "codeBlock": {
+            "label": "Bloque de código",
+            "description": "Fragmento de código monoespaciado"
+        },
+        "divider": {
+            "label": "Separador",
+            "description": "Línea horizontal"
+        },
+        "image": {
+            "label": "Imagen",
+            "description": "Subir una imagen"
+        },
+        "noMatches": "Ningún tipo de bloque coincide"
+    },
+    "markdownEditor": {
+        "imagePreview": "Vista previa de imagen",
+        "closeImagePreview": "Cerrar vista previa de imagen",
+        "placeholder": "Escribe algo o teclea '/' para ver los comandos…",
+        "openMention": "Abrir {{name}}",
+        "previewImage": "Vista previa de imagen {{alt}}",
+        "unsupportedImage": {
+            "title": "Tipo de imagen no compatible",
+            "subtitle": "Sube una imagen PNG, JPEG, GIF o WEBP."
+        },
+        "imageTooLarge": {
+            "title": "Imagen demasiado grande",
+            "subtitle": "Las imágenes deben ocupar 5 MB o menos."
+        },
+        "insertImage": "Insertar imagen"
+    }
+}

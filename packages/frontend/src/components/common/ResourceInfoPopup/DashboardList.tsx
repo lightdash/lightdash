@@ -1,5 +1,6 @@
 import { Anchor, Box, List, Loader, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
 
 type Props = {
@@ -8,6 +9,7 @@ type Props = {
 };
 
 export const DashboardList: FC<Props> = ({ resourceItemId, projectUuid }) => {
+    const { t } = useTranslation('commonUi');
     const { data: relatedDashboards } = useDashboardsContainingChart(
         projectUuid,
         resourceItemId,
@@ -16,11 +18,13 @@ export const DashboardList: FC<Props> = ({ resourceItemId, projectUuid }) => {
         <Box>
             {relatedDashboards ? (
                 <Text fw={600} fz="xs" c="dimmed">
-                    Used in {relatedDashboards?.length ?? 0} dashboard
-                    {relatedDashboards?.length === 1 ? '' : 's'}
-                    {relatedDashboards && relatedDashboards.length > 0
-                        ? ':'
-                        : ''}
+                    {relatedDashboards.length > 0
+                        ? t('resourceInfo.usedInDashboardsList', {
+                              count: relatedDashboards.length,
+                          })
+                        : t('resourceInfo.usedInDashboards', {
+                              count: relatedDashboards.length,
+                          })}
                 </Text>
             ) : (
                 <Loader color="gray" size="xs" />

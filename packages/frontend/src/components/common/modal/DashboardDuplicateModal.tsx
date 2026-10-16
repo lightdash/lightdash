@@ -9,6 +9,7 @@ import {
 import { useForm } from '@mantine/form';
 import { IconCopy } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useDashboardQuery,
     useDuplicateDashboardMutation,
@@ -29,6 +30,7 @@ const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = ({
     uuid,
     onConfirm,
 }) => {
+    const { t } = useTranslation('modals');
     const projectUuid = useProjectUuid();
     const { mutateAsync: duplicateDashboard, isLoading: isUpdating } =
         useDuplicateDashboardMutation({
@@ -45,7 +47,7 @@ const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = ({
         if (!dashboard) return;
 
         const initialValues = {
-            name: `Copy of ${dashboard.name}`,
+            name: t('duplicate.copyOf', { name: dashboard.name }),
             description: dashboard.description ?? '',
         };
 
@@ -76,7 +78,7 @@ const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Duplicate Dashboard"
+            title={t('dashboardDuplicate.title')}
             icon={IconCopy}
             actions={
                 <Button
@@ -85,28 +87,28 @@ const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = ({
                     type="submit"
                     form="duplicate-dashboard-form"
                 >
-                    Create duplicate
+                    {t('duplicate.createDuplicate')}
                 </Button>
             }
         >
             <form
                 id="duplicate-dashboard-form"
-                title="Duplicate Dashboard"
+                title={t('dashboardDuplicate.title')}
                 onSubmit={handleConfirm}
             >
                 <Stack>
                     <TextInput
-                        label="Enter a memorable name for your dashboard"
+                        label={t('dashboardForm.nameLabel')}
                         required
-                        placeholder="eg. KPI Dashboards"
+                        placeholder={t('dashboardForm.namePlaceholder')}
                         disabled={isLoading}
                         {...form.getInputProps('name')}
                         value={form.values.name ?? ''}
                     />
 
                     <Textarea
-                        label="Description"
-                        placeholder="A few words to give your team some context"
+                        label={t('dashboardForm.descriptionLabel')}
+                        placeholder={t('descriptionPlaceholder')}
                         disabled={isLoading}
                         autosize
                         maxRows={3}

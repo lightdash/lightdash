@@ -8,6 +8,7 @@ import {
 import { Badge, Button, Group, Text } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { type FC, type ReactNode, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ContentTable,
     useContentTable,
@@ -87,6 +88,7 @@ export const QueryHistoryTable: FC<Props> = ({
     hasActiveFilters,
     topToolbar,
 }) => {
+    const { t } = useTranslation('queryHistory');
     const isFlatSort = isRuntimeSort(sorting);
     const { containerRef, onScroll } = useInfiniteScroll({
         fetchNextPage,
@@ -100,7 +102,7 @@ export const QueryHistoryTable: FC<Props> = ({
                 id: 'query',
                 accessorFn: (row) =>
                     row.kind === 'query' ? row.item.title : '',
-                header: 'Query',
+                header: t('table.columns.query'),
                 enableSorting: false,
                 size: 380,
                 Cell: ({ row }) => {
@@ -128,9 +130,11 @@ export const QueryHistoryTable: FC<Props> = ({
                                         c="dimmed"
                                         className={styles.tableMeta}
                                     >
-                                        {`${windowCount.toLocaleString()} ${
-                                            windowCount === 1 ? 'run' : 'runs'
-                                        }`}
+                                        {t('table.runs', {
+                                            count: windowCount,
+                                            formattedCount:
+                                                windowCount.toLocaleString(),
+                                        })}
                                     </Text>
                                 ) : null}
                             </Group>
@@ -151,7 +155,7 @@ export const QueryHistoryTable: FC<Props> = ({
                                     onShowMore(original.window);
                                 }}
                             >
-                                {`Show ${nextCount} more`}
+                                {t('table.showMore', { count: nextCount })}
                             </Button>
                         );
                     }
@@ -177,7 +181,7 @@ export const QueryHistoryTable: FC<Props> = ({
                 id: 'language',
                 accessorFn: (row) =>
                     row.kind === 'query' ? row.item.language : '',
-                header: 'Language',
+                header: t('table.columns.language'),
                 enableSorting: false,
                 size: 100,
                 Cell: ({ row }) => {
@@ -196,7 +200,7 @@ export const QueryHistoryTable: FC<Props> = ({
                 id: 'trigger',
                 accessorFn: (row) =>
                     row.kind === 'query' ? row.item.trigger : '',
-                header: 'Trigger',
+                header: t('table.columns.trigger'),
                 enableSorting: false,
                 size: 110,
                 Cell: ({ row }) => {
@@ -217,7 +221,7 @@ export const QueryHistoryTable: FC<Props> = ({
                     row.kind === 'query'
                         ? row.item.warehouseExecutionTimeMs
                         : null,
-                header: 'Run time',
+                header: t('table.columns.runTime'),
                 enableSorting: true,
                 size: 110,
                 mantineTableHeadCellProps: { ta: 'right' },
@@ -249,7 +253,7 @@ export const QueryHistoryTable: FC<Props> = ({
                 id: 'rows',
                 accessorFn: (row) =>
                     row.kind === 'query' ? row.item.totalRowCount : null,
-                header: 'Rows',
+                header: t('table.columns.rows'),
                 enableSorting: false,
                 size: 90,
                 mantineTableHeadCellProps: { ta: 'right' },
@@ -281,7 +285,7 @@ export const QueryHistoryTable: FC<Props> = ({
                         : row.kind === 'window'
                           ? getWindowRangeLabel(row.window)
                           : '',
-                header: 'When',
+                header: t('table.columns.when'),
                 enableSorting: true,
                 size: 140,
                 mantineTableHeadCellProps: { ta: 'right' },
@@ -312,7 +316,7 @@ export const QueryHistoryTable: FC<Props> = ({
                 },
             },
         ],
-        [counts, expandedWindows, onShowMore],
+        [counts, expandedWindows, onShowMore, t],
     );
 
     const table = useContentTable({
@@ -353,9 +357,9 @@ export const QueryHistoryTable: FC<Props> = ({
             },
         },
         emptyState: {
-            entityName: 'queries',
-            emptyMessage: 'No queries in the last 30 days',
-            filteredMessage: 'No queries match these filters',
+            entityName: t('table.entityName'),
+            emptyMessage: t('table.emptyMessage'),
+            filteredMessage: t('table.filteredMessage'),
             search,
             hasActiveFilters,
             onClearFilters,
@@ -399,10 +403,10 @@ export const QueryHistoryTable: FC<Props> = ({
                 <Group px="md" py="xs">
                     <Text fz="xs" c="dimmed">
                         {isFetching
-                            ? 'Loading more'
+                            ? t('table.loadingMore')
                             : hasNextPage
-                              ? 'Scroll for more'
-                              : 'All results loaded'}
+                              ? t('table.scrollForMore')
+                              : t('table.allResultsLoaded')}
                     </Text>
                 </Group>
             ) : null,

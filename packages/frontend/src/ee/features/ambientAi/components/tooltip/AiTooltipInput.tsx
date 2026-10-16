@@ -2,6 +2,7 @@ import { ActionIcon, Box, Group, Text, Textarea } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
 import { IconArrowUp, IconSparkles } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useGenerateTooltip } from '../../../../../hooks/useGenerateTooltip';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export const AiTooltipInput: FC<Props> = ({ fields, currentHtml, onApply }) => {
+    const { t } = useTranslation('ambientAi');
     const projectUuid = useProjectUuid();
     const [prompt, setPrompt] = useState('');
 
@@ -55,8 +57,8 @@ export const AiTooltipInput: FC<Props> = ({ fields, currentHtml, onApply }) => {
                 <MantineIcon icon={IconSparkles} color="indigo.4" />
                 <Text size="xs" c="ldDark.9" fw={500}>
                     {currentHtml
-                        ? 'Improve your tooltip code with AI'
-                        : 'Generate tooltip with AI'}
+                        ? t('tooltip.improveTitle')
+                        : t('tooltip.generateTitle')}
                 </Text>
             </Group>
 
@@ -65,7 +67,7 @@ export const AiTooltipInput: FC<Props> = ({ fields, currentHtml, onApply }) => {
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Describe what you want to show in the tooltip..."
+                    placeholder={t('tooltip.placeholder')}
                     disabled={isLoading}
                     classNames={{
                         root: styles.textareaRoot,
@@ -95,7 +97,7 @@ export const AiTooltipInput: FC<Props> = ({ fields, currentHtml, onApply }) => {
 
             {error && (
                 <Text size="xs" c="red" mt="xs">
-                    Failed to generate. Please try again.
+                    {t('generateFailed')}
                 </Text>
             )}
         </Box>

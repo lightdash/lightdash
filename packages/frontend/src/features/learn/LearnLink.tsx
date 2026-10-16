@@ -3,6 +3,7 @@ import { FeatureFlags, ProjectType } from '@lightdash/common';
 import { Button, Tooltip } from '@mantine/core';
 import { IconSchool } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useProjects } from '../../hooks/useProjects';
@@ -14,6 +15,7 @@ export const LearnLink: FC<{ projectUuid: string; withLabel?: boolean }> = ({
     projectUuid,
     withLabel = false,
 }) => {
+    const { t } = useTranslation('learn');
     const navigate = useNavigate();
     const { user } = useApp();
     const canViewLearn = user.data?.ability.can(
@@ -32,9 +34,9 @@ export const LearnLink: FC<{ projectUuid: string; withLabel?: boolean }> = ({
     )
         return null;
     return (
-        <Tooltip label="Learn" position="bottom" withinPortal>
+        <Tooltip label={t('link.label')} position="bottom" withinPortal>
             <Button
-                aria-label="Learn"
+                aria-label={t('link.label')}
                 variant="default"
                 size="xs"
                 onClick={() => void navigate(`/projects/${projectUuid}/learn`)}
@@ -43,7 +45,7 @@ export const LearnLink: FC<{ projectUuid: string; withLabel?: boolean }> = ({
                 data-tour-hint="Click Learn"
             >
                 <MantineIcon icon={IconSchool} />
-                {withLabel && 'Learn'}
+                {withLabel && t('link.label')}
             </Button>
         </Tooltip>
     );

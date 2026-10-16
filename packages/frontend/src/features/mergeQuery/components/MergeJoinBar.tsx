@@ -16,6 +16,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useId, useMemo, useState, type FC, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -118,37 +119,43 @@ const JoinTypePicker: FC<{
     value: MergeJoinType;
     options: JoinTypeOption[];
     onChange: (value: MergeJoinType) => void;
-}> = ({ value, options, onChange }) => (
-    <Radio.Group
-        aria-label="Join type"
-        value={value}
-        onChange={(nextValue) => onChange(nextValue as MergeJoinType)}
-    >
-        <SimpleGrid className={styles.joinTypeGrid} cols={3} spacing={4}>
-            {options.map((option) => (
-                <Radio.Card
-                    className={styles.joinTypeCard}
-                    key={option.value}
-                    value={option.value}
-                    radius="sm"
-                    withBorder={false}
-                    aria-label={`${option.label}: ${option.help}`}
-                >
-                    <Group
-                        className={styles.joinTypeOption}
-                        gap={6}
-                        wrap="nowrap"
+}> = ({ value, options, onChange }) => {
+    const { t } = useTranslation('mergeQuery');
+    return (
+        <Radio.Group
+            aria-label={t('joinBar.joinType')}
+            value={value}
+            onChange={(nextValue) => onChange(nextValue as MergeJoinType)}
+        >
+            <SimpleGrid className={styles.joinTypeGrid} cols={3} spacing={4}>
+                {options.map((option) => (
+                    <Radio.Card
+                        className={styles.joinTypeCard}
+                        key={option.value}
+                        value={option.value}
+                        radius="sm"
+                        withBorder={false}
+                        aria-label={t('joinTypes.optionAriaLabel', {
+                            label: option.label,
+                            help: option.help,
+                        })}
                     >
-                        <JoinTypeDiagram type={option.value} />
-                        <Text span size="xs" fw={600} truncate>
-                            {option.label}
-                        </Text>
-                    </Group>
-                </Radio.Card>
-            ))}
-        </SimpleGrid>
-    </Radio.Group>
-);
+                        <Group
+                            className={styles.joinTypeOption}
+                            gap={6}
+                            wrap="nowrap"
+                        >
+                            <JoinTypeDiagram type={option.value} />
+                            <Text span size="xs" fw={600} truncate>
+                                {option.label}
+                            </Text>
+                        </Group>
+                    </Radio.Card>
+                ))}
+            </SimpleGrid>
+        </Radio.Group>
+    );
+};
 
 /**
  * The merge relationship, as a persistent bar under the sidebar tabs.
@@ -160,6 +167,7 @@ const JoinTypePicker: FC<{
  * error is not chrome.
  */
 export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
+    const { t } = useTranslation('mergeQuery');
     const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
     const tableName = useExplorerSelector(selectTableName);
     const mergeContext = useMergeSafe();
@@ -224,23 +232,31 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
     if (!isMerging) return null;
     if (!additionalSource?.exploreName || !additionalSourceId) return null;
 
-    const thisQuery = primaryExploreLabel || 'this query';
-    const otherQuery = additionalExploreLabel || 'the other query';
+    const thisQuery = primaryExploreLabel || t('labels.thisQuery');
+    const otherQuery = additionalExploreLabel || t('labels.otherQuery');
     const keepOptions: JoinTypeOption[] = [
         {
             value: MergeJoinType.INNER,
-            label: 'Inner',
-            help: `Inner join · Only the ${joinFieldLabel} values in both ${thisQuery} and ${otherQuery}. Everything unmatched is dropped.`,
+            label: t('joinTypes.inner'),
+            help: t('joinTypes.innerHelp', {
+                field: joinFieldLabel,
+                thisQuery,
+                otherQuery,
+            }),
         },
         {
             value: MergeJoinType.LEFT,
-            label: 'Left',
-            help: `Left join · Only the ${joinFieldLabel} values in ${thisQuery}. Anything found solely in ${otherQuery} is dropped.`,
+            label: t('joinTypes.left'),
+            help: t('joinTypes.leftHelp', {
+                field: joinFieldLabel,
+                thisQuery,
+                otherQuery,
+            }),
         },
         {
             value: MergeJoinType.FULL,
-            label: 'Full outer',
-            help: `Full outer join · Every ${joinFieldLabel} from either query. Where one side has no match, its columns are blank.`,
+            label: t('joinTypes.fullOuter'),
+            help: t('joinTypes.fullOuterHelp', { field: joinFieldLabel }),
         },
     ];
     const activeKeep =
@@ -248,33 +264,33 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
         keepOptions[0];
     const mergeError = mergeResults?.results.error ?? null;
 
+    const joinedKeys = effectiveParts
+        .map((part) => {
+            const primaryFieldId = part.fieldIdBySourceId[PRIMARY_SOURCE_ID];
+            const additionalFieldId =
+                part.fieldIdBySourceId[additionalSourceId];
+            return getJoinClauseLabel(
+                thisQuery,
+                primaryFieldId ? labelFor(primaryFieldId) : '?',
+                otherQuery,
+                additionalFieldId ? labelFor(additionalFieldId) : '?',
+            );
+        })
+        .join(` ${t('labels.and')} `);
     const summary = isIncomplete ? (
-        <>
-            match <b>{thisQuery}</b> and <b>{otherQuery}</b> on a shared field
-        </>
+        <Trans
+            t={t}
+            i18nKey="joinBar.matchSummary"
+            values={{ thisQuery, otherQuery }}
+            components={{ bold: <b /> }}
+        />
     ) : (
-        <>
-            joined on{' '}
-            <b>
-                {effectiveParts
-                    .map((part) => {
-                        const primaryFieldId =
-                            part.fieldIdBySourceId[PRIMARY_SOURCE_ID];
-                        const additionalFieldId =
-                            part.fieldIdBySourceId[additionalSourceId];
-                        return getJoinClauseLabel(
-                            thisQuery,
-                            primaryFieldId ? labelFor(primaryFieldId) : '?',
-                            otherQuery,
-                            additionalFieldId
-                                ? labelFor(additionalFieldId)
-                                : '?',
-                        );
-                    })
-                    .join(' AND ')}
-            </b>{' '}
-            · <b>{activeKeep.label}</b>
-        </>
+        <Trans
+            t={t}
+            i18nKey="joinBar.joinedOnSummary"
+            values={{ keys: joinedKeys, keep: activeKeep.label }}
+            components={{ bold: <b /> }}
+        />
     );
 
     return (
@@ -295,7 +311,9 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                 fw={600}
                                 onClick={() => setEditingOverride(!expanded)}
                             >
-                                {expanded ? 'Done' : 'Edit'}
+                                {expanded
+                                    ? t('joinBar.done')
+                                    : t('joinBar.edit')}
                             </Anchor>
                         )}
                     </Box>
@@ -304,7 +322,7 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                 {expanded && (
                     <Box className={styles.editor} data-guided={guided}>
                         <Text size="xs" fw={600}>
-                            Join conditions
+                            {t('joinBar.joinConditions')}
                         </Text>
                         {effectiveParts.map((part, index) => {
                             const primaryCandidates = getJoinCandidates(
@@ -326,7 +344,7 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                                 c="dimmed"
                                                 fw={600}
                                             >
-                                                AND
+                                                {t('labels.and')}
                                             </Text>
                                         </Box>
                                     ) : null}
@@ -340,7 +358,7 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                         suggestedAvailablePair && (
                                             <Box className={styles.suggestion}>
                                                 <Text size="xs" c="dimmed">
-                                                    Suggested:{' '}
+                                                    {t('joinBar.suggested')}{' '}
                                                     <Text
                                                         span
                                                         inherit
@@ -394,7 +412,7 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                                         );
                                                     }}
                                                 >
-                                                    Use suggestion
+                                                    {t('joinBar.useSuggestion')}
                                                 </Anchor>
                                             </Box>
                                         )}
@@ -405,9 +423,14 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                         >
                                             <SourceLabel label={thisQuery} />
                                             <FieldSelect
-                                                aria-label={`${thisQuery} join field`}
+                                                aria-label={t(
+                                                    'joinBar.joinFieldAriaLabel',
+                                                    { label: thisQuery },
+                                                )}
                                                 size="xs"
-                                                placeholder="Choose a field"
+                                                placeholder={t(
+                                                    'joinBar.chooseField',
+                                                )}
                                                 hasGrouping
                                                 items={
                                                     availablePrimaryJoinItems
@@ -450,9 +473,14 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                         >
                                             <SourceLabel label={otherQuery} />
                                             <FieldSelect
-                                                aria-label={`${otherQuery} join field`}
+                                                aria-label={t(
+                                                    'joinBar.joinFieldAriaLabel',
+                                                    { label: otherQuery },
+                                                )}
                                                 size="xs"
-                                                placeholder="Choose a field"
+                                                placeholder={t(
+                                                    'joinBar.chooseField',
+                                                )}
                                                 hasGrouping
                                                 items={
                                                     availableAdditionalJoinItems
@@ -488,7 +516,10 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                                 onClick={() =>
                                                     removeJoinPart(index)
                                                 }
-                                                aria-label={`Remove join condition ${index + 1}`}
+                                                aria-label={t(
+                                                    'joinBar.removeJoinCondition',
+                                                    { index: index + 1 },
+                                                )}
                                             >
                                                 <MantineIcon
                                                     icon={IconX}
@@ -517,13 +548,13 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                         >
                             <Group gap={4} wrap="nowrap">
                                 <MantineIcon icon={IconPlus} size={12} />
-                                Add join condition
+                                {t('joinBar.addJoinCondition')}
                             </Group>
                         </Anchor>
 
                         <Stack gap={4} mt={2}>
                             <Text size="xs" fw={600}>
-                                Join type
+                                {t('joinBar.joinType')}
                             </Text>
                             <JoinTypePicker
                                 value={joinType}
@@ -556,9 +587,11 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                 const otherLabel = isPrimary ? otherQuery : thisQuery;
                 return (
                     <Note key={`empty-${sourceId}`} tone="muted">
-                        {emptyLabel}'s columns are blank on every row: its query
-                        returned no rows matching {otherLabel} on{' '}
-                        {joinFieldLabel}.
+                        {t('joinBar.emptySource', {
+                            emptyLabel,
+                            otherLabel,
+                            field: joinFieldLabel,
+                        })}
                     </Note>
                 );
             })}
@@ -579,27 +612,39 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                             : primaryExploreLabel;
                     return (
                         <Note key={sourceId} tone="warn">
-                            {splitLabel} is split by{' '}
-                            {fields.map(labelFor).join(' and ')}, which{' '}
-                            {otherLabel} does not have. Merging would repeat{' '}
-                            {otherLabel}'s rows once per value. Remove{' '}
-                            {fields.length === 1 ? 'it' : 'them'}, select{' '}
-                            {fields.length === 1 ? 'it' : 'them'} on both
-                            queries and join on{' '}
-                            {fields.length === 1 ? 'it' : 'them'}, or{' '}
+                            {t('joinBar.fanOut', {
+                                count: fields.length,
+                                split: splitLabel,
+                                fields: fields
+                                    .map(labelFor)
+                                    .join(t('joinBar.fieldsSeparator')),
+                                other: otherLabel,
+                            })}
                             {!readOnly && (
-                                <Anchor
-                                    component="button"
-                                    type="button"
-                                    size="xs"
-                                    fw={600}
-                                    onClick={() =>
-                                        setRepeatValues(otherSourceId, true)
-                                    }
-                                >
-                                    repeat {otherLabel}'s values on every{' '}
-                                    {splitLabel} row
-                                </Anchor>
+                                <Trans
+                                    t={t}
+                                    i18nKey="joinBar.fanOutRepeat"
+                                    values={{
+                                        other: otherLabel,
+                                        split: splitLabel,
+                                    }}
+                                    components={{
+                                        anchor: (
+                                            <Anchor
+                                                component="button"
+                                                type="button"
+                                                size="xs"
+                                                fw={600}
+                                                onClick={() =>
+                                                    setRepeatValues(
+                                                        otherSourceId,
+                                                        true,
+                                                    )
+                                                }
+                                            />
+                                        ),
+                                    }}
+                                />
                             )}
                             .
                         </Note>
@@ -625,9 +670,11 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                             : primaryExploreLabel;
                     return (
                         <Note key={`repeat-${sourceId}`} tone="muted">
-                            {repeatingLabel}'s values repeat on every{' '}
-                            {otherLabel} row with the same {joinFieldLabel}. Its
-                            columns have no totals here.{' '}
+                            {t('joinBar.repeating', {
+                                repeating: repeatingLabel,
+                                other: otherLabel,
+                                field: joinFieldLabel,
+                            })}{' '}
                             {!readOnly && (
                                 <Anchor
                                     component="button"
@@ -638,7 +685,7 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                         setRepeatValues(sourceId, false)
                                     }
                                 >
-                                    Stop repeating
+                                    {t('joinBar.stopRepeating')}
                                 </Anchor>
                             )}
                         </Note>
@@ -653,7 +700,8 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
 
             {mergeError && (
                 <Note tone="warn">
-                    {mergeError.error?.message ?? 'Something went wrong'}
+                    {mergeError.error?.message ??
+                        t('joinBar.somethingWentWrong')}
                 </Note>
             )}
         </Box>

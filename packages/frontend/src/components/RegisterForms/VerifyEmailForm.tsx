@@ -3,6 +3,7 @@ import { Anchor, Button, PinInput, Stack, Text, Title } from '@mantine/core';
 import { isNotEmpty, useForm } from '@mantine/form';
 import { useEffect, useRef, type FC } from 'react';
 import Countdown, { zeroPad } from 'react-countdown';
+import { Trans, useTranslation } from 'react-i18next';
 import {
     useOneTimePassword,
     useVerifyEmail,
@@ -21,6 +22,7 @@ const VerifyEmailForm: FC<{
     statusLoading?: boolean;
     align?: 'center' | 'left';
 }> = ({ isLoading, emailStatusData, statusLoading, align = 'center' }) => {
+    const { t } = useTranslation('auth');
     const isLeftAligned = align === 'left';
     const { health } = useApp();
     const { track } = useTracking();
@@ -35,7 +37,7 @@ const VerifyEmailForm: FC<{
         },
         clearInputErrorOnChange: false,
         validate: {
-            code: isNotEmpty('This field is required.'),
+            code: isNotEmpty(t('otp.required')),
         },
     });
     const { setFieldError, clearFieldError } = form;
@@ -66,17 +68,15 @@ const VerifyEmailForm: FC<{
         if (data?.otp && data?.otp.numberOfAttempts > 0) {
             const remainingAttempts = 5 - data.otp.numberOfAttempts;
             const message = data.otp.isExpired
-                ? 'This code has expired. Send a new one.'
+                ? t('verifyEmail.expiredSendNew')
                 : data.otp.numberOfAttempts < 5
-                  ? `Wrong code. ${remainingAttempts} attempt${
-                        remainingAttempts > 1 ? 's' : ''
-                    } left.`
-                  : 'Too many attempts. Send a new code to try again.';
+                  ? t('verifyEmail.wrongCode', { count: remainingAttempts })
+                  : t('verifyEmail.tooManyAttempts');
             setFieldError('code', message);
         } else {
             clearFieldError('code');
         }
-    }, [data, setFieldError, clearFieldError]);
+    }, [data, setFieldError, clearFieldError, t]);
 
     const resendCode = () => {
         track({
@@ -118,14 +118,18 @@ const VerifyEmailForm: FC<{
             w="100%"
             mx="auto"
         >
-            <Title order={3}>Check your inbox!</Title>
+            <Title order={3}>{t('verifyEmail.checkInbox')}</Title>
             <Text c="ldGray.8" ta={align} fz="sm">
-                Verify your email address by entering the code we've just sent
-                to{' '}
-                <Text span fw={500} fz="sm" c="ldGray.8">
-                    {data?.email || 'your email'}
-                </Text>
-                .
+                <Trans
+                    t={t}
+                    i18nKey="verifyEmail.enterCode"
+                    values={{
+                        email: data?.email || t('verifyEmail.yourEmail'),
+                    }}
+                    components={{
+                        email: <Text span fw={500} fz="sm" c="ldGray.8" />,
+                    }}
+                />
             </Text>
             <form
                 name="verifyEmail"
@@ -139,7 +143,7 @@ const VerifyEmailForm: FC<{
                     align={isLeftAligned ? 'flex-start' : 'center'}
                 >
                     <PinInput
-                        aria-label="One-time password"
+                        aria-label={t('otp.inputLabel')}
                         name="code"
                         length={6}
                         oneTimeCode
@@ -165,13 +169,17 @@ const VerifyEmailForm: FC<{
                             return (
                                 <Callout
                                     variant="warning"
-                                    title="Your verification code has expired."
+                                    title={t('verifyEmail.codeExpired')}
                                 >
-                                    Hit{' '}
-                                    <Text span fw={500} fz="sm">
-                                        Resend verification email
-                                    </Text>{' '}
-                                    to receive a new code.
+                                    <Trans
+                                        t={t}
+                                        i18nKey="verifyEmail.hitResend"
+                                        components={{
+                                            strong: (
+                                                <Text span fw={500} fz="sm" />
+                                            ),
+                                        }}
+                                    />
                                 </Callout>
                             );
                         }
@@ -192,10 +200,10 @@ const VerifyEmailForm: FC<{
                                     loading={verificationLoading}
                                     type="submit"
                                 >
-                                    Submit
+                                    {t('verifyEmail.submit')}
                                 </Button>
                                 <Text c="dimmed" ta={align} fz="sm" fw={500}>
-                                    Your one-time password expires in{' '}
+                                    {t('verifyEmail.otpExpiresIn')}{' '}
                                     <Text span fw={500} fz="sm" c="ldGray.7">
                                         {zeroPad(minutes)}:{zeroPad(seconds)}
                                     </Text>
@@ -211,7 +219,7 @@ const VerifyEmailForm: FC<{
                 component="button"
                 onClick={resendCode}
             >
-                Resend verification email
+                {t('verifyEmail.resendEmail')}
             </Anchor>
         </Stack>
     );

@@ -2,6 +2,7 @@ import { type ToolEditRepoOutput } from '@lightdash/common';
 import { Box, Group, Paper, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconGitPullRequest } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useClosePullRequest } from '../../../hooks/useClosePullRequest';
 import { useMergePullRequest } from '../../../hooks/useMergePullRequest';
@@ -30,6 +31,7 @@ type Props = {
  * nothing — the agent's own reply carries the explanation.
  */
 export const AiEditRepoToolCall: FC<Props> = ({ metadata, projectUuid }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const prUrl = metadata.status === 'success' ? metadata.prUrl : null;
     const ciCommitSha =
         metadata.status === 'success' ? (metadata.commitSha ?? null) : null;
@@ -75,8 +77,7 @@ export const AiEditRepoToolCall: FC<Props> = ({ metadata, projectUuid }) => {
                         <MantineIcon icon={IconGitPullRequest} size={14} />
                     </ThemeIcon>
                     <Text size="xs" c="ldGray.7">
-                        No file changes were needed — no pull request was
-                        opened.
+                        {t('pullRequest.noChangesNeeded')}
                     </Text>
                 </Group>
             </Paper>
@@ -120,7 +121,7 @@ export const AiEditRepoToolCall: FC<Props> = ({ metadata, projectUuid }) => {
                         />
                         <Stack gap={0}>
                             <Text size="xs" fw={500}>
-                                Edited repository
+                                {t('pullRequest.editedRepository')}
                             </Text>
                             {summary && (
                                 <Group gap={6} wrap="nowrap">

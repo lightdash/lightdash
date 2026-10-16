@@ -8,6 +8,7 @@ import { Button, Select, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPlus } from '@tabler/icons-react';
 import React, { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useIsDatabricksSsoEnabled } from '../../../hooks/useDatabricks';
 import { useUserWarehouseCredentialsCreateMutation } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import { useIsSnowflakeSsoEnabled } from '../../../hooks/useSnowflake';
@@ -111,6 +112,7 @@ export const CreateCredentialsModal: FC<Props> = ({
     projectName,
     onSuccess,
 }) => {
+    const { t } = useTranslation('userSettings');
     const { mutateAsync, isLoading: isSaving } =
         useUserWarehouseCredentialsCreateMutation({
             onSuccess,
@@ -149,7 +151,10 @@ export const CreateCredentialsModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title={title ?? 'Add new credentials'}
+            title={
+                title ??
+                t('myWarehouseConnectionsPanel.createCredentialsModal.title')
+            }
             icon={IconPlus}
             actions={
                 showSaveButton ? (
@@ -159,7 +164,7 @@ export const CreateCredentialsModal: FC<Props> = ({
                         disabled={isSaving}
                         loading={isSaving}
                     >
-                        Save
+                        {t('actions.save', { ns: 'common' })}
                     </Button>
                 ) : undefined
             }
@@ -182,7 +187,9 @@ export const CreateCredentialsModal: FC<Props> = ({
                         <TextInput
                             required
                             size="xs"
-                            label="Name"
+                            label={t(
+                                'myWarehouseConnectionsPanel.createCredentialsModal.nameLabel',
+                            )}
                             disabled={isSaving}
                             {...form.getInputProps('name')}
                         />
@@ -191,7 +198,9 @@ export const CreateCredentialsModal: FC<Props> = ({
                     {!warehouseType && (
                         <Select
                             required
-                            label="Warehouse"
+                            label={t(
+                                'myWarehouseConnectionsPanel.createCredentialsModal.warehouseLabel',
+                            )}
                             size="xs"
                             disabled={isSaving}
                             data={warehouseTypes.map((type) => ({

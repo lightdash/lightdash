@@ -1,5 +1,6 @@
 import { type ApiError, type UpdateOrganization } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -12,18 +13,23 @@ const updateOrgQuery = async (data: UpdateOrganization) =>
 
 export const useOrganizationUpdateMutation = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<null, ApiError, UpdateOrganization>(updateOrgQuery, {
         mutationKey: ['organization_update'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(['organization']);
             showToastSuccess({
-                title: 'Success! Organization was updated',
+                title: t(
+                    'useOrganizationUpdateMutation.successOrganizationWasUpdated',
+                ),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update organization',
+                title: t(
+                    'useOrganizationUpdateMutation.failedToUpdateOrganization',
+                ),
                 apiError: error,
             });
         },

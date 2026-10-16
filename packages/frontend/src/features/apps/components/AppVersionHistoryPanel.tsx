@@ -23,6 +23,7 @@ import {
 } from '@tabler/icons-react';
 import { format } from 'date-fns';
 import { Fragment, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import { AiMarkdown } from '../../../components/common/AiMarkdown';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -151,13 +152,16 @@ const VersionAuthor: FC<{
 const VersionBuildDetails: FC<{ version: ApiAppVersionSummary }> = ({
     version,
 }) => {
+    const { t } = useTranslation('apps');
     const narration = getVersionNarration(version.statusHistory);
     if (!hasVersionNarration(narration)) return null;
 
     return (
         <VersionHistoryDisclosure
-            label="Build details"
-            ariaLabel={`Build details for v${version.version}`}
+            label={t('versionHistory.buildDetails')}
+            ariaLabel={t('versionHistory.buildDetailsFor', {
+                version: version.version,
+            })}
             summary={null}
         >
             <AppVersionNarration narration={narration} isLive={false} />
@@ -165,13 +169,16 @@ const VersionBuildDetails: FC<{ version: ApiAppVersionSummary }> = ({
     );
 };
 
-const ThreadRule: FC = () => (
-    <Divider
-        className={classes.threadRule}
-        label="Agent context cleared"
-        labelPosition="center"
-    />
-);
+const ThreadRule: FC = () => {
+    const { t } = useTranslation('apps');
+    return (
+        <Divider
+            className={classes.threadRule}
+            label={t('versionHistory.contextCleared')}
+            labelPosition="center"
+        />
+    );
+};
 
 /**
  * Every version of a data app on a timeline, newest first and grouped by
@@ -198,6 +205,7 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
     currentThreadNumber,
     thumbnailSource,
 }) => {
+    const { t } = useTranslation('apps');
     const groups = groupVersionsByThread(versions);
     const isEmpty = groups.length === 0 && liveBuild === null;
     const isCurrentThreadEmpty =
@@ -227,7 +235,7 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
         const failureReason = isFailed
             ? (version.statusMessage ??
               version.error ??
-              'Build failed, nothing was published')
+              t('versionHistory.buildFailed'))
             : null;
 
         const view = () =>
@@ -248,7 +256,7 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                     )}
                     {isBuilding && (
                         <Text fz="xs" c="dimmed">
-                            Building…
+                            {t('versionHistory.building')}
                         </Text>
                     )}
                     {isReady && (!isCurrent || isPinnedElsewhere) && (
@@ -272,7 +280,7 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                                     }
                                     onClick={() => onRestore(version.version)}
                                 >
-                                    Restore
+                                    {t('versionHistory.restore')}
                                 </Button>
                             )}
                             <Button
@@ -286,7 +294,9 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                                 }
                                 onClick={view}
                             >
-                                {isPreviewing ? 'Previewing' : 'Preview'}
+                                {isPreviewing
+                                    ? t('versionHistory.previewing')
+                                    : t('versionHistory.preview')}
                             </Button>
                         </Group>
                     )}
@@ -313,7 +323,7 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                 {isReady && isUpgrade && version.statusMessage && (
                     <Box className={classes.upgradeSummary}>
                         <Text fz="xs" fw={500} mb="xxs">
-                            Upgrade summary
+                            {t('versionHistory.upgradeSummary')}
                         </Text>
                         <AiMarkdown className={classes.upgradeSummaryMarkdown}>
                             {version.statusMessage}
@@ -340,7 +350,7 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                         />
                     )}
                     <Text fz="xs" c="dimmed">
-                        Building…
+                        {t('versionHistory.building')}
                     </Text>
                 </Group>
                 {liveBuild.pendingPrompt && (
@@ -371,10 +381,10 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
         <Box
             className={classes.panel}
             component="aside"
-            aria-label="Version history"
+            aria-label={t('versionHistory.title')}
         >
             <Box className={classes.header}>
-                <Title order={5}>Version history</Title>
+                <Title order={5}>{t('versionHistory.title')}</Title>
                 {onBack && (
                     <Button
                         size="xs"
@@ -382,14 +392,14 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                         leftSection={<MantineIcon icon={IconArrowLeft} />}
                         onClick={onBack}
                     >
-                        Back to chat
+                        {t('versionHistory.backToChat')}
                     </Button>
                 )}
                 {onClose && (
-                    <Tooltip label="Collapse version history">
+                    <Tooltip label={t('versionHistory.collapse')}>
                         <ActionIcon
                             size="xs"
-                            aria-label="Collapse version history"
+                            aria-label={t('versionHistory.collapse')}
                             onClick={onClose}
                         >
                             <MantineIcon
@@ -443,7 +453,7 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                 {isEmpty && (
                     <Paper variant="dotted" m="md" p="md">
                         <Text fz="sm" c="dimmed" ta="center">
-                            No versions yet
+                            {t('versionHistory.empty')}
                         </Text>
                     </Paper>
                 )}
@@ -455,7 +465,7 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                             loading={isFetchingEarlier}
                             onClick={fetchEarlier}
                         >
-                            Load earlier versions
+                            {t('versionHistory.loadEarlier')}
                         </Button>
                     </Group>
                 )}

@@ -1,5 +1,6 @@
 import { Box, Stack, Text, Textarea } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import classes from './ClarificationQuestionList.module.css';
 
 type Props = {
@@ -15,37 +16,40 @@ const ClarificationQuestionList: FC<Props> = ({
     questions,
     answers,
     onAnswer,
-}) => (
-    <Stack gap={6}>
-        {questions.map((question, index) => (
-            <Box
-                // Index-keyed: `answers` is too, and questions can repeat.
-                key={index}
-                className={classes.field}
-                data-answered={
-                    (answers[index] ?? '').trim().length > 0 || undefined
-                }
-            >
-                <Text size="sm" c="dimmed" lh={1.4}>
-                    {question}
-                </Text>
-                <Textarea
-                    variant="unstyled"
-                    autosize
-                    minRows={1}
-                    maxRows={4}
-                    placeholder="Your answer"
-                    value={answers[index] ?? ''}
-                    autoFocus={index === 0}
-                    onChange={(event) =>
-                        onAnswer(index, event.currentTarget.value)
+}) => {
+    const { t } = useTranslation('apps');
+    return (
+        <Stack gap={6}>
+            {questions.map((question, index) => (
+                <Box
+                    // Index-keyed: `answers` is too, and questions can repeat.
+                    key={index}
+                    className={classes.field}
+                    data-answered={
+                        (answers[index] ?? '').trim().length > 0 || undefined
                     }
-                    classNames={{ input: classes.input }}
-                    aria-label={question}
-                />
-            </Box>
-        ))}
-    </Stack>
-);
+                >
+                    <Text size="sm" c="dimmed" lh={1.4}>
+                        {question}
+                    </Text>
+                    <Textarea
+                        variant="unstyled"
+                        autosize
+                        minRows={1}
+                        maxRows={4}
+                        placeholder={t('clarification.answerPlaceholder')}
+                        value={answers[index] ?? ''}
+                        autoFocus={index === 0}
+                        onChange={(event) =>
+                            onAnswer(index, event.currentTarget.value)
+                        }
+                        classNames={{ input: classes.input }}
+                        aria-label={question}
+                    />
+                </Box>
+            ))}
+        </Stack>
+    );
+};
 
 export default ClarificationQuestionList;

@@ -9,6 +9,7 @@ import {
     useTransition,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import MantineModal, {
     type MantineModalProps,
@@ -43,6 +44,7 @@ export const EditVirtualViewModal: FC<Props> = ({
     activeTableName,
     explore,
 }) => {
+    const { t } = useTranslation('explorer');
     const hasUnsavedChanges = !!useSearchParams('create_saved_chart_version');
     const [isPending, startTransition] = useTransition();
     const dispatch = useExplorerDispatch();
@@ -85,9 +87,9 @@ export const EditVirtualViewModal: FC<Props> = ({
                 opened={opened}
                 onClose={onClose}
                 role="alertdialog"
-                title="You have unsaved changes"
+                title={t('virtualView.edit.unsavedTitle')}
                 icon={IconAlertCircle}
-                description="Are you sure you want to leave this page? Changes you've made to your query will not be saved."
+                description={t('virtualView.edit.unsavedDescription')}
                 actions={
                     <Button
                         color="red"
@@ -101,7 +103,7 @@ export const EditVirtualViewModal: FC<Props> = ({
                         }}
                         loading={isPending}
                     >
-                        Discard & continue
+                        {t('virtualView.edit.discardAndContinue')}
                     </Button>
                 }
             />
@@ -126,7 +128,9 @@ export const EditVirtualViewModal: FC<Props> = ({
                             <Center h="95vh" w="95vw">
                                 <Stack align="center" justify="center">
                                     <Loader type="bars" />
-                                    <Text fw={500}>Loading SQL Runner...</Text>
+                                    <Text fw={500}>
+                                        {t('virtualView.edit.loadingSqlRunner')}
+                                    </Text>
                                 </Stack>
                             </Center>
                         }

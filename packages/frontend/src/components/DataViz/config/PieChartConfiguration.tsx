@@ -1,6 +1,7 @@
 import { DimensionType, type VizColumn } from '@lightdash/common';
 import { Stack, Title } from '@mantine/core';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,
@@ -19,6 +20,7 @@ export const PieChartConfiguration = ({
 }: {
     columns: VizColumn[];
 }) => {
+    const { t } = useTranslation('dataViz');
     const dispatch = useVizDispatch();
 
     const groupField = useVizSelector(
@@ -40,18 +42,20 @@ export const PieChartConfiguration = ({
 
     const errorMessage = useMemo(() => {
         return errors?.groupByFieldError?.references
-            ? `Column "${errors?.groupByFieldError?.references[0]}" not in SQL query`
+            ? t('errors.columnNotInQuery', {
+                  column: errors?.groupByFieldError?.references[0],
+              })
             : undefined;
-    }, [errors?.groupByFieldError?.references]);
+    }, [errors?.groupByFieldError?.references, t]);
 
     return (
         <Stack gap="sm" mb="lg">
             <Title order={5} fz="sm">
-                Data
+                {t('pie.data')}
             </Title>
 
             <Config.Section>
-                <Config.Heading>Group by</Config.Heading>
+                <Config.Heading>{t('cartesian.fields.groupBy')}</Config.Heading>
 
                 <FieldReferenceSelect
                     data={groupFieldOptions.map((x) => ({
@@ -60,7 +64,7 @@ export const PieChartConfiguration = ({
                     }))}
                     disabled={groupFieldOptions.length === 0}
                     value={groupField}
-                    placeholder="Select group by"
+                    placeholder={t('cartesian.fields.selectGroupBy')}
                     onChange={(value) => {
                         if (!value) return;
                         const field = groupFieldOptions.find(
@@ -69,11 +73,7 @@ export const PieChartConfiguration = ({
                         if (!field) return;
                         dispatch(setGroupFieldIds(field));
                     }}
-                    error={
-                        errors?.groupByFieldError?.references
-                            ? `Column "${errors?.groupByFieldError?.references[0]}" not in SQL query`
-                            : undefined
-                    }
+                    error={errorMessage}
                     fieldType={
                         columns?.find((x) => x.reference === groupField)
                             ?.type ?? DimensionType.STRING
@@ -82,7 +82,7 @@ export const PieChartConfiguration = ({
             </Config.Section>
 
             <Config.Section>
-                <Config.Heading>Aggregate by</Config.Heading>
+                <Config.Heading>{t('pie.aggregateBy')}</Config.Heading>
 
                 <FieldReferenceSelect
                     data={aggregateFieldOptions.map((y) => ({
@@ -91,7 +91,7 @@ export const PieChartConfiguration = ({
                     }))}
                     value={aggregateField?.reference}
                     error={errorMessage}
-                    placeholder="Select Y axis"
+                    placeholder={t('cartesian.fields.selectYAxis')}
                     onChange={(value) => {
                         if (!value) return;
                         dispatch(
@@ -109,7 +109,7 @@ export const PieChartConfiguration = ({
                 />
 
                 <Config.Group>
-                    <Config.Label>Aggregation</Config.Label>
+                    <Config.Label>{t('common.aggregation')}</Config.Label>
 
                     <DataVizAggregationConfig
                         options={

@@ -13,6 +13,7 @@ import {
 } from '@mantine/core';
 import { IconGripVertical, IconMinus } from '@tabler/icons-react';
 import { forwardRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useColumns } from '../../hooks/useColumns';
 import {
     getSortDirectionOrder,
@@ -20,7 +21,6 @@ import {
     getSortNullsFirstValue,
     SortDirection,
     SortNullsFirst,
-    sortNullsFirstLabels,
 } from '../../utils/sortUtils';
 import MantineIcon from '../common/MantineIcon';
 import { type TableColumn } from '../common/Table/types';
@@ -57,6 +57,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
         },
         ref,
     ) => {
+        const { t } = useTranslation('explorer');
         const selectedSortDirection = sort.descending
             ? SortDirection.DESC
             : SortDirection.ASC;
@@ -111,7 +112,11 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                         </Box>
                     )}
 
-                    <Text fz="xs">{isFirstItem ? 'Sort by' : 'then by'}</Text>
+                    <Text fz="xs">
+                        {isFirstItem
+                            ? t('sortButton.sortBy')
+                            : t('sortButton.thenBy')}
+                    </Text>
 
                     <Text fz="sm" fw={500}>
                         {(isField(item) ? item.label : item.name) ||
@@ -145,7 +150,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                     />
 
                     <Text ml="lg" fz="xs" fw={500}>
-                        Nulls
+                        {t('sortButton.nulls')}
                     </Text>
 
                     <SegmentedControl
@@ -153,12 +158,20 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                         value={selectedSortNullsFirst}
                         size="xs"
                         color="ldDark.5"
-                        data={Object.entries(sortNullsFirstLabels).map(
-                            ([value, label]) => ({
-                                label,
-                                value,
-                            }),
-                        )}
+                        data={[
+                            {
+                                label: t('sortButton.nullsOrder.default'),
+                                value: SortNullsFirst.DEFAULT,
+                            },
+                            {
+                                label: t('sortButton.nullsOrder.first'),
+                                value: SortNullsFirst.FIRST,
+                            },
+                            {
+                                label: t('sortButton.nullsOrder.last'),
+                                value: SortNullsFirst.LAST,
+                            },
+                        ]}
                         onChange={(value) => {
                             if (value) {
                                 onSetSortFieldNullsFirst(
@@ -173,7 +186,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                     />
 
                     {isEditMode && (
-                        <Tooltip label="Remove sort">
+                        <Tooltip label={t('sortButton.removeSort')}>
                             <ActionIcon onClick={onRemoveSortField} size="xs">
                                 <MantineIcon icon={IconMinus} />
                             </ActionIcon>

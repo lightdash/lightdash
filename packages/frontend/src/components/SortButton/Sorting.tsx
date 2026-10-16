@@ -21,6 +21,7 @@ import {
 } from '@mantine/core';
 import { IconGripVertical, IconMinus, IconPlus } from '@tabler/icons-react';
 import { forwardRef, useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type Props } from '.';
 import {
     explorerActions,
@@ -43,6 +44,7 @@ type IdentityWithItem = {
 };
 
 const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
+    const { t } = useTranslation('explorer');
     const columns = useColumns();
     const [isAddingSort, setIsAddingSort] = useState(false);
     const dispatch = useExplorerDispatch();
@@ -233,7 +235,7 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                             onClick={() => setIsAddingSort(true)}
                             leftSection={<MantineIcon icon={IconPlus} />}
                         >
-                            Add sort
+                            {t('sortButton.addSort')}
                         </Button>
                     ) : (
                         <Group wrap="nowrap" gap="sm" pl="xs" py="two">
@@ -245,9 +247,9 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                                     style={{ cursor: 'grab' }}
                                 />
                             )}
-                            <Text fz="xs">then by</Text>
+                            <Text fz="xs">{t('sortButton.thenBy')}</Text>
                             <Select
-                                placeholder="Column"
+                                placeholder={t('sortButton.columnPlaceholder')}
                                 size="xs"
                                 searchable
                                 data={addOptions}
@@ -256,7 +258,9 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                                 flex={1}
                                 comboboxProps={{ withinPortal: false }}
                             />
-                            <Tooltip label="Cancel">
+                            <Tooltip
+                                label={t('actions.cancel', { ns: 'common' })}
+                            >
                                 <ActionIcon size="xs" onClick={resetAddState}>
                                     <MantineIcon icon={IconMinus} />
                                 </ActionIcon>

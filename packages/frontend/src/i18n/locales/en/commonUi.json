@@ -1,0 +1,289 @@
+{
+    "scrollToTop": {
+        "label": "Scroll to top"
+    },
+    "loadingChart": {
+        "title": "Loading chart"
+    },
+    "viewsCountPopover": {
+        "uniqueViewers": "Unique viewers",
+        "firstViewed": "First viewed",
+        "anonymousViews_one": "Includes {{formattedCount}} anonymous view not tied to a user",
+        "anonymousViews_other": "Includes {{formattedCount}} anonymous views not tied to a user"
+    },
+    "shareLinkButton": {
+        "copyLink": "Copy link",
+        "linkCopied": "Link copied!"
+    },
+    "betaBadge": {
+        "label": "Beta",
+        "tooltip": "This feature is currently in beta. It might cause unexpected results and is subject to change."
+    },
+    "confirmDeleteButton": {
+        "clickAgain": "Click again to delete"
+    },
+    "favoriteActionIcon": {
+        "add": "Add to favorites",
+        "remove": "Remove from favorites",
+        "addNamed": "Add {{name}} to favorites",
+        "removeNamed": "Remove {{name}} from favorites"
+    },
+    "aiMarkdown": {
+        "renderFailed": "Couldn't render this message."
+    },
+    "tree": {
+        "expandItem": "Expand {{label}}",
+        "collapseItem": "Collapse {{label}}",
+        "noSpaceAccess": "You do not have access to this space"
+    },
+    "filterFacet": {
+        "noOptions": "No options",
+        "searchPlaceholder": "Search…",
+        "selectAll": "Select all",
+        "deselectAll": "Deselect all",
+        "clear": "Clear",
+        "clearFilter": "Clear {{label}} filter"
+    },
+    "spaceSelector": {
+        "searchPlaceholder": "Search spaces",
+        "topLevelLabel": "Spaces",
+        "backToSelection": "Back to Space selection",
+        "nameLabel": "Name",
+        "namePlaceholder": "Space name",
+        "nestedSpaceDescription": "New space in \"{{parentSpaceName}}\". This space will have the same access. You can change this later."
+    },
+    "thirdPartySignIn": {
+        "logoAlt": "{{providerName}} logo",
+        "signUpWith": "Sign up with {{providerName}}",
+        "signInWith": "Sign in with {{providerName}}",
+        "continueWith": "Continue with {{providerName}}",
+        "add": "Add +",
+        "lastUsed": "Last used"
+    },
+    "guidedTour": {
+        "useIt": "Use it",
+        "check": "Check",
+        "stepOf": "Step {{current}} of {{total}}",
+        "failed": "That did not work. Check the output, then try again",
+        "stillWaiting": "Still waiting for the page to show the next control. You can skip if it does not appear.",
+        "skip": "Skip",
+        "typeHereOrUseBlock": "Type here, or use:",
+        "typeHereOrUse": "Type here, or use <suggestion>{{suggestion}}</suggestion>",
+        "typeToContinue": "Type in the highlighted field to continue",
+        "clickToContinue": "Click the highlighted control to continue",
+        "tryAgain": "Try again",
+        "gotIt": "Got it"
+    },
+    "modelSelector": {
+        "fastModeTooltip": "Jev picks the quickest way to answer, so simple questions come back faster",
+        "selectModel": "Select model",
+        "enableFastMode": "Enable Fast mode",
+        "disableFastMode": "Disable Fast mode",
+        "fast": "Fast",
+        "fastDescription": "Quickest route for simple questions",
+        "reasoning": "Reasoning",
+        "reasoningDefault": "Default",
+        "reasoningHigh": "High"
+    },
+    "chartDownload": {
+        "downloadFailed": "Unable to download chart image",
+        "copyFailed": "Unable to copy chart image",
+        "options": "Options",
+        "opaque": "Opaque",
+        "transparent": "Transparent",
+        "copyToClipboard": "Copy to clipboard"
+    },
+    "multiSelectCombobox": {
+        "removeItem": "Remove {{label}}",
+        "addItem": "Add \"{{value}}\""
+    },
+    "overflowTabsList": {
+        "scrollLeft": "Scroll tabs left",
+        "scrollRight": "Scroll tabs right"
+    },
+    "resizableSplitter": {
+        "resizePanels": "Resize panels"
+    },
+    "authLayout": {
+        "headline": "Analytics at the speed of code.",
+        "subcopy": "The only open-source, AI-native BI platform that lets AI build, refactor, and ship analytics in minutes.",
+        "trustedBy": "Trusted by data teams at"
+    },
+    "contentTable": {
+        "selectAllRows": "Select all rows",
+        "selectRow": "Select row",
+        "searchPlaceholder": "Search...",
+        "clearSearch": "Clear search",
+        "rowCount_one": "{{count}} row",
+        "rowCount_other": "{{count}} rows",
+        "defaultEntityName": "records",
+        "emptySearch": "No {{entityName}} matching \"{{search}}\"",
+        "emptyFiltered": "No {{entityName}} match the current filters",
+        "empty": "No {{entityName}} yet",
+        "tryDifferentSearch": "Try a different search term.",
+        "clearAllFilters": "Clear all filters",
+        "loadingRows": "Loading table rows",
+        "loadFailed": "Unable to load rows"
+    },
+    "tagsInput": {
+        "clearAll": "Clear all"
+    },
+    "updatedInfo": {
+        "lastEdited": "Last edited",
+        "lastEditedAt": "Last edited <bold>{{timeAgo}}</bold>",
+        "lastEditedBy": "Last edited by <bold>{{userName}}</bold>",
+        "lastEditedAtBy": "Last edited <bold>{{timeAgo}}</bold> by <bold>{{userName}}</bold>"
+    },
+    "resourceInfo": {
+        "owner": "Owner",
+        "lastModified": "Last modified",
+        "views": "Views",
+        "space": "Space",
+        "slug": "Slug",
+        "viewsSince_one": "{{count}} view since {{date}}",
+        "viewsSince_other": "{{count}} views since {{date}}",
+        "versionWithStatus": "Version {{number}} ({{status}})",
+        "versionStatus": {
+            "error": "error",
+            "ready": "ready",
+            "building": "building"
+        },
+        "copySlug": "Copy slug",
+        "copiedSlug": "Copied slug",
+        "contentDetails": "Content details",
+        "usedInDashboards_one": "Used in {{count}} dashboard",
+        "usedInDashboards_other": "Used in {{count}} dashboards",
+        "usedInDashboardsList_one": "Used in {{count}} dashboard:",
+        "usedInDashboardsList_other": "Used in {{count}} dashboards:"
+    },
+    "resourceIcon": {
+        "verifiedBy": "Verified by {{firstName}} {{lastName}} on {{date}}"
+    },
+    "contentSlugRenameModal": {
+        "title": "Change URL slug",
+        "submit": "Change slug",
+        "chartDescription": "Change the last part of this chart's URL. Existing links will keep working.",
+        "dashboardDescription": "Change the last part of this dashboard's URL. Existing links will keep working.",
+        "newSlugLabel": "New slug",
+        "newSlugDescription": "Lowercase letters, numbers, and hyphens",
+        "urlPreview": "URL preview",
+        "chartSlugChanged": "Chart URL slug changed",
+        "dashboardSlugChanged": "Dashboard URL slug changed",
+        "validation": {
+            "required": "Enter a slug",
+            "maxLength": "Slugs must be 255 characters or fewer",
+            "format": "Use lowercase letters, numbers, and hyphens only",
+            "different": "Enter a different slug"
+        }
+    },
+    "fieldSelect": {
+        "addToQueryGroup": "Add to query",
+        "suggestedGroup": "Suggested",
+        "tableCalculationsGroup": "Table Calculations",
+        "searchPlaceholder": "Search field..."
+    },
+    "userSelect": {
+        "searchPlaceholder": "Search for a user...",
+        "noGoogleUsers": "No users with an active Google connection found",
+        "noUsers": "No users found"
+    },
+    "promptComposer": {
+        "resizeComposer": "Resize composer"
+    },
+    "projectLayout": {
+        "loadingPage": "Loading page",
+        "editingUnavailableTitle": "Editing isn’t available on phones",
+        "editingUnavailableDescription": "Open Lightdash on a desktop or tablet to create or edit charts and dashboards.",
+        "backToHome": "Back to home"
+    },
+    "snowflakeOAuth": {
+        "connected": "You are connected to Snowflake,",
+        "reauthenticate": "Click here to reauthenticate.",
+        "signIn": "Sign in with Snowflake"
+    },
+    "githubIntegration": {
+        "fetchFailed": "Failed to get GitHub integration",
+        "accountUnlinked": "GitHub account unlinked",
+        "accountUnlinkedSubtitle": "Write-backs will be authored by the Lightdash bot again.",
+        "unlinkFailed": "Failed to unlink GitHub account",
+        "deleted": "GitHub integration deleted",
+        "deletedSubtitle": "You have successfully deleted your GitHub integration.",
+        "deleteFailed": "Failed to delete GitHub integration"
+    },
+    "gitlabIntegration": {
+        "fetchReposFailed": "Failed to get GitLab repositories",
+        "deleted": "Success! GitLab integration was deleted.",
+        "deleteFailed": "Failed to delete GitLab integration"
+    },
+    "linearIntegration": {
+        "fetchInstallationFailed": "Failed to get Linear installation",
+        "fetchTeamsFailed": "Failed to get Linear teams",
+        "fetchProjectsFailed": "Failed to get Linear projects",
+        "deleted": "Success! Linear integration was deleted.",
+        "deleteFailed": "Failed to delete Linear integration"
+    },
+    "jiraIntegration": {
+        "fetchInstallationFailed": "Failed to get Jira installation",
+        "connectFailed": "Failed to connect Jira",
+        "fetchSitesFailed": "Failed to get Jira sites",
+        "siteSelected": "Jira site selected",
+        "selectSiteFailed": "Failed to select Jira site",
+        "fetchProjectsFailed": "Failed to get Jira projects",
+        "fetchIssueTypesFailed": "Failed to get Jira issue types",
+        "deleted": "Success! Jira integration was deleted.",
+        "deleteFailed": "Failed to delete Jira integration"
+    },
+    "slackChannelSelect": {
+        "placeholder": "Select a channel",
+        "refresh": "Refresh Slack channels",
+        "uncachedChannel": "We couldn't find this channel and the integration may not be installed correctly. Please use the channel ID instead.",
+        "channelNotFound": "Channel not found",
+        "channelNotFoundSubtitle": "Could not find channel with ID \"{{channelId}}\". If it's a private channel, make sure the Slack app is added to it first.",
+        "loadingChannels": "Loading channels...",
+        "noChannels": "No channels found, try using Channel ID instead?",
+        "lookUpChannelId": "Look up channel ID: {{search}}",
+        "privateChannelHelp": "To add a private channel, first add the Lightdash integration to that channel and use the Channel ID.",
+        "learnMore": "Learn more"
+    },
+    "shareShortLinkButton": {
+        "linkCopied": "Link copied",
+        "copyShareLink": "Copy share link",
+        "share": "Share"
+    },
+    "palettePicker": {
+        "lightMode": "Light mode",
+        "darkMode": "Dark mode",
+        "inheritFrom": "Inherit from {{parentLabel}}"
+    },
+    "suggestionList": {
+        "noResults": "No results found",
+        "noFields": "No fields found",
+        "navigate": "navigate",
+        "select": "select",
+        "close": "close",
+        "groups": {
+            "dimensions": "Dimensions",
+            "metrics": "Metrics",
+            "tableCalculations": "Table calculations"
+        }
+    },
+    "chartTimezoneSelect": {
+        "defaultGroup": "Default",
+        "specificGroup": "Specific timezone",
+        "projectTimezone": "Project timezone",
+        "userTimezone": "User timezone",
+        "localZone": "{{zone}} - Local",
+        "userTimezoneTooltip": "Each viewer sees data in their own timezone. Falls back to the project timezone if they haven't set one."
+    },
+    "errorState": {
+        "unexpectedError": "Unexpected error",
+        "contactSupport": "Please contact support",
+        "contactSupportWithInfo": "Contact support with the following information:",
+        "errorId": "Error ID: {{id}}",
+        "traceId": "Trace ID: {{id}}",
+        "exploreSplit": "Explore was split",
+        "needAccess": "You need access",
+        "authorizationError": "Authorization error",
+        "notFound": "Not found"
+    }
+}

@@ -6,6 +6,7 @@ import {
     type VerifiedDomain,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -46,6 +47,7 @@ export const useVerifiedDomains = () =>
     });
 
 export const useRequestDomainVerification = () => {
+    const { t } = useTranslation('app');
     const { showToastApiError } = useToaster();
     return useMutation<
         DomainVerificationStatus,
@@ -55,7 +57,9 @@ export const useRequestDomainVerification = () => {
         mutationKey: ['organization_verified_domains', 'verify'],
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to send verification code',
+                title: t(
+                    'useOrganizationDomainVerification.failedToSendVerificationCode',
+                ),
                 apiError: error,
             });
         },
@@ -64,6 +68,7 @@ export const useRequestDomainVerification = () => {
 
 export const useConfirmDomainVerification = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
         DomainVerificationStatus,
@@ -75,13 +80,17 @@ export const useConfirmDomainVerification = () => {
             if (status.isVerified) {
                 await queryClient.invalidateQueries(QUERY_KEY);
                 showToastSuccess({
-                    title: `${status.domain} verified`,
+                    title: t('useOrganizationDomainVerification.verified', {
+                        domain: status.domain,
+                    }),
                 });
             }
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to verify domain',
+                title: t(
+                    'useOrganizationDomainVerification.failedToVerifyDomain',
+                ),
                 apiError: error,
             });
         },
@@ -90,16 +99,23 @@ export const useConfirmDomainVerification = () => {
 
 export const useDeleteVerifiedDomain = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<undefined, ApiError, string>(deleteVerifiedDomain, {
         mutationKey: ['organization_verified_domains', 'delete'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(QUERY_KEY);
-            showToastSuccess({ title: 'Verified domain removed' });
+            showToastSuccess({
+                title: t(
+                    'useOrganizationDomainVerification.verifiedDomainRemoved',
+                ),
+            });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to remove verified domain',
+                title: t(
+                    'useOrganizationDomainVerification.failedToRemoveVerifiedDomain',
+                ),
                 apiError: error,
             });
         },

@@ -8,6 +8,7 @@ import {
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { type DeleteSpaceModalBody } from '.';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceDeleteImpact } from '../../../hooks/useSpaces';
@@ -20,12 +21,13 @@ const DeleteSpaceTextInputConfirmation: FC<{
     data: DeleteSpaceModalBody['data'];
     setCanDelete: (canDelete: boolean) => void;
 }> = ({ data, setCanDelete }) => {
+    const { t } = useTranslation('modals');
     const [value, setValue] = useState('');
 
     return (
         <TextInput
-            label="Type the space name to confirm"
-            placeholder="Space name"
+            label={t('deleteSpace.confirmNameLabel')}
+            placeholder={t('deleteSpace.confirmNamePlaceholder')}
             value={value}
             onChange={(e) => {
                 setValue(e.target.value);
@@ -42,6 +44,7 @@ const DeleteSpaceTextInputConfirmation: FC<{
 const DeleteSpaceModalContent: FC<
     Pick<DeleteSpaceModalBody, 'data'> & { softDeleteEnabled: boolean }
 > = ({ data, softDeleteEnabled }) => {
+    const { t } = useTranslation('modals');
     const { data: impact, isLoading: isLoadingImpact } = useSpaceDeleteImpact(
         data?.projectUuid,
         data?.uuid,
@@ -76,8 +79,8 @@ const DeleteSpaceModalContent: FC<
     }
 
     const title = softDeleteEnabled
-        ? 'This will also delete content within this space:'
-        : 'This will permanently delete content within this space:';
+        ? t('deleteSpace.impactSoft')
+        : t('deleteSpace.impactPermanent');
 
     return (
         <Callout
@@ -97,8 +100,9 @@ const DeleteSpaceModalContent: FC<
                         fw={600}
                         c={softDeleteEnabled ? 'yellow.7' : 'red.7'}
                     >
-                        {descendantCount} space
-                        {descendantCount !== 1 ? 's' : ''}
+                        {t('deleteSpace.counts.spaces', {
+                            count: descendantCount,
+                        })}
                     </Text>
                 </Group>
                 <Group gap={4}>
@@ -113,8 +117,9 @@ const DeleteSpaceModalContent: FC<
                         fw={600}
                         c={softDeleteEnabled ? 'yellow.7' : 'red.7'}
                     >
-                        {impact.chartCount} chart
-                        {impact.chartCount !== 1 ? 's' : ''}
+                        {t('deleteSpace.counts.charts', {
+                            count: impact.chartCount,
+                        })}
                     </Text>
                 </Group>
                 <Group gap={4}>
@@ -129,8 +134,9 @@ const DeleteSpaceModalContent: FC<
                         fw={600}
                         c={softDeleteEnabled ? 'yellow.7' : 'red.7'}
                     >
-                        {impact.dashboardCount} dashboard
-                        {impact.dashboardCount !== 1 ? 's' : ''}
+                        {t('deleteSpace.counts.dashboards', {
+                            count: impact.dashboardCount,
+                        })}
                     </Text>
                 </Group>
                 {dataAppsEnabled && (
@@ -146,8 +152,9 @@ const DeleteSpaceModalContent: FC<
                             fw={600}
                             c={softDeleteEnabled ? 'yellow.7' : 'red.7'}
                         >
-                            {impact.appCount} data app
-                            {impact.appCount !== 1 ? 's' : ''}
+                            {t('deleteSpace.counts.dataApps', {
+                                count: impact.appCount,
+                            })}
                         </Text>
                     </Group>
                 )}
@@ -164,8 +171,9 @@ const DeleteSpaceModalContent: FC<
                             fw={600}
                             c={softDeleteEnabled ? 'yellow.7' : 'red.7'}
                         >
-                            {impact.documentCount} document
-                            {impact.documentCount !== 1 ? 's' : ''}
+                            {t('deleteSpace.counts.documents', {
+                                count: impact.documentCount,
+                            })}
                         </Text>
                     </Group>
                 )}
@@ -187,6 +195,7 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalBody> = ({
     const retentionDays = health.data?.softDelete.retentionDays ?? 30;
 
     const [canDelete, setCanDelete] = useState(false);
+    const { t } = useTranslation('modals');
 
     return (
         <MantineModal
@@ -201,23 +210,18 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalBody> = ({
             cancelDisabled={isLoading}
         >
             <Text fz="sm">
-                {softDeleteEnabled ? (
-                    <>
-                        Are you sure you want to delete the space{' '}
-                        <Text span fw={600} fz="sm">
-                            &ldquo;{data?.name}&rdquo;
-                        </Text>
-                        ?
-                    </>
-                ) : (
-                    <>
-                        Are you sure you want to delete the space{' '}
-                        <Text span fw={600}>
-                            &ldquo;{data?.name}&rdquo;
-                        </Text>
-                        ?
-                    </>
-                )}
+                <Trans
+                    t={t}
+                    i18nKey="deleteSpace.confirm"
+                    values={{ name: data?.name }}
+                    components={{
+                        name: softDeleteEnabled ? (
+                            <Text span fw={600} fz="sm" />
+                        ) : (
+                            <Text span fw={600} />
+                        ),
+                    }}
+                />
             </Text>
             <DeleteSpaceModalContent
                 data={data}
@@ -225,8 +229,9 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalBody> = ({
             />
             {softDeleteEnabled && (
                 <Text fz="sm">
-                    This space and its contents will be moved to Recently
-                    deleted and permanently removed after {retentionDays} days.
+                    {t('deleteSpace.softDeleteRetention', {
+                        count: retentionDays,
+                    })}
                 </Text>
             )}
             <DeleteSpaceTextInputConfirmation

@@ -1,5 +1,6 @@
 import { type ApiError, type TogglePinnedItemInfo } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -12,6 +13,7 @@ const updateChartPinning = async (data: { uuid: string }) =>
 
 export const useChartPinningMutation = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<TogglePinnedItemInfo, ApiError, { uuid: string }>(
         updateChartPinning,
@@ -35,17 +37,21 @@ export const useChartPinningMutation = () => {
                 await queryClient.invalidateQueries(['content']);
                 if (savedChart.isPinned) {
                     showToastSuccess({
-                        title: 'Success! Chart was pinned to homepage',
+                        title: t(
+                            'useChartPinningMutation.successChartWasPinnedToHomepage',
+                        ),
                     });
                 } else {
                     showToastSuccess({
-                        title: 'Success! Chart was unpinned from homepage',
+                        title: t(
+                            'useChartPinningMutation.successChartWasUnpinnedFromHomepage',
+                        ),
                     });
                 }
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to pin chart',
+                    title: t('useChartPinningMutation.failedToPinChart'),
                     apiError: error,
                 });
             },

@@ -1,5 +1,4 @@
 import {
-    capitalize,
     convertCustomMetricToLightdash,
     getCustomDimensionWriteBackError,
     getErrorMessage,
@@ -22,12 +21,14 @@ import {
 import { IconGitBranch } from '@tabler/icons-react';
 import * as yaml from 'js-yaml';
 import { memo, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     explorerActions,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import i18n from '../../../i18n/i18n';
 import Callout from '../../common/Callout';
 import CodeBlock from '../../common/CodeBlock/CodeBlock';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
@@ -43,33 +44,26 @@ import {
 } from './hooks';
 import { convertToDbt, getItemId, getItemLabel, match } from './utils';
 import classes from './WriteBackModal.module.css';
-import { BIN_ORDERING_WRITE_BACK_WARNING } from './writeBackSupport';
-
-const prDisabledMessage =
-    'Pull requests can only be opened for GitHub, GitLab or Bitbucket Cloud connected projects';
-const texts = {
-    customDimension: {
-        name: 'custom dimension',
-        baseName: 'dimension',
-        prDisabled: prDisabledMessage,
-    },
-    customMetric: {
-        name: 'custom metric',
-        baseName: 'metric',
-        prDisabled: prDisabledMessage,
-    },
-} as const;
 
 const parseError = (
     error: unknown,
     type: 'customDimension' | 'customMetric',
 ): string => {
-    const errorName = error instanceof Error ? error.name : 'unknown error';
+    const errorName =
+        error instanceof Error
+            ? error.name
+            : i18n.t('writeBack.unknownError', { ns: 'explorer' });
     const errorTitle =
         error instanceof NotImplementedError
-            ? `Unsupported ${texts[type].baseName} definition`
+            ? i18n.t(`writeBack.${type}.unsupportedDefinition`, {
+                  ns: 'explorer',
+              })
             : errorName;
-    return `Error: ${errorTitle}\n${getErrorMessage(error)}`;
+    return i18n.t('writeBack.errorPreview', {
+        ns: 'explorer',
+        title: errorTitle,
+        message: getErrorMessage(error),
+    });
 };
 
 export const SingleItemModalContent = ({
@@ -81,6 +75,7 @@ export const SingleItemModalContent = ({
     projectUuid: string;
     item: CustomDimension | AdditionalMetric;
 }) => {
+    const { t } = useTranslation('explorer');
     const type = match(
         item,
         () => 'customDimension' as const,
@@ -160,7 +155,7 @@ export const SingleItemModalContent = ({
 
     const disableErrorTooltip = supportsCustomFieldWriteBack && !previewError;
 
-    const errorTooltipLabel = previewError || prDisabledMessage;
+    const errorTooltipLabel = previewError || t('writeBack.prDisabled');
 
     const buttonDisabled =
         isLoading || previewQuery.isInitialLoading || !disableErrorTooltip;
@@ -172,9 +167,9 @@ export const SingleItemModalContent = ({
             size="xl"
             opened={true}
             onClose={handleClose}
-            title="Write back to project"
+            title={t('writeBack.title')}
             icon={IconGitBranch}
-            description={`Convert this ${texts[type].name} into a ${texts[type].baseName} in your project. This will create a new branch and open a pull request.`}
+            description={t(`writeBack.${type}.singleDescription`)}
             actions={
                 <Tooltip
                     label={errorTooltipLabel}
@@ -198,18 +193,15 @@ export const SingleItemModalContent = ({
                             }}
                         >
                             {isLoading
-                                ? 'Creating pull request...'
-                                : 'Open Pull Request'}
+                                ? t('writeBack.creatingPullRequest')
+                                : t('writeBack.openPullRequest')}
                         </Button>
                     </div>
                 </Tooltip>
             }
         >
             <Stack>
-                <Text fz="sm">
-                    Create a pull request in your project's git repository for
-                    the following {texts[type].name}:
-                </Text>
+                <Text fz="sm">{t(`writeBack.${type}.singleIntro`)}</Text>
                 <List spacing="xs" pl="xs">
                     <List.Item fz="xs" ff="monospace">
                         {itemLabel}
@@ -217,12 +209,12 @@ export const SingleItemModalContent = ({
                 </List>
                 {isCustomBinDimension(item) && !previewError ? (
                     <Callout variant="info">
-                        {BIN_ORDERING_WRITE_BACK_WARNING}
+                        {t('writeBack.binOrderingWarning')}
                     </Callout>
                 ) : null}
                 <CollapsableCard
                     isOpen={showDiff}
-                    title={`Show ${texts[type].baseName} code`}
+                    title={t(`writeBack.${type}.showCode`)}
                     onToggle={() => setShowDiff(!showDiff)}
                 >
                     <Stack ml={36}>
@@ -230,7 +222,7 @@ export const SingleItemModalContent = ({
                             code={
                                 previewError ||
                                 (previewQuery.isInitialLoading
-                                    ? 'Generating warehouse-aware preview...'
+                                    ? t('writeBack.generatingPreview')
                                     : previewCode)
                             }
                             language="yaml"
@@ -252,6 +244,7 @@ const MultipleItemsModalContent = ({
     projectUuid: string;
     items: CustomDimension[] | AdditionalMetric[];
 }) => {
+    const { t } = useTranslation('explorer');
     const type = match(
         items[0]!,
         () => 'customDimension' as const,
@@ -345,8 +338,8 @@ const MultipleItemsModalContent = ({
     const errorTooltipLabel = previewError
         ? previewError
         : !supportsCustomFieldWriteBack
-          ? prDisabledMessage
-          : `Select ${texts[type].baseName}s to open a pull request`;
+          ? t('writeBack.prDisabled')
+          : t(`writeBack.${type}.selectToOpen`);
 
     const buttonDisabled =
         isLoading ||
@@ -358,9 +351,9 @@ const MultipleItemsModalContent = ({
             size="auto"
             opened={true}
             onClose={handleClose}
-            title="Write back to project"
+            title={t('writeBack.title')}
             icon={IconGitBranch}
-            description={`Create a pull request in your project's git repository for the following ${texts[type].baseName}s`}
+            description={t(`writeBack.${type}.multiDescription`)}
             actions={
                 <Tooltip
                     label={errorTooltipLabel}
@@ -388,8 +381,8 @@ const MultipleItemsModalContent = ({
                             }}
                         >
                             {isLoading
-                                ? 'Creating pull request...'
-                                : 'Open Pull Request'}
+                                ? t('writeBack.creatingPullRequest')
+                                : t('writeBack.openPullRequest')}
                         </Button>
                     </div>
                 </Tooltip>
@@ -398,8 +391,9 @@ const MultipleItemsModalContent = ({
             <Group align="flex-start" h="305px">
                 <Stack w="30%" h="100%">
                     <Text>
-                        Available {texts[type].name}s ({selectedItemIds.length}{' '}
-                        selected)
+                        {t(`writeBack.${type}.available`, {
+                            count: selectedItemIds.length,
+                        })}
                     </Text>
 
                     <Stack
@@ -459,12 +453,10 @@ const MultipleItemsModalContent = ({
                     </Stack>
                 </Stack>
                 <Stack w="calc(70% - 18px)" h="100%">
-                    <Text>
-                        {capitalize(texts[type].baseName)} YAML to be created:
-                    </Text>
+                    <Text>{t(`writeBack.${type}.yamlToBeCreated`)}</Text>
                     {selectedCustomDimensions.some(isCustomBinDimension) ? (
                         <Callout variant="info">
-                            {BIN_ORDERING_WRITE_BACK_WARNING}
+                            {t('writeBack.binOrderingWarning')}
                         </Callout>
                     ) : null}
                     <Paper h="100%" className={classes.previewPane}>
@@ -472,7 +464,7 @@ const MultipleItemsModalContent = ({
                             code={
                                 previewError ||
                                 (previewQuery.isInitialLoading
-                                    ? 'Generating warehouse-aware preview...'
+                                    ? t('writeBack.generatingPreview')
                                     : previewCode)
                             }
                             language="yaml"

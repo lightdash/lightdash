@@ -1,40 +1,15 @@
 import { Select } from '@mantine/core';
-import React, { type FC } from 'react';
+import React, { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 
-type Option = {
-    value: string;
-    label: string;
-};
-
-const Options: Array<Option> = [
-    {
-        value: '0',
-        label: 'Sunday',
-    },
-    {
-        value: '1',
-        label: 'Monday',
-    },
-    {
-        value: '2',
-        label: 'Tuesday',
-    },
-    {
-        value: '3',
-        label: 'Wednesday',
-    },
-    {
-        value: '4',
-        label: 'Thursday',
-    },
-    {
-        value: '5',
-        label: 'Friday',
-    },
-    {
-        value: '6',
-        label: 'Saturday',
-    },
+const WEEK_DAY_KEYS = [
+    'cronInput.weekDays.sunday',
+    'cronInput.weekDays.monday',
+    'cronInput.weekDays.tuesday',
+    'cronInput.weekDays.wednesday',
+    'cronInput.weekDays.thursday',
+    'cronInput.weekDays.friday',
+    'cronInput.weekDays.saturday',
 ];
 
 const WeekDaySelect: FC<{
@@ -42,9 +17,18 @@ const WeekDaySelect: FC<{
     value: number;
     onChange: (value: number) => void;
 }> = ({ disabled, value, onChange }) => {
+    const { t } = useTranslation('scheduler');
+    const options = useMemo(
+        () =>
+            WEEK_DAY_KEYS.map((key, index) => ({
+                value: String(index),
+                label: t(key),
+            })),
+        [t],
+    );
     return (
         <Select
-            data={Options}
+            data={options}
             value={String(value)}
             disabled={disabled}
             w={140}

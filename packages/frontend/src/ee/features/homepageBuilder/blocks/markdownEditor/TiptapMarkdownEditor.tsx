@@ -13,6 +13,7 @@ import {
     type MouseEvent as ReactMouseEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { Markdown, type MarkdownStorage } from 'tiptap-markdown';
 import useToaster from '../../../../../hooks/toaster/useToaster';
@@ -41,6 +42,7 @@ const ImageLightbox: FC<{ src: string; alt: string; onClose: () => void }> = ({
     alt,
     onClose,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const closeRef = useRef<HTMLButtonElement>(null);
 
     const portalTarget = usePortalTarget();
@@ -62,14 +64,14 @@ const ImageLightbox: FC<{ src: string; alt: string; onClose: () => void }> = ({
             className={classes.lightbox}
             role="dialog"
             aria-modal="true"
-            aria-label={alt || 'Image preview'}
+            aria-label={alt || t('markdownEditor.imagePreview')}
         >
             <button
                 ref={closeRef}
                 type="button"
                 className={classes.lightboxClose}
                 onClick={onClose}
-                aria-label="Close image preview"
+                aria-label={t('markdownEditor.closeImagePreview')}
             />
             <img className={classes.lightboxImage} src={src} alt={alt} />
             {alt ? <div className={classes.lightboxCaption}>{alt}</div> : null}
@@ -106,6 +108,7 @@ export const TiptapMarkdownEditor: FC<Props> = ({
     mentionProjectUuid,
     editable = true,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const { showToastError } = useToaster();
     const navigate = useNavigate();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -130,7 +133,7 @@ export const TiptapMarkdownEditor: FC<Props> = ({
         ...(editable
             ? [
                   Placeholder.configure({
-                      placeholder: "Write something, or type '/' for commands…",
+                      placeholder: t('markdownEditor.placeholder'),
                   }),
                   onImageUpload
                       ? SlashCommand.configure({
@@ -172,7 +175,9 @@ export const TiptapMarkdownEditor: FC<Props> = ({
                         chip.setAttribute('role', 'link');
                         chip.setAttribute(
                             'aria-label',
-                            `Open ${chip.textContent ?? ''}`.trim(),
+                            t('markdownEditor.openMention', {
+                                name: chip.textContent ?? '',
+                            }).trim(),
                         );
                     },
                 );
@@ -182,7 +187,9 @@ export const TiptapMarkdownEditor: FC<Props> = ({
                 image.setAttribute('role', 'button');
                 image.setAttribute(
                     'aria-label',
-                    `Preview image ${image.getAttribute('alt') ?? ''}`.trim(),
+                    t('markdownEditor.previewImage', {
+                        alt: image.getAttribute('alt') ?? '',
+                    }).trim(),
                 );
             });
         };
@@ -190,7 +197,7 @@ export const TiptapMarkdownEditor: FC<Props> = ({
         const observer = new MutationObserver(applyA11yAttributes);
         observer.observe(root, { childList: true, subtree: true });
         return () => observer.disconnect();
-    }, [editable, editor, mentionProjectUuid, content]);
+    }, [editable, editor, mentionProjectUuid, content, t]);
 
     const openLightbox = (image: HTMLImageElement) => {
         lightboxTriggerRef.current = image;
@@ -246,16 +253,16 @@ export const TiptapMarkdownEditor: FC<Props> = ({
 
         if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
             showToastError({
-                title: 'Unsupported image type',
-                subtitle: 'Please upload a PNG, JPEG, GIF, or WEBP image.',
+                title: t('markdownEditor.unsupportedImage.title'),
+                subtitle: t('markdownEditor.unsupportedImage.subtitle'),
             });
             return;
         }
 
         if (file.size > MAX_IMAGE_SIZE_BYTES) {
             showToastError({
-                title: 'Image too large',
-                subtitle: 'Images must be 5MB or smaller.',
+                title: t('markdownEditor.imageTooLarge.title'),
+                subtitle: t('markdownEditor.imageTooLarge.subtitle'),
             });
             return;
         }
@@ -297,7 +304,7 @@ export const TiptapMarkdownEditor: FC<Props> = ({
                     ref={fileInputRef}
                     type="file"
                     accept={ACCEPTED_IMAGE_TYPES.join(',')}
-                    aria-label="Insert image"
+                    aria-label={t('markdownEditor.insertImage')}
                     hidden
                     onChange={handleFileChange}
                 />

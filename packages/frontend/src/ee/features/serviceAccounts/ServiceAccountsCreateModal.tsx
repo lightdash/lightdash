@@ -16,7 +16,9 @@ import {
 import { useForm } from '@mantine/form';
 import { IconKey } from '@tabler/icons-react';
 import { addDays } from 'date-fns';
+import { type TFunction } from 'i18next';
 import { useMemo, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import Callout from '../../../components/common/Callout';
 import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
@@ -26,36 +28,20 @@ import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFla
 import useApp from '../../../providers/App/useApp';
 import { useCustomRoles } from '../customRoles/useCustomRoles';
 import {
+    getSystemRoleOptions,
     SYSTEM_PROJECT_ROLE_OPTIONS,
     type ProjectRoleRow,
 } from './projectRoleOptions';
 import { ServiceAccountProjectRoles } from './ServiceAccountProjectRoles';
 
-// Organization-mode role options. `Member` is intentionally hidden — it's
-// the backend marker for "Project-scope SA" (see the SegmentedControl
-// below) and is never a user-selectable Organization role.
-const SYSTEM_ROLE_OPTIONS: { value: string; label: string }[] = [
-    { value: `scope:${ServiceAccountScope.SYSTEM_VIEWER}`, label: 'Viewer' },
-    {
-        value: `scope:${ServiceAccountScope.SYSTEM_INTERACTIVE_VIEWER}`,
-        label: 'Interactive viewer',
-    },
-    { value: `scope:${ServiceAccountScope.SYSTEM_EDITOR}`, label: 'Editor' },
-    {
-        value: `scope:${ServiceAccountScope.SYSTEM_DEVELOPER}`,
-        label: 'Developer',
-    },
-    { value: `scope:${ServiceAccountScope.SYSTEM_ADMIN}`, label: 'Admin' },
-];
-
-const expireOptions = [
-    { label: 'No expiration', value: '' },
-    { label: '7 days', value: '7' },
-    { label: '30 days', value: '30' },
-    { label: '60 days', value: '60' },
-    { label: '90 days', value: '90' },
-    { label: '6 months', value: '180' },
-    { label: '1 year', value: '365' },
+const getExpireOptions = (t: TFunction) => [
+    { label: t('expiration.none'), value: '' },
+    { label: t('expiration.days', { count: 7 }), value: '7' },
+    { label: t('expiration.days', { count: 30 }), value: '30' },
+    { label: t('expiration.days', { count: 60 }), value: '60' },
+    { label: t('expiration.days', { count: 90 }), value: '90' },
+    { label: t('expiration.months', { count: 6 }), value: '180' },
+    { label: t('expiration.years', { count: 1 }), value: '365' },
 ];
 
 type Scope = 'organization' | 'project';
@@ -75,6 +61,8 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
     isWorking,
     token,
 }) => {
+    const { t } = useTranslation('serviceAccounts');
+    const expireOptions = getExpireOptions(t);
     const { listRoles } = useCustomRoles();
     const { data: projects = [] } = useProjects();
 
@@ -126,19 +114,19 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
     const roleOptions = useMemo(
         () => [
             {
-                group: 'Organization system roles',
-                items: SYSTEM_ROLE_OPTIONS,
+                group: t('roleGroups.organizationSystem'),
+                items: getSystemRoleOptions(t),
             },
             ...(organizationCustomRoleOptions.length > 0
                 ? [
                       {
-                          group: 'Custom roles',
+                          group: t('roleGroups.custom'),
                           items: organizationCustomRoleOptions,
                       },
                   ]
                 : []),
         ],
-        [organizationCustomRoleOptions],
+        [organizationCustomRoleOptions, t],
     );
 
     // Per-row role picker for project mode. Same grouped shape as the
@@ -148,15 +136,20 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
         const groups: {
             group: string;
             items: { value: string; label: string }[];
-        }[] = [{ group: 'System roles', items: SYSTEM_PROJECT_ROLE_OPTIONS }];
+        }[] = [
+            {
+                group: t('roleGroups.system'),
+                items: SYSTEM_PROJECT_ROLE_OPTIONS,
+            },
+        ];
         if (projectCustomRoleOptions.length > 0) {
             groups.push({
-                group: 'Custom roles',
+                group: t('roleGroups.custom'),
                 items: projectCustomRoleOptions,
             });
         }
         return groups;
-    }, [projectCustomRoleOptions]);
+    }, [projectCustomRoleOptions, t]);
 
     const form = useForm({
         initialValues: {
@@ -177,16 +170,16 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
             // `projectRoles` instead.
             roleSelection: (value, values) =>
                 values.scope === 'organization' && value === ''
-                    ? 'Please select a permission set'
+                    ? t('validation.selectPermissionSet')
                     : null,
             projectRoles: (rows, values) => {
                 if (values.scope !== 'project') return null;
-                if (rows.length === 0) return 'Add at least one project';
+                if (rows.length === 0) return t('validation.addProject');
                 if (rows.some((r) => !r.projectUuid))
-                    return 'Pick a project for each row';
+                    return t('validation.pickProjectEachRow');
                 const uniques = new Set(rows.map((r) => r.projectUuid));
                 if (uniques.size !== rows.length)
-                    return 'Each project can only be added once';
+                    return t('validation.projectOnce');
                 return null;
             },
         },
@@ -250,9 +243,9 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
             opened={isOpen}
             onClose={closeModal}
             role="alertdialog"
-            title="New Service Account"
+            title={t('createModal.title')}
             icon={IconKey}
-            cancelLabel={token ? false : 'Cancel'}
+            cancelLabel={token ? false : t('actions.cancel', { ns: 'common' })}
             cancelDisabled={isWorking}
             actions={
                 !token ? (
@@ -261,10 +254,12 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
                         form="create-service-account-form"
                         loading={isWorking}
                     >
-                        Create service account
+                        {t('createModal.create')}
                     </Button>
                 ) : (
-                    <Button onClick={closeModal}>Done</Button>
+                    <Button onClick={closeModal}>
+                        {t('createModal.done')}
+                    </Button>
                 )
             }
         >
@@ -275,60 +270,64 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
                 >
                     <Stack gap="md">
                         <TextInput
-                            label="Description"
-                            placeholder="What's this service account for?"
+                            label={t('form.description')}
+                            placeholder={t('form.descriptionPlaceholder')}
                             required
                             disabled={isWorking}
                             {...form.getInputProps('description')}
                         />
                         <Select
                             defaultValue={expireOptions[0].value}
-                            label="Expiration"
+                            label={t('form.expiration')}
                             data={expireOptions}
                             disabled={isWorking}
                             {...form.getInputProps('expiresAt')}
                         />
                         <Stack gap="xs">
                             <Text size="sm" fw={500}>
-                                Scope
+                                {t('form.scope')}
                             </Text>
                             <SegmentedControl
                                 fullWidth
                                 disabled={isWorking}
                                 data={[
                                     {
-                                        label: 'Organization',
+                                        label: t('form.scopeOrganization'),
                                         value: 'organization',
                                     },
-                                    { label: 'Project', value: 'project' },
+                                    {
+                                        label: t('form.scopeProject'),
+                                        value: 'project',
+                                    },
                                 ]}
                                 {...form.getInputProps('scope')}
                             />
                             <Text size="xs" c="dimmed">
                                 {form.values.scope === 'organization'
-                                    ? 'Grants org-wide abilities matching a system or custom role.'
-                                    : 'No org-wide abilities. Pick one or more projects below; each gets its own role.'}
+                                    ? t('form.scopeOrganizationDescription')
+                                    : t('form.scopeProjectDescription')}
                             </Text>
                         </Stack>
 
                         {form.values.scope === 'organization' ? (
                             <Select
-                                label="Role"
+                                label={t('form.role')}
                                 description={
-                                    <>
-                                        Pick a system role or a custom role
-                                        you've created in{' '}
-                                        <Anchor
-                                            component={Link}
-                                            to="/generalSettings/customRoles"
-                                            size="xs"
-                                        >
-                                            custom roles
-                                        </Anchor>
-                                        .
-                                    </>
+                                    <Trans
+                                        t={t}
+                                        i18nKey="form.roleDescription"
+                                        components={{
+                                            anchor: (
+                                                <Anchor
+                                                    component={Link}
+                                                    to="/generalSettings/customRoles"
+                                                    size="xs"
+                                                />
+                                            ),
+                                        }}
+                                    />
                                 }
-                                placeholder="Select a permission set"
+                                placeholder={t('form.rolePlaceholder')}
                                 data={roleOptions}
                                 required
                                 searchable
@@ -350,7 +349,7 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
             ) : (
                 <Stack>
                     <TextInput
-                        label="Token"
+                        label={t('createModal.token')}
                         readOnly
                         className="sentry-block ph-no-capture"
                         value={token}
@@ -363,7 +362,7 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
                     />
                     <Callout
                         variant="info"
-                        title="Make sure to copy your access token now. You won't be able to see it again!"
+                        title={t('createModal.copyTokenWarning')}
                     />
                 </Stack>
             )}

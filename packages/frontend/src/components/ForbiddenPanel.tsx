@@ -1,12 +1,14 @@
 import { Anchor, Box } from '@mantine/core';
 import { IconLock } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { Can } from '../providers/Ability';
 import SuboptimalState from './common/SuboptimalState/SuboptimalState';
 
 const ForbiddenPanel: FC<{ subject?: string }> = ({ subject }) => {
+    const { t } = useTranslation('app');
     const orgRequest = useOrganization();
 
     const createProjectLink = (
@@ -15,7 +17,7 @@ const ForbiddenPanel: FC<{ subject?: string }> = ({ subject }) => {
                 return (
                     isAllowed && (
                         <Anchor component={Link} to="/createProject">
-                            Or create a new project.
+                            {t('forbidden.createProject')}
                         </Anchor>
                     )
                 );
@@ -35,14 +37,11 @@ const ForbiddenPanel: FC<{ subject?: string }> = ({ subject }) => {
         return (
             <Box mt="30vh">
                 <SuboptimalState
-                    title="Your organization doesn't have a project yet"
+                    title={t('forbidden.noProjectTitle')}
                     description={
                         <>
                             {' '}
-                            <p>
-                                A project connects to your data. Ask an
-                                organization admin to finish setting one up.
-                            </p>
+                            <p>{t('forbidden.noProjectDescription')}</p>
                             {createProjectLink}
                         </>
                     }
@@ -55,13 +54,15 @@ const ForbiddenPanel: FC<{ subject?: string }> = ({ subject }) => {
     return (
         <Box mt="30vh">
             <SuboptimalState
-                title={`You don't have access${
-                    subject ? ` to this ${subject}` : ''
-                }`}
+                title={
+                    subject
+                        ? t('forbidden.noAccessTo', { subject })
+                        : t('forbidden.noAccess')
+                }
                 description={
                     <>
                         {' '}
-                        <p>Please contact the admin to request access.</p>
+                        <p>{t('forbidden.contactAdmin')}</p>
                         {createProjectLink}
                     </>
                 }

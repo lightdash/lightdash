@@ -1,4 +1,7 @@
-import { ValueLabelPositionOptions } from '@lightdash/common';
+import {
+    assertUnreachable,
+    ValueLabelPositionOptions,
+} from '@lightdash/common';
 import { Box, Group, Text, Select } from '@mantine/core';
 import {
     IconArrowDown,
@@ -9,8 +12,9 @@ import {
     IconEyeOff,
     IconLayoutAlignCenter,
 } from '@tabler/icons-react';
-import capitalize from 'lodash/capitalize';
+import { type TFunction } from 'i18next';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../../VisualizationConfigs/ColorSelector';
 import classes from './SelectConfig.module.css';
@@ -47,6 +51,28 @@ const ValueLabelIcon: FC<{
     );
 };
 
+const getValueLabelPositionLabel = (
+    t: TFunction,
+    position: ValueLabelPositionOptions,
+): string => {
+    switch (position) {
+        case ValueLabelPositionOptions.HIDDEN:
+            return t('cartesian.valueLabel.hidden');
+        case ValueLabelPositionOptions.TOP:
+            return t('cartesian.valueLabel.top');
+        case ValueLabelPositionOptions.BOTTOM:
+            return t('cartesian.valueLabel.bottom');
+        case ValueLabelPositionOptions.LEFT:
+            return t('cartesian.valueLabel.left');
+        case ValueLabelPositionOptions.RIGHT:
+            return t('cartesian.valueLabel.right');
+        case ValueLabelPositionOptions.INSIDE:
+            return t('cartesian.valueLabel.inside');
+        default:
+            return assertUnreachable(position, 'Unknown value label position');
+    }
+};
+
 type Props = {
     valueLabelPosition: ValueLabelPositionOptions | undefined;
     valueLabelColor?: string;
@@ -60,13 +86,14 @@ const ValueLabelItem = forwardRef<
     HTMLDivElement,
     ComponentPropsWithoutRef<'div'> & {
         value: ValueLabelPositionOptions;
+        label: string;
         selected: boolean;
     }
->(({ value, selected: _selected, ...others }, ref) => (
+>(({ value, label, selected: _selected, ...others }, ref) => (
     <Box ref={ref} {...others}>
         <Group wrap="nowrap" gap="xs">
             <ValueLabelIcon position={value} />
-            <Text>{capitalize(value)}</Text>
+            <Text>{label}</Text>
         </Group>
     </Box>
 ));
@@ -79,6 +106,7 @@ export const CartesianChartValueLabelConfig: FC<Props> = ({
     defaultColor,
     colors,
 }) => {
+    const { t } = useTranslation('dataViz');
     return (
         <Group gap="xs" wrap="nowrap">
             <Select
@@ -86,12 +114,13 @@ export const CartesianChartValueLabelConfig: FC<Props> = ({
                 data={Object.values(ValueLabelPositionOptions).map(
                     (option) => ({
                         value: option,
-                        label: capitalize(option),
+                        label: getValueLabelPositionLabel(t, option),
                     }),
                 )}
                 renderOption={({ option, checked }) => (
                     <ValueLabelItem
                         value={option.value as ValueLabelPositionOptions}
+                        label={option.label}
                         selected={checked ?? false}
                     />
                 )}
@@ -111,14 +140,14 @@ export const CartesianChartValueLabelConfig: FC<Props> = ({
                     defaultColor={defaultColor}
                     swatches={colors}
                     withAlpha
-                    ariaLabel="Select value label color"
+                    ariaLabel={t('cartesian.valueLabel.selectColor')}
                     onColorChange={onChangeValueLabelColor}
                     onColorReset={
                         valueLabelColor
                             ? () => onChangeValueLabelColor(undefined)
                             : undefined
                     }
-                    resetLabel="Use automatic color"
+                    resetLabel={t('cartesian.valueLabel.useAutomaticColor')}
                 />
             )}
         </Group>

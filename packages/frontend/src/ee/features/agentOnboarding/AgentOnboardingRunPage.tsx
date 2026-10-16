@@ -20,7 +20,9 @@ import {
     IconPlayerStop,
     IconRefresh,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -43,38 +45,30 @@ import {
 } from './utils';
 import { setWatchedAgentOnboardingRun } from './watchedRunStore';
 
-const STATUS_LABELS: Record<AgentOnboardingRunStatus, string> = {
-    queued: 'Queued',
-    running: 'Running',
-    completed: 'Complete',
-    failed: 'Needs attention',
-    cancelled: 'Cancelled',
+const RunStatus: FC<{ status: AgentOnboardingRunStatus }> = ({ status }) => {
+    const { t } = useTranslation('agentOnboarding');
+    return (
+        <Group gap={6} wrap="nowrap" pt={4}>
+            <span className={classes.statusDot} data-status={status} />
+            <Text fz="sm" fw={500} c="dimmed">
+                {t(`run.status.${status}`)}
+            </Text>
+        </Group>
+    );
 };
 
-const RunStatus: FC<{ status: AgentOnboardingRunStatus }> = ({ status }) => (
-    <Group gap={6} wrap="nowrap" pt={4}>
-        <span className={classes.statusDot} data-status={status} />
-        <Text fz="sm" fw={500} c="dimmed">
-            {STATUS_LABELS[status]}
-        </Text>
-    </Group>
-);
-
-const getStatusMessage = (run: AgentOnboardingRun): string => {
+const getStatusMessage = (t: TFunction, run: AgentOnboardingRun): string => {
     switch (run.status) {
         case 'queued':
-            return 'Your setup is queued and will begin shortly.';
+            return t('run.statusMessage.queued');
         case 'running':
-            return 'You can leave this page and return at any time.';
+            return t('run.statusMessage.running');
         case 'completed':
-            return 'Your semantic layer and starter dashboard are ready.';
+            return t('run.statusMessage.completed');
         case 'failed':
-            return (
-                run.errorMessage ??
-                'The setup run could not be completed. You can try again.'
-            );
+            return run.errorMessage ?? t('run.statusMessage.failed');
         case 'cancelled':
-            return 'This setup run was cancelled. You can start a new run.';
+            return t('run.statusMessage.cancelled');
         default:
             return assertUnreachable(run.status, 'Unknown onboarding status');
     }
@@ -97,6 +91,7 @@ const RunActions: FC<{
     isCancelling,
     isRetrying,
 }) => {
+    const { t } = useTranslation('agentOnboarding');
     if (!isAgentOnboardingRunTerminal(run.status)) {
         return (
             <Group gap="xs">
@@ -107,7 +102,7 @@ const RunActions: FC<{
                     onClick={() => void onCancel()}
                     loading={isCancelling}
                 >
-                    {isCancelling ? 'Cancelling…' : 'Cancel setup'}
+                    {isCancelling ? t('run.cancelling') : t('run.cancelSetup')}
                 </Button>
                 <Button
                     variant="subtle"
@@ -115,7 +110,7 @@ const RunActions: FC<{
                     onClick={() => void onSkip()}
                     disabled={isCancelling}
                 >
-                    Skip to project
+                    {t('run.skipToProject')}
                 </Button>
             </Group>
         );
@@ -129,10 +124,10 @@ const RunActions: FC<{
                     to={getAgentOnboardingDashboardUrl(run.projectUuid)}
                     rightSection={<MantineIcon icon={IconArrowRight} />}
                 >
-                    View dashboard
+                    {t('run.viewDashboard')}
                 </Button>
                 <Button variant="default" onClick={onOpenProject}>
-                    Open project
+                    {t('run.openProject')}
                 </Button>
             </Group>
         );
@@ -145,16 +140,17 @@ const RunActions: FC<{
                 onClick={() => void onRetry()}
                 loading={isRetrying}
             >
-                Try again
+                {t('run.tryAgain')}
             </Button>
             <Button variant="default" onClick={onOpenProject}>
-                Open project
+                {t('run.openProject')}
             </Button>
         </Group>
     );
 };
 
 const AgentOnboardingRunPage: FC = () => {
+    const { t } = useTranslation('agentOnboarding');
     const { agentOnboardingRunUuid } = useParams();
     const projectUuid = useProjectUuid();
     const navigate = useNavigate();
@@ -193,9 +189,9 @@ const AgentOnboardingRunPage: FC = () => {
 
     if (!runQuery.data || !projectUuid || !agentOnboardingRunUuid) {
         return (
-            <Page title="Project setup" withPaddedContent>
+            <Page title={t('pageTitle')} withPaddedContent>
                 <Alert color="red" icon={<IconAlertCircle />}>
-                    This onboarding run could not be found.
+                    {t('run.notFound')}
                 </Alert>
             </Page>
         );
@@ -241,11 +237,7 @@ const AgentOnboardingRunPage: FC = () => {
     };
 
     return (
-        <Page
-            title="Building your Lightdash project"
-            withPaddedContent
-            fullPageScroll
-        >
+        <Page title={t('run.title')} withPaddedContent fullPageScroll>
             <Box
                 className={classes.page}
                 mx="calc(-1 * var(--mantine-spacing-md))"
@@ -256,17 +248,15 @@ const AgentOnboardingRunPage: FC = () => {
                     <Group justify="space-between" align="flex-start">
                         <Stack gap={4}>
                             <Group gap="sm" align="flex-start">
-                                <Title order={2}>
-                                    Building your Lightdash project
-                                </Title>
+                                <Title order={2}>{t('run.title')}</Title>
                                 <RunStatus status={run.status} />
                             </Group>
                             {run.status !== 'failed' ? (
                                 <Text c="dimmed" fz="sm">
                                     {isCancellationRequested &&
                                     !isAgentOnboardingRunTerminal(run.status)
-                                        ? 'Stopping the setup run…'
-                                        : getStatusMessage(run)}
+                                        ? t('run.stopping')
+                                        : getStatusMessage(t, run)}
                                     {!isAgentOnboardingRunTerminal(
                                         run.status,
                                     ) && !isCancellationRequested ? (
@@ -298,16 +288,16 @@ const AgentOnboardingRunPage: FC = () => {
                         <Alert
                             color="red"
                             icon={<MantineIcon icon={IconAlertCircle} />}
-                            title="Setup stopped"
+                            title={t('run.setupStopped')}
                         >
-                            {getStatusMessage(run)}
+                            {getStatusMessage(t, run)}
                         </Alert>
                     ) : null}
 
                     <Box className={classes.workspace}>
                         <Paper className={classes.panel}>
                             <Box className={classes.panelHeader}>
-                                <Title order={5}>Progress</Title>
+                                <Title order={5}>{t('run.progress')}</Title>
                             </Box>
                             <AgentOnboardingProgress run={run} />
                             <AgentOnboardingActivityPanel
@@ -318,11 +308,13 @@ const AgentOnboardingRunPage: FC = () => {
 
                         <Paper className={classes.panel}>
                             <Box className={classes.panelHeader}>
-                                <Title order={5}>Generated files</Title>
+                                <Title order={5}>
+                                    {t('run.generatedFiles')}
+                                </Title>
                                 <Text c="dimmed" fz="xs">
-                                    {run.files.length === 1
-                                        ? '1 file'
-                                        : `${run.files.length} files`}
+                                    {t('run.fileCount', {
+                                        count: run.files.length,
+                                    })}
                                 </Text>
                             </Box>
                             <Box className={classes.panelBody}>

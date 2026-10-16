@@ -10,6 +10,7 @@ import {
 import { Button, Group, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     explorerActions,
     selectAdditionalMetrics,
@@ -41,6 +42,7 @@ const SAMPLE_VALUE = 1234.567;
 const SAMPLE_RATIO = 0.1234;
 
 const CustomMetricQuickCreate: FC<Props> = ({ item, type, onClose }) => {
+    const { t } = useTranslation('explorer');
     const dispatch = useExplorerDispatch();
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const metricQuery = useExplorerSelector(selectMetricQuery);
@@ -74,13 +76,16 @@ const CustomMetricQuickCreate: FC<Props> = ({ item, type, onClose }) => {
     const form = useForm({
         validateInputOnChange: true,
         initialValues: {
-            label: `${friendlyName(type)} of ${sourceLabel}`,
+            label: t('customMetric.defaultLabel', {
+                type: friendlyName(type),
+                field: sourceLabel,
+            }),
             percentile: 50,
         },
         validate: {
             label: (label) =>
                 !label
-                    ? 'Label is required'
+                    ? t('customMetric.labelRequired')
                     : getCustomMetricLabelError({
                           label,
                           item,
@@ -90,7 +95,7 @@ const CustomMetricQuickCreate: FC<Props> = ({ item, type, onClose }) => {
                       }),
             percentile: (percentile) =>
                 percentile < 0 || percentile > 100
-                    ? 'Percentile must be a number between 0 and 100'
+                    ? t('customMetric.percentileRange')
                     : null,
         },
     });
@@ -110,7 +115,7 @@ const CustomMetricQuickCreate: FC<Props> = ({ item, type, onClose }) => {
             ),
         );
         track({ name: EventName.ADD_CUSTOM_METRIC_CLICKED });
-        showToastSuccess({ title: 'Custom metric added successfully' });
+        showToastSuccess({ title: t('customMetric.addedSuccess') });
         onClose();
     });
 
@@ -131,12 +136,12 @@ const CustomMetricQuickCreate: FC<Props> = ({ item, type, onClose }) => {
             <Stack gap="sm">
                 <Group justify="space-between" gap="xs" wrap="nowrap">
                     <Text fz="sm" fw={600}>
-                        New custom metric
+                        {t('customMetric.quickCreate.title')}
                     </Text>
                     <MetricTypeBadge type={type} />
                 </Group>
                 <TextInput
-                    label="Label"
+                    label={t('customMetric.label')}
                     size="sm"
                     data-autofocus
                     onFocus={(e) => e.currentTarget.select()}
@@ -144,7 +149,7 @@ const CustomMetricQuickCreate: FC<Props> = ({ item, type, onClose }) => {
                 />
                 {type === MetricType.PERCENTILE && (
                     <NumberInput
-                        label="Percentile"
+                        label={t('customMetric.percentile')}
                         size="sm"
                         w={100}
                         min={0}
@@ -160,7 +165,7 @@ const CustomMetricQuickCreate: FC<Props> = ({ item, type, onClose }) => {
                         data-testid="quick-create-format"
                     >
                         <Text fz="xs" c="dimmed" flex="0 0 auto">
-                            Format
+                            {t('customMetric.quickCreate.format')}
                         </Text>
                         <Text fz="xs" truncate flex={1}>
                             {describeCustomFormat(inheritedFormat)}
@@ -176,10 +181,10 @@ const CustomMetricQuickCreate: FC<Props> = ({ item, type, onClose }) => {
                         size="compact-sm"
                         onClick={handleMoreOptions}
                     >
-                        More options
+                        {t('customMetric.quickCreate.moreOptions')}
                     </Button>
                     <Button type="submit" size="sm" disabled={!form.isValid()}>
-                        Create
+                        {t('actions.create', { ns: 'common' })}
                     </Button>
                 </Group>
             </Stack>

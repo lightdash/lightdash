@@ -19,6 +19,7 @@ import {
     IconSun,
 } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import { ChartPreviewComponent } from './ChartPreviewComponent';
@@ -49,6 +50,7 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
     submitButtonText,
     existingPaletteNames = [],
 }) => {
+    const { t } = useTranslation('userSettings');
     const [showAllColors, setShowAllColors] = useState(false);
     const { colorScheme } = useMantineColorScheme();
     const [activeTab, setActiveTab] = useState<string | null>(
@@ -69,19 +71,29 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
         validate: {
             name: (value) => {
                 if (!value || value.trim().length < 3) {
-                    return 'Name must be at least 3 characters';
+                    return t(
+                        'appearanceSettingsPanel.paletteModal.validation.nameTooShort',
+                    );
                 }
                 if (existingPaletteNames.includes(value)) {
-                    return 'Name must be unique';
+                    return t(
+                        'appearanceSettingsPanel.paletteModal.validation.nameNotUnique',
+                    );
                 }
                 return null;
             },
             colors: (value) =>
-                value.every((c) => c.startsWith('#')) ? null : 'Invalid colors',
+                value.every((c) => c.startsWith('#'))
+                    ? null
+                    : t(
+                          'appearanceSettingsPanel.paletteModal.validation.invalidColors',
+                      ),
             darkColors: (value) =>
                 !value || value.every((c) => c.startsWith('#'))
                     ? null
-                    : 'Invalid dark colors',
+                    : t(
+                          'appearanceSettingsPanel.paletteModal.validation.invalidDarkColors',
+                      ),
         },
     });
 
@@ -160,7 +172,13 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
                     fullWidth
                     className={classes.toggleColorsButton}
                 >
-                    {showAllColors ? 'Show fewer colors' : 'Show all colors'}
+                    {showAllColors
+                        ? t(
+                              'appearanceSettingsPanel.paletteModal.showFewerColors',
+                          )
+                        : t(
+                              'appearanceSettingsPanel.paletteModal.showAllColors',
+                          )}
                 </Button>
             </Box>
 
@@ -194,8 +212,12 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
             <form id="palette-form" onSubmit={handleFormSubmit}>
                 <Stack gap="xs">
                     <TextInput
-                        label="Palette name"
-                        placeholder="Enter a unique name"
+                        label={t(
+                            'appearanceSettingsPanel.paletteModal.nameLabel',
+                        )}
+                        placeholder={t(
+                            'appearanceSettingsPanel.paletteModal.namePlaceholder',
+                        )}
                         required
                         size="sm"
                         {...form.getInputProps('name')}
@@ -211,13 +233,17 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
                                 value="light"
                                 leftSection={<MantineIcon icon={IconSun} />}
                             >
-                                Light Mode
+                                {t(
+                                    'appearanceSettingsPanel.paletteModal.lightMode',
+                                )}
                             </Tabs.Tab>
                             <Tabs.Tab
                                 value="dark"
                                 leftSection={<MantineIcon icon={IconMoon} />}
                             >
-                                Dark Mode
+                                {t(
+                                    'appearanceSettingsPanel.paletteModal.darkMode',
+                                )}
                             </Tabs.Tab>
                         </Tabs.List>
 

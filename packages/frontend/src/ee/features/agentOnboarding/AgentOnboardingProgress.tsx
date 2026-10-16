@@ -11,6 +11,7 @@ import {
     type Icon,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import classes from './AgentOnboardingRunPage.module.css';
 import {
@@ -21,34 +22,11 @@ import {
     type AgentOnboardingProgressStageTiming,
 } from './utils';
 
-const STAGE_CONFIG: Record<
-    AgentOnboardingProgressStage,
-    { label: string; activeLabel: string; description: string; icon: Icon }
-> = {
-    explore: {
-        label: 'Explore your warehouse',
-        activeLabel: 'Exploring your warehouse',
-        description: 'Reads your tables to find a useful starting point.',
-        icon: IconDatabaseSearch,
-    },
-    semantic_layer: {
-        label: 'Build the semantic layer',
-        activeLabel: 'Building the semantic layer',
-        description: 'Turns your data into reusable metrics and dimensions.',
-        icon: IconLayersLinked,
-    },
-    dashboard: {
-        label: 'Create a starter dashboard',
-        activeLabel: 'Creating a starter dashboard',
-        description: 'Puts the first charts and filters together for you.',
-        icon: IconChartBar,
-    },
-    ready: {
-        label: 'Verify and hand off',
-        activeLabel: 'Verifying and handing off',
-        description: 'Checks everything works and opens the project.',
-        icon: IconCheck,
-    },
+const STAGE_ICONS: Record<AgentOnboardingProgressStage, Icon> = {
+    explore: IconDatabaseSearch,
+    semantic_layer: IconLayersLinked,
+    dashboard: IconChartBar,
+    ready: IconCheck,
 };
 
 type StageState = AgentOnboardingProgressStageTiming['state'] | 'stopped';
@@ -77,6 +55,7 @@ const getStageStates = (
 export const AgentOnboardingProgress: FC<{ run?: AgentOnboardingRun }> = ({
     run,
 }) => {
+    const { t } = useTranslation('agentOnboarding');
     const [now, setNow] = useState(Date.now());
     const isTerminal = !run || isAgentOnboardingRunTerminal(run.status);
 
@@ -97,10 +76,10 @@ export const AgentOnboardingProgress: FC<{ run?: AgentOnboardingRun }> = ({
         <Box
             component="ol"
             className={classes.stages}
-            aria-label="Setup stages"
+            aria-label={t('progress.stagesLabel')}
         >
             {AGENT_ONBOARDING_PROGRESS_STAGES.map(({ stage }, index) => {
-                const config = STAGE_CONFIG[stage];
+                const stageIcon = STAGE_ICONS[stage];
                 const state = states[index];
                 const timing = timings?.[index];
                 return (
@@ -117,7 +96,7 @@ export const AgentOnboardingProgress: FC<{ run?: AgentOnboardingRun }> = ({
                                     icon={
                                         state === 'completed'
                                             ? IconCheck
-                                            : config.icon
+                                            : stageIcon
                                     }
                                     size={14}
                                 />
@@ -131,11 +110,11 @@ export const AgentOnboardingProgress: FC<{ run?: AgentOnboardingRun }> = ({
                                 className={classes.stageLabel}
                             >
                                 {state === 'active'
-                                    ? config.activeLabel
-                                    : config.label}
+                                    ? t(`progress.stages.${stage}.activeLabel`)
+                                    : t(`progress.stages.${stage}.label`)}
                             </Text>
                             <Text fz="xs" c="dimmed">
-                                {config.description}
+                                {t(`progress.stages.${stage}.description`)}
                             </Text>
                         </Box>
                         {timing && timing.durationMs !== null ? (

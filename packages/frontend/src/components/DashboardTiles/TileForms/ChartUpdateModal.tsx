@@ -11,6 +11,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { IconEye, IconEyeOff, IconPencil } from '@tabler/icons-react';
 import uniqBy from 'lodash/uniqBy';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import MantineIcon from '../../common/MantineIcon';
@@ -38,6 +39,7 @@ const ChartUpdateModal = ({
     hideTitle,
     tile,
 }: ChartUpdateModalProps) => {
+    const { t } = useTranslation('dashboard');
     const form = useForm({
         initialValues: {
             uuid: isDashboardSqlChartTile(tile)
@@ -100,11 +102,11 @@ const ChartUpdateModal = ({
             opened={opened}
             onClose={onClose}
             icon={IconPencil}
-            title="Edit tile content"
+            title={t('tileForms.editContent.title')}
             modalRootProps={{ className: 'non-draggable' }}
             actions={
                 <Button type="submit" form="edit-tile-content">
-                    Update
+                    {t('actions.update', { ns: 'common' })}
                 </Button>
             }
         >
@@ -115,7 +117,7 @@ const ChartUpdateModal = ({
             >
                 <Flex align="flex-end" gap="xs" mb="md">
                     <TextInput
-                        label="Title"
+                        label={t('tileForms.title')}
                         placeholder={tile.properties.chartName || undefined}
                         {...form.getInputProps('title')}
                         flex={1}
@@ -141,7 +143,7 @@ const ChartUpdateModal = ({
                             classNames={{ groupLabel: classes.groupLabel }}
                             id="savedChartUuid"
                             name="savedChartUuid"
-                            label="Select chart"
+                            label={t('tileForms.editContent.selectChart')}
                             radius="md"
                             data={groupComboboxItems(
                                 (savedCharts || []).map(
@@ -156,8 +158,8 @@ const ChartUpdateModal = ({
                             comboboxProps={{ withinPortal: true }}
                             {...form.getInputProps('uuid')}
                             searchable
-                            placeholder="Search..."
-                            nothingFoundMessage="No charts found"
+                            placeholder={t('tileForms.searchPlaceholder')}
+                            nothingFoundMessage={t('tileForms.noChartsFound')}
                             clearable
                             searchValue={searchQuery}
                             onSearchChange={setSearchQuery}
@@ -177,7 +179,7 @@ const ChartUpdateModal = ({
                                         }}
                                         disabled={isFetching}
                                     >
-                                        Load more
+                                        {t('tileForms.loadMore')}
                                     </Button>
                                 ) : null
                             }

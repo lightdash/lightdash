@@ -13,6 +13,7 @@ import {
     IconTable,
     type Icon,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import {
     useCallback,
     useEffect,
@@ -22,6 +23,7 @@ import {
     type FC,
     type ReactElement,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -123,53 +125,39 @@ const PALETTE = [
 // The cards are look-alikes, not the homepage's real content components: the
 // decoration has no content to show, and borrowing those would tie it to the
 // content domain model and mount a chart engine to draw scenery.
-const MOCK_CHARTS: { name: string; icon: Icon; tint: string }[] = [
-    {
-        name: 'Monthly recurring revenue',
-        icon: IconChartLine,
-        tint: PALETTE[0],
-    },
-    { name: 'Signups by channel', icon: IconChartBar, tint: PALETTE[1] },
-    { name: 'Orders per week', icon: IconChartBar, tint: PALETTE[3] },
-    { name: 'Active workspaces', icon: IconChartArea, tint: PALETTE[2] },
-    { name: 'Revenue by segment', icon: IconChartPie, tint: PALETTE[4] },
-    { name: 'Churn rate over time', icon: IconChartLine, tint: PALETTE[5] },
+const MOCK_CHARTS: { key: string; icon: Icon; tint: string }[] = [
+    { key: 'mrr', icon: IconChartLine, tint: PALETTE[0] },
+    { key: 'signupsByChannel', icon: IconChartBar, tint: PALETTE[1] },
+    { key: 'ordersPerWeek', icon: IconChartBar, tint: PALETTE[3] },
+    { key: 'activeWorkspaces', icon: IconChartArea, tint: PALETTE[2] },
+    { key: 'revenueBySegment', icon: IconChartPie, tint: PALETTE[4] },
+    { key: 'churnRateOverTime', icon: IconChartLine, tint: PALETTE[5] },
 ];
 
-const MOCK_DASHBOARD_NAMES = ['Company KPIs', 'Growth overview'];
+const MOCK_DASHBOARD_KEYS = ['companyKpis', 'growthOverview'];
 
 const MOCK_KPIS: {
-    label: string;
+    key: string;
     value: string;
     color: string;
     variant: 'line' | 'bar';
 }[] = [
+    { key: 'totalRevenue', value: '$128k', color: PALETTE[0], variant: 'line' },
     {
-        label: 'Total revenue',
-        value: '$128k',
-        color: PALETTE[0],
-        variant: 'line',
-    },
-    {
-        label: 'Weekly active users',
+        key: 'weeklyActiveUsers',
         value: '4,209',
         color: PALETTE[1],
         variant: 'bar',
     },
     {
-        label: 'Conversion rate',
+        key: 'conversionRate',
         value: '3.8%',
         color: PALETTE[2],
         variant: 'line',
     },
-    {
-        label: 'Avg. order value',
-        value: '$92',
-        color: PALETTE[3],
-        variant: 'bar',
-    },
-    { label: 'New signups', value: '312', color: PALETTE[4], variant: 'bar' },
-    { label: 'Churn rate', value: '1.2%', color: PALETTE[5], variant: 'line' },
+    { key: 'avgOrderValue', value: '$92', color: PALETTE[3], variant: 'bar' },
+    { key: 'newSignups', value: '312', color: PALETTE[4], variant: 'bar' },
+    { key: 'churnRate', value: '1.2%', color: PALETTE[5], variant: 'line' },
 ];
 
 // Presentational copies of the homepage quick-action chips — no links, no
@@ -177,14 +165,17 @@ const MOCK_KPIS: {
 // pollutes homepage analytics.
 type ChipKey = 'ask-ai' | 'run-query' | 'browse-dashboards' | 'browse-spaces';
 
-const CHIP_DEFS: Record<ChipKey, { icon: Icon; title: string }> = {
-    'ask-ai': { icon: IconSparkles, title: 'Ask AI' },
-    'run-query': { icon: IconTable, title: 'Run a query' },
+const CHIP_DEFS: Record<ChipKey, { icon: Icon; titleKey: string }> = {
+    'ask-ai': { icon: IconSparkles, titleKey: 'stars.chips.askAi' },
+    'run-query': { icon: IconTable, titleKey: 'stars.chips.runQuery' },
     'browse-dashboards': {
         icon: IconLayoutDashboard,
-        title: 'Browse dashboards',
+        titleKey: 'stars.chips.browseDashboards',
     },
-    'browse-spaces': { icon: IconFolder, title: 'Browse spaces' },
+    'browse-spaces': {
+        icon: IconFolder,
+        titleKey: 'stars.chips.browseSpaces',
+    },
 };
 
 // Disjoint, so two chip stars on screen at once never repeat a label.
@@ -193,27 +184,30 @@ const MOCK_CHIP_SETS: ChipKey[][] = [
     ['browse-dashboards', 'browse-spaces'],
 ];
 
-const StaticChips: FC<{ types: ChipKey[] }> = ({ types }) => (
-    <Group gap={8} justify="center">
-        {types.map((type) => (
-            <span key={type} className={classes.chip}>
-                <MantineIcon
-                    icon={CHIP_DEFS[type].icon}
-                    size={14}
-                    color="dimmed"
-                />
-                {CHIP_DEFS[type].title}
-            </span>
-        ))}
-    </Group>
-);
+const StaticChips: FC<{ types: ChipKey[] }> = ({ types }) => {
+    const { t } = useTranslation('homepageBuilder');
+    return (
+        <Group gap={8} justify="center">
+            {types.map((type) => (
+                <span key={type} className={classes.chip}>
+                    <MantineIcon
+                        icon={CHIP_DEFS[type].icon}
+                        size={14}
+                        color="dimmed"
+                    />
+                    {t(CHIP_DEFS[type].titleKey)}
+                </span>
+            ))}
+        </Group>
+    );
+};
 
 // The only real content in the sky: these link out, so they are the one kind
 // of star that takes clicks and reports them.
 type MediaCard = {
     key: string;
-    title: string;
-    subtitle: string;
+    titleKey: string;
+    subtitleKey: string;
     href: string;
     thumbnailUrl: string | null;
 };
@@ -221,21 +215,22 @@ type MediaCard = {
 const MEDIA_CARDS: MediaCard[] = [
     {
         key: 'data-apps-video',
-        title: 'What can you build with Lightdash Data Apps? 3 real examples',
-        subtitle: 'Oliver shows us how we can build data apps!',
+        titleKey: 'stars.media.dataAppsVideo.title',
+        subtitleKey: 'stars.media.dataAppsVideo.subtitle',
         href: 'https://www.youtube.com/watch?v=BwvgHQyhI1o',
         thumbnailUrl: 'https://i.ytimg.com/vi/BwvgHQyhI1o/hqdefault.jpg',
     },
     {
         key: 'bi-as-code',
-        title: 'BI-as-code',
-        subtitle: 'Building content with code',
+        titleKey: 'stars.media.biAsCode.title',
+        subtitleKey: 'stars.media.biAsCode.subtitle',
         href: 'https://www.lightdash.com/bi-as-code',
         thumbnailUrl: null,
     },
 ];
 
 const MediaStarCard: FC<{ card: MediaCard }> = ({ card }) => {
+    const { t } = useTranslation('homepageBuilder');
     const { track } = useTracking();
     const [thumbnailFailed, setThumbnailFailed] = useState(false);
     const [faviconFailed, setFaviconFailed] = useState(false);
@@ -282,8 +277,10 @@ const MediaStarCard: FC<{ card: MediaCard }> = ({ card }) => {
                 </Box>
             )}
             <Box className={classes.mediaBody}>
-                <Text className={classes.mediaTitle}>{card.title}</Text>
-                <Text className={classes.mediaSubtitle}>{card.subtitle}</Text>
+                <Text className={classes.mediaTitle}>{t(card.titleKey)}</Text>
+                <Text className={classes.mediaSubtitle}>
+                    {t(card.subtitleKey)}
+                </Text>
             </Box>
         </a>
     );
@@ -400,49 +397,49 @@ type StarDef = {
     key: string;
     interactive: boolean;
     priority: boolean;
-    render: (seed: StarSeed) => ReactElement;
+    render: (seed: StarSeed, t: TFunction) => ReactElement;
 };
 
 const STAR_DEFS: StarDef[] = [
     ...MOCK_CHARTS.map(
         (chart): StarDef => ({
-            key: `chart-${chart.name}`,
+            key: `chart-${chart.key}`,
             interactive: false,
             priority: false,
-            render: (seed) => (
+            render: (seed, t) => (
                 <StarCard
                     icon={chart.icon}
                     tint={chart.tint}
-                    name={chart.name}
-                    meta={`Chart · ${seed.views} views`}
+                    name={t(`stars.charts.${chart.key}`)}
+                    meta={t('stars.chartMeta', { views: seed.views })}
                 />
             ),
         }),
     ),
-    ...MOCK_DASHBOARD_NAMES.map(
-        (name): StarDef => ({
-            key: `dashboard-${name}`,
+    ...MOCK_DASHBOARD_KEYS.map(
+        (dashboardKey): StarDef => ({
+            key: `dashboard-${dashboardKey}`,
             interactive: false,
             priority: false,
-            render: (seed) => (
+            render: (seed, t) => (
                 <StarCard
                     icon={IconLayoutDashboard}
                     tint={PALETTE[2]}
-                    name={name}
-                    meta={`Dashboard · ${seed.views} views`}
+                    name={t(`stars.dashboards.${dashboardKey}`)}
+                    meta={t('stars.dashboardMeta', { views: seed.views })}
                 />
             ),
         }),
     ),
     ...MOCK_KPIS.map(
         (kpi): StarDef => ({
-            key: `kpi-${kpi.label}`,
+            key: `kpi-${kpi.key}`,
             interactive: false,
             priority: false,
-            render: (seed) => (
+            render: (seed, t) => (
                 <Box className={classes.card} p="sm">
                     <Text size="xs" c="dimmed" lineClamp={1}>
-                        {kpi.label}
+                        {t(`stars.kpis.${kpi.key}`)}
                     </Text>
                     <Text fw={600} size="xl" mb={4}>
                         {kpi.value}
@@ -609,6 +606,7 @@ const appendStar = (
 };
 
 const HomepageStars: FC = () => {
+    const { t } = useTranslation('homepageBuilder');
     const reducedMotion = useReducedMotion();
     // JS is the single kill switch: CSS-hidden stars would never fire
     // animationend, stranding their slots forever.
@@ -826,7 +824,7 @@ const HomepageStars: FC = () => {
                             }
                         }}
                     >
-                        {def?.render(star.seed) ?? null}
+                        {def?.render(star.seed, t) ?? null}
                     </Box>
                 );
             })}

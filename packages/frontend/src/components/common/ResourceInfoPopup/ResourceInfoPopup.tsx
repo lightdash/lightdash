@@ -29,7 +29,9 @@ import {
     IconInfoCircle,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
+import { type TFunction } from 'i18next';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
@@ -39,10 +41,14 @@ import ViewsCountPopover from '../ViewsCountPopover';
 import { DashboardList } from './DashboardList';
 import styles from './ResourceInfoPopup.module.css';
 
-const versionStatusLabel = (status: AppVersionStatus): string => {
-    if (status === 'error') return 'error';
-    if (status === 'ready') return 'ready';
-    if (isAppVersionInProgress(status)) return 'building';
+const versionStatusLabel = (
+    status: AppVersionStatus,
+    t: TFunction<'commonUi'>,
+): string => {
+    if (status === 'error') return t('resourceInfo.versionStatus.error');
+    if (status === 'ready') return t('resourceInfo.versionStatus.ready');
+    if (isAppVersionInProgress(status))
+        return t('resourceInfo.versionStatus.building');
     return status;
 };
 
@@ -97,15 +103,17 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
     withChartData = false,
     latestVersion,
 }) => {
+    const { t } = useTranslation('commonUi');
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
         projectRoute?.projectUrlIdentifier ?? projectUuid;
     const timeAgo = useTimeAgo(updatedAt ?? new Date());
     const label =
         firstViewedAt && viewStats
-            ? `${viewStats} views since ${dayjs(firstViewedAt).format(
-                  'MMM D, YYYY h:mm A',
-              )}`
+            ? t('resourceInfo.viewsSince', {
+                  count: viewStats,
+                  date: dayjs(firstViewedAt).format('MMM D, YYYY h:mm A'),
+              })
             : undefined;
     const hasMetadataRows =
         !!updatedAt ||
@@ -151,13 +159,16 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
 
             <Stack gap={10}>
                 {updatedAt && (
-                    <InfoRow icon={IconClock} label="Last modified">
+                    <InfoRow
+                        icon={IconClock}
+                        label={t('resourceInfo.lastModified')}
+                    >
                         {timeAgo}
                     </InfoRow>
                 )}
 
                 {viewStats !== undefined ? (
-                    <InfoRow icon={IconEye} label="Views">
+                    <InfoRow icon={IconEye} label={t('resourceInfo.views')}>
                         <ViewsCountPopover
                             resourceType={viewStatsResourceType}
                             resourceUuid={resourceUuid}
@@ -171,7 +182,7 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
                 ) : null}
 
                 {spaceName && spaceUuid && (
-                    <InfoRow icon={IconFolder} label="Space">
+                    <InfoRow icon={IconFolder} label={t('resourceInfo.space')}>
                         <Anchor
                             component={Link}
                             to={`/projects/${projectUrlIdentifier}/spaces/${spaceUuid}`}
@@ -191,8 +202,13 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
                             size={14}
                         />
                         <Text fz="xs" c="dimmed" fw={600}>
-                            Version {latestVersion.number} (
-                            {versionStatusLabel(latestVersion.status)})
+                            {t('resourceInfo.versionWithStatus', {
+                                number: latestVersion.number,
+                                status: versionStatusLabel(
+                                    latestVersion.status,
+                                    t,
+                                ),
+                            })}
                         </Text>
                     </Group>
                 )}
@@ -207,12 +223,16 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
                 {shouldShowDivider && <Divider mb={4} />}
 
                 {slug && (
-                    <InfoRow icon={IconHash} label="Slug">
+                    <InfoRow icon={IconHash} label={t('resourceInfo.slug')}>
                         <CopyButton value={slug}>
                             {({ copied, copy }) => (
                                 <Tooltip
                                     position="top-start"
-                                    label={copied ? 'Copied slug' : 'Copy slug'}
+                                    label={
+                                        copied
+                                            ? t('resourceInfo.copiedSlug')
+                                            : t('resourceInfo.copySlug')
+                                    }
                                 >
                                     <UnstyledButton onClick={copy}>
                                         <Group gap={6} wrap="nowrap">
@@ -245,6 +265,7 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
 };
 
 export const ResourceInfoPopup: FC<ResourceInfoPopupProps> = (props) => {
+    const { t } = useTranslation('commonUi');
     const compact = useMatches(
         { base: true, sm: false },
         { getInitialValueInEffect: false },
@@ -266,7 +287,7 @@ export const ResourceInfoPopup: FC<ResourceInfoPopupProps> = (props) => {
                         variant="subtle"
                         color="gray"
                         size="lg"
-                        aria-label="Content details"
+                        aria-label={t('resourceInfo.contentDetails')}
                         aria-expanded={opened}
                         onClick={(event) => {
                             event.preventDefault();

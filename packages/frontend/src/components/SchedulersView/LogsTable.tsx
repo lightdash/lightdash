@@ -31,6 +31,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import ConfirmSendNowModal from '../../features/scheduler/components/ConfirmSendNowModal';
 import { useLogsFilters } from '../../features/scheduler/hooks/useLogsFilters';
@@ -92,6 +93,7 @@ const LogsTable: FC<LogsTableProps> = ({
     resourceScope,
     onSelectRun,
 }) => {
+    const { t } = useTranslation('scheduler');
     const isResourceScoped = !!resourceScope;
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
@@ -292,7 +294,7 @@ const LogsTable: FC<LogsTableProps> = ({
         () => [
             {
                 accessorKey: 'scheduler.name',
-                header: 'Name',
+                header: t('logsTable.columns.name'),
                 enableSorting: false,
                 size: 250,
                 Header: ({ column }) => (
@@ -317,7 +319,9 @@ const LogsTable: FC<LogsTableProps> = ({
                                         label={
                                             <Stack gap="two" fz="xs">
                                                 <Text c="ldGray.5" fz="xs">
-                                                    Scheduler:{' '}
+                                                    {t(
+                                                        'toolbar.schedulerLabel',
+                                                    )}{' '}
                                                     <Text
                                                         c="white"
                                                         span
@@ -327,7 +331,9 @@ const LogsTable: FC<LogsTableProps> = ({
                                                     </Text>
                                                 </Text>
                                                 <Text c="ldGray.5" fz="xs">
-                                                    Created by:{' '}
+                                                    {t(
+                                                        'schedulersTable.createdBy',
+                                                    )}{' '}
                                                     <Text
                                                         c="white"
                                                         span
@@ -362,7 +368,7 @@ const LogsTable: FC<LogsTableProps> = ({
             },
             {
                 accessorKey: 'status',
-                header: 'Status',
+                header: t('logsTable.columns.status'),
                 enableSorting: false,
                 size: 220,
                 Cell: ({ row }) => {
@@ -376,7 +382,9 @@ const LogsTable: FC<LogsTableProps> = ({
                                         theme,
                                     )}
                                     <Text fz="xs" c="ldGray.7">
-                                        Completed successfully
+                                        {t(
+                                            'logsTable.status.completedSuccessfully',
+                                        )}
                                     </Text>
                                 </>
                             ) : run.runStatus === SchedulerRunStatus.FAILED ? (
@@ -386,7 +394,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         theme,
                                     )}
                                     <Text fz="xs" c="ldGray.7">
-                                        Failed
+                                        {t('logsTable.status.failed')}
                                     </Text>
                                 </>
                             ) : run.runStatus ===
@@ -400,7 +408,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         }}
                                     />
                                     <Text fz="xs" c="ldGray.7">
-                                        Partial failure
+                                        {t('logsTable.status.partialFailure')}
                                     </Text>
                                 </>
                             ) : run.runStatus === SchedulerRunStatus.RUNNING ? (
@@ -410,7 +418,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         theme,
                                     )}
                                     <Text fz="xs" c="ldGray.7">
-                                        Running
+                                        {t('logsTable.status.running')}
                                     </Text>
                                 </>
                             ) : (
@@ -420,7 +428,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         theme,
                                     )}
                                     <Text fz="xs" c="ldGray.7">
-                                        Scheduled
+                                        {t('logsTable.status.scheduled')}
                                     </Text>
                                 </>
                             )}
@@ -430,7 +438,7 @@ const LogsTable: FC<LogsTableProps> = ({
             },
             {
                 accessorKey: 'scheduledTime',
-                header: 'Scheduled',
+                header: t('logsTable.columns.scheduled'),
                 enableSorting: false,
                 size: 140,
                 Header: ({ column }) => (
@@ -450,7 +458,7 @@ const LogsTable: FC<LogsTableProps> = ({
             },
             {
                 accessorKey: 'createdAt',
-                header: 'Start',
+                header: t('logsTable.columns.start'),
                 enableSorting: false,
                 size: 140,
                 Header: ({ column }) => (
@@ -527,7 +535,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                                     setIsConfirmOpen(true);
                                                 }}
                                             >
-                                                Send now
+                                                {t('actionMenu.sendNow')}
                                             </Menu.Item>
                                         </Menu.Dropdown>
                                     </Menu>
@@ -538,7 +546,7 @@ const LogsTable: FC<LogsTableProps> = ({
                 },
             },
         ],
-        [projectUuid, theme, setSelectedScheduler, setIsConfirmOpen],
+        [projectUuid, theme, setSelectedScheduler, setIsConfirmOpen, t],
     );
 
     const columns = useMemo(
@@ -663,7 +671,12 @@ const LogsTable: FC<LogsTableProps> = ({
     });
 
     if (isLoading) {
-        return <EmptyStateLoader my="xl" title="Loading run history" />;
+        return (
+            <EmptyStateLoader
+                my="xl"
+                title={t('logsTable.loadingRunHistory')}
+            />
+        );
     }
 
     return (

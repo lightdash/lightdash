@@ -21,6 +21,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import {
     useDeleteGenericOidcSsoConfig,
@@ -47,6 +48,7 @@ type FormValues = {
 };
 
 const GenericOidcSsoPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { data: existing, isLoading } = useGenericOidcSsoConfig();
     const upsert = useUpsertGenericOidcSsoConfig();
     const deleteConfig = useDeleteGenericOidcSsoConfig();
@@ -68,18 +70,22 @@ const GenericOidcSsoPanel: FC = () => {
         },
         validate: {
             clientId: (value) =>
-                value.trim().length === 0 ? 'Client ID is required' : null,
+                value.trim().length === 0
+                    ? t('organizationSso.ssoPanel.validation.clientIdRequired')
+                    : null,
             metadataDocumentEndpoint: (value) =>
                 value.trim().length === 0
-                    ? 'Discovery document URL is required'
+                    ? t('organizationSso.genericOidc.discoveryUrlRequired')
                     : null,
             clientSecret: (value) =>
                 !existing && value.trim().length === 0
-                    ? 'Client secret is required'
+                    ? t(
+                          'organizationSso.ssoPanel.validation.clientSecretRequired',
+                      )
                     : null,
             emailDomains: (value, values) =>
                 values.overrideEmailDomains && value.length === 0
-                    ? 'Add at least one domain when override is enabled'
+                    ? t('organizationSso.ssoPanel.validation.domainsRequired')
                     : null,
         },
     });
@@ -167,17 +173,15 @@ const GenericOidcSsoPanel: FC = () => {
                             <Stack gap={2}>
                                 <Title order={5}>OpenID Connect</Title>
                                 <Text c="dimmed" size="sm" maw={460}>
-                                    Single sign-on via a generic OpenID Connect
-                                    provider. Users whose email matches the
-                                    discovery whitelist see a "Sign in with
-                                    OpenID Connect" button; instance-level SSO
-                                    is suppressed for matched users.
+                                    {t(
+                                        'organizationSso.genericOidc.description',
+                                    )}
                                 </Text>
                             </Stack>
                         </Group>
                         {isConfigured ? (
                             <Switch
-                                label="Enabled"
+                                label={t('organizationSso.ssoPanel.enabled')}
                                 labelPosition="left"
                                 checked={form.values.enabled}
                                 disabled={upsert.isLoading}
@@ -189,7 +193,7 @@ const GenericOidcSsoPanel: FC = () => {
                             />
                         ) : (
                             <Badge variant="outline" size="lg">
-                                Not configured
+                                {t('organizationSso.ssoPanel.notConfigured')}
                             </Badge>
                         )}
                     </Group>
@@ -208,8 +212,12 @@ const GenericOidcSsoPanel: FC = () => {
                             onClick={() => toggleOpen()}
                         >
                             {isOpen
-                                ? 'Hide configuration'
-                                : 'Edit configuration'}
+                                ? t(
+                                      'organizationSso.ssoPanel.hideConfiguration',
+                                  )
+                                : t(
+                                      'organizationSso.ssoPanel.editConfiguration',
+                                  )}
                         </Button>
                     ) : (
                         !isOpen && (
@@ -218,7 +226,9 @@ const GenericOidcSsoPanel: FC = () => {
                                 w="fit-content"
                                 onClick={() => toggleOpen()}
                             >
-                                Set up OpenID Connect
+                                {t('organizationSso.ssoPanel.setUp', {
+                                    provider: 'OpenID Connect',
+                                })}
                             </Button>
                         )
                     )}
@@ -233,48 +243,75 @@ const GenericOidcSsoPanel: FC = () => {
                             <form onSubmit={handleSubmit}>
                                 <Stack>
                                     <Title order={6}>
-                                        Application credentials
+                                        {t(
+                                            'organizationSso.ssoPanel.applicationCredentials',
+                                        )}
                                     </Title>
                                     <TextInput
-                                        label="Discovery document URL"
+                                        label={t(
+                                            'organizationSso.genericOidc.discoveryUrl',
+                                        )}
                                         placeholder="https://idp.example.com/.well-known/openid-configuration"
-                                        description="The OIDC discovery document URL for your identity provider."
+                                        description={t(
+                                            'organizationSso.genericOidc.discoveryUrlDescription',
+                                        )}
                                         required
                                         {...form.getInputProps(
                                             'metadataDocumentEndpoint',
                                         )}
                                     />
                                     <TextInput
-                                        label="Client ID"
+                                        label={t(
+                                            'organizationSso.ssoPanel.clientId',
+                                        )}
                                         placeholder="your-oidc-client-id"
-                                        description="From your identity provider's application settings."
+                                        description={t(
+                                            'organizationSso.genericOidc.clientIdDescription',
+                                        )}
                                         required
                                         {...form.getInputProps('clientId')}
                                     />
                                     <PasswordInput
-                                        label="Client secret"
+                                        label={t(
+                                            'organizationSso.ssoPanel.clientSecret',
+                                        )}
                                         placeholder={
                                             existing
-                                                ? 'Leave blank to keep the existing secret'
-                                                : 'OIDC client secret value'
+                                                ? t(
+                                                      'organizationSso.ssoPanel.keepExistingSecret',
+                                                  )
+                                                : t(
+                                                      'organizationSso.ssoPanel.clientSecretPlaceholder',
+                                                      { provider: 'OIDC' },
+                                                  )
                                         }
-                                        description="The client secret from your identity provider."
+                                        description={t(
+                                            'organizationSso.genericOidc.clientSecretDescription',
+                                        )}
                                         required={!existing}
                                         {...form.getInputProps('clientSecret')}
                                     />
 
                                     <Title order={6} mt="md">
-                                        Advanced
+                                        {t('organizationSso.ssoPanel.advanced')}
                                     </Title>
                                     <TextInput
-                                        label="Scopes"
-                                        placeholder="Optional — defaults to openid profile email"
-                                        description="Space-separated OAuth scopes to request."
+                                        label={t(
+                                            'organizationSso.genericOidc.scopes',
+                                        )}
+                                        placeholder={t(
+                                            'organizationSso.genericOidc.scopesPlaceholder',
+                                        )}
+                                        description={t(
+                                            'organizationSso.genericOidc.scopesDescription',
+                                        )}
                                         {...form.getInputProps('scopes')}
                                     />
 
                                     <Title order={6} mt="md">
-                                        Discovery
+                                        {t(
+                                            'organizationSso.ssoPanel.discovery',
+                                        )}
                                     </Title>
                                     <SsoMethodDomainsField
                                         providerLabel="OpenID Connect"
@@ -298,11 +335,18 @@ const GenericOidcSsoPanel: FC = () => {
                                     />
 
                                     <Title order={6} mt="md">
-                                        Password sign-in
+                                        {t(
+                                            'organizationSso.ssoPanel.passwordSignIn',
+                                        )}
                                     </Title>
                                     <Checkbox
-                                        label="Allow password sign-in for users matching this method"
-                                        description="When unchecked, users whose email domain matches OIDC discovery will not see the password input. Lenient rule: if any matching method allows password, it is shown."
+                                        label={t(
+                                            'organizationSso.ssoPanel.allowPassword',
+                                        )}
+                                        description={t(
+                                            'organizationSso.ssoPanel.allowPasswordDescription',
+                                            { provider: 'OIDC' },
+                                        )}
                                         checked={form.values.allowPassword}
                                         onChange={(event) =>
                                             form.setFieldValue(
@@ -326,7 +370,9 @@ const GenericOidcSsoPanel: FC = () => {
                                                     setDeleteOpen(true)
                                                 }
                                             >
-                                                Remove configuration
+                                                {t(
+                                                    'organizationSso.ssoPanel.removeConfiguration',
+                                                )}
                                             </Button>
                                         ) : (
                                             <div />
@@ -337,8 +383,16 @@ const GenericOidcSsoPanel: FC = () => {
                                             disabled={upsert.isLoading}
                                         >
                                             {existing
-                                                ? 'Save changes'
-                                                : 'Enable OpenID Connect'}
+                                                ? t(
+                                                      'organizationSso.ssoPanel.saveChanges',
+                                                  )
+                                                : t(
+                                                      'organizationSso.ssoPanel.enable',
+                                                      {
+                                                          provider:
+                                                              'OpenID Connect',
+                                                      },
+                                                  )}
                                         </Button>
                                     </Group>
                                 </Stack>
@@ -353,9 +407,11 @@ const GenericOidcSsoPanel: FC = () => {
                     opened
                     onClose={() => setDeleteOpen(false)}
                     role="alertdialog"
-                    title="Remove OpenID Connect configuration"
+                    title={t('organizationSso.ssoPanel.removeModalTitle', {
+                        provider: 'OpenID Connect',
+                    })}
                     icon={IconShieldCheck}
-                    cancelLabel="Cancel"
+                    cancelLabel={t('actions.cancel', { ns: 'common' })}
                     actions={
                         <Button
                             color="red"
@@ -365,14 +421,14 @@ const GenericOidcSsoPanel: FC = () => {
                                 setDeleteOpen(false);
                             }}
                         >
-                            Remove
+                            {t('actions.remove', { ns: 'common' })}
                         </Button>
                     }
                 >
                     <Text>
-                        After removing this configuration, users in this
-                        organization will no longer be able to sign in with
-                        OpenID Connect via the per-organization configuration.
+                        {t('organizationSso.ssoPanel.removeModalBody', {
+                            provider: 'OpenID Connect',
+                        })}
                     </Text>
                 </MantineModal>
             )}

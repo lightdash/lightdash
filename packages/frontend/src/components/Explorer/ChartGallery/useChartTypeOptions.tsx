@@ -23,7 +23,10 @@ import {
     IconTable,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
 import { getChartTypeIcon } from '../../../features/chartTypes/utils/chartTypeIcons';
+import i18n from '../../../i18n/i18n';
 import {
     isBigNumberVisualizationConfig,
     isCartesianVisualizationConfig,
@@ -53,19 +56,19 @@ export type SelectedChartType = Pick<
     'id' | 'label' | 'icon' | 'rotatedIcon'
 >;
 
-const MIXED_CHART_TYPE: SelectedChartType = {
+const getMixedChartType = (t: TFunction): SelectedChartType => ({
     id: ChartKind.MIXED,
-    label: 'Mixed',
+    label: t('chartTypes.mixed'),
     icon: IconChartAreaLine,
     rotatedIcon: false,
-};
+});
 
-const CUSTOM_CHART_TYPE: SelectedChartType = {
+const getCustomChartType = (t: TFunction): SelectedChartType => ({
     id: ChartKind.CUSTOM,
-    label: 'Custom',
+    label: t('chartTypes.custom'),
     icon: IconCode,
     rotatedIcon: false,
-};
+});
 
 /** Pass `null` while the custom chart type is still loading. */
 export const projectChartTypeItem = (
@@ -74,12 +77,13 @@ export const projectChartTypeItem = (
     id: ChartKind.DATA_APP_VIZ,
     label: dataAppViz
         ? getAppDisplayName(dataAppViz.name, dataAppViz.dataAppVizUuid)
-        : 'Custom chart type',
+        : i18n.t('chartTypes.customChartType', { ns: 'explorer' }),
     icon: getChartTypeIcon(dataAppViz?.icon ?? null),
     rotatedIcon: false,
 });
 
 export const useChartTypeOptions = () => {
+    const { t } = useTranslation('explorer');
     const {
         visualizationConfig,
         setChartType,
@@ -114,7 +118,7 @@ export const useChartTypeOptions = () => {
     const options: ChartTypeOption[] = [
         {
             id: ChartKind.TABLE,
-            label: 'Table',
+            label: t('chartTypes.table'),
             icon: IconTable,
             rotatedIcon: false,
             selected: isTableVisualizationConfig(visualizationConfig),
@@ -122,7 +126,7 @@ export const useChartTypeOptions = () => {
         },
         {
             id: ChartKind.VERTICAL_BAR,
-            label: 'Bar chart',
+            label: t('chartTypes.bar'),
             icon: IconChartBar,
             rotatedIcon: false,
             selected:
@@ -140,7 +144,7 @@ export const useChartTypeOptions = () => {
         },
         {
             id: ChartKind.HORIZONTAL_BAR,
-            label: 'Horizontal bar chart',
+            label: t('chartTypes.horizontalBar'),
             icon: IconChartBar,
             rotatedIcon: true,
             selected:
@@ -159,7 +163,7 @@ export const useChartTypeOptions = () => {
         },
         {
             id: ChartKind.LINE,
-            label: 'Line chart',
+            label: t('chartTypes.line'),
             icon: IconChartLine,
             rotatedIcon: false,
             selected:
@@ -177,7 +181,7 @@ export const useChartTypeOptions = () => {
         },
         {
             id: ChartKind.AREA,
-            label: 'Area chart',
+            label: t('chartTypes.area'),
             icon: IconChartArea,
             rotatedIcon: false,
             selected:
@@ -195,7 +199,7 @@ export const useChartTypeOptions = () => {
         },
         {
             id: ChartKind.SCATTER,
-            label: 'Scatter chart',
+            label: t('chartTypes.scatter'),
             icon: IconChartDots,
             rotatedIcon: false,
             selected:
@@ -213,7 +217,7 @@ export const useChartTypeOptions = () => {
         },
         {
             id: ChartKind.PIE,
-            label: 'Pie chart',
+            label: t('chartTypes.pie'),
             icon: IconChartPie,
             rotatedIcon: false,
             selected: isPieVisualizationConfig(visualizationConfig),
@@ -221,7 +225,7 @@ export const useChartTypeOptions = () => {
         },
         {
             id: ChartKind.FUNNEL,
-            label: 'Funnel chart',
+            label: t('chartTypes.funnel'),
             icon: IconFilter,
             rotatedIcon: false,
             selected: isFunnelVisualizationConfig(visualizationConfig),
@@ -229,7 +233,7 @@ export const useChartTypeOptions = () => {
         },
         {
             id: ChartKind.TREEMAP,
-            label: 'Treemap',
+            label: t('chartTypes.treemap'),
             icon: IconChartTreemap,
             rotatedIcon: false,
             selected: isTreemapVisualizationConfig(visualizationConfig),
@@ -237,7 +241,7 @@ export const useChartTypeOptions = () => {
         },
         {
             id: ChartKind.GAUGE,
-            label: 'Gauge',
+            label: t('chartTypes.gauge'),
             icon: IconGauge,
             rotatedIcon: false,
             selected: isGaugeVisualizationConfig(visualizationConfig),
@@ -245,7 +249,7 @@ export const useChartTypeOptions = () => {
         },
         {
             id: ChartKind.SANKEY,
-            label: 'Sankey',
+            label: t('chartTypes.sankey'),
             icon: IconGitMerge,
             rotatedIcon: false,
             selected: isSankeyVisualizationConfig(visualizationConfig),
@@ -253,7 +257,7 @@ export const useChartTypeOptions = () => {
         },
         {
             id: ChartKind.MAP,
-            label: 'Map',
+            label: t('chartTypes.map'),
             icon: IconMap,
             rotatedIcon: false,
             selected: isMapVisualizationConfig(visualizationConfig),
@@ -261,7 +265,7 @@ export const useChartTypeOptions = () => {
         },
         {
             id: ChartKind.BIG_NUMBER,
-            label: 'Big value',
+            label: t('chartTypes.bigValue'),
             icon: IconSquareNumber1,
             rotatedIcon: false,
             selected: isBigNumberVisualizationConfig(visualizationConfig),
@@ -271,7 +275,7 @@ export const useChartTypeOptions = () => {
 
     const vegaOption: ChartTypeOption = {
         id: ChartKind.CUSTOM,
-        label: 'Vega (JSON editor)',
+        label: t('chartTypes.vega'),
         icon: IconCode,
         rotatedIcon: false,
         selected: isCustomVisualizationConfig(visualizationConfig),
@@ -284,8 +288,8 @@ export const useChartTypeOptions = () => {
     // Vega and custom chart types share one "Custom" entry in the picker;
     // cartesian series that do not resolve to a single entry are mixed.
     const selectedChartType: SelectedChartType = isCustomChart
-        ? CUSTOM_CHART_TYPE
-        : (options.find((option) => option.selected) ?? MIXED_CHART_TYPE);
+        ? getCustomChartType(t)
+        : (options.find((option) => option.selected) ?? getMixedChartType(t));
 
     // The picker collapses Vega and custom chart types into a single "Custom"
     // entry, so callers showing the active type resolve it by chart type.

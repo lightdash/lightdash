@@ -1,5 +1,6 @@
 import { Alert, Button, Group, Modal, Stack, Text } from '@mantine/core';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useGoogleLoginPopup } from '../../../hooks/gdrive/useGdrive';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProject } from '../../../hooks/useProject';
@@ -11,6 +12,7 @@ export const SharedSignInReconnectModal: FC<{
     onClose: () => void;
     onRestored: () => void;
 }> = ({ projectUuid, onClose, onRestored }) => {
+    const { t } = useTranslation('projectConnection');
     const { data: project } = useProject(projectUuid);
     const reconnect = useReconnectSharedSignIn(projectUuid);
     const [error, setError] = useState<string | null>(null);
@@ -20,7 +22,7 @@ export const SharedSignInReconnectModal: FC<{
             onSuccess: () => {
                 onClose();
                 onRestored();
-                showToastSuccess({ title: 'Connection restored' });
+                showToastSuccess({ title: t('sharedSignIn.restored') });
             },
             onError: (apiError) => setError(apiError.error.message),
         });
@@ -30,20 +32,20 @@ export const SharedSignInReconnectModal: FC<{
         <Modal
             opened
             onClose={onClose}
-            title="Sign in again to restore this project"
+            title={t('sharedSignIn.modalTitle')}
             size="md"
             overlayProps={{ backgroundOpacity: 0.5, blur: 5 }}
         >
             <Stack>
                 <Text>
-                    {project?.name ?? 'This project'}'s connection to BigQuery
-                    has expired. Sign in with Google again to restore it for
-                    everyone.
+                    {project?.name
+                        ? t('sharedSignIn.expiredNamed', { name: project.name })
+                        : t('sharedSignIn.expired')}
                 </Text>
                 {error && <Alert color="red">{error}</Alert>}
                 <Group justify="flex-end">
                     <Button variant="default" onClick={onClose}>
-                        Not now
+                        {t('sharedSignIn.notNow')}
                     </Button>
                     <BigQuerySSOInput
                         isAuthenticated={false}

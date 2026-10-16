@@ -27,6 +27,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import React, { useCallback, useEffect, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useHealth from '../../../hooks/health/useHealth';
 import type { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import {
@@ -94,6 +95,7 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
     inviteLink,
     onInviteSent,
 }) => {
+    const { t } = useTranslation('userSettings');
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
     const [schedulerAction, setSchedulerAction] =
         React.useState<SchedulerAction>(SchedulerAction.REASSIGN);
@@ -216,25 +218,32 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
 
     const canConfirmDelete = canConfirmSchedulers && canConfirmDashboards;
 
-    const schedulerText =
-        schedulersSummary?.totalCount === 1
-            ? '1 scheduled delivery'
-            : `${schedulersSummary?.totalCount} scheduled deliveries`;
+    const schedulerText = t(
+        'usersAndGroupsPanel.usersActionMenu.scheduledDeliveryCount',
+        {
+            count: schedulersSummary?.totalCount ?? 0,
+        },
+    );
 
     const projectCount = schedulersSummary?.byProject.length ?? 0;
-    const projectText =
-        projectCount === 1 ? '1 project' : `${projectCount} projects`;
+    const projectText = t('usersAndGroupsPanel.usersActionMenu.projectCount', {
+        count: projectCount,
+    });
 
-    const dashboardText =
-        dashboardsSummary?.totalCount === 1
-            ? '1 dashboard'
-            : `${dashboardsSummary?.totalCount} dashboards`;
+    const dashboardText = t(
+        'usersAndGroupsPanel.usersActionMenu.dashboardCount',
+        {
+            count: dashboardsSummary?.totalCount ?? 0,
+        },
+    );
 
     const dashboardProjectCount = dashboardsSummary?.byProject.length ?? 0;
-    const dashboardProjectText =
-        dashboardProjectCount === 1
-            ? '1 project'
-            : `${dashboardProjectCount} projects`;
+    const dashboardProjectText = t(
+        'usersAndGroupsPanel.usersActionMenu.projectCount',
+        {
+            count: dashboardProjectCount,
+        },
+    );
 
     const handleSchedulerActionChange = useCallback((value: string) => {
         if (
@@ -284,8 +293,12 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                 onClick={getNewLink}
                             >
                                 {health.data?.hasEmailClient
-                                    ? 'Send new invite'
-                                    : 'Get new link'}
+                                    ? t(
+                                          'usersAndGroupsPanel.usersActionMenu.sendNewInvite',
+                                      )
+                                    : t(
+                                          'usersAndGroupsPanel.usersActionMenu.getNewLink',
+                                      )}
                             </Menu.Item>
                             <Menu.Divider />
                         </>
@@ -301,7 +314,9 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                 }
                                 disabled={isStartingImpersonation}
                             >
-                                Impersonate user
+                                {t(
+                                    'usersAndGroupsPanel.usersActionMenu.impersonateUser',
+                                )}
                             </Menu.Item>
                             <Menu.Divider />
                         </>
@@ -315,7 +330,9 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                             onClick={() => setIsDeleteDialogOpen(true)}
                             disabled={disabled}
                         >
-                            Delete user
+                            {t(
+                                'usersAndGroupsPanel.usersActionMenu.deleteUser',
+                            )}
                         </Menu.Item>
                     )}
                 </Menu.Dropdown>
@@ -327,7 +344,7 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                     !isDeleting ? setIsDeleteDialogOpen(false) : undefined
                 }
                 role="alertdialog"
-                title="Delete user"
+                title={t('usersAndGroupsPanel.usersActionMenu.deleteUser')}
                 icon={IconTrash}
                 cancelDisabled={isDeleting}
                 actions={
@@ -337,12 +354,14 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                         disabled={!canConfirmDelete}
                         color="red"
                     >
-                        Delete
+                        {t('actions.delete', { ns: 'common' })}
                     </Button>
                 }
             >
                 <Stack gap="md">
-                    <Text>Are you sure you want to delete this user?</Text>
+                    <Text>
+                        {t('usersAndGroupsPanel.usersActionMenu.deleteConfirm')}
+                    </Text>
 
                     <Card>
                         <UserNameDisplay user={user} />
@@ -350,7 +369,9 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
 
                     {isLoadingSchedulers || isLoadingDashboards ? (
                         <Text fz="sm" c="dimmed">
-                            Checking content owned by this user...
+                            {t(
+                                'usersAndGroupsPanel.usersActionMenu.checkingContent',
+                            )}
                         </Text>
                     ) : hasSchedulers || hasOwnedDashboards ? (
                         <>
@@ -366,8 +387,14 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                     >
                                         <Stack gap="xs">
                                             <Text fz="sm">
-                                                This user owns {schedulerText}{' '}
-                                                across {projectText}.
+                                                {t(
+                                                    'usersAndGroupsPanel.usersActionMenu.ownsSchedulers',
+                                                    {
+                                                        deliveries:
+                                                            schedulerText,
+                                                        projects: projectText,
+                                                    },
+                                                )}
                                             </Text>
                                             <PolymorphicGroupButton
                                                 gap="xxs"
@@ -383,8 +410,12 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                                     fw={500}
                                                 >
                                                     {isProjectBreakdownOpen
-                                                        ? 'Hide details'
-                                                        : 'Show details'}
+                                                        ? t(
+                                                              'usersAndGroupsPanel.usersActionMenu.hideDetails',
+                                                          )
+                                                        : t(
+                                                              'usersAndGroupsPanel.usersActionMenu.showDetails',
+                                                          )}
                                                 </Text>
                                                 <MantineIcon
                                                     icon={
@@ -410,16 +441,14 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                                                 }
                                                                 fz="xs"
                                                             >
-                                                                •{' '}
-                                                                {
-                                                                    project.projectName
-                                                                }
-                                                                :{' '}
-                                                                {project.count}{' '}
-                                                                {project.count ===
-                                                                1
-                                                                    ? 'delivery'
-                                                                    : 'deliveries'}
+                                                                {t(
+                                                                    'usersAndGroupsPanel.usersActionMenu.projectDeliveries',
+                                                                    {
+                                                                        projectName:
+                                                                            project.projectName,
+                                                                        count: project.count,
+                                                                    },
+                                                                )}
                                                             </Text>
                                                         ),
                                                     )}
@@ -438,11 +467,15 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                         <Stack gap="sm">
                                             <Radio
                                                 value={SchedulerAction.DELETE}
-                                                label="Delete all scheduled deliveries"
+                                                label={t(
+                                                    'usersAndGroupsPanel.usersActionMenu.deleteAllSchedulers',
+                                                )}
                                             />
                                             <Radio
                                                 value={SchedulerAction.REASSIGN}
-                                                label="Reassign to another user"
+                                                label={t(
+                                                    'usersAndGroupsPanel.usersActionMenu.reassignSchedulers',
+                                                )}
                                             />
                                         </Stack>
                                     </Radio.Group>
@@ -451,7 +484,9 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                         SchedulerAction.REASSIGN && (
                                         <Stack gap="xs">
                                             <UserSelect
-                                                label="New owner"
+                                                label={t(
+                                                    'usersAndGroupsPanel.usersActionMenu.newOwner',
+                                                )}
                                                 value={selectedNewOwner}
                                                 onChange={setSelectedNewOwner}
                                                 excludedUserUuid={user.userUuid}
@@ -467,11 +502,9 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                                         size="lg"
                                                     />
                                                     <Text fz="xs" c="dimmed">
-                                                        You can only transfer
-                                                        ownership of a Google
-                                                        Sheets sync to a user
-                                                        with an active Google
-                                                        connection.
+                                                        {t(
+                                                            'usersAndGroupsPanel.usersActionMenu.gsheetsTransferNote',
+                                                        )}
                                                     </Text>
                                                 </Group>
                                             )}
@@ -492,9 +525,15 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                     >
                                         <Stack gap="xs">
                                             <Text fz="sm">
-                                                This user is the owner of{' '}
-                                                {dashboardText} across{' '}
-                                                {dashboardProjectText}.
+                                                {t(
+                                                    'usersAndGroupsPanel.usersActionMenu.ownsDashboards',
+                                                    {
+                                                        dashboards:
+                                                            dashboardText,
+                                                        projects:
+                                                            dashboardProjectText,
+                                                    },
+                                                )}
                                             </Text>
                                             <PolymorphicGroupButton
                                                 gap="xxs"
@@ -510,8 +549,12 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                                     fw={500}
                                                 >
                                                     {isDashboardBreakdownOpen
-                                                        ? 'Hide details'
-                                                        : 'Show details'}
+                                                        ? t(
+                                                              'usersAndGroupsPanel.usersActionMenu.hideDetails',
+                                                          )
+                                                        : t(
+                                                              'usersAndGroupsPanel.usersActionMenu.showDetails',
+                                                          )}
                                                 </Text>
                                                 <MantineIcon
                                                     icon={
@@ -537,16 +580,14 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                                                 }
                                                                 fz="xs"
                                                             >
-                                                                •{' '}
-                                                                {
-                                                                    project.projectName
-                                                                }
-                                                                :{' '}
-                                                                {project.count}{' '}
-                                                                {project.count ===
-                                                                1
-                                                                    ? 'dashboard'
-                                                                    : 'dashboards'}
+                                                                {t(
+                                                                    'usersAndGroupsPanel.usersActionMenu.projectDashboards',
+                                                                    {
+                                                                        projectName:
+                                                                            project.projectName,
+                                                                        count: project.count,
+                                                                    },
+                                                                )}
                                                             </Text>
                                                         ),
                                                     )}
@@ -569,13 +610,17 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                                 value={
                                                     DashboardOwnerAction.LEAVE_UNOWNED
                                                 }
-                                                label="Leave dashboards without an owner"
+                                                label={t(
+                                                    'usersAndGroupsPanel.usersActionMenu.leaveDashboardsUnowned',
+                                                )}
                                             />
                                             <Radio
                                                 value={
                                                     DashboardOwnerAction.REASSIGN
                                                 }
-                                                label="Transfer ownership to another user"
+                                                label={t(
+                                                    'usersAndGroupsPanel.usersActionMenu.transferDashboards',
+                                                )}
                                             />
                                         </Stack>
                                     </Radio.Group>
@@ -583,7 +628,9 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                     {dashboardOwnerAction ===
                                         DashboardOwnerAction.REASSIGN && (
                                         <UserSelect
-                                            label="New dashboard owner"
+                                            label={t(
+                                                'usersAndGroupsPanel.usersActionMenu.newDashboardOwner',
+                                            )}
                                             value={selectedDashboardOwner}
                                             onChange={setSelectedDashboardOwner}
                                             excludedUserUuid={user.userUuid}
@@ -599,8 +646,9 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                 color="dimmed"
                             />
                             <Text fz="xs" c="dimmed" span>
-                                This user has no scheduled deliveries or
-                                dashboards.
+                                {t(
+                                    'usersAndGroupsPanel.usersActionMenu.noOwnedContent',
+                                )}
                             </Text>
                         </Group>
                     )}

@@ -20,6 +20,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import {
     useAzureAdSsoConfig,
@@ -46,6 +47,7 @@ type FormValues = {
 };
 
 const AzureAdSsoPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { data: existing, isLoading } = useAzureAdSsoConfig();
     const upsert = useUpsertAzureAdSsoConfig();
     const deleteConfig = useDeleteAzureAdSsoConfig();
@@ -66,16 +68,22 @@ const AzureAdSsoPanel: FC = () => {
         },
         validate: {
             oauth2ClientId: (value) =>
-                value.trim().length === 0 ? 'Client ID is required' : null,
+                value.trim().length === 0
+                    ? t('organizationSso.ssoPanel.validation.clientIdRequired')
+                    : null,
             oauth2TenantId: (value) =>
-                value.trim().length === 0 ? 'Tenant ID is required' : null,
+                value.trim().length === 0
+                    ? t('organizationSso.azureAd.tenantIdRequired')
+                    : null,
             oauth2ClientSecret: (value) =>
                 !existing && value.trim().length === 0
-                    ? 'Client secret is required'
+                    ? t(
+                          'organizationSso.ssoPanel.validation.clientSecretRequired',
+                      )
                     : null,
             emailDomains: (value, values) =>
                 values.overrideEmailDomains && value.length === 0
-                    ? 'Add at least one domain when override is enabled'
+                    ? t('organizationSso.ssoPanel.validation.domainsRequired')
                     : null,
         },
     });
@@ -152,22 +160,20 @@ const AzureAdSsoPanel: FC = () => {
                                 w={28}
                                 h={28}
                                 mt={2}
-                                alt="Microsoft logo"
+                                alt={t('organizationSso.ssoPanel.logoAlt', {
+                                    provider: 'Microsoft',
+                                })}
                             />
                             <Stack gap={2}>
                                 <Title order={5}>Azure Active Directory</Title>
                                 <Text c="dimmed" size="sm" maw={460}>
-                                    Single sign-on via Azure AD. Users whose
-                                    email matches the discovery whitelist see a
-                                    "Sign in with Microsoft" button;
-                                    instance-level SSO is suppressed for matched
-                                    users.
+                                    {t('organizationSso.azureAd.description')}
                                 </Text>
                             </Stack>
                         </Group>
                         {isConfigured ? (
                             <Switch
-                                label="Enabled"
+                                label={t('organizationSso.ssoPanel.enabled')}
                                 labelPosition="left"
                                 checked={form.values.enabled}
                                 disabled={upsert.isLoading}
@@ -179,7 +185,7 @@ const AzureAdSsoPanel: FC = () => {
                             />
                         ) : (
                             <Badge variant="outline" size="lg">
-                                Not configured
+                                {t('organizationSso.ssoPanel.notConfigured')}
                             </Badge>
                         )}
                     </Group>
@@ -198,8 +204,12 @@ const AzureAdSsoPanel: FC = () => {
                             onClick={() => toggleOpen()}
                         >
                             {isOpen
-                                ? 'Hide configuration'
-                                : 'Edit configuration'}
+                                ? t(
+                                      'organizationSso.ssoPanel.hideConfiguration',
+                                  )
+                                : t(
+                                      'organizationSso.ssoPanel.editConfiguration',
+                                  )}
                         </Button>
                     ) : (
                         !isOpen && (
@@ -208,7 +218,9 @@ const AzureAdSsoPanel: FC = () => {
                                 w="fit-content"
                                 onClick={() => toggleOpen()}
                             >
-                                Set up Azure AD
+                                {t('organizationSso.ssoPanel.setUp', {
+                                    provider: 'Azure AD',
+                                })}
                             </Button>
                         )
                     )}
@@ -223,34 +235,53 @@ const AzureAdSsoPanel: FC = () => {
                             <form onSubmit={handleSubmit}>
                                 <Stack>
                                     <Title order={6}>
-                                        Application credentials
+                                        {t(
+                                            'organizationSso.ssoPanel.applicationCredentials',
+                                        )}
                                     </Title>
                                     <TextInput
-                                        label="Application (client) ID"
+                                        label={t(
+                                            'organizationSso.azureAd.applicationId',
+                                        )}
                                         placeholder="00000000-0000-0000-0000-000000000000"
-                                        description="From the Azure AD application's overview page."
+                                        description={t(
+                                            'organizationSso.azureAd.overviewDescription',
+                                        )}
                                         required
                                         {...form.getInputProps(
                                             'oauth2ClientId',
                                         )}
                                     />
                                     <TextInput
-                                        label="Directory (tenant) ID"
+                                        label={t(
+                                            'organizationSso.azureAd.tenantId',
+                                        )}
                                         placeholder="00000000-0000-0000-0000-000000000000"
-                                        description="From the Azure AD application's overview page."
+                                        description={t(
+                                            'organizationSso.azureAd.overviewDescription',
+                                        )}
                                         required
                                         {...form.getInputProps(
                                             'oauth2TenantId',
                                         )}
                                     />
                                     <PasswordInput
-                                        label="Client secret"
+                                        label={t(
+                                            'organizationSso.ssoPanel.clientSecret',
+                                        )}
                                         placeholder={
                                             existing
-                                                ? 'Leave blank to keep the existing secret'
-                                                : 'Azure AD client secret value'
+                                                ? t(
+                                                      'organizationSso.ssoPanel.keepExistingSecret',
+                                                  )
+                                                : t(
+                                                      'organizationSso.ssoPanel.clientSecretPlaceholder',
+                                                      { provider: 'Azure AD' },
+                                                  )
                                         }
-                                        description="The secret value from Azure AD (not the secret ID)."
+                                        description={t(
+                                            'organizationSso.azureAd.clientSecretDescription',
+                                        )}
                                         required={!existing}
                                         {...form.getInputProps(
                                             'oauth2ClientSecret',
@@ -258,7 +289,9 @@ const AzureAdSsoPanel: FC = () => {
                                     />
 
                                     <Title order={6} mt="md">
-                                        Discovery
+                                        {t(
+                                            'organizationSso.ssoPanel.discovery',
+                                        )}
                                     </Title>
                                     <SsoMethodDomainsField
                                         providerLabel="Azure AD"
@@ -282,11 +315,18 @@ const AzureAdSsoPanel: FC = () => {
                                     />
 
                                     <Title order={6} mt="md">
-                                        Password sign-in
+                                        {t(
+                                            'organizationSso.ssoPanel.passwordSignIn',
+                                        )}
                                     </Title>
                                     <Checkbox
-                                        label="Allow password sign-in for users matching this method"
-                                        description="When unchecked, users whose email domain matches Azure AD discovery will not see the password input. Lenient rule: if any matching method allows password, it is shown."
+                                        label={t(
+                                            'organizationSso.ssoPanel.allowPassword',
+                                        )}
+                                        description={t(
+                                            'organizationSso.ssoPanel.allowPasswordDescription',
+                                            { provider: 'Azure AD' },
+                                        )}
                                         checked={form.values.allowPassword}
                                         onChange={(event) =>
                                             form.setFieldValue(
@@ -310,7 +350,9 @@ const AzureAdSsoPanel: FC = () => {
                                                     setDeleteOpen(true)
                                                 }
                                             >
-                                                Remove configuration
+                                                {t(
+                                                    'organizationSso.ssoPanel.removeConfiguration',
+                                                )}
                                             </Button>
                                         ) : (
                                             <div />
@@ -321,8 +363,13 @@ const AzureAdSsoPanel: FC = () => {
                                             disabled={upsert.isLoading}
                                         >
                                             {existing
-                                                ? 'Save changes'
-                                                : 'Enable Azure AD'}
+                                                ? t(
+                                                      'organizationSso.ssoPanel.saveChanges',
+                                                  )
+                                                : t(
+                                                      'organizationSso.ssoPanel.enable',
+                                                      { provider: 'Azure AD' },
+                                                  )}
                                         </Button>
                                     </Group>
                                 </Stack>
@@ -337,9 +384,11 @@ const AzureAdSsoPanel: FC = () => {
                     opened
                     onClose={() => setDeleteOpen(false)}
                     role="alertdialog"
-                    title="Remove Azure AD configuration"
+                    title={t('organizationSso.ssoPanel.removeModalTitle', {
+                        provider: 'Azure AD',
+                    })}
                     icon={IconShieldCheck}
-                    cancelLabel="Cancel"
+                    cancelLabel={t('actions.cancel', { ns: 'common' })}
                     actions={
                         <Button
                             color="red"
@@ -349,14 +398,14 @@ const AzureAdSsoPanel: FC = () => {
                                 setDeleteOpen(false);
                             }}
                         >
-                            Remove
+                            {t('actions.remove', { ns: 'common' })}
                         </Button>
                     }
                 >
                     <Text>
-                        After removing this configuration, users in this
-                        organization will no longer be able to sign in with
-                        Azure AD via the per-organization configuration.
+                        {t('organizationSso.ssoPanel.removeModalBody', {
+                            provider: 'Azure AD',
+                        })}
                     </Text>
                 </MantineModal>
             )}

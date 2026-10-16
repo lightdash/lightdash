@@ -6,6 +6,7 @@ import {
     type ProjectDbtSourceWithConnection,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 
@@ -69,6 +70,7 @@ export const useCreateProjectDbtSourceMutation = (
     options?: { onSuccess?: (source: ProjectDbtSourceSummary) => void },
 ) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         ProjectDbtSourceSummary,
@@ -82,11 +84,13 @@ export const useCreateProjectDbtSourceMutation = (
                 'project_dbt_sources',
                 projectUuid,
             ]);
-            showToastSuccess({ title: 'dbt source added' });
+            showToastSuccess({
+                title: t('useProjectDbtSources.dbtSourceAdded'),
+            });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to add dbt source',
+                title: t('useProjectDbtSources.failedToAddDbtSource'),
                 apiError: error,
             });
         },
@@ -108,6 +112,7 @@ export const useUpdateProjectDbtSourceMutation = (
     options?: { onSuccess?: (source: ProjectDbtSourceSummary) => void },
 ) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         ProjectDbtSourceSummary,
@@ -133,11 +138,13 @@ export const useUpdateProjectDbtSourceMutation = (
                         projectDbtSourceUuid,
                     ]),
                 ]);
-                showToastSuccess({ title: 'dbt source updated' });
+                showToastSuccess({
+                    title: t('useProjectDbtSources.dbtSourceUpdated'),
+                });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to update dbt source',
+                    title: t('useProjectDbtSources.failedToUpdateDbtSource'),
                     apiError: error,
                 });
             },
@@ -147,6 +154,7 @@ export const useUpdateProjectDbtSourceMutation = (
 
 export const useDeleteProjectDbtSourceMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<undefined, ApiError, string>(
         (projectDbtSourceUuid) =>
@@ -158,11 +166,13 @@ export const useDeleteProjectDbtSourceMutation = (projectUuid: string) => {
                     'project_dbt_sources',
                     projectUuid,
                 ]);
-                showToastSuccess({ title: 'dbt source removed' });
+                showToastSuccess({
+                    title: t('useProjectDbtSources.dbtSourceRemoved'),
+                });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to remove dbt source',
+                    title: t('useProjectDbtSources.failedToRemoveDbtSource'),
                     apiError: error,
                 });
             },

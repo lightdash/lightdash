@@ -4,6 +4,7 @@ import {
     type ApiUpdateAppResponse,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { invalidateContent } from '../../../hooks/useContent';
@@ -32,7 +33,8 @@ export const useUpdateApp = (options?: {
     resourceLabel?: string;
     appUuidOrSlug?: string;
 }) => {
-    const resourceLabel = options?.resourceLabel ?? 'App';
+    const { t } = useTranslation('apps');
+    const resourceLabel = options?.resourceLabel ?? t('toasts.defaultResource');
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<UpdateAppResult, ApiError, UpdateAppParams>({
@@ -69,12 +71,16 @@ export const useUpdateApp = (options?: {
                   ? 'description'
                   : 'metadata';
             showToastSuccess({
-                title: `${resourceLabel} ${field} updated successfully`,
+                title: t(`toasts.updated.${field}`, {
+                    resource: resourceLabel,
+                }),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to update ${resourceLabel.toLowerCase()}`,
+                title: t('toasts.updateFailed', {
+                    resource: resourceLabel.toLowerCase(),
+                }),
                 apiError: error,
             });
         },

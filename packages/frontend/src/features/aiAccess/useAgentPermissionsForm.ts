@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { useForm } from '@mantine/form';
 import { useState } from 'react';
+import i18n from '../../i18n/i18n';
 import {
     countAgentPermissionChanges,
     draftToPolicyRequest,
@@ -70,7 +71,12 @@ export const useAgentPermissionsForm = ({
         try {
             const latest = await refetchPolicy();
             if (latest.data && !latest.isError) accept(latest.data);
-            else setSaveError('Could not reload agent permissions.');
+            else
+                setSaveError(
+                    i18n.t('toasts.permissionsReloadFailed', {
+                        ns: 'aiAccess',
+                    }),
+                );
         } finally {
             setRefreshing(false);
         }
@@ -80,7 +86,9 @@ export const useAgentPermissionsForm = ({
         setSaveError(null);
         save.mutate(draftToPolicyRequest(baseline, form.values), {
             onError: async () => {
-                setSaveError('Could not save agent permissions.');
+                setSaveError(
+                    i18n.t('toasts.permissionsSaveFailed', { ns: 'aiAccess' }),
+                );
                 setRefreshing(true);
                 try {
                     const latest = await refetchPolicy();

@@ -1,5 +1,6 @@
 import { Title, type TitleProps } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export const OnboardingTitle: FC<React.PropsWithChildren<TitleProps>> = ({
     children,
@@ -18,11 +19,12 @@ interface OnboardingConnectTitleProps {
 export const OnboardingConnectTitle: FC<OnboardingConnectTitleProps> = ({
     isCreatingFirstProject,
 }) => {
+    const { t } = useTranslation('projectConnection');
     return (
         <OnboardingTitle>
             {isCreatingFirstProject
-                ? "Let's get you set up!"
-                : 'Connect new project'}
+                ? t('connectFlow.title.firstProject')
+                : t('connectFlow.title.newProject')}
         </OnboardingTitle>
     );
 };

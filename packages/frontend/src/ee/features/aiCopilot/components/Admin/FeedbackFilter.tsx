@@ -1,5 +1,6 @@
 import { Box, SegmentedControl, Text, Tooltip } from '@mantine/core';
 import { IconThumbDown, IconThumbUp } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 
@@ -12,6 +13,7 @@ export const FeedbackFilter = ({
     selectedFeedback,
     setSelectedFeedback,
 }: FeedbackFilterProps) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const iconProps = {
         style: { display: 'block' },
         size: 18,
@@ -21,10 +23,10 @@ export const FeedbackFilter = ({
         {
             value: 'all',
             label: (
-                <Tooltip label="Show all threads">
+                <Tooltip label={t('filters.feedback.allTooltip')}>
                     <Box>
                         <Text fz="xs" fw={500}>
-                            All
+                            {t('filters.feedback.all')}
                         </Text>
                     </Box>
                 </Tooltip>
@@ -33,10 +35,7 @@ export const FeedbackFilter = ({
         {
             value: 'thumbs_up',
             label: (
-                <Tooltip
-                    label="Show only threads with positive feedback"
-                    maw={200}
-                >
+                <Tooltip label={t('filters.feedback.positive')} maw={200}>
                     <Box>
                         <MantineIcon icon={IconThumbUp} {...iconProps} />
                     </Box>
@@ -46,10 +45,7 @@ export const FeedbackFilter = ({
         {
             value: 'thumbs_down',
             label: (
-                <Tooltip
-                    label="Show only threads with negative feedback"
-                    maw={200}
-                >
+                <Tooltip label={t('filters.feedback.negative')} maw={200}>
                     <Box pt="xxs">
                         <MantineIcon icon={IconThumbDown} {...iconProps} />
                     </Box>

@@ -3,6 +3,7 @@ import { Badge, Box, Group, Stack, Text, useMantineTheme } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconTextCaption, IconUsers } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useInfiniteOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import useApp from '../../../providers/App/useApp';
@@ -24,6 +25,7 @@ interface GroupsTableProps {
 }
 
 const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
+    const { t } = useTranslation('userSettings');
     const theme = useMantineTheme();
     const { user: activeUser } = useApp();
     const rowVirtualizerInstanceRef =
@@ -82,7 +84,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
         () => [
             {
                 accessorKey: 'name',
-                header: 'Group',
+                header: t('usersAndGroupsPanel.groupsTable.columns.group'),
                 enableSorting: false,
                 size: 260,
                 Header: ({ column }) => (
@@ -100,9 +102,12 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
                             </Text>
                             {group.members.length > 0 && (
                                 <Text fz="xs" c="dimmed">
-                                    {`${group.members.length} member${
-                                        group.members.length !== 1 ? 's' : ''
-                                    }`}
+                                    {t(
+                                        'usersAndGroupsPanel.groupsTable.memberCount',
+                                        {
+                                            count: group.members.length,
+                                        },
+                                    )}
                                 </Text>
                             )}
                         </Stack>
@@ -111,7 +116,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
             },
             {
                 accessorKey: 'members',
-                header: 'Members',
+                header: t('usersAndGroupsPanel.groupsTable.columns.members'),
                 enableSorting: false,
                 size: 400,
                 Header: ({ column }) => (
@@ -150,7 +155,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
                         </Group>
                     ) : (
                         <Text fz="sm" c="dimmed" fs="italic">
-                            No members
+                            {t('usersAndGroupsPanel.groupsTable.noMembers')}
                         </Text>
                     );
                 },
@@ -182,7 +187,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
                 },
             },
         ],
-        [canManageGroups, flatData.length, onEditGroup, theme],
+        [canManageGroups, flatData.length, onEditGroup, theme, t],
     );
 
     const table = useContentTable({
@@ -253,18 +258,28 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
             >
                 {isFetching ? (
                     <Text c="ldGray.8" fz="xs">
-                        Loading more...
+                        {t('usersAndGroupsPanel.groupsTable.loadingMore')}
                     </Text>
                 ) : (
                     <Group gap="two">
                         <Text fz="xs" c="ldGray.8">
                             {hasNextPage
-                                ? 'Scroll for more groups'
-                                : 'All groups loaded'}
+                                ? t(
+                                      'usersAndGroupsPanel.groupsTable.scrollForMore',
+                                  )
+                                : t(
+                                      'usersAndGroupsPanel.groupsTable.allLoaded',
+                                  )}
                         </Text>
                         <Text fz="xs" fw={400} c="dimmed">
                             {hasNextPage
-                                ? `(${totalFetched} of ${totalDBRowCount} loaded)`
+                                ? t(
+                                      'usersAndGroupsPanel.groupsTable.loadedCount',
+                                      {
+                                          fetched: totalFetched,
+                                          total: totalDBRowCount,
+                                      },
+                                  )
                                 : `(${totalFetched})`}
                         </Text>
                     </Group>

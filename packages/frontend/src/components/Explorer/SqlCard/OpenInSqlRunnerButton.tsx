@@ -2,6 +2,7 @@ import { type ConnectionRoute, type Project } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { IconTerminal2 } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -28,6 +29,7 @@ const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
         project,
         disabled,
     }) => {
+        const { t } = useTranslation('explorer');
         const { user } = useApp();
         const { track } = useTracking();
         const carriesConnection =
@@ -85,7 +87,7 @@ const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
                         warehouseConnectionUuid === undefined)
                 }
             >
-                Open in SQL Runner
+                {t('sqlCard.openInSqlRunner')}
             </Button>
         );
     },

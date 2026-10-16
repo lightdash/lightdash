@@ -13,20 +13,20 @@ export const isRunning = (status: StatusUnion) =>
 
 type Config = {
     color: DefaultMantineColor;
-    label: string;
+    labelKey: string;
 };
 
 export const statusConfig = {
-    completed: { color: 'green', label: 'Completed' },
-    failed: { color: 'red', label: 'Errored' },
-    running: { color: 'yellow', label: 'Running' },
-    assessing: { color: 'indigo', label: 'Assessing' },
-    pending: { color: 'gray', label: 'Pending' },
+    completed: { color: 'green', labelKey: 'evals.status.completed' },
+    failed: { color: 'red', labelKey: 'evals.status.failed' },
+    running: { color: 'yellow', labelKey: 'evals.status.running' },
+    assessing: { color: 'indigo', labelKey: 'evals.status.assessing' },
+    pending: { color: 'gray', labelKey: 'evals.status.pending' },
 } satisfies Record<StatusUnion, Config>;
 
 export const getAssessmentConfig = (passed?: boolean): Config =>
     passed === undefined
-        ? { label: 'N/A', color: 'gray' }
+        ? { labelKey: 'evals.assessment.notApplicable', color: 'gray' }
         : passed
-          ? { label: 'Passed', color: 'green.8' }
-          : { label: 'Failed', color: 'red.8' };
+          ? { labelKey: 'evals.assessment.passed', color: 'green.8' }
+          : { labelKey: 'evals.assessment.failed', color: 'red.8' };

@@ -10,6 +10,7 @@ import {
 import { Anchor, Divider, Stack, Text } from '@mantine/core';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Navigate, useLocation } from 'react-router';
 import { lightdashApi } from '../api';
 import AuthLayout from '../components/common/AuthLayout';
@@ -43,53 +44,62 @@ const isAnySsoEnabled = (auth: HealthState['auth'] | undefined) =>
         auth.azuread.enabled ||
         auth.oidc.enabled);
 
-const RegisterTermsFooter: FC<{ isNewLayout: boolean }> = ({ isNewLayout }) =>
-    isNewLayout ? (
+const RegisterTermsFooter: FC<{ isNewLayout: boolean }> = ({ isNewLayout }) => {
+    const { t } = useTranslation('auth');
+    return isNewLayout ? (
         <Text c="dimmed" ta="center" fz="xs">
-            By continuing, you agree to our{' '}
-            <Anchor
-                href="https://www.lightdash.com/terms-of-service"
-                target="_blank"
-                inherit
-            >
-                Terms of Service
-            </Anchor>{' '}
-            and{' '}
-            <Anchor
-                href="https://www.lightdash.com/privacy-policy"
-                target="_blank"
-                inherit
-            >
-                Privacy Policy
-            </Anchor>
-            .
+            <Trans
+                t={t}
+                i18nKey="register.termsContinue"
+                components={{
+                    terms: (
+                        <Anchor
+                            href="https://www.lightdash.com/terms-of-service"
+                            target="_blank"
+                            inherit
+                        />
+                    ),
+                    privacy: (
+                        <Anchor
+                            href="https://www.lightdash.com/privacy-policy"
+                            target="_blank"
+                            inherit
+                        />
+                    ),
+                }}
+            />
         </Text>
     ) : (
         <Text c="dimmed" ta="center" fz="sm" fw={500}>
-            By creating an account, you agree to
-            <br />
-            our{' '}
-            <Anchor
-                href="https://www.lightdash.com/privacy-policy"
-                target="_blank"
-                fz="sm"
-                fw={500}
-            >
-                Privacy Policy
-            </Anchor>{' '}
-            and our{' '}
-            <Anchor
-                href="https://www.lightdash.com/terms-of-service"
-                target="_blank"
-                fz="sm"
-                fw={500}
-            >
-                Terms of Service.
-            </Anchor>
+            <Trans
+                t={t}
+                i18nKey="register.termsCreate"
+                components={{
+                    br: <br />,
+                    privacy: (
+                        <Anchor
+                            href="https://www.lightdash.com/privacy-policy"
+                            target="_blank"
+                            fz="sm"
+                            fw={500}
+                        />
+                    ),
+                    terms: (
+                        <Anchor
+                            href="https://www.lightdash.com/terms-of-service"
+                            target="_blank"
+                            fz="sm"
+                            fw={500}
+                        />
+                    ),
+                }}
+            />
         </Text>
     );
+};
 
 const Register: FC = () => {
+    const { t } = useTranslation('auth');
     const location = useLocation();
     const { health } = useApp();
     const emailStatus = useEmailStatus(
@@ -102,11 +112,11 @@ const Register: FC = () => {
     useEffect(() => {
         if (flashMessages.data?.error) {
             showToastError({
-                title: 'Failed to authenticate',
+                title: t('login.failedToAuthenticate'),
                 subtitle: flashMessages.data.error.join('\n'),
             });
         }
-    }, [flashMessages.data, showToastError]);
+    }, [flashMessages.data, showToastError, t]);
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
     const emailOnlySignupFlag = useServerFeatureFlag(
@@ -131,7 +141,7 @@ const Register: FC = () => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to create user`,
+                title: t('register.failedToCreateUser'),
                 apiError: error,
             });
         },
@@ -210,7 +220,7 @@ const Register: FC = () => {
                     labelPosition="center"
                     label={
                         <Text c="ldGray.5" size="sm" fw={500}>
-                            {isNewLayout ? 'or' : 'OR'}
+                            {isNewLayout ? t('login.or') : t('login.orUpper')}
                         </Text>
                     }
                 />
@@ -220,10 +230,10 @@ const Register: FC = () => {
     );
     return (
         <AuthLayout
-            pageTitle="Register"
-            title="Create an account"
-            subtitle="Start building analytics in minutes."
-            legacyTitle="Sign up"
+            pageTitle={t('register.pageTitle')}
+            title={t('register.title')}
+            subtitle={t('register.subtitle')}
+            legacyTitle={t('login.signUp')}
             withCustomerLogos
             footer={<RegisterTermsFooter isNewLayout={isNewLayout} />}
         >

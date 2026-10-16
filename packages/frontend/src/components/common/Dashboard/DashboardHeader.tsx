@@ -55,6 +55,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useToggle } from 'react-use';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
@@ -187,6 +188,7 @@ const DashboardHeader = memo(
         onEditClicked,
         className,
     }: DashboardHeaderProps) => {
+        const { t } = useTranslation('modals');
         const authoringEnabled = useContentAuthoringEnabled();
         const compact = useCompactContentHeader();
         const performanceWarning = useDashboardPerformanceWarning(
@@ -490,7 +492,9 @@ const DashboardHeader = memo(
                     </HeaderHeading>
                     {dashboard.hasUnpublishedChanges && (
                         <Tooltip
-                            label="Only you can see these changes. A reviewer can write them back to the repo from Content review."
+                            label={t(
+                                'dashboard.header.unpublishedChangesTooltip',
+                            )}
                             maw={280}
                         >
                             <Badge
@@ -499,13 +503,15 @@ const DashboardHeader = memo(
                                 size="sm"
                                 style={{ cursor: 'default' }}
                             >
-                                Unpublished changes
+                                {t('dashboard.header.unpublishedChanges')}
                             </Badge>
                         </Tooltip>
                     )}
                     {!!dashboard.draftsAwaitingReview && (
                         <Tooltip
-                            label="Other people have unpublished changes on this dashboard. Review them and write them back to the repo."
+                            label={t(
+                                'dashboard.header.draftsAwaitingReviewTooltip',
+                            )}
                             maw={280}
                         >
                             <Badge
@@ -516,11 +522,9 @@ const DashboardHeader = memo(
                                 size="sm"
                                 className={headerClasses.draftsBadge}
                             >
-                                {dashboard.draftsAwaitingReview} draft
-                                {dashboard.draftsAwaitingReview === 1
-                                    ? ''
-                                    : 's'}{' '}
-                                to review
+                                {t('dashboard.header.draftsToReview', {
+                                    count: dashboard.draftsAwaitingReview,
+                                })}
                             </Badge>
                         </Tooltip>
                     )}
@@ -535,7 +539,9 @@ const DashboardHeader = memo(
                             <Popover.Target>
                                 <ActionIcon
                                     size="md"
-                                    aria-label="Dashboard information"
+                                    aria-label={t(
+                                        'dashboard.header.dashboardInformation',
+                                    )}
                                 >
                                     <MantineIcon icon={IconInfoCircle} />
                                 </ActionIcon>
@@ -560,8 +566,15 @@ const DashboardHeader = memo(
                         <Tooltip
                             label={
                                 dashboard?.verification?.verifiedBy
-                                    ? `Verified by ${dashboard.verification.verifiedBy.firstName} ${dashboard.verification.verifiedBy.lastName}`
-                                    : 'Verified'
+                                    ? t('dashboard.header.verifiedBy', {
+                                          firstName:
+                                              dashboard.verification.verifiedBy
+                                                  .firstName,
+                                          lastName:
+                                              dashboard.verification.verifiedBy
+                                                  .lastName,
+                                      })
+                                    : t('dashboard.header.verified')
                             }
                             zIndex={10000}
                         >
@@ -661,15 +674,18 @@ const DashboardHeader = memo(
                 {compact && !isEditMode && oldestCacheTime && (
                     <HeaderMetadata>
                         <Text fz="xs" c="dimmed">
-                            Data from{' '}
-                            {dayjs(oldestCacheTime).format('MMM D, h:mm A')}
+                            {t('dashboard.header.dataFrom', {
+                                time: dayjs(oldestCacheTime).format(
+                                    'MMM D, h:mm A',
+                                ),
+                            })}
                         </Text>
                     </HeaderMetadata>
                 )}
                 {isDetailsOpen && (
                     <MantineModal
                         opened
-                        title="Dashboard details"
+                        title={t('dashboard.header.detailsTitle')}
                         onClose={() => setIsDetailsOpen(false)}
                     >
                         <DashboardInfoOverlay
@@ -685,16 +701,28 @@ const DashboardHeader = memo(
                                 label={
                                     <Box>
                                         <Text size="sm" fw={500} mb={6}>
-                                            Speed up this dashboard
+                                            {t('dashboard.header.speedUpTitle')}
                                         </Text>
                                         <Text size="xs">
-                                            With{' '}
-                                            {performanceWarning.totalChartCount}{' '}
-                                            charts, load times can be slower
-                                            depending on the user's machine.{' '}
+                                            {t(
+                                                'dashboard.header.performanceWarning',
+                                                {
+                                                    count: performanceWarning.totalChartCount,
+                                                },
+                                            )}{' '}
                                             {performanceWarning.totalTabs <= 1
-                                                ? `We recommend splitting this into multiple dashboard tabs, limited to ${performanceWarning.tabsExceedingLimit[0]?.limit ?? 10} charts per tab to keep things snappy for your team.`
-                                                : `We recommend splitting this into multiple dashboards to keep things snappy for your team.`}
+                                                ? t(
+                                                      'dashboard.header.splitIntoTabs',
+                                                      {
+                                                          limit:
+                                                              performanceWarning
+                                                                  .tabsExceedingLimit[0]
+                                                                  ?.limit ?? 10,
+                                                      },
+                                                  )
+                                                : t(
+                                                      'dashboard.header.splitIntoDashboards',
+                                                  )}
                                         </Text>
                                     </Box>
                                 }
@@ -727,7 +755,7 @@ const DashboardHeader = memo(
                         <Tooltip
                             fz="xs"
                             position="bottom"
-                            label="No changes to save"
+                            label={t('dashboard.header.noChangesToSave')}
                             disabled={hasDashboardChanged}
                             openDelay={200}
                             transitionProps={{
@@ -756,7 +784,7 @@ const DashboardHeader = memo(
                                     data-tour-via='[data-tour-nav="new"] >> [data-tour-nav="new-dashboard"] >> [data-tour-anchor="dashboard-name"] >> [data-tour-anchor="dashboard-create-next"] >> [data-tour-anchor="space-option"][data-tour-value="Shared"] >> [data-tour-anchor="dashboard-create-submit"] >> [data-tour-anchor="add-tile"] >> [data-tour-anchor="add-saved-chart"] >> [data-tour-anchor="chart-picker"] >> [data-tour-anchor="chart-option"][data-tour-value="Orders over time"] >> [data-tour-anchor="add-charts-submit"]'
                                     data-tour-docs="explore/dashboards.mdx#save-your-dashboard:1"
                                 >
-                                    Save changes
+                                    {t('dashboard.header.saveChanges')}
                                 </Button>
                             </Box>
                         </Tooltip>
@@ -766,14 +794,14 @@ const DashboardHeader = memo(
                             disabled={isSaving}
                             onClick={onCancel}
                         >
-                            Cancel
+                            {t('actions.cancel', { ns: 'common' })}
                         </Button>
                     </Group>
                 ) : (
                     <HeaderActions gap="sm">
                         {canEditDashboard && !compact && (
                             <Tooltip
-                                label="Edit dashboard"
+                                label={t('dashboard.header.editDashboard')}
                                 position="bottom"
                                 openDelay={200}
                                 transitionProps={{
@@ -782,7 +810,9 @@ const DashboardHeader = memo(
                                 }}
                             >
                                 <ActionIcon
-                                    aria-label="Edit dashboard"
+                                    aria-label={t(
+                                        'dashboard.header.editDashboard',
+                                    )}
                                     onClick={onEditClicked}
                                     bg="foreground"
                                     c="background"
@@ -808,9 +838,14 @@ const DashboardHeader = memo(
                                 {' '}
                                 {oldestCacheTime && (
                                     <Tooltip
-                                        label={`Dashboard uses cached data from ${dayjs(
-                                            oldestCacheTime,
-                                        ).format('MMM D, YYYY h:mm A')}`}
+                                        label={t(
+                                            'dashboard.header.cachedDataFrom',
+                                            {
+                                                time: dayjs(
+                                                    oldestCacheTime,
+                                                ).format('MMM D, YYYY h:mm A'),
+                                            },
+                                        )}
                                         position="bottom"
                                         openDelay={200}
                                         transitionProps={{
@@ -858,8 +893,12 @@ const DashboardHeader = memo(
                                 <Tooltip
                                     label={
                                         isFullscreen
-                                            ? 'Exit Fullscreen Mode'
-                                            : 'Enter Fullscreen Mode'
+                                            ? t(
+                                                  'dashboard.header.exitFullscreenMode',
+                                              )
+                                            : t(
+                                                  'dashboard.header.enterFullscreenMode',
+                                              )
                                     }
                                     position="bottom"
                                     openDelay={200}
@@ -873,8 +912,12 @@ const DashboardHeader = memo(
                                         size="md"
                                         aria-label={
                                             isFullscreen
-                                                ? 'Exit fullscreen'
-                                                : 'Enter fullscreen'
+                                                ? t(
+                                                      'dashboard.header.exitFullscreen',
+                                                  )
+                                                : t(
+                                                      'dashboard.header.enterFullscreen',
+                                                  )
                                         }
                                         onClick={onToggleFullscreen}
                                     >
@@ -894,7 +937,7 @@ const DashboardHeader = memo(
                             openThreadCount > 0 &&
                             !compact && (
                                 <Tooltip
-                                    label="Comments"
+                                    label={t('dashboard.header.comments')}
                                     position="bottom"
                                     openDelay={200}
                                     transitionProps={{
@@ -914,7 +957,9 @@ const DashboardHeader = memo(
                                             size="xs"
                                             h={28}
                                             px={8}
-                                            aria-label="Dashboard comments"
+                                            aria-label={t(
+                                                'dashboard.header.dashboardComments',
+                                            )}
                                             data-testid="dashboard-comments-button"
                                             onClick={openCommentsPanel}
                                             leftSection={
@@ -972,20 +1017,24 @@ const DashboardHeader = memo(
                                         {compact ? (
                                             <Button
                                                 variant="subtle"
-                                                aria-label="Dashboard actions"
+                                                aria-label={t(
+                                                    'dashboard.header.dashboardActions',
+                                                )}
                                                 leftSection={
                                                     <MantineIcon
                                                         icon={IconDots}
                                                     />
                                                 }
                                             >
-                                                More
+                                                {t('dashboard.header.more')}
                                             </Button>
                                         ) : (
                                             <ActionIcon
                                                 variant="default"
                                                 size="md"
-                                                aria-label="Dashboard actions"
+                                                aria-label={t(
+                                                    'dashboard.header.dashboardActions',
+                                                )}
                                             >
                                                 <MantineIcon icon={IconDots} />
                                             </ActionIcon>
@@ -1008,7 +1057,9 @@ const DashboardHeader = memo(
                                                     }
                                                     onClick={onEditClicked}
                                                 >
-                                                    Edit dashboard
+                                                    {t(
+                                                        'dashboard.header.editDashboard',
+                                                    )}
                                                 </Menu.Item>
                                             )}
                                             <Menu.Item
@@ -1021,7 +1072,7 @@ const DashboardHeader = memo(
                                                     setIsDetailsOpen(true)
                                                 }
                                             >
-                                                Details
+                                                {t('dashboard.header.details')}
                                             </Menu.Item>
                                             {userCanExportData && (
                                                 <Menu.Item
@@ -1036,7 +1087,9 @@ const DashboardHeader = memo(
                                                         )
                                                     }
                                                 >
-                                                    Auto-refresh
+                                                    {t(
+                                                        'dashboard.header.autoRefresh',
+                                                    )}
                                                 </Menu.Item>
                                             )}
                                         </>
@@ -1061,8 +1114,12 @@ const DashboardHeader = memo(
                                             }
                                         >
                                             {isDashboardFavorited
-                                                ? 'Remove from favorites'
-                                                : 'Add to favorites'}
+                                                ? t(
+                                                      'dashboard.header.removeFromFavorites',
+                                                  )
+                                                : t(
+                                                      'dashboard.header.addToFavorites',
+                                                  )}
                                         </Menu.Item>
                                     )}
                                     {compact &&
@@ -1076,7 +1133,9 @@ const DashboardHeader = memo(
                                                 }
                                                 onClick={onToggleFullscreen}
                                             >
-                                                Enter fullscreen
+                                                {t(
+                                                    'dashboard.header.enterFullscreen',
+                                                )}
                                             </Menu.Item>
                                         )}
                                     <AskAiAgentMenuItem
@@ -1095,7 +1154,7 @@ const DashboardHeader = memo(
                                                 data-testid="dashboard-comments-menu-item"
                                                 onClick={openCommentsPanel}
                                             >
-                                                Comments
+                                                {t('dashboard.header.comments')}
                                             </Menu.Item>
                                         )}
                                     {/* TODO: add a create-issue entry point once the issues flow is finalized */}
@@ -1115,7 +1174,9 @@ const DashboardHeader = memo(
                                                         preAggAuditHandlers.open
                                                     }
                                                 >
-                                                    Pre-aggregation audit
+                                                    {t(
+                                                        'dashboard.preAggAudit.title',
+                                                    )}
                                                 </Menu.Item>
                                                 {userCanRefreshPreAggregates &&
                                                     uniquePreAggregateNames.length >
@@ -1132,8 +1193,9 @@ const DashboardHeader = memo(
                                                                 preAggRefreshHandlers.open
                                                             }
                                                         >
-                                                            Rebuild
-                                                            pre-aggregates
+                                                            {t(
+                                                                'dashboard.header.rebuildPreAggregates',
+                                                            )}
                                                         </Menu.Item>
                                                     )}
                                                 <Menu.Divider />
@@ -1155,7 +1217,9 @@ const DashboardHeader = memo(
                                                             handleEditClick
                                                         }
                                                     >
-                                                        Edit details
+                                                        {t(
+                                                            'dashboard.header.editDetails',
+                                                        )}
                                                     </Menu.Item>
 
                                                     <Menu.Item
@@ -1166,7 +1230,9 @@ const DashboardHeader = memo(
                                                         }
                                                         onClick={onDuplicate}
                                                     >
-                                                        Duplicate
+                                                        {t(
+                                                            'dashboard.header.duplicate',
+                                                        )}
                                                     </Menu.Item>
                                                 </>
                                             )}
@@ -1181,7 +1247,9 @@ const DashboardHeader = memo(
                                                     transferToSpaceModalHandlers.open
                                                 }
                                             >
-                                                Move dashboard
+                                                {t(
+                                                    'dashboard.header.moveDashboard',
+                                                )}
                                             </Menu.Item>
 
                                             {contentReview.canRequest && (
@@ -1195,7 +1263,9 @@ const DashboardHeader = memo(
                                                         requestReviewModalHandlers.open
                                                     }
                                                 >
-                                                    Request review
+                                                    {t(
+                                                        'dashboard.header.requestReview',
+                                                    )}
                                                 </Menu.Item>
                                             )}
 
@@ -1211,7 +1281,9 @@ const DashboardHeader = memo(
                                                             directAccessModalHandlers.open
                                                         }
                                                     >
-                                                        Share
+                                                        {t(
+                                                            'dashboard.header.share',
+                                                        )}
                                                     </Menu.Item>
                                                 )}
                                         </>
@@ -1235,8 +1307,12 @@ const DashboardHeader = memo(
                                             onClick={onDashboardPinning}
                                         >
                                             {isPinned
-                                                ? 'Unpin from homepage'
-                                                : 'Pin to homepage'}
+                                                ? t(
+                                                      'dashboard.header.unpinFromHomepage',
+                                                  )
+                                                : t(
+                                                      'dashboard.header.pinToHomepage',
+                                                  )}
                                         </Menu.Item>
                                     )}
 
@@ -1251,7 +1327,9 @@ const DashboardHeader = memo(
                                                 );
                                             }}
                                         >
-                                            Scheduled deliveries
+                                            {t(
+                                                'dashboard.header.scheduledDeliveries',
+                                            )}
                                         </Menu.Item>
                                     )}
 
@@ -1259,7 +1337,9 @@ const DashboardHeader = memo(
                                         userCanPromoteDashboard &&
                                         dashboardUuid && (
                                             <Tooltip
-                                                label="You must enable first an upstream project in settings > Data ops"
+                                                label={t(
+                                                    'dashboard.header.upstreamProjectRequired',
+                                                )}
                                                 disabled={
                                                     project?.upstreamProjectUuid !==
                                                     undefined
@@ -1284,7 +1364,9 @@ const DashboardHeader = memo(
                                                             )
                                                         }
                                                     >
-                                                        Promote dashboard
+                                                        {t(
+                                                            'dashboard.header.promoteDashboard',
+                                                        )}
                                                     </Menu.Item>
                                                 </div>
                                             </Tooltip>
@@ -1304,7 +1386,9 @@ const DashboardHeader = memo(
                                                     )
                                                 }
                                             >
-                                                Version history
+                                                {t(
+                                                    'dashboard.header.versionHistory',
+                                                )}
                                             </Menu.Item>
                                         )}
 
@@ -1340,8 +1424,12 @@ const DashboardHeader = memo(
                                                 }}
                                             >
                                                 {isDashboardVerified
-                                                    ? 'Remove verification'
-                                                    : 'Verify dashboard'}
+                                                    ? t(
+                                                          'dashboard.header.removeVerification',
+                                                      )
+                                                    : t(
+                                                          'dashboard.header.verifyDashboard',
+                                                      )}
                                             </Menu.Item>
                                         )}
 
@@ -1355,7 +1443,9 @@ const DashboardHeader = memo(
                                             }
                                             onClick={onExport}
                                         >
-                                            Export dashboard
+                                            {t(
+                                                'dashboard.header.exportDashboard',
+                                            )}
                                         </Menu.Item>
                                     )}
 
@@ -1364,7 +1454,9 @@ const DashboardHeader = memo(
                                         <>
                                             <Menu.Divider />
                                             <Menu.Label>
-                                                Content as code
+                                                {t(
+                                                    'dashboard.header.contentAsCode',
+                                                )}
                                             </Menu.Label>
                                             {userCanViewContentAsCode && (
                                                 <Menu.Item
@@ -1377,7 +1469,9 @@ const DashboardHeader = memo(
                                                         dashboardAsCodeModalHandlers.open
                                                     }
                                                 >
-                                                    View as code
+                                                    {t(
+                                                        'dashboard.header.viewAsCode',
+                                                    )}
                                                 </Menu.Item>
                                             )}
                                             {canAuthorDashboard && (
@@ -1394,7 +1488,9 @@ const DashboardHeader = memo(
                                                         slugRenameModalHandlers.open
                                                     }
                                                 >
-                                                    Change URL slug
+                                                    {t(
+                                                        'dashboard.header.changeUrlSlug',
+                                                    )}
                                                 </Menu.Item>
                                             )}
                                         </>
@@ -1413,7 +1509,9 @@ const DashboardHeader = memo(
                                                 onClick={onDelete}
                                                 color="red"
                                             >
-                                                Delete
+                                                {t('actions.delete', {
+                                                    ns: 'common',
+                                                })}
                                             </Menu.Item>
                                         </>
                                     )}
@@ -1441,8 +1539,10 @@ const DashboardHeader = memo(
                             <SpaceActionModal
                                 projectUuid={projectUuid}
                                 actionType={ActionType.CREATE}
-                                title="Create new space"
-                                confirmButtonLabel="Create"
+                                title={t('dashboard.header.createNewSpace')}
+                                confirmButtonLabel={t('actions.create', {
+                                    ns: 'common',
+                                })}
                                 icon={IconFolderPlus}
                                 onClose={() => setIsCreatingNewSpace(false)}
                                 parentSpaceUuid={null}

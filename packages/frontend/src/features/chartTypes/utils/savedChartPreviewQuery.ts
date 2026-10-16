@@ -12,6 +12,7 @@ import {
     type ResultRow,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
+import i18n from '../../../i18n/i18n';
 import { pollForResults } from '../../queryRunner/executeQuery';
 
 /** One page of rows is all a preview needs, and the cap the picker reports. */
@@ -57,7 +58,9 @@ export const executeSavedChartPreviewQuery = async ({
         if (results.status !== QueryHistoryStatus.READY) {
             throw new Error(
                 ('error' in results ? results.error : null) ??
-                    'The saved chart query did not finish',
+                    i18n.t('errors.savedChartQueryDidNotFinish', {
+                        ns: 'chartTypes',
+                    }),
             );
         }
 

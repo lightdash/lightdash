@@ -43,6 +43,7 @@ import {
     type NodeTypes,
 } from '@xyflow/react';
 import { clsx } from 'clsx';
+import { type TFunction } from 'i18next';
 import {
     useEffect,
     useMemo,
@@ -52,6 +53,7 @@ import {
     type KeyboardEvent,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import '@xyflow/react/dist/style.css';
 import CodeBlock from '../../../../../../components/common/CodeBlock/CodeBlock';
 import InlineErrorState from '../../../../../../components/common/InlineErrorState';
@@ -77,23 +79,20 @@ import {
     type PipelineFlowNode,
 } from './pipelineGraph';
 
-const TRANSFORMATIONS_HELP =
-    'Transformations run in DuckDB or Python on top of the source results. They never touch the warehouse.';
-
 const pipelineNodeRowId = (nodeId: string) =>
     `composer-pipeline-node-${nodeId}`;
 
 export type PipelineMode = 'list' | 'graph';
 
-const layerLabel = (layer: PipelineLayer) => {
-    const single = layer.nodes.length === 1;
+const layerLabel = (layer: PipelineLayer, t: TFunction) => {
+    const count = layer.nodes.length;
     switch (layer.kind) {
         case 'sources':
-            return single ? 'Source' : 'Sources';
+            return t('pipeline.layer.sources', { count });
         case 'transformations':
-            return single ? 'Transformation' : 'Transformations';
+            return t('pipeline.layer.transformations', { count });
         case 'result':
-            return 'Result';
+            return t('pipeline.layer.result');
         default:
             return assertUnreachable(layer.kind, 'Unknown pipeline layer');
     }
@@ -135,9 +134,11 @@ const queryCodeOf = (
     }
 };
 
-const queryToggleLabel = (query: SourceQuery, open: boolean) => {
-    const noun = query.sourceType === QuerySourceType.PYTHON ? 'code' : 'query';
-    return open ? `Hide ${noun}` : `View ${noun}`;
+const queryToggleLabel = (query: SourceQuery, open: boolean, t: TFunction) => {
+    if (query.sourceType === QuerySourceType.PYTHON) {
+        return open ? t('pipeline.hideCode') : t('pipeline.viewCode');
+    }
+    return open ? t('pipeline.hideQuery') : t('pipeline.viewQuery');
 };
 
 const SemanticFields: FC<{ query: SemanticLayerSourceQuery }> = ({ query }) => {
@@ -191,6 +192,7 @@ const SemanticQuerySql: FC<{
     query: SemanticLayerSourceQuery;
     projectUuid: string;
 }> = ({ query, projectUuid }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const metricQuery = useMemo(
         () => metricQueryOfSemanticNode(query),
         [query],
@@ -205,7 +207,7 @@ const SemanticQuerySql: FC<{
     if (error) {
         return (
             <InlineErrorState
-                message="Could not compile this query."
+                message={t('pipeline.compileFailed')}
                 onRetry={() => void refetch()}
             />
         );
@@ -214,7 +216,7 @@ const SemanticQuerySql: FC<{
         <Group gap="xs" p="sm">
             <Loader size="xs" color="ldGray.6" />
             <Text fz="xs" c="dimmed">
-                Compiling query…
+                {t('pipeline.compilingQuery')}
             </Text>
         </Group>
     );
@@ -224,6 +226,7 @@ const QueryDetails: FC<{ query: SourceQuery; projectUuid: string }> = ({
     query,
     projectUuid,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const [queryOpen, setQueryOpen] = useState(false);
     const canViewSql = useCanViewAiAgentSql();
     return (
@@ -251,7 +254,7 @@ const QueryDetails: FC<{ query: SourceQuery; projectUuid: string }> = ({
                                 queryOpen && styles.chevronOpen,
                             )}
                         />
-                        {queryToggleLabel(query, queryOpen)}
+                        {queryToggleLabel(query, queryOpen, t)}
                     </UnstyledButton>
                     <Collapse
                         expanded={queryOpen}
@@ -297,6 +300,7 @@ const PipelineNodeRow: FC<
     onDisplayNode,
     nodeStatuses,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const displayed = node.nodeId === displayedNodeId;
     const displayable = displayableNodeIds.has(node.nodeId);
     const nodeStatus = nodeStatuses[node.nodeId];
@@ -328,7 +332,7 @@ const PipelineNodeRow: FC<
                   }
               },
               'aria-pressed': displayed,
-              'aria-label': `Display ${node.title}`,
+              'aria-label': t('pipeline.displayNode', { title: node.title }),
           }
         : {};
     return (
@@ -351,7 +355,7 @@ const PipelineNodeRow: FC<
             )}
             {node.reads.length > 0 && (
                 <Text className={styles.nodeReads}>
-                    Reads {node.reads.join(', ')}
+                    {t('pipeline.reads', { reads: node.reads.join(', ') })}
                 </Text>
             )}
             {nodeStatus?.status === 'error' && nodeStatus.error && (
@@ -364,80 +368,95 @@ const PipelineNodeRow: FC<
 
 const PipelineList: FC<
     { layers: PipelineLayer[]; projectUuid: string } & NodeDisplay
-> = ({ layers, projectUuid, ...display }) => (
-    <Box className={styles.body}>
-        {layers.map((layer) => (
-            <Box key={layer.depth} className={styles.layer}>
-                <Group gap={4} className={styles.layerHeading}>
-                    <Text component="span" inherit>
-                        {layerLabel(layer)}
-                    </Text>
-                    {layer.kind === 'transformations' && (
-                        <Tooltip
-                            label={TRANSFORMATIONS_HELP}
-                            multiline
-                            w={260}
-                            position="top-start"
-                        >
-                            <ActionIcon
-                                variant="subtle"
-                                size="xs"
-                                className={styles.helpIcon}
-                                aria-label="About transformations"
+> = ({ layers, projectUuid, ...display }) => {
+    const { t } = useTranslation('aiCopilotChat');
+    return (
+        <Box className={styles.body}>
+            {layers.map((layer) => (
+                <Box key={layer.depth} className={styles.layer}>
+                    <Group gap={4} className={styles.layerHeading}>
+                        <Text component="span" inherit>
+                            {layerLabel(layer, t)}
+                        </Text>
+                        {layer.kind === 'transformations' && (
+                            <Tooltip
+                                label={t('pipeline.transformationsHelp')}
+                                multiline
+                                w={260}
+                                position="top-start"
                             >
-                                <MantineIcon icon={IconHelpCircle} size={12} />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                </Group>
-                {layer.nodes.map((node) => (
-                    <PipelineNodeRow
-                        projectUuid={projectUuid}
-                        key={node.nodeId}
-                        node={node}
-                        {...display}
-                    />
-                ))}
-            </Box>
-        ))}
-    </Box>
-);
-
-const PipelineFlowNodeView: FC<NodeProps<PipelineFlowNode>> = ({ data }) => (
-    <Paper
-        component="button"
-        type="button"
-        className={styles.graphNode}
-        data-terminal={data.isTerminal}
-        data-displayed={data.isDisplayed}
-        aria-disabled={!data.isDisplayable}
-        aria-pressed={data.isDisplayed}
-        aria-label={`Display ${data.title}`}
-        title={data.title}
-    >
-        <Handle
-            type="target"
-            position={Position.Left}
-            className={styles.handle}
-        />
-        <Box className={styles.dot} />
-        <Box className={styles.graphNodeText}>
-            <Text component="span" className={styles.graphNodeTitle} truncate>
-                {data.title}
-            </Text>
-            {data.typeLabel && (
-                <Text component="span" className={styles.graphNodeType}>
-                    {data.typeLabel}
-                </Text>
-            )}
+                                <ActionIcon
+                                    variant="subtle"
+                                    size="xs"
+                                    className={styles.helpIcon}
+                                    aria-label={t(
+                                        'pipeline.aboutTransformations',
+                                    )}
+                                >
+                                    <MantineIcon
+                                        icon={IconHelpCircle}
+                                        size={12}
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
+                    </Group>
+                    {layer.nodes.map((node) => (
+                        <PipelineNodeRow
+                            projectUuid={projectUuid}
+                            key={node.nodeId}
+                            node={node}
+                            {...display}
+                        />
+                    ))}
+                </Box>
+            ))}
         </Box>
-        <Handle
-            type="source"
-            position={Position.Right}
-            className={styles.handle}
-        />
-    </Paper>
-);
+    );
+};
+
+const PipelineFlowNodeView: FC<NodeProps<PipelineFlowNode>> = ({ data }) => {
+    const { t } = useTranslation('aiCopilotChat');
+    return (
+        <Paper
+            component="button"
+            type="button"
+            className={styles.graphNode}
+            data-terminal={data.isTerminal}
+            data-displayed={data.isDisplayed}
+            aria-disabled={!data.isDisplayable}
+            aria-pressed={data.isDisplayed}
+            aria-label={t('pipeline.displayNode', { title: data.title })}
+            title={data.title}
+        >
+            <Handle
+                type="target"
+                position={Position.Left}
+                className={styles.handle}
+            />
+            <Box className={styles.dot} />
+            <Box className={styles.graphNodeText}>
+                <Text
+                    component="span"
+                    className={styles.graphNodeTitle}
+                    truncate
+                >
+                    {data.title}
+                </Text>
+                {data.typeLabel && (
+                    <Text component="span" className={styles.graphNodeType}>
+                        {data.typeLabel}
+                    </Text>
+                )}
+            </Box>
+            <Handle
+                type="source"
+                position={Position.Right}
+                className={styles.handle}
+            />
+        </Paper>
+    );
+};
 
 const nodeTypes: NodeTypes = { pipeline: PipelineFlowNodeView };
 const edgeTypes: EdgeTypes = { pipeline: DefaultEdge };
@@ -544,41 +563,47 @@ const PipelineBar: FC<{
     onToggle: () => void;
     mode: PipelineMode;
     onModeChange: (mode: PipelineMode) => void;
-}> = ({ nodeCount, expanded, onToggle, mode, onModeChange }) => (
-    <Box className={styles.bar}>
-        <UnstyledButton
-            className={styles.barToggle}
-            onClick={onToggle}
-            aria-expanded={expanded}
-        >
-            <MantineIcon
-                icon={IconChevronRight}
-                size={11}
-                stroke={1.6}
-                className={clsx(styles.chevron, expanded && styles.chevronOpen)}
-            />
-            <Text component="span" className={styles.heading}>
-                Queries
+}> = ({ nodeCount, expanded, onToggle, mode, onModeChange }) => {
+    const { t } = useTranslation('aiCopilotChat');
+    return (
+        <Box className={styles.bar}>
+            <UnstyledButton
+                className={styles.barToggle}
+                onClick={onToggle}
+                aria-expanded={expanded}
+            >
+                <MantineIcon
+                    icon={IconChevronRight}
+                    size={11}
+                    stroke={1.6}
+                    className={clsx(
+                        styles.chevron,
+                        expanded && styles.chevronOpen,
+                    )}
+                />
+                <Text component="span" className={styles.heading}>
+                    {t('pipeline.queries')}
+                </Text>
+            </UnstyledButton>
+            {expanded && (
+                <SegmentedControl
+                    size="xs"
+                    value={mode}
+                    onChange={(value) =>
+                        onModeChange(value === 'graph' ? 'graph' : 'list')
+                    }
+                    data={[
+                        { label: t('pipeline.modeList'), value: 'list' },
+                        { label: t('pipeline.modeGraph'), value: 'graph' },
+                    ]}
+                />
+            )}
+            <Text component="span" className={styles.meta}>
+                {t('pipeline.stepCount', { count: nodeCount })}
             </Text>
-        </UnstyledButton>
-        {expanded && (
-            <SegmentedControl
-                size="xs"
-                value={mode}
-                onChange={(value) =>
-                    onModeChange(value === 'graph' ? 'graph' : 'list')
-                }
-                data={[
-                    { label: 'List', value: 'list' },
-                    { label: 'Graph', value: 'graph' },
-                ]}
-            />
-        )}
-        <Text component="span" className={styles.meta}>
-            {nodeCount} step{nodeCount === 1 ? '' : 's'}
-        </Text>
-    </Box>
-);
+        </Box>
+    );
+};
 
 type Props = NodeDisplay & {
     projectUuid: string;
@@ -609,6 +634,7 @@ export const AiComposerPipelinePanel: FC<Props> = ({
     onExpandedChange,
     defaultMode = 'list',
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const [ownExpanded, setOwnExpanded] = useState(defaultExpanded);
     const expanded = controlledExpanded ?? ownExpanded;
     const [mode, setMode] = useState<PipelineMode>(defaultMode);
@@ -646,7 +672,7 @@ export const AiComposerPipelinePanel: FC<Props> = ({
     return (
         <ResizableSplitter
             orientation="vertical"
-            handleLabel="Resize results and pipeline"
+            handleLabel={t('pipeline.resizeHandle')}
             classNames={{ handle: styles.splitHandle }}
         >
             <ResizableSplitter.Pane id="results" defaultSize={55} min={15}>

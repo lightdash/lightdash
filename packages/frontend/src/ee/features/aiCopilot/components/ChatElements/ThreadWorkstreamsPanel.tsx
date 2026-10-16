@@ -12,6 +12,7 @@ import {
 } from '@mantine/core';
 import { IconChevronRight, IconGitPullRequest } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import styles from './ThreadWorkstreamsPanel.module.css';
 
@@ -19,11 +20,12 @@ type WorkstreamState = AiAgentThreadWorkstream['state'];
 
 const STATE_BADGE: Record<
     Exclude<WorkstreamState, null>,
-    { label: string; color: string }
+    // labelKey: key in the aiCopilotChat namespace
+    { labelKey: string; color: string }
 > = {
-    open: { label: 'Open', color: 'green' },
-    merged: { label: 'Merged', color: 'violet' },
-    closed: { label: 'Closed', color: 'red' },
+    open: { labelKey: 'workstreams.state.open', color: 'green' },
+    merged: { labelKey: 'workstreams.state.merged', color: 'violet' },
+    closed: { labelKey: 'workstreams.state.closed', color: 'red' },
 };
 
 type Props = {
@@ -37,6 +39,7 @@ type Props = {
  * current state; to steer a follow-up at a specific PR, ask the agent in chat.
  */
 export const ThreadWorkstreamsPanel: FC<Props> = ({ workstreams }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const [expanded, setExpanded] = useState(false);
 
     if (workstreams.length === 0) {
@@ -55,7 +58,7 @@ export const ThreadWorkstreamsPanel: FC<Props> = ({ workstreams }) => {
                     <Group gap="xs" wrap="nowrap">
                         <MantineIcon icon={IconGitPullRequest} color="dimmed" />
                         <Text size="sm" fw={500} c="ldGray.7">
-                            Pull requests in this conversation
+                            {t('workstreams.title')}
                         </Text>
                         <Badge size="sm" color="ldGray">
                             {workstreams.length}
@@ -104,7 +107,7 @@ export const ThreadWorkstreamsPanel: FC<Props> = ({ workstreams }) => {
                                             color={badge.color}
                                             className={styles.noShrink}
                                         >
-                                            {badge.label}
+                                            {t(badge.labelKey)}
                                         </Badge>
                                     ) : null}
                                     <Text

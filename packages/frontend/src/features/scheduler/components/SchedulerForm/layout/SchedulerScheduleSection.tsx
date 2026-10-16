@@ -1,6 +1,7 @@
 import { formatMinutesOffset, getTzMinutesOffset } from '@lightdash/common';
 import { Box, Input, Stack, TextInput } from '@mantine/core';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import TimeZonePicker from '../../../../../components/common/TimeZonePicker';
 import { CronInternalInputs } from '../../../../../components/CronInput';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export const SchedulerScheduleSection: FC<Props> = ({ isThresholdAlert }) => {
+    const { t } = useTranslation('scheduler');
     const form = useSchedulerFormContext();
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
@@ -25,18 +27,24 @@ export const SchedulerScheduleSection: FC<Props> = ({ isThresholdAlert }) => {
     return (
         <Stack gap="lg">
             <TextInput
-                label="Name"
+                label={t('setup.name')}
                 placeholder={
-                    isThresholdAlert ? 'Name your alert' : 'Name your delivery'
+                    isThresholdAlert
+                        ? t('setup.namePlaceholderAlert')
+                        : t('setup.namePlaceholderDelivery')
                 }
                 required
                 {...form.getInputProps('name')}
             />
             <Input.Wrapper
-                label={isThresholdAlert ? 'Check frequency' : 'Frequency'}
+                label={
+                    isThresholdAlert
+                        ? t('setup.checkFrequency')
+                        : t('setup.frequency')
+                }
                 description={
                     isThresholdAlert
-                        ? 'How often Lightdash checks your data for changes. You are only notified when the conditions are met.'
+                        ? t('setup.checkFrequencyDescription')
                         : undefined
                 }
             >
@@ -50,18 +58,20 @@ export const SchedulerScheduleSection: FC<Props> = ({ isThresholdAlert }) => {
                 </Box>
             </Input.Wrapper>
             <TimeZonePicker
-                label="Timezone"
+                label={t('setup.timezone')}
                 size="sm"
                 variant="default"
                 w="100%"
                 maw="100%"
                 searchable
                 clearable
-                placeholder={`Project default ${
+                placeholder={
                     projectDefaultOffsetString
-                        ? `(UTC ${projectDefaultOffsetString})`
-                        : ''
-                }`}
+                        ? t('setup.timezonePlaceholderWithOffset', {
+                              offset: projectDefaultOffsetString,
+                          })
+                        : t('setup.timezonePlaceholder')
+                }
                 {...form.getInputProps('timezone')}
             />
         </Stack>

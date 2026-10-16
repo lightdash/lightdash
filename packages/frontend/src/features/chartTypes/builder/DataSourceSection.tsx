@@ -7,11 +7,14 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { formatDistanceToNow } from 'date-fns';
+import { type TFunction } from 'i18next';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../components/common/PolymorphicGroupButton';
 import { useSuggestedChartTypeExplore } from '../../../ee/features/ambientAi/hooks/useChartTypeSuggestions';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { getDateFnsLocale } from '../../../i18n/dateLocale';
 import DataSourcePicker from './DataSourcePicker';
 import classes from './DataSourceSection.module.css';
 import {
@@ -38,35 +41,50 @@ type TileState = {
     failure: { message: string; retry: () => void } | null;
 };
 
-const savedChartTile = (attached: AttachedSavedChart, retry: () => void) => {
-    const prefix = `Saved chart · ${attached.spaceName ?? 'Saved charts'}`;
+const savedChartTile = (
+    t: TFunction,
+    attached: AttachedSavedChart,
+    retry: () => void,
+) => {
+    const space = attached.spaceName ?? t('source.savedCharts');
     const rowCount = attached.rowCount ?? 0;
-    const ran = attached.ranAt
-        ? ` · ran ${formatDistanceToNow(attached.ranAt, { addSuffix: true })}`
-        : '';
+    const readyMeta = t('source.savedChartReady', { space, count: rowCount });
     return {
         icon: IconChartBar,
         isAccent: true,
         title: attached.chartName,
         meta:
             attached.status === 'running'
-                ? `${prefix} · running query`
+                ? t('source.savedChartRunning', { space })
                 : attached.status === 'error'
-                  ? `${prefix} · query failed`
-                  : `${prefix} · ${rowCount} ${rowCount === 1 ? 'row' : 'rows'}${ran}`,
+                  ? t('source.savedChartFailed', { space })
+                  : attached.ranAt
+                    ? t('sourceSection.withRan', {
+                          meta: readyMeta,
+                          ran: formatDistanceToNow(attached.ranAt, {
+                              addSuffix: true,
+                              locale: getDateFnsLocale(),
+                          }),
+                      })
+                    : readyMeta,
         isRunning: attached.status === 'running',
         failure:
             attached.status === 'error'
                 ? {
                       message:
-                          attached.message ?? 'The saved chart’s query failed.',
+                          attached.message ??
+                          t('sourceSection.savedChartQueryFailed'),
                       retry,
                   }
                 : null,
     } satisfies TileState;
 };
 
-const exploreTile = (attached: AttachedExplore, retry: () => void) =>
+const exploreTile = (
+    t: TFunction,
+    attached: AttachedExplore,
+    retry: () => void,
+) =>
     ({
         icon: IconTable,
         isAccent: true,
@@ -79,24 +97,27 @@ const exploreTile = (attached: AttachedExplore, retry: () => void) =>
         failure:
             attached.status === 'error'
                 ? {
-                      message: attached.message ?? 'The table query failed.',
+                      message:
+                          attached.message ??
+                          t('sourceSection.tableQueryFailed'),
                       retry,
                   }
                 : null,
     }) satisfies TileState;
 
-const SAMPLE_TILE: TileState = {
+const getSampleTile = (t: TFunction): TileState => ({
     icon: IconFlask,
     isAccent: false,
-    title: 'Sample data',
-    meta: 'Generated from the chart inputs',
+    title: t('rowsPeek.sampleData'),
+    meta: t('sourceSection.sampleMeta'),
     isRunning: false,
     failure: null,
-};
+});
 
 /** The sidebar's "Preview data": one tile naming what the preview renders
  *  from, which opens the data source picker. */
 const DataSourceSection: FC<Props> = ({ savedChartSource, exploreSource }) => {
+    const { t } = useTranslation('chartTypes');
     const [pickerOpened, setPickerOpened] = useState(false);
     const projectUuid = useProjectUuid();
     // Warms the cache so the suggested row is there when the picker opens.
@@ -105,15 +126,15 @@ const DataSourceSection: FC<Props> = ({ savedChartSource, exploreSource }) => {
         exploreSource?.suggestTable ?? null,
     );
     const tile: TileState = savedChartSource?.attached
-        ? savedChartTile(savedChartSource.attached, savedChartSource.retry)
+        ? savedChartTile(t, savedChartSource.attached, savedChartSource.retry)
         : exploreSource?.attached
-          ? exploreTile(exploreSource.attached, exploreSource.retry)
-          : SAMPLE_TILE;
+          ? exploreTile(t, exploreSource.attached, exploreSource.retry)
+          : getSampleTile(t);
 
     return (
         <Stack gap="xs">
             <Text component="h3" fz="sm" fw={600}>
-                Preview data
+                {t('canvas.previewData')}
             </Text>
             <DataSourcePicker
                 opened={pickerOpened}
@@ -130,7 +151,9 @@ const DataSourceSection: FC<Props> = ({ savedChartSource, exploreSource }) => {
                     gap="sm"
                     wrap="nowrap"
                     w="100%"
-                    aria-label={`Change preview data: ${tile.title}`}
+                    aria-label={t('sourceSection.changePreviewData', {
+                        title: tile.title,
+                    })}
                     onClick={() => setPickerOpened((opened) => !opened)}
                 >
                     <Box
@@ -177,7 +200,7 @@ const DataSourceSection: FC<Props> = ({ savedChartSource, exploreSource }) => {
                         }
                         onClick={tile.failure.retry}
                     >
-                        Try again
+                        {t('upgrade.tryAgain')}
                     </Button>
                 </Stack>
             )}

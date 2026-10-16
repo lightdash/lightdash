@@ -29,8 +29,10 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
+import { type TFunction } from 'i18next';
 import isEqual from 'lodash/isEqual';
 import { useMemo, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { CsvFormattingOptions } from '../../CsvFormattingOptions';
@@ -48,14 +50,12 @@ import classes from './SchedulerDeliveryModal.module.css';
 // every tab's data during deliveries can capture more queries than this — the
 // count is advisory, never a gate; the delivery itself fails if nothing runs.
 const getAppQueryCountCaption = (
+    t: TFunction,
     capturedQueryCount: number | undefined,
 ): string | null => {
     if (capturedQueryCount === undefined) return null;
-    if (capturedQueryCount === 0)
-        return 'No data queries detected in the current view. Apps set up for full-data deliveries may still capture data — if none runs, the delivery fails.';
-    if (capturedQueryCount === 1)
-        return '1 data query detected in the current view — it becomes a file';
-    return `${capturedQueryCount} data queries detected in the current view — each query becomes a file`;
+    if (capturedQueryCount === 0) return t('dataFormat.appQueryCountNone');
+    return t('dataFormat.appQueryCount', { count: capturedQueryCount });
 };
 
 type Props = {
@@ -101,6 +101,7 @@ export const SchedulerDataFormatSection: FC<Props> = ({
     unmetFilterRequirements,
     filtersWithUnmetRequirements,
 }) => {
+    const { t } = useTranslation('scheduler');
     const form = useSchedulerFormContext();
     const health = useHealth();
     const projectUuid = useProjectUuid();
@@ -134,27 +135,27 @@ export const SchedulerDataFormatSection: FC<Props> = ({
     );
 
     const format = form.values.format;
-    const appQueryCountCaption = getAppQueryCountCaption(capturedQueryCount);
+    const appQueryCountCaption = getAppQueryCountCaption(t, capturedQueryCount);
 
     return (
         <Stack gap="lg">
             <Stack gap="xs">
-                <Input.Label>Format</Input.Label>
+                <Input.Label>{t('dataFormat.format')}</Input.Label>
                 <Group gap="xs" wrap="nowrap">
                     {isApp ? (
                         <SegmentedControl
                             fullWidth
                             data={[
                                 {
-                                    label: '.csv',
+                                    label: t('formats.csv'),
                                     value: SchedulerFormat.CSV,
                                 },
                                 {
-                                    label: '.xlsx',
+                                    label: t('formats.xlsx'),
                                     value: SchedulerFormat.XLSX,
                                 },
                                 {
-                                    label: 'Image',
+                                    label: t('formats.image'),
                                     value: SchedulerFormat.IMAGE,
                                     disabled: isImageDisabled,
                                 },
@@ -191,15 +192,21 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                         <SegmentedControl
                             fullWidth
                             data={[
-                                { label: '.csv', value: SchedulerFormat.CSV },
-                                { label: '.xlsx', value: SchedulerFormat.XLSX },
                                 {
-                                    label: 'Image',
+                                    label: t('formats.csv'),
+                                    value: SchedulerFormat.CSV,
+                                },
+                                {
+                                    label: t('formats.xlsx'),
+                                    value: SchedulerFormat.XLSX,
+                                },
+                                {
+                                    label: t('formats.image'),
                                     value: SchedulerFormat.IMAGE,
                                     disabled: isImageDisabled,
                                 },
                                 {
-                                    label: 'PDF',
+                                    label: t('formats.pdf'),
                                     value: SchedulerFormat.PDF,
                                     disabled:
                                         isImageDisabled ||
@@ -221,19 +228,22 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                 )}
                 {isImageDisabled && (
                     <Text size="xs" c="dimmed">
-                        You must enable the
-                        <Anchor href="https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash">
-                            {' '}
-                            headless browser{' '}
-                        </Anchor>
-                        to send images
+                        <Trans
+                            t={t}
+                            i18nKey="dataFormat.headlessBrowserRequired"
+                            components={{
+                                anchor: (
+                                    <Anchor href="https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash" />
+                                ),
+                            }}
+                        />
                     </Text>
                 )}
 
                 {isDashboardTabsAvailable && (
                     <Checkbox
                         size="xs"
-                        label="Include all dashboard tabs"
+                        label={t('dataFormat.includeAllTabs')}
                         checked={allTabsSelected}
                         onChange={(e) => {
                             form.setFieldValue(
@@ -245,11 +255,11 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                 )}
                 {isDashboardTabsAvailable && !allTabsSelected && (
                     <MultiSelect
-                        placeholder="Select tabs to include in the delivery"
+                        placeholder={t('dataFormat.selectTabsPlaceholder')}
                         value={form.values.selectedTabs ?? undefined}
                         error={
                             form.errors.selectedTabs
-                                ? 'Selected tabs should not be empty'
+                                ? t('form.validation.selectedTabsEmpty')
                                 : undefined
                         }
                         data={(dashboard?.tabs || []).map((tab) => ({
@@ -266,7 +276,7 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                 {format === SchedulerFormat.IMAGE && (
                     <Checkbox
                         size="xs"
-                        label="Also include image as PDF attachment"
+                        label={t('dataFormat.includePdf')}
                         {...form.getInputProps('options.withPdf', {
                             type: 'checkbox',
                         })}
@@ -278,7 +288,7 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                             form.values.options.withPdf)) && (
                         <Checkbox
                             size="xs"
-                            label="Each tab on its own page (with dashboard and tab title)"
+                            label={t('dataFormat.pagePerTab')}
                             {...form.getInputProps('options.pagePerTab', {
                                 type: 'checkbox',
                             })}
@@ -287,15 +297,17 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                 {(format === SchedulerFormat.CSV ||
                     format === SchedulerFormat.XLSX) && (
                     <Tooltip
-                        label="Add an email or Slack recipient to attach the file"
+                        label={t('dataFormat.attachDisabled')}
                         position="top-start"
                         disabled={hasFileAttachmentTargets(form.values)}
                     >
                         <Box display="flex" w="fit-content">
                             <Checkbox
                                 size="xs"
-                                label="Attach the file to the delivery"
-                                description="Emails get it as an attachment, Slack channels get it in the message thread"
+                                label={t('dataFormat.attachFile')}
+                                description={t(
+                                    'dataFormat.attachFileDescription',
+                                )}
                                 {...form.getInputProps('options.asAttachment', {
                                     type: 'checkbox',
                                 })}
@@ -355,14 +367,16 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                 <>
                     <Divider />
                     <Stack gap="xs">
-                        <span className={classes.subBlockLabel}>App state</span>
+                        <span className={classes.subBlockLabel}>
+                            {t('dataFormat.appState')}
+                        </span>
                         <Checkbox
                             size="xs"
-                            label="Send current app state"
+                            label={t('dataFormat.sendAppState')}
                             description={
                                 form.values.format === SchedulerFormat.IMAGE
-                                    ? 'The delivery renders the app with this state applied (selected filters, tabs, etc.) instead of its default view.'
-                                    : 'Filters and selections in this state shape the delivered data. Apps set up for full-data deliveries include every tab’s data regardless of the tab selected here.'
+                                    ? t('dataFormat.appStateImageDescription')
+                                    : t('dataFormat.appStateDataDescription')
                             }
                             checked={form.values.appState != null}
                             onChange={(e) => {
@@ -376,7 +390,7 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                             <Stack gap="xs">
                                 <Box>
                                     <Text size="xs" fw={500} mb={4}>
-                                        URL
+                                        {t('dataFormat.url')}
                                     </Text>
                                     <Code block className={classes.appStateUrl}>
                                         {appStateUrl}
@@ -384,7 +398,7 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                                 </Box>
                                 <Box>
                                     <Text size="xs" fw={500} mb={4}>
-                                        State values
+                                        {t('dataFormat.stateValues')}
                                     </Text>
                                     <Table
                                         withTableBorder
@@ -395,8 +409,12 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                                     >
                                         <Table.Thead>
                                             <Table.Tr>
-                                                <Table.Th>Key</Table.Th>
-                                                <Table.Th>Value</Table.Th>
+                                                <Table.Th>
+                                                    {t('dataFormat.key')}
+                                                </Table.Th>
+                                                <Table.Th>
+                                                    {t('dataFormat.value')}
+                                                </Table.Th>
                                             </Table.Tr>
                                         </Table.Thead>
                                         <Table.Tbody>
@@ -432,7 +450,9 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                 <>
                     <Divider />
                     <Stack gap="xs">
-                        <span className={classes.subBlockLabel}>Filters</span>
+                        <span className={classes.subBlockLabel}>
+                            {t('alert.filters')}
+                        </span>
                         <SchedulerFormChartFilterOverridesTab
                             savedChart={savedChart}
                             itemsMap={itemsMap}
@@ -463,7 +483,9 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                 <>
                     <Divider />
                     <Stack gap="xs">
-                        <span className={classes.subBlockLabel}>Filters</span>
+                        <span className={classes.subBlockLabel}>
+                            {t('alert.filters')}
+                        </span>
                         <SchedulerFormFiltersTab
                             dashboard={dashboard}
                             draftFilters={form.values.dashboardFilters}
@@ -490,7 +512,7 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                     <Divider />
                     <Stack gap="xs">
                         <span className={classes.subBlockLabel}>
-                            Parameters
+                            {t('alert.parameters')}
                         </span>
                         <SchedulerFormParametersTab
                             dashboard={dashboard}

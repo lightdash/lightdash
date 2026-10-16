@@ -6,6 +6,7 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
 import useDrivePicker from 'react-google-drive-picker';
+import { useTranslation } from 'react-i18next';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../components/common/PolymorphicGroupButton';
@@ -16,6 +17,7 @@ import classes from './SelectGoogleSheetButton.module.css';
 import { useSyncModalFormContext } from './syncModalFormContext';
 
 export const SelectGoogleSheetButton: FC = () => {
+    const { t } = useTranslation('sync');
     const form = useSyncModalFormContext();
     const health = useHealth();
     const [openPicker] = useDrivePicker();
@@ -95,7 +97,7 @@ export const SelectGoogleSheetButton: FC = () => {
                         </Tooltip>
                     </Group>
                     <Group gap={6} wrap="nowrap">
-                        <Tooltip label="Open in Google Sheets">
+                        <Tooltip label={t('googleSheet.open')}>
                             <Anchor
                                 href={googleDriveUrl}
                                 target="_blank"
@@ -109,7 +111,7 @@ export const SelectGoogleSheetButton: FC = () => {
                                 />
                             </Anchor>
                         </Tooltip>
-                        <Tooltip label="Remove">
+                        <Tooltip label={t('actions.remove', { ns: 'common' })}>
                             <CloseButton
                                 size="sm"
                                 variant="subtle"
@@ -135,10 +137,7 @@ export const SelectGoogleSheetButton: FC = () => {
     }
 
     return (
-        <Tooltip
-            w={300}
-            label="Please ensure you have a Google Sheet already created in your Drive to set as the destination for your results"
-        >
+        <Tooltip w={300} label={t('googleSheet.selectTooltip')}>
             <PolymorphicGroupButton
                 component="button"
                 type="button"
@@ -149,7 +148,7 @@ export const SelectGoogleSheetButton: FC = () => {
             >
                 <MantineIcon icon={IconPlus} size="md" color="ldGray.5" />
                 <Text size="sm" c="dimmed">
-                    Select Google Sheet
+                    {t('googleSheet.select')}
                 </Text>
             </PolymorphicGroupButton>
         </Tooltip>

@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { Badge, Box, Divider, Group, Stack, Text } from '@mantine/core';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import CollapsableCard from '../../../components/common/CollapsableCard/CollapsableCard';
 import FiltersForm from '../../../components/common/Filters';
 import FiltersProvider from '../../../components/common/Filters/FiltersProvider';
@@ -36,31 +37,37 @@ const FilterSectionTitle: FC<{
     label: string;
     primary: boolean;
     count: number;
-}> = ({ label, primary, count }) => (
-    <Group justify="space-between" gap="xs" px="xs" pt={4} pb={2}>
-        <Group gap={7}>
-            <Box
-                w={7}
-                h={7}
-                style={{
-                    borderRadius: 2,
-                    background: primary
-                        ? 'var(--mantine-color-blue-6)'
-                        : 'var(--mantine-color-orange-6)',
-                }}
-            />
-            <Text size="xs" fw={600}>
-                {label}
+}> = ({ label, primary, count }) => {
+    const { t } = useTranslation('mergeQuery');
+    return (
+        <Group justify="space-between" gap="xs" px="xs" pt={4} pb={2}>
+            <Group gap={7}>
+                <Box
+                    w={7}
+                    h={7}
+                    style={{
+                        borderRadius: 2,
+                        background: primary
+                            ? 'var(--mantine-color-blue-6)'
+                            : 'var(--mantine-color-orange-6)',
+                    }}
+                />
+                <Text size="xs" fw={600}>
+                    {label}
+                </Text>
+            </Group>
+            <Text size="xs" c="dimmed">
+                {count === 0
+                    ? t('filtersCard.noFilters')
+                    : t('filtersCard.activeCount', { count })}
             </Text>
         </Group>
-        <Text size="xs" c="dimmed">
-            {count === 0 ? 'No filters' : `${count} active`}
-        </Text>
-    </Group>
-);
+    );
+};
 
 /** Both source filters in one card. Join-key rules are shared automatically. */
 export const MergeFiltersCard: FC = () => {
+    const { t } = useTranslation('mergeQuery');
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
     const merge = useMerge();
@@ -153,7 +160,7 @@ export const MergeFiltersCard: FC = () => {
     return (
         <CollapsableCard
             isOpen={filterIsOpen}
-            title="Filters"
+            title={t('filtersCard.title')}
             disabled={total === 0 && !isEditMode}
             onToggle={() =>
                 dispatch(
@@ -165,7 +172,7 @@ export const MergeFiltersCard: FC = () => {
             headerElement={
                 total > 0 && !filterIsOpen ? (
                     <Badge>
-                        {total} active filter{total === 1 ? '' : 's'}
+                        {t('filtersCard.activeFilters', { count: total })}
                     </Badge>
                 ) : null
             }
@@ -174,7 +181,9 @@ export const MergeFiltersCard: FC = () => {
                 <Stack gap="md">
                     <Stack gap="xs">
                         <FilterSectionTitle
-                            label={primaryExplore?.label ?? 'First table'}
+                            label={
+                                primaryExplore?.label ?? t('labels.firstTable')
+                            }
                             primary
                             count={primaryCount}
                         />
@@ -213,7 +222,10 @@ export const MergeFiltersCard: FC = () => {
 
                     <Stack gap="xs">
                         <FilterSectionTitle
-                            label={additionalExplore?.label ?? 'Second table'}
+                            label={
+                                additionalExplore?.label ??
+                                t('labels.secondTable')
+                            }
                             primary={false}
                             count={additionalCount}
                         />
@@ -244,8 +256,7 @@ export const MergeFiltersCard: FC = () => {
                     </Stack>
 
                     <Text size="xs" c="dimmed" px="xs" pb="xs">
-                        Filters on a matching field apply to both queries. Other
-                        filters stay with their query.
+                        {t('filtersCard.sharedFiltersHint')}
                     </Text>
                 </Stack>
             )}

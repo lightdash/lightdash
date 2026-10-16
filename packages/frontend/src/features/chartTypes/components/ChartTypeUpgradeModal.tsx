@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Button, Checkbox, Stack, Text } from '@mantine/core';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../components/common/Callout';
 import MantineModal from '../../../components/common/MantineModal';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -31,6 +32,7 @@ const ChartTypeUpgradeModal: FC<Props> = ({
     registryUpdate,
     onClose,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const { track } = useTracking();
     const upgradeMutation = useInstallRegistryChartType();
     const [upgradeConsumingCharts, setUpgradeConsumingCharts] = useState(false);
@@ -46,27 +48,21 @@ const ChartTypeUpgradeModal: FC<Props> = ({
         impact === undefined
             ? null
             : pinnedCount === 0
-              ? 'None of them pin a version, so they all switch to the new version right away.'
+              ? t('upgrade.nonePinned')
               : pinnedCount === impact.chartCount
-                ? pinnedCount === 1
-                    ? 'It is pinned and keeps rendering its pinned version until it is upgraded.'
-                    : 'All of them are pinned and keep rendering their pinned version until each chart is upgraded.'
-                : `${pinnedCount} of them ${
-                      pinnedCount === 1 ? 'is' : 'are'
-                  } pinned and ${
-                      pinnedCount === 1 ? 'keeps' : 'keep'
-                  } rendering their pinned version until each chart is upgraded.`;
+                ? t('upgrade.allPinned', { count: pinnedCount })
+                : t('upgrade.somePinned', { count: pinnedCount });
 
     return (
         <MantineModal
             opened
             onClose={onClose}
-            title={`Upgrade to v${registryUpdate.version}`}
+            title={t('detail.upgradeTo', { version: registryUpdate.version })}
             subtitle={getAppDisplayName(
                 dataAppViz.name,
                 dataAppViz.dataAppVizUuid,
             )}
-            confirmLabel="Upgrade"
+            confirmLabel={t('upgrade.confirm')}
             onConfirm={() => {
                 track({
                     name: EventName.CHART_TYPE_LIBRARY_INSTALL_CLICKED,
@@ -97,38 +93,36 @@ const ChartTypeUpgradeModal: FC<Props> = ({
                 )}
                 {isLoadingImpact ? (
                     <Text size="sm" c="dimmed" role="status">
-                        Checking saved charts that use this chart type…
+                        {t('upgrade.checkingImpact')}
                     </Text>
                 ) : isImpactError ? (
                     <Callout
                         variant="warning"
-                        title="Could not check affected charts"
+                        title={t('upgrade.impactErrorTitle')}
                     >
                         <Stack gap="sm" align="flex-start">
                             <Text size="sm">
-                                Try again to see the impact before continuing.
+                                {t('upgrade.impactErrorDescription')}
                             </Text>
                             <Button
                                 variant="default"
                                 size="xs"
                                 onClick={() => void refetchImpact()}
                             >
-                                Try again
+                                {t('upgrade.tryAgain')}
                             </Button>
                         </Stack>
                     </Callout>
                 ) : impact ? (
                     impact.chartCount === 0 ? (
-                        <Text size="sm">
-                            No saved charts use this chart type.
-                        </Text>
+                        <Text size="sm">{t('upgrade.noCharts')}</Text>
                     ) : (
                         <Stack gap="sm">
                             <Callout
                                 variant="info"
-                                title={`${impact.chartCount} saved chart${
-                                    impact.chartCount === 1 ? ' uses' : 's use'
-                                } this chart type`}
+                                title={t('upgrade.chartsUsing', {
+                                    count: impact.chartCount,
+                                })}
                             >
                                 {pinnedDescription}
                             </Callout>
@@ -140,12 +134,13 @@ const ChartTypeUpgradeModal: FC<Props> = ({
                                             event.currentTarget.checked,
                                         )
                                     }
-                                    label={`Also move ${
-                                        pinnedCount === 1
-                                            ? 'the pinned chart'
-                                            : `all ${pinnedCount} pinned charts`
-                                    } to v${registryUpdate.version}`}
-                                    description="Deliberately overrides each chart's pin. Charts without a pin always follow the latest version."
+                                    label={t('upgrade.alsoMove', {
+                                        count: pinnedCount,
+                                        version: registryUpdate.version,
+                                    })}
+                                    description={t(
+                                        'upgrade.alsoMoveDescription',
+                                    )}
                                 />
                             )}
                         </Stack>

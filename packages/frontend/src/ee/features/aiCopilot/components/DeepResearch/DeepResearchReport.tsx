@@ -2,6 +2,7 @@ import { parseDeepResearchReport } from '@lightdash/common';
 import { Button, Drawer, Group, Text } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import DocumentReportLayout from '../../../../../features/documents/presentation/DocumentReportLayout';
 import reportStyles from '../../../../../features/documents/presentation/ReportPresentation.module.css';
@@ -38,6 +39,7 @@ const reportTourProps = {
 };
 
 export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
+    const { t } = useTranslation('aiAgent');
     const parsedReport = useMemo(
         () =>
             run.resultMarkdown
@@ -70,7 +72,9 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
             onClose={onClose}
             title={
                 <Group className={reportStyles.reportControls} wrap="nowrap">
-                    <Text className={styles.visuallyHidden}>Deep research</Text>
+                    <Text className={styles.visuallyHidden}>
+                        {t('deepResearch.eyebrow')}
+                    </Text>
                     <Button
                         variant="subtle"
                         color="gray"
@@ -79,7 +83,7 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                         leftSection={<IconArrowLeft size={14} />}
                         onClick={onClose}
                     >
-                        Back to chat
+                        {t('deepResearch.backToChat')}
                     </Button>
                 </Group>
             }
@@ -108,7 +112,7 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                 eyebrow={
                     <Group gap="xs" align="baseline" wrap="wrap">
                         <Text inherit className={styles.eyebrow}>
-                            Deep research
+                            {t('deepResearch.eyebrow')}
                         </Text>
                         <DeepResearchBetaBadge />
                     </Group>

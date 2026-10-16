@@ -7,6 +7,7 @@ import {
 import { Button, PasswordInput, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import Callout from '../../components/common/Callout';
 import MantineModal from '../../components/common/MantineModal';
@@ -43,6 +44,7 @@ export const UserPasswordAiServiceAccountForm = ({
     warehouseType,
     userDescription,
 }: UserPasswordAiServiceAccountFormProps) => {
+    const { t } = useTranslation('aiAccess');
     const form = useForm({
         initialValues: { user: '', password: '' },
         validate: zodResolver(formSchema),
@@ -70,12 +72,12 @@ export const UserPasswordAiServiceAccountForm = ({
     return (
         <MantineModal
             opened
-            title="Shared agent account"
+            title={t('serviceAccountForm.title')}
             onClose={() => {
                 if (!busy) close();
             }}
             cancelDisabled={busy}
-            confirmLabel="Test and save"
+            confirmLabel={t('serviceAccountForm.testAndSave')}
             confirmDisabled={!valid || busy}
             confirmLoading={save.isLoading}
             onConfirm={() => {
@@ -103,13 +105,13 @@ export const UserPasswordAiServiceAccountForm = ({
                         if (valid && !busy) test.mutate({ credentials });
                     }}
                 >
-                    Test
+                    {t('serviceAccountCard.test')}
                 </Button>
             }
         >
             <Stack gap="sm">
                 <TextInput
-                    label="User"
+                    label={t('userPasswordForm.user')}
                     description={userDescription}
                     required
                     disabled={busy}
@@ -119,7 +121,7 @@ export const UserPasswordAiServiceAccountForm = ({
                     }
                 />
                 <PasswordInput
-                    label="Password"
+                    label={t('userPasswordForm.password')}
                     required
                     autoComplete="new-password"
                     disabled={busy}
@@ -132,7 +134,9 @@ export const UserPasswordAiServiceAccountForm = ({
                     (test.data.ok ? (
                         <Text size="sm" role="status">
                             {test.data.principal
-                                ? `Signs in as ${test.data.principal}`
+                                ? t('serviceAccountDetails.signsInAs', {
+                                      principal: test.data.principal,
+                                  })
                                 : test.data.message}
                         </Text>
                     ) : (

@@ -21,7 +21,9 @@ import {
     type Icon as IconType,
 } from '@tabler/icons-react';
 import clsx from 'clsx';
+import { type TFunction } from 'i18next';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../MantineIcon';
 import classes from './MantineModal.module.css';
 import { MantineModalContext } from './useMantineModalClose';
@@ -44,15 +46,15 @@ export type MantineModalRole = 'dialog' | 'alertdialog';
 
 const VARIANT_CONFIG: Record<
     MantineModalVariant,
-    { icon?: IconType; color?: string; confirmLabel: string }
+    { icon?: IconType; color?: string; confirmLabelKey: string }
 > = {
     default: {
-        confirmLabel: 'Confirm',
+        confirmLabelKey: 'actions.confirm',
     },
     delete: {
         icon: IconTrash,
         color: 'red',
-        confirmLabel: 'Delete',
+        confirmLabelKey: 'actions.delete',
     },
 };
 
@@ -60,15 +62,19 @@ const VARIANT_CONFIG: Record<
  * Generates a default description for the delete variant.
  */
 const getVariantDescription = (
+    t: TFunction,
     variant: MantineModalVariant,
     resourceType?: string,
     resourceLabel?: string,
 ): string | undefined => {
     if (variant === 'delete' && resourceType) {
         if (resourceLabel) {
-            return `Are you sure you want to delete the ${resourceType} "${resourceLabel}"?`;
+            return t('mantineModal.deleteNamedDescription', {
+                resourceType,
+                resourceLabel,
+            });
         }
-        return `Are you sure you want to delete this ${resourceType}?`;
+        return t('mantineModal.deleteDescription', { resourceType });
     }
     return undefined;
 };
@@ -296,7 +302,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
     leftActions,
     headerActions,
     footer,
-    cancelLabel = 'Cancel',
+    cancelLabel,
     cancelDisabled = false,
     onCancel,
     confirmBeforeClose = false,
@@ -307,6 +313,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
     modalActionsProps,
     bodyScrollAreaMaxHeight = 'calc(80vh - 140px)',
 }) => {
+    const { t } = useTranslation('modals');
     const compact = useMatches(
         { base: true, sm: false },
         { getInitialValueInEffect: false },
@@ -362,9 +369,12 @@ const MantineModal: React.FC<MantineModalProps> = ({
 
     const effectiveDescription =
         description ??
-        getVariantDescription(variant, resourceType, resourceLabel);
+        getVariantDescription(t, variant, resourceType, resourceLabel);
 
-    const effectiveConfirmLabel = confirmLabel ?? config.confirmLabel;
+    const effectiveConfirmLabel =
+        confirmLabel ?? t(config.confirmLabelKey, { ns: 'common' });
+    const effectiveCancelLabel =
+        cancelLabel ?? t('actions.cancel', { ns: 'common' });
 
     const confirmButtonColor = config.color;
 
@@ -455,7 +465,9 @@ const MantineModal: React.FC<MantineModalProps> = ({
                         {withCloseButton && (
                             <Modal.CloseButton
                                 className={classes.closeButton}
-                                aria-label="Close"
+                                aria-label={t('actions.close', {
+                                    ns: 'common',
+                                })}
                                 // Anchor for scope walkthroughs (data-tour-via)
                                 data-tour-anchor="modal-close"
                                 data-tour-hint="Close the dialog"
@@ -503,13 +515,13 @@ const MantineModal: React.FC<MantineModalProps> = ({
                         >
                             {leftActions ?? <div />}
                             <Group gap="sm">
-                                {cancelLabel !== false && (
+                                {effectiveCancelLabel !== false && (
                                     <Button
                                         variant="default"
                                         onClick={onCancel ?? handleClose}
                                         disabled={cancelDisabled}
                                     >
-                                        {cancelLabel}
+                                        {effectiveCancelLabel}
                                     </Button>
                                 )}
                                 {actions}
@@ -560,16 +572,21 @@ const MantineModal: React.FC<MantineModalProps> = ({
                                     fz="md"
                                     lh="28px"
                                 >
-                                    Unsaved changes
+                                    {t('mantineModal.unsavedChanges.title')}
                                 </Modal.Title>
                             </Group>
-                            <Modal.CloseButton aria-label="Close" />
+                            <Modal.CloseButton
+                                aria-label={t('actions.close', {
+                                    ns: 'common',
+                                })}
+                            />
                         </Modal.Header>
                         <Modal.Body p={0}>
                             <Stack gap="md" px="xl" py="md">
                                 <Text fz="sm">
-                                    You have unsaved changes. Are you sure you
-                                    want to close?
+                                    {t(
+                                        'mantineModal.unsavedChanges.description',
+                                    )}
                                 </Text>
                             </Stack>
                         </Modal.Body>
@@ -585,7 +602,9 @@ const MantineModal: React.FC<MantineModalProps> = ({
                                     variant="default"
                                     onClick={closeConfirmClose}
                                 >
-                                    Keep editing
+                                    {t(
+                                        'mantineModal.unsavedChanges.keepEditing',
+                                    )}
                                 </Button>
                                 <Button
                                     color="red"
@@ -594,7 +613,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
                                         onClose();
                                     }}
                                 >
-                                    Discard changes
+                                    {t('mantineModal.unsavedChanges.discard')}
                                 </Button>
                             </Group>
                         </Flex>

@@ -2,6 +2,7 @@ import { type AiAgentReviewItemSummary } from '@lightdash/common';
 import { Box, Button, Stack, Text } from '@mantine/core';
 import { IconLayoutColumns } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiAgentReviewItemActivity } from '../../hooks/useAiAgentAdmin';
@@ -20,6 +21,7 @@ export const ReviewWorkspaceSummary: FC<Props> = ({
     reviewItem,
     onNavigate,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const remediation = reviewItem.remediation;
     const { data: activity } = useAiAgentReviewItemActivity(
         reviewItem.fingerprint,
@@ -41,14 +43,20 @@ export const ReviewWorkspaceSummary: FC<Props> = ({
                 event.eventType === 'verification_completed',
         ) ?? false;
     const verdict = verdictReady
-        ? ({ state: 'ready', label: 'Verdict ready' } as const)
+        ? ({
+              state: 'ready',
+              label: t('workspaceSummary.verdictReady'),
+          } as const)
         : activity?.liveState === 'verifying'
-          ? ({ state: 'live', label: 'Verifying the fix…' } as const)
-          : ({ state: 'pending', label: 'No verdict yet' } as const);
+          ? ({ state: 'live', label: t('workspaceSummary.verifying') } as const)
+          : ({
+                state: 'pending',
+                label: t('workspaceSummary.noVerdict'),
+            } as const);
 
     return (
         <Stack gap="sm" className={styles.workspace}>
-            <Text className={styles.label}>Workspace</Text>
+            <Text className={styles.label}>{t('workspaceSummary.label')}</Text>
             <Button
                 component={Link}
                 to={workspaceUrl}
@@ -57,7 +65,7 @@ export const ReviewWorkspaceSummary: FC<Props> = ({
                 fullWidth
                 leftSection={<MantineIcon icon={IconLayoutColumns} size={14} />}
             >
-                Open workspace
+                {t('workspaceSummary.open')}
             </Button>
             <Box className={styles.verdict} data-state={verdict.state}>
                 <Box component="span" className={styles.verdictDot} />

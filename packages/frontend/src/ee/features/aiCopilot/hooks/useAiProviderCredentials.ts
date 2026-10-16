@@ -14,6 +14,7 @@ import {
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 
 const aiProviderCredentialsQueryKey = ['ai-provider-credentials'] as const;
 
@@ -60,12 +61,16 @@ export const useCreateAiProviderCredential = () => {
                 body: JSON.stringify(body),
             }),
         onSuccess: async () => {
-            showToastSuccess({ title: 'Credential added' });
+            showToastSuccess({
+                title: i18n.t('toasts.credentials.added', { ns: 'aiAgent' }),
+            });
             await invalidateCredentialQueries(queryClient);
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to add credential',
+                title: i18n.t('toasts.credentials.addFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             }),
     });
@@ -87,12 +92,16 @@ export const useUpdateAiProviderCredential = () => {
                 body: JSON.stringify(data),
             }),
         onSuccess: async () => {
-            showToastSuccess({ title: 'Credential updated' });
+            showToastSuccess({
+                title: i18n.t('toasts.credentials.updated', { ns: 'aiAgent' }),
+            });
             await invalidateCredentialQueries(queryClient);
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to update credential',
+                title: i18n.t('toasts.credentials.updateFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             }),
     });
@@ -119,12 +128,16 @@ export const useReplaceAiProviderCredential = () => {
                 body: JSON.stringify(data),
             }),
         onSuccess: async () => {
-            showToastSuccess({ title: 'Credential replaced' });
+            showToastSuccess({
+                title: i18n.t('toasts.credentials.replaced', { ns: 'aiAgent' }),
+            });
             await invalidateCredentialQueries(queryClient);
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to replace credential',
+                title: i18n.t('toasts.credentials.replaceFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             }),
     });
@@ -142,14 +155,18 @@ export const useDeleteAiProviderCredential = () => {
                 body: undefined,
             }),
         onSuccess: async () => {
-            showToastSuccess({ title: 'Credential deleted' });
+            showToastSuccess({
+                title: i18n.t('toasts.credentials.deleted', { ns: 'aiAgent' }),
+            });
             await invalidateCredentialQueries(queryClient);
         },
         // The API refuses to delete a credential a project still uses, and its
         // message names how many — so surface it rather than a generic failure.
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to delete credential',
+                title: i18n.t('toasts.credentials.deleteFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             }),
     });
@@ -172,12 +189,18 @@ export const useAdoptLegacyAiProviderCredential = () => {
                 body: undefined,
             }),
         onSuccess: async () => {
-            showToastSuccess({ title: 'Bedrock configuration converted' });
+            showToastSuccess({
+                title: i18n.t('toasts.credentials.bedrockConverted', {
+                    ns: 'aiAgent',
+                }),
+            });
             await invalidateCredentialQueries(queryClient);
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to convert the Bedrock configuration',
+                title: i18n.t('toasts.credentials.bedrockConvertFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             }),
     });
@@ -195,12 +218,18 @@ export const useSetDefaultAiProviderCredential = () => {
                 body: undefined,
             }),
         onSuccess: async () => {
-            showToastSuccess({ title: 'Default credential updated' });
+            showToastSuccess({
+                title: i18n.t('toasts.credentials.defaultUpdated', {
+                    ns: 'aiAgent',
+                }),
+            });
             await invalidateCredentialQueries(queryClient);
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to set default credential',
+                title: i18n.t('toasts.credentials.defaultUpdateFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             }),
     });

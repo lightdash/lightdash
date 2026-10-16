@@ -1,0 +1,216 @@
+{
+    "editorActions": {
+        "formatSql": "Formatear SQL",
+        "disableSoftWrap": "Desactivar ajuste de línea del editor",
+        "enableSoftWrap": "Activar ajuste de línea del editor"
+    },
+    "runButton": {
+        "run": "Ejecutar"
+    },
+    "content": {
+        "couldNotFetchResults": "No se pudieron obtener los resultados de la consulta SQL",
+        "hints": {
+            "run": "ejecutar",
+            "selection": "selección"
+        },
+        "errorLine": "Línea {{line}}",
+        "copyError": "Copiar error",
+        "resultsRows_one": "{{formattedCount}} fila",
+        "resultsRows_other": "{{formattedCount}} filas",
+        "resultsRows_many": "{{formattedCount}} filas",
+        "resultsRowsLimited_one": "{{formattedCount}} fila, limitado a {{limit}}",
+        "resultsRowsLimited_other": "{{formattedCount}} filas, limitado a {{limit}}",
+        "resultsRowsLimited_many": "{{formattedCount}} filas, limitado a {{limit}}",
+        "tabs": {
+            "notRunYet": "Aún no has ejecutado esta consulta.",
+            "sql": "SQL",
+            "runToSeeChart": "Ejecuta una consulta para ver el gráfico",
+            "chart": "Gráfico"
+        },
+        "running": "Ejecutando",
+        "results": "Resultados",
+        "unknownError": "Error desconocido",
+        "pivotColumnLimit": "Esta consulta supera el número máximo de columnas ({{limit}}). Se muestran las primeras {{limit}} columnas."
+    },
+    "tables": {
+        "devSchemasGroup": "esquemas de dev y pr",
+        "recent": "Recientes",
+        "allSchemas": "Todos los esquemas",
+        "noResults": "No se encontraron resultados"
+    },
+    "tableType": {
+        "view": "Vista",
+        "materializedView": "Vista materializada",
+        "external": "Tabla externa",
+        "table": "Tabla"
+    },
+    "tablesToolbar": {
+        "allTypes": "Todos los tipos",
+        "tablesOnly": "Solo tablas",
+        "viewsOnly": "Solo vistas",
+        "clearSearch": "Borrar búsqueda",
+        "searchTables": "Buscar tablas",
+        "filterAndRefresh": "Filtrar y actualizar",
+        "groupDevSchemas": "Agrupar esquemas de dev",
+        "refreshCatalog": "Actualizar catálogo"
+    },
+    "tableFields": {
+        "copyColumn": "Copiar columna",
+        "copyTablePath": "Copiar ruta completa de la tabla",
+        "searchFields": "Buscar campos",
+        "noColumns": "No se encontraron columnas"
+    },
+    "tablesPanel": {
+        "stillLoading": "Espera, todavía cargando..."
+    },
+    "sidebar": {
+        "chartTitle": "Gráfico"
+    },
+    "connectionHeader": {
+        "activeConnection": "Conexión activa"
+    },
+    "chartErrors": {
+        "title": "Corrige los errores antes de guardar",
+        "fixErrors": "Corregir errores",
+        "description": "Hay errores en la configuración del gráfico. Corrígelos e inténtalo de nuevo."
+    },
+    "beforeSaveAlert": {
+        "title": "Aún no has ejecutado tu consulta",
+        "description": "Puedes verificar tu consulta antes de guardar o revisarla más tarde."
+    },
+    "deleteModal": {
+        "title": "Eliminar gráfico",
+        "softDeleteDescription_one": "Este gráfico se moverá a Eliminados recientemente y se borrará de forma permanente tras {{count}} día.",
+        "softDeleteDescription_other": "Este gráfico se moverá a Eliminados recientemente y se borrará de forma permanente tras {{count}} días.",
+        "softDeleteDescription_many": "Este gráfico se moverá a Eliminados recientemente y se borrará de forma permanente tras {{count}} días."
+    },
+    "saveModal": {
+        "nameRequired": "El nombre es obligatorio",
+        "chooseConnection": "Elige una conexión antes de guardar este gráfico",
+        "newSpace": "Nuevo espacio",
+        "title": "Guardar gráfico",
+        "chartName": "Nombre del gráfico",
+        "chartNamePlaceholder": "p. ej. ¿Cuántos usuarios activos semanales tenemos?",
+        "description": "Descripción"
+    },
+    "updateModal": {
+        "title": "Actualizar gráfico"
+    },
+    "writeBack": {
+        "title": "Escribir de vuelta en dbt",
+        "openPullRequest": "Abrir pull request",
+        "tooltip": "Crea un nuevo modelo en tu proyecto dbt a partir de esta consulta SQL. Se creará una nueva rama y se abrirá un pull request.",
+        "name": "Nombre",
+        "filesToBeCreatedIn": "Archivos que se crearán en <repo/>:",
+        "openInNewTab": "Abrir \"{{url}}\" en una pestaña nueva",
+        "authoredAs": "El pull request se creará como <login>@{{login}}</login>.",
+        "openedByBot": "El pull request lo abrirá el bot de Lightdash. <link>Conecta tu cuenta de GitHub</link> para crearlo tú."
+    },
+    "history": {
+        "openInEditor": "Abrir en el editor de consultas",
+        "title": "Historial de consultas SQL"
+    },
+    "download": {
+        "downloadChart": "Descargar gráfico",
+        "downloadAs": "Descargar como",
+        "results": "Resultados",
+        "image": "Imagen",
+        "downloadResults": "Descargar resultados"
+    },
+    "editor": {
+        "warehouseConnectionUnavailable": "Conexión con el almacén de datos no disponible"
+    },
+    "header": {
+        "writeBack": {
+            "noPermission": "No tienes permiso para escribir de vuelta en dbt en este proyecto.",
+            "onlyDbtProjects": "La creación de modelos desde el SQL Runner solo es compatible con proyectos dbt.",
+            "bitbucketCloudOnly": "La escritura de SQL solo es compatible con Bitbucket Cloud. Actualiza la conexión del proyecto.",
+            "githubNotEnabled": "La integración con GitHub no está habilitada en esta instancia, haz clic aquí para ver más detalles",
+            "githubNotActive": "La integración con GitHub no está activa en esta organización, haz clic aquí para abrir la página de integraciones",
+            "notConnectedToRepo": "El proyecto <project>{{projectName}}</project> no está conectado a un repositorio de GitHub, GitLab o Bitbucket Cloud, haz clic aquí para abrir la configuración del proyecto"
+        },
+        "cta": {
+            "saveChart": "Guardar gráfico",
+            "saveChartDescription": "Guardar como consulta puntual",
+            "createVirtualView": "Crear vista virtual",
+            "createVirtualViewDescription": "Guardar como consulta reutilizable",
+            "writeBackToDbt": "Escribir de vuelta en dbt",
+            "writeBackToDbtDescription": "Guardar como modelo en dbt"
+        },
+        "shareUrlCopied": "¡URL compartida copiada al portapapeles!",
+        "runToSave": "Ejecuta la consulta para guardarla",
+        "noSavePermission": "No tienes permiso para guardar gráficos SQL en este proyecto.",
+        "noVirtualViewPermission": "No tienes permiso para crear vistas virtuales en este proyecto.",
+        "copyLink": "Copiar enlace a esta consulta",
+        "backToViewPage": "Volver a la vista",
+        "manage": "Gestionar",
+        "editChart": "Editar gráfico",
+        "addToDashboard": "Añadir al panel",
+        "requestReview": "Solicitar revisión",
+        "googleSheetsSync": "Sincronización con Google Sheets",
+        "promoteRequiresUpstream": "Primero debes habilitar un proyecto upstream en configuración > Data ops",
+        "promoteChart": "Promocionar gráfico",
+        "share": "Compartir"
+    },
+    "toasts": {
+        "chartCreated": "¡Listo! Gráfico SQL creado",
+        "createFailed": "No se pudo crear el gráfico",
+        "chartUpdated": "¡Listo! Gráfico SQL actualizado",
+        "updateFailed": "No se pudo actualizar el gráfico",
+        "chartDeleted": "¡Listo! Gráfico SQL eliminado",
+        "goToRecentlyDeleted": "Ir a eliminados recientemente",
+        "deleteFailed": "No se pudo eliminar el gráfico",
+        "chartPromoted": "¡Listo! Gráfico SQL promocionado.",
+        "openChart": "Abrir gráfico",
+        "promoteFailed": "No se pudo promocionar el gráfico SQL",
+        "promoteDiffFailed": "No se pudieron obtener las diferencias del gráfico SQL",
+        "createPullRequestFailed": "No se pudo crear el pull request",
+        "writePreviewFailed": "No se pudo previsualizar la escritura en dbt"
+    },
+    "completion": {
+        "snippet": "fragmento",
+        "schema": "esquema",
+        "table": "tabla",
+        "cte": "CTE",
+        "database": "base de datos",
+        "subquery": "subconsulta",
+        "function": "función",
+        "selectedInSchema": "{{schema}} · seleccionada",
+        "columnOf": "Columna de {{owner}}",
+        "columnOfWithType": "Columna de {{owner}} ({{type}})",
+        "allColumnsOf_one": "La {{count}} columna de {{table}}",
+        "allColumnsOf_other": "Las {{count}} columnas de {{table}}",
+        "allColumnsOf_many": "Las {{count}} columnas de {{table}}"
+    },
+    "errors": {
+        "projectStillLoading": "El proyecto todavía se está cargando. Vuelve a ejecutar la consulta.",
+        "chooseConnectionToRun": "Elige una conexión antes de ejecutar esta consulta.",
+        "unexpectedQueryError": "Error inesperado en la consulta"
+    },
+    "tree": {
+        "failedToLoadDatabases": "No se pudieron cargar las bases de datos",
+        "failedToLoadTables": "No se pudieron cargar las tablas",
+        "loadingTables": "Cargando tablas...",
+        "connectionNeedsCredentials": "Esta conexión necesita tus credenciales del almacén de datos. Añádelas o selecciónalas en el selector de credenciales de la barra de navegación.",
+        "namedConnectionNeedsCredentials": "{{connectionName}} necesita tus credenciales del almacén de datos. Añádelas o selecciónalas en el selector de credenciales de la barra de navegación.",
+        "cannotBrowse": "No puedes explorar esta conexión",
+        "couldNotLoadTables": "No se pudieron cargar las tablas",
+        "databasesTruncated": "Se muestran las primeras {{limit}} bases de datos. Indica otras en la configuración de la conexión.",
+        "active": "Activa",
+        "chooseConnection": "Elige una conexión para explorar sus tablas",
+        "allConnections": "Todas las conexiones"
+    },
+    "connection": {
+        "namedRemoved": "\"{{name}}\" se eliminó de este proyecto",
+        "removed": "Esta conexión se eliminó de este proyecto",
+        "removedSubtitle": "Tu SQL sigue aquí. Elige otra conexión para explorar sus tablas.",
+        "choose": "Elige una conexión"
+    },
+    "connectionSwitch": {
+        "title": "¿Cambiar a {{name}}?",
+        "description": "{{table}} está en otra conexión. Tu editor tiene SQL que no proviene de un clic en una tabla, así que todavía no ha cambiado nada.",
+        "confirm": "Cambiar y reemplazar el SQL",
+        "keepNamed": "Mantener {{name}}",
+        "keepThis": "Mantener esta conexión"
+    }
+}

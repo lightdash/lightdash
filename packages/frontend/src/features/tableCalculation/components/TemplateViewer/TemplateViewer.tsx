@@ -19,6 +19,7 @@ import {
 } from '@mantine/core';
 import { IconArrowDown, IconArrowUp, IconMinus } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useColumns } from '../../../../hooks/useColumns';
 import {
@@ -44,6 +45,7 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
     readOnly = true,
     onTemplateChange,
 }) => {
+    const { t } = useTranslation('tableCalculation');
     const columns = useColumns();
     const activeDimensions = useExplorerSelector(selectDimensions);
     const resultSorts = useExplorerSelector(selectSorts);
@@ -187,7 +189,7 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
     if (!template) {
         return (
             <Text c="dimmed" size="sm">
-                No template available
+                {t('templateViewer.noTemplate')}
             </Text>
         );
     }
@@ -197,7 +199,7 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
             <Stack gap="xs">
                 <Group>
                     <Text fw={600} size="sm">
-                        Type:
+                        {t('templateViewer.type')}
                     </Text>
                     <Badge color="blue">
                         {formatTemplateType(template.type)}
@@ -212,7 +214,7 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
             {'windowFunction' in template && (
                 <Group>
                     <Text fw={600} size="sm">
-                        Window Function:
+                        {t('templateViewer.windowFunction')}
                     </Text>
                     <Text size="sm">
                         {formatWindowFunction(template.windowFunction)}
@@ -223,7 +225,7 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
             {fieldLabel && (
                 <Group>
                     <Text fw={600} size="sm">
-                        Field:
+                        {t('templateViewer.field')}
                     </Text>
                     {fieldLabel}
                 </Group>
@@ -232,7 +234,7 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
             {supportsOrderBy && !readOnly && (
                 <Stack gap="xs">
                     <Text fw={600} size="sm">
-                        Order by:
+                        {t('templateViewer.orderBy')}
                     </Text>
                     {orderBy.map((orderItem, index) => (
                         <Group key={orderItem.fieldId} gap="xs" wrap="nowrap">
@@ -263,8 +265,14 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
                             <SegmentedControl
                                 value={orderItem.order ?? 'asc'}
                                 data={[
-                                    { value: 'asc', label: 'Ascending' },
-                                    { value: 'desc', label: 'Descending' },
+                                    {
+                                        value: 'asc',
+                                        label: t('templateViewer.ascending'),
+                                    },
+                                    {
+                                        value: 'desc',
+                                        label: t('templateViewer.descending'),
+                                    },
                                 ]}
                                 onChange={(order) =>
                                     handleOrderByChange(
@@ -281,7 +289,7 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
                                     )
                                 }
                             />
-                            <Tooltip label="Move up">
+                            <Tooltip label={t('templateViewer.moveUp')}>
                                 <ActionIcon
                                     disabled={index === 0}
                                     onClick={() => {
@@ -299,7 +307,7 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
                                     <MantineIcon icon={IconArrowUp} />
                                 </ActionIcon>
                             </Tooltip>
-                            <Tooltip label="Move down">
+                            <Tooltip label={t('templateViewer.moveDown')}>
                                 <ActionIcon
                                     disabled={index === orderBy.length - 1}
                                     onClick={() => {
@@ -317,7 +325,7 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
                                     <MantineIcon icon={IconArrowDown} />
                                 </ActionIcon>
                             </Tooltip>
-                            <Tooltip label="Remove sort">
+                            <Tooltip label={t('templateViewer.removeSort')}>
                                 <ActionIcon
                                     onClick={() =>
                                         handleOrderByChange(
@@ -344,7 +352,7 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
                                     { fieldId, order: 'asc' },
                                 ]);
                             }}
-                            placeholder="Add sort field"
+                            placeholder={t('templateViewer.addSortField')}
                             searchable
                             clearable
                         />
@@ -352,7 +360,7 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
                     {orderBy.length === 0 &&
                         availableOrderByOptions.length === 0 && (
                             <Text size="sm" c="dimmed">
-                                No fields available to sort by
+                                {t('templateViewer.noSortFields')}
                             </Text>
                         )}
                 </Stack>
@@ -361,7 +369,7 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
             {supportsOrderBy && readOnly && orderByText && (
                 <Group>
                     <Text fw={600} size="sm">
-                        Order by:
+                        {t('templateViewer.orderBy')}
                     </Text>
                     <Text size="sm">{orderByText}</Text>
                 </Group>
@@ -370,13 +378,13 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
             {supportsPartitionBy && !readOnly && (
                 <Stack gap="xs">
                     <Text fw={600} size="sm">
-                        Partition By:
+                        {t('templateViewer.partitionBy')}
                     </Text>
                     <MultiSelect
                         data={dimensionOptions}
                         value={template.partitionBy ?? []}
                         onChange={handlePartitionByChange}
-                        placeholder="No partitioning (all rows)"
+                        placeholder={t('templateViewer.noPartitioning')}
                         searchable
                         clearable
                         maxDropdownHeight={220}
@@ -388,7 +396,7 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
             {supportsPartitionBy && readOnly && partitionByText && (
                 <Group>
                     <Text fw={600} size="sm">
-                        Partition By:
+                        {t('templateViewer.partitionBy')}
                     </Text>
                     <Text size="sm">{partitionByText}</Text>
                 </Group>

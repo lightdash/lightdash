@@ -1,5 +1,6 @@
 import type { AiAgentDocumentStructuredSummary } from '@lightdash/common';
 import { Text } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../../components/common/Callout';
 
 type Props = {
@@ -7,6 +8,7 @@ type Props = {
 };
 
 export const AiAgentDocumentRelevanceCard = ({ summary }: Props) => {
+    const { t } = useTranslation('aiAgent');
     const { warning, relevance } = summary;
     const isNotRelevant =
         !!warning || relevance === 'low' || relevance === 'none';
@@ -14,20 +16,14 @@ export const AiAgentDocumentRelevanceCard = ({ summary }: Props) => {
     if (isNotRelevant) {
         return (
             <Callout variant="warning">
-                <Text size="xs">
-                    {warning ??
-                        'This document does not appear to relate to the project — the agent may ignore it.'}
-                </Text>
+                <Text size="xs">{warning ?? t('knowledge.notRelevant')}</Text>
             </Callout>
         );
     }
 
     return (
         <Callout variant="neutral">
-            <Text size="xs">
-                The agent uses this summary to decide whether to read the file.
-                The full text is retrieved on demand.
-            </Text>
+            <Text size="xs">{t('knowledge.summaryUsage')}</Text>
         </Callout>
     );
 };

@@ -8,11 +8,13 @@ import { IconCalendar } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import styles from './CanvasTimeFramePicker.module.css';
 import {
     DEFAULT_CANVAS_TIME_OPTIONS,
+    getCanvasTimeOptionLabel,
     type CanvasTimeOption,
 } from './canvasTimeFramePickerOptions';
 
@@ -60,9 +62,10 @@ export const CanvasTimeFramePicker: FC<Props> = ({
     options = DEFAULT_CANVAS_TIME_OPTIONS,
 }) => {
     const getUiString = useUiStrings();
+    const { t } = useTranslation('metricsCatalog');
     const selectData = options.map((option) => ({
         value: serializeOption(option),
-        label: option.label,
+        label: getCanvasTimeOptionLabel(t, option),
     }));
 
     const dateRanges = useMemo(() => getDateRanges(value), [value]);
@@ -116,7 +119,7 @@ export const CanvasTimeFramePicker: FC<Props> = ({
                 </Text>
             </Group>
             <Text c="dimmed" fz="sm" fw={500}>
-                compared to
+                {t('canvasTimeFrame.comparedTo')}
             </Text>
             <Text
                 size="sm"

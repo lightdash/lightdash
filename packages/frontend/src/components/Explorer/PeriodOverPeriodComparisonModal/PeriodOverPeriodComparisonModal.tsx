@@ -15,6 +15,7 @@ import {
 import { Group, Select, Stack, Text, Tooltip } from '@mantine/core';
 import { IconTimelineEvent } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import {
     explorerActions,
     selectAdditionalMetrics,
@@ -30,6 +31,7 @@ const PeriodOverPeriodComparisonModalContent: FC<{
     metric: Metric;
     itemsMap: ItemsMap;
 }> = ({ metric, itemsMap }) => {
+    const { t } = useTranslation('explorer');
     const dispatch = useExplorerDispatch();
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
 
@@ -79,7 +81,7 @@ const PeriodOverPeriodComparisonModalContent: FC<{
         if (option.disabled) {
             return (
                 <Tooltip
-                    label="Your results are grouped by a finer time period"
+                    label={t('periodComparison.finerPeriod')}
                     position="right"
                 >
                     <Text size="sm" c="dimmed">
@@ -191,8 +193,8 @@ const PeriodOverPeriodComparisonModalContent: FC<{
         <MantineModal
             opened
             onClose={closeModal}
-            title="Add period comparison"
-            confirmLabel="Add comparison"
+            title={t('periodComparison.title')}
+            confirmLabel={t('periodComparison.confirm')}
             onConfirm={handleAddComparison}
             confirmDisabled={
                 !selectedDimensionObj ||
@@ -206,27 +208,25 @@ const PeriodOverPeriodComparisonModalContent: FC<{
                 {selectedGranularity && timeDimensionId && popAlreadyExists ? (
                     <Callout
                         variant="warning"
-                        title="This comparison already exists"
+                        title={t('periodComparison.exists.title')}
                     >
-                        A period comparison with the same time dimension and
-                        offset already exists for this metric. Choose a
-                        different time dimension or offset.
+                        {t('periodComparison.exists.description')}
                     </Callout>
                 ) : null}
                 {singleTimeDimension ? (
                     <Stack gap={4}>
                         <Text size="sm" fw={500}>
-                            Time dimension
+                            {t('periodComparison.timeDimension')}
                         </Text>
                         <Text size="sm">{singleTimeDimension.label}</Text>
                     </Stack>
                 ) : (
                     <Select
-                        label="Time dimension"
+                        label={t('periodComparison.timeDimension')}
                         placeholder={
                             canConfigure
-                                ? 'Select time dimension'
-                                : 'Add a time dimension to enable comparison'
+                                ? t('periodComparison.selectTimeDimension')
+                                : t('periodComparison.addTimeDimension')
                         }
                         data={selectData}
                         value={selectedTimeDimensionId}
@@ -240,7 +240,7 @@ const PeriodOverPeriodComparisonModalContent: FC<{
 
                 <Group gap="xs" align="center">
                     <NumberInput
-                        label="Offset"
+                        label={t('periodComparison.offset')}
                         min={1}
                         value={periodOffset}
                         onChange={(value) =>
@@ -252,21 +252,27 @@ const PeriodOverPeriodComparisonModalContent: FC<{
                     />
                     <Text size="sm" c="dimmed" mt="lg">
                         {selectedGranularityLabel
-                            ? `${selectedGranularityLabel} granularity`
-                            : 'Granularity derived from dimension'}
+                            ? t('periodComparison.granularity', {
+                                  granularity: selectedGranularityLabel,
+                              })
+                            : t('periodComparison.granularityFromDimension')}
                     </Text>
                 </Group>
 
                 {selectedGranularity && timeDimensionId ? (
                     <Text size="sm" c="dimmed">
-                        This will create:{' '}
-                        <Text span fw={600}>
-                            {metric.label}{' '}
-                            {`(${getPopPeriodLabel(
-                                selectedGranularity,
-                                effectivePeriodOffset,
-                            )})`}
-                        </Text>
+                        <Trans
+                            t={t}
+                            i18nKey="periodComparison.willCreate"
+                            values={{
+                                metric: metric.label,
+                                period: getPopPeriodLabel(
+                                    selectedGranularity,
+                                    effectivePeriodOffset,
+                                ),
+                            }}
+                            components={{ name: <Text span fw={600} /> }}
+                        />
                     </Text>
                 ) : null}
             </Stack>

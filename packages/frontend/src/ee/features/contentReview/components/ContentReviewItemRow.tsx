@@ -2,6 +2,7 @@ import { type ContentReviewContentType } from '@lightdash/common';
 import { Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconCircleCheckFilled, IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { IconBox } from '../../../../components/common/ResourceIcon';
 import {
@@ -34,6 +35,7 @@ const ContentReviewItemRow: FC<Props> = ({
     isVerified = false,
     compact = false,
 }) => {
+    const { t } = useTranslation('eeMisc');
     const metaLabel = meta ?? getContentTypeLabel(contentType);
     const body = (
         <Group
@@ -86,11 +88,11 @@ const ContentReviewItemRow: FC<Props> = ({
                 </Stack>
             )}
             {isVerified && (
-                <Tooltip label="Verified" withArrow>
+                <Tooltip label={t('contentReview.verified')} withArrow>
                     <MantineIcon
                         icon={IconCircleCheckFilled}
                         color="green.6"
-                        aria-label="Verified"
+                        aria-label={t('contentReview.verified')}
                     />
                 </Tooltip>
             )}

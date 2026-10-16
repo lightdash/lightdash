@@ -1,4 +1,5 @@
 import { Stack, Text } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
 import { AiServiceAccountSetupGuide } from './AiServiceAccountSetupGuide';
 
@@ -14,34 +15,36 @@ GRANT USAGE ON DATABASE <database> TO ROLE AI_AGENT_ROLE;
 GRANT USAGE ON SCHEMA <database>.<schema> TO ROLE AI_AGENT_ROLE;
 GRANT SELECT ON TABLE <database>.<schema>.<table> TO ROLE AI_AGENT_ROLE;`;
 
-export const SnowflakeAiServiceAccountSetup = () => (
-    <AiServiceAccountSetupGuide
-        warehouseName="Snowflake"
-        createContent={
-            <Stack gap="xs">
-                <CodeBlock
-                    language="sql"
-                    code={setupSql}
-                    copyLabel="Copy SQL"
-                />
-                <Text size="sm" c="dimmed">
-                    Use TYPE = SERVICE_AGENT so Snowflake marks these sessions
-                    as agent sessions.
-                </Text>
-            </Stack>
-        }
-        grantContent={
-            <Stack gap="xs">
-                <CodeBlock
-                    language="sql"
-                    code={grantSql}
-                    copyLabel="Copy SQL"
-                />
-                <Text size="sm" c="dimmed">
-                    Repeat SELECT for each table agents may read.
-                </Text>
-            </Stack>
-        }
-        addHelp="Add the user's private key, role and warehouse, then select Test."
-    />
-);
+export const SnowflakeAiServiceAccountSetup = () => {
+    const { t } = useTranslation('aiAccess');
+    return (
+        <AiServiceAccountSetupGuide
+            warehouseName="Snowflake"
+            createContent={
+                <Stack gap="xs">
+                    <CodeBlock
+                        language="sql"
+                        code={setupSql}
+                        copyLabel={t('setupGuide.copySql')}
+                    />
+                    <Text size="sm" c="dimmed">
+                        {t('snowflakeServiceAccountSetup.serviceAgent')}
+                    </Text>
+                </Stack>
+            }
+            grantContent={
+                <Stack gap="xs">
+                    <CodeBlock
+                        language="sql"
+                        code={grantSql}
+                        copyLabel={t('setupGuide.copySql')}
+                    />
+                    <Text size="sm" c="dimmed">
+                        {t('snowflakeServiceAccountSetup.repeatSelect')}
+                    </Text>
+                </Stack>
+            }
+            addHelp={t('snowflakeServiceAccountSetup.addHelp')}
+        />
+    );
+};

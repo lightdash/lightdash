@@ -4,6 +4,7 @@ import { IconWindowMaximize } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
 import { format, parseISO } from 'date-fns';
 import { type FC, type MouseEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
@@ -48,6 +49,7 @@ export const UserBubble: FC<Props> = ({
     projectUuid: projectUuidProp,
     agentUuid: agentUuidProp,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const isEmbed = useIsEmbedded();
     const { agentUuid: paramsAgentUuid } = useParams();
     const paramsProjectUuid = useProjectUuid();
@@ -156,7 +158,7 @@ export const UserBubble: FC<Props> = ({
             >
                 {isEmptyMessage ? (
                     <Text size="xs" fs="italic" c="dimmed">
-                        No message
+                        {t('userBubble.noMessage')}
                     </Text>
                 ) : hasInlineReferences && projectUuid ? (
                     <Box className={`${styles.markdown} ${styles.messageText}`}>

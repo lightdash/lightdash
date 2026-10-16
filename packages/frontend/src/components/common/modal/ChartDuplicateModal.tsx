@@ -9,6 +9,7 @@ import {
 import { useForm } from '@mantine/form';
 import { IconCopy } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import {
@@ -29,6 +30,7 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
     onConfirm,
     ...modalProps
 }) => {
+    const { t } = useTranslation('modals');
     const authoringEnabled = useContentAuthoringEnabled();
     const projectUuid = useProjectUuid();
     const { mutateAsync: duplicateChart, isLoading: isUpdating } =
@@ -46,7 +48,7 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
         if (!savedQuery) return;
 
         const initialValues = {
-            name: `Copy of ${savedQuery.name}`,
+            name: t('duplicate.copyOf', { name: savedQuery.name }),
             description: savedQuery.description,
         };
 
@@ -79,7 +81,7 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
         <MantineModal
             opened={modalProps.opened}
             onClose={modalProps.onClose}
-            title="Duplicate Chart"
+            title={t('chartDuplicate.title')}
             icon={IconCopy}
             actions={
                 <Button
@@ -88,28 +90,28 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
                     type="submit"
                     form="duplicate-chart-form"
                 >
-                    Create duplicate
+                    {t('duplicate.createDuplicate')}
                 </Button>
             }
         >
             <form
                 id="duplicate-chart-form"
-                title="Duplicate Chart"
+                title={t('chartDuplicate.title')}
                 onSubmit={handleConfirm}
             >
                 <Stack>
                     <TextInput
-                        label="Chart name"
+                        label={t('chartForm.nameLabel')}
                         required
-                        placeholder="eg. How many weekly active users do we have?"
+                        placeholder={t('chartForm.namePlaceholder')}
                         disabled={isLoading}
                         {...form.getInputProps('name')}
                         value={form.values.name ?? ''}
                     />
 
                     <Textarea
-                        label="Chart description"
-                        placeholder="A few words to give your team some context"
+                        label={t('chartForm.descriptionLabel')}
+                        placeholder={t('descriptionPlaceholder')}
                         disabled={isLoading}
                         autosize
                         maxRows={3}

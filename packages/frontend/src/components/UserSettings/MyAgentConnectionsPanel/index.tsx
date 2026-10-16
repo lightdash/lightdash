@@ -1,5 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
 import { Tabs } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 import { AgentConnectionsTable } from '../../../features/agentConnections/AgentConnectionsTable';
 import { useAgentConnections } from '../../../features/agentConnections/api';
@@ -9,6 +10,7 @@ import { SettingsPage } from '../../common/Settings/SettingsPage';
 import { WarehouseAgentSignInsPanel } from './WarehouseAgentSignInsPanel';
 
 export const MyAgentConnectionsPanel = () => {
+    const { t } = useTranslation('userSettings');
     const [params, setParams] = useSearchParams();
     const flag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
     const connections = useAgentConnections({
@@ -19,7 +21,7 @@ export const MyAgentConnectionsPanel = () => {
     const activeTab =
         params.get('tab') === 'warehouses' ? 'warehouses' : 'connections';
     return (
-        <SettingsPage title="My agent identity">
+        <SettingsPage title={t('myAgentConnectionsPanel.page.title')}>
             {connections.isError && (
                 <InlineErrorState
                     message={connections.error.error.message}
@@ -39,8 +41,12 @@ export const MyAgentConnectionsPanel = () => {
                 keepMounted={false}
             >
                 <Tabs.List>
-                    <Tabs.Tab value="connections">Agent connections</Tabs.Tab>
-                    <Tabs.Tab value="warehouses">Warehouse sign-ins</Tabs.Tab>
+                    <Tabs.Tab value="connections">
+                        {t('myAgentConnectionsPanel.page.tabs.connections')}
+                    </Tabs.Tab>
+                    <Tabs.Tab value="warehouses">
+                        {t('myAgentConnectionsPanel.page.tabs.warehouses')}
+                    </Tabs.Tab>
                 </Tabs.List>
                 <Tabs.Panel value="connections" pt="lg">
                     {!connections.isError && <AgentConnectionsTable />}

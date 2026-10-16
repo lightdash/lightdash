@@ -1,0 +1,842 @@
+{
+    "runQuerySettings": {
+        "cancelQuery": "Cancelar consulta",
+        "querySettings": "Configuración de la consulta",
+        "timezone": "Zona horaria",
+        "rowLimit": "Límite de filas",
+        "autoFetch": {
+            "label": "Obtener resultados automáticamente",
+            "tooltip": "Volver a ejecutar la consulta automáticamente al hacer cambios (p. ej., añadir campos o cambiar el orden)"
+        },
+        "preAggregateCache": {
+            "label": "Usar caché de preagregados",
+            "tooltip": "Enrutar las consultas a través de la caché de preagregados cuando esté disponible"
+        }
+    },
+    "sortButton": {
+        "noSort": "Sin ordenar",
+        "fieldCount_one": "{{count}} campo",
+        "fieldCount_other": "{{count}} campos",
+        "sortedBy": "Ordenado por",
+        "sortBy": "Ordenar por",
+        "thenBy": "luego por",
+        "nulls": "Nulos",
+        "nullsOrder": {
+            "default": "Predeterminado",
+            "first": "Primero",
+            "last": "Último"
+        },
+        "removeSort": "Quitar orden",
+        "addSort": "Añadir orden",
+        "columnPlaceholder": "Columna"
+    },
+    "refreshButton": {
+        "ctrlKey": "Ctrl",
+        "runQuery": "Ejecutar consulta"
+    },
+    "exploreFromHere": {
+        "label": "Explorar desde aquí"
+    },
+    "queryCostEstimate": {
+        "unavailable": "Estimación no disponible",
+        "estimatedTooltip": "Se estima que se procesarán {{bytes}}, según una ejecución de prueba gratuita. Las ejecuciones de prueba pueden subestimar tablas con seguridad a nivel de fila o datos externos."
+    },
+    "queryCostConfirmModal": {
+        "title": "¿Ejecutar una consulta grande?",
+        "confirm": "Ejecutar consulta",
+        "body": "Una ejecución de prueba estima que esta consulta procesará <bytes>{{bytes}}</bytes>, por encima del umbral de confirmación de {{threshold}} para esta conexión.",
+        "hint": "Para escanear menos, filtra por una fecha particionada, acorta el rango de fechas o selecciona menos campos."
+    },
+    "queryRunner": {
+        "errors": {
+            "sqlQueryFailed": "Error al ejecutar la consulta SQL",
+            "unexpectedStatus": "Estado de consulta inesperado",
+            "pivotConfigRequired": "Se requiere la configuración de pivote"
+        }
+    },
+    "parameters": {
+        "shadowedReservedName": "El parámetro {{paramKey}} sobrescribe la variable del sistema con el mismo nombre y tiene prioridad sobre ella.",
+        "selection": {
+            "loading": "Cargando parámetros...",
+            "loadFailed": "No se pudieron cargar los parámetros",
+            "empty": "No hay parámetros disponibles",
+            "paramLoadFailed": "Error al cargar el parámetro",
+            "unpin": "Desanclar parámetro",
+            "pin": "Anclar parámetro",
+            "clearAllTooltip": "Borrar todos los valores de los parámetros",
+            "clearAll": "Borrar todo"
+        },
+        "input": {
+            "defaultValue": "{{value}} (predeterminado)",
+            "chooseValue": "Elige un valor...",
+            "addCustomValue": "Añadir \"{{value}}\"",
+            "refresh": "Opciones cargadas a las {{loadedAt}} - ↻ Haz clic para actualizar",
+            "refreshWithLimit": "Mostrando los primeros {{count}} resultados. Opciones cargadas a las {{loadedAt}} - ↻ Haz clic para actualizar",
+            "dimensionValues": "Valores de la dimensión"
+        },
+        "anyValue": "cualquier valor"
+    },
+    "virtualView": {
+        "resourceType": "vista virtual",
+        "delete": {
+            "title": "Eliminar vista virtual",
+            "description": "Esta acción no se puede deshacer y los gráficos basados en esta vista virtual dejarán de funcionar."
+        },
+        "create": {
+            "title": "Crear vista virtual",
+            "nameLabel": "Nombre",
+            "nameRequired": "El nombre es obligatorio",
+            "info": "Crea una vista virtual para que otros puedan reutilizar esta consulta en Lightdash. La consulta no se guardará ni se gestionará en tu proyecto dbt.",
+            "infoWithWriteBack": "Crea una vista virtual para que otros puedan reutilizar esta consulta en Lightdash. La consulta no se guardará ni se gestionará en tu proyecto dbt. Si esperas reutilizar esta consulta con frecuencia, te sugerimos escribirla de vuelta en dbt."
+        },
+        "edit": {
+            "unsavedTitle": "Tienes cambios sin guardar",
+            "unsavedDescription": "¿Seguro que quieres salir de esta página? Los cambios que hayas hecho en tu consulta no se guardarán.",
+            "discardAndContinue": "Descartar y continuar",
+            "loadingSqlRunner": "Cargando SQL Runner..."
+        },
+        "changesReview": {
+            "title": "Se detectaron cambios en el esquema",
+            "saveAnyway": "Guardar de todos modos",
+            "columnChanges": "Cambios en columnas",
+            "newColumnsAdded_one": "{{count}} columna nueva añadida",
+            "newColumnsAdded_other": "{{count}} columnas nuevas añadidas",
+            "showLess": "Mostrar menos",
+            "showMore_one": "Mostrar {{count}} más",
+            "showMore_other": "Mostrar {{count}} más",
+            "affectedCharts_one": "Gráficos afectados ({{count}})",
+            "affectedCharts_other": "Gráficos afectados ({{count}})",
+            "warning": "Estos cambios podrían romper el contenido existente que usa esta vista virtual.",
+            "columnDeleted": "<column>{{reference}}</column> se ha eliminado",
+            "columnTypeChanged": "<column>{{reference}}</column> cambió de tipo: <before>{{oldType}}</before> → <after>{{newType}}</after>"
+        },
+        "header": {
+            "errorRunningQuery": "Error al ejecutar la consulta",
+            "noResults": "No se devolvieron resultados",
+            "noColumns": "No se devolvieron columnas",
+            "validating": "Validando tus cambios...",
+            "editing": "Editando",
+            "noChanges": "No hay cambios para guardar"
+        },
+        "toast": {
+            "created": "¡Listo! Vista virtual creada",
+            "queryFromNew": "Consultar desde la nueva vista virtual",
+            "createFailed": "Error al crear la vista virtual",
+            "updated": "¡Listo! Vista virtual actualizada",
+            "updateFailed": "Error al actualizar la vista virtual",
+            "deleted": "¡Listo! Vista virtual eliminada",
+            "deleteFailed": "Error al eliminar la vista virtual"
+        }
+    },
+    "quickCalculations": {
+        "title": "Añadir cálculo rápido",
+        "calculationName": "{{calculation}} de {{field}}"
+    },
+    "cellContextMenu": {
+        "copiedToClipboard": "¡Copiado al portapapeles!",
+        "underlyingDataFailed": "No se pudieron abrir los datos subyacentes",
+        "copyValue": "Copiar valor",
+        "viewUnderlyingData": "Ver datos subyacentes"
+    },
+    "columnHeaderMenu": {
+        "sort": {
+            "title": "Ordenación",
+            "direction": "Ordenar <bold>{{label}}</bold>",
+            "remove": "Quitar orden"
+        },
+        "format": {
+            "title": "Formato",
+            "edit": "Editar formato"
+        },
+        "editCalculation": "Editar cálculo",
+        "remove": "Quitar",
+        "addPeriodComparison": "Añadir comparación de periodos",
+        "createCustomMetric": "Crear métrica personalizada",
+        "filterByQuoted": "Filtrar por <label>\"{{label}}\"</label>",
+        "filterBy": "Filtrar por <label>{{label}}</label>",
+        "editCustomMetric": "Editar métrica personalizada",
+        "deleteCustomMetric": "Eliminar métrica personalizada",
+        "editCustomDimension": "Editar dimensión personalizada",
+        "deleteCustomDimension": "Eliminar dimensión personalizada",
+        "contextMenu": "Menú contextual"
+    },
+    "queryLoadingState": {
+        "queued": {
+            "title": "Tu consulta está en cola...",
+            "description": "Empezaremos a procesar tu consulta lo antes posible."
+        },
+        "executing": "Ejecutando consulta...",
+        "loading": "Cargando resultados"
+    },
+    "emptyStates": {
+        "noColumns": {
+            "title": "Elige una métrica y selecciona sus dimensiones",
+            "description": "¿Cuál es tu pregunta sobre los datos? Selecciona la <metric>métrica</metric> que quieres calcular y la(s) <dimension>dimensión(es)</dimension> por las que quieres dividirla.",
+            "examples": {
+                "signupsPerDay": "p. ej., ¿cuántos <metric>registros totales</metric> por <dimension>día</dimension>?",
+                "orderCountByLocation": "p. ej., ¿cuál es el <metric>número total de pedidos</metric> por <dimension>ubicación</dimension>?",
+                "followersEveryWeek": "p. ej., ¿cuántos <metric>seguidores nuevos</metric> cada <dimension>semana</dimension>?",
+                "orderCountByStatus": "p. ej., ¿cuál es el <metric>número total de pedidos</metric> dividido por <dimension>estado</dimension>?"
+            }
+        },
+        "noTableSelected": {
+            "title": "Selecciona una tabla",
+            "description": "Para ejecutar una consulta, primero selecciona la tabla que quieres explorar."
+        },
+        "loadingTables": "Cargando tablas...",
+        "idle": "Ejecuta la consulta para ver tus resultados",
+        "noResults": {
+            "title": "La consulta no devolvió resultados",
+            "description": "La consulta se ejecutó correctamente pero no devolvió resultados"
+        },
+        "error": {
+            "title": "Error al cargar los resultados",
+            "fallbackMessage": "Se produjo un error al cargar los resultados",
+            "openConnectionSettings": "Abrir la configuración de la conexión",
+            "learnHowToResolve": "Aprende a resolverlo en nuestra documentación"
+        },
+        "missingParameters": {
+            "title": "Faltan parámetros obligatorios",
+            "description": "Esta consulta requiere parámetros adicionales para ejecutarse.",
+            "provide_one": "Indica el siguiente parámetro:",
+            "provide_other": "Indica los siguientes parámetros:"
+        }
+    },
+    "urlMenuItems": {
+        "addFieldsToUse": "Para usar esta acción, añade {{fields}} a tu consulta",
+        "fieldSeparator": " y ",
+        "actionNotAvailable": "Acción no disponible para esta consulta"
+    },
+    "resultsCard": {
+        "title": "Resultados",
+        "viewModes": {
+            "results": "Resultados",
+            "chartResults": "Resultados del gráfico"
+        }
+    },
+    "explorerResults": {
+        "idle": {
+            "pickDimensions": "Elige una o más <highlight>dimensiones</highlight> para dividir la métrica seleccionada.",
+            "pickMetric": "Elige una <highlight>métrica</highlight> para hacer cálculos sobre las dimensiones seleccionadas.",
+            "runQuery": "Ejecuta la consulta para ver tus resultados y visualizarlos como gráfico."
+        },
+        "groupedError": "Error al cargar los resultados agrupados",
+        "jsonFieldHeading": "Campo: {{name}}"
+    },
+    "filtersCard": {
+        "title": "Filtros",
+        "noFilters": "Este gráfico no tiene filtros",
+        "activeFilters_one": "{{count}} filtro activo",
+        "activeFilters_other": "{{count}} filtros activos",
+        "mustBeInEditMode": "Debes estar en modo 'edición' o 'exploración' para cambiar los filtros",
+        "unknownField": "Se intentó hacer referencia a un campo con un id desconocido: {{fieldId}}"
+    },
+    "formatSummary": {
+        "types": {
+            "bytesSi": "Bytes (SI)",
+            "bytesIec": "Bytes (IEC)",
+            "date": "Fecha",
+            "timestamp": "Marca de tiempo",
+            "default": "Predeterminado",
+            "percent": "Porcentaje",
+            "currency": "Moneda",
+            "number": "Número",
+            "id": "ID",
+            "custom": "Personalizado"
+        },
+        "decimals_one": "{{count}} decimal",
+        "decimals_other": "{{count}} decimales",
+        "currencyWithCode": "Moneda ({{currency}})",
+        "customWithExpression": "Personalizado ({{expression}})",
+        "separator": "separador {{separator}}",
+        "prefix": "prefijo {{prefix}}",
+        "suffix": "sufijo {{suffix}}",
+        "partSeparator": ", "
+    },
+    "formatForm": {
+        "defaultSeparator": "Separador predeterminado",
+        "invalidFormat": "Formato no válido",
+        "format": "Formato",
+        "default": "Predeterminado",
+        "custom": "Personalizado",
+        "formatType": "Tipo de formato",
+        "customFormat": "Formato personalizado",
+        "customFormatPlaceholder": "p. ej. dd/mm/yyyy o mmmm d, yyyy",
+        "result": "Resultado",
+        "commonFormats": "Formatos comunes",
+        "formatExpression": "Expresión de formato",
+        "formatExpressionPlaceholder": "p. ej. #,##0.00",
+        "buildAtCustomFormats": "Crea tu formato en customformats.com",
+        "currency": "Moneda",
+        "decimalPlaces": "Decimales",
+        "auto": "Automático",
+        "separatorStyle": "Estilo de separador",
+        "compact": "Compacto",
+        "compactPlaceholder": {
+            "bytesSi": "p. ej. kilobytes (KB)",
+            "bytesIec": "p. ej. kibibytes (KiB)",
+            "number": "p. ej. miles (K)"
+        },
+        "prefix": "Prefijo",
+        "prefixPlaceholder": "p. ej. $",
+        "suffix": "Sufijo",
+        "suffixPlaceholder": "p. ej. km/h",
+        "expressionSummary": "Expresión de formato: <value>{{expression}}</value>",
+        "runtimeOnly": "solo en tiempo de ejecución",
+        "defaultExpression": "predeterminada"
+    },
+    "formatModal": {
+        "titleDimension": "Formato de dimensión",
+        "titleMetric": "Formato de métrica",
+        "titleField": "Formato de campo",
+        "saveChanges": "Guardar cambios",
+        "reset": "Restablecer"
+    },
+    "parametersCard": {
+        "title": "Parámetros",
+        "noModel": "No hay ningún modelo seleccionado"
+    },
+    "sqlCard": {
+        "title": "SQL",
+        "openInSqlRunner": "Abrir en SQL Runner",
+        "copySql": "Copiar SQL",
+        "copied": "Copiado al portapapeles",
+        "baseQuery": "Consulta base",
+        "chartQuery": "Consulta del gráfico",
+        "previewUnavailable": {
+            "title": "Vista previa de SQL no disponible",
+            "description": "Este gráfico contiene campos SQL personalizados que no tienes permiso para ver."
+        }
+    },
+    "quickFilter": {
+        "showOnly": "Mostrar solo",
+        "exclude": "Excluir"
+    },
+    "compilationIssues": {
+        "warnings_one": "Advertencias de compilación ({{count}})",
+        "warnings_other": "Advertencias de compilación ({{count}})",
+        "errors_one": "Errores de compilación ({{count}})",
+        "errors_other": "Errores de compilación ({{count}})"
+    },
+    "exploreSidebar": {
+        "sections": {
+            "externalSources": "Fuentes externas",
+            "virtualViews": "Vistas virtuales",
+            "preAggregates": "Preagregados"
+        },
+        "connectionFilter": {
+            "label": "Filtrar tablas por conexión",
+            "all": "Todas las conexiones"
+        },
+        "connectionEmpty": {
+            "noSearchMatches": "Ninguna tabla coincide con tu búsqueda en {{connectionName}}",
+            "noTables": "No hay tablas en {{connectionName}}",
+            "clearSearchHint": "Borra la búsqueda o elige otra conexión.",
+            "nothingModelled": "Todavía no hay nada modelado en esta conexión. Elige otra conexión para ver sus tablas."
+        },
+        "loadError": "No se pudieron cargar los explores",
+        "tables": "Tablas",
+        "addData": "Añadir datos",
+        "clearSearch": "Borrar búsqueda",
+        "searchTables": "Buscar tablas"
+    },
+    "explorePanel": {
+        "tables": "Tablas",
+        "virtualViewActions": "Acciones de la vista virtual",
+        "editVirtualView": "Editar vista virtual",
+        "contentAsCode": "Contenido como código",
+        "viewAsCode": "Ver como código",
+        "queryOptions": "Opciones de consulta",
+        "viewSourceCode": "Ver código fuente",
+        "mergeAnotherQuery": "Combinar con otra consulta"
+    },
+    "exploreTree": {
+        "clearSearch": "Borrar búsqueda",
+        "searchPlaceholder": "Buscar métricas y dimensiones",
+        "sections": {
+            "missingFields": "Campos faltantes",
+            "dimensions": "Dimensiones",
+            "metrics": "Métricas",
+            "customMetrics": "Métricas personalizadas",
+            "customDimensions": "Dimensiones personalizadas",
+            "noDimensions": "No hay dimensiones definidas en tu proyecto dbt",
+            "noMetrics": "No hay métricas definidas en tu proyecto dbt. Haz clic para ver la documentación y aprender a añadir una métrica a tu proyecto.",
+            "customMetricsHelp": "Añade métricas personalizadas pasando el cursor sobre la dimensión que elijas y seleccionando el menú de acciones de tres puntos. Haz clic para ver la documentación.",
+            "duplicateMetricId": "Ya existe una métrica con este ID en la tabla. Cambia el nombre de tu métrica personalizada para evitar conflictos."
+        },
+        "sectionHeader": {
+            "addCustomDimension": "Añadir una dimensión personalizada con SQL",
+            "writeBackMetrics": "Escribir de vuelta las métricas personalizadas",
+            "writeBackDimensions": "Escribir de vuelta las dimensiones personalizadas"
+        },
+        "removeMissingField": "Quitar el campo faltante \"{{fieldId}}\".",
+        "timezone": {
+            "dateShifts": "Fecha de calendario, cambia con la zona horaria del gráfico",
+            "timestampShifts": "Marca de tiempo, cambia con la zona horaria del gráfico",
+            "dateUnaffected": "Fecha de calendario, no afectada por la zona horaria del gráfico",
+            "timestampUnaffected": "Marca de tiempo tal como se almacena, no afectada por la zona horaria del gráfico"
+        },
+        "node": {
+            "fieldNoLongerAvailable": "Este campo de la tabla '{{table}}' ya no está disponible",
+            "dashboardOnly": "Solo disponible en este dashboard",
+            "locatedLevelsDeep_one": "Ubicado a {{count}} nivel de profundidad",
+            "locatedLevelsDeep_other": "Ubicado a {{count}} niveles de profundidad",
+            "isFiltered": "Este campo está filtrado",
+            "addFilter": "Haz clic aquí para añadir un filtro",
+            "deleteCustomMetric": "Eliminar métrica personalizada",
+            "hiddenInDbt": "Este campo se ha ocultado en el proyecto dbt. Se recomienda quitarlo de la consulta"
+        },
+        "selectedFields": {
+            "fieldIsFiltered": "El campo está filtrado",
+            "addFilter": "Añadir filtro",
+            "heading": "Seleccionados",
+            "allFields": "Todos los campos"
+        },
+        "actions": {
+            "copyOf": "Copia de {{name}}",
+            "addFilter": "Añadir filtro",
+            "createCustomMetric": "Crear métrica personalizada",
+            "editCustomMetric": "Editar métrica personalizada",
+            "deleteCustomMetric": "Eliminar métrica personalizada",
+            "customMetricDuplicated": "Copia de la métrica personalizada añadida correctamente",
+            "duplicateCustomMetric": "Duplicar métrica personalizada",
+            "writeBack": "Escribir de vuelta en el proyecto",
+            "viewDescription": "Ver descripción",
+            "editCustomDimension": "Editar dimensión personalizada",
+            "customDimensionDuplicated": "Copia de la dimensión personalizada añadida correctamente",
+            "duplicateCustomDimension": "Duplicar dimensión personalizada",
+            "deleteCustomDimension": "Eliminar dimensión personalizada",
+            "addCustomMetrics": "Añadir métricas personalizadas",
+            "addCustomDimensions": "Añadir dimensiones personalizadas",
+            "viewOptions": "Ver opciones"
+        }
+    },
+    "itemDetail": {
+        "copyValue": "Copiar {{label}}",
+        "modelName": "Nombre del modelo",
+        "dbtPackage": "Paquete dbt",
+        "yamlFile": "Archivo YAML",
+        "sqlFile": "Archivo SQL",
+        "description": "Descripción",
+        "noDescription": "No hay descripción disponible.",
+        "preview": {
+            "sourceField": "Campo de origen",
+            "sourceMetric": "Métrica de origen",
+            "readFullDescription": "Leer descripción completa",
+            "sql": "SQL",
+            "showOriginalSql": "Mostrar SQL original",
+            "showCompiledSql": "Mostrar SQL compilado",
+            "originalSql": "SQL original",
+            "compiledSql": "SQL compilado",
+            "filters": "Filtros",
+            "completed": "completado"
+        }
+    },
+    "customMetric": {
+        "defaultLabel": "{{type}} de {{field}}",
+        "labelRequired": "La etiqueta es obligatoria",
+        "percentileRange": "El percentil debe ser un número entre 0 y 100",
+        "addedSuccess": "Métrica personalizada añadida correctamente",
+        "label": "Etiqueta",
+        "percentile": "Percentil",
+        "quickCreate": {
+            "title": "Nueva métrica personalizada",
+            "format": "Formato",
+            "moreOptions": "Más opciones"
+        },
+        "copyOfLabel": "Copia de {{label}}",
+        "toast": {
+            "updatedAcrossDashboard": "Métrica personalizada actualizada en todo este dashboard",
+            "updateFailed": "No se pudo actualizar la métrica personalizada",
+            "cannotMoveTable": "Las métricas compartidas no se pueden mover a otra tabla",
+            "cannotMoveTableHint": "Elige un campo de origen de la misma tabla o crea una métrica nueva.",
+            "prepareUpdateFailed": "No se pudo preparar la actualización de la métrica",
+            "rebuiltOn": "Métrica personalizada reconstruida sobre {{field}}",
+            "editedSuccess": "Métrica personalizada editada correctamente"
+        },
+        "modal": {
+            "editTitle": "Editar métrica personalizada",
+            "createTitle": "Crear métrica personalizada",
+            "saveChanges": "Guardar cambios",
+            "labelPlaceholder": "Introduce la etiqueta de la métrica personalizada",
+            "sourceField": "Campo de origen",
+            "sourceFieldDescription": "El campo sobre el que agrega esta métrica.",
+            "sourceFieldEditDescription": "El campo sobre el que agrega esta métrica. Elige otro para reconstruirla sin volver a crearla.",
+            "noCompatibleFields": "No hay campos compatibles en esta tabla",
+            "sourceFieldChange": {
+                "title": "El campo de origen cambiará",
+                "description": "Esta métrica se reconstruirá para agregar <field>{{field}}</field>. Los filtros y las opciones de formato se conservan, y el ID de la métrica no cambia, así que los gráficos y dashboards guardados seguirán funcionando."
+            },
+            "sourceMetric": "Métrica de origen",
+            "sourceMetricDescription": "La métrica en la que se basa esta métrica personalizada.",
+            "type": "Tipo",
+            "typeDescription": "Tipo de métrica",
+            "sql": "SQL",
+            "sqlAggregatesDescription": "SQL que agrega esta métrica",
+            "format": "Formato",
+            "filters": "Filtros",
+            "optional": "(opcional)"
+        },
+        "filters": {
+            "addFilter": "Añadir filtro"
+        },
+        "errors": {
+            "idMatchesDimension": "Este ID coincide con una dimensión del modelo. Crea una dimensión personalizada con otro nombre antes de crear la métrica",
+            "idExists": "Ya existe una métrica con este ID",
+            "labelExists": "Ya existe una métrica con esta etiqueta"
+        }
+    },
+    "registryImpact": {
+        "removeTitle": "Quitar la métrica de este dashboard",
+        "updateTitle": "Actualizar la métrica en este dashboard",
+        "removeMetric": "Quitar métrica",
+        "updateMetric": "Actualizar métrica",
+        "updateMetricAndCharts_one": "Actualizar la métrica y {{count}} gráfico",
+        "updateMetricAndCharts_other": "Actualizar la métrica y {{count}} gráficos",
+        "sharedWithDashboard": "<metric>{{metricLabel}}</metric> se comparte con todos los gráficos de este dashboard.",
+        "chartsKeepCopy": "Estos gráficos la usan y conservan su propia copia:",
+        "chartsWillUpdate": "Estos gráficos la usan y se actualizarán:",
+        "noChartsRemove": "Ningún gráfico guardado la usa: solo se elimina la definición compartida.",
+        "noChartsUpdate": "Ningún gráfico guardado la usa todavía: solo cambia la definición compartida.",
+        "noLongerOffered": "Ya no se ofrecerá al crear gráficos en este dashboard.",
+        "outsideUnaffected": "Los gráficos fuera de este dashboard no se ven afectados."
+    },
+    "writeBack": {
+        "title": "Escribir de vuelta en el proyecto",
+        "prDisabled": "Las pull requests solo se pueden abrir en proyectos conectados a GitHub, GitLab o Bitbucket Cloud",
+        "unknownError": "error desconocido",
+        "errorPreview": "Error: {{title}}\n{{message}}",
+        "creatingPullRequest": "Creando pull request...",
+        "openPullRequest": "Abrir pull request",
+        "generatingPreview": "Generando vista previa adaptada al almacén de datos...",
+        "binOrderingWarning": "Los gráficos guardados existentes seguirán usando este intervalo personalizado, así que su orden no cambia. Después de fusionar y actualizar tu proyecto, usa la nueva dimensión YAML en los gráficos nuevos y añade una dimensión numérica de ordenación independiente en tu modelo cuando importe el orden de los intervalos.",
+        "customDimension": {
+            "unsupportedDefinition": "Definición de dimensión no admitida",
+            "singleDescription": "Convierte esta dimensión personalizada en una dimensión de tu proyecto. Esto creará una rama nueva y abrirá una pull request.",
+            "singleIntro": "Crea una pull request en el repositorio git de tu proyecto para la siguiente dimensión personalizada:",
+            "showCode": "Mostrar código de la dimensión",
+            "selectToOpen": "Selecciona dimensiones para abrir una pull request",
+            "multiDescription": "Crea una pull request en el repositorio git de tu proyecto para las siguientes dimensiones",
+            "available_one": "Dimensiones personalizadas disponibles ({{count}} seleccionada)",
+            "available_other": "Dimensiones personalizadas disponibles ({{count}} seleccionadas)",
+            "yamlToBeCreated": "YAML de la dimensión que se creará:"
+        },
+        "customMetric": {
+            "unsupportedDefinition": "Definición de métrica no admitida",
+            "singleDescription": "Convierte esta métrica personalizada en una métrica de tu proyecto. Esto creará una rama nueva y abrirá una pull request.",
+            "singleIntro": "Crea una pull request en el repositorio git de tu proyecto para la siguiente métrica personalizada:",
+            "showCode": "Mostrar código de la métrica",
+            "selectToOpen": "Selecciona métricas para abrir una pull request",
+            "multiDescription": "Crea una pull request en el repositorio git de tu proyecto para las siguientes métricas",
+            "available_one": "Métricas personalizadas disponibles ({{count}} seleccionada)",
+            "available_other": "Métricas personalizadas disponibles ({{count}} seleccionadas)",
+            "yamlToBeCreated": "YAML de la métrica que se creará:"
+        },
+        "prCreated": "Tu pull request <anchor>#{{number}}</anchor> se creó correctamente en git.",
+        "refreshAfterMerge": "Cuando se fusione, actualiza tu proyecto para ver tus métricas y dimensiones actualizadas.",
+        "toast": {
+            "dimensionSuccess": "¡Listo! La dimensión personalizada se escribió de vuelta.",
+            "dimensionFailed": "No se pudo escribir de vuelta la dimensión personalizada",
+            "metricSuccess": "¡Listo! La métrica personalizada se escribió de vuelta.",
+            "metricFailed": "No se pudo escribir de vuelta la métrica personalizada"
+        }
+    },
+    "explorerHeader": {
+        "mergeLimitWarning": "El resultado combinado alcanzó su límite de {{limit}} filas, así que estas son las primeras {{limit}} filas de la combinación. Cada consulta se ejecutó completa; solo se recorta el resultado combinado. Para ver más, aumenta el límite de filas o acota los filtros de cualquiera de las consultas.",
+        "limitWarning": "Se alcanzó el límite de {{limit}} filas de la consulta. Puede haber resultados adicionales que no se muestran. Para ver más, aumenta el límite de la consulta o acota los filtros.",
+        "saveDisabled": {
+            "finishChartType": "Termina primero de editar el tipo de gráfico",
+            "embedNotAllowed": "Este token de inserción no permite guardar gráficos",
+            "noPermission": "No tienes permiso para guardar gráficos en este proyecto"
+        },
+        "unsavedDashboardChanges": "¡Tienes cambios sin guardar en tu dashboard! ¿Seguro que quieres salir sin guardar?",
+        "mergeOutOfDate": {
+            "tooltip": "Una consulta de esta combinación cambió desde la última ejecución. Ejecuta la consulta para ver el resultado combinado de las consultas actuales.",
+            "badge": "Resultados desactualizados"
+        },
+        "resultsMayBeIncomplete": "Los resultados pueden estar incompletos",
+        "copyDebugData": "Copiar datos de depuración del gráfico",
+        "copied": "¡Copiado!"
+    },
+    "queryWarnings": {
+        "title": "Advertencias de la consulta"
+    },
+    "customDimension": {
+        "errors": {
+            "modelDimensionExists": "Ya existe una dimensión del modelo con este ID",
+            "labelExistsWithCalculation": "Ya existe una dimensión o un cálculo de tabla con esta etiqueta",
+            "sqlRequired": "El SQL es obligatorio",
+            "invalidReferences": "Referencias de campo no válidas en el SQL. Las referencias deben tener el formato \"tabla.campo\", p. ej. \"orders.id\"",
+            "invalidReferenceOrName": "Referencia de campo no válida en el SQL o en el nombre de la dimensión",
+            "labelExists": "Ya existe una dimensión con esta etiqueta",
+            "groupNameRequired": "El nombre del grupo es obligatorio",
+            "groupNeedsValue": "Cada grupo debe tener al menos un valor",
+            "valueRequired": "El valor es obligatorio"
+        },
+        "toast": {
+            "edited": "Dimensión personalizada editada correctamente",
+            "added": "Dimensión personalizada añadida correctamente",
+            "createFailed": "Error al crear la dimensión personalizada"
+        },
+        "modal": {
+            "editTitle": "Editar dimensión personalizada",
+            "createTitle": "Crear dimensión personalizada",
+            "titleWithName": "{{title}} - {{name}}",
+            "expandCollapse": "Expandir/contraer",
+            "saveChanges": "Guardar cambios",
+            "label": "Etiqueta",
+            "labelPlaceholder": "Introduce la etiqueta de la dimensión personalizada",
+            "dimensionType": "Tipo de dimensión",
+            "sqlPlaceholder": "Introduce el SQL",
+            "aiTitle": "Genera y mejora tu dimensión personalizada con IA"
+        },
+        "dimensionTypes": {
+            "string": "Texto",
+            "number": "Número",
+            "timestamp": "Marca de tiempo",
+            "date": "Fecha",
+            "boolean": "Booleano"
+        },
+        "bin": {
+            "groupName": "Grupo {{number}}",
+            "matchTypes": {
+                "exact": "es",
+                "startsWith": "empieza por",
+                "endsWith": "termina en",
+                "includes": "incluye"
+            },
+            "valuePlaceholder": "Introduce un valor",
+            "moveToGroup": "Mover al grupo",
+            "groupNameLabel": "Nombre del grupo",
+            "groupNamePlaceholder": "p. ej. Norteamérica",
+            "addValue": "+ Añadir un valor",
+            "groupIntro": "Agrupa valores en categorías personalizadas. Los valores sin agrupar se etiquetarán como \"Other\".",
+            "binType": "Tipo de intervalo",
+            "fixedNumber": "Número fijo de intervalos",
+            "fixedWidth": "Ancho fijo",
+            "customRange": "Rango personalizado",
+            "binNumber": "Número de intervalos",
+            "binWidth": "Ancho del intervalo",
+            "range": "Rango",
+            "lessThan": "<{{to}}",
+            "atLeast": "≥{{from}}",
+            "andAbove": "y superior",
+            "between": "≥{{from}} y <{{to}}",
+            "to": "a",
+            "addRange": "+ Añadir un rango",
+            "groups": "Grupos",
+            "addGroup": "+ Añadir un grupo",
+            "otherHint": "Los valores no asignados a ningún grupo se etiquetarán como \"Other\"."
+        }
+    },
+    "periodComparison": {
+        "finerPeriod": "Tus resultados están agrupados por un periodo de tiempo más detallado",
+        "title": "Añadir comparación de periodos",
+        "confirm": "Añadir comparación",
+        "exists": {
+            "title": "Esta comparación ya existe",
+            "description": "Ya existe una comparación de periodos con la misma dimensión de tiempo y el mismo desplazamiento para esta métrica. Elige otra dimensión de tiempo u otro desplazamiento."
+        },
+        "timeDimension": "Dimensión de tiempo",
+        "selectTimeDimension": "Selecciona una dimensión de tiempo",
+        "addTimeDimension": "Añade una dimensión de tiempo para habilitar la comparación",
+        "offset": "Desplazamiento",
+        "granularity": "Granularidad: {{granularity}}",
+        "granularityFromDimension": "Granularidad derivada de la dimensión",
+        "willCreate": "Esto creará: <name>{{metric}} ({{period}})</name>"
+    },
+    "visualizationWarning": {
+        "unusedDimensions": "Tu consulta incluye dimensiones que no se usan en la configuración del gráfico (eje x, eje y o agrupar por): {{dimensions}}. Quítalas de la consulta para evitar resultados incorrectos.",
+        "pivotMismatch": "Vuelve a ejecutar la consulta para obtener los datos más recientes con la configuración de agrupación correcta.",
+        "columnLimit": "Esta consulta supera el número máximo de columnas ({{limit}}). Se muestran las primeras {{limit}} columnas.",
+        "badge": "Los resultados pueden ser incorrectos"
+    },
+    "visualizationConfig": {
+        "vegaUnavailable": "Los gráficos Vega no se pueden editar en vistas insertadas."
+    },
+    "visualizationCard": {
+        "charts": "Gráficos",
+        "chart": "Gráfico",
+        "closeConfigure": "Cerrar configuración",
+        "configure": "Configurar"
+    },
+    "chartTypes": {
+        "mixed": "Mixto",
+        "custom": "Personalizado",
+        "customChartType": "Tipo de gráfico personalizado",
+        "table": "Tabla",
+        "bar": "Gráfico de barras",
+        "horizontalBar": "Gráfico de barras horizontales",
+        "line": "Gráfico de líneas",
+        "area": "Gráfico de áreas",
+        "scatter": "Gráfico de dispersión",
+        "pie": "Gráfico circular",
+        "funnel": "Gráfico de embudo",
+        "treemap": "Mapa de árbol",
+        "gauge": "Indicador",
+        "sankey": "Sankey",
+        "map": "Mapa",
+        "bigValue": "Valor destacado",
+        "vega": "Vega (editor JSON)"
+    },
+    "chartGallery": {
+        "addMenu": {
+            "addChartType": "Añadir tipo de gráfico",
+            "browseLibrary": "Explorar la biblioteca de gráficos",
+            "browseLibraryDescription": "Tipos de gráfico listos para usar, instalados con un clic",
+            "createOwn": "Crea el tuyo",
+            "createOwnDescription": "Describe un tipo de gráfico en Chart Studio",
+            "addFromLibrary": "Añadir tipo de gráfico desde la biblioteca",
+            "addInStudio": "Añadir tipo de gráfico en Chart Studio"
+        },
+        "provenance": {
+            "official": "Creado por Lightdash",
+            "custom": "Tipo de gráfico personalizado, creado por tu equipo"
+        },
+        "card": {
+            "configureItem": "Configurar {{label}}",
+            "configure": "Configurar",
+            "moreActions": "Más acciones para {{label}}",
+            "editChartType": "Editar tipo de gráfico",
+            "fork": "Bifurcar para personalizar"
+        },
+        "searchPlaceholder": "Buscar en la galería",
+        "searchLabel": "Buscar tipos de gráfico",
+        "chartTypes": "Tipos de gráfico",
+        "loadMoreLabel": "Cargar más tipos de gráfico",
+        "showMoreLabel_one": "Mostrar {{count}} tipo de gráfico más",
+        "showMoreLabel_other": "Mostrar {{count}} tipos de gráfico más",
+        "loadMore": "Cargar más",
+        "moreCount_one": "+{{count}} más",
+        "moreCount_other": "+{{count}} más",
+        "loading": "Cargando tipos de gráfico…",
+        "fieldCount_one": "{{count}} campo",
+        "fieldCount_other": "{{count}} campos",
+        "noMatches": "Ningún tipo de gráfico coincide con tu búsqueda",
+        "loadFailed": "No se pudieron cargar los tipos de gráfico",
+        "runQueryFirst": "Ejecuta tu consulta para elegir un tipo de gráfico.",
+        "selectedUnavailable": "El tipo de gráfico seleccionado no está disponible",
+        "loadingSelected": "Cargando el tipo de gráfico seleccionado…",
+        "forkDefaultName": "{{name}} (personalizado)"
+    },
+    "chartSidebar": {
+        "newChartType": "Nuevo tipo de gráfico",
+        "close": "Cerrar configuración de la visualización",
+        "generatedOptions": "Opciones generadas",
+        "backToConfig": "Volver a la configuración",
+        "chooseChartType": "Elegir tipo de gráfico",
+        "customBadge": "Personalizado",
+        "changeChartType": "Cambiar tipo de gráfico",
+        "change": "Cambiar",
+        "editChartType": "Editar tipo de gráfico"
+    },
+    "chartStudio": {
+        "status": {
+            "buildingElapsed": "Creando {{elapsed}}",
+            "building": "Creando",
+            "ready": "v{{version}} lista"
+        },
+        "backToChart": "Volver al gráfico",
+        "title": "Chart Studio",
+        "description": "Descripción del tipo de gráfico",
+        "editDetails": "Editar detalles",
+        "editDetailsLabel": "Editar los detalles del tipo de gráfico",
+        "upgradeAvailable": "Actualización disponible",
+        "history": "Historial",
+        "close": "Cerrar Chart Studio",
+        "resourceLabel": "Tipo de gráfico",
+        "configuration": "Configuración del tipo de gráfico",
+        "toast": {
+            "forbidden": "No puedes crear este tipo de gráfico",
+            "discarded": "Tipo de gráfico descartado",
+            "thisChartType": "este tipo de gráfico",
+            "chartUses": "El gráfico ahora usa {{typeName}}",
+            "chartUsesVersion": "El gráfico ahora usa {{typeName}} v{{version}}"
+        },
+        "exitConfirm": {
+            "title": "Creación en curso",
+            "discards": "Si sales ahora, se descartará la creación que todavía está en curso.",
+            "keepsRunning": "La creación sigue en curso y aparecerá en el historial de versiones cuando termine.",
+            "keepBuilding": "Seguir creando",
+            "discardAndLeave": "Descartar y salir",
+            "leave": "Salir"
+        }
+    },
+    "chartActions": {
+        "label": "Acciones del gráfico",
+        "more": "Más",
+        "manage": "Gestionar",
+        "duplicate": "Duplicar",
+        "addToDashboard": "Añadir al dashboard",
+        "moveToSpace": "Mover a un espacio",
+        "requestReview": "Solicitar revisión",
+        "unpinFromHomepage": "Desanclar de la página de inicio",
+        "pinToHomepage": "Anclar a la página de inicio",
+        "share": "Compartir",
+        "moveChart": "Mover gráfico",
+        "versionHistory": "Historial de versiones",
+        "changeExplore": "Cambiar explore",
+        "promoteDisabled": "Primero debes habilitar un proyecto upstream en configuración > Data ops",
+        "promoteChart": "Promocionar gráfico",
+        "removeVerification": "Quitar verificación",
+        "verify": "Verificar",
+        "contentAsCode": "Contenido como código",
+        "viewAsCode": "Ver como código",
+        "changeSlug": "Cambiar slug de la URL",
+        "integrations": "Integraciones",
+        "scheduledDeliveries": "Entregas programadas",
+        "alerts": "Alertas",
+        "googleSheetsSync": "Sincronización con Google Sheets"
+    },
+    "savedChartHeader": {
+        "unsavedChanges": {
+            "title": "Cambios sin guardar",
+            "stay": "Quedarse",
+            "leave": "Salir",
+            "description": "¡Tienes cambios sin guardar en tu gráfico! ¿Seguro que quieres salir sin guardar?"
+        },
+        "unpublished": {
+            "tooltip": "Solo tú puedes ver estos cambios. Un revisor puede escribirlos de vuelta en el repositorio desde Revisión de contenido.",
+            "badge": "Cambios sin publicar"
+        },
+        "draftsToReview_one": "{{count}} borrador por revisar",
+        "draftsToReview_other": "{{count}} borradores por revisar",
+        "verifiedBy": "Verificado por {{firstName}} {{lastName}}",
+        "verified": "Verificado",
+        "editChart": "Editar gráfico",
+        "cancelChanges": "Cancelar cambios",
+        "returnToDashboard": "Volver al dashboard",
+        "favorited": "En favoritos",
+        "favorite": "Favorito",
+        "exitFullscreen": "Salir del modo pantalla completa",
+        "enterFullscreen": "Entrar en modo pantalla completa",
+        "details": "Detalles",
+        "enterFullscreenShort": "Pantalla completa",
+        "chartDetails": "Detalles del gráfico"
+    },
+    "titleBreadcrumbs": {
+        "space": "Espacio: <name>{{name}}</name>",
+        "dashboard": "Dashboard: <name>{{name}}</name>"
+    },
+    "saveChart": {
+        "mergeIncomplete": "Termina de configurar la combinación antes de guardar.",
+        "duplicateMetricId": "El ID de una métrica personalizada coincide con una métrica existente de la tabla. Cámbiale el nombre para evitar conflictos.",
+        "saveChanges": "Guardar cambios",
+        "saveChart": "Guardar gráfico",
+        "saveAsNew": "Guardar como gráfico nuevo",
+        "verified": {
+            "title": "Guardar gráfico verificado",
+            "warnRemoval": "Este gráfico está verificado. Al guardar tus cambios perderá el estado de verificado hasta que alguien lo vuelva a verificar.",
+            "saveAnyway": "Guardar de todos modos",
+            "keepQuestion": "¿Mantener este gráfico verificado después de guardar?",
+            "saveAndVerify": "Guardar y verificar"
+        }
+    },
+    "spaceMenu": {
+        "removeFromFavorites": "Quitar de favoritos",
+        "addToFavorites": "Añadir a favoritos",
+        "updateSpace": "Actualizar espacio",
+        "move": "Mover",
+        "deleteSpace": "Eliminar espacio"
+    }
+}

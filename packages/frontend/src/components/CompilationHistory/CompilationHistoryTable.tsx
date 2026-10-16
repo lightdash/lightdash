@@ -10,6 +10,7 @@ import {
 } from '@tabler/icons-react';
 import { format } from 'date-fns';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import { useProject } from '../../hooks/useProject';
 import {
@@ -44,6 +45,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
             null,
         );
 
+    const { t } = useTranslation('projectConnection');
     const { data: project } = useProject(projectUuid);
 
     const [sorting, setSorting] = useState<ContentTableSortingState>([
@@ -107,7 +109,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
         () => [
             {
                 accessorKey: 'createdAt',
-                header: 'Timestamp',
+                header: t('compilationHistory.columns.timestamp'),
                 enableSorting: true,
                 size: 180,
                 Header: ({ column }) => (
@@ -124,7 +126,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
             },
             {
                 accessorKey: 'compilationSource',
-                header: 'Source',
+                header: t('compilationHistory.columns.source'),
                 enableSorting: false,
                 size: 140,
                 Header: ({ column }) => (
@@ -141,7 +143,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
             },
             {
                 accessorKey: 'userName',
-                header: 'Triggered by user',
+                header: t('compilationHistory.columns.triggeredBy'),
                 enableSorting: false,
                 size: 200,
                 Header: ({ column }) => (
@@ -154,7 +156,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
             },
             {
                 accessorKey: 'report',
-                header: 'Explores',
+                header: t('compilationHistory.columns.explores'),
                 enableSorting: false,
                 size: 100,
                 Header: ({ column }) => (
@@ -168,7 +170,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
             },
             {
                 accessorKey: 'report.metricsCount',
-                header: 'Metrics',
+                header: t('compilationHistory.columns.metrics'),
                 enableSorting: false,
                 size: 100,
                 Header: ({ column }) => (
@@ -181,7 +183,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
             },
             {
                 accessorKey: 'report.dimensionsCount',
-                header: 'Dimensions',
+                header: t('compilationHistory.columns.dimensions'),
                 enableSorting: false,
                 size: 120,
                 Header: ({ column }) => (
@@ -194,7 +196,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
             },
             {
                 accessorKey: 'compilationStatus',
-                header: 'Status',
+                header: t('compilationHistory.columns.status'),
                 enableSorting: false,
                 size: 100,
                 Header: ({ column }) => (
@@ -219,7 +221,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                               icon: IconAlertTriangleFilled,
                           }
                         : {
-                              label: 'Compilation successful',
+                              label: t('compilationHistory.successful'),
                               color: theme.colors.green[6],
                               icon: IconCircleCheckFilled,
                           };
@@ -231,7 +233,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                 },
             },
         ],
-        [theme],
+        [theme, t],
     );
 
     const table = useContentTable({

@@ -1,6 +1,7 @@
 import { Select, Stack, TextInput } from '@mantine/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../components/common/MantineModal';
 import { useCreateMutation } from '../../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
@@ -25,6 +26,7 @@ const SaveQueryToLightdashModal: FC<Props> = ({
     projectUuid,
     onClose,
 }) => {
+    const { t } = useTranslation('apps');
     const { data: spaces, isLoading: spacesLoading } =
         useSpaceSummaries(projectUuid);
     const createChart = useCreateMutation({
@@ -33,7 +35,7 @@ const SaveQueryToLightdashModal: FC<Props> = ({
     });
 
     const [name, setName] = useState(
-        query.label || query.exploreName || 'Untitled query',
+        query.label || query.exploreName || t('saveQuery.untitled'),
     );
     const [spaceUuid, setSpaceUuid] = useState<string | null>(null);
 
@@ -63,34 +65,36 @@ const SaveQueryToLightdashModal: FC<Props> = ({
         <MantineModal
             opened
             onClose={onClose}
-            title="Save to Lightdash"
+            title={t('queryInspector.saveToLightdash')}
             icon={IconDeviceFloppy}
             size="sm"
             onConfirm={handleSave}
-            confirmLabel="Save"
+            confirmLabel={t('actions.save', { ns: 'common' })}
             confirmLoading={createChart.isLoading}
             confirmDisabled={!name.trim() || !selectedSpace}
         >
             <Stack gap="sm">
                 <TextInput
-                    label="Chart name"
-                    placeholder="e.g. Weekly revenue"
+                    label={t('saveQuery.nameLabel')}
+                    placeholder={t('saveQuery.namePlaceholder')}
                     required
                     value={name}
                     onChange={(e) => setName(e.currentTarget.value)}
                     data-autofocus
                 />
                 <Select
-                    label="Space"
+                    label={t('info.space')}
                     placeholder={
-                        spacesLoading ? 'Loading spaces…' : 'Select a space'
+                        spacesLoading
+                            ? t('saveQuery.loadingSpaces')
+                            : t('saveQuery.selectSpace')
                     }
                     data={spaceOptions}
                     value={selectedSpace}
                     onChange={setSpaceUuid}
                     disabled={spacesLoading}
                     searchable
-                    nothingFoundMessage="No spaces found"
+                    nothingFoundMessage={t('saveQuery.noSpaces')}
                 />
             </Stack>
         </MantineModal>

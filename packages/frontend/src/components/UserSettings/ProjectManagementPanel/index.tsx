@@ -41,6 +41,7 @@ import {
 } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useNavigate } from 'react-router';
 import {
     useActiveProject,
@@ -84,50 +85,60 @@ const WAREHOUSE_LABELS: Record<WarehouseTypes, string> = {
 const CopyableCommand: FC<{ label: string; command: string }> = ({
     label,
     command,
-}) => (
-    <Stack gap={4}>
-        <Text fz="xs" fw={600} c="ldGray.7">
-            {label}
-        </Text>
-        <CopyButton value={command}>
-            {({ copied, copy }) => (
-                <Tooltip label={copied ? 'Copied!' : 'Click to copy'}>
-                    <UnstyledButton onClick={copy}>
-                        <Code
-                            block
-                            fz="xs"
-                            p="xs"
-                            className={clsx(
-                                classes.copyableCommand,
-                                copied
-                                    ? classes.copyFlashActive
-                                    : classes.copyFlash,
-                            )}
-                        >
-                            <Group
-                                gap="xs"
-                                justify="space-between"
-                                wrap="nowrap"
+}) => {
+    const { t } = useTranslation('userSettings');
+    return (
+        <Stack gap={4}>
+            <Text fz="xs" fw={600} c="ldGray.7">
+                {label}
+            </Text>
+            <CopyButton value={command}>
+                {({ copied, copy }) => (
+                    <Tooltip
+                        label={
+                            copied
+                                ? t('projectManagementPanel.copy.copied')
+                                : t('projectManagementPanel.copy.clickToCopy')
+                        }
+                    >
+                        <UnstyledButton onClick={copy}>
+                            <Code
+                                block
+                                fz="xs"
+                                p="xs"
+                                className={clsx(
+                                    classes.copyableCommand,
+                                    copied
+                                        ? classes.copyFlashActive
+                                        : classes.copyFlash,
+                                )}
                             >
-                                <Text fz="xs" ff="monospace" span>
-                                    {command}
-                                </Text>
-                                <MantineIcon
-                                    icon={copied ? IconCheck : IconCopy}
-                                    size="sm"
-                                    color={copied ? 'teal.6' : 'ldGray.5'}
-                                    className={classes.copyIcon}
-                                />
-                            </Group>
-                        </Code>
-                    </UnstyledButton>
-                </Tooltip>
-            )}
-        </CopyButton>
-    </Stack>
-);
+                                <Group
+                                    gap="xs"
+                                    justify="space-between"
+                                    wrap="nowrap"
+                                >
+                                    <Text fz="xs" ff="monospace" span>
+                                        {command}
+                                    </Text>
+                                    <MantineIcon
+                                        icon={copied ? IconCheck : IconCopy}
+                                        size="sm"
+                                        color={copied ? 'teal.6' : 'ldGray.5'}
+                                        className={classes.copyIcon}
+                                    />
+                                </Group>
+                            </Code>
+                        </UnstyledButton>
+                    </Tooltip>
+                )}
+            </CopyButton>
+        </Stack>
+    );
+};
 
 const ProjectManagementPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const theme = useMantineTheme();
     const { user } = useApp();
     const navigate = useNavigate();
@@ -332,7 +343,9 @@ const ProjectManagementPanel: FC = () => {
                     activeFilter === ProjectTypeFilter.PREVIEW ? (
                         <Center>
                             <Checkbox
-                                aria-label="Select all projects"
+                                aria-label={t(
+                                    'projectManagementPanel.table.selectAll',
+                                )}
                                 checked={allVisibleSelected}
                                 indeterminate={
                                     !allVisibleSelected &&
@@ -366,7 +379,7 @@ const ProjectManagementPanel: FC = () => {
             },
             {
                 accessorKey: 'name',
-                header: 'Name',
+                header: t('projectManagementPanel.table.columns.name'),
                 enableSorting: true,
                 size: 200,
                 Header: ({ column }) => (
@@ -385,14 +398,20 @@ const ProjectManagementPanel: FC = () => {
                                 {project.name}
                             </Text>
                             {isCurrentProject && (
-                                <Badge size="xs">Current</Badge>
+                                <Badge size="xs">
+                                    {t('projectManagementPanel.badges.current')}
+                                </Badge>
                             )}
                             {project.type === ProjectType.PREVIEW && (
-                                <Badge size="xs">Preview</Badge>
+                                <Badge size="xs">
+                                    {t('projectManagementPanel.badges.preview')}
+                                </Badge>
                             )}
                             {project.type === ProjectType.TRAINING && (
                                 <Badge size="xs" color="grape" flex="none">
-                                    Playground
+                                    {t(
+                                        'projectManagementPanel.badges.playground',
+                                    )}
                                 </Badge>
                             )}
                         </Group>
@@ -401,7 +420,7 @@ const ProjectManagementPanel: FC = () => {
             },
             {
                 accessorKey: 'warehouseType',
-                header: 'Warehouse',
+                header: t('projectManagementPanel.table.columns.warehouse'),
                 enableSorting: true,
                 size: 140,
                 Header: ({ column }) => (
@@ -442,7 +461,7 @@ const ProjectManagementPanel: FC = () => {
             },
             {
                 accessorKey: 'createdByUserName',
-                header: 'Created by',
+                header: t('projectManagementPanel.table.columns.createdBy'),
                 enableSorting: true,
                 size: 150,
                 Header: ({ column }) => (
@@ -459,7 +478,7 @@ const ProjectManagementPanel: FC = () => {
             },
             {
                 accessorKey: 'createdAt',
-                header: 'Created',
+                header: t('projectManagementPanel.table.columns.created'),
                 enableSorting: true,
                 size: 120,
                 Header: ({ column }) => (
@@ -476,7 +495,7 @@ const ProjectManagementPanel: FC = () => {
             },
             {
                 accessorKey: 'expiresAt',
-                header: 'Expires',
+                header: t('projectManagementPanel.table.columns.expires'),
                 enableSorting: true,
                 sortUndefined: 1,
                 size: 120,
@@ -543,7 +562,9 @@ const ProjectManagementPanel: FC = () => {
                                             )
                                         }
                                     >
-                                        Settings
+                                        {t(
+                                            'projectManagementPanel.menu.settings',
+                                        )}
                                     </Menu.Item>
                                 )}
                                 <CopyButton value={project.projectUuid}>
@@ -566,8 +587,12 @@ const ProjectManagementPanel: FC = () => {
                                             onClick={copy}
                                         >
                                             {copied
-                                                ? 'Copied!'
-                                                : 'Copy project UUID'}
+                                                ? t(
+                                                      'projectManagementPanel.copy.copied',
+                                                  )
+                                                : t(
+                                                      'projectManagementPanel.menu.copyUuid',
+                                                  )}
                                         </Menu.Item>
                                     )}
                                 </CopyButton>
@@ -577,7 +602,9 @@ const ProjectManagementPanel: FC = () => {
                                     }
                                     onClick={() => setCliProject(project)}
                                 >
-                                    CLI reference
+                                    {t(
+                                        'projectManagementPanel.menu.cliReference',
+                                    )}
                                 </Menu.Item>
                                 {canDelete && <Menu.Divider />}
                                 {canDelete && (
@@ -592,7 +619,7 @@ const ProjectManagementPanel: FC = () => {
                                             )
                                         }
                                     >
-                                        Delete
+                                        {t('actions.delete', { ns: 'common' })}
                                     </Menu.Item>
                                 )}
                             </Menu.Dropdown>
@@ -614,6 +641,7 @@ const ProjectManagementPanel: FC = () => {
             canDeleteProject,
             user.data?.organizationUuid,
             visibleSelectedProjects.length,
+            t,
         ],
     );
 
@@ -691,11 +719,19 @@ const ProjectManagementPanel: FC = () => {
                     flex={1}
                     miw={0}
                 >
-                    <Tooltip label="Search by project name">
+                    <Tooltip
+                        label={t(
+                            'projectManagementPanel.toolbar.searchTooltip',
+                        )}
+                    >
                         <ContentTableSearchInput
                             className={classes.search}
-                            aria-label="Search projects"
-                            placeholder="Search projects..."
+                            aria-label={t(
+                                'projectManagementPanel.toolbar.searchAriaLabel',
+                            )}
+                            placeholder={t(
+                                'projectManagementPanel.toolbar.searchPlaceholder',
+                            )}
                             value={search}
                             onChange={setSearch}
                         />
@@ -721,10 +757,16 @@ const ProjectManagementPanel: FC = () => {
                             {
                                 value: ProjectTypeFilter.ALL,
                                 label: (
-                                    <Tooltip label="Show all projects">
+                                    <Tooltip
+                                        label={t(
+                                            'projectManagementPanel.typeFilter.allTooltip',
+                                        )}
+                                    >
                                         <Box>
                                             <Text fz="xs" fw={500}>
-                                                All
+                                                {t(
+                                                    'projectManagementPanel.typeFilter.all',
+                                                )}
                                             </Text>
                                         </Box>
                                     </Tooltip>
@@ -733,10 +775,16 @@ const ProjectManagementPanel: FC = () => {
                             {
                                 value: ProjectTypeFilter.DEFAULT,
                                 label: (
-                                    <Tooltip label="Show only standard projects">
+                                    <Tooltip
+                                        label={t(
+                                            'projectManagementPanel.typeFilter.defaultTooltip',
+                                        )}
+                                    >
                                         <Box>
                                             <Text fz="xs" fw={500}>
-                                                Projects
+                                                {t(
+                                                    'projectManagementPanel.typeFilter.default',
+                                                )}
                                             </Text>
                                         </Box>
                                     </Tooltip>
@@ -745,10 +793,16 @@ const ProjectManagementPanel: FC = () => {
                             {
                                 value: ProjectTypeFilter.PREVIEW,
                                 label: (
-                                    <Tooltip label="Show only preview projects">
+                                    <Tooltip
+                                        label={t(
+                                            'projectManagementPanel.typeFilter.previewTooltip',
+                                        )}
+                                    >
                                         <Box>
                                             <Text fz="xs" fw={500}>
-                                                Preview
+                                                {t(
+                                                    'projectManagementPanel.typeFilter.preview',
+                                                )}
                                             </Text>
                                         </Box>
                                     </Tooltip>
@@ -757,10 +811,16 @@ const ProjectManagementPanel: FC = () => {
                             {
                                 value: ProjectTypeFilter.TRAINING,
                                 label: (
-                                    <Tooltip label="Show only the training playground Learn created">
+                                    <Tooltip
+                                        label={t(
+                                            'projectManagementPanel.typeFilter.trainingTooltip',
+                                        )}
+                                    >
                                         <Box>
                                             <Text fz="xs" fw={500}>
-                                                Training
+                                                {t(
+                                                    'projectManagementPanel.typeFilter.training',
+                                                )}
                                             </Text>
                                         </Box>
                                     </Tooltip>
@@ -774,7 +834,11 @@ const ProjectManagementPanel: FC = () => {
                     {/* Warehouse filter */}
                     <Popover width={220} position="bottom-start">
                         <Popover.Target>
-                            <Tooltip label="Filter by warehouse">
+                            <Tooltip
+                                label={t(
+                                    'projectManagementPanel.toolbar.warehouseFilterTooltip',
+                                )}
+                            >
                                 <Button
                                     h={32}
                                     c="foreground"
@@ -809,14 +873,18 @@ const ProjectManagementPanel: FC = () => {
                                         ) : null
                                     }
                                 >
-                                    Warehouse
+                                    {t(
+                                        'projectManagementPanel.toolbar.warehouseFilter',
+                                    )}
                                 </Button>
                             </Tooltip>
                         </Popover.Target>
                         <Popover.Dropdown p="sm">
                             <Stack gap={4}>
                                 <Text fz="xs" fw={600}>
-                                    Filter by warehouse:
+                                    {t(
+                                        'projectManagementPanel.toolbar.warehouseFilterHeading',
+                                    )}
                                 </Text>
                                 <ScrollArea.Autosize
                                     mah={200}
@@ -869,7 +937,11 @@ const ProjectManagementPanel: FC = () => {
                     {availableCreators.length > 0 && (
                         <Popover width={250} position="bottom-start">
                             <Popover.Target>
-                                <Tooltip label="Filter by creator">
+                                <Tooltip
+                                    label={t(
+                                        'projectManagementPanel.toolbar.creatorFilterTooltip',
+                                    )}
+                                >
                                     <Button
                                         h={32}
                                         c="foreground"
@@ -904,14 +976,18 @@ const ProjectManagementPanel: FC = () => {
                                             ) : null
                                         }
                                     >
-                                        Created by
+                                        {t(
+                                            'projectManagementPanel.toolbar.creatorFilter',
+                                        )}
                                     </Button>
                                 </Tooltip>
                             </Popover.Target>
                             <Popover.Dropdown p="sm">
                                 <Stack gap={4}>
                                     <Text fz="xs" fw={600}>
-                                        Filter by creator:
+                                        {t(
+                                            'projectManagementPanel.toolbar.creatorFilterHeading',
+                                        )}
                                     </Text>
                                     <ScrollArea.Autosize
                                         mah={200}
@@ -968,7 +1044,11 @@ const ProjectManagementPanel: FC = () => {
 
                 <Group gap="sm" wrap="nowrap" flex="0 0 auto">
                     {hasActiveFilters && (
-                        <Tooltip label="Clear all filters">
+                        <Tooltip
+                            label={t(
+                                'projectManagementPanel.toolbar.clearFilters',
+                            )}
+                        >
                             <ActionIcon size="sm" onClick={resetAllFilters}>
                                 <MantineIcon icon={IconTrash} />
                             </ActionIcon>
@@ -977,7 +1057,12 @@ const ProjectManagementPanel: FC = () => {
                     {visibleSelectedProjects.length > 0 && (
                         <>
                             <Text size="sm" c="dimmed">
-                                {visibleSelectedProjects.length} selected
+                                {t(
+                                    'projectManagementPanel.toolbar.selectedCount',
+                                    {
+                                        count: visibleSelectedProjects.length,
+                                    },
+                                )}
                             </Text>
                             <Button
                                 size="xs"
@@ -986,7 +1071,7 @@ const ProjectManagementPanel: FC = () => {
                                 leftSection={<MantineIcon icon={IconTrash} />}
                                 onClick={handleDeleteInBulk}
                             >
-                                Delete
+                                {t('actions.delete', { ns: 'common' })}
                             </Button>
                         </>
                     )}
@@ -1001,8 +1086,8 @@ const ProjectManagementPanel: FC = () => {
 
     return (
         <SettingsPage
-            title="All projects"
-            description="Manage projects, connections, access, and project lifecycle."
+            title={t('projectManagementPanel.title')}
+            description={t('projectManagementPanel.description')}
             actions={
                 user.data?.ability.can(
                     'create',
@@ -1011,7 +1096,7 @@ const ProjectManagementPanel: FC = () => {
                     }),
                 ) && (
                     <Button size="xs" component={Link} to="/createProject">
-                        Create project
+                        {t('projectManagementPanel.createProject')}
                     </Button>
                 )
             }
@@ -1039,30 +1124,40 @@ const ProjectManagementPanel: FC = () => {
             <MantineModal
                 opened={cliProject !== undefined}
                 onClose={() => setCliProject(undefined)}
-                title={`CLI reference: ${cliProject?.name ?? ''}`}
+                title={t('projectManagementPanel.cliModal.title', {
+                    name: cliProject?.name ?? '',
+                })}
                 icon={IconTerminal2}
                 size="xl"
             >
                 {cliProject && (
                     <Stack gap="md">
                         <CopyableCommand
-                            label="Set as active project"
+                            label={t(
+                                'projectManagementPanel.cliModal.setActive',
+                            )}
                             command={`lightdash config set-project --uuid ${cliProject.projectUuid}`}
                         />
                         <CopyableCommand
-                            label="Deploy to this project"
+                            label={t('projectManagementPanel.cliModal.deploy')}
                             command={`lightdash deploy --project ${cliProject.projectUuid}`}
                         />
                         <CopyableCommand
-                            label="Start a preview from this project"
+                            label={t(
+                                'projectManagementPanel.cliModal.startPreview',
+                            )}
                             command={`LIGHTDASH_PROJECT=${cliProject.projectUuid} lightdash start-preview --name <name>`}
                         />
                         <CopyableCommand
-                            label="Validate this project"
+                            label={t(
+                                'projectManagementPanel.cliModal.validate',
+                            )}
                             command={`lightdash validate --project ${cliProject.projectUuid}`}
                         />
                         <CopyableCommand
-                            label="Project UUID"
+                            label={t(
+                                'projectManagementPanel.cliModal.projectUuid',
+                            )}
                             command={cliProject.projectUuid}
                         />
                     </Stack>

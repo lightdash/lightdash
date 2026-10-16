@@ -12,6 +12,7 @@ import {
 } from '@mantine/core';
 import { IconDots, IconX } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../components/common/MantineIcon';
 import classes from './ControlSidebar.module.css';
 
@@ -55,133 +56,153 @@ export const EditorShell: FC<Props> = ({
     footerStatus,
     aboveTabs,
     children,
-}) => (
-    <Box className={classes.root} data-controls-editor>
-        <Group justify="space-between" wrap="nowrap" px="md" pt="md">
-            <Stack gap={2} align="flex-start">
-                <Title order={5} className={classes.title}>
-                    {title}
-                </Title>
-                {subtitle !== null && (
-                    <Text fz="xs" c="dimmed">
-                        {subtitle}
+}) => {
+    const { t } = useTranslation('dashboardFilters');
+    return (
+        <Box className={classes.root} data-controls-editor>
+            <Group justify="space-between" wrap="nowrap" px="md" pt="md">
+                <Stack gap={2} align="flex-start">
+                    <Title order={5} className={classes.title}>
+                        {title}
+                    </Title>
+                    {subtitle !== null && (
+                        <Text fz="xs" c="dimmed">
+                            {subtitle}
+                        </Text>
+                    )}
+                </Stack>
+                <Group gap={4} wrap="nowrap">
+                    {menu && (
+                        <Menu
+                            position="bottom-end"
+                            closeOnItemClick={false}
+                            onClose={onMenuClose}
+                        >
+                            <Menu.Target>
+                                <Tooltip
+                                    label={t('controls.editor.moreActions')}
+                                >
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        aria-label={t(
+                                            'controls.editor.moreActions',
+                                        )}
+                                    >
+                                        <MantineIcon icon={IconDots} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Menu.Target>
+                            <Menu.Dropdown>{menu}</Menu.Dropdown>
+                        </Menu>
+                    )}
+                    <Tooltip label={t('actions.close', { ns: 'common' })}>
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            aria-label={t('actions.close', { ns: 'common' })}
+                            onClick={onClose}
+                        >
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    </Tooltip>
+                </Group>
+            </Group>
+
+            <Stack gap="xs" px="md" pt="md">
+                {aboveTabs}
+            </Stack>
+
+            {tabs.length > 1 && (
+                <Tabs
+                    value={activeTab}
+                    onChange={(value) => {
+                        if (value !== null) onTabChange(value);
+                    }}
+                >
+                    <Tabs.List px="md" mt="md">
+                        {tabs.map((tab) => (
+                            <Tabs.Tab
+                                key={tab.value}
+                                value={tab.value}
+                                disabled={tab.disabled}
+                                // The reason is a description; the name stays the label
+                                aria-label={
+                                    tab.disabled ? tab.label : undefined
+                                }
+                                title={
+                                    tab.disabled
+                                        ? tab.disabledReason
+                                        : undefined
+                                }
+                                rightSection={
+                                    tab.count !== undefined ? (
+                                        <Tooltip
+                                            label={t(
+                                                'controls.editor.fieldCount',
+                                                {
+                                                    count: tab.count,
+                                                },
+                                            )}
+                                        >
+                                            <Text fz="xs" c="dimmed" span>
+                                                ({tab.count})
+                                            </Text>
+                                        </Tooltip>
+                                    ) : tab.changed ? (
+                                        <Box
+                                            role="img"
+                                            aria-label={t(
+                                                'controls.editor.changedFromDefault',
+                                            )}
+                                            className={classes.changedDot}
+                                        />
+                                    ) : null
+                                }
+                            >
+                                {tab.label}
+                            </Tabs.Tab>
+                        ))}
+                    </Tabs.List>
+                </Tabs>
+            )}
+
+            <Stack gap="md" p="md" className={classes.body}>
+                {children}
+            </Stack>
+
+            <Stack gap="xs" p="md" className={classes.footer}>
+                {footerStatus !== null && (
+                    <Text
+                        key={footerStatus}
+                        fz="xs"
+                        c="dimmed"
+                        className={classes.footerStatus}
+                    >
+                        {footerStatus}
                     </Text>
                 )}
-            </Stack>
-            <Group gap={4} wrap="nowrap">
-                {menu && (
-                    <Menu
-                        position="bottom-end"
-                        closeOnItemClick={false}
-                        onClose={onMenuClose}
-                    >
-                        <Menu.Target>
-                            <Tooltip label="More actions">
-                                <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
-                                    aria-label="More actions"
-                                >
-                                    <MantineIcon icon={IconDots} />
-                                </ActionIcon>
-                            </Tooltip>
-                        </Menu.Target>
-                        <Menu.Dropdown>{menu}</Menu.Dropdown>
-                    </Menu>
-                )}
-                <Tooltip label="Close">
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        aria-label="Close"
-                        onClick={onClose}
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                </Tooltip>
-            </Group>
-        </Group>
-
-        <Stack gap="xs" px="md" pt="md">
-            {aboveTabs}
-        </Stack>
-
-        {tabs.length > 1 && (
-            <Tabs
-                value={activeTab}
-                onChange={(value) => {
-                    if (value !== null) onTabChange(value);
-                }}
-            >
-                <Tabs.List px="md" mt="md">
-                    {tabs.map((tab) => (
-                        <Tabs.Tab
-                            key={tab.value}
-                            value={tab.value}
-                            disabled={tab.disabled}
-                            // The reason is a description; the name stays the label
-                            aria-label={tab.disabled ? tab.label : undefined}
-                            title={
-                                tab.disabled ? tab.disabledReason : undefined
-                            }
-                            rightSection={
-                                tab.count !== undefined ? (
-                                    <Tooltip
-                                        label={`${tab.count} ${tab.count === 1 ? 'field' : 'fields'}`}
-                                    >
-                                        <Text fz="xs" c="dimmed" span>
-                                            ({tab.count})
-                                        </Text>
-                                    </Tooltip>
-                                ) : tab.changed ? (
-                                    <Box
-                                        role="img"
-                                        aria-label="Changed from the default"
-                                        className={classes.changedDot}
-                                    />
-                                ) : null
-                            }
-                        >
-                            {tab.label}
-                        </Tabs.Tab>
-                    ))}
-                </Tabs.List>
-            </Tabs>
-        )}
-
-        <Stack gap="md" p="md" className={classes.body}>
-            {children}
-        </Stack>
-
-        <Stack gap="xs" p="md" className={classes.footer}>
-            {footerStatus !== null && (
-                <Text
-                    key={footerStatus}
-                    fz="xs"
-                    c="dimmed"
-                    className={classes.footerStatus}
+                <Group
+                    justify={
+                        discardLabel === null ? 'flex-end' : 'space-between'
+                    }
+                    gap="xs"
                 >
-                    {footerStatus}
-                </Text>
-            )}
-            <Group
-                justify={discardLabel === null ? 'flex-end' : 'space-between'}
-                gap="xs"
-            >
-                {discardLabel !== null && (
-                    <Button
-                        variant="subtle"
-                        color="gray"
-                        size="compact-sm"
-                        onClick={onDiscard}
-                    >
-                        {discardLabel}
+                    {discardLabel !== null && (
+                        <Button
+                            variant="subtle"
+                            color="gray"
+                            size="compact-sm"
+                            onClick={onDiscard}
+                        >
+                            {discardLabel}
+                        </Button>
+                    )}
+                    <Button className={classes.done} onClick={onClose}>
+                        {t('controls.editor.done')}
                     </Button>
-                )}
-                <Button className={classes.done} onClick={onClose}>
-                    Done
-                </Button>
-            </Group>
-        </Stack>
-    </Box>
-);
+                </Group>
+            </Stack>
+        </Box>
+    );
+};

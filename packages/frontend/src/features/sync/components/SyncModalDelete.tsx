@@ -1,6 +1,7 @@
 import { Button } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineModal from '../../../components/common/MantineModal';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
@@ -10,6 +11,7 @@ import { SyncModalAction } from '../providers/types';
 import { useSyncModal } from '../providers/useSyncModal';
 
 export const SyncModalDelete = () => {
+    const { t } = useTranslation('sync');
     const { currentSchedulerUuid, setAction } = useSyncModal();
     const scheduler = useScheduler(currentSchedulerUuid ?? '');
     const {
@@ -30,7 +32,7 @@ export const SyncModalDelete = () => {
     }, [deleteScheduler, currentSchedulerUuid]);
 
     if (scheduler.isInitialLoading) {
-        return <SuboptimalState title="Loading sync" loading />;
+        return <SuboptimalState title={t('modal.loadingSync')} loading />;
     }
 
     if (scheduler.error) {
@@ -42,15 +44,17 @@ export const SyncModalDelete = () => {
             opened
             onClose={() => setAction(SyncModalAction.VIEW)}
             role="alertdialog"
-            title="Delete"
+            title={t('actions.delete', { ns: 'common' })}
             icon={IconTrash}
             size="lg"
             actions={
                 <Button color="red" loading={isLoading} onClick={handleConfirm}>
-                    Delete
+                    {t('actions.delete', { ns: 'common' })}
                 </Button>
             }
-            description={`Are you sure you want to delete "${scheduler.data?.name}"?`}
+            description={t('modal.deleteConfirm', {
+                name: scheduler.data?.name,
+            })}
         />
     );
 };

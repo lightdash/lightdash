@@ -1,0 +1,254 @@
+{
+    "home": "Home",
+    "workspace": "Workspace",
+    "more": "More",
+    "menu": "Menu",
+    "openNavigation": "Open navigation",
+    "closeNavigation": "Close navigation",
+    "account": "Account",
+    "new": {
+        "label": "New",
+        "chart": {
+            "title": "Chart",
+            "description": "Build queries and save them as charts."
+        },
+        "sqlRunner": {
+            "title": "Query using SQL runner",
+            "description": "Access your database to run ad-hoc queries."
+        },
+        "dashboard": {
+            "title": "Dashboard",
+            "description": "Arrange multiple charts into a single view."
+        },
+        "document": {
+            "title": "Document",
+            "description": "Write up analysis with live charts."
+        },
+        "dataApp": {
+            "title": "Data App",
+            "description": "Build an interactive app powered by your data."
+        },
+        "space": {
+            "title": "Space",
+            "description": "Organize your saved charts and dashboards."
+        },
+        "createSpace": "Create new space"
+    },
+    "browse": {
+        "label": "Browse",
+        "allSpaces": "All Spaces",
+        "allDashboards": "All dashboards",
+        "allCharts": "All saved charts",
+        "allDocuments": "All documents",
+        "allDataApps": "All data apps",
+        "chartStudio": "Chart Studio",
+        "favorites": "Favorites",
+        "spaces": "Spaces"
+    },
+    "metrics": "Metrics",
+    "settings": {
+        "label": "Settings",
+        "project": "Project settings",
+        "organization": "Organization settings"
+    },
+    "help": {
+        "label": "Help",
+        "docs": {
+            "title": "Ask the docs",
+            "description": "Chat with the Lightdash docs AI assistant"
+        },
+        "roadmap": {
+            "title": "Roadmap",
+            "description": "Explore what we're building and track feature requests"
+        },
+        "support": {
+            "title": "Talk to support",
+            "description": "Drop us a message with product questions or feedback"
+        },
+        "slack": {
+            "title": "Join the Slack community",
+            "description": "Get advice and share best practices with other users."
+        },
+        "report": {
+            "title": "Report an issue",
+            "description": "Share a detailed report with Lightdash support",
+            "modalTitle": "Share with Lightdash Support"
+        }
+    },
+    "user": {
+        "settings": "User settings",
+        "invite": "Invite user",
+        "queryHistory": "My query history",
+        "logout": "Logout"
+    },
+    "whatsNew": "What's new?",
+    "askAi": {
+        "label": "Ask AI",
+        "noOpenIssues": "No open issues yet. Track a data gap, correction, or request from a chart, dashboard, or the board.",
+        "goToIssuesBoard": "Go to the issues board"
+    },
+    "autopilot": {
+        "label": "Autopilot",
+        "setUp": "Set up Autopilot",
+        "resume": "Resume Autopilot",
+        "resuming": "Resuming…",
+        "tagline": "Your project, kept sharp and current.",
+        "capabilities": {
+            "fixesBroken": "Fixes broken charts",
+            "flagsStale": "Flags stale content",
+            "createsVisualizations": "Creates fresh visualizations"
+        },
+        "working": "Working…",
+        "lastRunFailed": "Last run failed",
+        "actionsStatus_one": "{{count}} action · {{time}}",
+        "actionsStatus_other": "{{count}} actions · {{time}}",
+        "monitoring": "Monitoring your project",
+        "viewActivity": "View activity",
+        "relative": {
+            "justNow": "just now",
+            "minutesAgo_one": "{{count}}m ago",
+            "minutesAgo_other": "{{count}}m ago",
+            "hoursAgo_one": "{{count}}h ago",
+            "hoursAgo_other": "{{count}}h ago",
+            "daysAgo_one": "{{count}}d ago",
+            "daysAgo_other": "{{count}}d ago"
+        },
+        "summary": {
+            "fixed_one": "{{count}} fixed",
+            "fixed_other": "{{count}} fixed",
+            "created_one": "{{count}} created",
+            "created_other": "{{count}} created",
+            "flagged_one": "{{count}} flagged",
+            "flagged_other": "{{count}} flagged",
+            "deleted_one": "{{count}} deleted",
+            "deleted_other": "{{count}} deleted"
+        }
+    },
+    "notifications": {
+        "label": "Notifications",
+        "empty": "No notifications",
+        "validation": {
+            "title": "Validation Errors",
+            "description_one": "New validation completed {{timeAgo}} with {{count}} error",
+            "description_other": "New validation completed {{timeAgo}} with {{count}} errors"
+        }
+    },
+    "theme": {
+        "lightMode": "Light mode",
+        "darkMode": "Dark mode"
+    },
+    "impersonation": {
+        "message": "You are impersonating another user",
+        "stop": "Stop impersonating"
+    },
+    "trialBanner": {
+        "expired": "Your Lightdash trial has expired. Contact sales@lightdash.com",
+        "expiredQueriesDisabled": "Your Lightdash trial has expired and queries are disabled. Contact sales@lightdash.com to reactivate."
+    },
+    "previewBanner": {
+        "message": "This is a preview environment. Any changes you make here will not affect production.",
+        "expiresToday": "Expires today ({{date}}).",
+        "expiresIn_one": "Expires in {{count}} day ({{date}}).",
+        "expiresIn_other": "Expires in {{count}} days ({{date}}).",
+        "backTo": "back to {{name}}"
+    },
+    "dashboardExplorer": {
+        "returnToDashboard": "Return to dashboard",
+        "cancelCreationTooltip": "Cancel chart creation and return to dashboard",
+        "cancelEditingTooltip": "Cancel chart editing and return to dashboard",
+        "cancelling": "Cancelling...",
+        "creating": "You are creating this chart from within a dashboard",
+        "creatingInNamed": "You are creating this chart from within \"{{name}}\"",
+        "editing": "You are editing this chart from within a dashboard",
+        "editingInNamed": "You are editing this chart from within \"{{name}}\"",
+        "viewing": "You are viewing this chart from within a dashboard",
+        "viewingInNamed": "You are viewing this chart from within \"{{name}}\""
+    },
+    "sharedSignIn": {
+        "reconnect": "Reconnect"
+    },
+    "credentials": {
+        "label": "Warehouse credentials",
+        "createNew": "Create new",
+        "loadConnectionsFailed": "Could not load the warehouse connections: {{message}}",
+        "loginTo": "Login to {{warehouse}}",
+        "loginRequired": "The admin of your organization \"{{organization}}\" requires that you login to {{warehouse}} to continue.",
+        "defaultName": "Default"
+    },
+    "projectSwitcher": {
+        "current": "current",
+        "playground": "Playground",
+        "expiresToday": "Expires today",
+        "expiresInDays_one": "Expires in {{count}}d",
+        "expiresInDays_other": "Expires in {{count}}d",
+        "previewCount_one": "{{count}} preview",
+        "previewCount_other": "{{count}} previews",
+        "nowViewing": "You are now viewing {{name}}",
+        "goToProjectHome": "Go to project home",
+        "ariaLabel": "Switch project, current: {{name}}",
+        "none": "none",
+        "selectProject": "Select a project",
+        "loading": "Loading projects...",
+        "searchPreviewsIn": "Search previews in {{name}}...",
+        "searchProjects": "Search projects...",
+        "projects": "Projects",
+        "noPreviewsMatch": "No previews match \"{{query}}\"",
+        "noPreviews": "No previews available",
+        "createPreviewIn": "Create Preview in {{name}}",
+        "createPreview": "Create Preview",
+        "matchingPreviews_one": "Matching previews · {{count}}",
+        "matchingPreviews_other": "Matching previews · {{count}}",
+        "noProjectsMatch": "No projects or previews match \"{{query}}\"",
+        "noProjects": "No projects available"
+    },
+    "createPreview": {
+        "title": "Create a preview project",
+        "create": "Create preview",
+        "creating": "Creating preview",
+        "learnMore": "Learn more about preview projects",
+        "requiresDeveloperAccess": "Requires Developer Access",
+        "upstreamProject": {
+            "label": "Upstream Project",
+            "description": "The project that will be used to create the preview project",
+            "placeholder": "Select project"
+        },
+        "name": {
+            "label": "Preview Project Name",
+            "placeholder": "Enter preview name",
+            "generate": "Generate unique name"
+        },
+        "branch": {
+            "label": "Branch",
+            "loading": "Loading branches...",
+            "loadFailed": "Failed to load branches",
+            "placeholder": "Select branch",
+            "useDefault": "The project will use the default branch.",
+            "fetchFailed": "Failed to fetch branches"
+        },
+        "schema": {
+            "label": "Schema/Dataset",
+            "placeholder": "Change this if you want to override the default schema"
+        },
+        "asyncCopy": {
+            "label": "Copy content in the background",
+            "description": "Avoid request timeouts when copying large projects."
+        },
+        "envVars": {
+            "label": "Environment Variables",
+            "keyPlaceholder": "Key",
+            "valuePlaceholder": "Value",
+            "addVariable": "Add variable",
+            "invalidKeys": "Environment variable keys cannot change how dbt or its child processes execute. Invalid keys: {{keys}}"
+        },
+        "manifest": {
+            "label": "Custom manifest.json (optional)",
+            "placeholder": "Paste your manifest.json content here...",
+            "description": "Upload a custom manifest.json instead of generating one from the dbt project. This allows you to use pre-compiled dbt models.",
+            "missingFields": "Invalid manifest.json: missing required fields (nodes, metadata)",
+            "invalidJson": "Invalid JSON format"
+        },
+        "advancedOptions": "Advanced configuration options",
+        "unknownType": "unknown",
+        "noGitIntegration": "This <type>{{type}}</type> project will copy the same connection details as its upstream project. To change the branch of the source code, switch to Github or GitLab connection on <anchor>project settings</anchor>."
+    }
+}

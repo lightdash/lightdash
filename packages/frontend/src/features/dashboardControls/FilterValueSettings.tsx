@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import ShippedFilterSettings from '../dashboardFilters/FilterConfiguration/FilterSettings';
 import { getFilterRuleWithDisabledState } from '../dashboardFilters/FilterConfiguration/utils';
 import { isDefaultValueIncomplete } from './sidebarState';
@@ -24,6 +25,7 @@ export const FilterValueSettings: FC<Props> = ({
     filterRule,
     onChange,
 }) => {
+    const { t } = useTranslation('dashboardFilters');
     const isRequired = !!filterRule.required || !!filterRule.requiredGroupId;
 
     return (
@@ -42,13 +44,12 @@ export const FilterValueSettings: FC<Props> = ({
             />
             {isDefaultValueIncomplete(filterRule) && (
                 <Text size="xs" c="dimmed">
-                    Set a value, or the default stays off.
+                    {t('controls.settings.setValueHint')}
                 </Text>
             )}
             {!!filterRule.disabled && !isRequired && (
                 <Text size="xs" c="dimmed">
-                    No default: each tile keeps its own values until a viewer
-                    sets one.
+                    {t('controls.settings.noDefaultHint')}
                 </Text>
             )}
         </Stack>

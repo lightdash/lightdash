@@ -17,8 +17,9 @@ import path from 'path';
 import {
     buildLearnCatalogue,
     FOUNDATIONS,
-    GROUP_LABELS,
+    getGroupLabel,
     GROUP_ORDER,
+    type LearnGroup,
     type LearnModule,
 } from '../../packages/frontend/src/features/learn/catalogue';
 import { hasCodeLesson } from '../../packages/frontend/src/features/learn/codeLessons';
@@ -218,7 +219,7 @@ if (require.main === module) {
             const label =
                 group === FOUNDATIONS
                     ? 'Foundations'
-                    : GROUP_LABELS[group as keyof typeof GROUP_LABELS];
+                    : getGroupLabel(group as LearnGroup);
             process.stdout.write(`\n${label}\n`);
         }
         const c = cite.get(module.scope);

@@ -1,6 +1,7 @@
 import { TextInput, Popover } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
     value: string;
@@ -17,6 +18,7 @@ const InvalidDateInput: FC<Props> = ({
     autoFocus,
     children,
 }) => {
+    const { t } = useTranslation('filters');
     const [opened, { open, close }] = useDisclosure(false);
 
     const openPopover = () => {
@@ -38,7 +40,7 @@ const InvalidDateInput: FC<Props> = ({
                     size="xs"
                     data-autofocus={autoFocus || undefined}
                     value={value}
-                    error="Invalid date"
+                    error={t('inputs.invalidDate')}
                     disabled={disabled}
                     readOnly
                     styles={{ input: { cursor: 'pointer' } }}

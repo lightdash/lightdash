@@ -16,6 +16,7 @@ import {
     IconInfoCircle,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../components/common/Callout';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../components/common/InlineErrorState';
@@ -53,6 +54,7 @@ const ChartTypeLibrarySection: FC<Props> = ({
     onShowInstalled,
     onInstalled,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const flagQuery = useServerFeatureFlag(FeatureFlags.ChartTypeRegistry);
     const flagEnabled = flagQuery.data?.enabled ?? false;
     const registryQuery = useRegistryChartTypes(projectUuid, flagEnabled);
@@ -117,7 +119,7 @@ const ChartTypeLibrarySection: FC<Props> = ({
                 <Group justify="space-between" align="center">
                     <Group gap={6} align="baseline">
                         <Text size="md" fw={600} c="ldGray.8">
-                            Chart type library
+                            {t('library.title')}
                         </Text>
                         {registryQuery.data && (
                             <Text fz="xs" c="dimmed">
@@ -151,9 +153,9 @@ const ChartTypeLibrarySection: FC<Props> = ({
                             }
                             onClick={toggleUpdates}
                         >
-                            Updates available for {availableUpdates.length}{' '}
-                            already installed{' '}
-                            {availableUpdates.length === 1 ? 'chart' : 'charts'}
+                            {t('library.updatesAvailable', {
+                                count: availableUpdates.length,
+                            })}
                         </Button>
                         {updatesOpen && canUpgrade && (
                             <Button
@@ -161,7 +163,7 @@ const ChartTypeLibrarySection: FC<Props> = ({
                                 size="xs"
                                 onClick={() => setIsUpgradeAllOpen(true)}
                             >
-                                Upgrade all
+                                {t('library.upgradeAll')}
                             </Button>
                         )}
                     </Group>
@@ -206,7 +208,10 @@ const ChartTypeLibrarySection: FC<Props> = ({
                                             <Text fz="xs" c="dimmed">
                                                 {chart.installedRegistryVersion
                                                     ? `v${chart.installedRegistryVersion} → v${chart.version}`
-                                                    : `Upgrade to v${chart.version}`}
+                                                    : t('detail.upgradeTo', {
+                                                          version:
+                                                              chart.version,
+                                                      })}
                                             </Text>
                                         </Stack>
                                     </Group>
@@ -217,25 +222,21 @@ const ChartTypeLibrarySection: FC<Props> = ({
                 </Stack>
             )}
 
-            <Callout variant="info">
-                These chart types are available to add to your instance. Once
-                installed, they can be used by anyone building charts in your
-                organization.
-            </Callout>
+            <Callout variant="info">{t('library.availableCallout')}</Callout>
 
             {registryQuery.isInitialLoading ? (
-                <EmptyStateLoader title="Loading chart type library…" />
+                <EmptyStateLoader title={t('library.loading')} />
             ) : isOffline ? (
                 <InlineErrorState
-                    message="The chart type library can't be reached right now. It may be a temporary outage or a network restriction on this instance."
+                    message={t('library.offline')}
                     onRetry={() => void registryQuery.refetch()}
                 />
             ) : visibleCharts.length === 0 ? (
                 <Paper variant="dotted" p="xl">
                     <Text ta="center" fz="xs" c="dimmed">
                         {allInstalled
-                            ? 'Every chart type from the library is installed — find them in your installed chart types.'
-                            : 'No chart types available in the registry yet.'}
+                            ? t('library.allInstalled')
+                            : t('library.empty')}
                     </Text>
                 </Paper>
             ) : (

@@ -1,5 +1,6 @@
 import { ComparisonFormatTypes, type VizColumn } from '@lightdash/common';
 import { SegmentedControl, Stack, Switch, TextInput } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,
@@ -22,6 +23,7 @@ export const BigNumberComparisonConfig = ({
 }: {
     columns: VizColumn[];
 }) => {
+    const { t } = useTranslation('dataViz');
     const dispatch = useVizDispatch();
     const display = useVizSelector((state) => state.bigNumberConfig.display);
     const valueField = useVizSelector(
@@ -39,7 +41,9 @@ export const BigNumberComparisonConfig = ({
         <Stack gap="sm" mb="lg">
             <Config.Section>
                 <Config.Group>
-                    <Config.Heading>Compare to a field</Config.Heading>
+                    <Config.Heading>
+                        {t('bigNumber.comparison.compareToField')}
+                    </Config.Heading>
                     <Switch
                         size="xs"
                         checked={showComparison}
@@ -55,7 +59,9 @@ export const BigNumberComparisonConfig = ({
             {showComparison && (
                 <>
                     <Config.Section>
-                        <Config.Heading>Field</Config.Heading>
+                        <Config.Heading>
+                            {t('bigNumber.comparison.field')}
+                        </Config.Heading>
 
                         <FieldReferenceSelect
                             data={selectData.filter(
@@ -63,7 +69,9 @@ export const BigNumberComparisonConfig = ({
                                     option.value !== valueField?.reference,
                             )}
                             value={comparisonField?.reference}
-                            placeholder="Select a field to compare against"
+                            placeholder={t(
+                                'bigNumber.comparison.selectFieldPlaceholder',
+                            )}
                             onChange={(value) =>
                                 dispatch(
                                     setComparisonReference(value ?? undefined),
@@ -73,7 +81,9 @@ export const BigNumberComparisonConfig = ({
                         />
 
                         <Config.Group>
-                            <Config.Label>Aggregation</Config.Label>
+                            <Config.Label>
+                                {t('common.aggregation')}
+                            </Config.Label>
 
                             <DataVizAggregationConfig
                                 options={aggregationOptionsFor(
@@ -88,7 +98,7 @@ export const BigNumberComparisonConfig = ({
                     </Config.Section>
 
                     <Config.Section>
-                        <Config.Label>Format</Config.Label>
+                        <Config.Label>{t('bigNumber.format')}</Config.Label>
                         <SegmentedControl
                             size="xs"
                             value={
@@ -98,11 +108,11 @@ export const BigNumberComparisonConfig = ({
                             data={[
                                 {
                                     value: ComparisonFormatTypes.RAW,
-                                    label: 'Raw value',
+                                    label: t('bigNumber.comparison.rawValue'),
                                 },
                                 {
                                     value: ComparisonFormatTypes.PERCENTAGE,
-                                    label: 'Percentage',
+                                    label: t('bigNumber.comparison.percentage'),
                                 },
                             ]}
                             onChange={(value) =>
@@ -117,7 +127,9 @@ export const BigNumberComparisonConfig = ({
 
                     <Config.Section>
                         <Config.Group>
-                            <Config.Label>Flip positive color</Config.Label>
+                            <Config.Label>
+                                {t('bigNumber.comparison.flipColors')}
+                            </Config.Label>
                             <Switch
                                 size="xs"
                                 checked={display?.flipColors ?? false}
@@ -133,10 +145,14 @@ export const BigNumberComparisonConfig = ({
                     </Config.Section>
 
                     <Config.Section>
-                        <Config.Label>Comparison label</Config.Label>
+                        <Config.Label>
+                            {t('bigNumber.comparison.label')}
+                        </Config.Label>
                         <TextInput
                             size="xs"
-                            placeholder="Add an optional label"
+                            placeholder={t(
+                                'bigNumber.comparison.labelPlaceholder',
+                            )}
                             value={display?.comparisonLabel ?? ''}
                             onChange={(event) =>
                                 dispatch(

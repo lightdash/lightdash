@@ -1,6 +1,7 @@
 import { ActionIcon, Button, Menu, Text, Tooltip } from '@mantine/core';
 import { useInterval } from '@mantine/hooks';
 import { IconCheck, IconChevronDown, IconRefresh } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import {
     memo,
     useCallback,
@@ -9,32 +10,33 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDashboardRefresh } from '../../../hooks/dashboard/useDashboardRefresh';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useStableCallback } from '../../../hooks/useStableCallback';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import MantineIcon from '../MantineIcon';
 
-const REFRESH_INTERVAL_OPTIONS = [
+const getRefreshIntervalOptions = (t: TFunction<'modals'>) => [
     {
         value: '5',
-        label: '5m',
+        label: t('dashboard.refresh.minutesShort', { count: 5 }),
     },
     {
         value: '15',
-        label: '15m',
+        label: t('dashboard.refresh.minutesShort', { count: 15 }),
     },
     {
         value: '30',
-        label: '30m',
+        label: t('dashboard.refresh.minutesShort', { count: 30 }),
     },
     {
         value: '60',
-        label: '1h',
+        label: t('dashboard.refresh.hoursShort', { count: 1 }),
     },
     {
         value: '120',
-        label: '2h',
+        label: t('dashboard.refresh.hoursShort', { count: 2 }),
     },
 ];
 
@@ -52,6 +54,11 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
         settingsOpened = false,
         onSettingsClose,
     }) => {
+        const { t } = useTranslation('modals');
+        const refreshIntervalOptions = useMemo(
+            () => getRefreshIntervalOptions(t),
+            [t],
+        );
         const { showToastSuccess } = useToaster();
         const [isOpen, setIsOpen] = useState(false);
         const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(
@@ -130,12 +137,11 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                         radius="md"
                     >
                         <Text span size="xs" c="foreground">
-                            Every{' '}
-                            {
-                                REFRESH_INTERVAL_OPTIONS.find(
+                            {t('dashboard.refresh.every', {
+                                interval: refreshIntervalOptions.find(
                                     ({ value }) => refreshInterval === +value,
-                                )?.label
-                            }
+                                )?.label,
+                            })}
                         </Text>
                     </ActionIcon.GroupSection>
                 ) : null}
@@ -143,14 +149,14 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                     <Tooltip
                         position="bottom"
                         disabled={isOpen}
-                        label={`Last refreshed at: ${
-                            lastRefreshTime
+                        label={t('dashboard.refresh.lastRefreshedAt', {
+                            time: lastRefreshTime
                                 ? lastRefreshTime.toLocaleTimeString()
-                                : 'Never'
-                        }`}
+                                : t('dashboard.refresh.never'),
+                        })}
                     >
                         <ActionIcon
-                            aria-label="Refresh dashboard"
+                            aria-label={t('dashboard.refresh.refreshDashboard')}
                             size="md"
                             variant="default"
                             loading={isOneAtLeastFetching}
@@ -171,18 +177,22 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                         {compact ? (
                             <Button
                                 variant="subtle"
-                                aria-label="Refresh dashboard"
+                                aria-label={t(
+                                    'dashboard.refresh.refreshDashboard',
+                                )}
                                 loading={isOneAtLeastFetching}
                                 onClick={() =>
                                     void invalidateAndSetRefreshTime()
                                 }
                                 leftSection={<MantineIcon icon={IconRefresh} />}
                             >
-                                Refresh
+                                {t('dashboard.refresh.refresh')}
                             </Button>
                         ) : (
                             <ActionIcon
-                                aria-label="Auto-refresh options"
+                                aria-label={t(
+                                    'dashboard.refresh.autoRefreshOptions',
+                                )}
                                 size="md"
                                 variant="default"
                                 disabled={isOneAtLeastFetching}
@@ -193,7 +203,9 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                         )}
                     </Menu.Target>
                     <Menu.Dropdown>
-                        <Menu.Label>Auto-refresh while viewing</Menu.Label>
+                        <Menu.Label>
+                            {t('dashboard.refresh.autoRefreshWhileViewing')}
+                        </Menu.Label>
                         <Menu.Item
                             fz="xs"
                             onClick={() => {
@@ -210,9 +222,9 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                                 ) : null
                             }
                         >
-                            Off
+                            {t('dashboard.refresh.off')}
                         </Menu.Item>
-                        {REFRESH_INTERVAL_OPTIONS.map(({ value, label }) => (
+                        {refreshIntervalOptions.map(({ value, label }) => (
                             <Menu.Item
                                 fz="xs"
                                 key={value}
@@ -222,12 +234,10 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                                     onIntervalChange(valNum);
                                     setIsAutoRefresh(true);
                                     showToastSuccess({
-                                        title: `Your dashboard will refresh every ${
-                                            REFRESH_INTERVAL_OPTIONS.find(
-                                                (option) =>
-                                                    value === option.value,
-                                            )?.label
-                                        }`,
+                                        title: t(
+                                            'dashboard.refresh.willRefreshEvery',
+                                            { interval: label },
+                                        ),
                                     });
                                 }}
                                 disabled={refreshInterval === +value}

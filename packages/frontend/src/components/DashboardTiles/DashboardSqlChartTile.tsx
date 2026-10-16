@@ -22,6 +22,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useSavedSqlChartResults';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import { useConnectionBadges } from '../../hooks/useConnectionBadges';
@@ -69,16 +70,19 @@ const DashboardOptions = memo(
         isEditMode: boolean;
         projectUuid: string;
         slug: string;
-    }) => (
-        <LinkMenuItem
-            leftSection={<MantineIcon icon={IconFilePencil} />}
-            href={`/projects/${projectUuid}/sql-runner/${slug}/edit`}
-            disabled={isEditMode}
-            target="_blank"
-        >
-            Edit SQL chart
-        </LinkMenuItem>
-    ),
+    }) => {
+        const { t } = useTranslation('dashboard');
+        return (
+            <LinkMenuItem
+                leftSection={<MantineIcon icon={IconFilePencil} />}
+                href={`/projects/${projectUuid}/sql-runner/${slug}/edit`}
+                disabled={isEditMode}
+                target="_blank"
+            >
+                {t('sqlChartTile.editSqlChart')}
+            </LinkMenuItem>
+        );
+    },
 );
 
 const SqlChartTile: FC<Props> = ({
@@ -89,6 +93,7 @@ const SqlChartTile: FC<Props> = ({
     dashboardUuidOverride,
     ...rest
 }) => {
+    const { t } = useTranslation('dashboard');
     const { user } = useApp();
     const projectUuid = useProjectUuid();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
@@ -255,13 +260,13 @@ const SqlChartTile: FC<Props> = ({
     // No chart available or savedSqlUuid is undefined - which means that the chart was deleted
     if (chartData === undefined || !savedSqlUuid) {
         const errorMessage = !savedSqlUuid
-            ? 'This SQL chart has been deleted.'
-            : chartError?.error?.message || 'Error fetching chart';
+            ? t('sqlChartTile.deleted')
+            : chartError?.error?.message || t('sqlChartTile.fetchError');
 
         const tileTitle =
             tile.properties.title ||
             tile.properties.chartName ||
-            'Deleted SQL chart';
+            t('sqlChartTile.deletedTitle');
 
         return (
             <TileBase
@@ -320,7 +325,7 @@ const SqlChartTile: FC<Props> = ({
                         title={tile.properties.chartName}
                         description={
                             chartResultsError?.error?.message ||
-                            'Error running query'
+                            t('tile.queryError')
                         }
                     />
                 )}
@@ -363,7 +368,7 @@ const SqlChartTile: FC<Props> = ({
                             disabled={isEditMode}
                             onClick={() => setIsDataExportModalOpen(true)}
                         >
-                            Download data
+                            {t('tile.downloadData')}
                         </Menu.Item>
                     </>
                 )

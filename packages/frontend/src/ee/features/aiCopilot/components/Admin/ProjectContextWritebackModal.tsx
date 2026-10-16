@@ -1,6 +1,7 @@
 import { Loader, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconCheck, IconGitPullRequest, IconX } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../../../components/common/Callout';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
@@ -24,6 +25,7 @@ const BODY_MIN_HEIGHT = '48vh';
 export const ProjectContextWritebackModal: FC<
     ProjectContextWritebackModalProps
 > = ({ fingerprint, opened, onClose }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const [submitted, setSubmitted] = useState(false);
 
     const preview = useAiAgentReviewItemWritebackPreview(fingerprint, {
@@ -63,19 +65,25 @@ export const ProjectContextWritebackModal: FC<
     const showPrimary =
         (!submitted && previewData?.available === true) ||
         (isDone && !!linkedPrUrl);
-    const primaryLabel = isDone ? 'View PR' : 'Looks good, open PR';
+    const primaryLabel = isDone
+        ? t('contextWriteback.viewPr')
+        : t('contextWriteback.openPr');
 
     return (
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title="Open project context PR"
+            title={t('contextWriteback.title')}
             icon={IconGitPullRequest}
             size="80vw"
             onConfirm={showPrimary ? handlePrimary : undefined}
             confirmLabel={primaryLabel}
             confirmLoading={createWriteback.isLoading}
-            cancelLabel={submitted ? 'Close' : 'Cancel'}
+            cancelLabel={
+                submitted
+                    ? t('contextWriteback.close')
+                    : t('contextWriteback.cancel')
+            }
             bodyScrollAreaMaxHeight="calc(85vh - 160px)"
         >
             {submitted ? (
@@ -95,10 +103,12 @@ export const ProjectContextWritebackModal: FC<
                             >
                                 <MantineIcon icon={IconX} />
                             </ThemeIcon>
-                            <Text fw={600}>Couldn&rsquo;t open the PR</Text>
+                            <Text fw={600}>
+                                {t('contextWriteback.failedTitle')}
+                            </Text>
                             <Text fz="sm" c="dimmed" ta="center" maw={420}>
                                 {tracked?.prWritebackMessage ??
-                                    'The writeback failed. You can try again.'}
+                                    t('contextWriteback.failedDescription')}
                             </Text>
                         </>
                     ) : isDone ? (
@@ -111,10 +121,11 @@ export const ProjectContextWritebackModal: FC<
                             >
                                 <MantineIcon icon={IconCheck} />
                             </ThemeIcon>
-                            <Text fw={600}>Pull request opened</Text>
+                            <Text fw={600}>
+                                {t('contextWriteback.openedTitle')}
+                            </Text>
                             <Text fz="sm" c="dimmed" ta="center" maw={420}>
-                                The project context change is ready to review on
-                                GitHub.
+                                {t('contextWriteback.openedDescription')}
                             </Text>
                         </>
                     ) : (
@@ -122,10 +133,10 @@ export const ProjectContextWritebackModal: FC<
                             <Loader size="md" color="gray" />
                             <Text fw={500} c="ldGray.7">
                                 {tracked?.prWritebackMessage ??
-                                    'Opening pull request…'}
+                                    t('contextWriteback.opening')}
                             </Text>
                             <Text fz="sm" c="ldGray.5">
-                                Runs in the background, safe to close.
+                                {t('contextWriteback.backgroundNote')}
                             </Text>
                         </>
                     )}
@@ -142,24 +153,21 @@ export const ProjectContextWritebackModal: FC<
                         >
                             <Loader size="md" color="gray" />
                             <Text fz="sm" c="dimmed">
-                                Computing the change…
+                                {t('contextWriteback.computing')}
                             </Text>
                         </Stack>
                     )}
 
                     {preview.isError && (
                         <Text fz="sm" c="red">
-                            Couldn&rsquo;t compute the change preview. You can
-                            still open the PR and review it on GitHub.
+                            {t('contextWriteback.previewError')}
                         </Text>
                     )}
 
                     {previewData?.available === true &&
                         previewData.upgradesFileToV2 && (
                             <Callout variant="info">
-                                This PR also upgrades your project context file
-                                to v2 — more performance improvements coming
-                                soon.
+                                {t('contextWriteback.upgradesV2')}
                             </Callout>
                         )}
 
@@ -174,8 +182,7 @@ export const ProjectContextWritebackModal: FC<
 
                     {previewData?.available === false && (
                         <Text fz="sm" c="dimmed">
-                            This change runs in a sandbox, so the diff shows up
-                            on the pull request itself.
+                            {t('contextWriteback.sandboxNote')}
                         </Text>
                     )}
                 </Stack>

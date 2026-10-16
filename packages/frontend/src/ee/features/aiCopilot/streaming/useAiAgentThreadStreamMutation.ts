@@ -15,6 +15,7 @@ import { useCallback } from 'react';
 import { z } from 'zod';
 import { LightdashApiStreamError, lightdashApiStream } from '../../../../api';
 import { getAiAccessRefusal } from '../../../../features/aiAccess/errors';
+import i18n from '../../../../i18n/i18n';
 import { getAiAgentApiBase } from '../hooks/aiAgentRouting';
 import { readAiAgentFastMode } from '../hooks/useAiAgentFastMode';
 import {
@@ -737,7 +738,7 @@ export function useAiAgentThreadStreamMutation() {
                 const errorMessage =
                     error instanceof Error
                         ? error.message
-                        : 'Unknown error occurred';
+                        : i18n.t('errors.unknown', { ns: 'aiAgent' });
                 dispatch(setError({ threadUuid, error: errorMessage }));
                 onError?.(errorMessage);
             } finally {

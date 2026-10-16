@@ -2,6 +2,7 @@ import { type WarehouseTypes } from '@lightdash/common';
 import { Button, Stack, Text, Tooltip } from '@mantine/core';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import CodeBlock from '../../../common/CodeBlock/CodeBlock';
@@ -31,6 +32,7 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
     onForward,
     selectedWarehouse,
 }) => {
+    const { t } = useTranslation('projectConnection');
     const { track } = useTracking();
 
     return (
@@ -43,7 +45,7 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
                 leftSection={<MantineIcon icon={IconChevronLeft} />}
                 onClick={onBack}
             >
-                Back
+                {t('actions.back', { ns: 'common' })}
             </Button>
 
             <ProjectCreationCard>
@@ -53,8 +55,7 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
                     />
 
                     <Text c="dimmed">
-                        We strongly recommend that you define columns in your
-                        .yml to see a table in Lightdash. eg:
+                        {t('connectFlow.manual.recommendColumns')}
                     </Text>
 
                     <CodeBlock
@@ -67,9 +68,7 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
                     <Stack gap="xs">
                         <Tooltip
                             position="top"
-                            label={
-                                'Add the columns you want to explore to your .yml files in your dbt project. Click to view docs.'
-                            }
+                            label={t('connectFlow.manual.columnsTooltip')}
                         >
                             <Button
                                 component="a"
@@ -89,7 +88,7 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
                                     });
                                 }}
                             >
-                                Learn how to define them
+                                {t('connectFlow.manual.learnHow')}
                             </Button>
                         </Tooltip>
 
@@ -104,7 +103,7 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
                                 onForward();
                             }}
                         >
-                            I’ve defined them!
+                            {t('connectFlow.manual.defined')}
                         </Button>
                     </Stack>
                 </Stack>

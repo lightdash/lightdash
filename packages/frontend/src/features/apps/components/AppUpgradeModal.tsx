@@ -2,6 +2,7 @@ import { type ApiUpgradeAppResponse } from '@lightdash/common';
 import { List, Stack, Text } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../../components/common/MantineModal';
 import { type SdkUpgradeOffer } from '../hooks/useSdkUpgradeStatus';
 import { useUpgradeApp } from '../hooks/useUpgradeApp';
@@ -30,9 +31,10 @@ const AppUpgradeModal: FC<Props> = ({
     resource,
     onStarted,
 }) => {
+    const { t } = useTranslation('apps');
     const { mutate, isLoading } = useUpgradeApp();
     const isChartType = resource === 'chartType';
-    const noun = isChartType ? 'chart type' : 'app';
+    const kind = isChartType ? 'chartType' : 'app';
     const hasNewFeatures = offer.newFeatures.length > 0;
     const hasNewFixes = offer.newFixes.length > 0;
     const isFixesOnly =
@@ -74,34 +76,27 @@ const AppUpgradeModal: FC<Props> = ({
     }, [appUuid, mutate, offer, onClose, onStarted, projectUuid]);
 
     const followUpCopy = isFixesOnly
-        ? isChartType
-            ? 'When it is ready, Version History will show the completed SDK upgrade.'
-            : 'When it is ready, chat will show the completed SDK upgrade.'
-        : isChartType
-          ? 'When it is ready, Version History will show what is now active and which features you can ask the builder to add. Ask for features in the prompt bar; nothing that changes your chart is added automatically.'
-          : 'When it is ready, chat will show what is now active and which features you can ask the builder to add. Ask for features in chat; nothing that changes your app is added automatically.';
+        ? t(`upgrade.${kind}.followUpFixes`)
+        : t(`upgrade.${kind}.followUpFeatures`);
 
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title={`Upgrade ${noun}`}
+            title={t(`upgrade.${kind}.title`)}
             icon={IconSparkles}
-            confirmLabel="Start upgrade"
+            confirmLabel={t('upgrade.start')}
             confirmLoading={isLoading}
             onConfirm={handleUpgrade}
         >
             <Stack gap="sm">
                 {offer.status === 'stale' && (hasNewFeatures || hasNewFixes) ? (
                     <>
-                        <Text size="sm">
-                            This creates a new version of the {noun} using the
-                            latest SDK. New since this version was built:
-                        </Text>
+                        <Text size="sm">{t(`upgrade.${kind}.newSince`)}</Text>
                         {hasNewFeatures && (
                             <>
                                 <Text size="sm" fw={500}>
-                                    Features
+                                    {t('upgrade.features')}
                                 </Text>
                                 <List spacing="xs" size="sm">
                                     {offer.newFeatures.map((feature) => (
@@ -120,7 +115,7 @@ const AppUpgradeModal: FC<Props> = ({
                         {hasNewFixes && (
                             <>
                                 <Text size="sm" fw={500}>
-                                    Fixes
+                                    {t('upgrade.fixes')}
                                 </Text>
                                 <List spacing="xs" size="sm">
                                     {offer.newFixes.map((fix) => (
@@ -138,27 +133,15 @@ const AppUpgradeModal: FC<Props> = ({
                         )}
                     </>
                 ) : offer.status === 'stale' ? (
-                    <Text size="sm">
-                        This {noun} uses an older SDK. Upgrading includes SDK
-                        fixes and compatibility updates.
-                    </Text>
+                    <Text size="sm">{t(`upgrade.${kind}.stale`)}</Text>
                 ) : offer.status === 'current' ? (
-                    <Text size="sm">
-                        This {noun} already includes the available SDK features
-                        and fixes. Upgrading again creates a new version from
-                        the current template.
-                    </Text>
+                    <Text size="sm">{t(`upgrade.${kind}.current`)}</Text>
                 ) : (
-                    <Text size="sm">
-                        This {noun} was built on an older SDK that cannot report
-                        its exact capabilities. Upgrading creates a new version
-                        from the latest template.
-                    </Text>
+                    <Text size="sm">{t(`upgrade.${kind}.legacy`)}</Text>
                 )}
                 {isChartType && (
                     <Text size="sm">
-                        The current chart remains available while the upgrade
-                        builds. Its fields, options and defaults stay unchanged.
+                        {t('upgrade.chartType.remainsAvailable')}
                     </Text>
                 )}
                 <Text size="sm" c="dimmed">

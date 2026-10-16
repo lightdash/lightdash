@@ -2,6 +2,7 @@ import { Button, Group, Kbd, Loader, Text, Tooltip } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useHealth from '../../hooks/health/useHealth';
 import MantineIcon from '../common/MantineIcon';
 import RunQuerySettings from '../RunQuerySettings';
@@ -13,6 +14,7 @@ const RunSqlQueryButton: FC<{
     onLimitChange?: (limit: number) => void;
     onSubmit: () => void;
 }> = ({ onSubmit, onLimitChange, isLoading, limit, disabled = false }) => {
+    const { t } = useTranslation('sqlRunner');
     const health = useHealth();
     const maxLimit = health.data?.query.maxLimit ?? 5000;
 
@@ -52,7 +54,7 @@ const RunSqlQueryButton: FC<{
                     data-tour-hint="Run the query"
                     data-testid="sql-runner-run-button"
                 >
-                    Run
+                    {t('runButton.run')}
                 </Button>
             </Tooltip>
             {onLimitChange !== undefined && (

@@ -17,6 +17,7 @@ import {
 } from '@mantine/core';
 import { IconExternalLink, IconTrash } from '@tabler/icons-react';
 import { useMemo, useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useDeleteLinearInstallationMutation,
     useLinearInstallation,
@@ -49,15 +50,19 @@ const selectOptionsWithCurrent = (
     return [...options, { value: currentValue, label: currentValue }];
 };
 
-const LinearLogo = ({ compact = false }: { compact?: boolean }) => (
-    <img
-        src={linearSvg}
-        alt="Linear"
-        className={compact ? styles.logoSm : styles.logo}
-    />
-);
+const LinearLogo = ({ compact = false }: { compact?: boolean }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
+    return (
+        <img
+            src={linearSvg}
+            alt={t('settings.linear.logoAlt')}
+            className={compact ? styles.logoSm : styles.logo}
+        />
+    );
+};
 
 export const LinearReviewSettings = () => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const { health, user } = useApp();
     const [linearClientId, setLinearClientId] = useState('');
     const canEdit = user.data?.ability?.can('manage', 'Organization') ?? false;
@@ -158,9 +163,9 @@ export const LinearReviewSettings = () => {
                 <TextInput
                     className={styles.clientIdInput}
                     size="xs"
-                    label="Linear OAuth client ID"
+                    label={t('settings.linear.clientIdLabel')}
                     value={linearClientId}
-                    placeholder="Paste the client ID from Linear"
+                    placeholder={t('settings.linear.clientIdPlaceholder')}
                     disabled={!canEdit || isUpdating}
                     onChange={(event) =>
                         setLinearClientId(event.currentTarget.value)
@@ -175,7 +180,9 @@ export const LinearReviewSettings = () => {
                         linearClientId.trim().length === 0
                     }
                 >
-                    {requiresReconnect ? 'Reconnect Linear' : 'Connect Linear'}
+                    {requiresReconnect
+                        ? t('settings.linear.reconnectLinear')
+                        : t('settings.linear.connectLinear')}
                 </Button>
             </Group>
         </form>
@@ -193,27 +200,29 @@ export const LinearReviewSettings = () => {
                 <Box maw={620}>
                     <Group gap="xs" mb={4}>
                         <LinearLogo compact={hasLinear && !requiresReconnect} />
-                        <Title order={6}>Linear issues</Title>
+                        <Title order={6}>{t('settings.linear.title')}</Title>
                         {hasLinear && (
                             <Badge
                                 size="sm"
                                 color={requiresReconnect ? 'yellow' : 'green'}
                             >
                                 {requiresReconnect
-                                    ? 'Reconnect required'
-                                    : 'Connected'}
+                                    ? t('settings.linear.reconnectRequired')
+                                    : t('settings.linear.connected')}
                             </Badge>
                         )}
                     </Group>
                     <Text c="dimmed" fz="xs">
                         {hasLinear && !requiresReconnect
-                            ? 'New findings create a Linear issue automatically. Existing open findings can be exported below. Each issue links both ways; status is not synced.'
-                            : 'Send review findings to Linear as issues. Each issue links both ways. Status is not synced.'}
+                            ? t('settings.linear.connectedDescription')
+                            : t('settings.linear.disconnectedDescription')}
                     </Text>
                     {hasLinear && !requiresReconnect && (
                         <Text c="dimmed" fz="xs" mt={4}>
-                            Connected to {installation.organizationName} (
-                            {installation.organizationUrlKey}).
+                            {t('settings.linear.connectedTo', {
+                                name: installation.organizationName,
+                                key: installation.organizationUrlKey,
+                            })}
                         </Text>
                     )}
                 </Box>
@@ -224,7 +233,7 @@ export const LinearReviewSettings = () => {
                     ) : (
                         <Switch
                             size="md"
-                            aria-label="Create Linear issues for AI review findings"
+                            aria-label={t('settings.linear.toggleAria')}
                             checked={!!routing?.enabled}
                             disabled={
                                 !canEdit || isUpdating || !canEnableExport
@@ -245,11 +254,10 @@ export const LinearReviewSettings = () => {
                             <Text className={styles.stepIndex}>1</Text>
                             <Stack gap={6} flex={1}>
                                 <Text fw={600} fz="sm">
-                                    Create a Linear app
+                                    {t('settings.linear.step1Title')}
                                 </Text>
                                 <Text c="dimmed" fz="xs">
-                                    Opens Linear with the callback already
-                                    filled in. Private app, no client secret.
+                                    {t('settings.linear.step1Description')}
                                 </Text>
                                 <Button
                                     size="xs"
@@ -266,7 +274,7 @@ export const LinearReviewSettings = () => {
                                         />
                                     }
                                 >
-                                    Create Linear app
+                                    {t('settings.linear.createApp')}
                                 </Button>
                             </Stack>
                         </Group>
@@ -275,11 +283,10 @@ export const LinearReviewSettings = () => {
                             <Text className={styles.stepIndex}>2</Text>
                             <Stack gap={6} flex={1}>
                                 <Text fw={600} fz="sm">
-                                    Paste the client ID and connect
+                                    {t('settings.linear.step2Title')}
                                 </Text>
                                 <Text c="dimmed" fz="xs">
-                                    Use the public client ID from the app you
-                                    just created.
+                                    {t('settings.linear.step2Description')}
                                 </Text>
                                 {connectForm}
                             </Stack>
@@ -292,12 +299,10 @@ export const LinearReviewSettings = () => {
                 <Paper variant="dotted" p="md" radius="md">
                     <Stack gap="xs">
                         <Text fw={600} fz="sm">
-                            Reconnect Linear to keep exporting issues
+                            {t('settings.linear.reconnectTitle')}
                         </Text>
                         <Text c="dimmed" fz="xs">
-                            The saved app can no longer create issues. Create a
-                            new private app or reconnect with the same client
-                            ID.
+                            {t('settings.linear.reconnectDescription')}
                         </Text>
                         <Button
                             size="xs"
@@ -314,7 +319,7 @@ export const LinearReviewSettings = () => {
                                 />
                             }
                         >
-                            Create Linear app
+                            {t('settings.linear.createApp')}
                         </Button>
                         {connectForm}
                     </Stack>
@@ -324,8 +329,10 @@ export const LinearReviewSettings = () => {
             {hasLinear && !requiresReconnect && routing && (
                 <Stack gap="sm">
                     <Checkbox
-                        label="All projects"
-                        description="Findings from every project, including ones created later."
+                        label={t('settings.linear.allProjects')}
+                        description={t(
+                            'settings.linear.allProjectsDescription',
+                        )}
                         checked={routing.applyToAllProjects}
                         disabled={!canEdit || isUpdating || projectsLoading}
                         onChange={(event) => {
@@ -345,11 +352,11 @@ export const LinearReviewSettings = () => {
                     />
                     {!routing.applyToAllProjects && (
                         <MultiSelect
-                            label="Projects"
+                            label={t('settings.linear.projects')}
                             placeholder={
                                 projectsLoading
-                                    ? 'Loading projects'
-                                    : 'Select projects'
+                                    ? t('settings.linear.loadingProjects')
+                                    : t('settings.linear.selectProjects')
                             }
                             data={projects.map((project) => ({
                                 value: project.projectUuid,
@@ -371,11 +378,11 @@ export const LinearReviewSettings = () => {
                         />
                     )}
                     <Select
-                        label="Linear team"
+                        label={t('settings.linear.team')}
                         placeholder={
                             linearTeamsLoading
-                                ? 'Loading teams'
-                                : 'Select a team'
+                                ? t('settings.linear.loadingTeams')
+                                : t('settings.linear.selectTeam')
                         }
                         data={teamOptions}
                         value={routing.linearTeamId}
@@ -398,12 +405,12 @@ export const LinearReviewSettings = () => {
                         }}
                     />
                     <Select
-                        label="Linear project"
-                        description="Optional. Issues without a project still go to the selected team."
+                        label={t('settings.linear.project')}
+                        description={t('settings.linear.projectDescription')}
                         placeholder={
                             linearProjectsLoading
-                                ? 'Loading projects'
-                                : 'Optional project'
+                                ? t('settings.linear.loadingProjects')
+                                : t('settings.linear.optionalProject')
                         }
                         data={linearProjectOptions}
                         value={routing.linearProjectId}
@@ -428,7 +435,7 @@ export const LinearReviewSettings = () => {
                                 loading={linearBackfilling}
                                 onClick={() => backfillLinear()}
                             >
-                                Create issues for existing findings
+                                {t('settings.linear.backfill')}
                             </Button>
                         )}
                         <Button
@@ -438,7 +445,7 @@ export const LinearReviewSettings = () => {
                             href="/api/v1/linear/install"
                             disabled={!canEdit || isUpdating}
                         >
-                            Reconnect
+                            {t('settings.linear.reconnect')}
                         </Button>
                         <Button
                             type="button"
@@ -451,7 +458,7 @@ export const LinearReviewSettings = () => {
                             }
                             onClick={() => deleteLinear()}
                         >
-                            Remove
+                            {t('actions.remove', { ns: 'common' })}
                         </Button>
                     </Group>
                 </Stack>

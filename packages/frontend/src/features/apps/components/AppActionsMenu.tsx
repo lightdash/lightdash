@@ -38,6 +38,7 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import AppDeleteModal from '../../../components/common/modal/AppDeleteModal';
@@ -138,11 +139,7 @@ export type AppActionsMenuProps = {
     };
 };
 
-const AUTO_ANALYSIS_OPTIONS: { value: DataAppAutoAnalysis; label: string }[] = [
-    { value: 'inherit', label: 'Use organization default' },
-    { value: 'on', label: 'On' },
-    { value: 'off', label: 'Off' },
-];
+const AUTO_ANALYSIS_OPTIONS: DataAppAutoAnalysis[] = ['inherit', 'on', 'off'];
 
 /**
  * Walkthrough action for manage:DataApp: duplicating the seeded app makes
@@ -248,6 +245,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     // keep it current afterwards. The error guard matters because
     // react-query keeps stale data when a refetch fails.
     const queryClient = useQueryClient();
+    const { t } = useTranslation('apps');
     const { showToastSuccess, showToastError } = useToaster();
     const [menuOpened, setMenuOpened] = useState(false);
     const checksThumbnail =
@@ -285,11 +283,13 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                 appUuid,
                 change: 'removed',
             });
-            showToastSuccess({ title: 'Thumbnail removed' });
+            showToastSuccess({ title: t('actionsMenu.thumbnailRemoved') });
         } catch (err) {
             showToastError({
-                title: 'Failed to remove thumbnail',
-                subtitle: isApiError(err) ? err.error.message : 'Unknown error',
+                title: t('actionsMenu.thumbnailRemoveFailed'),
+                subtitle: isApiError(err)
+                    ? err.error.message
+                    : t('common.unknownError'),
             });
         }
     }, [
@@ -300,6 +300,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
         queryClient,
         showToastSuccess,
         showToastError,
+        t,
     ]);
 
     const analysisAvailability = useDataAppAnalysisAvailability();
@@ -363,7 +364,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
         <ActionIcon
             variant={target?.variant ?? 'default'}
             size={target?.size ?? 'md'}
-            aria-label={target?.ariaLabel ?? 'App actions'}
+            aria-label={target?.ariaLabel ?? t('actionsMenu.ariaLabel')}
             // Anchor for scope walkthroughs (data-tour-via)
             data-tour-anchor="app-actions"
             data-tour-hint="Open the app's actions"
@@ -428,7 +429,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                             }
                             onClick={onRefresh}
                         >
-                            Refresh
+                            {t('actionsMenu.refresh')}
                         </Menu.Item>
                     )}
                     {canCreateScheduledDeliveries && (
@@ -438,7 +439,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                             }
                             onClick={() => setSchedulerModalOpen(true)}
                         >
-                            Schedule delivery
+                            {t('actionsMenu.scheduleDelivery')}
                         </Menu.Item>
                     )}
                     {canCreateScheduledDeliveries && hasGoogleDriveEnabled && (
@@ -458,7 +459,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                                 }
                                 onClick={() => setSyncModalOpen(true)}
                             >
-                                Google Sheets Sync
+                                {t('actionsMenu.googleSheetsSync')}
                             </Menu.Item>
                         </Can>
                     )}
@@ -485,7 +486,9 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                                 }
                             }}
                         >
-                            {isAppVerified ? 'Remove verification' : 'Verify'}
+                            {isAppVerified
+                                ? t('actionsMenu.removeVerification')
+                                : t('actionsMenu.verify')}
                         </Menu.Item>
                     )}
                     {canEditVerified && upgrade && (
@@ -496,14 +499,14 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                             rightSection={
                                 upgradeAvailable ? (
                                     <Badge size="xs" color="blue">
-                                        New
+                                        {t('actionsMenu.new')}
                                     </Badge>
                                 ) : undefined
                             }
                             disabled={upgrade.disabled}
                             onClick={() => setIsUpgradeModalOpen(true)}
                         >
-                            Upgrade app
+                            {t('actionsMenu.upgrade')}
                         </Menu.Item>
                     )}
                     {canEditVerified && (
@@ -513,7 +516,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                             }
                             onClick={() => setIsUpdateModalOpen(true)}
                         >
-                            Rename
+                            {t('actionsMenu.rename')}
                         </Menu.Item>
                     )}
                     {showAutoAnalysis && (
@@ -527,18 +530,16 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                                         />
                                     }
                                 >
-                                    Analyse on load
+                                    {t('actionsMenu.autoAnalysis.title')}
                                 </Menu.Sub.Item>
                             </Menu.Sub.Target>
                             <Menu.Sub.Dropdown>
                                 {AUTO_ANALYSIS_OPTIONS.map((option) => (
                                     <Menu.Item
-                                        key={option.value}
-                                        onClick={() =>
-                                            setAutoAnalysis(option.value)
-                                        }
+                                        key={option}
+                                        onClick={() => setAutoAnalysis(option)}
                                         rightSection={
-                                            autoAnalysis === option.value ? (
+                                            autoAnalysis === option ? (
                                                 <MantineIcon
                                                     icon={IconCheck}
                                                     size={14}
@@ -546,11 +547,19 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                                             ) : null
                                         }
                                     >
-                                        {option.value === 'inherit'
-                                            ? `Use organization default (${
-                                                  orgAutoAnalyses ? 'on' : 'off'
-                                              })`
-                                            : option.label}
+                                        {option === 'inherit'
+                                            ? orgAutoAnalyses
+                                                ? t(
+                                                      'actionsMenu.autoAnalysis.inheritOn',
+                                                  )
+                                                : t(
+                                                      'actionsMenu.autoAnalysis.inheritOff',
+                                                  )
+                                            : option === 'on'
+                                              ? t('actionsMenu.autoAnalysis.on')
+                                              : t(
+                                                    'actionsMenu.autoAnalysis.off',
+                                                )}
                                     </Menu.Item>
                                 ))}
                             </Menu.Sub.Dropdown>
@@ -565,7 +574,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                                 disabled={captureThumbnail.disabled}
                                 onClick={captureThumbnail.onCapture}
                             >
-                                Capture thumbnail
+                                {t('actionsMenu.captureThumbnail')}
                             </Menu.Item>
                             <Menu.Item
                                 leftSection={
@@ -574,7 +583,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                                 disabled={!hasThumbnail || isDeletingThumbnail}
                                 onClick={() => void handleRemoveThumbnail()}
                             >
-                                Remove thumbnail
+                                {t('actionsMenu.removeThumbnail')}
                             </Menu.Item>
                         </>
                     )}
@@ -587,7 +596,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                             onClick={handleDuplicate}
                             {...duplicateTourAction}
                         >
-                            Duplicate
+                            {t('actionsMenu.duplicate')}
                         </Menu.Item>
                     )}
                     {canEditVerified && (
@@ -609,8 +618,8 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                                 data-tour-hint="Choose Add to space"
                             >
                                 {appSpaceUuid
-                                    ? 'Move to space'
-                                    : 'Add to space'}
+                                    ? t('actionsMenu.moveToSpace')
+                                    : t('actionsMenu.addToSpace')}
                             </Menu.Item>
                             {isPreviewProject && hasReadyVersion && (
                                 <Menu.Item
@@ -622,7 +631,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                                     }
                                     onClick={() => setIsPromoteModalOpen(true)}
                                 >
-                                    Promote
+                                    {t('actionsMenu.promote')}
                                 </Menu.Item>
                             )}
                             {directAccessAvailability.isAvailable &&
@@ -638,7 +647,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                                             setIsDirectAccessModalOpen(true)
                                         }
                                     >
-                                        Share
+                                        {t('actionsMenu.share')}
                                     </Menu.Item>
                                 )}
                             <Menu.Divider />
@@ -649,7 +658,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                                 }
                                 onClick={() => setIsDeleteModalOpen(true)}
                             >
-                                Delete
+                                {t('actions.delete', { ns: 'common' })}
                             </Menu.Item>
                         </>
                     )}

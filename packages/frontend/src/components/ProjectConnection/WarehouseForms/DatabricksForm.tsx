@@ -16,6 +16,7 @@ import {
 } from '@mantine/core';
 import { IconCheck, IconPlus, IconTrash } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import {
     useDatabricksLoginPopup,
@@ -31,13 +32,14 @@ import { getWarehouseIcon } from '../ProjectConnectFlow/utils';
 import { useProjectFormContext } from '../useProjectFormContext';
 import DataTimezoneField from './DataTimezoneField';
 import { DatabricksDefaultValues } from './defaultValues';
-import { getSsoLabel, PERSONAL_ACCESS_TOKEN_LABEL } from './util';
+import { getSsoLabel } from './util';
 import styles from './WarehouseButtons.module.css';
 
 export const DatabricksSchemaInput: FC<{
     disabled: boolean;
     description?: ReactNode;
 }> = ({ disabled, description }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
 
     return (
@@ -45,20 +47,24 @@ export const DatabricksSchemaInput: FC<{
             // this supposed to be a `schema` but changing it will break for existing customers
             name="warehouse.database"
             {...form.getInputProps('warehouse.database')}
-            label="Schema"
+            label={t('warehouseFields.schema')}
             description={
                 description ?? (
                     <p>
-                        Check out for more details in{' '}
-                        <Anchor
-                            inherit
-                            target="_blank"
-                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#database-1"
-                            rel="noreferrer"
-                        >
-                            given documentation
-                        </Anchor>
-                        .
+                        <Trans
+                            t={t}
+                            i18nKey="warehouseFields.databricksDocsHint"
+                            components={{
+                                docsLink: (
+                                    <Anchor
+                                        inherit
+                                        target="_blank"
+                                        href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#database-1"
+                                        rel="noreferrer"
+                                    />
+                                ),
+                            }}
+                        />
                     </p>
                 )
             }
@@ -74,6 +80,7 @@ const DatabricksSSOInput: FC<{
     disabledTooltip?: string;
     openLoginPopup: () => void;
 }> = ({ isAuthenticated, disabled, disabledTooltip, openLoginPopup }) => {
+    const { t } = useTranslation('projectConnection');
     if (isAuthenticated) return null;
 
     const button = (
@@ -88,7 +95,7 @@ const DatabricksSSOInput: FC<{
             className={styles.signInButton}
             fullWidth
         >
-            Sign in with Databricks
+            {t('warehouseFields.signInDatabricks')}
         </Button>
     );
 
@@ -106,6 +113,7 @@ const DatabricksSSOInput: FC<{
 const DatabricksForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
@@ -118,7 +126,7 @@ const DatabricksForm: FC<{
             : undefined;
     const isServerHostNameProvided = !!serverHostNameForLogin?.trim();
     const databricksSsoDisabledTooltip = !isServerHostNameProvided
-        ? 'Enter server host name to enable Databricks sign-in'
+        ? t('warehouseFields.databricksSsoDisabled')
         : undefined;
 
     const {
@@ -187,11 +195,11 @@ const DatabricksForm: FC<{
             : []),
         {
             value: DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
-            label: PERSONAL_ACCESS_TOKEN_LABEL,
+            label: t('warehouseAuth.personalAccessTokenAuth'),
         },
         {
             value: DatabricksAuthenticationType.OAUTH_M2M,
-            label: 'OAuth Machine-to-Machine (Service Principal)',
+            label: t('warehouseFields.oauthM2m'),
         },
     ];
 
@@ -212,19 +220,23 @@ const DatabricksForm: FC<{
                 <TextInput
                     name="warehouse.serverHostName"
                     {...form.getInputProps('warehouse.serverHostName')}
-                    label="Server host name"
+                    label={t('warehouseFields.serverHostName')}
                     description={
                         <p>
-                            Check out for more details in{' '}
-                            <Anchor
-                                inherit
-                                target="_blank"
-                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#server-hostname"
-                                rel="noreferrer"
-                            >
-                                given documentation
-                            </Anchor>
-                            .
+                            <Trans
+                                t={t}
+                                i18nKey="warehouseFields.databricksDocsHint"
+                                components={{
+                                    docsLink: (
+                                        <Anchor
+                                            inherit
+                                            target="_blank"
+                                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#server-hostname"
+                                            rel="noreferrer"
+                                        />
+                                    ),
+                                }}
+                            />
                         </p>
                     }
                     required
@@ -235,19 +247,23 @@ const DatabricksForm: FC<{
                 <TextInput
                     name="warehouse.httpPath"
                     {...form.getInputProps('warehouse.httpPath')}
-                    label="HTTP Path"
+                    label={t('warehouseFields.httpPath')}
                     description={
                         <p>
-                            Check out for more details in{' '}
-                            <Anchor
-                                inherit
-                                target="_blank"
-                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#http-path"
-                                rel="noreferrer"
-                            >
-                                given documentation
-                            </Anchor>
-                            .
+                            <Trans
+                                t={t}
+                                i18nKey="warehouseFields.databricksDocsHint"
+                                components={{
+                                    docsLink: (
+                                        <Anchor
+                                            inherit
+                                            target="_blank"
+                                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#http-path"
+                                            rel="noreferrer"
+                                        />
+                                    ),
+                                }}
+                            />
                         </p>
                     }
                     required
@@ -261,12 +277,14 @@ const DatabricksForm: FC<{
                         name="warehouse.authenticationType"
                         {...form.getInputProps('warehouse.authenticationType')}
                         defaultValue={defaultAuthType}
-                        label="Authentication Type"
+                        label={t('warehouseFields.authenticationType')}
                         description={
                             isSsoEnabled &&
                             isLoadingAuth ? null : isAuthenticated ? (
                                 <Text mt="0" c="gray" fs="xs">
-                                    You are connected to Databricks,{' '}
+                                    {t('warehouseFields.connectedTo', {
+                                        warehouse: 'Databricks',
+                                    })}{' '}
                                     <Anchor
                                         inherit
                                         href="#"
@@ -274,11 +292,11 @@ const DatabricksForm: FC<{
                                             openLoginPopup();
                                         }}
                                     >
-                                        Click here to reauthenticate.
+                                        {t('warehouseFields.reauthenticate')}
                                     </Anchor>
                                 </Text>
                             ) : (
-                                'Choose how to authenticate with your data warehouse.'
+                                t('warehouseFields.authenticationDescription')
                             )
                         }
                         data={authOptions}
@@ -287,7 +305,9 @@ const DatabricksForm: FC<{
                         w={isAuthenticated ? '90%' : '100%'}
                     />
                     {isAuthenticated && (
-                        <Tooltip label="You are connected to Databricks">
+                        <Tooltip
+                            label={t('warehouseFields.connectedDatabricks')}
+                        >
                             <Group mt="40px">
                                 <MantineIcon icon={IconCheck} color="green" />
                             </Group>
@@ -300,19 +320,23 @@ const DatabricksForm: FC<{
                     <PasswordInput
                         name="warehouse.personalAccessToken"
                         {...form.getInputProps('warehouse.personalAccessToken')}
-                        label="Personal access token"
+                        label={t('warehouseFields.personalAccessToken')}
                         description={
                             <p>
-                                Check out for more details in{' '}
-                                <Anchor
-                                    inherit
-                                    target="_blank"
-                                    href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#personal-access-token"
-                                    rel="noreferrer"
-                                >
-                                    given documentation
-                                </Anchor>
-                                .
+                                <Trans
+                                    t={t}
+                                    i18nKey="warehouseFields.databricksDocsHint"
+                                    components={{
+                                        docsLink: (
+                                            <Anchor
+                                                inherit
+                                                target="_blank"
+                                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#personal-access-token"
+                                                rel="noreferrer"
+                                            />
+                                        ),
+                                    }}
+                                />
                             </p>
                         }
                         required={requireSecrets}
@@ -329,8 +353,10 @@ const DatabricksForm: FC<{
                         <PasswordInput
                             name="warehouse.oauthClientId"
                             {...form.getInputProps('warehouse.oauthClientId')}
-                            label="OAuth Client ID"
-                            description="Service principal client ID (UUID)."
+                            label={t('warehouseFields.oauthClientId')}
+                            description={t(
+                                'warehouseFields.oauthClientIdDescription',
+                            )}
                             required={requireSecrets}
                             placeholder={
                                 disabled || !requireSecrets
@@ -344,8 +370,10 @@ const DatabricksForm: FC<{
                             {...form.getInputProps(
                                 'warehouse.oauthClientSecret',
                             )}
-                            label="OAuth Client Secret"
-                            description="Service principal client secret."
+                            label={t('warehouseFields.oauthClientSecret')}
+                            description={t(
+                                'warehouseFields.oauthClientSecretDescription',
+                            )}
                             required={requireSecrets}
                             placeholder={
                                 disabled || !requireSecrets
@@ -371,8 +399,8 @@ const DatabricksForm: FC<{
                 <TextInput
                     name="warehouse.catalog"
                     {...form.getInputProps('warehouse.catalog')}
-                    label="Catalog name"
-                    description="This is the catalog name."
+                    label={t('warehouseFields.catalogName')}
+                    description={t('warehouseFields.catalogNameDescription')}
                     required
                     disabled={disabled}
                 />
@@ -380,7 +408,7 @@ const DatabricksForm: FC<{
                     <Stack mt="xs">
                         <BooleanSwitch
                             name="warehouse.requireUserCredentials"
-                            label="Require users to provide their own credentials"
+                            label={t('warehouseFields.requireUserCredentials')}
                             defaultChecked={
                                 DatabricksDefaultValues.requireUserCredentials
                             }
@@ -396,10 +424,11 @@ const DatabricksForm: FC<{
                         <StartOfWeekSelect disabled={disabled} />
                         <Stack gap="xs">
                             <Stack gap={0}>
-                                <Text fw={500}>Compute Resources</Text>
+                                <Text fw={500}>
+                                    {t('warehouseFields.computeResources')}
+                                </Text>
                                 <Text c="dimmed" size="xs">
-                                    Configure compute resources to use in your
-                                    models
+                                    {t('warehouseFields.computeDescription')}
                                 </Text>
                             </Stack>
                             <FormSection name="compute">
@@ -416,7 +445,9 @@ const DatabricksForm: FC<{
                                                 {...form.getInputProps(
                                                     `warehouse.compute.${index}.name`,
                                                 )}
-                                                placeholder="Compute Name"
+                                                placeholder={t(
+                                                    'warehouseFields.computeName',
+                                                )}
                                                 required
                                             />
                                             <TextInput
@@ -425,10 +456,16 @@ const DatabricksForm: FC<{
                                                 {...form.getInputProps(
                                                     `warehouse.compute.${index}.httpPath`,
                                                 )}
-                                                placeholder="HTTP Path"
+                                                placeholder={t(
+                                                    'warehouseFields.httpPath',
+                                                )}
                                                 required
                                             />
-                                            <Tooltip label="Remove compute">
+                                            <Tooltip
+                                                label={t(
+                                                    'warehouseFields.removeCompute',
+                                                )}
+                                            >
                                                 <ActionIcon
                                                     size="sm"
                                                     onClick={() =>
@@ -457,7 +494,7 @@ const DatabricksForm: FC<{
                                         }
                                         onClick={addCompute}
                                     >
-                                        Add compute
+                                        {t('warehouseFields.addCompute')}
                                     </Button>
                                 </Stack>
                             </FormSection>
@@ -465,7 +502,7 @@ const DatabricksForm: FC<{
                     </Stack>
                 </FormSection>
                 <FormCollapseButton isSectionOpen={isOpen} onClick={toggleOpen}>
-                    Advanced configuration options
+                    {t('dbtSettings.advancedOptions')}
                 </FormCollapseButton>
             </Stack>
         </>

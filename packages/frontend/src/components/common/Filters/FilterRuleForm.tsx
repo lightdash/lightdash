@@ -23,6 +23,7 @@ import {
 } from '@mantine/core';
 import { IconDots, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
@@ -54,6 +55,7 @@ const FilterRuleForm: FC<Props> = memo(
         onDelete,
         onConvertToGroup,
     }) => {
+        const { t } = useTranslation('filters');
         const { popoverProps, baseTable } = useFiltersContext();
         const getUiString = useUiStrings();
         const wrap = useMatches({ base: 'wrap', sm: 'nowrap' } as const);
@@ -139,7 +141,7 @@ const FilterRuleForm: FC<Props> = memo(
             isActiveFieldHidden ||
             (isRequired && availableFields.length <= 1);
         const fieldSelectDisabledReason = isActiveFieldHidden
-            ? 'Hidden fields cannot be changed.'
+            ? t('rule.hiddenFieldCannotChange')
             : isRequiredLabel;
 
         const isOperatorValid = useMemo(
@@ -293,10 +295,10 @@ const FilterRuleForm: FC<Props> = memo(
 
                             <Menu.Dropdown>
                                 <Menu.Item onClick={onConvertToGroup}>
-                                    Convert to group
+                                    {t('rule.convertToGroup')}
                                 </Menu.Item>
                                 <Menu.Item color="red" onClick={onDelete}>
-                                    Remove
+                                    {t('actions.remove', { ns: 'common' })}
                                 </Menu.Item>
                             </Menu.Dropdown>
                         </Menu>

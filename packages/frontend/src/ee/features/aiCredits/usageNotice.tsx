@@ -4,6 +4,7 @@ import {
     type AiCreditHoldReason,
 } from '@lightdash/common';
 import { type ReactNode } from 'react';
+import i18n from '../../../i18n/i18n';
 import { AiCreditsContactUs } from './AiCreditsContactUs';
 
 export type UsageNoticeSeverity = 'paused' | 'attention';
@@ -18,17 +19,17 @@ const getContactLead = (
     reason: AiCreditHoldReason,
     resumesOn: string | null,
 ): string => {
+    const tr = (key: string) =>
+        i18n.t(`aiCredits.contactLead.${key}`, { ns: 'eeMisc' });
     switch (reason) {
         case 'allowance_exhausted':
-            return resumesOn === null
-                ? 'To keep using AI,'
-                : 'To keep using AI before then,';
+            return resumesOn === null ? tr('keepUsing') : tr('keepUsingBefore');
         case 'admin_cap_reached':
-            return 'To raise the cap,';
+            return tr('raiseCap');
         case 'manual_pause':
-            return 'To resume AI,';
+            return tr('resume');
         case 'trial_ended':
-            return 'To keep using AI,';
+            return tr('keepUsing');
         default:
             return assertUnreachable(
                 reason,
@@ -45,8 +46,11 @@ export const getPausedNotice = (
     severity: 'paused',
     title:
         resumesOn === null
-            ? 'AI features that use credits are paused'
-            : `AI features that use credits are paused until ${resumesOn}`,
+            ? i18n.t('aiCredits.notice.paused', { ns: 'eeMisc' })
+            : i18n.t('aiCredits.notice.pausedUntil', {
+                  ns: 'eeMisc',
+                  date: resumesOn,
+              }),
     body: (
         <>
             {/* The bar already shows the allowance is used up; other reasons need saying. */}
@@ -72,14 +76,22 @@ export const getAllowanceUsedNotice = ({
     endsOrResets: string;
 }): UsageNotice => ({
     severity: 'attention',
-    title: "This period's allowance is used up",
+    title: i18n.t('aiCredits.notice.allowanceUsed', { ns: 'eeMisc' }),
     body: (
         <>
-            {keepsWorking && 'AI keeps working. '}
+            {keepsWorking &&
+                i18n.t('aiCredits.notice.keepsWorking', { ns: 'eeMisc' })}
             {overageCredits !== null &&
-                `You're ${overageCredits} credits past the allowance. `}
+                i18n.t('aiCredits.notice.overage', {
+                    ns: 'eeMisc',
+                    credits: overageCredits,
+                })}
             {endsOrResets}{' '}
-            <AiCreditsContactUs lead="For questions about usage past the allowance," />
+            <AiCreditsContactUs
+                lead={i18n.t('aiCredits.contactLead.overageQuestions', {
+                    ns: 'eeMisc',
+                })}
+            />
         </>
     ),
 });

@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { memo, useCallback, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 import AgentsFilter from './AgentsFilter';
@@ -69,6 +70,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
         onClearFilters,
         ...props
     }) => {
+        const { t } = useTranslation('aiCopilotAdmin');
         const theme = useMantineTheme();
         const [searchInputKey, setSearchInputKey] = useState(0);
 
@@ -89,7 +91,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                             key={searchInputKey}
                             search={searchInputKey === 0 ? search : undefined}
                             setSearch={setSearch}
-                            placeholder="Search threads by title"
+                            placeholder={t('topToolbar.searchPlaceholder')}
                             debounceMs={300}
                         />
 
@@ -127,7 +129,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                         <Divider orientation="vertical" w={1} h={20} />
                         <Switch
                             size="xs"
-                            label="Hide preview projects"
+                            label={t('topToolbar.hidePreviewProjects')}
                             checked={hidePreviewProjects}
                             onChange={(event) =>
                                 setHidePreviewProjects(
@@ -150,7 +152,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                                     }
                                     onClick={handleClearFilters}
                                 >
-                                    Clear all filters
+                                    {t('topToolbar.clearAllFilters')}
                                 </Button>
                             </>
                         )}
@@ -171,10 +173,15 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                         >
                             <Text fz="sm" fw={500}>
                                 {isFetching
-                                    ? 'Loading...'
+                                    ? t('topToolbar.loading')
                                     : hasNextPage
-                                      ? `${currentResultsCount} of ${totalResults} threads`
-                                      : `${totalResults} threads`}
+                                      ? t('topToolbar.countOf', {
+                                            current: currentResultsCount,
+                                            total: totalResults,
+                                        })
+                                      : t('topToolbar.count', {
+                                            total: totalResults,
+                                        })}
                             </Text>
                         </Box>
                     </Group>

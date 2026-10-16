@@ -7,6 +7,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 import { GuidedTour } from '../../../../../../components/common/GuidedTour';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
@@ -22,11 +23,13 @@ import AiAgentAdminReviewItemsTable, {
     type AiAgentAdminReviewItemPreviewTarget,
 } from '../AiAgentAdminReviewItemsTable';
 import { IssueDetailModal } from '../IssueDetailModal';
-import { REVIEWS_TOUR_STEPS } from '../onboarding';
+import { getReviewsTourSteps } from '../onboarding';
 import { ReviewKanbanBoard } from '../ReviewKanbanBoard';
 import { AiFeaturesDisabledAlert } from './AiFeaturesDisabledAlert';
 
 export const AiReviewsSettingsPage = () => {
+    const { t } = useTranslation('aiCopilotAdmin');
+    const tourSteps = useMemo(() => getReviewsTourSteps(t), [t]);
     const { data: settings } = useAiOrganizationSettings();
     const dispatch = useAiAgentStoreDispatch();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -137,15 +140,8 @@ export const AiReviewsSettingsPage = () => {
         <Stack mb="lg" gap="md">
             <div data-tour="reviews-intro">
                 <SettingsPage
-                    title="Issues"
-                    description={
-                        <>
-                            An actionable queue of data issues from AI findings
-                            and human asks. Semantic layer fixes open a pull
-                            request; project context fixes add guidance your
-                            agents read before answering.
-                        </>
-                    }
+                    title={t('settings.issues.title')}
+                    description={<>{t('settings.issues.description')}</>}
                     actions={
                         <SettingsPageActions>
                             <Button
@@ -153,7 +149,7 @@ export const AiReviewsSettingsPage = () => {
                                 leftSection={<MantineIcon icon={IconPlus} />}
                                 onClick={() => dispatch(openCreateIssue(null))}
                             >
-                                New issue
+                                {t('settings.issues.newIssue')}
                             </Button>
                             <SegmentedControl
                                 size="xs"
@@ -169,7 +165,7 @@ export const AiReviewsSettingsPage = () => {
                                                 <MantineIcon
                                                     icon={IconLayoutKanban}
                                                 />
-                                                Board
+                                                {t('settings.issues.board')}
                                             </Group>
                                         ),
                                     },
@@ -178,7 +174,7 @@ export const AiReviewsSettingsPage = () => {
                                         label: (
                                             <Group gap={6} wrap="nowrap">
                                                 <MantineIcon icon={IconTable} />
-                                                Table
+                                                {t('settings.issues.table')}
                                             </Group>
                                         ),
                                     },
@@ -191,7 +187,7 @@ export const AiReviewsSettingsPage = () => {
                                 leftSection={<MantineIcon icon={IconRoute} />}
                                 onClick={startTour}
                             >
-                                Take the tour
+                                {t('settings.issues.takeTour')}
                             </Button>
                         </SettingsPageActions>
                     }
@@ -224,7 +220,7 @@ export const AiReviewsSettingsPage = () => {
             </div>
 
             <GuidedTour
-                steps={REVIEWS_TOUR_STEPS}
+                steps={tourSteps}
                 opened={isTourOpen}
                 onClose={closeTour}
             />

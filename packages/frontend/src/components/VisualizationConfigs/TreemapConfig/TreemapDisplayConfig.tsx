@@ -1,6 +1,7 @@
 import { Group, Stack, Tooltip } from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 import { NumberInput } from '../../common/NumberInput';
 import { isTreemapVisualizationConfig } from '../../LightdashVisualization/types';
@@ -8,6 +9,7 @@ import { useVisualizationContext } from '../../LightdashVisualization/useVisuali
 import { Config } from '../common/Config';
 
 export const Display: React.FC = () => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig } = useVisualizationContext();
 
     if (!isTreemapVisualizationConfig(visualizationConfig)) return null;
@@ -20,10 +22,12 @@ export const Display: React.FC = () => {
             <Config>
                 <Stack gap="xs">
                     <Group gap="xs">
-                        <Config.Heading>Minimum section size</Config.Heading>
+                        <Config.Heading>
+                            {t('treemap.display.minimumSectionSize')}
+                        </Config.Heading>
                         <Tooltip
                             maw={350}
-                            label="Any sections smaller than this will not be displayed. You can zoom in to see smaller sections."
+                            label={t('treemap.display.minimumSectionSizeHelp')}
                         >
                             <MantineIcon
                                 icon={IconHelpCircle}
@@ -45,10 +49,12 @@ export const Display: React.FC = () => {
                         />
                     </Group>
                     <Group gap="xs">
-                        <Config.Heading>Max leaf depth</Config.Heading>
+                        <Config.Heading>
+                            {t('treemap.display.maxLeafDepth')}
+                        </Config.Heading>
                         <Tooltip
                             maw={350}
-                            label="The maximum depth of the treemap. If set, deeper levels can be viewed by clicking on nodes."
+                            label={t('treemap.display.maxLeafDepthHelp')}
                         >
                             <MantineIcon
                                 icon={IconHelpCircle}
@@ -65,7 +71,7 @@ export const Display: React.FC = () => {
                                     setLeafDepth(value);
                             }}
                             min={1}
-                            placeholder="No limit"
+                            placeholder={t('treemap.display.noLimit')}
                         />
                     </Group>
                 </Stack>

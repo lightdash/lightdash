@@ -2,6 +2,7 @@ import { type DashboardCustomMetricAffectedChart } from '@lightdash/common';
 import { Button, Group, List, Stack, Text } from '@mantine/core';
 import { IconChartBar, IconShare2 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 
@@ -27,82 +28,92 @@ const RegistryImpactPreviewModal: FC<Props> = ({
     isSaving,
     onBack,
     onConfirm,
-}) => (
-    <MantineModal
-        opened={opened}
-        onClose={onBack}
-        title={
-            variant === 'delete'
-                ? 'Remove metric from this dashboard'
-                : 'Update metric in this dashboard'
-        }
-        icon={IconShare2}
-        cancelLabel={false}
-        actions={
-            <Group gap="xs">
-                <Button variant="default" onClick={onBack} disabled={isSaving}>
-                    Back
-                </Button>
-                <Button
-                    color={variant === 'delete' ? 'red' : undefined}
-                    onClick={onConfirm}
-                    loading={isSaving}
-                >
-                    {variant === 'delete'
-                        ? 'Remove metric'
-                        : affectedCharts.length > 0
-                          ? `Update metric and ${affectedCharts.length} chart${
-                                affectedCharts.length === 1 ? '' : 's'
-                            }`
-                          : 'Update metric'}
-                </Button>
-            </Group>
-        }
-    >
-        <Stack gap="sm">
-            <Text size="sm">
-                <Text span fw={600}>
-                    {metricLabel}
-                </Text>{' '}
-                is shared with every chart in this dashboard.
-            </Text>
-            {affectedCharts.length > 0 ? (
-                <>
-                    <Text size="sm">
-                        {variant === 'delete'
-                            ? 'These charts use it and keep their own copy:'
-                            : 'These charts use it and will be updated:'}
-                    </Text>
-                    <List spacing="xs" size="sm" center>
-                        {affectedCharts.map((chart) => (
-                            <List.Item
-                                key={chart.uuid}
-                                icon={
-                                    <MantineIcon
-                                        icon={IconChartBar}
-                                        color="dimmed"
-                                    />
-                                }
-                            >
-                                {chart.name}
-                            </List.Item>
-                        ))}
-                    </List>
-                </>
-            ) : (
-                <Text size="sm" c="dimmed">
-                    {variant === 'delete'
-                        ? 'No saved charts use it — only the shared definition is removed.'
-                        : 'No saved charts use it yet — only the shared definition changes.'}
+}) => {
+    const { t } = useTranslation('explorer');
+    const isDelete = variant === 'delete';
+    return (
+        <MantineModal
+            opened={opened}
+            onClose={onBack}
+            title={
+                isDelete
+                    ? t('registryImpact.removeTitle')
+                    : t('registryImpact.updateTitle')
+            }
+            icon={IconShare2}
+            cancelLabel={false}
+            actions={
+                <Group gap="xs">
+                    <Button
+                        variant="default"
+                        onClick={onBack}
+                        disabled={isSaving}
+                    >
+                        {t('actions.back', { ns: 'common' })}
+                    </Button>
+                    <Button
+                        color={isDelete ? 'red' : undefined}
+                        onClick={onConfirm}
+                        loading={isSaving}
+                    >
+                        {isDelete
+                            ? t('registryImpact.removeMetric')
+                            : affectedCharts.length > 0
+                              ? t('registryImpact.updateMetricAndCharts', {
+                                    count: affectedCharts.length,
+                                })
+                              : t('registryImpact.updateMetric')}
+                    </Button>
+                </Group>
+            }
+        >
+            <Stack gap="sm">
+                <Text size="sm">
+                    <Trans
+                        t={t}
+                        i18nKey="registryImpact.sharedWithDashboard"
+                        values={{ metricLabel }}
+                        components={{ metric: <Text span fw={600} /> }}
+                    />
                 </Text>
-            )}
-            <Text size="xs" c="dimmed">
-                {variant === 'delete'
-                    ? 'It will no longer be offered when building charts in this dashboard.'
-                    : 'Charts outside this dashboard are not affected.'}
-            </Text>
-        </Stack>
-    </MantineModal>
-);
+                {affectedCharts.length > 0 ? (
+                    <>
+                        <Text size="sm">
+                            {isDelete
+                                ? t('registryImpact.chartsKeepCopy')
+                                : t('registryImpact.chartsWillUpdate')}
+                        </Text>
+                        <List spacing="xs" size="sm" center>
+                            {affectedCharts.map((chart) => (
+                                <List.Item
+                                    key={chart.uuid}
+                                    icon={
+                                        <MantineIcon
+                                            icon={IconChartBar}
+                                            color="dimmed"
+                                        />
+                                    }
+                                >
+                                    {chart.name}
+                                </List.Item>
+                            ))}
+                        </List>
+                    </>
+                ) : (
+                    <Text size="sm" c="dimmed">
+                        {isDelete
+                            ? t('registryImpact.noChartsRemove')
+                            : t('registryImpact.noChartsUpdate')}
+                    </Text>
+                )}
+                <Text size="xs" c="dimmed">
+                    {isDelete
+                        ? t('registryImpact.noLongerOffered')
+                        : t('registryImpact.outsideUnaffected')}
+                </Text>
+            </Stack>
+        </MantineModal>
+    );
+};
 
 export default RegistryImpactPreviewModal;

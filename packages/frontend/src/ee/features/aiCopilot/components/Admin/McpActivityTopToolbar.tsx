@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { type useMcpActivityFilters } from '../../hooks/useMcpActivityFilters';
 import AgentsFilter from './AgentsFilter';
@@ -49,6 +50,7 @@ export const McpActivityTopToolbar: FC<McpActivityTopToolbarProps> = memo(
         onClearFilters,
         ...props
     }) => {
+        const { t } = useTranslation('aiCopilotAdmin');
         const theme = useMantineTheme();
 
         return (
@@ -79,9 +81,18 @@ export const McpActivityTopToolbar: FC<McpActivityTopToolbarProps> = memo(
                                 )
                             }
                             data={[
-                                { label: 'All', value: 'all' },
-                                { label: 'Success', value: 'success' },
-                                { label: 'Errors', value: 'error' },
+                                {
+                                    label: t('mcp.toolbar.all'),
+                                    value: 'all',
+                                },
+                                {
+                                    label: t('mcp.toolbar.success'),
+                                    value: 'success',
+                                },
+                                {
+                                    label: t('mcp.toolbar.errors'),
+                                    value: 'error',
+                                },
                             ]}
                         />
 
@@ -99,7 +110,7 @@ export const McpActivityTopToolbar: FC<McpActivityTopToolbarProps> = memo(
                                     }
                                     onClick={onClearFilters}
                                 >
-                                    Clear all filters
+                                    {t('mcp.toolbar.clearAllFilters')}
                                 </Button>
                             </>
                         )}
@@ -119,10 +130,15 @@ export const McpActivityTopToolbar: FC<McpActivityTopToolbarProps> = memo(
                         >
                             <Text fz="sm" fw={500}>
                                 {isFetching
-                                    ? 'Loading...'
+                                    ? t('mcp.toolbar.loading')
                                     : hasNextPage
-                                      ? `${currentResultsCount} of ${totalResults} tool calls`
-                                      : `${totalResults} tool calls`}
+                                      ? t('mcp.toolbar.countOf', {
+                                            current: currentResultsCount,
+                                            total: totalResults,
+                                        })
+                                      : t('mcp.toolbar.count', {
+                                            total: totalResults,
+                                        })}
                             </Text>
                         </Box>
                     </Group>

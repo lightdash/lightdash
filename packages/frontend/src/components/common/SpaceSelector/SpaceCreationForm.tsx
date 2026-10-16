@@ -1,6 +1,7 @@
 import { Box, Button, Stack, TextInput } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../MantineIcon';
 import InheritanceToggleCards from '../ShareSpaceModal/InheritanceToggleCards';
 import { InheritanceType } from '../ShareSpaceModal/ShareSpaceModalUtils';
@@ -24,6 +25,7 @@ const SpaceCreationForm: FC<SpaceCreationFormProps> = ({
     inheritanceValue = InheritanceType.OWN_ONLY,
     onInheritanceChange = () => {},
 }) => {
+    const { t } = useTranslation('commonUi');
     const isNestedSpace = !!parentSpaceName;
 
     useEffect(() => {
@@ -42,20 +44,22 @@ const SpaceCreationForm: FC<SpaceCreationFormProps> = ({
                     disabled={isLoading}
                     size="xs"
                 >
-                    Back to Space selection
+                    {t('spaceSelector.backToSelection')}
                 </Button>
             </Box>
 
             <TextInput
-                label="Name"
-                placeholder="Space name"
+                label={t('spaceSelector.nameLabel')}
+                placeholder={t('spaceSelector.namePlaceholder')}
                 required
                 disabled={isLoading}
                 value={spaceName}
                 onChange={(e) => onSpaceNameChange(e.target.value)}
                 description={
                     isNestedSpace
-                        ? `New space in "${parentSpaceName}". This space will have the same access. You can change this later.`
+                        ? t('spaceSelector.nestedSpaceDescription', {
+                              parentSpaceName,
+                          })
                         : undefined
                 }
             />

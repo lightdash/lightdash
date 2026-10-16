@@ -1,5 +1,6 @@
 import { type ApiError } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -11,6 +12,7 @@ const leaveOrganizationQuery = async () =>
     });
 
 export const useLeaveOrganizationMutation = () => {
+    const { t } = useTranslation('app');
     const { showToastApiError } = useToaster();
     return useMutation<null, ApiError>(leaveOrganizationQuery, {
         mutationKey: ['leave_organization'],
@@ -19,7 +21,9 @@ export const useLeaveOrganizationMutation = () => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to leave organization',
+                title: t(
+                    'useLeaveOrganizationMutation.failedToLeaveOrganization',
+                ),
                 apiError: error,
             });
         },

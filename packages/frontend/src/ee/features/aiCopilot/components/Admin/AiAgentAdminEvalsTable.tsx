@@ -25,6 +25,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useCallback, useDeferredValue, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ContentTable,
     useContentTable,
@@ -52,6 +53,7 @@ const AiAgentAdminEvalsTable = ({
     selectedEval,
     onEvalSelect,
 }: AiAgentAdminEvalsTableProps) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const theme = useMantineTheme();
 
     const {
@@ -146,7 +148,7 @@ const AiAgentAdminEvalsTable = ({
     const columns: ContentTableColumnDef<AiAgentAdminEvalSummary>[] = [
         {
             accessorKey: 'title',
-            header: 'Eval',
+            header: t('evalsTable.columns.eval'),
             enableSorting: false,
             enableEditing: false,
             size: 240,
@@ -186,7 +188,7 @@ const AiAgentAdminEvalsTable = ({
         },
         {
             accessorKey: 'agent',
-            header: 'Agent',
+            header: t('evalsTable.columns.agent'),
             enableSorting: false,
             enableEditing: false,
             size: 120,
@@ -205,7 +207,7 @@ const AiAgentAdminEvalsTable = ({
         },
         {
             accessorKey: 'project',
-            header: 'Project',
+            header: t('evalsTable.columns.project'),
             enableSorting: false,
             enableEditing: false,
             size: 110,
@@ -223,7 +225,7 @@ const AiAgentAdminEvalsTable = ({
         },
         {
             accessorKey: 'promptCount',
-            header: 'Prompts',
+            header: t('evalsTable.columns.prompts'),
             enableSorting: false,
             enableEditing: false,
             size: 80,
@@ -239,7 +241,7 @@ const AiAgentAdminEvalsTable = ({
         },
         {
             accessorKey: 'latestRun',
-            header: 'Latest run',
+            header: t('evalsTable.columns.latestRun'),
             enableSorting: false,
             enableEditing: false,
             size: 180,
@@ -254,7 +256,7 @@ const AiAgentAdminEvalsTable = ({
                 if (!latestRun) {
                     return (
                         <Text fz="xs" c="ldGray.5" fw={500}>
-                            Never run
+                            {t('evalsTable.neverRun')}
                         </Text>
                     );
                 }
@@ -272,7 +274,7 @@ const AiAgentAdminEvalsTable = ({
         },
         {
             accessorKey: 'createdAt',
-            header: 'Created',
+            header: t('evalsTable.columns.created'),
             enableSorting: true,
             enableEditing: false,
             size: 100,
@@ -305,10 +307,9 @@ const AiAgentAdminEvalsTable = ({
         onSortingChange: handleSortingChange,
         enableTopToolbar: true,
         emptyState: {
-            entityName: 'evals',
-            title: 'No evals yet',
-            description:
-                "Create one from an agent's Evals tab to benchmark its answers.",
+            entityName: t('evalsTable.entityName'),
+            title: t('evalsTable.emptyTitle'),
+            description: t('evalsTable.emptyDescription'),
             search,
             hasActiveFilters,
             onClearFilters: resetFilters,
@@ -360,7 +361,7 @@ const AiAgentAdminEvalsTable = ({
                         <SearchFilter
                             search={search}
                             setSearch={setSearch}
-                            placeholder="Search evals by title"
+                            placeholder={t('evalsTable.searchPlaceholder')}
                         />
                         <Divider orientation="vertical" w={1} h={20} />
                         <ProjectsFilter
@@ -378,7 +379,7 @@ const AiAgentAdminEvalsTable = ({
                         <Divider orientation="vertical" w={1} h={20} />
                         <Switch
                             size="xs"
-                            label="Hide preview projects"
+                            label={t('evalsTable.hidePreviewProjects')}
                             checked={hidePreviewProjects}
                             onChange={(event) =>
                                 setHidePreviewProjects(
@@ -400,7 +401,7 @@ const AiAgentAdminEvalsTable = ({
                                     }
                                     onClick={resetFilters}
                                 >
-                                    Clear all filters
+                                    {t('evalsTable.clearAllFilters')}
                                 </Button>
                             </>
                         )}
@@ -419,10 +420,15 @@ const AiAgentAdminEvalsTable = ({
                     >
                         <Text fz="sm" fw={500}>
                             {isFetching
-                                ? 'Loading...'
+                                ? t('evalsTable.loading')
                                 : hasNextPage
-                                  ? `${flatData.length} of ${totalResults} evals`
-                                  : `${totalResults} evals`}
+                                  ? t('evalsTable.countOf', {
+                                        current: flatData.length,
+                                        total: totalResults,
+                                    })
+                                  : t('evalsTable.count', {
+                                        total: totalResults,
+                                    })}
                         </Text>
                     </Box>
                 </Group>
@@ -441,19 +447,24 @@ const AiAgentAdminEvalsTable = ({
             >
                 {isFetching ? (
                     <Text c="ldGray.8" fz="xs">
-                        Loading more...
+                        {t('evalsTable.loadingMore')}
                     </Text>
                 ) : (
                     <Group gap="two">
                         <Text fz="xs" c="ldGray.8">
                             {hasNextPage
-                                ? 'Scroll for more results'
-                                : 'All results loaded'}
+                                ? t('evalsTable.scrollForMore')
+                                : t('evalsTable.allLoaded')}
                         </Text>
                         <Text fz="xs" fw={400} c="dimmed">
                             {hasNextPage
-                                ? `(${flatData.length} of ${totalResults} loaded)`
-                                : `(${flatData.length})`}
+                                ? t('evalsTable.loadedOf', {
+                                      loaded: flatData.length,
+                                      total: totalResults,
+                                  })
+                                : t('evalsTable.loadedCount', {
+                                      count: flatData.length,
+                                  })}
                         </Text>
                     </Group>
                 )}

@@ -11,6 +11,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { EmptyState } from '../common/EmptyState';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -104,6 +105,7 @@ const LightdashVisualization = memo(
             },
             ref,
         ) => {
+            const { t } = useTranslation('visualization');
             const { visualizationConfig, minimal, apiErrorDetail } =
                 useVisualizationContext();
 
@@ -134,7 +136,7 @@ const LightdashVisualization = memo(
                             h="100%"
                             w="100%"
                             justify="center"
-                            title="Unable to load visualization"
+                            title={t('lightdashVisualization.unableToLoad')}
                             description={
                                 <Fragment>
                                     <Text className={classes.errorMessage}>
@@ -152,8 +154,9 @@ const LightdashVisualization = memo(
                                                 fz="xs"
                                                 fw="bold"
                                             >
-                                                Learn how to resolve this in our
-                                                documentation →
+                                                {t(
+                                                    'lightdashVisualization.learnHowToResolve',
+                                                )}
                                             </Anchor>
                                         </Fragment>
                                     )}
@@ -249,7 +252,9 @@ const LightdashVisualization = memo(
                         <Suspense
                             fallback={
                                 <SuboptimalState
-                                    title="Loading map..."
+                                    title={t(
+                                        'lightdashVisualization.loadingMap',
+                                    )}
                                     loading
                                 />
                             }

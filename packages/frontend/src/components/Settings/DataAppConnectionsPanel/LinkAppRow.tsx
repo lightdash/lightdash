@@ -5,6 +5,7 @@ import {
 import { Box, Loader, Select, ThemeIcon } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useProjectAppsByKind,
     type ProjectAppKind,
@@ -26,6 +27,7 @@ export const LinkAppRow: FC<Props> = ({
     linkedAppUuids,
     kind,
 }) => {
+    const { t } = useTranslation('settings');
     const {
         data: projectApps,
         isLoading: isLoadingApps,
@@ -57,18 +59,19 @@ export const LinkAppRow: FC<Props> = ({
         });
     };
 
-    const resourceName = kind === 'data_app' ? 'data app' : 'chart type';
-    const resourceNamePlural =
-        kind === 'data_app' ? 'data apps' : 'chart types';
+    const keyPrefix =
+        kind === 'data_app'
+            ? 'dataAppConnections.linkApp.dataApp'
+            : 'dataAppConnections.linkApp.chartType';
     const placeholder = isLoadingApps
-        ? `Loading ${resourceNamePlural}...`
+        ? t(`${keyPrefix}.loading`)
         : isAppsError
-          ? `Could not load ${resourceNamePlural}`
+          ? t(`${keyPrefix}.loadError`)
           : projectApps?.length === 0
-            ? `No ${resourceNamePlural} available`
+            ? t(`${keyPrefix}.noneAvailable`)
             : availableApps.length === 0
-              ? `All ${resourceNamePlural} are linked`
-              : `Link a ${resourceName}...`;
+              ? t(`${keyPrefix}.allLinked`)
+              : t(`${keyPrefix}.linkPlaceholder`);
 
     return (
         <Box className={classes.resourceRow}>
@@ -76,14 +79,14 @@ export const LinkAppRow: FC<Props> = ({
                 <MantineIcon icon={IconPlus} />
             </ThemeIcon>
             <Select
-                aria-label={`Link a ${resourceName}`}
+                aria-label={t(`${keyPrefix}.linkAria`)}
                 searchable
                 variant="unstyled"
                 flex={1}
                 placeholder={
-                    isLinking ? `Linking ${resourceName}...` : placeholder
+                    isLinking ? t(`${keyPrefix}.linking`) : placeholder
                 }
-                nothingFoundMessage={`No matching ${resourceNamePlural}`}
+                nothingFoundMessage={t(`${keyPrefix}.nothingFound`)}
                 data={availableApps.map((app) => ({
                     value: app.appUuid,
                     label: `${getAppDisplayName(app.name, app.appUuid)} · ${app.slug}`,

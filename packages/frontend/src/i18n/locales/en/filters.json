@@ -1,0 +1,50 @@
+{
+    "form": {
+        "addFilter": "Add filter",
+        "clearAllFilters": "Clear all filters",
+        "clearAll": "Clear all",
+        "unknownField": "Tried to reference field with unknown id: <code>{{fieldId}}</code>",
+        "invalidOperator": "Filter on <code>{{fieldLabel}}</code> uses an invalid operator: <code>{{operator}}</code>"
+    },
+    "group": {
+        "addGroupRule": "Add group rule",
+        "operatorAll": "All",
+        "operatorAny": "Any",
+        "conditionsMatch": {
+            "any": "of the following conditions match:",
+            "dimension": "of the following dimension conditions match:",
+            "metric": "of the following metric conditions match:",
+            "tableCalculation": "of the following table calculation conditions match:"
+        }
+    },
+    "simplifiedGroup": {
+        "andOnlyTooltip": "You can only use the 'and' operator when combining metrics & dimensions",
+        "allConditionsMatch": "All of the following conditions match:"
+    },
+    "rule": {
+        "hiddenFieldCannotChange": "Hidden fields cannot be changed.",
+        "convertToGroup": "Convert to group"
+    },
+    "inputs": {
+        "invalidDate": "Invalid date",
+        "removeValue": "Remove {{value}}",
+        "localTime": "Local time ({{timezone}}): {{date}}",
+        "utcTime": "UTC time: {{date}}",
+        "valuesSelected_one": "{{formattedCount}} value selected",
+        "valuesSelected_other": "{{formattedCount}} values selected",
+        "moreValues_one": "+{{formattedCount}} more",
+        "moreValues_other": "+{{formattedCount}} more",
+        "manageMoreValues_one": "Manage {{formattedCount}} more filter value",
+        "manageMoreValues_other": "Manage {{formattedCount}} more filter values",
+        "editFilterValues": "Edit filter values",
+        "typeValueAndPressEnter": "Type a value and press Enter",
+        "weekCommencing": "week commencing"
+    },
+    "manageValues": {
+        "selectValue": "Select {{value}}"
+    },
+    "timeZonePicker": {
+        "placeholder": "Select timezone",
+        "localOption": "{{label}} - Local"
+    }
+}

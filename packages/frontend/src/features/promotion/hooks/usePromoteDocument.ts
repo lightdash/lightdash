@@ -6,10 +6,12 @@ import {
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
 export const usePromoteDocumentDiffMutation = (projectUuid: string) => {
+    const { t } = useTranslation('app');
     const { showToastError } = useToaster();
     return useMutation<PromotionChanges, ApiError, string>(
         (documentUuid) =>
@@ -22,7 +24,7 @@ export const usePromoteDocumentDiffMutation = (projectUuid: string) => {
             mutationKey: ['promote_document_diff'],
             onError: (error) => {
                 showToastError({
-                    title: 'Failed to get diff from document',
+                    title: t('usePromoteDocument.failedToGetDiffFromDocument'),
                     subtitle: error.error.message,
                 });
             },
@@ -31,6 +33,7 @@ export const usePromoteDocumentDiffMutation = (projectUuid: string) => {
 };
 
 export const usePromoteDocumentMutation = (projectUuid: string) => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<Document, ApiError, string>(
         (documentUuid) =>
@@ -43,9 +46,9 @@ export const usePromoteDocumentMutation = (projectUuid: string) => {
             mutationKey: ['promote_document'],
             onSuccess: (document) => {
                 showToastSuccess({
-                    title: 'Success! Document was promoted.',
+                    title: t('usePromoteDocument.successDocumentWasPromoted'),
                     action: {
-                        children: 'Open document',
+                        children: t('usePromoteDocument.openDocument'),
                         icon: IconArrowRight,
                         onClick: () => {
                             window.open(
@@ -62,7 +65,7 @@ export const usePromoteDocumentMutation = (projectUuid: string) => {
             },
             onError: (error) => {
                 showToastError({
-                    title: 'Failed to promote document',
+                    title: t('usePromoteDocument.failedToPromoteDocument'),
                     subtitle: error.error.message,
                 });
             },

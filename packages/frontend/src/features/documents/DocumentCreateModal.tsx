@@ -2,6 +2,7 @@ import { getDocumentUrl, ResourceViewItemType } from '@lightdash/common';
 import { Button, Fieldset, Stack, Textarea, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconFileText } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import Callout from '../../components/common/Callout';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
@@ -26,6 +27,7 @@ const DocumentCreateModal = ({
     defaultSpaceUuid,
     onClose,
 }: Props) => {
+    const { t } = useTranslation('documents');
     const spaces = useDocumentCreationSpaces(projectUuid);
     const create = useCreateDocument(projectUuid);
     const navigate = useNavigate();
@@ -33,7 +35,7 @@ const DocumentCreateModal = ({
     const form = useForm({
         initialValues: { name: '', description: '', spaceUuid: '' },
         validate: {
-            name: (value) => (value.trim() ? null : 'Enter a document name'),
+            name: (value) => (value.trim() ? null : t('form.nameRequired')),
         },
     });
     // Resolve the preselection once spaces load, without clobbering a choice
@@ -84,7 +86,7 @@ const DocumentCreateModal = ({
                     onClose();
                 }
             }}
-            title="Create document"
+            title={t('create.title')}
             icon={IconFileText}
             cancelDisabled={create.isLoading}
             actions={
@@ -97,15 +99,15 @@ const DocumentCreateModal = ({
                     data-tour-anchor="document-create-submit"
                     data-tour-hint="Click Create"
                 >
-                    Create
+                    {t('actions.create', { ns: 'common' })}
                 </Button>
             }
         >
             <form id={FORM_ID} onSubmit={handleSubmit}>
                 <Stack>
                     <TextInput
-                        label="Document name"
-                        placeholder="eg. Weekly revenue review"
+                        label={t('form.nameLabel')}
+                        placeholder={t('create.namePlaceholder')}
                         required
                         data-autofocus
                         disabled={create.isLoading}
@@ -117,26 +119,28 @@ const DocumentCreateModal = ({
                         {...form.getInputProps('name')}
                     />
                     <Textarea
-                        label="Description"
-                        placeholder="A few words to give your team some context"
+                        label={t('form.descriptionLabel')}
+                        placeholder={t('create.descriptionPlaceholder')}
                         autosize
                         maxRows={3}
                         disabled={create.isLoading}
                         {...form.getInputProps('description')}
                     />
                     {spaces.isLoading ? (
-                        <EmptyStateLoader title="Loading spaces" />
+                        <EmptyStateLoader title={t('form.loadingSpaces')} />
                     ) : spaces.error ? (
                         <Callout variant="danger">
                             {spaces.error.error.message}
                         </Callout>
                     ) : spaces.writableSpaces.length === 0 ? (
                         <Callout variant="warning">
-                            You do not have permission to create documents in
-                            any space in this project.
+                            {t('create.noWritableSpaces')}
                         </Callout>
                     ) : (
-                        <Fieldset legend="Space" disabled={create.isLoading}>
+                        <Fieldset
+                            legend={t('create.spaceLegend')}
+                            disabled={create.isLoading}
+                        >
                             <SpaceSelector
                                 projectUuid={projectUuid}
                                 spaces={spaces.data}

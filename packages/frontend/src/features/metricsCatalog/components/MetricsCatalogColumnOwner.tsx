@@ -10,6 +10,7 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import { type ContentTableRow } from '../../../components/common/ContentTable';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
@@ -25,6 +26,7 @@ export const MetricsCatalogColumnOwner: FC<Props> = ({ row }) => {
     const [opened, setOpened] = useState(false);
     const canHover = useCanHover();
     const getUiString = useUiStrings();
+    const { t } = useTranslation('metricsCatalog');
 
     if (!owner) {
         return (
@@ -34,7 +36,7 @@ export const MetricsCatalogColumnOwner: FC<Props> = ({ row }) => {
                 fs="italic"
                 style={{ cursor: 'default' }}
             >
-                Unassigned
+                {t('owner.unassigned')}
             </Text>
         );
     }

@@ -3,6 +3,7 @@ import { Button, Select, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconKey } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useHealth from '../../../hooks/health/useHealth';
 import { useCreateAccessToken } from '../../../hooks/useAccessToken';
 import Callout from '../../common/Callout';
@@ -13,6 +14,7 @@ import { useExpireOptions } from './useExpireOptions';
 export const CreateTokenModal: FC<{
     onBackClick: () => void;
 }> = ({ onBackClick }) => {
+    const { t } = useTranslation('userSettings');
     const health = useHealth();
 
     const {
@@ -53,8 +55,16 @@ export const CreateTokenModal: FC<{
             opened
             onClose={onBackClick}
             role="alertdialog"
-            title={data ? 'Your token has been generated' : 'New token'}
-            cancelLabel={isSuccess ? 'Close' : 'Cancel'}
+            title={
+                data
+                    ? t('accessTokensPanel.createTokenModal.generatedTitle')
+                    : t('accessTokensPanel.createTokenModal.newTitle')
+            }
+            cancelLabel={
+                isSuccess
+                    ? t('actions.close', { ns: 'common' })
+                    : t('actions.cancel', { ns: 'common' })
+            }
             icon={IconKey}
             actions={
                 !isSuccess ? (
@@ -63,7 +73,7 @@ export const CreateTokenModal: FC<{
                         form="create-token-form"
                         loading={isLoading}
                     >
-                        Generate token
+                        {t('accessTokensPanel.createTokenModal.generate')}
                     </Button>
                 ) : undefined
             }
@@ -72,16 +82,22 @@ export const CreateTokenModal: FC<{
                 <form id="create-token-form" onSubmit={handleOnSubmit}>
                     <Stack>
                         <TextInput
-                            label="What's this token for?"
+                            label={t(
+                                'accessTokensPanel.createTokenModal.descriptionLabel',
+                            )}
                             disabled={isLoading}
-                            placeholder="Description"
+                            placeholder={t(
+                                'accessTokensPanel.createTokenModal.descriptionPlaceholder',
+                            )}
                             required
                             {...form.getInputProps('description')}
                         />
 
                         <Select
                             defaultValue={expireOptions[0].value}
-                            label="Expiration"
+                            label={t(
+                                'accessTokensPanel.createTokenModal.expiration',
+                            )}
                             data={expireOptions}
                             required
                             disabled={isLoading}
@@ -93,7 +109,7 @@ export const CreateTokenModal: FC<{
                 <Stack gap="md">
                     <TextInput
                         id="invite-link-input"
-                        label="Token"
+                        label={t('accessTokensPanel.createTokenModal.token')}
                         readOnly
                         className="sentry-block ph-no-capture"
                         value={data.token}
@@ -106,7 +122,9 @@ export const CreateTokenModal: FC<{
                     />
                     <TextInput
                         id="invite-link-input"
-                        label="CLI Authentication code"
+                        label={t(
+                            'accessTokensPanel.createTokenModal.cliAuthCode',
+                        )}
                         className="sentry-block ph-no-capture"
                         readOnly
                         value={`lightdash login ${health.data?.siteUrl} --token ${data.token}`}
@@ -119,11 +137,13 @@ export const CreateTokenModal: FC<{
                     />
                     <Callout variant="info">
                         {data.expiresAt &&
-                            `This token will expire on ${formatTimestamp(
-                                data.expiresAt,
-                            )}. `}
-                        Make sure to copy your personal access token now. You
-                        won't be able to see it again!
+                            `${t(
+                                'accessTokensPanel.createTokenModal.expiresOn',
+                                {
+                                    date: formatTimestamp(data.expiresAt),
+                                },
+                            )} `}
+                        {t('accessTokensPanel.createTokenModal.copyWarning')}
                     </Callout>
                 </Stack>
             )}

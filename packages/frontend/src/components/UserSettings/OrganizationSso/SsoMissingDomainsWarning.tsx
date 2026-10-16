@@ -1,6 +1,7 @@
 import { Button, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconArrowRight } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useVerifiedDomains } from '../../../hooks/organization/useOrganizationDomainVerification';
 import Callout from '../../common/Callout';
@@ -11,6 +12,7 @@ type Props = {
 };
 
 const SsoMissingDomainsWarning: FC<Props> = ({ providerLabel }) => {
+    const { t } = useTranslation('userSettings');
     const { data: verifiedDomains, isInitialLoading } = useVerifiedDomains();
     const hasNoVerifiedDomains =
         !isInitialLoading && (verifiedDomains ?? []).length === 0;
@@ -18,20 +20,25 @@ const SsoMissingDomainsWarning: FC<Props> = ({ providerLabel }) => {
     if (!hasNoVerifiedDomains) return null;
 
     return (
-        <Callout variant="warning" title={`${providerLabel} is not active yet`}>
+        <Callout
+            variant="warning"
+            title={t('organizationSso.missingDomainsWarning.title', {
+                provider: providerLabel,
+            })}
+        >
             <Group justify="space-between" align="center" gap="md">
                 <Stack gap={2}>
                     <Text size="sm">
-                        Users cannot sign in with {providerLabel} until this
-                        organization has a verified email domain.
+                        {t('organizationSso.missingDomainsWarning.body', {
+                            provider: providerLabel,
+                        })}
                     </Text>
                     <Text size="xs" c="dimmed">
-                        Verify a domain first, then users with matching email
-                        addresses can be routed to this provider.
+                        {t('organizationSso.missingDomainsWarning.hint')}
                     </Text>
                 </Stack>
                 <Tooltip
-                    label="SSO routing is based on verified email domains."
+                    label={t('organizationSso.missingDomainsWarning.tooltip')}
                     maw={260}
                 >
                     <Button
@@ -40,7 +47,9 @@ const SsoMissingDomainsWarning: FC<Props> = ({ providerLabel }) => {
                         variant="default"
                         rightSection={<MantineIcon icon={IconArrowRight} />}
                     >
-                        Add verified domain
+                        {t(
+                            'organizationSso.missingDomainsWarning.addVerifiedDomain',
+                        )}
                     </Button>
                 </Tooltip>
             </Group>

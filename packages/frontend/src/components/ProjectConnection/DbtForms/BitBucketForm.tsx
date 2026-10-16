@@ -1,12 +1,15 @@
 import { DbtProjectType } from '@lightdash/common';
 import { TextInput, Text, Anchor, PasswordInput, Select } from '@mantine/core';
 import React, { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useFormContext } from '../formContext';
 import DbtVersionSelect from '../Inputs/DbtVersion';
 import { useProjectFormContext } from '../useProjectFormContext';
 import { bitbucketDefaultValues } from './defaultValues';
+import { ProjectSubPathDescription } from './ProjectSubPathDescription';
 
 const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
+    const { t } = useTranslation('projectConnection');
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.dbtConnection.type !== DbtProjectType.BITBUCKET;
@@ -17,15 +20,18 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     return (
         <>
             <Select
-                label="Semantic layer format"
-                description="Native Lightdash YAML uses Bitbucket Cloud (bitbucket.org)."
+                label={t('dbtForms.github.semanticLayerFormat')}
+                description={t('dbtForms.bitbucket.nativeDescription')}
                 name="dbt.semanticLayer"
                 value={isNative ? 'lightdash' : 'dbt'}
                 allowDeselect={false}
                 disabled={disabled}
                 data={[
                     { value: 'dbt', label: 'dbt' },
-                    { value: 'lightdash', label: 'Native Lightdash YAML' },
+                    {
+                        value: 'lightdash',
+                        label: t('dbtForms.github.nativeYaml'),
+                    },
                 ]}
                 onChange={(value) => {
                     if (
@@ -51,45 +57,50 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <TextInput
                 name="dbt.username"
                 {...form.getInputProps('dbt.username')}
-                label="Username"
-                description="This is the login name for your Bitbucket user. This is usually the same username you use to login to Bitbucket."
+                label={t('dbtForms.bitbucket.username')}
+                description={t('dbtForms.bitbucket.usernameDescription')}
                 required
                 disabled={disabled}
-                placeholder="BitBucket username"
+                placeholder={t('dbtForms.bitbucket.usernamePlaceholder')}
             />
             <PasswordInput
                 name="dbt.personal_access_token"
                 {...form.getInputProps('dbt.personal_access_token')}
-                label="API Token"
+                label={t('dbtForms.bitbucket.apiToken')}
                 description={
                     <>
                         <Text component="span" display="block" size="xs">
-                            Bitbucket Cloud requires an{' '}
-                            <Anchor
-                                inherit
-                                href="https://support.atlassian.com/bitbucket-cloud/docs/create-an-api-token/"
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                API token
-                            </Anchor>{' '}
-                            with Repositories: Read permission. Writeback also
-                            requires Repositories: Write and Pull requests: Read
-                            and Write permissions.
+                            <Trans
+                                t={t}
+                                i18nKey="dbtForms.bitbucket.cloudToken"
+                                components={{
+                                    docsLink: (
+                                        <Anchor
+                                            inherit
+                                            href="https://support.atlassian.com/bitbucket-cloud/docs/create-an-api-token/"
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        />
+                                    ),
+                                }}
+                            />
                         </Text>
                         {!isNative && (
                             <Text component="span" display="block" size="xs">
-                                For Bitbucket Server, use an{' '}
-                                <Anchor
-                                    inherit
-                                    href="https://confluence.atlassian.com/bitbucketserver/http-access-tokens-939515499.html"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                >
-                                    HTTP access token
-                                </Anchor>{' '}
-                                with Project read and Repository read
-                                permissions.
+                                <Trans
+                                    t={t}
+                                    i18nKey="dbtForms.bitbucket.serverToken"
+                                    components={{
+                                        docsLink: (
+                                            <Anchor
+                                                inherit
+                                                href="https://confluence.atlassian.com/bitbucketserver/http-access-tokens-939515499.html"
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            />
+                                        ),
+                                    }}
+                                />
                             </Text>
                         )}
                     </>
@@ -103,11 +114,14 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <TextInput
                 name="dbt.repository"
                 {...form.getInputProps('dbt.repository')}
-                label="Repository"
+                label={t('dbtForms.repository')}
                 description={
                     <p>
-                        This should be in the format <b>my-org/my-repo</b>. e.g.{' '}
-                        <b>lightdash/lightdash-analytics</b>
+                        <Trans
+                            t={t}
+                            i18nKey="dbtForms.github.repositoryFormat"
+                            components={{ b: <b /> }}
+                        />
                     </p>
                 }
                 required
@@ -119,17 +133,23 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <TextInput
                 name="dbt.branch"
                 {...form.getInputProps('dbt.branch')}
-                label="Branch"
+                label={t('dbtForms.branch')}
                 description={
                     <>
                         <p>
-                            This is the branch in your Bitbucket repo that
-                            Lightdash should sync to. e.g. <b>main</b>,{' '}
-                            <b>master</b> or <b>dev</b>
+                            <Trans
+                                t={t}
+                                i18nKey="dbtForms.branchDescription"
+                                values={{ provider: 'Bitbucket' }}
+                                components={{ b: <b /> }}
+                            />
                         </p>
                         <p>
-                            By default, we've set this to <b>main</b> but you
-                            can change it to whatever you'd like.
+                            <Trans
+                                t={t}
+                                i18nKey="dbtForms.branchDefault"
+                                components={{ b: <b /> }}
+                            />
                         </p>
                     </>
                 }
@@ -140,38 +160,12 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <TextInput
                 name="dbt.project_sub_path"
                 {...form.getInputProps('dbt.project_sub_path')}
-                label="Project directory path"
+                label={t('dbtForms.projectSubPath')}
                 description={
                     isNative ? (
-                        'Folder containing lightdash.config.yml and models/ or lightdash/models/. Use / for the repository root.'
+                        t('dbtForms.bitbucket.nativeSubPath')
                     ) : (
-                        <>
-                            <p>
-                                This is the folder where your{' '}
-                                <b>dbt_project.yml</b> file is found in the
-                                Bitbucket repository you entered above.
-                            </p>
-                            <p>
-                                If your <b>dbt_project.yml</b> file is in the
-                                main folder of your repo (e.g.{' '}
-                                <b>
-                                    lightdash/lightdash-analytics/dbt_project.yml
-                                </b>
-                                ), then you don't need to change anything in
-                                here. You can just leave the default value we've
-                                put in.
-                            </p>
-                            <p>
-                                If your dbt project is in a sub-folder in your
-                                repo (e.g.{' '}
-                                <b>
-                                    lightdash/lightdash-analytics/dbt/dbt_project.yml
-                                </b>
-                                ), then you'll need to include the path to the
-                                sub-folder where your dbt project is (e.g.
-                                <b>/dbt</b>).
-                            </p>
-                        </>
+                        <ProjectSubPathDescription provider="Bitbucket" />
                     )
                 }
                 required
@@ -182,22 +176,23 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 <TextInput
                     name="dbt.host_domain"
                     {...form.getInputProps('dbt.host_domain')}
-                    label="Host domain (for self-hosted instances)"
+                    label={t('dbtForms.gitlab.hostDomain')}
                     description={
                         <p>
-                            If you've
-                            <Anchor
-                                inherit
-                                href="https://confluence.atlassian.com/bitbucketserver/specify-the-bitbucket-base-url-776640392.html"
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                {' '}
-                                customized the domain for your Bitbucket
-                                server{' '}
-                            </Anchor>
-                            you can add the custom domain for your project in
-                            here.
+                            <Trans
+                                t={t}
+                                i18nKey="dbtForms.bitbucket.hostDomainDescription"
+                                components={{
+                                    docsLink: (
+                                        <Anchor
+                                            inherit
+                                            href="https://confluence.atlassian.com/bitbucketserver/specify-the-bitbucket-base-url-776640392.html"
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        />
+                                    ),
+                                }}
+                            />
                         </p>
                     }
                     disabled={disabled}

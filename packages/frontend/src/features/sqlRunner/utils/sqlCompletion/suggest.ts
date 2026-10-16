@@ -1,4 +1,5 @@
 import { type ParameterValue } from '@lightdash/common';
+import i18n from '../../../../i18n/i18n';
 import type { WarehouseTableFieldWithContext } from '../../hooks/useTableFields';
 import {
     applyCasePreference,
@@ -10,6 +11,18 @@ import {
 import type { SqlEditorPreferences } from '../sqlEditorPreferences';
 import type { CompletionContext, TableReference } from './analyze';
 import type { SqlFunction } from './vocabulary';
+
+type CompletionLabel =
+    | 'snippet'
+    | 'schema'
+    | 'table'
+    | 'cte'
+    | 'database'
+    | 'subquery'
+    | 'function';
+
+const completionLabel = (key: CompletionLabel): string =>
+    i18n.t(`completion.${key}`, { ns: 'sqlRunner' });
 
 export type SqlSuggestionKind =
     | 'keyword'
@@ -314,9 +327,16 @@ export const getSqlSuggestions = ({
                     label,
                     detail: column.type ? ` ${column.type}` : null,
                     description: column.owner,
-                    documentation: `Column of ${column.owner}${
-                        column.type ? ` (${column.type})` : ''
-                    }`,
+                    documentation: column.type
+                        ? i18n.t('completion.columnOfWithType', {
+                              ns: 'sqlRunner',
+                              owner: column.owner,
+                              type: column.type,
+                          })
+                        : i18n.t('completion.columnOf', {
+                              ns: 'sqlRunner',
+                              owner: column.owner,
+                          }),
                     kind: 'column',
                     segments: columnSegments(column.name),
                     sortText: `${sortGroup}${label.toLowerCase()}`,
@@ -359,7 +379,7 @@ export const getSqlSuggestions = ({
         ): SqlSuggestion => ({
             label,
             detail: null,
-            description: 'snippet',
+            description: completionLabel('snippet'),
             documentation,
             kind: 'keyword',
             insertText,
@@ -412,7 +432,11 @@ export const getSqlSuggestions = ({
                 `${select} ${preview}${columns.length > 3 ? ', …' : ''} ${from} ${active.table}`,
                 body,
                 3,
-                `All ${columns.length} columns of ${active.table}`,
+                i18n.t('completion.allColumnsOf', {
+                    ns: 'sqlRunner',
+                    count: columns.length,
+                    table: active.table,
+                }),
                 false,
             ),
         ];
@@ -422,7 +446,7 @@ export const getSqlSuggestions = ({
         ...schemas.map((schema) =>
             identifier({
                 label: schema,
-                description: 'schema',
+                description: completionLabel('schema'),
                 kind: 'schema',
                 segments: [schema],
                 sortText: `0${schema}`,
@@ -432,7 +456,7 @@ export const getSqlSuggestions = ({
         ...catalogTables.map((table) =>
             identifier({
                 label: table,
-                description: 'table',
+                description: completionLabel('table'),
                 kind: 'table',
                 segments: [table],
                 sortText: `1${table}`,
@@ -475,7 +499,7 @@ export const getSqlSuggestions = ({
             const cteItems = ctes.map((cte) =>
                 identifier({
                     label: cte.name,
-                    description: 'CTE',
+                    description: completionLabel('cte'),
                     kind: 'table',
                     segments: [cte.name],
                     sortText: `0${cte.name}`,
@@ -495,7 +519,10 @@ export const getSqlSuggestions = ({
                     return identifier({
                         label: table,
                         description: isActive
-                            ? `${schema.toString()} · selected`
+                            ? i18n.t('completion.selectedInSchema', {
+                                  ns: 'sqlRunner',
+                                  schema: schema.toString(),
+                              })
                             : schema.toString(),
                         documentation: `${catalog!.database}.${schema.toString()}.${table}`,
                         kind: 'table',
@@ -513,7 +540,7 @@ export const getSqlSuggestions = ({
             const schemaItems = schemas.map(({ schema }) =>
                 identifier({
                     label: schema.toString(),
-                    description: 'schema',
+                    description: completionLabel('schema'),
                     kind: 'schema',
                     segments: [schema.toString()],
                     sortText: `2${schema.toString()}`,
@@ -524,7 +551,7 @@ export const getSqlSuggestions = ({
                 ? [
                       identifier({
                           label: catalog.database,
-                          description: 'database',
+                          description: completionLabel('database'),
                           kind: 'database',
                           segments: [catalog.database],
                           sortText: `3${catalog.database}`,
@@ -560,8 +587,9 @@ export const getSqlSuggestions = ({
                           identifier({
                               label: name,
                               description: ref.alias
-                                  ? ref.path.join('.') || 'subquery'
-                                  : 'table',
+                                  ? ref.path.join('.') ||
+                                    completionLabel('subquery')
+                                  : completionLabel('table'),
                               kind: 'alias',
                               segments: [name],
                               sortText: `2${name}`,
@@ -582,7 +610,7 @@ export const getSqlSuggestions = ({
                           return {
                               label: name,
                               detail: null,
-                              description: 'function',
+                              description: completionLabel('function'),
                               documentation: fn.signature,
                               kind: 'function',
                               insertText: takesArguments ? `${name}($0)` : name,

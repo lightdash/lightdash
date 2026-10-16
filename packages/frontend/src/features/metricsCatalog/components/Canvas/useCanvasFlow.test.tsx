@@ -48,7 +48,6 @@ describe('useCanvasFlow click-to-add', () => {
             result.current.setCanvasTimeOption({
                 type: 'calendar',
                 timeFrame: TimeFrames.YEAR,
-                label: 'Current year to date',
             }),
         );
         expect(result.current.currentNodes).toHaveLength(2);
@@ -63,7 +62,6 @@ describe('useCanvasFlow click-to-add', () => {
             result.current.setCanvasTimeOption({
                 type: 'rolling',
                 rollingDays: 7,
-                label: 'Last 7 days',
             }),
         );
         expect(

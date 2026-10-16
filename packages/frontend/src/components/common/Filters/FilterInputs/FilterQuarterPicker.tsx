@@ -5,6 +5,7 @@ import { useDisclosure } from '@mantine/hooks';
 import dayjs from 'dayjs';
 import quarterOfYear from 'dayjs/plugin/quarterOfYear';
 import { useCallback, useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import { type FilterPopoverProps } from '../context';
 import styles from './FilterQuarterPicker.module.css';
@@ -38,6 +39,7 @@ const FilterQuarterPicker: FC<Props> = ({
     autoFocus,
     invalidValue,
 }) => {
+    const { t } = useTranslation('filters');
     const getUiString = useUiStrings();
     const [opened, { open, close }] = useDisclosure(false);
 
@@ -132,7 +134,7 @@ const FilterQuarterPicker: FC<Props> = ({
                             ? formatDate(value, TimeFrames.QUARTER)
                             : undefined)
                     }
-                    error={invalidValue ? 'Invalid date' : undefined}
+                    error={invalidValue ? t('inputs.invalidDate') : undefined}
                     readOnly
                     styles={{
                         input: {

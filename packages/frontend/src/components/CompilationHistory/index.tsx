@@ -2,6 +2,7 @@ import { Button, Card, LoadingOverlay } from '@mantine/core';
 import { IconRefresh } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
 import MantineIcon from '../common/MantineIcon';
@@ -13,6 +14,7 @@ type CompilationHistoryProps = {
 };
 
 const CompilationHistory: FC<CompilationHistoryProps> = ({ projectUuid }) => {
+    const { t } = useTranslation('projectConnection');
     const queryClient = useQueryClient();
     const { showToastSuccess } = useToaster();
     const { isLoading: isLoadingProject } = useProject(projectUuid);
@@ -23,7 +25,7 @@ const CompilationHistory: FC<CompilationHistoryProps> = ({ projectUuid }) => {
             projectUuid,
         ]);
         showToastSuccess({
-            title: 'Compilation history refreshed successfully',
+            title: t('compilationHistory.refreshed'),
         });
     };
 
@@ -32,8 +34,8 @@ const CompilationHistory: FC<CompilationHistoryProps> = ({ projectUuid }) => {
             <LoadingOverlay visible={isLoadingProject} />
 
             <SettingsPage
-                title="Compilation history"
-                description="Review recent compilation runs for this project."
+                title={t('compilationHistory.title')}
+                description={t('compilationHistory.description')}
                 actions={
                     <Button
                         onClick={handleRefresh}
@@ -43,7 +45,7 @@ const CompilationHistory: FC<CompilationHistoryProps> = ({ projectUuid }) => {
                             <MantineIcon icon={IconRefresh} stroke={2} />
                         }
                     >
-                        Refresh
+                        {t('compilationHistory.refresh')}
                     </Button>
                 }
             >

@@ -6,6 +6,7 @@ import {
 import { ActionIcon, Menu } from '@mantine/core';
 import { IconDotsVertical, IconRestore, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import useApp from '../../../providers/App/useApp';
@@ -23,6 +24,7 @@ const DeletedContentActionMenu: FC<Props> = ({
     onPermanentlyDelete,
     isLoading,
 }) => {
+    const { t } = useTranslation('settings');
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const { user } = useApp();
     const canPermanentlyDelete =
@@ -41,7 +43,9 @@ const DeletedContentActionMenu: FC<Props> = ({
             <Menu position="bottom-end" withArrow>
                 <Menu.Target>
                     <ActionIcon
-                        aria-label={`Actions for ${item.name}`}
+                        aria-label={t('recentlyDeleted.actions.menuLabel', {
+                            name: item.name,
+                        })}
                         loading={isLoading}
                         data-tour-anchor="deleted-content-actions"
                         data-tour-hint="Open actions for {value}"
@@ -63,7 +67,7 @@ const DeletedContentActionMenu: FC<Props> = ({
                         data-tour-interactive="true"
                         data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="chart-actions"] >> [data-tour-anchor="delete-chart"] >> [data-tour-anchor="modal-confirm"] >> [data-tour-nav="settings"] >> [data-tour-nav="project-settings"] >> [data-tour-nav="recently-deleted"] >> [data-tour-anchor="deleted-content-actions"][data-tour-value="Orders over time"]'
                     >
-                        Restore
+                        {t('recentlyDeleted.actions.restore')}
                     </Menu.Item>
                     {canPermanentlyDelete && (
                         <Menu.Item
@@ -71,7 +75,7 @@ const DeletedContentActionMenu: FC<Props> = ({
                             color="red"
                             onClick={() => setIsDeleteModalOpen(true)}
                         >
-                            Delete permanently
+                            {t('recentlyDeleted.actions.deletePermanently')}
                         </Menu.Item>
                     )}
                 </Menu.Dropdown>
@@ -80,15 +84,15 @@ const DeletedContentActionMenu: FC<Props> = ({
             <MantineModal
                 opened={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
-                title="Permanently delete item?"
+                title={t('recentlyDeleted.actions.confirmTitle')}
                 variant="delete"
-                resourceType="item"
+                resourceType={t('recentlyDeleted.actions.resourceType')}
                 resourceLabel={item.name}
                 onConfirm={() => {
                     onPermanentlyDelete();
                     setIsDeleteModalOpen(false);
                 }}
-                confirmLabel="Delete permanently"
+                confirmLabel={t('recentlyDeleted.actions.deletePermanently')}
             />
         </>
     );

@@ -18,6 +18,7 @@ import {
     IconExternalLink,
 } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../components/common/MantineIcon';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import classes from './AppInspector.module.css';
@@ -62,6 +63,7 @@ const QueryRow: FC<{
     onHover?: (queryUuid: string | null) => void;
     focused?: boolean;
 }> = ({ query, projectUuid, onHover, focused }) => {
+    const { t } = useTranslation('apps');
     const [expanded, setExpanded] = useState(false);
     const [jsonExpanded, setJsonExpanded] = useState(false);
     const [saveOpen, setSaveOpen] = useState(false);
@@ -112,7 +114,7 @@ const QueryRow: FC<{
                 </Badge>
                 {query.rowCount !== null && (
                     <Text size="xs" c="dimmed">
-                        {query.rowCount} rows
+                        {t('queryInspector.rows', { count: query.rowCount })}
                     </Text>
                 )}
                 <Box ml="auto" />
@@ -144,7 +146,7 @@ const QueryRow: FC<{
                                                 icon={IconExternalLink}
                                                 size={12}
                                             />
-                                            Open in Explore
+                                            {t('queryInspector.openInExplore')}
                                         </Group>
                                     </Anchor>
                                 )}
@@ -163,7 +165,9 @@ const QueryRow: FC<{
                                                 icon={IconDeviceFloppy}
                                                 size={12}
                                             />
-                                            Save to Lightdash
+                                            {t(
+                                                'queryInspector.saveToLightdash',
+                                            )}
                                         </Group>
                                     </Anchor>
                                 )}
@@ -172,7 +176,7 @@ const QueryRow: FC<{
                         {query.exploreName && (
                             <Box>
                                 <Text size="xs" fw={600} c="dimmed">
-                                    Explore
+                                    {t('queryInspector.explore')}
                                 </Text>
                                 <Text size="xs">{query.exploreName}</Text>
                             </Box>
@@ -180,7 +184,7 @@ const QueryRow: FC<{
                         {query.dimensions.length > 0 && (
                             <Box>
                                 <Text size="xs" fw={600} c="dimmed">
-                                    Dimensions
+                                    {t('queryInspector.dimensions')}
                                 </Text>
                                 <Text size="xs">
                                     {query.dimensions.join(', ')}
@@ -190,7 +194,7 @@ const QueryRow: FC<{
                         {query.metrics.length > 0 && (
                             <Box>
                                 <Text size="xs" fw={600} c="dimmed">
-                                    Metrics
+                                    {t('queryInspector.metrics')}
                                 </Text>
                                 <Text size="xs">
                                     {query.metrics.join(', ')}
@@ -200,7 +204,7 @@ const QueryRow: FC<{
                         {query.tableCalculations.length > 0 && (
                             <Box>
                                 <Text size="xs" fw={600} c="dimmed">
-                                    Table Calculations
+                                    {t('queryInspector.tableCalculations')}
                                 </Text>
                                 <Text size="xs">
                                     {query.tableCalculations
@@ -212,7 +216,7 @@ const QueryRow: FC<{
                         {query.additionalMetrics.length > 0 && (
                             <Box>
                                 <Text size="xs" fw={600} c="dimmed">
-                                    Additional Metrics
+                                    {t('queryInspector.additionalMetrics')}
                                 </Text>
                                 <Text size="xs">
                                     {query.additionalMetrics
@@ -224,7 +228,7 @@ const QueryRow: FC<{
                         {query.error && (
                             <Box>
                                 <Text size="xs" fw={600} c="red">
-                                    Error
+                                    {t('queryInspector.error')}
                                 </Text>
                                 <Text size="xs" c="red">
                                     {query.error}
@@ -233,14 +237,14 @@ const QueryRow: FC<{
                         )}
                         <Box>
                             <Text size="xs" fw={600} c="dimmed">
-                                Limit
+                                {t('queryInspector.limit')}
                             </Text>
                             <Text size="xs">{query.limit}</Text>
                         </Box>
                         {query.queryUuid && (
                             <Box>
                                 <Text size="xs" fw={600} c="dimmed">
-                                    Query UUID
+                                    {t('queryInspector.queryUuid')}
                                 </Text>
                                 <Text size="xs" ff="monospace">
                                     {query.queryUuid}
@@ -250,7 +254,7 @@ const QueryRow: FC<{
                         {query.durationMs !== null && (
                             <Box>
                                 <Text size="xs" fw={600} c="dimmed">
-                                    Warehouse execution time
+                                    {t('queryInspector.executionTime')}
                                 </Text>
                                 <Text size="xs">{query.durationMs}ms</Text>
                             </Box>
@@ -277,7 +281,7 @@ const QueryRow: FC<{
                                     )}
                                 </ActionIcon>
                                 <Text size="xs" fw={600} c="dimmed">
-                                    Raw JSON
+                                    {t('queryInspector.rawJson')}
                                 </Text>
                                 <CopyButton
                                     value={JSON.stringify(
@@ -339,27 +343,30 @@ export const QueryInspectorContent: FC<{
     projectUuid: string;
     onHoverQuery?: (queryUuid: string | null) => void;
     focusedQueryUuid?: string | null;
-}> = ({ queries, projectUuid, onHoverQuery, focusedQueryUuid }) => (
-    <Box className={classes.queryList}>
-        {queries.length === 0 ? (
-            <Box className={classes.emptyState}>
-                <Text size="xs" c="dimmed">
-                    No queries yet
-                </Text>
-            </Box>
-        ) : (
-            queries.map((q) => (
-                <QueryRow
-                    key={q.queryUuid ?? q.id}
-                    query={q}
-                    projectUuid={projectUuid}
-                    onHover={onHoverQuery}
-                    focused={
-                        focusedQueryUuid != null &&
-                        q.queryUuid === focusedQueryUuid
-                    }
-                />
-            ))
-        )}
-    </Box>
-);
+}> = ({ queries, projectUuid, onHoverQuery, focusedQueryUuid }) => {
+    const { t } = useTranslation('apps');
+    return (
+        <Box className={classes.queryList}>
+            {queries.length === 0 ? (
+                <Box className={classes.emptyState}>
+                    <Text size="xs" c="dimmed">
+                        {t('queryInspector.empty')}
+                    </Text>
+                </Box>
+            ) : (
+                queries.map((q) => (
+                    <QueryRow
+                        key={q.queryUuid ?? q.id}
+                        query={q}
+                        projectUuid={projectUuid}
+                        onHover={onHoverQuery}
+                        focused={
+                            focusedQueryUuid != null &&
+                            q.queryUuid === focusedQueryUuid
+                        }
+                    />
+                ))
+            )}
+        </Box>
+    );
+};

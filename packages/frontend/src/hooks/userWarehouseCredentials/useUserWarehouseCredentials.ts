@@ -11,6 +11,7 @@ import {
     type UseMutationOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -71,6 +72,7 @@ export const useUserWarehouseCredentialsCreateMutation = (
     >,
 ) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         UserWarehouseCredentials,
@@ -86,13 +88,17 @@ export const useUserWarehouseCredentialsCreateMutation = (
             await queryClient.invalidateQueries(['ai-access']);
 
             showToastSuccess({
-                title: `Success! Warehouse connection was created.`,
+                title: t(
+                    'useUserWarehouseCredentials.successWarehouseConnectionWasCreated',
+                ),
             });
             useMutationOptions?.onSuccess?.(data, payload, undefined);
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to create warehouse connection`,
+                title: t(
+                    'useUserWarehouseCredentials.failedToCreateWarehouseConnection',
+                ),
                 apiError: error,
             });
         },
@@ -112,6 +118,7 @@ const updateUserWarehouseCredentials = async (
 
 export const useUserWarehouseCredentialsUpdateMutation = (uuid: string) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, UpsertUserWarehouseCredentials>(
         (data) => updateUserWarehouseCredentials(uuid, data),
@@ -127,12 +134,16 @@ export const useUserWarehouseCredentialsUpdateMutation = (uuid: string) => {
                 await queryClient.invalidateQueries(['ai-access']);
 
                 showToastSuccess({
-                    title: `Success! Warehouse connection was updated.`,
+                    title: t(
+                        'useUserWarehouseCredentials.successWarehouseConnectionWasUpdated',
+                    ),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to update warehouse connection`,
+                    title: t(
+                        'useUserWarehouseCredentials.failedToUpdateWarehouseConnection',
+                    ),
                     apiError: error,
                 });
             },
@@ -149,6 +160,7 @@ const deleteUserWarehouseCredentials = async (uuid: string) =>
 
 export const useUserWarehouseCredentialsDeleteMutation = (uuid: string) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError>(
         () => deleteUserWarehouseCredentials(uuid),
@@ -164,12 +176,16 @@ export const useUserWarehouseCredentialsDeleteMutation = (uuid: string) => {
                 await queryClient.invalidateQueries(['ai-access']);
 
                 showToastSuccess({
-                    title: `Success! Warehouse connection was deleted.`,
+                    title: t(
+                        'useUserWarehouseCredentials.successWarehouseConnectionWasDeleted',
+                    ),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to delete warehouse connection`,
+                    title: t(
+                        'useUserWarehouseCredentials.failedToDeleteWarehouseConnection',
+                    ),
                     apiError: error,
                 });
             },

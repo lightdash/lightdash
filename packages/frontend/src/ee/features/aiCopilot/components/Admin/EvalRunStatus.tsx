@@ -1,5 +1,6 @@
 import { type AiAgentEvaluationRunSummary } from '@lightdash/common';
 import { Text, Tooltip, type MantineColor } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import { statusConfig } from '../Evals/utils';
 import { StatusIndicator } from '../StatusIndicator';
@@ -18,12 +19,15 @@ export const RunStatusIndicator = ({
     status,
 }: {
     status: AiAgentEvaluationRunSummary['status'];
-}) => (
-    <StatusIndicator
-        color={statusDotColor[status]}
-        label={statusConfig[status].label}
-    />
-);
+}) => {
+    const { t } = useTranslation('aiCopilotAdmin');
+    return (
+        <StatusIndicator
+            color={statusDotColor[status]}
+            label={t(statusConfig[status].labelKey)}
+        />
+    );
+};
 
 export const TimeAgo = ({
     date,

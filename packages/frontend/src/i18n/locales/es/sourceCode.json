@@ -1,0 +1,51 @@
+{
+    "unsavedChanges": {
+        "title": "Cambios sin guardar",
+        "description": "Tienes cambios sin guardar. ¿Seguro que quieres descartarlos?",
+        "discard": "Descartar cambios"
+    },
+    "createPullRequest": {
+        "title": "Crear pull request",
+        "defaultTitle": "Actualización desde la rama {{branch}}",
+        "defaultDescription": "Esta pull request contiene cambios realizados con el editor de código fuente de Lightdash.",
+        "titleRequired": "El título es obligatorio",
+        "titleLabel": "Título",
+        "titlePlaceholder": "p. ej., Añadir una nueva métrica al modelo orders",
+        "fromBranch": "Desde la rama",
+        "descriptionLabel": "Descripción",
+        "descriptionPlaceholder": "Describe tus cambios..."
+    },
+    "createBranch": {
+        "title": "Crear nueva rama",
+        "submit": "Crear rama",
+        "nameRequired": "El nombre de la rama es obligatorio",
+        "nameInvalid": "El nombre de la rama solo puede contener letras, números, guiones, guiones bajos, puntos y barras",
+        "nameLabel": "Nombre de la rama",
+        "namePlaceholder": "p. ej., feature/mis-cambios",
+        "createFrom": "Crear desde"
+    },
+    "toolbar": {
+        "modified": "(modificado)",
+        "selectFile": "Selecciona un archivo para verlo",
+        "readOnly": "Solo lectura (rama protegida)",
+        "createPullRequest": "Crear pull request"
+    },
+    "branchSelector": {
+        "placeholder": "Seleccionar rama",
+        "createBranch": "Crear rama"
+    },
+    "sidebar": {
+        "title": "Código fuente",
+        "description": "Explora y edita los archivos de tu proyecto"
+    },
+    "fileTree": {
+        "selectBranch": "Selecciona una rama para ver los archivos",
+        "loading": "Cargando archivos...",
+        "loadFailed": "No se pudieron cargar los archivos",
+        "empty": "No se encontraron archivos"
+    },
+    "editorPane": {
+        "loadingFile": "Cargando archivo...",
+        "selectFile": "Selecciona un archivo en la barra lateral"
+    }
+}

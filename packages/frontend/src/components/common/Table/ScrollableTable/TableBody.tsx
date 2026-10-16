@@ -27,6 +27,7 @@ import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { flexRender, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import React, { useCallback, useEffect, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     getColorFromRange,
     transformColorsForDarkMode,
@@ -354,6 +355,7 @@ const VirtualizedTableBody: FC<{
     showSubtotals?: boolean;
     showRowGrouping?: boolean;
 }> = ({ tableContainerRef, minimal, showSubtotals, showRowGrouping }) => {
+    const { t } = useTranslation('table');
     const {
         table,
         columns,
@@ -518,7 +520,9 @@ const VirtualizedTableBody: FC<{
                                       <Center>
                                           <Tooltip
                                               position="top"
-                                              label={`Loading more rows...`}
+                                              label={t(
+                                                  'scrollableTable.loadingMoreRows',
+                                              )}
                                           >
                                               <Loader size="xs" color="gray" />
                                           </Tooltip>

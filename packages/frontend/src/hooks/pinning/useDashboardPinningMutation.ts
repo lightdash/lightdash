@@ -1,5 +1,6 @@
 import { type ApiError, type TogglePinnedItemInfo } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -12,6 +13,7 @@ const updateDashboardPinning = async (data: { uuid: string }) =>
 
 export const useDashboardPinningMutation = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<TogglePinnedItemInfo, ApiError, { uuid: string }>(
         updateDashboardPinning,
@@ -36,17 +38,23 @@ export const useDashboardPinningMutation = () => {
 
                 if (dashboard.isPinned) {
                     showToastSuccess({
-                        title: 'Success! Dashboard was pinned to homepage',
+                        title: t(
+                            'useDashboardPinningMutation.successDashboardWasPinnedToHomepage',
+                        ),
                     });
                 } else {
                     showToastSuccess({
-                        title: 'Success! Dashboard was unpinned from homepage',
+                        title: t(
+                            'useDashboardPinningMutation.successDashboardWasUnpinnedFromHomepage',
+                        ),
                     });
                 }
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to pin dashboard',
+                    title: t(
+                        'useDashboardPinningMutation.failedToPinDashboard',
+                    ),
                     apiError: error,
                 });
             },

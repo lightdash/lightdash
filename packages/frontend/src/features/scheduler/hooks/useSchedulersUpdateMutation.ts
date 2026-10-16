@@ -4,6 +4,7 @@ import {
     type UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -20,6 +21,7 @@ const updateScheduler = async (
 export const useSchedulersUpdateMutation = (schedulerUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('scheduler');
     return useMutation<
         SchedulerAndTargets,
         ApiError,
@@ -33,12 +35,12 @@ export const useSchedulersUpdateMutation = (schedulerUuid: string) => {
             await queryClient.invalidateQueries(['app_schedulers']);
             await queryClient.invalidateQueries(['scheduler', schedulerUuid]);
             showToastSuccess({
-                title: `Success! Scheduled delivery was updated.`,
+                title: t('toasts.updated'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to update scheduled delivery`,
+                title: t('toasts.updateFailed'),
                 apiError: error,
             });
         },
@@ -55,6 +57,7 @@ const updateSchedulerEnabled = async (uuid: string, enabled: boolean) =>
 export const useSchedulersEnabledUpdateMutation = (schedulerUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
+    const { t } = useTranslation('scheduler');
     return useMutation<SchedulerAndTargets, ApiError, boolean>(
         (enabled) => updateSchedulerEnabled(schedulerUuid, enabled),
         {
@@ -67,7 +70,7 @@ export const useSchedulersEnabledUpdateMutation = (schedulerUuid: string) => {
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to update scheduled delivery`,
+                    title: t('toasts.updateFailed'),
                     apiError: error,
                 });
             },

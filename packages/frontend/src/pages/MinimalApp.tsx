@@ -8,6 +8,7 @@ import { Box, Loader, Stack, Text } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconAppsOff } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigate, useParams, useSearchParams } from 'react-router';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
@@ -52,6 +53,7 @@ const SDK_ALIVE_FALLBACK_MS = 8_000;
  * that signal before triggering the screenshot.
  */
 export default function MinimalApp() {
+    const { t } = useTranslation('pages');
     const { appUuid } = useParams();
     const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
@@ -247,7 +249,7 @@ export default function MinimalApp() {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
     if (!projectUuid || !appUuid) {
-        return <div>Missing route params</div>;
+        return <div>{t('dataApp.missingRouteParams')}</div>;
     }
 
     const visibleTokenError = getVisiblePreviewTokenError(tokenError, !!token);
@@ -267,8 +269,8 @@ export default function MinimalApp() {
             <Box mt="30vh">
                 <SuboptimalState
                     icon={IconAppsOff}
-                    title="Data app not found"
-                    description="This data app doesn't exist or has been deleted."
+                    title={t('dataApp.notFound')}
+                    description={t('dataApp.notFoundDescription')}
                 />
             </Box>
         );
@@ -281,8 +283,8 @@ export default function MinimalApp() {
             <Box h="100vh">
                 <SuboptimalState
                     icon={IconAppsOff}
-                    title="No ready version"
-                    description="This data app hasn't finished building yet."
+                    title={t('dataApp.noReadyVersion')}
+                    description={t('dataApp.noReadyVersionDescription')}
                 />
             </Box>
         );
@@ -303,8 +305,12 @@ export default function MinimalApp() {
         return (
             <Stack align="center" justify="center" h="100vh">
                 <Text c="red" size="sm">
-                    Failed to load app:{' '}
-                    {error instanceof Error ? error.message : 'Unknown error'}
+                    {t('dataApp.loadFailed', {
+                        message:
+                            error instanceof Error
+                                ? error.message
+                                : t('dataApp.unknownError'),
+                    })}
                 </Text>
             </Stack>
         );

@@ -1,6 +1,7 @@
 import { type AiAgentMessage } from '@lightdash/common';
 import { type BoxProps } from '@mantine/core';
 import { format, isSameDay, isToday, isYesterday, parseISO } from 'date-fns';
+import i18n from '../../../../../i18n/i18n';
 
 export const ChatElementsUtils = {
     shouldRenderDivider: (
@@ -20,8 +21,10 @@ export const ChatElementsUtils = {
 
     getDividerLabel: (dateString: string) => {
         const date = parseISO(dateString);
-        if (isToday(date)) return 'Today';
-        if (isYesterday(date)) return 'Yesterday';
+        if (isToday(date))
+            return i18n.t('chatDisplay.today', { ns: 'aiCopilotChat' });
+        if (isYesterday(date))
+            return i18n.t('chatDisplay.yesterday', { ns: 'aiCopilotChat' });
         return format(date, 'MMMM d, yyyy');
     },
 

@@ -8,54 +8,58 @@ import {
     type ResourceViewItem,
 } from '@lightdash/common';
 import dayjs from 'dayjs';
+import i18n from '../../../i18n/i18n';
+
+const tr = (key: string, options?: Record<string, unknown>) =>
+    i18n.t(key, { ns: 'resourceView', ...options });
 
 export const getResourceTypeName = (item: ResourceViewItem) => {
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
-            return 'Dashboard';
+            return tr('resourceType.dashboard');
         case ResourceViewItemType.SPACE:
-            return 'Space';
+            return tr('resourceType.space');
         case ResourceViewItemType.DATA_APP:
-            return 'Data app';
+            return tr('resourceType.dataApp');
         case ResourceViewItemType.DOCUMENT:
-            return 'Document';
+            return tr('resourceType.document');
         case ResourceViewItemType.CHART:
             switch (item.data.chartKind) {
                 case undefined:
                 case ChartKind.VERTICAL_BAR:
-                    return 'Bar chart';
+                    return tr('resourceType.barChart');
                 case ChartKind.HORIZONTAL_BAR:
-                    return 'Horizontal bar chart';
+                    return tr('resourceType.horizontalBarChart');
                 case ChartKind.LINE:
-                    return 'Line chart';
+                    return tr('resourceType.lineChart');
                 case ChartKind.SCATTER:
-                    return 'Scatter chart';
+                    return tr('resourceType.scatterChart');
                 case ChartKind.AREA:
-                    return 'Area chart';
+                    return tr('resourceType.areaChart');
                 case ChartKind.MIXED:
-                    return 'Mixed chart';
+                    return tr('resourceType.mixedChart');
                 case ChartKind.PIE:
-                    return 'Pie chart';
+                    return tr('resourceType.pieChart');
                 case ChartKind.FUNNEL:
-                    return 'Funnel chart';
+                    return tr('resourceType.funnelChart');
                 case ChartKind.TREEMAP:
-                    return 'Treemap';
+                    return tr('resourceType.treemap');
                 case ChartKind.GAUGE:
-                    return 'Gauge';
+                    return tr('resourceType.gauge');
                 case ChartKind.TABLE:
-                    return 'Table';
+                    return tr('resourceType.table');
                 case ChartKind.BIG_NUMBER:
-                    return 'Big number';
+                    return tr('resourceType.bigNumber');
                 case ChartKind.CUSTOM:
-                    return 'Custom chart';
+                    return tr('resourceType.customChart');
                 case ChartKind.MAP:
-                    return 'Map';
+                    return tr('resourceType.map');
                 case ChartKind.SANKEY:
-                    return 'Sankey';
+                    return tr('resourceType.sankey');
                 case ChartKind.DATA_APP_VIZ:
-                    return 'Custom chart';
+                    return tr('resourceType.customChart');
                 default:
-                    return 'Chart';
+                    return tr('resourceType.chart');
             }
         default:
             return assertUnreachable(item, 'Resource type not supported');
@@ -122,15 +126,32 @@ export const getResourceUrl = (
 export const getResourceName = (type: ResourceViewItemType) => {
     switch (type) {
         case ResourceViewItemType.DASHBOARD:
-            return 'Dashboard';
+            return tr('resourceType.dashboard');
         case ResourceViewItemType.CHART:
-            return 'Chart';
+            return tr('resourceType.chart');
         case ResourceViewItemType.SPACE:
-            return 'Space';
+            return tr('resourceType.space');
         case ResourceViewItemType.DATA_APP:
-            return 'Data app';
+            return tr('resourceType.dataApp');
         case ResourceViewItemType.DOCUMENT:
-            return 'Document';
+            return tr('resourceType.document');
+        default:
+            return assertUnreachable(type, 'Resource type not supported');
+    }
+};
+
+export const getResourceNamePlural = (type: ResourceViewItemType) => {
+    switch (type) {
+        case ResourceViewItemType.DASHBOARD:
+            return tr('resourceTypePlural.dashboard');
+        case ResourceViewItemType.CHART:
+            return tr('resourceTypePlural.chart');
+        case ResourceViewItemType.SPACE:
+            return tr('resourceTypePlural.space');
+        case ResourceViewItemType.DATA_APP:
+            return tr('resourceTypePlural.dataApp');
+        case ResourceViewItemType.DOCUMENT:
+            return tr('resourceTypePlural.document');
         default:
             return assertUnreachable(type, 'Resource type not supported');
     }
@@ -148,8 +169,9 @@ export const getResourceViewsSinceWhenDescription = (
     }
 
     return item.data.firstViewedAt
-        ? `${item.data.views} views since ${dayjs(
-              item.data.firstViewedAt,
-          ).format('MMM D, YYYY h:mm A')}`
+        ? tr('views.sinceDate', {
+              count: item.data.views,
+              date: dayjs(item.data.firstViewedAt).format('MMM D, YYYY h:mm A'),
+          })
         : undefined;
 };

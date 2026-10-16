@@ -18,6 +18,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
 import AppUpgradeModal from '../../../features/apps/components/AppUpgradeModal';
 import { type SdkUpgradeOffer } from '../../../features/apps/hooks/useSdkUpgradeStatus';
@@ -58,13 +59,14 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
     onDetailsSaved,
     onDone,
 }) => {
+    const { t } = useTranslation('explorer');
     const [isEditingDetails, setIsEditingDetails] = useState(false);
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
     const upgradeAvailable =
         upgrade?.status === 'stale' || upgrade?.status === 'legacy';
     const title = app
         ? getAppDisplayName(app.name, app.appUuid)
-        : 'New chart type';
+        : t('chartSidebar.newChartType');
 
     // Entering replaces what had focus; land on what this surface is.
     const titleRef = useRef<HTMLHeadingElement>(null);
@@ -81,10 +83,10 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
                 leftSection={<MantineIcon icon={IconChevronLeft} size={15} />}
                 onClick={onDone}
             >
-                Back to chart
+                {t('chartStudio.backToChart')}
             </Button>
             <Text className={classes.studioLabel} fz="sm" fw={600} c="ldGray.8">
-                Chart Studio
+                {t('chartStudio.title')}
             </Text>
             <Box className={classes.divider} />
             <Box className={classes.nameCluster}>
@@ -109,17 +111,20 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
                     <Tooltip w={280} label={app.description} position="bottom">
                         <ActionIcon
                             size="sm"
-                            aria-label="Chart type description"
+                            aria-label={t('chartStudio.description')}
                         >
                             <MantineIcon icon={IconInfoCircle} />
                         </ActionIcon>
                     </Tooltip>
                 )}
                 {app && (
-                    <Tooltip label="Edit details" position="bottom">
+                    <Tooltip
+                        label={t('chartStudio.editDetails')}
+                        position="bottom"
+                    >
                         <ActionIcon
                             size="sm"
-                            aria-label="Edit chart type details"
+                            aria-label={t('chartStudio.editDetailsLabel')}
                             onClick={() => setIsEditingDetails(true)}
                         >
                             <MantineIcon icon={IconPencil} />
@@ -141,7 +146,7 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
                         disabled={upgrade.disabled}
                         onClick={() => setIsUpgradeModalOpen(true)}
                     >
-                        Upgrade available
+                        {t('chartStudio.upgradeAvailable')}
                     </Button>
                 )}
                 {hasHistory && (
@@ -155,13 +160,13 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
                         aria-pressed={isHistoryOpen}
                         onClick={onToggleHistory}
                     >
-                        History
+                        {t('chartStudio.history')}
                     </Button>
                 )}
-                <Tooltip label="Close Chart Studio" position="bottom">
+                <Tooltip label={t('chartStudio.close')} position="bottom">
                     <ActionIcon
                         size="sm"
-                        aria-label="Close Chart Studio"
+                        aria-label={t('chartStudio.close')}
                         onClick={onDone}
                     >
                         <MantineIcon icon={IconX} />
@@ -180,7 +185,7 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
                     uuid={app.appUuid}
                     initialName={title}
                     initialDescription={app.description}
-                    resourceLabel="Chart Type"
+                    resourceLabel={t('chartStudio.resourceLabel')}
                     icon={IconPencil}
                     iconPicker={{ initialIcon: app.icon }}
                 />

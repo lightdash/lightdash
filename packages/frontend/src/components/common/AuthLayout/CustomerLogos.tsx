@@ -1,5 +1,6 @@
 import { Box, Divider } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import classes from './CustomerLogos.module.css';
 import Adobe from './customerLogos/adobe.svg?react';
 import Ebay from './customerLogos/ebay.svg?react';
@@ -31,26 +32,29 @@ const CUSTOMERS = [
 const logoHeightEm = (aspectRatio: number, weight: number) =>
     `${Math.round(((BASE_LOGO_HEIGHT * 2) / Math.sqrt(aspectRatio)) * weight) / 16}em`;
 
-const CustomerLogos: FC = () => (
-    <Box className={classes.root}>
-        <Divider
-            label="Trusted by data teams at"
-            labelPosition="left"
-            classNames={{ root: classes.divider, label: classes.label }}
-        />
-        <Box component="ul" className={classes.logos}>
-            {CUSTOMERS.map(({ name, Logo, aspectRatio, weight }) => (
-                <Box component="li" key={name} className={classes.item}>
-                    <Logo
-                        role="img"
-                        aria-label={name}
-                        height={logoHeightEm(aspectRatio, weight)}
-                        className={classes.logo}
-                    />
-                </Box>
-            ))}
+const CustomerLogos: FC = () => {
+    const { t } = useTranslation('commonUi');
+    return (
+        <Box className={classes.root}>
+            <Divider
+                label={t('authLayout.trustedBy')}
+                labelPosition="left"
+                classNames={{ root: classes.divider, label: classes.label }}
+            />
+            <Box component="ul" className={classes.logos}>
+                {CUSTOMERS.map(({ name, Logo, aspectRatio, weight }) => (
+                    <Box component="li" key={name} className={classes.item}>
+                        <Logo
+                            role="img"
+                            aria-label={name}
+                            height={logoHeightEm(aspectRatio, weight)}
+                            className={classes.logo}
+                        />
+                    </Box>
+                ))}
+            </Box>
         </Box>
-    </Box>
-);
+    );
+};
 
 export default CustomerLogos;

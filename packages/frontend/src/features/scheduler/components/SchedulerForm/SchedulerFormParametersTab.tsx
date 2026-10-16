@@ -17,6 +17,7 @@ import {
 import { IconPencil, IconRotate2 } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { ParameterInput } from '../../../parameters/components/ParameterInput';
 
@@ -46,6 +47,7 @@ const ParameterItem: FC<SchedulerParameterItemProps> = ({
     projectUuid,
     parameterValues,
 }) => {
+    const { t } = useTranslation('scheduler');
     const [isEditing, setIsEditing] = useState(false);
 
     const currentValue = useMemo(
@@ -54,14 +56,14 @@ const ParameterItem: FC<SchedulerParameterItemProps> = ({
     );
 
     const displayValue = useMemo(() => {
-        if (!currentValue) return 'No value set';
+        if (!currentValue) return t('parameters.noValueSet');
         if (Array.isArray(currentValue)) {
             return currentValue.length > 0
                 ? currentValue.join(', ')
-                : 'No value set';
+                : t('parameters.noValueSet');
         }
         return currentValue;
-    }, [currentValue]);
+    }, [currentValue, t]);
 
     return (
         <Stack key={paramKey} gap="xs">
@@ -85,10 +87,7 @@ const ParameterItem: FC<SchedulerParameterItemProps> = ({
                 </Group>
                 <Group gap={4} wrap="nowrap">
                     {hasChanged && (
-                        <Tooltip
-                            label="Reset parameter back to dashboard default"
-                            fz="xs"
-                        >
+                        <Tooltip label={t('parameters.resetTooltip')} fz="xs">
                             <ActionIcon
                                 size="xs"
                                 onClick={() => {
@@ -156,6 +155,7 @@ export const SchedulerFormParametersTab: FC<SchedulerParametersProps> = ({
     onChange,
     isLoading,
 }) => {
+    const { t } = useTranslation('scheduler');
     const handleParameterChange = useCallback(
         (
             paramKey: string,
@@ -204,7 +204,7 @@ export const SchedulerFormParametersTab: FC<SchedulerParametersProps> = ({
         return (
             <Center component={Stack} h={100}>
                 <Loader color="gray" />
-                <Text c="dimmed">Loading parameters...</Text>
+                <Text c="dimmed">{t('parameters.loading')}</Text>
             </Center>
         );
     }
@@ -212,7 +212,7 @@ export const SchedulerFormParametersTab: FC<SchedulerParametersProps> = ({
     if (!availableParameters || Object.keys(availableParameters).length === 0) {
         return (
             <Center component={Stack} h={100}>
-                <Text c="dimmed">No parameters defined for this project.</Text>
+                <Text c="dimmed">{t('parameters.empty')}</Text>
             </Center>
         );
     }

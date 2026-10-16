@@ -1,5 +1,6 @@
 import { type ApiError } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -11,6 +12,7 @@ const deleteDashboard = async (id: string) =>
     });
 
 export const useDeleteOrganizationMutation = () => {
+    const { t } = useTranslation('app');
     const { showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(deleteDashboard, {
         onSuccess: async () => {
@@ -18,7 +20,9 @@ export const useDeleteOrganizationMutation = () => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to delete organization`,
+                title: t(
+                    'useOrganizationDeleteMultation.failedToDeleteOrganization',
+                ),
                 apiError: error,
             });
         },

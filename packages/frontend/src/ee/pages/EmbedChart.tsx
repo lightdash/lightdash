@@ -1,5 +1,6 @@
 import { IconUnlink } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
 import EmbedChart from '../features/embed/EmbedChart/components/EmbedChart';
@@ -8,6 +9,7 @@ import useEmbed from '../providers/Embed/useEmbed';
 const EmbedChartPage: FC<{
     containerStyles?: React.CSSProperties;
 }> = ({ containerStyles }) => {
+    const { t } = useTranslation('embed');
     const { chartUuid: chartUuidFromParams } = useParams<{
         chartUuid?: string;
     }>();
@@ -22,7 +24,7 @@ const EmbedChartPage: FC<{
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState
                     icon={IconUnlink}
-                    title="This embed link is not valid"
+                    title={t('page.invalidLink')}
                 />
             </div>
         );
@@ -31,7 +33,10 @@ const EmbedChartPage: FC<{
     if (!chartUuid) {
         return (
             <div style={{ marginTop: '20px' }}>
-                <SuboptimalState title="Missing chart ID" icon={IconUnlink} />
+                <SuboptimalState
+                    title={t('page.missingChartId')}
+                    icon={IconUnlink}
+                />
             </div>
         );
     }

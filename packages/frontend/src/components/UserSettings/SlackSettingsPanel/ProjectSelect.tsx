@@ -8,6 +8,7 @@ import {
     useCombobox,
 } from '@mantine/core';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useProjects } from '../../../hooks/useProjects';
 
 type ProjectSelectProps = {
@@ -21,6 +22,7 @@ export const ProjectSelect: FC<ProjectSelectProps> = ({
     onChange,
     disabled,
 }) => {
+    const { t } = useTranslation('userSettings');
     const { data: projects } = useProjects();
     const combobox = useCombobox({
         onDropdownClose: () => combobox.resetSelectedOption(),
@@ -44,7 +46,10 @@ export const ProjectSelect: FC<ProjectSelectProps> = ({
 
     const getLabel = (uuid: string) => {
         const project = projects?.find((p) => p.projectUuid === uuid);
-        return project?.name ?? 'Deleted project';
+        return (
+            project?.name ??
+            t('slackSettingsPanel.projectSelect.deletedProject')
+        );
     };
 
     const handleValueSelect = (val: string) => {
@@ -83,7 +88,12 @@ export const ProjectSelect: FC<ProjectSelectProps> = ({
 
         if (deleted) {
             return (
-                <Tooltip key={uuid} label="This project has been deleted">
+                <Tooltip
+                    key={uuid}
+                    label={t(
+                        'slackSettingsPanel.projectSelect.deletedProjectTooltip',
+                    )}
+                >
                     {pill}
                 </Tooltip>
             );
@@ -93,7 +103,10 @@ export const ProjectSelect: FC<ProjectSelectProps> = ({
     });
 
     return (
-        <Input.Wrapper label="Filter agents by project" size="xs">
+        <Input.Wrapper
+            label={t('slackSettingsPanel.projectSelect.label')}
+            size="xs"
+        >
             <Combobox
                 store={combobox}
                 onOptionSubmit={handleValueSelect}
@@ -112,7 +125,9 @@ export const ProjectSelect: FC<ProjectSelectProps> = ({
                                     onFocus={() => combobox.openDropdown()}
                                     onBlur={() => combobox.closeDropdown()}
                                     value={search}
-                                    placeholder="Select projects"
+                                    placeholder={t(
+                                        'slackSettingsPanel.projectSelect.placeholder',
+                                    )}
                                     onChange={(event) => {
                                         combobox.updateSelectedOptionIndex();
                                         setSearch(event.currentTarget.value);
@@ -148,7 +163,9 @@ export const ProjectSelect: FC<ProjectSelectProps> = ({
                                 </Combobox.Option>
                             ))
                         ) : (
-                            <Combobox.Empty>No projects found</Combobox.Empty>
+                            <Combobox.Empty>
+                                {t('slackSettingsPanel.projectSelect.empty')}
+                            </Combobox.Empty>
                         )}
                     </Combobox.Options>
                 </Combobox.Dropdown>

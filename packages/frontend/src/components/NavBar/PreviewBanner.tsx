@@ -1,6 +1,8 @@
 import { Anchor, Center, Group, Text } from '@mantine/core';
 import { IconArrowLeft, IconTool } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useUpdateActiveProjectMutation } from '../../hooks/useActiveProject';
 import { getProjectUrlIdentifier } from '../../utils/projectUrl';
@@ -8,7 +10,10 @@ import MantineIcon from '../common/MantineIcon';
 import { BANNER_HEIGHT } from '../common/Page/constants';
 import classes from './PreviewBanner.module.css';
 
-const formatExpirationSuffix = (expiresAt: Date): string => {
+const formatExpirationSuffix = (
+    t: TFunction<'navigation'>,
+    expiresAt: Date,
+): string => {
     const expiresAtDate = new Date(expiresAt);
     const diffMs = expiresAtDate.getTime() - Date.now();
     const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
@@ -16,9 +21,9 @@ const formatExpirationSuffix = (expiresAt: Date): string => {
         dateStyle: 'medium',
         timeStyle: 'short',
     });
-    if (diffDays <= 0) return ` Expires today (${formatted}).`;
-    if (diffDays === 1) return ` Expires in 1 day (${formatted}).`;
-    return ` Expires in ${diffDays} days (${formatted}).`;
+    if (diffDays <= 0)
+        return ` ${t('previewBanner.expiresToday', { date: formatted })}`;
+    return ` ${t('previewBanner.expiresIn', { count: diffDays, date: formatted })}`;
 };
 
 export const PreviewBanner: FC<{
@@ -29,6 +34,7 @@ export const PreviewBanner: FC<{
         name: string;
     } | null;
 }> = ({ expiresAt, upstreamProject }) => {
+    const { t } = useTranslation('navigation');
     const navigate = useNavigate();
     const { mutate: setActiveProject } = useUpdateActiveProjectMutation();
 
@@ -54,9 +60,8 @@ export const PreviewBanner: FC<{
             <Group gap="xs" wrap="nowrap" miw={0}>
                 <MantineIcon icon={IconTool} color="white" size="sm" />
                 <Text c="white" fw={500} fz="xs" truncate>
-                    This is a preview environment. Any changes you make here
-                    will not affect production.
-                    {expiresAt && formatExpirationSuffix(expiresAt)}
+                    {t('previewBanner.message')}
+                    {expiresAt && formatExpirationSuffix(t, expiresAt)}
                 </Text>
                 {upstreamProject && (
                     <Anchor
@@ -71,7 +76,9 @@ export const PreviewBanner: FC<{
                     >
                         <MantineIcon icon={IconArrowLeft} size="sm" />
                         <Text span fz="xs" fw={600} truncate maw={200}>
-                            back to {upstreamProject.name}
+                            {t('previewBanner.backTo', {
+                                name: upstreamProject.name,
+                            })}
                         </Text>
                     </Anchor>
                 )}

@@ -35,6 +35,7 @@ import {
     useMemo,
     type CSSProperties,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../MantineIcon';
 import classes from './ContentTable.module.css';
 import {
@@ -621,6 +622,7 @@ const DefaultBottomToolbar = <TData extends RowData>({
 }: {
     table: ContentTableInstance<TData>;
 }) => {
+    const { t } = useTranslation('commonUi');
     if (table.lightdashOptions.enablePagination === false) {
         return null;
     }
@@ -639,7 +641,9 @@ const DefaultBottomToolbar = <TData extends RowData>({
             className={classes.bottomToolbar}
         >
             <Text c="dimmed" fz="xs" fw={500}>
-                {table.getFilteredRowModel().rows.length} rows
+                {t('contentTable.rowCount', {
+                    count: table.getFilteredRowModel().rows.length,
+                })}
             </Text>
             <Pagination
                 size="xs"
@@ -656,10 +660,12 @@ const DefaultEmptyState = <TData extends RowData>({
 }: {
     table: ContentTableInstance<TData>;
 }) => {
+    const { t } = useTranslation('commonUi');
     const emptyState = table.lightdashOptions.emptyState;
     const search = emptyState?.search?.trim();
     const isFiltered = Boolean(search) || emptyState?.hasActiveFilters === true;
-    const entityName = emptyState?.entityName ?? 'records';
+    const entityName =
+        emptyState?.entityName ?? t('contentTable.defaultEntityName');
     const fallbackMessage = isFiltered
         ? emptyState?.filteredMessage
         : emptyState?.emptyMessage;
@@ -667,13 +673,15 @@ const DefaultEmptyState = <TData extends RowData>({
         emptyState?.title ??
         fallbackMessage ??
         (search
-            ? `No ${entityName} matching "${search}"`
+            ? t('contentTable.emptySearch', { entityName, search })
             : isFiltered
-              ? `No ${entityName} match the current filters`
-              : `No ${entityName} yet`);
+              ? t('contentTable.emptyFiltered', { entityName })
+              : t('contentTable.empty', { entityName }));
     const description =
         emptyState?.description ??
-        (search && !fallbackMessage ? 'Try a different search term.' : null);
+        (search && !fallbackMessage
+            ? t('contentTable.tryDifferentSearch')
+            : null);
     const icon = search ? IconSearch : isFiltered ? IconFilter : IconInbox;
     const canClearFilters = isFiltered && emptyState?.onClearFilters;
 
@@ -703,7 +711,7 @@ const DefaultEmptyState = <TData extends RowData>({
                             size="xs"
                             onClick={emptyState.onClearFilters}
                         >
-                            Clear all filters
+                            {t('contentTable.clearAllFilters')}
                         </Button>
                     ) : null}
                     {emptyState?.action}
@@ -718,6 +726,7 @@ export const ContentTable = <TData extends RowData>({
 }: {
     table: ContentTableInstance<TData>;
 }) => {
+    const { t } = useTranslation('commonUi');
     const options = table.lightdashOptions;
     const runtimeState = table.lightdashState;
     const containerRef = table.refs.tableContainerRef;
@@ -835,7 +844,7 @@ export const ContentTable = <TData extends RowData>({
             ) : null}
             {runtimeState.showProgressBars ? (
                 <div
-                    aria-label="Loading table rows"
+                    aria-label={t('contentTable.loadingRows')}
                     className={classes.progress}
                 />
             ) : null}
@@ -947,7 +956,7 @@ export const ContentTable = <TData extends RowData>({
                                 >
                                     {runtimeState.showAlertBanner ? (
                                         <div className={classes.emptyState}>
-                                            Unable to load rows
+                                            {t('contentTable.loadFailed')}
                                         </div>
                                     ) : (
                                         emptyRowsFallback

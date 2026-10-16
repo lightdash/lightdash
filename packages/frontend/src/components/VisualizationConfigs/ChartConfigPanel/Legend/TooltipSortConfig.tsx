@@ -1,22 +1,35 @@
 import { TooltipSortByOptions, type TooltipSortBy } from '@lightdash/common';
 import { Group, Select } from '@mantine/core';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 
-const TOOLTIP_SORT_OPTIONS = [
-    { value: TooltipSortByOptions.DEFAULT, label: 'Default' },
-    { value: TooltipSortByOptions.ALPHABETICAL, label: 'Alphabetical' },
-    {
-        value: TooltipSortByOptions.VALUE_DESCENDING,
-        label: 'Value (descending)',
-    },
-    { value: TooltipSortByOptions.VALUE_ASCENDING, label: 'Value (ascending)' },
-];
-
 export const TooltipSortConfig: FC = () => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig } = useVisualizationContext();
+    const tooltipSortOptions = useMemo(
+        () => [
+            {
+                value: TooltipSortByOptions.DEFAULT,
+                label: t('tooltipConfig.sortDefault'),
+            },
+            {
+                value: TooltipSortByOptions.ALPHABETICAL,
+                label: t('tooltipConfig.sortAlphabetical'),
+            },
+            {
+                value: TooltipSortByOptions.VALUE_DESCENDING,
+                label: t('tooltipConfig.sortValueDescending'),
+            },
+            {
+                value: TooltipSortByOptions.VALUE_ASCENDING,
+                label: t('tooltipConfig.sortValueAscending'),
+            },
+        ],
+        [t],
+    );
 
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
 
@@ -32,9 +45,9 @@ export const TooltipSortConfig: FC = () => {
 
     return (
         <Group gap="xs">
-            <Config.Label>Sort by</Config.Label>
+            <Config.Label>{t('tooltipConfig.sortBy')}</Config.Label>
             <Select
-                data={TOOLTIP_SORT_OPTIONS}
+                data={tooltipSortOptions}
                 value={tooltipSort ?? TooltipSortByOptions.DEFAULT}
                 onChange={handleChange}
                 w={160}

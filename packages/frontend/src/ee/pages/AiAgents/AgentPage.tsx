@@ -2,6 +2,7 @@ import { isAiAppThreadCreatedFrom, type AiAgent } from '@lightdash/common';
 import { Box, Group, Loader, Stack, Text, TextInput } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     Navigate,
     Outlet,
@@ -49,6 +50,7 @@ type NavigateFromAgentChatOptions = {
 };
 
 const AgentPage = () => {
+    const { t } = useTranslation('eeMisc');
     const { agentUuid, threadUuid } = useParams();
     const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
@@ -120,7 +122,7 @@ const AgentPage = () => {
                     (panelThreadUuid === threadUuid
                         ? thread?.title || thread?.firstMessage?.message
                         : undefined) ||
-                    'Conversation';
+                    t('agents.conversation');
                 addDockItem({
                     threadId: panelThreadUuid,
                     agentUuid: agent.uuid,
@@ -162,6 +164,7 @@ const AgentPage = () => {
             );
         },
         [
+            t,
             addDockItem,
             agent,
             navigate,
@@ -307,19 +310,16 @@ const AgentPage = () => {
             <MantineModal
                 opened={isShareModalOpen}
                 onClose={closeShareModal}
-                title="Share thread"
+                title={t('agents.share.title')}
                 icon={IconShare2}
                 size={560}
                 cancelLabel={false}
             >
                 <Stack gap="md">
                     <Stack gap="xs">
-                        <Text size="sm">
-                            Anyone with the link and access to this AI agent can
-                            open this conversation as their own copy.
-                        </Text>
+                        <Text size="sm">{t('agents.share.description')}</Text>
                         <Text size="sm" c="dimmed">
-                            New messages you send later won't be included.
+                            {t('agents.share.laterMessages')}
                         </Text>
                     </Stack>
 
@@ -332,7 +332,7 @@ const AgentPage = () => {
                         <TextInput
                             value={
                                 isCreatingShare
-                                    ? 'Creating link...'
+                                    ? t('agents.share.creating')
                                     : (shareUrl ?? '')
                             }
                             readOnly

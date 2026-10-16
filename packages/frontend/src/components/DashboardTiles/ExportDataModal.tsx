@@ -1,6 +1,7 @@
 import { Button, Group } from '@mantine/core';
 import { IconTableExport } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../common/MantineModal';
 import ExportResults, { type ExportResultsProps } from '../ExportResults';
 
@@ -14,13 +15,14 @@ const ExportDataModal: FC<ExportDataModalProps> = ({
     onClose,
     ...exportResultsProps
 }) => {
+    const { t } = useTranslation('dashboard');
     if (!isOpen) return null;
 
     return (
         <MantineModal
             opened
             onClose={onClose}
-            title="Export Data"
+            title={t('tile.exportData')}
             icon={IconTableExport}
             size="md"
             cancelLabel={false}
@@ -30,7 +32,7 @@ const ExportDataModal: FC<ExportDataModalProps> = ({
                 renderDialogActions={({ onExport, isExporting }) => (
                     <Group justify="flex-end" gap="xs">
                         <Button variant="default" onClick={onClose}>
-                            Cancel
+                            {t('actions.cancel', { ns: 'common' })}
                         </Button>
 
                         <Button
@@ -40,7 +42,7 @@ const ExportDataModal: FC<ExportDataModalProps> = ({
                             }}
                             data-testid="chart-export-results-button"
                         >
-                            Download
+                            {t('actions.download', { ns: 'common' })}
                         </Button>
                     </Group>
                 )}

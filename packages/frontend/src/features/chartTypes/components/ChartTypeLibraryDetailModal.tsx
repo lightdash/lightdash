@@ -6,6 +6,7 @@ import {
 import { Box, Button, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { IconPhoto } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -36,6 +37,7 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
     onClose,
     onInstalled,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const { user } = useApp();
     const publishedAgo = useTimeAgo(item.publishedAt);
     const installMutation = useInstallRegistryChartType();
@@ -109,7 +111,7 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
                             loading={installMutation.isLoading}
                             onClick={handleInstall}
                         >
-                            Install
+                            {t('library.install')}
                         </Button>,
                     ),
                 };
@@ -121,7 +123,7 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
                 return {
                     actions: (
                         <Button variant="default" onClick={onClose}>
-                            Close
+                            {t('actions.close', { ns: 'common' })}
                         </Button>
                     ),
                     cancelLabel: false as const,
@@ -131,10 +133,11 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
                     actions: (
                         <Group gap="sm" wrap="nowrap">
                             <Text fz="xs" c="dimmed">
-                                Requires Lightdash v{item.minLightdashVersion}{' '}
-                                or later
+                                {t('library.requiresVersion', {
+                                    version: item.minLightdashVersion,
+                                })}
                             </Text>
-                            <Button disabled>Install</Button>
+                            <Button disabled>{t('library.install')}</Button>
                         </Group>
                     ),
                 };
@@ -183,17 +186,17 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
                 )}
 
                 <Text fz="sm" c="ldGray.7" lh={1.55}>
-                    {item.description || 'No description'}
+                    {item.description || t('detail.noDescription')}
                 </Text>
 
                 {item.state === 'update_available' && (
                     <Callout
                         variant="warning"
-                        title="Existing charts keep their pinned version"
+                        title={t('library.pinnedVersionTitle')}
                     >
-                        Charts pinned to an earlier version keep rendering it
-                        until each chart is upgraded; charts without a pinned
-                        version switch to v{item.version} right away.
+                        {t('detail.updateExplanation', {
+                            version: item.version,
+                        })}
                         {item.changelog && (
                             <Text fz="sm" mt="xs">
                                 {item.changelog}
@@ -207,7 +210,7 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
                 <SimpleGrid cols={2} className={classes.metaPanel}>
                     <Box>
                         <Text fz={12} fw={600} c="ldGray.6">
-                            Version
+                            {t('detail.version')}
                         </Text>
                         <Group gap="xs" wrap="nowrap">
                             <Text fz="sm" fw={500} c="ldGray.8">
@@ -220,7 +223,7 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
                     </Box>
                     <Box>
                         <Text fz={12} fw={600} c="ldGray.6">
-                            Published
+                            {t('library.published')}
                         </Text>
                         <Text fz="sm" fw={500} c="ldGray.8">
                             {publishedAgo}
@@ -231,7 +234,7 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
                 {item.changelog && item.state !== 'update_available' && (
                     <Box>
                         <Text fz={12} fw={600} c="ldGray.6" mb={4}>
-                            Changelog
+                            {t('library.changelog')}
                         </Text>
                         <Text fz="sm" c="ldGray.7">
                             {item.changelog}

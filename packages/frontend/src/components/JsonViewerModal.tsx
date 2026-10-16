@@ -8,6 +8,7 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { IconCheck, IconCode, IconCopy } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import ReactJson from 'react-json-view';
 import { useRjvTheme } from '../hooks/useRjvTheme';
 import MantineIcon from './common/MantineIcon';
@@ -24,6 +25,7 @@ export const JsonViewerModal = ({
     opened,
     onClose,
 }: Props) => {
+    const { t } = useTranslation('app');
     const theme = useRjvTheme();
     return (
         <MantineModal
@@ -49,7 +51,11 @@ export const JsonViewerModal = ({
                     >
                         {({ copied, copy }) => (
                             <Tooltip
-                                label={copied ? 'Copied' : 'Copy'}
+                                label={
+                                    copied
+                                        ? t('jsonViewer.copied')
+                                        : t('actions.copy', { ns: 'common' })
+                                }
                                 position="right"
                             >
                                 <Button
@@ -61,7 +67,7 @@ export const JsonViewerModal = ({
                                         />
                                     }
                                 >
-                                    Copy
+                                    {t('actions.copy', { ns: 'common' })}
                                 </Button>
                             </Tooltip>
                         )}

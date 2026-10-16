@@ -26,6 +26,7 @@ import {
     IconUsers,
 } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import { FavoriteActionIcon } from '../../components/common/FavoriteActionIcon';
@@ -66,6 +67,7 @@ const DocumentActions = ({
     document: Document;
     canRequestReview: boolean;
 }) => {
+    const { t } = useTranslation('documents');
     const { user } = useApp();
     const documentFlag = useServerFeatureFlag(FeatureFlags.Documents);
     const pinMutation = useDocumentPinningMutation();
@@ -159,7 +161,7 @@ const DocumentActions = ({
                 variant="default"
                 size="lg"
                 value={url}
-                copyLabel="Copy document link"
+                copyLabel={t('actions.copyLink')}
             />
             {isAvailable && canManage && isShareOpen && (
                 <DirectAccessModal
@@ -175,11 +177,11 @@ const DocumentActions = ({
             )}
             <Menu>
                 <Menu.Target>
-                    <Tooltip label="Document actions">
+                    <Tooltip label={t('actions.menu')}>
                         <ActionIcon
                             variant="default"
                             size="lg"
-                            aria-label="Document actions"
+                            aria-label={t('actions.menu')}
                         >
                             <MantineIcon icon={IconDots} />
                         </ActionIcon>
@@ -191,7 +193,7 @@ const DocumentActions = ({
                             leftSection={<MantineIcon icon={IconUsers} />}
                             onClick={() => setShareOpen(true)}
                         >
-                            Share
+                            {t('actions.share')}
                         </Menu.Item>
                     )}
                     {canPin && !isPersonal && (
@@ -210,8 +212,8 @@ const DocumentActions = ({
                             }
                         >
                             {isPinned
-                                ? 'Unpin from homepage'
-                                : 'Pin to homepage'}
+                                ? t('actions.unpinFromHomepage')
+                                : t('actions.pinToHomepage')}
                         </Menu.Item>
                     )}
                     {canEdit && (
@@ -219,7 +221,9 @@ const DocumentActions = ({
                             leftSection={<MantineIcon icon={IconUserCircle} />}
                             onClick={() => setOwnerOpen(true)}
                         >
-                            {document.owner ? 'Change owner' : 'Assign owner'}
+                            {document.owner
+                                ? t('actions.changeOwner')
+                                : t('actions.assignOwner')}
                         </Menu.Item>
                     )}
                     {writableSpaces.length > 0 && (
@@ -227,7 +231,7 @@ const DocumentActions = ({
                             leftSection={<MantineIcon icon={IconCopy} />}
                             onClick={() => setDuplicateOpen(true)}
                         >
-                            Duplicate
+                            {t('actions.duplicate')}
                         </Menu.Item>
                     )}
                     {canManageVerification && (
@@ -261,8 +265,8 @@ const DocumentActions = ({
                             }}
                         >
                             {document.verification
-                                ? 'Remove verification'
-                                : 'Verify'}
+                                ? t('actions.removeVerification')
+                                : t('actions.verify')}
                         </Menu.Item>
                     )}
                     {canRequestReview && (
@@ -270,12 +274,12 @@ const DocumentActions = ({
                             leftSection={<MantineIcon icon={IconSend} />}
                             onClick={() => setRequestReviewOpen(true)}
                         >
-                            Request review
+                            {t('actions.requestReview')}
                         </Menu.Item>
                     )}
                     {canPromote && !isPersonal && (
                         <Tooltip
-                            label="You must enable first an upstream project in settings > Data ops"
+                            label={t('actions.promoteRequiresUpstream')}
                             disabled={hasUpstreamProject}
                         >
                             <Box>
@@ -292,7 +296,7 @@ const DocumentActions = ({
                                         )
                                     }
                                 >
-                                    Promote document
+                                    {t('actions.promote')}
                                 </Menu.Item>
                             </Box>
                         </Tooltip>
@@ -305,14 +309,14 @@ const DocumentActions = ({
                             )
                         }
                     >
-                        Version history
+                        {t('actions.versionHistory')}
                     </Menu.Item>
                     {!isPersonal && (
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconCode} />}
                             onClick={() => setCodeOpen(true)}
                         >
-                            View as code
+                            {t('actions.viewAsCode')}
                         </Menu.Item>
                     )}
                     <Menu.Item
@@ -320,7 +324,7 @@ const DocumentActions = ({
                         disabled={exportPdf.isLoading}
                         onClick={() => exportPdf.mutate(document)}
                     >
-                        Export PDF
+                        {t('actions.exportPdf')}
                     </Menu.Item>
                     {canDelete && (
                         <Menu.Item
@@ -328,7 +332,7 @@ const DocumentActions = ({
                             leftSection={<MantineIcon icon={IconTrash} />}
                             onClick={() => setDeleteOpen(true)}
                         >
-                            Delete
+                            {t('actions.delete', { ns: 'common' })}
                         </Menu.Item>
                     )}
                 </Menu.Dropdown>

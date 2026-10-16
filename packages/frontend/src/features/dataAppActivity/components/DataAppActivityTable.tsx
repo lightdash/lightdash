@@ -16,6 +16,7 @@ import {
 import { IconAppWindow, IconPuzzle } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import {
     ContentTable,
@@ -57,6 +58,7 @@ const NotRecorded: FC = () => (
 const TokensCell: FC<{ usage: DataAppGenerationUsage | null }> = ({
     usage,
 }) => {
+    const { t } = useTranslation('queryHistory');
     if (!usage) return <NotRecorded />;
     // Cached tokens dominate an agentic run — every turn re-sends the system
     // prompt and conversation so far, served from Anthropic's cache. Leaving
@@ -68,14 +70,34 @@ const TokensCell: FC<{ usage: DataAppGenerationUsage | null }> = ({
         <Tooltip
             label={
                 <Stack gap={2}>
-                    <Text fz="xs">{`Input: ${exactTokens.format(usage.inputTokens)}`}</Text>
-                    <Text fz="xs">{`Output: ${exactTokens.format(usage.outputTokens)}`}</Text>
-                    <Text fz="xs">{`Cached: ${exactTokens.format(cached)}`}</Text>
-                    <Text fz="xs">{`${usage.numTurns} turns`}</Text>
+                    <Text fz="xs">
+                        {t('dataAppActivity.tokens.input', {
+                            value: exactTokens.format(usage.inputTokens),
+                        })}
+                    </Text>
+                    <Text fz="xs">
+                        {t('dataAppActivity.tokens.output', {
+                            value: exactTokens.format(usage.outputTokens),
+                        })}
+                    </Text>
+                    <Text fz="xs">
+                        {t('dataAppActivity.tokens.cached', {
+                            value: exactTokens.format(cached),
+                        })}
+                    </Text>
+                    <Text fz="xs">
+                        {t('dataAppActivity.tokens.turns', {
+                            count: usage.numTurns,
+                        })}
+                    </Text>
                     <Text fz="xs">
                         {usage.costUsd === null
-                            ? 'Estimated cost: Not available'
-                            : `Estimated cost: ${formatCost(usage.costUsd)}`}
+                            ? t(
+                                  'dataAppActivity.tokens.estimatedCostUnavailable',
+                              )
+                            : t('dataAppActivity.tokens.estimatedCost', {
+                                  cost: formatCost(usage.costUsd),
+                              })}
                     </Text>
                 </Stack>
             }
@@ -86,12 +108,13 @@ const TokensCell: FC<{ usage: DataAppGenerationUsage | null }> = ({
 };
 
 const PromptCell: FC<{ prompt: string }> = ({ prompt }) => {
+    const { t } = useTranslation('queryHistory');
     const { ref, isTruncated } = useIsTruncated<HTMLDivElement>();
     const text = prompt.trim();
     if (text === '') {
         return (
             <Text fz="sm" fs="italic" c="dimmed">
-                No prompt
+                {t('dataAppActivity.noPrompt')}
             </Text>
         );
     }
@@ -105,6 +128,7 @@ const PromptCell: FC<{ prompt: string }> = ({ prompt }) => {
 };
 
 export const DataAppActivityTable: FC = () => {
+    const { t } = useTranslation('queryHistory');
     const theme = useMantineTheme();
     const filters = useDataAppActivityFilters();
 
@@ -139,7 +163,7 @@ export const DataAppActivityTable: FC = () => {
             {
                 id: 'createdAt',
                 accessorFn: (row) => row.createdAt,
-                header: 'When',
+                header: t('dataAppActivity.columns.when'),
                 size: 118,
                 enableSorting: false,
                 Cell: ({ row }) => (
@@ -161,8 +185,8 @@ export const DataAppActivityTable: FC = () => {
                 accessorFn: (row) =>
                     row.user
                         ? `${row.user.firstName} ${row.user.lastName}`
-                        : 'Unknown user',
-                header: 'User',
+                        : t('dataAppActivity.unknownUser'),
+                header: t('dataAppActivity.columns.user'),
                 size: 138,
                 enableSorting: false,
                 Cell: ({ row }) =>
@@ -172,14 +196,14 @@ export const DataAppActivityTable: FC = () => {
                         </Text>
                     ) : (
                         <Text fz="sm" fs="italic" c="dimmed">
-                            Deleted user
+                            {t('dataAppActivity.deletedUser')}
                         </Text>
                     ),
             },
             {
                 id: 'app',
                 accessorFn: (row) => row.appName,
-                header: 'Name',
+                header: t('dataAppActivity.columns.name'),
                 size: 150,
                 enableSorting: false,
                 Cell: ({ row }) => {
@@ -194,8 +218,8 @@ export const DataAppActivityTable: FC = () => {
                             <Tooltip
                                 label={
                                     isChartType
-                                        ? 'Custom chart type'
-                                        : 'Data app'
+                                        ? t('dataAppActivity.customChartType')
+                                        : t('dataAppActivity.dataApp')
                                 }
                             >
                                 <MantineIcon
@@ -229,7 +253,7 @@ export const DataAppActivityTable: FC = () => {
                             )}
                             {row.original.appDeleted && (
                                 <Badge size="xs" flex="0 0 auto">
-                                    Deleted
+                                    {t('dataAppActivity.deleted')}
                                 </Badge>
                             )}
                         </Group>
@@ -239,7 +263,7 @@ export const DataAppActivityTable: FC = () => {
             {
                 id: 'project',
                 accessorFn: (row) => row.projectName,
-                header: 'Project',
+                header: t('dataAppActivity.columns.project'),
                 size: 100,
                 enableSorting: false,
                 Cell: ({ row }) => (
@@ -251,15 +275,15 @@ export const DataAppActivityTable: FC = () => {
             {
                 id: 'version',
                 accessorFn: (row) => row.version,
-                header: 'Type',
+                header: t('dataAppActivity.columns.type'),
                 size: 114,
                 enableSorting: false,
                 Cell: ({ row }) => (
                     <Group gap="xs" wrap="nowrap">
                         <Text fz="sm" truncate>
                             {row.original.version === 1
-                                ? 'Created'
-                                : 'Iteration'}
+                                ? t('dataAppActivity.created')
+                                : t('dataAppActivity.iteration')}
                         </Text>
                         <Text fz="xs" c="dimmed" ff="monospace" flex="0 0 auto">
                             {`v${row.original.version}`}
@@ -270,7 +294,7 @@ export const DataAppActivityTable: FC = () => {
             {
                 id: 'codingAgentModel',
                 accessorFn: (row) => row.codingAgentModel,
-                header: 'Model',
+                header: t('dataAppActivity.columns.model'),
                 size: 140,
                 enableSorting: false,
                 Cell: ({ row }) => (
@@ -280,7 +304,7 @@ export const DataAppActivityTable: FC = () => {
             {
                 id: 'status',
                 accessorFn: (row) => row.status,
-                header: 'Status',
+                header: t('dataAppActivity.columns.status'),
                 size: 112,
                 enableSorting: false,
                 Cell: ({ row }) => (
@@ -295,7 +319,7 @@ export const DataAppActivityTable: FC = () => {
             {
                 id: 'tokens',
                 accessorFn: (row) => row.usage?.inputTokens ?? null,
-                header: 'Tokens',
+                header: t('dataAppActivity.columns.tokens'),
                 size: 80,
                 enableSorting: false,
                 mantineTableBodyCellProps: { ta: 'right' },
@@ -305,14 +329,14 @@ export const DataAppActivityTable: FC = () => {
             {
                 id: 'prompt',
                 accessorFn: (row) => row.prompt,
-                header: 'Prompt',
+                header: t('dataAppActivity.columns.prompt'),
                 size: 190,
                 grow: true,
                 enableSorting: false,
                 Cell: ({ row }) => <PromptCell prompt={row.original.prompt} />,
             },
         ],
-        [],
+        [t],
     );
 
     const table = useContentTable({
@@ -342,9 +366,9 @@ export const DataAppActivityTable: FC = () => {
             },
         },
         emptyState: {
-            entityName: 'generations',
-            emptyMessage: 'No data apps have been generated yet.',
-            filteredMessage: 'No generations match these filters.',
+            entityName: t('dataAppActivity.emptyState.entityName'),
+            emptyMessage: t('dataAppActivity.emptyState.emptyMessage'),
+            filteredMessage: t('dataAppActivity.emptyState.filteredMessage'),
             hasActiveFilters: filters.hasActiveFilters,
             onClearFilters: filters.resetFilters,
         },

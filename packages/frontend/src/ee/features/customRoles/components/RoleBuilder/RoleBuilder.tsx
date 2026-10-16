@@ -27,6 +27,7 @@ import {
     IconFolder,
 } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -91,22 +92,14 @@ const dependencyStatusItems = [
 const roleLevelOptions = [
     {
         value: 'project',
-        title: 'Project role',
-        description:
-            'Assigned per project. A user or group can hold different project roles on different projects.',
         icon: IconFolder,
     },
     {
         value: 'organization',
-        title: 'Organization role',
-        description:
-            'Grants access to organization-wide admin settings, applied across the whole org. Any project-scoped permissions you add here will apply to every project.',
         icon: IconBuilding,
     },
 ] as const satisfies Array<{
     value: RoleLevel;
-    title: string;
-    description: string;
     icon: typeof IconFolder;
 }>;
 
@@ -124,6 +117,7 @@ const RoleBuilderForm: FC<Props & { agentCapabilitiesEnabled: boolean }> = ({
     presets,
     agentCapabilitiesEnabled,
 }) => {
+    const { t } = useTranslation('customRoles');
     // Convert array of scopes to object format, keeping only scopes assignable
     // at the initial level — duplicated roles (e.g. system Admin) can carry
     // scopes from both levels, and the hidden ones must not leak into submit.
@@ -256,7 +250,7 @@ const RoleBuilderForm: FC<Props & { agentCapabilitiesEnabled: boolean }> = ({
     const isLevelDisabled = isWorking || mode === 'edit' || levelLocked;
     const levelHint =
         mode === 'edit'
-            ? "Role type can't be changed after creation."
+            ? t('builder.levelLockedAfterCreation')
             : levelLocked
               ? levelLockedHint
               : undefined;
@@ -280,11 +274,11 @@ const RoleBuilderForm: FC<Props & { agentCapabilitiesEnabled: boolean }> = ({
                         <Stack gap="md">
                             <Stack gap="xs">
                                 <Stack gap="two">
-                                    <Input.Label>Role type</Input.Label>
+                                    <Input.Label>
+                                        {t('builder.roleType')}
+                                    </Input.Label>
                                     <Text fz="sm" c="dimmed">
-                                        Choose where this role can be assigned.
-                                        This can't be changed after the role is
-                                        created.
+                                        {t('builder.roleTypeDescription')}
                                     </Text>
                                     {levelHint && (
                                         <Text fz="xs" c="dimmed">
@@ -341,16 +335,18 @@ const RoleBuilderForm: FC<Props & { agentCapabilitiesEnabled: boolean }> = ({
                                                         </Box>
                                                         <Stack gap="xs">
                                                             <Text fw={600}>
-                                                                {option.title}
+                                                                {t(
+                                                                    `builder.levels.${option.value}.title`,
+                                                                )}
                                                             </Text>
                                                             <Text
                                                                 fz="sm"
                                                                 c="dimmed"
                                                                 lh={1.45}
                                                             >
-                                                                {
-                                                                    option.description
-                                                                }
+                                                                {t(
+                                                                    `builder.levels.${option.value}.description`,
+                                                                )}
                                                             </Text>
                                                         </Stack>
                                                     </Group>
@@ -379,12 +375,14 @@ const RoleBuilderForm: FC<Props & { agentCapabilitiesEnabled: boolean }> = ({
                             </Stack>
                             {availablePresets && (
                                 <Select
-                                    label="Preset"
-                                    description="Start with a common role, then customize its name, description, and permissions."
+                                    label={t('builder.preset')}
+                                    description={t('builder.presetDescription')}
                                     data={[
                                         {
                                             value: START_FROM_SCRATCH,
-                                            label: 'Start from scratch',
+                                            label: t(
+                                                'builder.startFromScratch',
+                                            ),
                                         },
                                         ...availablePresets.map((preset) => ({
                                             value: preset.title,
@@ -398,15 +396,17 @@ const RoleBuilderForm: FC<Props & { agentCapabilitiesEnabled: boolean }> = ({
                                 />
                             )}
                             <TextInput
-                                label="Role name"
-                                placeholder="e.g., Finance Analyst"
+                                label={t('builder.roleName')}
+                                placeholder={t('builder.roleNamePlaceholder')}
                                 required
                                 disabled={isWorking}
                                 {...form.getInputProps('name')}
                             />
                             <Textarea
-                                label="Description"
-                                placeholder="Describe the purpose of this role"
+                                label={t('table.description')}
+                                placeholder={t(
+                                    'builder.descriptionPlaceholder',
+                                )}
                                 rows={3}
                                 disabled={isWorking}
                                 {...form.getInputProps('description')}
@@ -446,7 +446,13 @@ const RoleBuilderForm: FC<Props & { agentCapabilitiesEnabled: boolean }> = ({
                                                 styles.dependencyStatusButton
                                             }
                                             data-selected={isSelected}
-                                            aria-label={`Show ${count} permissions with ${status.key} dependency status`}
+                                            aria-label={t(
+                                                'builder.showDependencyStatus',
+                                                {
+                                                    count,
+                                                    status: status.key,
+                                                },
+                                            )}
                                             aria-pressed={isSelected}
                                             onClick={() =>
                                                 handleDependencyStatusClick(
@@ -468,7 +474,7 @@ const RoleBuilderForm: FC<Props & { agentCapabilitiesEnabled: boolean }> = ({
                                     );
                                 })}
                                 <Text fz="sm" c="dimmed">
-                                    dependencies
+                                    {t('builder.dependencies')}
                                 </Text>
                             </Group>
                             <Group gap="sm">
@@ -478,7 +484,7 @@ const RoleBuilderForm: FC<Props & { agentCapabilitiesEnabled: boolean }> = ({
                                     to="/generalSettings/customRoles"
                                     disabled={isWorking}
                                 >
-                                    Cancel
+                                    {t('actions.cancel', { ns: 'common' })}
                                 </Button>
                                 <Button
                                     type="submit"
@@ -488,8 +494,8 @@ const RoleBuilderForm: FC<Props & { agentCapabilitiesEnabled: boolean }> = ({
                                     }
                                 >
                                     {mode === 'create'
-                                        ? 'Create role'
-                                        : 'Save changes'}
+                                        ? t('builder.createRole')
+                                        : t('builder.saveChanges')}
                                 </Button>
                             </Group>
                         </Flex>

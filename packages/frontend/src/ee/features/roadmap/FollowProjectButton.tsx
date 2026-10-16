@@ -1,5 +1,6 @@
 import { type RoadmapProjectGroup } from '@lightdash/common';
 import { Button } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 
 export type FollowProjectAction = {
     isLoading: boolean;
@@ -21,6 +22,7 @@ export function FollowProjectButton({
     className?: string;
     compact?: boolean;
 }) {
+    const { t } = useTranslation('eeMisc');
     if (!canFollow || item.hasDirectNeed || item.ownRequestCount > 0)
         return null;
 
@@ -32,7 +34,9 @@ export function FollowProjectButton({
             disabled={isSubmitted}
             onClick={onFollow}
         >
-            {isSubmitted ? 'Request sent' : 'Follow'}
+            {isSubmitted
+                ? t('roadmap.follow.sent')
+                : t('roadmap.follow.follow')}
         </Button>
     );
 }
