@@ -586,6 +586,10 @@ import {
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
 import {
+    normalizeAiMcpOAuthClientCredentials,
+    type AiMcpOAuthClientCredentials,
+} from '../ai/utils/mcpServerCredentials';
+import {
     parseMemoryCitations,
     stripMemoryCitations,
 } from '../ai/utils/memoryCitation';
@@ -6308,6 +6312,7 @@ export class AiAgentService extends BaseService {
         // already gated by assertCanManageMcpServers above.
         const allowOAuthCredentialSharing =
             body.allowOAuthCredentialSharing ?? false;
+        let oauthClientCredentials: AiMcpOAuthClientCredentials | null = null;
 
         switch (body.authType) {
             case 'none':
@@ -6369,21 +6374,12 @@ export class AiAgentService extends BaseService {
                         'Bearer credentials are not allowed for auth type "oauth"',
                     );
                 }
-                if (
-                    !body.credentials?.clientId?.trim() &&
-                    body.credentials?.clientSecret?.trim()
-                ) {
+                oauthClientCredentials = normalizeAiMcpOAuthClientCredentials(
+                    body.credentials,
+                );
+                if (allowOAuthCredentialSharing && oauthClientCredentials) {
                     throw new ParameterError(
-                        'OAuth client secret requires a client ID',
-                    );
-                }
-                if (
-                    allowOAuthCredentialSharing &&
-                    (body.credentials?.clientId?.trim() ||
-                        body.credentials?.clientSecret?.trim())
-                ) {
-                    throw new ParameterError(
-                        'OAuth client ID and secret are only supported for personal OAuth credentials',
+                        'OAuth client credentials are only supported for personal OAuth credentials',
                     );
                 }
                 if (body.credentialScope !== undefined) {
@@ -6405,15 +6401,8 @@ export class AiAgentService extends BaseService {
                 bearerToken: body.credentials!.bearerToken!.trim(),
             };
         }
-        if (
-            body.authType === 'oauth' &&
-            body.credentials?.clientId?.trim() &&
-            body.credentials?.clientSecret?.trim()
-        ) {
-            credentials = {
-                clientId: body.credentials.clientId.trim(),
-                clientSecret: body.credentials.clientSecret.trim(),
-            };
+        if (body.authType === 'oauth' && oauthClientCredentials) {
+            credentials = oauthClientCredentials;
         }
 
         let mcpConnectionMetadata: { iconUrl: string | null } | null = null;

@@ -270,6 +270,7 @@ import {
     type SqlApprovalDecision,
     type SqlApprovalDecisionOnCall,
 } from '../services/ai/tools/sqlApprovals';
+import { normalizeAiMcpOAuthClientCredentials } from '../services/ai/utils/mcpServerCredentials';
 import { type AiAgentThreadLiveStateSignals } from '../services/AiAgentService/aiAgentThreadLiveStatus';
 import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from '../services/AiDeepResearchService/constants';
 import { AI_AGENT_THREAD_PENDING_TIMEOUT_MS } from './aiAgentConstants';
@@ -1423,27 +1424,21 @@ export class AiAgentModel {
                     type: 'bearer',
                     bearerToken: credentials.bearerToken,
                 };
-            case 'oauth':
-                if (!credentials?.clientId && !credentials?.clientSecret) {
+            case 'oauth': {
+                const oauthClient =
+                    normalizeAiMcpOAuthClientCredentials(credentials);
+                if (!oauthClient) {
                     return null;
                 }
 
-                if (!credentials.clientId) {
-                    throw new ParameterError(
-                        'OAuth client secret requires a client ID',
-                    );
-                }
-
-                // No secret means a public client that authenticates with
-                // PKCE only; the SDK selects the `none` token auth method.
                 return {
                     type: 'oauth',
                     credentialScope: 'shared',
                     connectionStatus: 'not_connected',
-                    configuredClientId: credentials.clientId,
-                    configuredClientSecret:
-                        credentials.clientSecret || undefined,
+                    configuredClientId: oauthClient.clientId,
+                    configuredClientSecret: oauthClient.clientSecret,
                 };
+            }
             default:
                 return assertUnreachable(
                     authType,

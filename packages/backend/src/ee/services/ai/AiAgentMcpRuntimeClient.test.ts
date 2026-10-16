@@ -502,8 +502,10 @@ describe('PersistentMcpOAuthClientProvider', () => {
         const aiAgentModel = {
             getCredential: vi
                 .fn()
-                .mockResolvedValueOnce(undefined)
-                .mockResolvedValueOnce(sharedCredential),
+                .mockImplementation(
+                    async (_serverUuid: string, scope: string) =>
+                        scope === 'shared' ? sharedCredential : undefined,
+                ),
             upsertCredential: vi.fn(),
         } as unknown as AiAgentModel;
         const runtimeClient = new AiAgentMcpRuntimeClient({
@@ -589,8 +591,10 @@ describe('PersistentMcpOAuthClientProvider', () => {
         const aiAgentModel = {
             getCredential: vi
                 .fn()
-                .mockResolvedValueOnce(undefined)
-                .mockResolvedValueOnce(sharedCredential),
+                .mockImplementation(
+                    async (_serverUuid: string, scope: string) =>
+                        scope === 'shared' ? sharedCredential : undefined,
+                ),
             upsertCredential: vi.fn(),
         } as unknown as AiAgentModel;
         const runtimeClient = new AiAgentMcpRuntimeClient({
