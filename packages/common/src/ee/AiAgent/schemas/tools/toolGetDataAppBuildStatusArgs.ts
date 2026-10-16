@@ -99,7 +99,11 @@ export const mcpGetDataAppBuildStatusStructuredOutputSchema = z.object({
         .describe('Why the build failed. Set only when status is "error".'),
     name: z.string().describe("The app's name."),
     slug: z.string().describe("The app's permanent slug; it never changes."),
-    href: z.string().describe('URL to open the app in Lightdash.'),
+    href: z
+        .string()
+        .describe(
+            'URL that opens the app, or Chart Studio for a custom chart type.',
+        ),
     nextPollAfterMs: z
         .number()
         .int()
