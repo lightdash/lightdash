@@ -37,6 +37,17 @@ const ALLOWED_ASSET_CONTENT_TYPES = new Set([
     'image/gif',
 ]);
 
+// Private repositories (e.g. Artifactory proxies) chnage the 
+// contentType to generic octet-stream, so use this mapping to 
+// convert the file extension to regular content types.
+const IMAGE_CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    webp: 'image/webp',
+    gif: 'image/gif',
+};
+
 // Servable asset shape: one image filename under a published version dir of
 // an indexed chart. Validated structurally (plus a slug check against the
 // index) rather than by exact enumeration: the index only lists each chart's
@@ -481,17 +492,30 @@ export class ChartRegistryClient {
         return body;
     }
 
-    /** Non-2xx or a content type outside the image allowlist is treated as absent. */
-    private isServableAsset(
+    /**
+     * Non-2xx or a content type outside the image allowlist is treated as
+     * absent. A generic octet-stream (e.g. Artifactory proxies) falls back to
+     * the type implied by the path's image extension, already restricted by
+     * ASSET_PATH_PATTERN.
+     */
+    private resolveAssetContentType(
         status: number,
         contentType: string | null,
-    ): boolean {
-        return (
-            status >= 200 &&
-            status < 300 &&
-            contentType !== null &&
-            ALLOWED_ASSET_CONTENT_TYPES.has(normalizeContentType(contentType))
-        );
+        path: string,
+    ): string | undefined {
+        if (status < 200 || status >= 300 || contentType === null) {
+            return undefined;
+        }
+        const normalized = normalizeContentType(contentType);
+        const resolved =
+            normalized === 'application/octet-stream'
+                ? IMAGE_CONTENT_TYPE_BY_EXTENSION[
+                      path.slice(path.lastIndexOf('.') + 1).toLowerCase()
+                  ]
+                : normalized;
+        return resolved && ALLOWED_ASSET_CONTENT_TYPES.has(resolved)
+            ? resolved
+            : undefined;
     }
 
     async getAsset(
@@ -512,13 +536,15 @@ export class ChartRegistryClient {
             this.resolveUrl(path).toString(),
             MAX_ARTIFACT_BYTES,
         );
-        if (!this.isServableAsset(status, contentType)) {
+        const resolvedContentType = this.resolveAssetContentType(
+            status,
+            contentType,
+            path,
+        );
+        if (!resolvedContentType) {
             return undefined;
         }
-        return {
-            buffer: body,
-            contentType: normalizeContentType(contentType as string),
-        };
+        return { buffer: body, contentType: resolvedContentType };
     }
 
     private defaultFetch(

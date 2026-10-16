@@ -458,6 +458,21 @@ describe('ChartRegistryClient', () => {
         expect(await client.getAsset(entry.thumbnail)).toBeUndefined();
     });
 
+    it('serves an octet-stream asset using the type implied by its image extension', async () => {
+        const fetchImpl = vi
+            .fn()
+            .mockResolvedValueOnce(jsonResponse(index))
+            .mockResolvedValueOnce({
+                status: 200,
+                body: Buffer.from([1, 2, 3]),
+                contentType: 'application/octet-stream',
+            });
+        const client = makeClient(fetchImpl);
+        const asset = await client.getAsset('charts/sankey/1.2.0/thumb.webp');
+        expect(asset?.contentType).toBe('image/webp');
+        expect(asset?.buffer).toEqual(Buffer.from([1, 2, 3]));
+    });
+
     it('rejects an asset with a missing content-type', async () => {
         const fetchImpl = vi
             .fn()
