@@ -91,6 +91,7 @@ describe('WarehouseConnectionService on the real schema', () => {
     let model: WarehouseConnectionModel;
     let projectService: ProjectService;
     const flag = { enabled: true };
+    const mixedTypes = { enabled: false };
     const testWarehouseConnectionCredentials = vi.fn();
     const resolveTestedCredentials = vi.fn(
         (credentials: CreateWarehouseCredentials) => credentials,
@@ -110,10 +111,16 @@ describe('WarehouseConnectionService on the real schema', () => {
                 encryptionUtil,
             }),
             featureFlagService: {
-                get: vi.fn(async () => ({
-                    id: FeatureFlags.MultiConnectionProjects,
-                    enabled: flag.enabled,
-                })),
+                get: vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId ===
+                            FeatureFlags.MultiConnectionProjects
+                                ? flag.enabled
+                                : mixedTypes.enabled,
+                    }),
+                ),
             },
             licenseService: licensed
                 ? new EnterpriseLicenseService({ licenseKey: 'licence' })
@@ -290,6 +297,7 @@ describe('WarehouseConnectionService on the real schema', () => {
 
     beforeEach(() => {
         flag.enabled = true;
+        mixedTypes.enabled = false;
         analytics.track.mockReset();
         testWarehouseConnectionCredentials.mockReset();
         resolveTestedCredentials.mockClear();
@@ -789,6 +797,20 @@ describe('WarehouseConnectionService on the real schema', () => {
             expect(await countConnections(fixture.projectUuid)).toBe(1);
         });
 
+        test('adds an extra connection of another warehouse type when mixed types are enabled', async () => {
+            mixedTypes.enabled = true;
+            const fixture = await createProject({ mode: 'multi' });
+
+            const created = await buildService().create(
+                fixture.credentialsAdmin,
+                fixture.projectUuid,
+                { name: 'Lake', warehouseConnection: athenaCredentials },
+            );
+
+            expect(created.warehouseType).toBe(WarehouseTypes.ATHENA);
+            expect(await countConnections(fixture.projectUuid)).toBe(2);
+        });
+
         test('refuses a project whose warehouse type cannot hold several connections', async () => {
             const fixture = await createProject({
                 mode: 'multi',
@@ -1265,6 +1287,21 @@ describe('WarehouseConnectionService on the real schema', () => {
             ).rejects.toThrow(
                 'An extra connection must use the same warehouse type as the original connection.',
             );
+        });
+
+        test('changes an extra connection to another warehouse type when mixed types are enabled', async () => {
+            mixedTypes.enabled = true;
+            const fixture = await createProject({ mode: 'multi' });
+            const created = await addExtra(fixture);
+
+            const updated = await buildService().update(
+                fixture.credentialsAdmin,
+                fixture.projectUuid,
+                created.warehouseConnectionUuid,
+                { warehouseConnection: athenaCredentials },
+            );
+
+            expect(updated.warehouseType).toBe(WarehouseTypes.ATHENA);
         });
     });
 

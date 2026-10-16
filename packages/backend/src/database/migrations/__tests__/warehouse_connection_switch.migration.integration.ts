@@ -144,6 +144,7 @@ describe('Enable multiple connections on the real schema', () => {
     let connectionModel: WarehouseConnectionModel;
     let projectService: ProjectService;
     const flag = { enabled: true };
+    const mixedTypes = { enabled: false };
     const testWarehouseConnectionCredentials = vi.fn();
     const resolveTestedCredentials = vi.fn(
         (credentials: CreateWarehouseCredentials) => credentials,
@@ -151,9 +152,12 @@ describe('Enable multiple connections on the real schema', () => {
     const analytics = { track: vi.fn() };
 
     const featureFlagService = () => ({
-        get: vi.fn(async () => ({
-            id: FeatureFlags.MultiConnectionProjects,
-            enabled: flag.enabled,
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+            id: featureFlagId,
+            enabled:
+                featureFlagId === FeatureFlags.MultiConnectionProjects
+                    ? flag.enabled
+                    : mixedTypes.enabled,
         })),
     });
 
@@ -414,6 +418,7 @@ describe('Enable multiple connections on the real schema', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
         flag.enabled = true;
+        mixedTypes.enabled = false;
         analytics.track.mockReset();
         vi.mocked(logAuditEvent).mockReset();
         testWarehouseConnectionCredentials.mockReset();
@@ -1158,6 +1163,27 @@ describe('Enable multiple connections on the real schema', () => {
                 }),
             );
             expect(await state(fixture.projectUuid)).toEqual(singleState);
+        });
+
+        test('previews an extra connection of another warehouse type when mixed types are enabled', async () => {
+            mixedTypes.enabled = true;
+            const fixture = await createProject();
+
+            const plan = await buildService().preview(
+                fixture.admin,
+                fixture.projectUuid,
+                switchRequest({
+                    connection: {
+                        name: 'Finance',
+                        warehouseConnection: snowflakeCredentials,
+                    },
+                }),
+            );
+
+            expect(plan.original.warehouseType).toBe(WarehouseTypes.POSTGRES);
+            expect(plan.connection.warehouseType).toBe(
+                WarehouseTypes.SNOWFLAKE,
+            );
         });
 
         test.each([
