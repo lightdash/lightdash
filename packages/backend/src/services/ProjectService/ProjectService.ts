@@ -349,7 +349,10 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import type { DbTagUpdate } from '../../database/entities/tags';
-import { withCrossSourceRefsHint } from '../../dbt/dbtExternalNodes';
+import {
+    getMissingDbtNodeReferences,
+    withCrossSourceRefsHint,
+} from '../../dbt/dbtExternalNodes';
 import { getDbtPartialParseBaselinePath } from '../../dbt/dbtPartialParseBaseline';
 import { DbtSourceError } from '../../dbt/DbtSourceError';
 import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preAggregates';
@@ -6961,7 +6964,23 @@ export class ProjectService
                 },
                 this.analytics,
             );
-            await adapter.test();
+            try {
+                await adapter.test();
+            } catch (error) {
+                const refs = getMissingDbtNodeReferences(error);
+                if (refs.length === 0) throw error;
+                const { enabled } = await this.featureFlagModel.get({
+                    featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+                    user: {
+                        userUuid: user.userUuid,
+                        organizationUuid:
+                            projectOrganizationUuid ?? organizationUuid,
+                    },
+                });
+                if (!enabled) throw error;
+                this.logger.info('dbt.test.deferredCrossSourceRefs', { refs });
+                await lease.warehouseClient.test();
+            }
             if (usesAwsWebIdentity(warehouseCredentials)) {
                 await this.projectModel.awsWebIdentity.assertRoleRequiresAudience(
                     warehouseCredentials,

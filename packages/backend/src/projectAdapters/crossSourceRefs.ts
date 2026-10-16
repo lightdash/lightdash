@@ -45,6 +45,19 @@ export const resolveCrossSourceManifests = async <T>({
     concurrency: number;
     onRoundComplete?: (round: number) => void;
 }): Promise<CrossSourceResolution<T>> => {
+    if (!enabled) {
+        const results = await runWithConcurrency(
+            tasks,
+            concurrency,
+            async (task) => ({
+                task,
+                result: await task.fetch({ externalNodes: [] }),
+                injectedFrom: [],
+            }),
+        );
+        onRoundComplete?.(1);
+        return { results, rounds: 1 };
+    }
     const resolved = new Map<
         CrossSourceFetchTask<T>,
         CrossSourceResolution<T>['results'][number]
@@ -86,8 +99,7 @@ export const resolveCrossSourceManifests = async <T>({
         }
     });
     for (const error of pending.values()) {
-        if (!enabled || getMissingDbtNodeReferences(error).length === 0)
-            throw error;
+        if (getMissingDbtNodeReferences(error).length === 0) throw error;
     }
     const unresolvedError = () =>
         new ParameterError(
@@ -136,7 +148,10 @@ export const resolveCrossSourceManifests = async <T>({
                     .flatMap(({ result }) =>
                         getExternalModelNodesFromManifest(result.manifest),
                     )
-                    .map((node) => [`${node.package_name}.${node.name}`, node]),
+                    .map((node) => [
+                        `${node.package_name}.${node.name}.${node.version ?? ''}`,
+                        node,
+                    ]),
             ).values(),
         ];
         retryable.forEach((task) => {

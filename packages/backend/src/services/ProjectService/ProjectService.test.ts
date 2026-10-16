@@ -73,6 +73,7 @@ import {
     SnowflakeTokenError,
     SshTunnelError,
     SupportedDbtAdapter,
+    SupportedDbtVersions,
     TableCalculation,
     TableCalculationTemplateType,
     UserWarehouseCredentialPurpose,
@@ -15709,6 +15710,116 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             expect.objectContaining({ jobStatus: JobStatusType.DONE }),
         );
     });
+
+    it.each([
+        { enabled: true, missingRef: true, warehouseFails: false },
+        { enabled: false, missingRef: true, warehouseFails: false },
+        { enabled: true, missingRef: false, warehouseFails: false },
+        { enabled: true, missingRef: true, warehouseFails: true },
+    ])(
+        'defers only missing cross-project refs when enabled=$enabled missingRef=$missingRef warehouseFails=$warehouseFails',
+        async ({ enabled, missingRef, warehouseFails }) => {
+            const dbtError = new DbtError(
+                missingRef
+                    ? "Model 'model.analytics.orders' depends on a node named 'orders' in package or project 'upstream' which was not found"
+                    : 'dbt parse failed: invalid configuration',
+            );
+            const warehouseError = new Error('warehouse connection failed');
+            const warehouseTest = vi.spyOn(warehouseClientMock, 'test');
+            if (warehouseFails)
+                warehouseTest.mockRejectedValueOnce(warehouseError);
+            const adapter = new DbtBaseProjectAdapter(
+                {
+                    test: vi.fn().mockRejectedValue(dbtError),
+                } as unknown as ConstructorParameters<
+                    typeof DbtBaseProjectAdapter
+                >[0],
+                warehouseClientMock,
+                {
+                    warehouseCatalog: undefined,
+                    onWarehouseCatalogChange: () => {},
+                },
+                SupportedDbtVersions.V1_12,
+            );
+            vi.spyOn(
+                projectAdapterModule,
+                'projectAdapterFromConfig',
+            ).mockResolvedValueOnce(adapter);
+            const flags = {
+                get: vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId === FeatureFlags.CrossSourceDbtRefs &&
+                            enabled,
+                    }),
+                ),
+            };
+            const projectService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                {
+                    featureFlagModel: flags as unknown as FeatureFlagModel,
+                },
+            );
+            const internals = projectService as unknown as {
+                logger: { info: (message: string, metadata: unknown) => void };
+                testProjectAdapter: (
+                    data: Omit<UpdateProject, 'warehouseConnection'> & {
+                        warehouseConnection: {
+                            kind: 'submitted_resolved';
+                            credentials: CreateWarehouseCredentials;
+                        };
+                    },
+                    caller: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+                    context: 'project_update',
+                    method: RequestMethod,
+                    projectUuid: string,
+                    projectOrganizationUuid: string,
+                ) => Promise<unknown>;
+            };
+            const info = vi.spyOn(internals.logger, 'info');
+            const tested = internals.testProjectAdapter(
+                {
+                    ...projectWithSensitiveFields,
+                    warehouseConnection: {
+                        kind: 'submitted_resolved',
+                        credentials: warehouseClientMock.credentials,
+                    },
+                },
+                compileUser,
+                'project_update',
+                RequestMethod.WEB_APP,
+                'projectUuid',
+                'organizationUuid',
+            );
+            if (enabled && missingRef) {
+                if (warehouseFails)
+                    await expect(tested).rejects.toBe(warehouseError);
+                else await expect(tested).resolves.toMatchObject({ adapter });
+                expect(warehouseTest).toHaveBeenCalledOnce();
+                expect(info).toHaveBeenCalledWith(
+                    'dbt.test.deferredCrossSourceRefs',
+                    {
+                        refs: [{ packageName: 'upstream', model: 'orders' }],
+                    },
+                );
+                expect(flags.get).toHaveBeenCalledWith({
+                    featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+                    user: {
+                        userUuid: compileUser.userUuid,
+                        organizationUuid: 'organizationUuid',
+                    },
+                });
+            } else {
+                await expect(tested).rejects.toBe(dbtError);
+                expect(warehouseTest).not.toHaveBeenCalled();
+                expect(info).not.toHaveBeenCalledWith(
+                    'dbt.test.deferredCrossSourceRefs',
+                    expect.anything(),
+                );
+            }
+        },
+    );
 
     it('a failed adapter test destroys the adapter and releases the lease', async () => {
         const adapter = {

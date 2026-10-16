@@ -136,11 +136,71 @@ describe('resolveCrossSourceManifests', () => {
         ).toEqual(['a', 'b']);
         expect(resolution.results[0].injectedFrom).toEqual(['b']);
     });
-    it('rethrows the first failure in task order when disabled without retrying', async () => {
-        const error = missing('a');
-        const b = task('b', vi.fn().mockRejectedValue(error));
-        await expect(resolve([task('a'), b], false)).rejects.toBe(error);
-        expect(b.fetch).toHaveBeenCalledTimes(1);
+    it('propagates the first rejection when disabled without waiting for in-flight or queued tasks', async () => {
+        let rejectSlow!: (error: unknown) => void;
+        const slowError = missing('slow');
+        const firstError = missing('fast');
+        const slow = task(
+            'slow',
+            vi.fn(
+                () =>
+                    new Promise<ReturnType<typeof result>>((_, reject) => {
+                        rejectSlow = reject;
+                    }),
+            ),
+        );
+        const fast = task('fast', vi.fn().mockRejectedValue(firstError));
+        const queued = task('queued');
+        const rejected = vi.fn();
+        const resolution = resolve([slow, fast, queued], false).catch(rejected);
+        try {
+            await vi.waitFor(() =>
+                expect(rejected).toHaveBeenCalledWith(firstError),
+            );
+            expect(slow.fetch).toHaveBeenCalledTimes(1);
+            expect(fast.fetch).toHaveBeenCalledTimes(1);
+            expect(queued.fetch).not.toHaveBeenCalled();
+        } finally {
+            rejectSlow(slowError);
+            await resolution;
+        }
+    });
+    it('injects every version of a provider model', async () => {
+        const provider = result('a');
+        provider.manifest.nodes = Object.fromEntries(
+            [1, 2].map((version) => {
+                const node = {
+                    ...model('a', 'product'),
+                    unique_id: `model.a.product.v${version}`,
+                    version,
+                    latest_version: 2,
+                };
+                return [node.unique_id, node];
+            }),
+        );
+        const consumer = task(
+            'b',
+            vi
+                .fn()
+                .mockRejectedValueOnce(missing('a', 'product'))
+                .mockResolvedValueOnce(result('b')),
+        );
+        await resolve([
+            task('a', vi.fn().mockResolvedValue(provider)),
+            consumer,
+        ]);
+        expect(consumer.fetch.mock.calls[1][0].externalNodes).toEqual([
+            expect.objectContaining({
+                package_name: 'a',
+                name: 'product',
+                version: 1,
+            }),
+            expect.objectContaining({
+                package_name: 'a',
+                name: 'product',
+                version: 2,
+            }),
+        ]);
     });
     it('names the source, ref and project when no provider exists', async () => {
         await expect(

@@ -139,23 +139,25 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                         ),
                     );
                     await Promise.all(
-                        ['uses_versioned', 'uses_versioned_latest'].map(
-                            async (name) => {
-                                const versionedPath = path.join(
-                                    copy,
-                                    'models',
-                                    `${name}.sql`,
-                                );
-                                const versionedSql = await fs.readFile(
-                                    versionedPath,
-                                    'utf8',
-                                );
-                                await fs.writeFile(
-                                    versionedPath,
-                                    `{{ config(enabled=false) }}\n${versionedSql}`,
-                                );
-                            },
-                        ),
+                        [
+                            'uses_versioned',
+                            'uses_versioned_latest',
+                            'uses_versioned_v1',
+                        ].map(async (name) => {
+                            const versionedPath = path.join(
+                                copy,
+                                'models',
+                                `${name}.sql`,
+                            );
+                            const versionedSql = await fs.readFile(
+                                versionedPath,
+                                'utf8',
+                            );
+                            await fs.writeFile(
+                                versionedPath,
+                                `{{ config(enabled=false) }}\n${versionedSql}`,
+                            );
+                        }),
                     );
                 }
                 const client = new DbtCliClient({
@@ -355,6 +357,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     'model.access_downstream.uses_public',
                     'model.access_downstream.uses_versioned',
                     'model.access_downstream.uses_versioned_latest',
+                    'model.access_downstream.uses_versioned_v1',
                 ]);
             }, 120_000);
 
@@ -421,6 +424,19 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 ).toContain(
                     'not allowed because the referenced node is private',
                 );
+            }, 120_000);
+
+            it('keeps the explicit version dependency on dim_product v1', async () => {
+                const resolution = await access();
+                expect(
+                    resolution.results[1].result.manifest.nodes[
+                        'model.access_downstream.uses_versioned_v1'
+                    ],
+                ).toMatchObject({
+                    depends_on: {
+                        nodes: ['model.access_upstream.dim_product.v1'],
+                    },
+                });
             }, 120_000);
 
             it('keeps the explicit and latest version dependency on dim_product v2', async () => {

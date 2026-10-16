@@ -552,13 +552,48 @@ describe('external dbt model nodes', () => {
         expect(manifest.nodes).toHaveProperty(stub.unique_id);
         expect(local.depends_on.nodes).toEqual([stub.unique_id]);
     });
-    it('reads project names and returns null for older metadata', () => {
-        expect(getDbtManifestProjectName(manifest)).toBeNull();
+    it('prefers the project name from metadata', () => {
+        expect(getDbtManifestProjectName(manifest)).toBe('test');
         expect(
             getDbtManifestProjectName({
                 ...manifest,
                 metadata: { ...manifest.metadata, project_name: 'analytics' },
             }),
         ).toBe('analytics');
+    });
+    it('falls back to the most common non-external model package without metadata.project_name', () => {
+        expect(
+            getDbtManifestProjectName(
+                makeManifest({
+                    dependency: { ...local, package_name: 'dependency' },
+                    first: local,
+                    second: { ...local, name: 'second' },
+                    stub,
+                    otherStub: { ...stub, package_name: 'upstream' },
+                    thirdStub: { ...stub, package_name: 'upstream' },
+                    seed: {
+                        ...local,
+                        resource_type: 'seed',
+                        package_name: 'dependency',
+                    },
+                    test: {
+                        ...local,
+                        resource_type: 'test',
+                        package_name: 'dependency',
+                    },
+                }),
+            ),
+        ).toBe('test');
+    });
+    it('returns null without metadata.project_name or non-external models', () => {
+        expect(getDbtManifestProjectName(makeManifest({}))).toBeNull();
+        expect(
+            getDbtManifestProjectName(
+                makeManifest({
+                    stub,
+                    seed: { ...local, resource_type: 'seed' },
+                }),
+            ),
+        ).toBeNull();
     });
 });
