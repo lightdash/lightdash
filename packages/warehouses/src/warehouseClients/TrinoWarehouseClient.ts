@@ -380,7 +380,14 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             options,
         );
         this.connectionOptions = {
-            auth: new BasicAuth(credentials.user, credentials.password),
+            ...(credentials.password
+                ? {
+                      auth: new BasicAuth(
+                          credentials.user,
+                          credentials.password,
+                      ),
+                  }
+                : { extraHeaders: { 'X-Trino-User': credentials.user } }),
             catalog: credentials.dbname,
             schema: credentials.schema,
             server: `${credentials.http_scheme}://${credentials.host}:${credentials.port}`,
