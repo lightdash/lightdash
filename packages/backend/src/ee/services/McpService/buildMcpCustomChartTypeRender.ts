@@ -127,11 +127,21 @@ export const prepareMcpCustomChartTypeHtml = ({
     indexUrl: string;
     cspHeader: string;
 }): string | null => {
-    const head = /<head(\s[^>]*)?>/i.exec(indexHtml);
+    // Hosts may drop base-uri for the view, so asset tags carry absolute URLs too.
+    const withAbsoluteAssets = indexHtml.replace(
+        /\b(src|href)="(\.\/[^"]*)"/g,
+        (_match, attribute: string, path: string) =>
+            `${attribute}="${escapeHtmlAttribute(new URL(path, indexUrl).toString())}"`,
+    );
+    const head = /<head(\s[^>]*)?>/i.exec(withAbsoluteAssets);
     if (!head) return null;
     const insertAt = head.index + head[0].length;
     const tags = `<meta http-equiv="Content-Security-Policy" content="${escapeHtmlAttribute(
         toMetaContentSecurityPolicy(cspHeader),
     )}"><base href="${escapeHtmlAttribute(indexUrl)}">`;
-    return indexHtml.slice(0, insertAt) + tags + indexHtml.slice(insertAt);
+    return (
+        withAbsoluteAssets.slice(0, insertAt) +
+        tags +
+        withAbsoluteAssets.slice(insertAt)
+    );
 };

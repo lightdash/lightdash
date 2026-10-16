@@ -25,8 +25,21 @@ describe('prepareMcpCustomChartTypeHtml', () => {
         });
 
         expect(html).toBe(
-            `<!doctype html><html lang="en"><HEAD data-x="1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'"><base href="${indexUrl}"><link rel="stylesheet" href="./assets/a.css"></HEAD></html>`,
+            `<!doctype html><html lang="en"><HEAD data-x="1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'"><base href="${indexUrl}"><link rel="stylesheet" href="${indexUrl}assets/a.css"></HEAD></html>`,
         );
+    });
+
+    it('makes relative asset urls absolute', () => {
+        const html = prepareMcpCustomChartTypeHtml({
+            indexHtml:
+                '<head><script type="module" crossorigin src="./assets/index.js"></script><link href="https://cdn.example/x.css"><a href="#top"></a></head>',
+            indexUrl,
+            cspHeader: "default-src 'none'",
+        });
+
+        expect(html).toContain(`src="${indexUrl}assets/index.js"`);
+        expect(html).toContain('href="https://cdn.example/x.css"');
+        expect(html).toContain('href="#top"');
     });
 
     it('escapes attribute values', () => {
