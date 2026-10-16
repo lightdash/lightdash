@@ -1,0 +1,13 @@
+trino_dev:
+  target: dev
+  outputs:
+    dev:
+      type: trino
+      method: none
+      user: lightdash
+      host: "{{ env_var('TRINO_HOST', 'localhost') }}"
+      port: "{{ env_var('TRINO_PORT', '8080') | as_number }}"
+      http_scheme: http
+      database: memory
+      schema: tpch_dev
+      threads: 2
