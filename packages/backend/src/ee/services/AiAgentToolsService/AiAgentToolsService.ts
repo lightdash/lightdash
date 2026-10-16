@@ -3,6 +3,7 @@ import {
     Account,
     AgentActorSurface,
     AnyType,
+    AppVizBuildContext,
     assertRegisteredAccount,
     assertUnreachable,
     CatalogFilter,
@@ -382,6 +383,7 @@ export type CreateCustomChartTypeFn = (args: {
     name: string;
     prompt: string;
     themeSlug: string | null;
+    vizContext: AppVizBuildContext | null;
 }) => Promise<{ appUuid: string; slug: string; version: number }>;
 
 export type McpAiAgentToolsRuntime = Omit<
@@ -2257,7 +2259,12 @@ export class AiAgentToolsService extends BaseService {
     /** Starts a chart type build the way Chart Studio does; MCP-only. */
     private createCustomChartType(
         context: AiAgentToolsRuntimeContext,
-        { name, prompt, themeSlug }: Parameters<CreateCustomChartTypeFn>[0],
+        {
+            name,
+            prompt,
+            themeSlug,
+            vizContext,
+        }: Parameters<CreateCustomChartTypeFn>[0],
     ): ReturnType<CreateCustomChartTypeFn> {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.createCustomChartType`,
@@ -2288,6 +2295,7 @@ export class AiAgentToolsService extends BaseService {
                         ...(designUuid === undefined
                             ? {}
                             : { designUuidInput: designUuid }),
+                        ...(vizContext === null ? {} : { vizContext }),
                     },
                 );
             },

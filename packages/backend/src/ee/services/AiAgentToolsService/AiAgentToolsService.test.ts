@@ -5,6 +5,7 @@ import {
     AgentCapability,
     AiAccessRefusalReason,
     AiAccessRefusedError,
+    AppVizBuildContext,
     CatalogType,
     ChartType,
     ContentType,
@@ -4664,6 +4665,7 @@ describe('AiAgentToolsService createCustomChartType', () => {
     const runCreate = (
         service: AiAgentToolsService,
         themeSlug: string | null = null,
+        vizContext: AppVizBuildContext | null = null,
     ) =>
         service
             .createRuntime(makeRuntimeContext({ source: 'mcp' }))
@@ -4671,6 +4673,7 @@ describe('AiAgentToolsService createCustomChartType', () => {
                 name: 'Sankey Flow',
                 prompt: 'Draw a sankey',
                 themeSlug,
+                vizContext,
             });
 
     it('starts a chart type build the way Chart Studio does', async () => {
@@ -4715,6 +4718,20 @@ describe('AiAgentToolsService createCustomChartType', () => {
             name: 'Sankey Flow',
             creationExperience: 'mcp',
             designUuidInput: 'brand-uuid',
+        });
+    });
+
+    it('forwards the sample rows to the build', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({ appGenerateService });
+        const vizContext = { sampleRows: [{ orders_status: 'shipped' }] };
+
+        await runCreate(service, null, vizContext);
+
+        expect(generateAppOptions(appGenerateService)).toEqual({
+            name: 'Sankey Flow',
+            creationExperience: 'mcp',
+            vizContext,
         });
     });
 

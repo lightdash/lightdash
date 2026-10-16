@@ -1,6 +1,11 @@
 import {
     APP_VERSION_CANCELLED_BY_USER,
+    DimensionType,
+    FieldType,
+    NotFoundError,
     ParameterError,
+    QueryExecutionContext,
+    QueryHistoryStatus,
 } from '@lightdash/common';
 import { McpService, McpToolName } from './McpService';
 import { makeMcpServerOptions } from './McpService.mock';
@@ -67,6 +72,7 @@ const account = {
     isServiceAccount: () => false,
     authentication: { type: 'pat' },
     user: { id: userUuid },
+    organization: { organizationUuid },
 };
 
 const makeExtra = () => ({
@@ -77,7 +83,18 @@ const makeExtra = () => ({
     authInfo: { extra: { user, account } },
 });
 
-const makeMcpService = (createRuntime: () => unknown) =>
+type QueryServiceDeps = {
+    asyncQueryService: Record<string, unknown>;
+    sampleDataEnabled: boolean;
+};
+
+const makeMcpService = (
+    createRuntime: () => unknown,
+    { asyncQueryService, sampleDataEnabled }: QueryServiceDeps = {
+        asyncQueryService: {},
+        sampleDataEnabled: true,
+    },
+) =>
     new McpService({
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiAgentService: {},
@@ -86,13 +103,14 @@ const makeMcpService = (createRuntime: () => unknown) =>
         aiRouterService: {},
         aiWritebackService: {},
         analytics: { track: vi.fn() },
-        asyncQueryService: {},
+        asyncQueryService,
         catalogService: {},
         contentVerificationService: {},
         featureFlagService: {},
         lightdashConfig: {
             mcp: { runSqlMaxLimit: 500 },
             siteUrl: 'https://lightdash.example',
+            appRuntime: { sampleDataEnabled },
         },
         mcpContextModel: { getContext: vi.fn().mockResolvedValue(undefined) },
         mcpToolCallModel: {
@@ -136,8 +154,9 @@ const versionRow = (
 const createServerWithRuntime = async (
     runtimeFns: Record<string, unknown>,
     featureAvailability: Parameters<typeof makeMcpServerOptions>[0] = {},
+    queryServiceDeps?: QueryServiceDeps,
 ) => {
-    const mcpService = makeMcpService(() => runtimeFns);
+    const mcpService = makeMcpService(() => runtimeFns, queryServiceDeps);
     mockRegisteredMcpTools.clear();
     await mcpService.createServer(
         makeMcpServerOptions({
@@ -447,6 +466,7 @@ describe('McpService create_custom_chart_type', () => {
             name: 'Sankey Flow',
             prompt: 'Draw a sankey of flows between stages',
             themeSlug: 'brand',
+            vizContext: null,
         });
     });
 
@@ -463,6 +483,7 @@ describe('McpService create_custom_chart_type', () => {
         expect(createCustomChartType).toHaveBeenCalledWith({
             ...createArgs,
             themeSlug: null,
+            vizContext: null,
         });
     });
 
@@ -520,6 +541,189 @@ describe('McpService create_custom_chart_type', () => {
                 text: 'Theme "neon" was not found. Valid theme slugs: brand, dark',
             },
         ]);
+    });
+});
+
+describe('McpService create_custom_chart_type with a queryUuid', () => {
+    const queryUuid = '22222222-3333-4444-8555-666666666666';
+    const createArgs = {
+        name: 'Sankey Flow',
+        prompt: 'Draw a sankey of flows between stages',
+        queryUuid,
+    };
+    const metricQuery = {
+        exploreName: 'orders',
+        dimensions: [],
+        metrics: [],
+        sorts: [],
+        filters: {},
+        tableCalculations: [],
+        limit: 500,
+    };
+    const fields = {
+        orders_status: {
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+            name: 'status',
+            label: 'Status',
+            table: 'orders',
+            tableLabel: 'Orders',
+            sql: 'status',
+            compiledSql: 'status',
+            tablesReferences: ['orders'],
+            hidden: false,
+        },
+    };
+    const queryHistory = (
+        overrides: Partial<{
+            context: QueryExecutionContext;
+            status: QueryHistoryStatus;
+            error: string | null;
+        }> = {},
+    ) => ({
+        context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+        status: QueryHistoryStatus.READY,
+        error: null,
+        metricQuery,
+        ...overrides,
+    });
+
+    const setup = async ({
+        history = queryHistory(),
+        explore = {
+            status: 'success',
+            data: { name: 'orders', tables: {} },
+        } as Record<string, unknown>,
+        sampleDataEnabled = true,
+    } = {}) => {
+        const createCustomChartType = vi.fn().mockResolvedValue({
+            appUuid,
+            slug: 'sankey-flow',
+            version: 1,
+        });
+        const asyncQueryService = {
+            getAsyncQueryHistory: vi.fn().mockResolvedValue(history),
+            getRawAsyncQueryResults: vi.fn().mockResolvedValue({
+                rows: [{ orders_status: 'shipped' }],
+                fields,
+                displayTimezone: null,
+            }),
+        };
+        await createServerWithRuntime(
+            {
+                createCustomChartType,
+                getExplore: vi.fn().mockResolvedValue(explore),
+            },
+            {},
+            { asyncQueryService, sampleDataEnabled },
+        );
+        return { createCustomChartType, asyncQueryService };
+    };
+
+    it('shares the first rows of the query with the build', async () => {
+        const { createCustomChartType, asyncQueryService } = await setup();
+
+        await callTool(McpToolName.CREATE_CUSTOM_CHART_TYPE, createArgs);
+
+        expect(createCustomChartType).toHaveBeenCalledWith({
+            name: 'Sankey Flow',
+            prompt: 'Draw a sankey of flows between stages',
+            themeSlug: null,
+            vizContext: { sampleRows: [{ orders_status: 'shipped' }] },
+        });
+        expect(asyncQueryService.getRawAsyncQueryResults).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid,
+                queryUuid,
+                maxRows: 10,
+                aiAccessOnly: true,
+            }),
+        );
+    });
+
+    it('does not read the query when sample data is disabled', async () => {
+        const { createCustomChartType, asyncQueryService } = await setup({
+            sampleDataEnabled: false,
+        });
+
+        await callTool(McpToolName.CREATE_CUSTOM_CHART_TYPE, createArgs);
+
+        expect(asyncQueryService.getAsyncQueryHistory).not.toHaveBeenCalled();
+        expect(createCustomChartType).toHaveBeenCalledWith(
+            expect.objectContaining({ vizContext: null }),
+        );
+    });
+
+    it('rejects a query not started by run_metric_query', async () => {
+        const { createCustomChartType } = await setup({
+            history: queryHistory({
+                context: QueryExecutionContext.MCP_RUN_SQL,
+            }),
+        });
+
+        const result = await callTool(
+            McpToolName.CREATE_CUSTOM_CHART_TYPE,
+            createArgs,
+        );
+
+        expect(result).toMatchObject({
+            isError: true,
+            content: [
+                {
+                    type: 'text',
+                    text: 'create_custom_chart_type currently supports queries started by run_metric_query',
+                },
+            ],
+        });
+        expect(createCustomChartType).not.toHaveBeenCalled();
+    });
+
+    it('rejects a query that is not ready', async () => {
+        const { createCustomChartType, asyncQueryService } = await setup({
+            history: queryHistory({ status: QueryHistoryStatus.EXECUTING }),
+        });
+
+        const result = await callTool(
+            McpToolName.CREATE_CUSTOM_CHART_TYPE,
+            createArgs,
+        );
+
+        expect(result).toMatchObject({
+            isError: true,
+            content: [
+                {
+                    type: 'text',
+                    text: 'Query is not ready to share sample rows; current status is executing',
+                },
+            ],
+        });
+        expect(
+            asyncQueryService.getRawAsyncQueryResults,
+        ).not.toHaveBeenCalled();
+        expect(createCustomChartType).not.toHaveBeenCalled();
+    });
+
+    it('rejects a query outside the effective scope', async () => {
+        const { createCustomChartType, asyncQueryService } = await setup({
+            explore: {
+                status: 'error',
+                error: new NotFoundError('Explore not found'),
+            },
+        });
+
+        const result = await callTool(
+            McpToolName.CREATE_CUSTOM_CHART_TYPE,
+            createArgs,
+        );
+
+        expect(result).toMatchObject({
+            isError: true,
+            content: [{ type: 'text', text: 'Explore not found' }],
+        });
+        expect(
+            asyncQueryService.getRawAsyncQueryResults,
+        ).not.toHaveBeenCalled();
+        expect(createCustomChartType).not.toHaveBeenCalled();
     });
 });
 

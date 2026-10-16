@@ -12,6 +12,7 @@ import {
     aiWritebackRunStatusToMcpTaskStatus,
     AiWritebackSource,
     AnyType,
+    AppVizBuildContext,
     assertRegisteredAccount,
     assertUnreachable,
     buildRunSqlDescription,
@@ -64,6 +65,7 @@ import {
     listExploresToolDefinition,
     listSkillsToolDefinition,
     listVerifiedContentToolDefinition,
+    MAX_APP_VIZ_BUILD_SAMPLE_ROWS,
     MCP_AI_WRITEBACK_TASK_POLL_INTERVAL_MS,
     MCP_ERROR_CODE_MISSING_REQUIRED_CAPABILITY,
     MCP_QUERY_POLL_INTERVAL_MS,
@@ -229,6 +231,7 @@ import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService'
 import { AiRouterService } from '../AiRouterService/AiRouterService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { buildMcpExploreConfigState } from './buildMcpExploreConfigState';
+import { buildVizBuildSampleRows } from './buildVizBuildSampleRows';
 import {
     registerAppResource,
     registerAppTool,
@@ -1756,11 +1759,18 @@ export class McpService extends BaseService {
                     args,
                     'Error starting the chart type build. No chart type was created',
                     async (toolsRuntime, projectUuid) => {
+                        const vizContext = await this.getSampleRowsVizContext(
+                            getMcpContext(extra),
+                            projectUuid,
+                            args.agentUuid,
+                            args.queryUuid ?? null,
+                        );
                         const { slug, version } =
                             await toolsRuntime.createCustomChartType({
                                 name: args.name,
                                 prompt: args.prompt,
                                 themeSlug: args.themeSlug ?? null,
+                                vizContext,
                             });
                         const chartStudioUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/chart-studio/${slug}`;
                         return {
@@ -1770,6 +1780,68 @@ export class McpService extends BaseService {
                     },
                 ),
         );
+    }
+
+    /** Sample rows from a completed run_metric_query, the way Chart Studio shares them. */
+    private async getSampleRowsVizContext(
+        ctx: McpProtocolContext,
+        projectUuid: string,
+        agentUuid: string | undefined,
+        queryUuid: string | null,
+    ): Promise<AppVizBuildContext | null> {
+        if (
+            queryUuid === null ||
+            !this.lightdashConfig.appRuntime.sampleDataEnabled
+        ) {
+            return null;
+        }
+        const { user, account } = McpService.getAccount(ctx);
+        const reader = buildResultReader(
+            account,
+            QueryExecutionContext.MCP_RUN_SQL,
+            QuerySurface.MCP,
+        );
+        const queryHistory = await this.asyncQueryService.getAsyncQueryHistory({
+            account,
+            reader,
+            projectUuid,
+            queryUuid,
+        });
+        if (
+            queryHistory.context !== QueryExecutionContext.MCP_RUN_METRIC_QUERY
+        ) {
+            throw new ParameterError(
+                'create_custom_chart_type currently supports queries started by run_metric_query',
+            );
+        }
+        if (queryHistory.status !== QueryHistoryStatus.READY) {
+            throw new UnexpectedServerError(
+                queryHistory.error ??
+                    `Query is not ready to share sample rows; current status is ${queryHistory.status}`,
+            );
+        }
+        await this.assertMetricQueryInEffectiveScope({
+            ctx,
+            user,
+            projectUuid,
+            agentUuid,
+            metricQuery: queryHistory.metricQuery,
+        });
+        const { rows, fields, displayTimezone } =
+            await this.asyncQueryService.getRawAsyncQueryResults({
+                account,
+                reader,
+                projectUuid,
+                queryUuid,
+                maxRows: MAX_APP_VIZ_BUILD_SAMPLE_ROWS,
+                aiAccessOnly: true,
+            });
+        const sampleRows = buildVizBuildSampleRows(
+            rows,
+            fields,
+            displayTimezone,
+        );
+        return sampleRows.length > 0 ? { sampleRows } : null;
     }
 
     private registerIterateDataAppTool(): void {
