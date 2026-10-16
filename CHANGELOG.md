@@ -1,3 +1,10 @@
+# [2.598.0](https://github.com/lightdash/lightdash/compare/2.597.1...2.598.0) (2026-10-16)
+
+
+### Features
+
+* add managed analytics read permission ([#31079](https://github.com/lightdash/lightdash/issues/31079)) ([a04a6a5](https://github.com/lightdash/lightdash/commit/a04a6a531a448f9447435cf350159238ac15fa33))
+
 ## [2.597.1](https://github.com/lightdash/lightdash/compare/2.597.0...2.597.1) (2026-10-16)
 
 
