@@ -7831,6 +7831,21 @@ export class AppGenerateService extends BaseService {
         return { appUuid, slug, version };
     }
 
+    /** Runs iterateApp's feature and manage checks, so callers can refuse before revealing anything else about the app. */
+    async assertCanIterateApp(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+    ): Promise<void> {
+        await this.assertDataAppsEnabled(user);
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to modify data apps',
+        );
+    }
+
     async iterateApp(
         user: SessionUser,
         projectUuid: string,

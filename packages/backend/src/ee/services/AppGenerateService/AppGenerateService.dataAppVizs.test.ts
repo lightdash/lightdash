@@ -1970,3 +1970,53 @@ describe('canUseChartTypes', () => {
         ).toBe(true);
     });
 });
+
+describe('assertCanIterateApp', () => {
+    it.each([
+        [
+            'the creator of a personal app',
+            OrganizationMemberRole.EDITOR,
+            'user-1',
+        ],
+        ['an admin', OrganizationMemberRole.ADMIN, 'other-user'],
+    ])('allows %s', async (_label, role, userUuid) => {
+        const getApp = vi.fn().mockResolvedValue(makeDataAppVizRow());
+        const { service, user } = buildServiceWithRealAbility(
+            { getApp },
+            role,
+            userUuid,
+        );
+
+        await expect(
+            service.assertCanIterateApp(user, 'project-1', 'data-app-viz-1'),
+        ).resolves.toBeUndefined();
+        expect(getApp).toHaveBeenCalledWith('data-app-viz-1', 'project-1');
+    });
+
+    it("refuses an editor on another user's personal app with iterateApp's error", async () => {
+        const { service, user } = buildServiceWithRealAbility(
+            { getApp: vi.fn().mockResolvedValue(makeDataAppVizRow()) },
+            OrganizationMemberRole.EDITOR,
+            'other-user',
+        );
+
+        await expect(
+            service.assertCanIterateApp(user, 'project-1', 'data-app-viz-1'),
+        ).rejects.toThrow(
+            new ForbiddenError('Insufficient permissions to modify data apps'),
+        );
+    });
+
+    it('refuses before loading the app when data apps are off', async () => {
+        const getApp = vi.fn();
+        const service = buildService(
+            { getApp },
+            { featureFlags: { [FeatureFlags.EnableDataApps]: false } },
+        );
+
+        await expect(
+            service.assertCanIterateApp(USER, 'project-1', 'data-app-viz-1'),
+        ).rejects.toThrow(new ForbiddenError('Data apps are not enabled'));
+        expect(getApp).not.toHaveBeenCalled();
+    });
+});

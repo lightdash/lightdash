@@ -4778,6 +4778,7 @@ describe('AiAgentToolsService createCustomChartType', () => {
 
 describe('AiAgentToolsService iterateDataApp', () => {
     const makeAppGenerateService = () => ({
+        assertCanIterateApp: vi.fn().mockResolvedValue(undefined),
         iterateApp: vi
             .fn()
             .mockResolvedValue({ appUuid: 'app-uuid', version: 2 }),
@@ -5066,7 +5067,10 @@ describe('AiAgentToolsService iterateDataApp over MCP', () => {
     it('refuses a chart type slug and starts no build', async () => {
         const iterateApp = vi.fn();
         const service = makeService({
-            appGenerateService: { iterateApp },
+            appGenerateService: {
+                assertCanIterateApp: vi.fn().mockResolvedValue(undefined),
+                iterateApp,
+            },
             appModel: {
                 findAppBySlug: vi.fn().mockResolvedValue({
                     app_id: 'viz-uuid',
@@ -5097,7 +5101,10 @@ describe('AiAgentToolsService iterateDataApp over MCP', () => {
     it('hides an out-of-scope chart type as a missing data app', async () => {
         const iterateApp = vi.fn();
         const service = makeService({
-            appGenerateService: { iterateApp },
+            appGenerateService: {
+                assertCanIterateApp: vi.fn().mockResolvedValue(undefined),
+                iterateApp,
+            },
             appModel: {
                 findAppBySlug: vi.fn().mockResolvedValue({
                     app_id: 'viz-uuid',
@@ -5135,7 +5142,10 @@ describe('AiAgentToolsService iterateDataApp over MCP', () => {
             .fn()
             .mockResolvedValue({ appUuid: 'viz-uuid', version: 2 });
         const service = makeService({
-            appGenerateService: { iterateApp },
+            appGenerateService: {
+                assertCanIterateApp: vi.fn().mockResolvedValue(undefined),
+                iterateApp,
+            },
             appModel: {
                 findAppBySlug: vi.fn().mockResolvedValue({
                     app_id: 'viz-uuid',
@@ -5161,6 +5171,72 @@ describe('AiAgentToolsService iterateDataApp over MCP', () => {
     });
 });
 
+describe('AiAgentToolsService iterateDataApp without manage rights', () => {
+    const refusal = () =>
+        new ForbiddenError('Insufficient permissions to modify data apps');
+
+    it.each([
+        ['a chart type slug over MCP', 'mcp', DATA_APP_VIZ_TEMPLATE, null],
+        ['a data app with an unknown theme over MCP', 'mcp', null, 'neon'],
+        [
+            'a data app with an unknown theme in the agent',
+            'ai_agent',
+            null,
+            'neon',
+        ],
+    ] as const)(
+        'refuses %s with the permission error and starts no build',
+        async (_label, source, template, themeSlug) => {
+            const assertCanIterateApp = vi.fn().mockRejectedValue(refusal());
+            const iterateApp = vi.fn();
+            const organizationDesignModel = makeDesignModelWithThemes([
+                { designUuid: 'brand-uuid', slug: 'brand', name: 'Brand' },
+            ]);
+            const service = makeService({
+                appGenerateService: { assertCanIterateApp, iterateApp },
+                organizationDesignModel,
+                appModel: {
+                    findAppBySlug: vi.fn().mockResolvedValue({
+                        app_id: 'app-uuid',
+                        slug: 'sankey-flow',
+                        space_uuid: null,
+                        template,
+                    }),
+                },
+            });
+
+            const runtime =
+                source === 'mcp'
+                    ? service.createRuntime(
+                          makeRuntimeContext({ source: 'mcp' }),
+                      )
+                    : service.createRuntime(
+                          makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+                      );
+
+            await expect(
+                runtime.iterateDataApp({
+                    appSlug: 'sankey-flow',
+                    prompt: 'Colour the links',
+                    dashboardSlug: null,
+                    chartSlugs: null,
+                    themeSlug,
+                    toolCallId: source === 'mcp' ? null : 'tool-call-1',
+                }),
+            ).rejects.toThrow(refusal());
+            expect(assertCanIterateApp).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                'app-uuid',
+            );
+            expect(
+                organizationDesignModel.findByIdOrSlug,
+            ).not.toHaveBeenCalled();
+            expect(iterateApp).not.toHaveBeenCalled();
+        },
+    );
+});
+
 describe('AiAgentToolsService iterateCustomChartType', () => {
     const vizSchema: DataAppVizSchema = {
         fields: [
@@ -5181,7 +5257,8 @@ describe('AiAgentToolsService iterateCustomChartType', () => {
             slug: 'sankey-flow',
             version: 3,
         }),
-    ) => ({ iterateApp });
+        assertCanIterateApp = vi.fn().mockResolvedValue(undefined),
+    ) => ({ assertCanIterateApp, iterateApp });
 
     const makeAppModel = ({
         template = DATA_APP_VIZ_TEMPLATE,
@@ -5345,6 +5422,49 @@ describe('AiAgentToolsService iterateCustomChartType', () => {
             '"sankey-flow" is a data app, not a custom chart type. Use iterate_data_app to change it',
         );
         expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
+    });
+
+    describe('caller without manage rights', () => {
+        const refusal = () =>
+            new ForbiddenError('Insufficient permissions to modify data apps');
+
+        it.each([
+            ['a chart type', DATA_APP_VIZ_TEMPLATE, null],
+            ['a data app', null, null],
+            [
+                'a chart type with an unknown theme',
+                DATA_APP_VIZ_TEMPLATE,
+                'neon',
+            ],
+            ['a data app with an unknown theme', null, 'neon'],
+        ])(
+            'refuses %s with the permission error and starts no build',
+            async (_label, template, themeSlug) => {
+                const appGenerateService = makeAppGenerateService(
+                    undefined,
+                    vi.fn().mockRejectedValue(refusal()),
+                );
+                const organizationDesignModel = makeDesignModelWithThemes([
+                    { designUuid: 'brand-uuid', slug: 'brand', name: 'Brand' },
+                ]);
+                const service = makeService({
+                    appGenerateService,
+                    appModel: makeAppModel({ template }),
+                    organizationDesignModel,
+                });
+
+                await expect(
+                    runIterateChartType(service, null, null, themeSlug),
+                ).rejects.toThrow(refusal());
+                expect(
+                    appGenerateService.assertCanIterateApp,
+                ).toHaveBeenCalledWith(user, projectUuid, 'viz-uuid');
+                expect(
+                    organizationDesignModel.findByIdOrSlug,
+                ).not.toHaveBeenCalled();
+                expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
+            },
+        );
     });
 
     it('reads an unknown slug as not found and starts no build', async () => {
