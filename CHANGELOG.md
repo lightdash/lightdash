@@ -1,3 +1,15 @@
+# [2.590.0](https://github.com/lightdash/lightdash/compare/2.589.5...2.590.0) (2026-10-16)
+
+
+### Bug Fixes
+
+* **totals:** keep the source-groups CTE valid for metric-only queries ([#31040](https://github.com/lightdash/lightdash/issues/31040)) ([a8378fb](https://github.com/lightdash/lightdash/commit/a8378fb4ee6db557da7f24d2d64ff5e184d3a760))
+
+
+### Features
+
+* **common,backend:** per-version chart registry entry lookup ([#31034](https://github.com/lightdash/lightdash/issues/31034)) ([b6ccee0](https://github.com/lightdash/lightdash/commit/b6ccee07153c04b353b0d178ef04dedd5cc07609)), closes [#31019](https://github.com/lightdash/lightdash/issues/31019)
+
 ## [2.589.5](https://github.com/lightdash/lightdash/compare/2.589.4...2.589.5) (2026-10-16)
 
 
