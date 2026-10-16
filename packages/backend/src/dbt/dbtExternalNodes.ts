@@ -80,7 +80,7 @@ export const parseMissingDbtNodeReferences = (
 ): { model: string; packageName: string }[] =>
     Array.from(
         output.matchAll(
-            /depends on a node named '([^']+)' in package or project '([^']+)' which was not found/g,
+            /depends on a node named '([^']+)'(?: with version '[^']*')? in package or project '([^']+)'(?: with version '[^']*')? which was not found/g,
         ),
         ([, model, packageName]) => ({ model, packageName }),
     );

@@ -78,6 +78,11 @@ describe('external dbt nodes', () => {
             { model: 'users', packageName: 'shared' },
         ]);
         expect(
+            parseMissingDbtNodeReferences(
+                "Model 'model.analytics.uses_versioned' depends on a node named 'dim_product' with version '2' in package or project 'access_upstream' which was not found",
+            ),
+        ).toEqual([{ model: 'dim_product', packageName: 'access_upstream' }]);
+        expect(
             parseMissingDbtNodeReferences('Compilation Error: invalid SQL'),
         ).toEqual([]);
     });
