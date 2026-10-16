@@ -70,10 +70,10 @@ type DbtCloudEnvironmentResponse = {
                         packages: string[];
                         dbtVersion: string;
                         group: string;
-                        access: string;
+                        access: string | null;
                         deprecationDate: string;
-                        version: string;
-                        latestVersion: string;
+                        version: string | number | null;
+                        latestVersion: string | number | null;
                         releaseVersion: string;
                         contractEnforced: boolean;
                         patchPath: string;
@@ -618,6 +618,9 @@ export class DbtMetadataApiClient implements DbtClient {
                                 schema,
                                 alias,
                                 package_name: node.packageName,
+                                version: node.version ?? null,
+                                latest_version: node.latestVersion ?? null,
+                                access: node.access ?? null,
                                 raw_code: node.rawCode,
                                 compiled_code: node.compiledCode,
                                 relation_name: `${fieldQuoteChar}${database}${fieldQuoteChar}.${fieldQuoteChar}${schema}${fieldQuoteChar}.${fieldQuoteChar}${alias}${fieldQuoteChar}`,

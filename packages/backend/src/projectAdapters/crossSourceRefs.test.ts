@@ -202,6 +202,47 @@ describe('resolveCrossSourceManifests', () => {
             }),
         ]);
     });
+    it.each([
+        { projectName: undefined, packageName: 'root', modelName: 'orders' },
+        { projectName: 'root', packageName: 'installed', modelName: 'first' },
+    ])(
+        'resolves refs to $packageName and records the provider with metadata project $projectName',
+        async ({ projectName, packageName, modelName }) => {
+            const provider = result('root');
+            provider.manifest.metadata.project_name = projectName;
+            for (const name of ['first', 'second']) {
+                const node = model('installed', name);
+                provider.manifest.nodes[node.unique_id] = node;
+            }
+            const consumer = task(
+                'consumer',
+                vi
+                    .fn()
+                    .mockRejectedValueOnce(missing(packageName, modelName))
+                    .mockResolvedValueOnce(result('consumer')),
+            );
+            const resolution = await resolve([
+                task('provider', vi.fn().mockResolvedValue(provider)),
+                consumer,
+            ]);
+            expect(consumer.fetch.mock.calls[1][0].externalNodes).toEqual([
+                expect.objectContaining({
+                    package_name: 'root',
+                    name: 'orders',
+                }),
+                expect.objectContaining({
+                    package_name: 'installed',
+                    name: 'first',
+                }),
+                expect.objectContaining({
+                    package_name: 'installed',
+                    name: 'second',
+                }),
+            ]);
+            expect(resolution.results[1].injectedFrom).toEqual(['provider']);
+            expect(resolution.rounds).toBe(2);
+        },
+    );
     it('names the source, ref and project when no provider exists', async () => {
         await expect(
             resolve([

@@ -206,6 +206,83 @@ describe('multi-source compilation diagnostics', () => {
 describe('cross-source compilation', () => {
     afterEach(() => vi.restoreAllMocks());
 
+    it('reports a delayed primary failure without starting siblings when cross-source refs are disabled', async () => {
+        const compiler = new MultiConnectionCompiler({
+            projectModel: {
+                getDbtSourceIdentity: vi.fn().mockResolvedValue({
+                    dbtSourceName: 'primary',
+                    dbtSourceUuid: 'primary-uuid',
+                }),
+            },
+            projectDbtSourcesModel: {},
+            warehouseConnectionCompileModel: {},
+        } as unknown as ConstructorParameters<
+            typeof MultiConnectionCompiler
+        >[0]);
+        vi.spyOn(compiler, 'planGroups').mockResolvedValue([
+            {
+                warehouseConnectionUuid: null,
+                connectionName: 'original',
+                listedDatabases: {
+                    listAllDatabases: false,
+                    additionalDatabases: [],
+                },
+                sources: [
+                    {
+                        name: 'shared',
+                        precedence: 1,
+                        projectDbtSourceUuid: 'shared-uuid',
+                        dbtConnection: { type: DbtProjectType.NONE },
+                    },
+                ],
+            } as unknown as CompileGroupPlan,
+        ]);
+        const primaryError = new DbtError('primary failed');
+        const fetchManifest = vi.fn(async () => {
+            await new Promise<void>((done) => {
+                setTimeout(done, 20);
+            });
+            throw primaryError;
+        });
+        const fetchSourceManifest = vi
+            .fn<FetchSourceManifest>()
+            .mockRejectedValue(new DbtError('sibling failed'));
+        await expect(
+            compiler.compile({
+                projectUuid: 'project-uuid',
+                context: connectionContextFromUser(
+                    { userUuid: 'user' },
+                    {
+                        organizationUuid: 'org',
+                        queryContext: null,
+                        purpose: 'compile',
+                    },
+                ),
+                primary: {
+                    fetchManifest,
+                    connection: {} as Parameters<
+                        typeof compiler.compile
+                    >[0]['primary']['connection'],
+                    warehouseCredentials: warehouseClientMock.credentials,
+                    cachedWarehouse: {
+                        warehouseCatalog: undefined,
+                        onWarehouseCatalogChange: vi.fn(),
+                    },
+                    dbtProjectDir: undefined,
+                },
+                dbtVersion: SupportedDbtVersions.V1_7,
+                includeUnboundSources: true,
+                crossSourceRefsEnabled: false,
+                fetchSourceManifest,
+                loadExtraCredentials: vi.fn(),
+            }),
+        ).rejects.toBe(primaryError);
+        expect(fetchManifest).toHaveBeenCalledExactlyOnceWith({
+            externalNodes: [],
+        });
+        expect(fetchSourceManifest).not.toHaveBeenCalled();
+    });
+
     it('fetches the primary lazily with sibling nodes and compiles real models once', async () => {
         const compiler = new MultiConnectionCompiler({
             projectModel: {

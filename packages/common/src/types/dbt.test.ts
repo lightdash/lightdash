@@ -3,7 +3,7 @@ import {
     convertModelMetric,
     convertToAiHints,
     flattenAiHints,
-    getDbtManifestProjectName,
+    getDbtManifestPackageNames,
     getEffectiveFieldAiHints,
     getExternalModelNodesFromManifest,
     getModelsFromManifest,
@@ -552,48 +552,55 @@ describe('external dbt model nodes', () => {
         expect(manifest.nodes).toHaveProperty(stub.unique_id);
         expect(local.depends_on.nodes).toEqual([stub.unique_id]);
     });
-    it('prefers the project name from metadata', () => {
-        expect(getDbtManifestProjectName(manifest)).toBe('test');
+    it('includes the metadata project name and distinct model packages', () => {
         expect(
-            getDbtManifestProjectName({
+            getDbtManifestPackageNames({
                 ...manifest,
                 metadata: { ...manifest.metadata, project_name: 'analytics' },
             }),
-        ).toBe('analytics');
-    });
-    it('falls back to the most common non-external model package without metadata.project_name', () => {
+        ).toEqual(['analytics', 'test']);
         expect(
-            getDbtManifestProjectName(
+            getDbtManifestPackageNames({
+                ...manifest,
+                metadata: { ...manifest.metadata, project_name: 'test' },
+            }),
+        ).toEqual(['test']);
+    });
+    it('includes every non-external model package without metadata.project_name', () => {
+        expect(
+            getDbtManifestPackageNames(
                 makeManifest({
-                    dependency: { ...local, package_name: 'dependency' },
-                    first: local,
-                    second: { ...local, name: 'second' },
-                    stub,
-                    otherStub: { ...stub, package_name: 'upstream' },
-                    thirdStub: { ...stub, package_name: 'upstream' },
+                    root: local,
+                    first: { ...local, package_name: 'dependency' },
+                    second: {
+                        ...local,
+                        name: 'second',
+                        package_name: 'dependency',
+                    },
+                    stub: { ...stub, package_name: 'upstream' },
                     seed: {
                         ...local,
                         resource_type: 'seed',
-                        package_name: 'dependency',
+                        package_name: 'seed_package',
                     },
                     test: {
                         ...local,
                         resource_type: 'test',
-                        package_name: 'dependency',
+                        package_name: 'test_package',
                     },
                 }),
             ),
-        ).toBe('test');
+        ).toEqual(['test', 'dependency']);
     });
-    it('returns null without metadata.project_name or non-external models', () => {
-        expect(getDbtManifestProjectName(makeManifest({}))).toBeNull();
+    it('returns an empty list without metadata.project_name or non-external models', () => {
+        expect(getDbtManifestPackageNames(makeManifest({}))).toEqual([]);
         expect(
-            getDbtManifestProjectName(
+            getDbtManifestPackageNames(
                 makeManifest({
                     stub,
                     seed: { ...local, resource_type: 'seed' },
                 }),
             ),
-        ).toBeNull();
+        ).toEqual([]);
     });
 });

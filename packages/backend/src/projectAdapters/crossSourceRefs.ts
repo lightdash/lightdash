@@ -1,5 +1,5 @@
 import {
-    getDbtManifestProjectName,
+    getDbtManifestPackageNames,
     getExternalModelNodesFromManifest,
     ParameterError,
     stripExternalDbtNodes,
@@ -75,7 +75,24 @@ export const resolveCrossSourceManifests = async <T>({
             concurrency,
             async (task): Promise<FetchOutcome> => {
                 try {
-                    return { ok: true, result: await task.fetch(options) };
+                    const result = await task.fetch(options);
+                    if (rounds === 0) return { ok: true, result };
+                    const manifest = stripExternalDbtNodes(result.manifest);
+                    return {
+                        ok: true,
+                        result: {
+                            ...result,
+                            manifest,
+                            ...(result.selectedModelIds
+                                ? {
+                                      selectedModelIds:
+                                          result.selectedModelIds.filter(
+                                              (id) => id in manifest.nodes,
+                                          ),
+                                  }
+                                : {}),
+                        },
+                    };
                 } catch (error) {
                     return { ok: false, error };
                 }
@@ -120,9 +137,9 @@ export const resolveCrossSourceManifests = async <T>({
         if (pending.size === 0) return;
         const providers = [...resolved.values()];
         const packages = new Set(
-            providers
-                .map(({ result }) => getDbtManifestProjectName(result.manifest))
-                .filter((name) => name !== null),
+            providers.flatMap(({ result }) =>
+                getDbtManifestPackageNames(result.manifest),
+            ),
         );
         const retryable: CrossSourceFetchTask<T>[] = [];
         for (const [task, error] of pending) {
@@ -178,13 +195,9 @@ export const resolveCrossSourceManifests = async <T>({
                     result: outcome.result,
                     injectedFrom: providers
                         .filter(({ result }) =>
-                            neededPackages
-                                .get(task)
-                                ?.has(
-                                    getDbtManifestProjectName(
-                                        result.manifest,
-                                    ) ?? '',
-                                ),
+                            getDbtManifestPackageNames(result.manifest).some(
+                                (name) => neededPackages.get(task)?.has(name),
+                            ),
                         )
                         .map((provider) => provider.task.key),
                 });

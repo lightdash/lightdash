@@ -190,44 +190,63 @@ export class MultiConnectionCompiler {
             Omit<SourceManifest, 'manifest' | 'selectedModelIds'>
         >,
     ): Promise<SourceManifest[]> {
+        const sourceTasks = sources.map((source) => ({
+            key: source.name,
+            context: {
+                name: source.name,
+                precedence: source.precedence,
+                dbtSourceUuid: source.projectDbtSourceUuid,
+            },
+            fetch: async (options: DbtManifestFetchOptions) => {
+                const repoSuffix =
+                    'repository' in source.dbtConnection &&
+                    source.dbtConnection.repository
+                        ? ` (${source.dbtConnection.repository})`
+                        : '';
+                try {
+                    return await fetchSourceManifest(
+                        source,
+                        warehouseCredentials,
+                        connection,
+                        options,
+                    );
+                } catch (error) {
+                    const hinted = withCrossSourceRefsHint(error, enabled);
+                    throw new DbtSourceError(
+                        `Failed to load dbt source "${source.name}"${repoSuffix}: ${getErrorMessage(hinted)}`,
+                        hinted,
+                    );
+                }
+            },
+        }));
+        if (!enabled) {
+            const primarySources: SourceManifest[] = [];
+            if (primaryTask) {
+                const result = await primaryTask.fetch({ externalNodes: [] });
+                primarySources.push({
+                    ...primaryTask.context,
+                    manifest: result.manifest,
+                    selectedModelIds: result.selectedModelIds,
+                });
+            }
+            return [
+                ...primarySources,
+                ...(await Promise.all(
+                    sourceTasks.map(async (task) => {
+                        const result = await task.fetch({ externalNodes: [] });
+                        return {
+                            ...task.context,
+                            manifest: result.manifest,
+                            selectedModelIds: result.selectedModelIds,
+                        };
+                    }),
+                )),
+            ];
+        }
         const resolution = await resolveCrossSourceManifests({
             enabled,
             concurrency: resolveDbtSourceFetchConcurrency(undefined).chosen,
-            tasks: [
-                ...(primaryTask ? [primaryTask] : []),
-                ...sources.map((source) => ({
-                    key: source.name,
-                    context: {
-                        name: source.name,
-                        precedence: source.precedence,
-                        dbtSourceUuid: source.projectDbtSourceUuid,
-                    },
-                    fetch: async (options: DbtManifestFetchOptions) => {
-                        const repoSuffix =
-                            'repository' in source.dbtConnection &&
-                            source.dbtConnection.repository
-                                ? ` (${source.dbtConnection.repository})`
-                                : '';
-                        try {
-                            return await fetchSourceManifest(
-                                source,
-                                warehouseCredentials,
-                                connection,
-                                options,
-                            );
-                        } catch (error) {
-                            const hinted = withCrossSourceRefsHint(
-                                error,
-                                enabled,
-                            );
-                            throw new DbtSourceError(
-                                `Failed to load dbt source "${source.name}"${repoSuffix}: ${getErrorMessage(hinted)}`,
-                                hinted,
-                            );
-                        }
-                    },
-                })),
-            ],
+            tasks: [...(primaryTask ? [primaryTask] : []), ...sourceTasks],
         });
         if (resolution.rounds > 1) {
             Logger.info('dbt.compile.crossSourceRefsResolved', {

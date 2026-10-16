@@ -1002,25 +1002,19 @@ export const stripExternalDbtNodes = (manifest: DbtManifest): DbtManifest => ({
     ),
 });
 
-export const getDbtManifestProjectName = (
-    manifest: DbtManifest,
-): string | null => {
+export const getDbtManifestPackageNames = (manifest: DbtManifest): string[] => {
+    const packageNames = new Set<string>();
     if (manifest.metadata.project_name != null)
-        return manifest.metadata.project_name;
-    const packageCounts = new Map<string, number>();
+        packageNames.add(manifest.metadata.project_name);
     Object.values(manifest.nodes).forEach((node) => {
         if (
             node.resource_type === 'model' &&
             !isExternalDbtNode(node as DbtRawModelNode)
         ) {
-            const { package_name: packageName } = node as DbtRawModelNode;
-            packageCounts.set(
-                packageName,
-                (packageCounts.get(packageName) ?? 0) + 1,
-            );
+            packageNames.add((node as DbtRawModelNode).package_name);
         }
     });
-    return [...packageCounts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    return [...packageNames];
 };
 
 export const getModelsFromManifest = (
