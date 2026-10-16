@@ -60,6 +60,7 @@ import {
     grepFieldsToolDefinition,
     hashStringToBase36,
     isAiAccessRefusal,
+    isCustomChartTypeSlugChartConfig,
     ItemsMap,
     iterateCustomChartTypeToolDefinition,
     iterateDataAppToolDefinition,
@@ -110,6 +111,7 @@ import {
     toolRenderChartArgsSchemaTransformed,
     ToolRenderChartArgsTransformed,
     toolRunQueryArgsSchemaTransformed,
+    ToolRunQueryCustomChartTypeConfig,
     toolRunQueryExpressionArgsSchemaV2Mcp,
     UnexpectedServerError,
     UserAttributeValueMap,
@@ -241,6 +243,12 @@ import {
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiRouterService } from '../AiRouterService/AiRouterService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
+import {
+    buildMcpCustomChartTypeIndexUrl,
+    buildMcpCustomChartTypeVizContext,
+    getMcpCustomChartTypeConfigErrors,
+    getMcpPreviewOrigin,
+} from './buildMcpCustomChartTypeRender';
 import { buildMcpExploreConfigState } from './buildMcpExploreConfigState';
 import { buildVizBuildSampleRows } from './buildVizBuildSampleRows';
 import {
@@ -1583,6 +1591,159 @@ export class McpService extends BaseService {
                     fields,
                     echartsOption: mcpEchartsOption,
                     exploreUrl,
+                },
+            },
+        };
+    }
+
+    private async buildCustomChartTypeRenderResponse({
+        ctx,
+        projectUuid,
+        agentUuid,
+        renderTool,
+        chartConfig,
+        queryTool,
+        metricQuery,
+    }: {
+        ctx: McpProtocolContext;
+        projectUuid: string;
+        agentUuid?: string;
+        renderTool: ToolRenderChartArgsTransformed;
+        chartConfig: ToolRunQueryCustomChartTypeConfig;
+        queryTool: ToolRunQueryArgsTransformed;
+        metricQuery: MetricQuery;
+    }) {
+        const { user, account } = McpService.getAccount(ctx);
+        const slug = chartConfig.customChartTypeSlug;
+        if (
+            !(await this.aiAgentToolsService.canUseCustomChartTypes({
+                user,
+                projectUuid,
+            }))
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to use chart types in this project',
+            );
+        }
+        const toolsRuntime = await this.getToolsRuntime(
+            ctx,
+            projectUuid,
+            agentUuid,
+        );
+        const resolved = await toolsRuntime.resolveCustomChartType(slug);
+        if (!resolved) {
+            throw new NotFoundError(
+                `Custom chart type "${slug}" was not found in this project. Use find_custom_chart_types or list_custom_chart_types to look up chart type slugs.`,
+            );
+        }
+        const configErrors = getMcpCustomChartTypeConfigErrors(
+            chartConfig,
+            resolved.schema,
+            metricQuery,
+        );
+        if (configErrors.length > 0) {
+            throw new ParameterError(
+                `Invalid configuration for custom chart type "${slug}":\n\n${configErrors.join(
+                    '\n\n',
+                )}\n\nCall find_custom_chart_types with slug "${slug}" to see its slots and options, then bind each slot to a field selected by run_metric_query.`,
+            );
+        }
+
+        const [results, palette] = await Promise.all([
+            this.asyncQueryService.getRawAsyncQueryResults({
+                account,
+                reader: buildResultReader(
+                    account,
+                    QueryExecutionContext.MCP_RUN_SQL,
+                    QuerySurface.MCP,
+                ),
+                projectUuid,
+                queryUuid: renderTool.queryUuid,
+                aiAccessOnly: true,
+            }),
+            this.projectService.getResolvedColorPalette(user, projectUuid),
+        ]);
+        const fieldIds = results.rows[0]
+            ? Object.keys(results.rows[0])
+            : Object.keys(results.fields);
+        const exploreUrl = await this.buildMetricExploreUrl({
+            ctx,
+            projectUuid,
+            metricQuery,
+            fieldsMap: results.fields,
+            columnOrder: fieldIds,
+            queryTool,
+        });
+        const previewOrigin = getMcpPreviewOrigin(this.lightdashConfig);
+        const token =
+            await this.aiAgentToolsService.getMcpCustomChartTypePreviewToken({
+                user,
+                projectUuid,
+                dataAppVizUuid: resolved.dataAppVizUuid,
+                version: resolved.dataAppVizVersion,
+            });
+
+        const content = [
+            {
+                type: 'text' as const,
+                text: `Custom chart type "${resolved.name}" (${slug}, version ${resolved.dataAppVizVersion}) sent to the chart app for queryUuid: ${renderTool.queryUuid}. Only MCP App-capable clients display it; echartsOption in structuredContent is a placeholder, not a failed render. If your client cannot display MCP Apps, the user has not seen it: build the visual from the query rows.${
+                    results.rows.length === 0
+                        ? ' The query returned 0 rows.'
+                        : ''
+                }${exploreUrl ? ` Explore from here: ${exploreUrl}` : ''}`,
+            },
+        ];
+        const scopeInfo = await this.getScopeInfo(ctx, projectUuid, agentUuid);
+        if (scopeInfo) {
+            content.push({
+                type: 'text' as const,
+                text: `[Scope: ${scopeInfo}]`,
+            });
+        }
+
+        return {
+            content,
+            structuredContent: {
+                result: {
+                    status: 'done' as const,
+                    queryUuid: renderTool.queryUuid,
+                    echartsOption: {},
+                    exploreUrl,
+                },
+            },
+            _meta: {
+                result: {
+                    rows: results.rows,
+                    fields: results.fields,
+                    echartsOption: null,
+                    exploreUrl,
+                    customChartType: {
+                        indexUrl: buildMcpCustomChartTypeIndexUrl({
+                            previewOrigin,
+                            dataAppVizUuid: resolved.dataAppVizUuid,
+                            version: resolved.dataAppVizVersion,
+                            token,
+                        }),
+                        previewOrigin,
+                        vizContext: buildMcpCustomChartTypeVizContext({
+                            chartConfig,
+                            schema: resolved.schema,
+                            rows: results.rows,
+                            fields: results.fields,
+                            displayTimezone: results.displayTimezone,
+                            colorPalette: palette.colors,
+                        }),
+                        slug,
+                        version: resolved.dataAppVizVersion,
+                        renderArgs: {
+                            projectUuid,
+                            ...(agentUuid ? { agentUuid } : {}),
+                            queryUuid: renderTool.queryUuid,
+                            chartConfig,
+                            title: renderTool.title,
+                            description: renderTool.description,
+                        },
+                    },
                 },
             },
         };
@@ -4056,6 +4217,9 @@ export class McpService extends BaseService {
                     'chart-app.html',
                 );
                 const html = await fs.readFile(htmlPath, 'utf-8');
+                const previewDomains = [
+                    getMcpPreviewOrigin(this.lightdashConfig),
+                ];
                 return {
                     contents: [
                         {
@@ -4065,8 +4229,10 @@ export class McpService extends BaseService {
                             _meta: {
                                 ui: {
                                     csp: {
-                                        connectDomains: [],
-                                        resourceDomains: [],
+                                        connectDomains: previewDomains,
+                                        resourceDomains: previewDomains,
+                                        baseUriDomains: previewDomains,
+                                        frameDomains: previewDomains,
                                     },
                                 },
                             },
@@ -4336,6 +4502,24 @@ export class McpService extends BaseService {
                                     renderTool,
                                     metricQuery: queryHistory.metricQuery,
                                 });
+
+                            if (
+                                isCustomChartTypeSlugChartConfig(
+                                    renderTool.chartConfig,
+                                )
+                            ) {
+                                return await this.buildCustomChartTypeRenderResponse(
+                                    {
+                                        ctx,
+                                        projectUuid,
+                                        agentUuid: args.agentUuid,
+                                        renderTool,
+                                        chartConfig: renderTool.chartConfig,
+                                        queryTool,
+                                        metricQuery: queryHistory.metricQuery,
+                                    },
+                                );
+                            }
 
                             const results =
                                 await this.asyncQueryService.getRawAsyncQueryResults(

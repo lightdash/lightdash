@@ -467,6 +467,7 @@ describe('AiAgentToolsService', () => {
         };
         const findDataAppVisualizationBySlug = vi.fn().mockResolvedValue({
             app_id: 'viz-uuid',
+            name: 'Funnel',
             viz_schema: {
                 fields: [
                     {
@@ -506,6 +507,7 @@ describe('AiAgentToolsService', () => {
             resolveCustomChartType(makeRuntimeContext(), 'funnel-viz'),
         ).resolves.toEqual({
             dataAppVizUuid: 'viz-uuid',
+            name: 'Funnel',
             dataAppVizVersion: 2,
             schema: latestRenderableSchema,
         });

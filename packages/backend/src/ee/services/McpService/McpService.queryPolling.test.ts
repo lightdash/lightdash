@@ -14,6 +14,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import fs from 'fs/promises';
 import { z, type ZodRawShape } from 'zod';
 import { fromSession } from '../../../auth/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
@@ -360,7 +361,11 @@ const makeMcpService = ({
     const projectService = {
         getProject: vi.fn().mockResolvedValue({ organizationUuid }),
         searchFieldUniqueValues: vi.fn().mockResolvedValue({ results: [] }),
+        getResolvedColorPalette: vi
+            .fn()
+            .mockResolvedValue({ colors: ['#111111', '#222222'] }),
     };
+    const resolveCustomChartType = vi.fn().mockResolvedValue(null);
 
     const catalogService = {
         searchCatalog: vi.fn(async ({ catalogSearch }) => ({
@@ -459,6 +464,7 @@ const makeMcpService = ({
         };
 
         const runtime = {
+            resolveCustomChartType,
             listExplores: vi.fn(listScopedExplores),
             getProjectParameterDefinitions: vi.fn(async () => ({})),
             getVerifiedFieldUsage: vi.fn(async () => new Map<string, number>()),
@@ -611,6 +617,10 @@ const makeMcpService = ({
         createRuntime: vi.fn((runtimeContext) =>
             makeToolsRuntime(runtimeContext),
         ),
+        canUseCustomChartTypes: vi.fn().mockResolvedValue(true),
+        getMcpCustomChartTypePreviewToken: vi
+            .fn()
+            .mockResolvedValue('header.payload.signature'),
     };
 
     const service = new McpService({
@@ -640,6 +650,7 @@ const makeMcpService = ({
                 runSqlMaxLimit: 500,
             },
             siteUrl: 'https://lightdash.example',
+            appRuntime: { previewOrigin: 'https://preview.lightdash.example' },
         },
         mcpContextModel,
         mcpToolCallModel,
@@ -677,6 +688,7 @@ const makeMcpService = ({
         mcpToolCallModel,
         projectModel,
         projectService,
+        resolveCustomChartType,
         searchModel,
         service,
         shareService,
@@ -2777,6 +2789,311 @@ describe('MCP async query polling', () => {
             asyncQueryService.pollQueryHistoryUntilDeadline,
         ).not.toHaveBeenCalled();
         expect(asyncQueryService.getAsyncQueryResults).not.toHaveBeenCalled();
+    });
+});
+
+describe('render_chart with a custom chart type', () => {
+    const vizSchema = {
+        fields: [
+            {
+                name: 'category',
+                label: 'Category',
+                type: 'dimension',
+                required: true,
+            },
+            { name: 'value', label: 'Value', type: 'metric', required: true },
+        ],
+        configOptions: [
+            {
+                name: 'curved',
+                label: 'Curved',
+                type: 'boolean',
+                default: true,
+            },
+            {
+                name: 'maxBars',
+                label: 'Max bars',
+                type: 'number',
+                default: 10,
+            },
+        ],
+        colorPalette: null,
+    };
+    const dataAppVizUuid = '22222222-2222-4222-8222-222222222222';
+    const customChartConfig = {
+        customChartTypeSlug: 'sankey-flow',
+        fieldMapping: {
+            category: 'orders_status',
+            value: 'orders_orders_count',
+        },
+        options: { maxBars: 5 },
+    };
+    const fields = {
+        orders_status: {
+            fieldType: FieldType.DIMENSION,
+            name: 'status',
+            label: 'Status',
+            table: 'orders',
+            tableLabel: 'Orders',
+            type: DimensionType.STRING,
+        },
+        orders_orders_count: {
+            fieldType: FieldType.METRIC,
+            name: 'orders_count',
+            label: 'Orders Count',
+            table: 'orders',
+            tableLabel: 'Orders',
+            type: MetricType.COUNT,
+        },
+    };
+
+    const setup = () => {
+        const mocks = makeMcpService({
+            explores: { orders: makeExplore({ dimensionTags: [] }) },
+        });
+        mocks.asyncQueryService.getAsyncQueryHistory.mockResolvedValue(
+            makeQueryHistory(
+                QueryHistoryStatus.READY,
+                QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                null,
+                { dimensions: ['orders_status'] },
+            ),
+        );
+        mocks.asyncQueryService.getRawAsyncQueryResults.mockResolvedValue({
+            rows: [{ orders_status: 'completed', orders_orders_count: 42 }],
+            fields,
+            pivotDetails: null,
+            displayTimezone: null,
+            truncated: false,
+        });
+        mocks.resolveCustomChartType.mockResolvedValue({
+            dataAppVizUuid,
+            name: 'Sankey Flow',
+            dataAppVizVersion: 3,
+            schema: vizSchema,
+        });
+        return mocks;
+    };
+
+    const render = (chartConfig: unknown) =>
+        getToolCallback(McpToolName.RENDER_CHART)(
+            { queryUuid, title: 'Orders', chartConfig },
+            extra,
+        ) as Promise<{
+            isError?: boolean;
+            content: Array<{ text: string }>;
+            structuredContent?: unknown;
+            _meta?: { result: Record<string, unknown> };
+        }>;
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('returns everything the chart app needs to host the chart type', async () => {
+        const { aiAgentToolsService, resolveCustomChartType } = setup();
+
+        const result = await render(customChartConfig);
+
+        expect(result.isError).toBeUndefined();
+        expect(resolveCustomChartType).toHaveBeenCalledWith('sankey-flow');
+        expect(
+            aiAgentToolsService.getMcpCustomChartTypePreviewToken,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid,
+                dataAppVizUuid,
+                version: 3,
+            }),
+        );
+        expect(result._meta?.result).toMatchObject({
+            rows: [{ orders_status: 'completed', orders_orders_count: 42 }],
+            fields,
+            echartsOption: null,
+            exploreUrl: 'https://lightdash.example/share/share-id',
+            customChartType: {
+                indexUrl: `https://preview.lightdash.example/api/apps/${dataAppVizUuid}/versions/3/t/header.payload.signature/`,
+                previewOrigin: 'https://preview.lightdash.example',
+                slug: 'sankey-flow',
+                version: 3,
+                vizContext: {
+                    fieldMapping: customChartConfig.fieldMapping,
+                    fields: {
+                        orders_status: {
+                            label: 'Status',
+                            tableLabel: 'Orders',
+                        },
+                        orders_orders_count: {
+                            label: 'Orders Count',
+                            tableLabel: 'Orders',
+                        },
+                    },
+                    rows: [
+                        {
+                            orders_status: {
+                                value: {
+                                    raw: 'completed',
+                                    formatted: 'completed',
+                                },
+                            },
+                            orders_orders_count: {
+                                value: { raw: 42, formatted: '42' },
+                            },
+                        },
+                    ],
+                    options: { curved: true, maxBars: 5 },
+                    colorPalette: ['#111111', '#222222'],
+                    seriesColors: {},
+                    valueColors: {},
+                    pivotDetails: null,
+                    underlyingData: { enabled: false },
+                    drillDown: { enabled: false },
+                    pointMenu: { enabled: false },
+                    subtotals: { enabled: false, dimensions: [] },
+                },
+                renderArgs: {
+                    projectUuid,
+                    queryUuid,
+                    chartConfig: customChartConfig,
+                    title: 'Orders',
+                    description: '',
+                },
+            },
+        });
+        expect(result.structuredContent).toEqual({
+            result: {
+                status: 'done',
+                queryUuid,
+                echartsOption: {},
+                exploreUrl: 'https://lightdash.example/share/share-id',
+            },
+        });
+        const text = result.content.map((block) => block.text).join('\n');
+        expect(text).toContain(
+            'Custom chart type "Sankey Flow" (sankey-flow, version 3) sent to the chart app',
+        );
+        expect(text).toContain('placeholder, not a failed render');
+        expect(text).toContain('build the visual from the query rows');
+        expect(text).toContain('https://lightdash.example/share/share-id');
+        expect(text).not.toContain(dataAppVizUuid);
+        expect(JSON.stringify(result.structuredContent)).not.toContain(
+            dataAppVizUuid,
+        );
+    });
+
+    it('keeps built-in rendering free of the custom chart type payload', async () => {
+        const { aiAgentToolsService } = setup();
+
+        const result = await render(null);
+
+        expect(result.isError).toBeUndefined();
+        expect(result._meta?.result).not.toHaveProperty('customChartType');
+        expect(
+            aiAgentToolsService.getMcpCustomChartTypePreviewToken,
+        ).not.toHaveBeenCalled();
+        expect(
+            aiAgentToolsService.canUseCustomChartTypes,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('points an unknown slug to find_custom_chart_types', async () => {
+        const { aiAgentToolsService, resolveCustomChartType } = setup();
+        resolveCustomChartType.mockResolvedValue(null);
+
+        const result = await render({
+            ...customChartConfig,
+            customChartTypeSlug: 'missing',
+        });
+
+        expect(result.isError).toBe(true);
+        expect(result.content[0].text).toContain(
+            'Custom chart type "missing" was not found in this project. Use find_custom_chart_types',
+        );
+        expect(
+            aiAgentToolsService.getMcpCustomChartTypePreviewToken,
+        ).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        [
+            'an unknown slot',
+            { ...customChartConfig.fieldMapping, size: 'orders_status' },
+            'Unknown field slots in fieldMapping: size. This custom chart type declares these slots: category, value.',
+        ],
+        [
+            'a missing required slot',
+            { category: 'orders_status' },
+            'Required field slots not bound in fieldMapping: value.',
+        ],
+        [
+            'a field outside the query',
+            { category: 'orders_customer', value: 'orders_orders_count' },
+            'category → orders_customer. Fields selected in this query: orders_status, orders_orders_count.',
+        ],
+    ])(
+        'rejects %s with actionable text',
+        async (_case, fieldMapping, expected) => {
+            const { aiAgentToolsService, asyncQueryService } = setup();
+
+            const result = await render({ ...customChartConfig, fieldMapping });
+
+            expect(result.isError).toBe(true);
+            expect(result.content[0].text).toContain(expected);
+            expect(result.content[0].text).toContain(
+                'Call find_custom_chart_types with slug "sankey-flow"',
+            );
+            expect(
+                aiAgentToolsService.getMcpCustomChartTypePreviewToken,
+            ).not.toHaveBeenCalled();
+            expect(
+                asyncQueryService.getRawAsyncQueryResults,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
+    it('refuses the custom branch without chart type access while built-in still renders', async () => {
+        const { aiAgentToolsService, resolveCustomChartType } = setup();
+        aiAgentToolsService.canUseCustomChartTypes.mockResolvedValue(false);
+
+        const refused = await render(customChartConfig);
+
+        expect(refused.isError).toBe(true);
+        expect(refused.content[0].text).toBe(
+            'Error rendering chart: You do not have permission to use chart types in this project',
+        );
+        expect(resolveCustomChartType).not.toHaveBeenCalled();
+        expect(
+            aiAgentToolsService.getMcpCustomChartTypePreviewToken,
+        ).not.toHaveBeenCalled();
+
+        const builtIn = await render(null);
+        expect(builtIn.isError).toBeUndefined();
+    });
+
+    it('lets the chart app load the preview origin', async () => {
+        setup();
+        vi.spyOn(fs, 'readFile').mockResolvedValue('<html></html>' as never);
+        const readResource = mockRegisteredMcpResources.get(
+            'ui://render-chart/chart.html',
+        );
+        if (!readResource) throw new Error('chart resource not registered');
+
+        const resource = (await readResource(
+            new URL('ui://render-chart/chart.html'),
+            {},
+            extra,
+        )) as {
+            contents: Array<{
+                _meta: { ui: { csp: Record<string, string[]> } };
+            }>;
+        };
+
+        expect(resource.contents[0]._meta.ui.csp).toEqual({
+            connectDomains: ['https://preview.lightdash.example'],
+            resourceDomains: ['https://preview.lightdash.example'],
+            baseUriDomains: ['https://preview.lightdash.example'],
+            frameDomains: ['https://preview.lightdash.example'],
+        });
     });
 });
 
