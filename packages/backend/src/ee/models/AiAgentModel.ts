@@ -780,6 +780,7 @@ export class AiAgentModel {
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
                 enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
+                enableSqlAutoApproval: `${AiAgentTableName}.enable_sql_auto_approval`,
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 providerCredentialUuid: `${AiAgentTableName}.ai_organization_provider_credential_uuid`,
@@ -939,6 +940,7 @@ export class AiAgentModel {
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
                 enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
+                enableSqlAutoApproval: `${AiAgentTableName}.enable_sql_auto_approval`,
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 providerCredentialUuid: `${AiAgentTableName}.ai_organization_provider_credential_uuid`,
@@ -1042,6 +1044,7 @@ export class AiAgentModel {
                 | 'enableContentTools'
                 | 'enableUserContext'
                 | 'enableSqlMode'
+                | 'enableSqlAutoApproval'
                 | 'threadRetentionHours'
                 | 'modelConfig'
                 | 'updatedAt'
@@ -1074,6 +1077,7 @@ export class AiAgentModel {
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
                 enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
+                enableSqlAutoApproval: `${AiAgentTableName}.enable_sql_auto_approval`,
                 threadRetentionHours: `${AiAgentTableName}.thread_retention_hours`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 updatedAt: `${AiAgentTableName}.updated_at`,
@@ -2282,6 +2286,7 @@ export class AiAgentModel {
             | 'enableContentTools'
             | 'enableUserContext'
             | 'enableSqlMode'
+            | 'enableSqlAutoApproval'
             | 'adminOnly'
             | 'modelConfig'
             | 'providerCredentialUuid'
@@ -2319,6 +2324,8 @@ export class AiAgentModel {
                     enable_content_tools: args.enableContentTools ?? false,
                     enable_user_context: args.enableUserContext ?? false,
                     enable_sql_mode: args.enableSqlMode ?? true,
+                    enable_sql_auto_approval:
+                        args.enableSqlAutoApproval ?? false,
                     admin_only: args.adminOnly ?? false,
                     model_config: args.modelConfig ?? null,
                     ai_organization_provider_credential_uuid:
@@ -2433,6 +2440,7 @@ export class AiAgentModel {
                 enableContentTools: agent.enable_content_tools,
                 enableUserContext: agent.enable_user_context,
                 enableSqlMode: agent.enable_sql_mode,
+                enableSqlAutoApproval: agent.enable_sql_auto_approval,
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
                 providerCredentialUuid:
@@ -2574,6 +2582,12 @@ export class AiAgentModel {
                         : {}),
                     ...(args.enableSqlMode !== undefined
                         ? { enable_sql_mode: args.enableSqlMode }
+                        : {}),
+                    ...(args.enableSqlAutoApproval !== undefined
+                        ? {
+                              enable_sql_auto_approval:
+                                  args.enableSqlAutoApproval,
+                          }
                         : {}),
                     ...(args.adminOnly !== undefined
                         ? { admin_only: args.adminOnly }
@@ -2765,6 +2779,7 @@ export class AiAgentModel {
                 enableContentTools: agent.enable_content_tools,
                 enableUserContext: agent.enable_user_context,
                 enableSqlMode: agent.enable_sql_mode,
+                enableSqlAutoApproval: agent.enable_sql_auto_approval,
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
                 providerCredentialUuid:

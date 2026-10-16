@@ -5484,6 +5484,7 @@ export class AiAgentService extends BaseService {
                 body.enableDataAccess && (body.enableContentTools ?? false),
             enableUserContext: body.enableUserContext ?? false,
             enableSqlMode: body.enableSqlMode ?? true,
+            enableSqlAutoApproval: body.enableSqlAutoApproval ?? false,
             adminOnly: body.adminOnly ?? false,
             modelConfig: body.modelConfig ?? null,
             providerCredentialUuid: body.providerCredentialUuid ?? null,
@@ -7260,6 +7261,7 @@ export class AiAgentService extends BaseService {
                 : false,
             enableUserContext: body.enableUserContext,
             enableSqlMode: body.enableSqlMode,
+            enableSqlAutoApproval: body.enableSqlAutoApproval,
             adminOnly: body.adminOnly,
             modelConfig: body.modelConfig,
             providerCredentialUuid: body.providerCredentialUuid,
@@ -16607,7 +16609,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     enableComposerQueries,
                     enableComposerPythonNodes,
                     canCreateDashboards,
-                    autoApproveSql: options.autoApproveSql ?? false,
+                    autoApproveSql:
+                        (options.autoApproveSql ?? false) ||
+                        agentSettings.enableSqlAutoApproval,
                     autoApproveSqlUserUuid: options.autoApproveSql
                         ? user.userUuid
                         : null,

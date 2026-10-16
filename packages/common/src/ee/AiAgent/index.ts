@@ -182,6 +182,7 @@ export const baseAgentSchema = z.object({
     enableContentTools: z.boolean(),
     enableUserContext: z.boolean(),
     enableSqlMode: z.boolean(),
+    enableSqlAutoApproval: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     // AI provider credential this agent's prompts run on. Null means the
@@ -225,6 +226,7 @@ export type AiAgent = Pick<
     | 'enableContentTools'
     | 'enableUserContext'
     | 'enableSqlMode'
+    | 'enableSqlAutoApproval'
     | 'adminOnly'
     | 'modelConfig'
     | 'providerCredentialUuid'
@@ -255,6 +257,7 @@ export type AiAgentSummary = Pick<
     | 'enableContentTools'
     | 'enableUserContext'
     | 'enableSqlMode'
+    | 'enableSqlAutoApproval'
     | 'adminOnly'
     | 'modelConfig'
     | 'providerCredentialUuid'
@@ -673,6 +676,7 @@ export type ApiCreateAiAgent = Pick<
     enableContentTools?: boolean;
     enableUserContext?: boolean;
     enableSqlMode?: boolean;
+    enableSqlAutoApproval?: boolean;
     adminOnly?: boolean;
     mcpServerUuids?: string[];
     modelConfig?: AiAgentModelConfig | null;
@@ -704,6 +708,7 @@ export type ApiUpdateAiAgent = Partial<
 > & {
     uuid: string;
     enableSqlMode?: boolean;
+    enableSqlAutoApproval?: boolean;
     mcpServerUuids?: string[];
     // Omitted keeps the current pin; null clears it.
     providerCredentialUuid?: string | null;
@@ -921,7 +926,7 @@ export type ApiAiAgentThreadStreamRequest = {
     /**
      * Skips the SQL human-approval gate for this stream. Used by the review
      * remediation workspace so Continue PR turns run frictionlessly. Defaults
-     * to false — normal chat still asks the user to approve SQL.
+     * to false; the agent-level `enableSqlAutoApproval` setting also skips the gate.
      */
     autoApproveSql?: boolean;
     /**

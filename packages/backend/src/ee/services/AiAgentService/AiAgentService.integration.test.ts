@@ -612,6 +612,45 @@ describe('AiAgentService MCP support', () => {
         expect(refetchedAgent.enableSqlMode).toBe(false);
     });
 
+    it('defaults SQL auto-approval off and persists opt-in', async () => {
+        const services = getServices(context.app);
+        const agent = await services.aiAgentService.createAgent(
+            context.testUser,
+            {
+                name: `SQL auto-approve agent ${crypto.randomUUID().slice(0, 8)}`,
+                description: null,
+                projectUuid: SEED_PROJECT.project_uuid,
+                tags: null,
+                integrations: [],
+                instruction: '',
+                groupAccess: [],
+                userAccess: [],
+                spaceAccess: [],
+                imageUrl: null,
+                enableDataAccess: true,
+                enableSelfImprovement: false,
+                version: 2,
+            },
+        );
+
+        expect(agent.enableSqlAutoApproval).toBe(false);
+
+        await services.aiAgentService.updateAgent(
+            context.testUser,
+            agent.uuid,
+            {
+                uuid: agent.uuid,
+                enableSqlAutoApproval: true,
+            },
+        );
+        const refetchedAgent = await services.aiAgentService.getAgent(
+            context.testUser,
+            agent.uuid,
+        );
+
+        expect(refetchedAgent.enableSqlAutoApproval).toBe(true);
+    });
+
     it('creates OAuth MCP servers without credentials and disables sharing by default', async () => {
         const services = getServices(context.app);
         const models = getModels(context.app);

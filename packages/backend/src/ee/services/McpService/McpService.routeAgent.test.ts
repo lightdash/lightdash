@@ -105,6 +105,7 @@ const selectedAgent: AiAgentWithContext = {
     enableContentTools: true,
     enableUserContext: false,
     enableSqlMode: true,
+    enableSqlAutoApproval: false,
     adminOnly: false,
     modelConfig: null,
     providerCredentialUuid: null,

@@ -33,6 +33,7 @@ const visibleAgent: AiAgent = {
     enableContentTools: true,
     enableUserContext: true,
     enableSqlMode: true,
+    enableSqlAutoApproval: false,
     adminOnly: false,
     modelConfig: null,
     providerCredentialUuid: null,
