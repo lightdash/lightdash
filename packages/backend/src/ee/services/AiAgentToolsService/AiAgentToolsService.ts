@@ -2140,7 +2140,7 @@ export class AiAgentToolsService extends BaseService {
         ).map((d) => d.slug);
         throw new NotFoundError(
             validSlugs.length === 0
-                ? `Theme "${themeSlug}" was not found: the organization has no themes`
+                ? `Theme "${themeSlug}" was not found: the organization has no themes. Omit themeSlug to use the default look`
                 : `Theme "${themeSlug}" was not found. Valid theme slugs: ${validSlugs.join(', ')}`,
         );
     }
