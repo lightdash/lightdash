@@ -187,7 +187,6 @@ export default class SchedulerApp {
         this.eventStreamWriter = createEventStreamWriter(
             this.lightdashConfig,
             this.prometheusMetrics,
-            () => this.models.getFeatureFlagModel(),
         );
         this.analytics = new LightdashAnalytics({
             lightdashConfig: this.lightdashConfig,
