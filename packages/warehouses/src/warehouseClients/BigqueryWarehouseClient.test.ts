@@ -148,6 +148,33 @@ describe('BigqueryWarehouseClient', () => {
         expect(getTableMock).toHaveBeenCalledTimes(1);
         expect(getTableResponse.getMetadata).toHaveBeenCalledTimes(1);
     });
+    it('expect getCatalog to skip tables the credentials cannot read', async () => {
+        const getMetadata = vi.fn().mockRejectedValue(
+            Object.assign(new Error('Permission bigquery.tables.get denied'), {
+                code: 403,
+            }),
+        );
+        Dataset.prototype.table = vi.fn(() => ({ getMetadata })) as never;
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        expect(await warehouse.getCatalog(config)).toEqual({});
+        expect(warn).toHaveBeenCalledOnce();
+        warn.mockRestore();
+    });
+    it('expect getCatalog to fail on errors other than missing or denied tables', async () => {
+        const getMetadata = vi
+            .fn()
+            .mockRejectedValue(
+                Object.assign(new Error('Internal error'), { code: 500 }),
+            );
+        Dataset.prototype.table = vi.fn(() => ({ getMetadata })) as never;
+        const warehouse = new BigqueryWarehouseClient(credentials);
+
+        await expect(warehouse.getCatalog(config)).rejects.toThrow(
+            WarehouseConnectionError,
+        );
+    });
     it('expect getFields to flatten nested columns with the same shapes as getCatalog', async () => {
         Dataset.prototype.table = vi
             .fn()
