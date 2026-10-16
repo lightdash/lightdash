@@ -1,0 +1,32 @@
+{
+  "name": "scale_10_large",
+  "version": "1.0.0",
+  "config-version": 2,
+  "profile": "cross_source_refs",
+  "model-paths": [
+    "models"
+  ],
+  "seed-paths": [
+    "seeds"
+  ],
+  "snapshot-paths": [
+    "snapshots"
+  ],
+  "models": {
+    "scale_10_large": {
+      "+materialized": "table",
+      "+access": "public",
+      "+schema": "scale_10_large"
+    }
+  },
+  "seeds": {
+    "scale_10_large": {
+      "+schema": "scale_10_large"
+    }
+  },
+  "snapshots": {
+    "scale_10_large": {
+      "+schema": "scale_10_large"
+    }
+  }
+}

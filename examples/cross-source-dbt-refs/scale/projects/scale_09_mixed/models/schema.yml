@@ -1,0 +1,63 @@
+version: 2
+groups:
+  - name: scale_internal
+    owner:
+      name: Scale fixture owner
+      email: scale@example.com
+models:
+  - name: scale_09_mixed_0000
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: &row_metrics
+          row_count:
+            type: count
+            sql: ${TABLE}.id
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_09_mixed_0000.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: &typed_columns
+      - name: id
+        meta:
+          dimension:
+            type: number
+      - name: label
+        meta:
+          dimension:
+            type: string
+      - name: amount
+        meta:
+          dimension:
+            type: number
+      - name: active
+        meta:
+          dimension:
+            type: boolean
+      - name: event_date
+        meta:
+          dimension:
+            type: date
+  - name: scale_09_mixed_explicit_v2
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_08_versioned_product
+            sql_on: ${scale_09_mixed_explicit_v2.id} = ${scale_08_versioned_product.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_09_mixed_latest
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_08_versioned_product
+            sql_on: ${scale_09_mixed_latest.id} = ${scale_08_versioned_product.id}
+            relationship: one-to-one
+    columns: *typed_columns

@@ -1,0 +1,5 @@
+target/
+logs/
+dbt_packages/
+.work/
+__pycache__/

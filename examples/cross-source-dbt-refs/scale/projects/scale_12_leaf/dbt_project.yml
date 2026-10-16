@@ -1,0 +1,32 @@
+{
+  "name": "scale_12_leaf",
+  "version": "1.0.0",
+  "config-version": 2,
+  "profile": "cross_source_refs",
+  "model-paths": [
+    "models"
+  ],
+  "seed-paths": [
+    "seeds"
+  ],
+  "snapshot-paths": [
+    "snapshots"
+  ],
+  "models": {
+    "scale_12_leaf": {
+      "+materialized": "table",
+      "+access": "public",
+      "+schema": "scale_12_leaf"
+    }
+  },
+  "seeds": {
+    "scale_12_leaf": {
+      "+schema": "scale_12_leaf"
+    }
+  },
+  "snapshots": {
+    "scale_12_leaf": {
+      "+schema": "scale_12_leaf"
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "scale_02_samename",
+  "version": "1.0.0",
+  "config-version": 2,
+  "profile": "cross_source_refs",
+  "model-paths": [
+    "models"
+  ],
+  "seed-paths": [
+    "seeds"
+  ],
+  "snapshot-paths": [
+    "snapshots"
+  ],
+  "models": {
+    "scale_02_samename": {
+      "+materialized": "table",
+      "+access": "public",
+      "+schema": "scale_02_samename"
+    }
+  },
+  "seeds": {
+    "scale_02_samename": {
+      "+schema": "scale_02_samename"
+    }
+  },
+  "snapshots": {
+    "scale_02_samename": {
+      "+schema": "scale_02_samename"
+    }
+  }
+}

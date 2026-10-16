@@ -1,0 +1,5 @@
+select b.id::integer as id, 'scale_10_large'::text as label,
+       (132 + coalesce(r0.amount, 0))::numeric as amount, (b.id % 2 = 0) as active,
+       (date '2026-01-01' + b.id) as event_date
+from generate_series(1, 10) as b(id)
+left join {{ ref('scale_18_diamond', 'scale_18_diamond_0000') }} as r0 on b.id = r0.id

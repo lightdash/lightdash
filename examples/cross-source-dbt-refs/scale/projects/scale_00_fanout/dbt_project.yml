@@ -1,0 +1,32 @@
+{
+  "name": "scale_00_fanout",
+  "version": "1.0.0",
+  "config-version": 2,
+  "profile": "cross_source_refs",
+  "model-paths": [
+    "models"
+  ],
+  "seed-paths": [
+    "seeds"
+  ],
+  "snapshot-paths": [
+    "snapshots"
+  ],
+  "models": {
+    "scale_00_fanout": {
+      "+materialized": "table",
+      "+access": "public",
+      "+schema": "scale_00_fanout"
+    }
+  },
+  "seeds": {
+    "scale_00_fanout": {
+      "+schema": "scale_00_fanout"
+    }
+  },
+  "snapshots": {
+    "scale_00_fanout": {
+      "+schema": "scale_00_fanout"
+    }
+  }
+}

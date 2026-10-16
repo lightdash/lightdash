@@ -1,0 +1,32 @@
+{
+  "name": "scale_18_diamond",
+  "version": "1.0.0",
+  "config-version": 2,
+  "profile": "cross_source_refs",
+  "model-paths": [
+    "models"
+  ],
+  "seed-paths": [
+    "seeds"
+  ],
+  "snapshot-paths": [
+    "snapshots"
+  ],
+  "models": {
+    "scale_18_diamond": {
+      "+materialized": "table",
+      "+access": "public",
+      "+schema": "scale_18_diamond"
+    }
+  },
+  "seeds": {
+    "scale_18_diamond": {
+      "+schema": "scale_18_diamond"
+    }
+  },
+  "snapshots": {
+    "scale_18_diamond": {
+      "+schema": "scale_18_diamond"
+    }
+  }
+}

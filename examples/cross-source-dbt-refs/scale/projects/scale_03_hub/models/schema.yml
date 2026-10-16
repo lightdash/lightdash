@@ -1,0 +1,580 @@
+version: 2
+groups:
+  - name: scale_internal
+    owner:
+      name: Scale fixture owner
+      email: scale@example.com
+models:
+  - name: scale_03_hub_0000
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: &row_metrics
+          row_count:
+            type: count
+            sql: ${TABLE}.id
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0000.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: &typed_columns
+      - name: id
+        meta:
+          dimension:
+            type: number
+      - name: label
+        meta:
+          dimension:
+            type: string
+      - name: amount
+        meta:
+          dimension:
+            type: number
+      - name: active
+        meta:
+          dimension:
+            type: boolean
+      - name: event_date
+        meta:
+          dimension:
+            type: date
+  - name: scale_03_hub_0001
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0001.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0002
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0002.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0003
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0003.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0004
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0004.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0005
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0005.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0006
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0006.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0007
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0007.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0008
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0008.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0009
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0009.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0010
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0010.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0011
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0011.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0012
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0012.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0013
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0013.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0014
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0014.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0015
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0015.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0016
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0016.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0017
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0017.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0018
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0018.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0019
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0019.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0020
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0020.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0021
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0021.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0022
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0022.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0023
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0023.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0024
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0024.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0025
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0025.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0026
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0026.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0027
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0027.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0028
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0028.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0029
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0029.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0030
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0030.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0031
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0031.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0032
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0032.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0033
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0033.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0034
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0034.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0035
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0035.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0036
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0036.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0037
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0037.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0038
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0038.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0039
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0039.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0040
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0040.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0041
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0041.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0042
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0042.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0043
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0043.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0044
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0044.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0045
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0045.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0046
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0046.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0047
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0047.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0048
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0048.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns
+  - name: scale_03_hub_0049
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics: *row_metrics
+        joins:
+          - join: scale_00_fanout__customers
+            sql_on: ${scale_03_hub_0049.id} = ${scale_00_fanout__customers.id}
+            relationship: one-to-one
+    columns: *typed_columns

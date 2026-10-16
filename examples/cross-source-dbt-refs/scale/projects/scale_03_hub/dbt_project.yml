@@ -1,0 +1,32 @@
+{
+  "name": "scale_03_hub",
+  "version": "1.0.0",
+  "config-version": 2,
+  "profile": "cross_source_refs",
+  "model-paths": [
+    "models"
+  ],
+  "seed-paths": [
+    "seeds"
+  ],
+  "snapshot-paths": [
+    "snapshots"
+  ],
+  "models": {
+    "scale_03_hub": {
+      "+materialized": "table",
+      "+access": "public",
+      "+schema": "scale_03_hub"
+    }
+  },
+  "seeds": {
+    "scale_03_hub": {
+      "+schema": "scale_03_hub"
+    }
+  },
+  "snapshots": {
+    "scale_03_hub": {
+      "+schema": "scale_03_hub"
+    }
+  }
+}
