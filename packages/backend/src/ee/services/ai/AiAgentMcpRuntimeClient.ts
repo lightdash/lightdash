@@ -20,6 +20,10 @@ import {
     type OAuthDiscoveryState,
 } from '@modelcontextprotocol/sdk/client/auth.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import {
+    checkResourceAllowed,
+    resourceUrlFromServerUrl,
+} from '@modelcontextprotocol/sdk/shared/auth-utils.js';
 import type {
     OAuthClientInformationMixed,
     OAuthClientMetadata,
@@ -390,6 +394,54 @@ const toPersistedOAuthPayload = (
     };
 };
 
+const stripSingleTrailingSlash = (url: URL): URL => {
+    const copy = new URL(url.href);
+    if (copy.pathname.length > 1 && copy.pathname.endsWith('/')) {
+        copy.pathname = copy.pathname.slice(0, -1);
+    }
+    return copy;
+};
+
+/**
+ * Picks the RFC 8707 resource indicator for an MCP server. Replaces the SDK's
+ * `selectResourceURL`, which rejects a server URL of `https://host/mcp` when
+ * the protected-resource metadata advertises `https://host/mcp/`. A single
+ * trailing slash is tolerated on either side; the origin and path-prefix
+ * check is kept so a token requested for one server cannot name another.
+ */
+export const validateMcpResourceUrl = (
+    serverUrl: string | URL,
+    resource?: string,
+): URL | undefined => {
+    if (!resource) {
+        return undefined;
+    }
+
+    const requestedResource = resourceUrlFromServerUrl(serverUrl);
+    const advertisedResource = new URL(resource);
+
+    if (
+        !checkResourceAllowed({
+            requestedResource: stripSingleTrailingSlash(requestedResource),
+            configuredResource: stripSingleTrailingSlash(advertisedResource),
+        })
+    ) {
+        throw new Error(
+            `Protected resource ${resource} does not match expected ${requestedResource} (or origin)`,
+        );
+    }
+
+    // The SDK sends `href` as the `resource` parameter, and `URL.href` appends
+    // a "/" to a pathless indicator such as `https://host`, which exact-match
+    // authorization servers reject. Keep the advertised string verbatim.
+    Object.defineProperty(advertisedResource, 'href', {
+        value: resource,
+        enumerable: true,
+    });
+
+    return advertisedResource;
+};
+
 export const getMcpOAuthCallbackUrl = (siteUrl: string): string =>
     new URL('/api/v1/aiAgents/mcp/oauth/callback', siteUrl).toString();
 
@@ -550,6 +602,14 @@ class PersistentMcpOAuthClientProvider implements OAuthClientProvider {
 
     get clientMetadata(): OAuthClientMetadata {
         return this.defaultClientMetadata;
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    async validateResourceURL(
+        serverUrl: string | URL,
+        resource?: string,
+    ): Promise<URL | undefined> {
+        return validateMcpResourceUrl(serverUrl, resource);
     }
 
     private async loadPayload(): Promise<AiMcpOAuthCredentialPayload> {

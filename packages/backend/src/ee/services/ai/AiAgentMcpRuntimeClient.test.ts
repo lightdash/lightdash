@@ -17,6 +17,7 @@ import {
     McpTimeoutError,
     normalizeMcpOAuthPayloadForRedirect,
     sanitizeUntrustedMcpText,
+    validateMcpResourceUrl,
 } from './AiAgentMcpRuntimeClient';
 import { AiDecisionClient } from './decisions/AiDecisionClient';
 import type { AiAgentMcpServer } from './types/aiAgent';
@@ -477,6 +478,68 @@ describe('normalizeMcpOAuthPayloadForRedirect', () => {
                 clientMetadata: staticMetadata,
             }),
         );
+    });
+});
+
+describe('validateMcpResourceUrl', () => {
+    it('accepts an advertised resource that only adds a trailing slash', () => {
+        expect(
+            validateMcpResourceUrl(
+                'https://mcp.example.com/mcp',
+                'https://mcp.example.com/mcp/',
+            )?.href,
+        ).toBe('https://mcp.example.com/mcp/');
+    });
+
+    it('accepts an advertised resource that only drops the trailing slash', () => {
+        expect(
+            validateMcpResourceUrl(
+                'https://mcp.example.com/mcp/',
+                'https://mcp.example.com/mcp',
+            )?.href,
+        ).toBe('https://mcp.example.com/mcp');
+    });
+
+    it('sends a pathless advertised resource verbatim', () => {
+        expect(
+            validateMcpResourceUrl(
+                'https://mcp.example.com',
+                'https://mcp.example.com',
+            )?.href,
+        ).toBe('https://mcp.example.com');
+    });
+
+    it('accepts an advertised resource that is a parent path of the server URL', () => {
+        expect(
+            validateMcpResourceUrl(
+                new URL('https://mcp.example.com/mcp/tools'),
+                'https://mcp.example.com/mcp',
+            )?.href,
+        ).toBe('https://mcp.example.com/mcp');
+    });
+
+    it('returns undefined when the server publishes no resource metadata', () => {
+        expect(
+            validateMcpResourceUrl('https://mcp.example.com/mcp'),
+        ).toBeUndefined();
+    });
+
+    it('rejects an advertised resource on a different path', () => {
+        expect(() =>
+            validateMcpResourceUrl(
+                'https://mcp.example.com/mcp',
+                'https://mcp.example.com/other/',
+            ),
+        ).toThrow(/does not match/);
+    });
+
+    it('rejects an advertised resource on a different origin', () => {
+        expect(() =>
+            validateMcpResourceUrl(
+                'https://mcp.example.com/mcp',
+                'https://evil.example.com/mcp',
+            ),
+        ).toThrow(/does not match/);
     });
 });
 
