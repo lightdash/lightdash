@@ -1417,7 +1417,7 @@ export class McpService extends BaseService {
         const content = [
             {
                 type: 'text' as const,
-                text: `${mcpEchartsOption ? 'Chart' : 'Result table'} rendered for queryUuid: ${queryUuid}.${
+                text: `${mcpEchartsOption ? 'Chart' : 'Result table'} sent to the chart app for queryUuid: ${queryUuid}. Only MCP App-capable clients display it; echartsOption in structuredContent is a placeholder, not a failed render. If your client cannot display MCP Apps, the user has not seen it: build the visual from the query rows.${
                     exploreUrl ? ` Explore from here: ${exploreUrl}` : ''
                 }`,
             },
