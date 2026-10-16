@@ -2489,6 +2489,11 @@ export class AiAgentToolsService extends BaseService {
                     'update',
                     'Chart type',
                 );
+                await this.appGenerateService.assertCanIterateApp(
+                    context.user,
+                    context.projectUuid,
+                    app.app_id,
+                );
                 if (app.template !== DATA_APP_VIZ_TEMPLATE) {
                     throw new ParameterError(
                         `"${slug}" is a data app, not a custom chart type. Use iterate_data_app to change it`,
@@ -2564,13 +2569,6 @@ export class AiAgentToolsService extends BaseService {
                         toolCallId,
                         'iterateDataApp',
                     );
-                const designUuid =
-                    themeSlug === null
-                        ? undefined
-                        : await this.resolveDataAppThemeReference(
-                              context,
-                              themeSlug,
-                          );
                 const app = await this.appModel.findAppBySlug(
                     context.projectUuid,
                     appSlug,
@@ -2587,6 +2585,11 @@ export class AiAgentToolsService extends BaseService {
                     'update',
                     'Data app',
                 );
+                await this.appGenerateService.assertCanIterateApp(
+                    context.user,
+                    context.projectUuid,
+                    app.app_id,
+                );
                 if (
                     context.source === 'mcp' &&
                     app.template === DATA_APP_VIZ_TEMPLATE
@@ -2595,6 +2598,13 @@ export class AiAgentToolsService extends BaseService {
                         `"${appSlug}" is a custom chart type. Use iterate_custom_chart_type to change it`,
                     );
                 }
+                const designUuid =
+                    themeSlug === null
+                        ? undefined
+                        : await this.resolveDataAppThemeReference(
+                              context,
+                              themeSlug,
+                          );
                 const dashboard =
                     dashboardSlug === null
                         ? undefined
