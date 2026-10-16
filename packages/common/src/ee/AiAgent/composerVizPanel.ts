@@ -12,6 +12,13 @@ import {
     type PivotChartLayout,
     type VizTableConfig,
 } from '../../visualizations/types';
+import { dataAppVizGradientValueSchema } from '../apps/types';
+import {
+    getComposerCustomVizBoundFields,
+    isComposerCustomVizConfig,
+    type ComposerCustomVizConfig,
+    type ComposerVizConfig,
+} from './composerCustomViz';
 import {
     buildComposerVizConfig,
     getComposerChartKind,
@@ -29,6 +36,7 @@ export const COMPOSER_VIZ_KINDS: ComposerVizKind[] = [
     'line',
     'pie',
     'big_number',
+    'custom',
 ];
 
 /** The SQL runner's set; ANY first because node results are already aggregated. */
@@ -42,6 +50,28 @@ export const COMPOSER_VIZ_AGGREGATIONS: VizAggregationOptions[] = [
 ];
 
 type ComposerChartConfig = Exclude<AllVizChartConfig, VizTableConfig>;
+
+/** Configs set aside while another kind shows, restored when switching back. */
+export type ComposerVizRemembered = {
+    chart: ComposerChartConfig | null;
+    custom: ComposerCustomVizConfig | null;
+};
+
+export const COMPOSER_VIZ_NOTHING_REMEMBERED: ComposerVizRemembered = {
+    chart: null,
+    custom: null,
+};
+
+/** Remembers the config being switched away from; a table is never remembered. */
+export const rememberComposerVizConfig = (
+    remembered: ComposerVizRemembered,
+    value: ComposerVizConfig,
+): ComposerVizRemembered => {
+    if (isComposerCustomVizConfig(value))
+        return { ...remembered, custom: value };
+    if (value.type === ChartKind.TABLE) return remembered;
+    return { ...remembered, chart: value };
+};
 
 type ResultShape = {
     columns: ResultColumn[];
@@ -59,15 +89,22 @@ const tableConfig = (): VizTableConfig => ({
 const columnsByReference = (columns: ResultColumn[]) =>
     new Map(columns.map((column) => [column.reference, column]));
 
-const layoutOf = (value: AllVizChartConfig): PivotChartLayout | null =>
-    value.type === ChartKind.TABLE ? null : (value.fieldConfig ?? null);
+const layoutOf = (value: ComposerVizConfig): PivotChartLayout | null =>
+    isComposerCustomVizConfig(value) || value.type === ChartKind.TABLE
+        ? null
+        : (value.fieldConfig ?? null);
 
-/** Every referenced column exists in the result and every y is numeric. */
+/** Every referenced column exists in the result and every y is numeric; a custom config binds only result columns. */
 export const composerVizConfigFitsColumns = (
-    vizConfig: AllVizChartConfig,
+    vizConfig: ComposerVizConfig,
     columns: ResultColumn[],
 ): boolean => {
     const known = columnsByReference(columns);
+    if (isComposerCustomVizConfig(vizConfig)) {
+        return getComposerCustomVizBoundFields(vizConfig).every((reference) =>
+            known.has(reference),
+        );
+    }
     if (vizConfig.type === ChartKind.TABLE) {
         return Object.keys(vizConfig.columns).every((reference) =>
             known.has(reference),
@@ -89,14 +126,20 @@ export const composerVizConfigFitsColumns = (
     return (layout.sortBy ?? []).every((s) => known.has(s.reference));
 };
 
-/** Table always; chart kinds need a numeric column; bar/line/pie also need a second column for x; a big number needs a single row. */
+/** Table always; chart kinds need a numeric column; bar/line/pie also need a second column for x; a big number needs a single row; custom needs a fitting custom config. */
 export const getAvailableComposerVizKinds = (
     columns: ResultColumn[],
     rows: RawResultRow[],
+    { custom }: { custom: ComposerCustomVizConfig | null },
 ): ComposerVizKind[] => {
     const hasNumeric = columns.some(isComposerNumericColumn);
     return COMPOSER_VIZ_KINDS.filter((kind) => {
         switch (kind) {
+            case 'custom':
+                return (
+                    custom !== null &&
+                    composerVizConfigFitsColumns(custom, columns)
+                );
             case 'table':
                 return true;
             case 'big_number':
@@ -157,12 +200,14 @@ export const getComposerVizPanelValue = ({
     vizConfig,
     ...result
 }: ResultShape & {
-    vizConfig: AllVizChartConfig | null;
-}): AllVizChartConfig => {
+    vizConfig: ComposerVizConfig | null;
+}): ComposerVizConfig => {
     if (vizConfig && composerVizConfigFitsColumns(vizConfig, result.columns))
         return vizConfig;
     const plan = getComposerVizPlan({ ...result, vizConfig: null });
-    if (plan.defaultKind === 'table') return tableConfig();
+    // Column types alone never default to custom.
+    if (plan.defaultKind === 'table' || plan.defaultKind === 'custom')
+        return tableConfig();
     const axes = plan.axes[plan.defaultKind];
     if (!axes) return tableConfig();
     return buildComposerVizConfig({
@@ -182,16 +227,22 @@ export type ComposerVizPanelOptions = {
     aggregations: VizAggregationOptions[];
 };
 
+/** `remembered` offers custom when the value is not custom but a custom config was set aside. */
 export const getComposerVizPanelOptions = (
-    value: AllVizChartConfig,
+    value: ComposerVizConfig,
     columns: ResultColumn[],
     rows: RawResultRow[],
+    remembered: ComposerVizRemembered,
 ): ComposerVizPanelOptions => {
     const xReference = layoutOf(value)?.x?.reference;
     const numeric = columns.filter(isComposerNumericColumn);
     const other = columns.filter((column) => !isComposerNumericColumn(column));
     return {
-        kinds: getAvailableComposerVizKinds(columns, rows),
+        kinds: getAvailableComposerVizKinds(columns, rows, {
+            custom: isComposerCustomVizConfig(value)
+                ? value
+                : remembered.custom,
+        }),
         x: [...other, ...numeric],
         y: numeric,
         groupBy: other.filter((column) => column.reference !== xReference),
@@ -216,10 +267,15 @@ const withLayout = (
     buildComposerVizConfig({ kind, fieldConfig: withSortOnX(layout) });
 
 const editLayout = (
-    value: AllVizChartConfig,
+    value: ComposerVizConfig,
     edit: (layout: PivotChartLayout) => PivotChartLayout,
-): AllVizChartConfig => {
-    if (value.type === ChartKind.TABLE || !value.fieldConfig) return value;
+): ComposerVizConfig => {
+    if (
+        isComposerCustomVizConfig(value) ||
+        value.type === ChartKind.TABLE ||
+        !value.fieldConfig
+    )
+        return value;
     return withLayout(getComposerChartKind(value), edit(value.fieldConfig));
 };
 
@@ -252,27 +308,35 @@ const applyKindRules = (
 };
 
 /**
- * Switches the kind. Field config carries over by the kind rules; table drops
- * it, and leaving table restores `remembered` when it still fits, else the
- * column-type default for that kind.
+ * Switches the kind. Field config carries over between chart kinds by the kind
+ * rules; table drops it. Leaving table or custom restores the remembered chart
+ * when it still fits, else the column-type default for that kind. Custom
+ * restores the remembered custom config; with none that fits, nothing changes.
  */
 export const switchComposerVizKind = (
-    value: AllVizChartConfig,
+    value: ComposerVizConfig,
     kind: ComposerVizKind,
     {
         remembered,
         ...result
-    }: ResultShape & { remembered: AllVizChartConfig | null },
-): AllVizChartConfig => {
+    }: ResultShape & { remembered: ComposerVizRemembered },
+): ComposerVizConfig => {
     if (kind === 'table') return tableConfig();
+    if (kind === 'custom') {
+        if (isComposerCustomVizConfig(value)) return value;
+        return remembered.custom &&
+            composerVizConfigFitsColumns(remembered.custom, result.columns)
+            ? remembered.custom
+            : value;
+    }
     const source = ((): ComposerChartConfig | null => {
-        if (value.type !== ChartKind.TABLE) return value;
+        if (!isComposerCustomVizConfig(value) && value.type !== ChartKind.TABLE)
+            return value;
         if (
-            remembered &&
-            remembered.type !== ChartKind.TABLE &&
-            composerVizConfigFitsColumns(remembered, result.columns)
+            remembered.chart &&
+            composerVizConfigFitsColumns(remembered.chart, result.columns)
         )
-            return remembered;
+            return remembered.chart;
         return null;
     })();
     const layout = source?.fieldConfig ?? defaultLayoutFor(kind, result);
@@ -282,10 +346,10 @@ export const switchComposerVizKind = (
 };
 
 export const setComposerVizX = (
-    value: AllVizChartConfig,
+    value: ComposerVizConfig,
     reference: string,
     columns: ResultColumn[],
-): AllVizChartConfig => {
+): ComposerVizConfig => {
     const column = columnsByReference(columns).get(reference);
     if (!column) return value;
     return editLayout(value, (layout) => ({
@@ -298,10 +362,10 @@ export const setComposerVizX = (
 };
 
 export const setComposerVizY = (
-    value: AllVizChartConfig,
+    value: ComposerVizConfig,
     index: number,
     patch: { reference?: string; aggregation?: VizAggregationOptions },
-): AllVizChartConfig =>
+): ComposerVizConfig =>
     editLayout(value, (layout) => ({
         ...layout,
         y: layout.y.map((y, i) => (i === index ? { ...y, ...patch } : y)),
@@ -309,9 +373,9 @@ export const setComposerVizY = (
 
 /** Adds the next numeric column not already charted; no-op when none is left. */
 export const addComposerVizY = (
-    value: AllVizChartConfig,
+    value: ComposerVizConfig,
     columns: ResultColumn[],
-): AllVizChartConfig =>
+): ComposerVizConfig =>
     editLayout(value, (layout) => {
         const used = new Set(layout.y.map((y) => y.reference));
         const next = columns.find(
@@ -333,9 +397,9 @@ export const addComposerVizY = (
 
 /** Never drops the last y. */
 export const removeComposerVizY = (
-    value: AllVizChartConfig,
+    value: ComposerVizConfig,
     index: number,
-): AllVizChartConfig =>
+): ComposerVizConfig =>
     editLayout(value, (layout) =>
         layout.y.length <= 1
             ? layout
@@ -343,9 +407,9 @@ export const removeComposerVizY = (
     );
 
 export const setComposerVizGroupBy = (
-    value: AllVizChartConfig,
+    value: ComposerVizConfig,
     reference: string | null,
-): AllVizChartConfig =>
+): ComposerVizConfig =>
     editLayout(value, (layout) => ({
         ...layout,
         groupBy: reference ? [{ reference }] : [],
@@ -353,7 +417,7 @@ export const setComposerVizGroupBy = (
 
 /** The x axis sort direction; null when the x axis keeps its own order. */
 export const getComposerVizSort = (
-    value: AllVizChartConfig,
+    value: ComposerVizConfig,
 ): SortByDirection | null => {
     const layout = layoutOf(value);
     const sort = layout?.sortBy?.[0];
@@ -363,9 +427,9 @@ export const getComposerVizSort = (
 };
 
 export const setComposerVizSort = (
-    value: AllVizChartConfig,
+    value: ComposerVizConfig,
     direction: SortByDirection | null,
-): AllVizChartConfig =>
+): ComposerVizConfig =>
     editLayout(value, (layout) => {
         const { sortBy: _sortBy, ...rest } = layout;
         if (!direction || !layout.x) return rest;
@@ -387,6 +451,8 @@ export const getComposerVizKindLabel = (kind: ComposerVizKind): string => {
             return 'Pie';
         case 'big_number':
             return 'Big value';
+        case 'custom':
+            return 'Custom';
         default:
             return assertUnreachable(kind, 'Unknown composer viz kind');
     }
@@ -403,9 +469,10 @@ const AGGREGATION_PREFIX: Record<VizAggregationOptions, string> = {
 
 /** `x × y by groupBy`, labels over references, aggregation prefixed on y when not ANY, at most two y names. */
 export const summarizeComposerVizConfig = (
-    value: AllVizChartConfig,
+    value: ComposerVizConfig,
     columns: ResultColumn[],
 ): string => {
+    if (isComposerCustomVizConfig(value)) return 'Custom chart';
     if (value.type === ChartKind.TABLE) return 'Table';
     const layout = value.fieldConfig;
     if (!layout) return getComposerVizKindLabel(getComposerChartKind(value));
@@ -504,6 +571,16 @@ const chartSchema = <T extends ComposerChartConfig['type']>(type: T) =>
             display: z.undefined().optional(),
         })
         .strict();
+const customFieldMappingValueSchema = z.union([
+    referenceSchema,
+    z.array(referenceSchema),
+]);
+const customOptionValueSchema = z.union([
+    z.boolean(),
+    z.number(),
+    z.string(),
+    dataAppVizGradientValueSchema,
+]);
 const tableColumnSchema = z
     .object({
         visible: z.boolean(),
@@ -514,7 +591,7 @@ const tableColumnSchema = z
     })
     .strict();
 
-/** The stored composer viz config: the five kinds, field config only, no display options. */
+/** The stored composer viz config: the five built-in kinds (field config only, no display options) or a custom chart type. */
 export const composerVizConfigSchema = z.discriminatedUnion('type', [
     chartSchema(ChartKind.VERTICAL_BAR),
     chartSchema(ChartKind.LINE),
@@ -528,10 +605,23 @@ export const composerVizConfigSchema = z.discriminatedUnion('type', [
             display: z.undefined().optional(),
         })
         .strict(),
+    z
+        .object({
+            type: z.literal(ChartKind.DATA_APP_VIZ),
+            metadata: z.object({ version: z.literal(1) }).strict(),
+            dataAppVizUuid: z.string().min(1),
+            dataAppVizVersion: z.number().int().min(1),
+            fieldMapping: z.record(
+                z.string().min(1),
+                customFieldMappingValueSchema,
+            ),
+            optionValues: z.record(z.string().min(1), customOptionValueSchema),
+        })
+        .strict(),
 ]);
 
 export type ParsedComposerVizConfig =
-    | { ok: true; vizConfig: AllVizChartConfig }
+    | { ok: true; vizConfig: ComposerVizConfig }
     | { ok: false; error: string };
 
 /** Validates an untrusted viz config and normalises it to the stored shape. */
@@ -543,6 +633,9 @@ export const parseComposerVizConfig = (
         return { ok: false, error: z.prettifyError(parsed.error) };
     }
     const { data } = parsed;
+    if (data.type === ChartKind.DATA_APP_VIZ) {
+        return { ok: true, vizConfig: data };
+    }
     if (data.type === ChartKind.TABLE) {
         return {
             ok: true,

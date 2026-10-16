@@ -1,15 +1,17 @@
 import {
+    COMPOSER_VIZ_NOTHING_REMEMBERED,
     FeatureFlags,
-    ChartKind,
     getComposerVizPanelOptions,
     getComposerVizPanelValue,
+    rememberComposerVizConfig,
     switchComposerVizKind,
     type AiComposerChartArtifactConfig,
-    type AllVizChartConfig,
     type ApiAiAgentComposerArtifactVizQuery,
     type ApiError,
+    type ComposerVizConfig,
     type ComposerVizKind,
     type ComposerVizPanelOptions,
+    type ComposerVizRemembered,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Stack, Tooltip } from '@mantine/core';
 import { useDebouncedCallback } from '@mantine/hooks';
@@ -124,20 +126,22 @@ export const AiComposerArtifactPanel: FC<Props> = ({
 
     // Edits on screen: the terminal node's are written back, other nodes' are ephemeral.
     const [editedValues, setEditedValues] = useState<
-        Record<string, AllVizChartConfig>
+        Record<string, ComposerVizConfig>
     >({});
-    // The last chart viz config per node, restored when leaving the table.
-    const [rememberedCharts, setRememberedCharts] = useState<
-        Record<string, AllVizChartConfig>
+    // Configs set aside per node, restored when switching back to their kind.
+    const [rememberedByNode, setRememberedByNode] = useState<
+        Record<string, ComposerVizRemembered>
     >({});
+    const remembered =
+        rememberedByNode[displayedNodeId] ?? COMPOSER_VIZ_NOTHING_REMEMBERED;
     const isResultReady = !isLoading && !results.error && !runError;
     const value = isResultReady
         ? (editedValues[displayedNodeId] ?? derivedValue)
         : (editedValues[displayedNodeId] ?? storedVizConfig ?? derivedValue);
     const options = useMemo(
         (): ComposerVizPanelOptions =>
-            getComposerVizPanelOptions(value, columns, rows),
-        [value, columns, rows],
+            getComposerVizPanelOptions(value, columns, rows, remembered),
+        [value, columns, rows, remembered],
     );
 
     const { mutate: saveVizConfig } = useUpdateComposerVizConfig({
@@ -151,7 +155,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         flushOnUnmount: true,
     });
     const isWritable = isTerminalDisplayed && canEdit;
-    const setValue = (next: AllVizChartConfig) => {
+    const setValue = (next: ComposerVizConfig) => {
         setEditedValues((current) => ({
             ...current,
             [displayedNodeId]: next,
@@ -159,13 +163,10 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         if (isWritable) saveSoon(next);
     };
     const changeKind = (kind: ComposerVizKind) => {
-        const remembered = rememberedCharts[displayedNodeId] ?? null;
-        if (value.type !== ChartKind.TABLE) {
-            setRememberedCharts((current) => ({
-                ...current,
-                [displayedNodeId]: value,
-            }));
-        }
+        setRememberedByNode((current) => ({
+            ...current,
+            [displayedNodeId]: rememberComposerVizConfig(remembered, value),
+        }));
         setValue(
             switchComposerVizKind(value, kind, {
                 columns,
@@ -245,6 +246,8 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                     }}
                 >
                     <AiComposerVizConfigPanel
+                        projectUuid={projectUuid}
+                        node={displayedNode}
                         value={value}
                         columns={columns}
                         options={options}
@@ -263,6 +266,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                             results={results}
                             queryUuid={queryUuid ?? null}
                             runError={runError}
+                            node={displayedNode}
                             vizConfig={value}
                             headerContent={head}
                             flush

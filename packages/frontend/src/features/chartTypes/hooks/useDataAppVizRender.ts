@@ -15,7 +15,7 @@ import {
 const DATA_APP_VIZ_RENDER_POLL_INTERVAL_MS = 3000;
 const DATA_APP_VIZ_RENDER_MAX_RETRIES = 3;
 
-type DataAppVizRenderTarget = {
+export type DataAppVizRenderTarget = {
     isEmbedded: boolean;
     savedChartUuid: string | undefined;
     // Set only while previewing an older chart version; the backend authorizes

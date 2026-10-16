@@ -1,6 +1,6 @@
 import type {
     AiArtifact,
-    AllVizChartConfig,
+    ComposerVizConfig,
     ApiError,
     ApiSuccessEmpty,
     ApiUpdateComposerVizConfigRequest,
@@ -270,7 +270,7 @@ export const useUpdateComposerVizConfig = ({
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
 
-    return useMutation<ApiSuccessEmpty, ApiError, AllVizChartConfig>({
+    return useMutation<ApiSuccessEmpty, ApiError, ComposerVizConfig>({
         mutationKey: [
             AI_AGENT_ARTIFACT_KEY,
             'vizConfig',

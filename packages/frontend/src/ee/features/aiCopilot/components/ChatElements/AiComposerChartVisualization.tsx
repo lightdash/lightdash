@@ -1,7 +1,6 @@
 import {
     buildComposerVizConfig,
     composerVizNeedsPivot,
-    ECHARTS_DEFAULT_COLORS,
     getComposerChartKind,
     getComposerVizSort,
     resolveComposerVizColumns,
@@ -11,18 +10,10 @@ import {
     type PivotChartLayout,
     type VizTableConfig,
 } from '@lightdash/common';
-import {
-    Box,
-    Center,
-    Loader,
-    Stack,
-    Text,
-    useComputedColorScheme,
-} from '@mantine/core';
+import { Box, Center, Loader, Stack, Text } from '@mantine/core';
 import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
 import BigNumberView from '../../../../../components/DataViz/visualizations/BigNumberView';
 import ChartView from '../../../../../components/DataViz/visualizations/ChartView';
-import { useProjectColorPalette } from '../../../../../hooks/appearance/useProjectColorPalette';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import {
     buildComposerChartSpec,
@@ -30,21 +21,10 @@ import {
     type ComposerChartSpec,
 } from './composerChartSpec';
 import { useArtifactResultRows } from './useArtifactResultRows';
+import { useComposerChartColors } from './useComposerChartColors';
 import { useComposerPivot } from './useComposerPivot';
 
 export type ComposerChartVizConfig = Exclude<AllVizChartConfig, VizTableConfig>;
-
-const useChartColors = (projectUuid: string) => {
-    const isDark = useComputedColorScheme('light') === 'dark';
-    const { data: palette } = useProjectColorPalette(projectUuid);
-    return useMemo(
-        () =>
-            (isDark ? palette?.darkColors : undefined) ??
-            palette?.colors ??
-            ECHARTS_DEFAULT_COLORS,
-        [isDark, palette],
-    );
-};
 
 // The data models resolve their pivot asynchronously; the last spec stays while the next builds.
 const useComposerChartSpec = <Input,>(
@@ -115,10 +95,11 @@ const ChartBody: FC<{
     );
 };
 
-const Frame: FC<{ headerContent: ReactNode; children: ReactNode }> = ({
-    headerContent,
-    children,
-}) => (
+/** The header above a drawn result. */
+export const ComposerVizFrame: FC<{
+    headerContent: ReactNode;
+    children: ReactNode;
+}> = ({ headerContent, children }) => (
     <Stack gap="md" h="100%" mih={0}>
         {headerContent}
         <Box flex={1} mih={0} px="md" pb="md">
@@ -127,7 +108,7 @@ const Frame: FC<{ headerContent: ReactNode; children: ReactNode }> = ({
     </Stack>
 );
 
-const Loading: FC<{ message: string }> = ({ message }) => (
+export const ComposerVizLoading: FC<{ message: string }> = ({ message }) => (
     <Center h={300}>
         <Loader type="dots" delayedMessage={message} />
     </Center>
@@ -164,7 +145,7 @@ export const AiComposerChartVisualization: FC<Props> = ({
     loadingMessage,
 }) => {
     const { columns, rows, isLoading } = useArtifactResultRows(results);
-    const colors = useChartColors(projectUuid);
+    const colors = useComposerChartColors(projectUuid);
     const kind = getComposerChartKind(vizConfig);
     const layout = vizConfig.fieldConfig;
     // With a series split only the first y is charted.
@@ -220,20 +201,20 @@ export const AiComposerChartVisualization: FC<Props> = ({
 
     if (!layout || (!pivotLayout && !isLoading && !drawn)) {
         return (
-            <Frame headerContent={headerContent}>
+            <ComposerVizFrame headerContent={headerContent}>
                 <Center h="100%">
                     <Text size="xs" c="dimmed">
                         This chart uses columns that are not in the result
                     </Text>
                 </Center>
-            </Frame>
+            </ComposerVizFrame>
         );
     }
     if (!pivotLayout && isLoading && spec === undefined) {
-        return <Loading message={loadingMessage} />;
+        return <ComposerVizLoading message={loadingMessage} />;
     }
     return (
-        <Frame headerContent={headerContent}>
+        <ComposerVizFrame headerContent={headerContent}>
             <ChartBody
                 kind={kind}
                 layout={pivotLayout ?? layout}
@@ -241,6 +222,6 @@ export const AiComposerChartVisualization: FC<Props> = ({
                 spec={spec}
                 error={pivot.error}
             />
-        </Frame>
+        </ComposerVizFrame>
     );
 };

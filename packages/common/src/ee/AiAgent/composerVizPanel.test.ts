@@ -5,12 +5,17 @@ import {
     SortByDirection,
     VizAggregationOptions,
     VizIndexType,
-    type AllVizChartConfig,
     type PivotChartLayout,
 } from '../../visualizations/types';
+import {
+    isComposerCustomVizConfig,
+    type ComposerCustomVizConfig,
+    type ComposerVizConfig,
+} from './composerCustomViz';
 import { buildComposerVizConfig } from './composerViz';
 import {
     addComposerVizY,
+    COMPOSER_VIZ_NOTHING_REMEMBERED,
     composerVizConfigFitsColumns,
     composerVizNeedsPivot,
     getAvailableComposerVizKinds,
@@ -18,6 +23,7 @@ import {
     getComposerVizPanelValue,
     getComposerVizSort,
     parseComposerVizConfig,
+    rememberComposerVizConfig,
     removeComposerVizY,
     resolveComposerVizColumns,
     setComposerVizGroupBy,
@@ -58,14 +64,33 @@ const layout = (
 const line = (overrides: Partial<PivotChartLayout> = {}) =>
     buildComposerVizConfig({ kind: 'line', fieldConfig: layout(overrides) });
 
-const fieldConfig = (value: AllVizChartConfig): PivotChartLayout => {
-    if (value.type === ChartKind.TABLE || !value.fieldConfig)
+const fieldConfig = (value: ComposerVizConfig): PivotChartLayout => {
+    if (
+        isComposerCustomVizConfig(value) ||
+        value.type === ChartKind.TABLE ||
+        !value.fieldConfig
+    )
         throw new Error('expected a chart config');
     return value.fieldConfig;
 };
 
 const result = { columns, rows, node: null };
-const edit = { ...result, remembered: null };
+const noCustom = { custom: null };
+
+const custom = (
+    fieldMapping: ComposerCustomVizConfig['fieldMapping'] = {
+        category: 'region',
+        values: ['revenue', 'orders'],
+    },
+): ComposerCustomVizConfig => ({
+    type: ChartKind.DATA_APP_VIZ,
+    metadata: { version: 1 },
+    dataAppVizUuid: 'viz-uuid',
+    dataAppVizVersion: 2,
+    fieldMapping,
+    optionValues: { stacked: true },
+});
+const edit = { ...result, remembered: COMPOSER_VIZ_NOTHING_REMEMBERED };
 
 describe('getComposerVizPanelValue', () => {
     test('returns the stored config when every column is present', () => {
@@ -102,7 +127,7 @@ describe('getComposerVizPanelValue', () => {
 });
 
 describe('composerVizConfigFitsColumns', () => {
-    test.each<{ name: string; value: AllVizChartConfig; fits: boolean }>([
+    test.each<{ name: string; value: ComposerVizConfig; fits: boolean }>([
         { name: 'known columns fit', value: line(), fits: true },
         {
             name: 'a non-numeric y does not fit',
@@ -152,23 +177,30 @@ describe('composerVizConfigFitsColumns', () => {
 
 describe('options', () => {
     test('kinds need a numeric column, a second column for an axis, and one row for a big number', () => {
-        expect(getAvailableComposerVizKinds(columns, rows)).toEqual([
+        expect(getAvailableComposerVizKinds(columns, rows, noCustom)).toEqual([
             'table',
             'bar',
             'line',
             'pie',
         ]);
-        expect(getAvailableComposerVizKinds(columns, rows.slice(0, 1))).toEqual(
-            ['table', 'bar', 'line', 'pie', 'big_number'],
+        expect(
+            getAvailableComposerVizKinds(columns, rows.slice(0, 1), noCustom),
+        ).toEqual(['table', 'bar', 'line', 'pie', 'big_number']);
+        expect(getAvailableComposerVizKinds([revenue], rows, noCustom)).toEqual(
+            ['table'],
         );
-        expect(getAvailableComposerVizKinds([revenue], rows)).toEqual([
+        expect(getAvailableComposerVizKinds([region], rows, noCustom)).toEqual([
             'table',
         ]);
-        expect(getAvailableComposerVizKinds([region], rows)).toEqual(['table']);
     });
 
     test('x offers every column non-numeric first, y numerics, split excludes x', () => {
-        const options = getComposerVizPanelOptions(line(), columns, rows);
+        const options = getComposerVizPanelOptions(
+            line(),
+            columns,
+            rows,
+            COMPOSER_VIZ_NOTHING_REMEMBERED,
+        );
         expect(options.x.map((c) => c.reference)).toEqual([
             'month',
             'region',
@@ -320,7 +352,7 @@ describe('switchComposerVizKind', () => {
         });
         const back = switchComposerVizKind(table, 'line', {
             ...result,
-            remembered: split,
+            remembered: { chart: split, custom: null },
         });
         expect(fieldConfig(back)).toEqual(fieldConfig(split));
     });
@@ -337,7 +369,7 @@ describe('switchComposerVizKind', () => {
         const stale = line({ groupBy: [{ reference: 'country' }] });
         const bar = switchComposerVizKind(table, 'bar', {
             ...result,
-            remembered: stale,
+            remembered: { chart: stale, custom: null },
         });
         expect(fieldConfig(bar).groupBy).toEqual([]);
     });
@@ -346,13 +378,13 @@ describe('switchComposerVizKind', () => {
         const numeric = { columns: [revenue, orders], rows, node: null };
         const bar = switchComposerVizKind(line(), 'bar', {
             ...numeric,
-            remembered: null,
+            remembered: COMPOSER_VIZ_NOTHING_REMEMBERED,
         });
         expect(fieldConfig(bar).x?.reference).toBe('month');
         const seeded = switchComposerVizKind(
             switchComposerVizKind(line(), 'table', edit),
             'bar',
-            { ...numeric, remembered: null },
+            { ...numeric, remembered: COMPOSER_VIZ_NOTHING_REMEMBERED },
         );
         expect(fieldConfig(seeded).x?.reference).toBe('orders');
     });
@@ -514,6 +546,143 @@ describe('parseComposerVizConfig', () => {
         },
         { name: 'not an object', input: 'line' },
     ])('rejects $name', ({ input }) => {
+        expect(parseComposerVizConfig(input).ok).toBe(false);
+    });
+});
+
+describe('custom chart type configs', () => {
+    test('fit when every bound field is a result column', () => {
+        expect(composerVizConfigFitsColumns(custom(), columns)).toBe(true);
+        expect(
+            composerVizConfigFitsColumns(
+                custom({ category: 'region', values: ['revenue', 'margin'] }),
+                columns,
+            ),
+        ).toBe(false);
+    });
+
+    test('custom is offered only with a fitting custom config', () => {
+        expect(
+            getAvailableComposerVizKinds(columns, rows, { custom: custom() }),
+        ).toEqual(['table', 'bar', 'line', 'pie', 'custom']);
+        expect(
+            getAvailableComposerVizKinds(columns, rows, {
+                custom: custom({ category: 'country' }),
+            }),
+        ).not.toContain('custom');
+        expect(
+            getComposerVizPanelOptions(
+                line(),
+                columns,
+                rows,
+                COMPOSER_VIZ_NOTHING_REMEMBERED,
+            ).kinds,
+        ).not.toContain('custom');
+        expect(
+            getComposerVizPanelOptions(custom(), columns, rows, {
+                chart: null,
+                custom: null,
+            }).kinds,
+        ).toContain('custom');
+    });
+
+    test('panel value keeps a fitting custom config', () => {
+        const stored = custom();
+        expect(getComposerVizPanelValue({ ...result, vizConfig: stored })).toBe(
+            stored,
+        );
+        expect(
+            getComposerVizPanelValue({
+                ...result,
+                vizConfig: custom({ category: 'country' }),
+            }).type,
+        ).toBe(ChartKind.TABLE);
+    });
+
+    test('switching away remembers it and switching back restores it', () => {
+        const stored = custom();
+        const remembered = rememberComposerVizConfig(
+            COMPOSER_VIZ_NOTHING_REMEMBERED,
+            stored,
+        );
+        expect(remembered).toEqual({ chart: null, custom: stored });
+        const bar = switchComposerVizKind(stored, 'bar', {
+            ...result,
+            remembered,
+        });
+        expect(fieldConfig(bar).x?.reference).toBe('month');
+        const back = switchComposerVizKind(bar, 'custom', {
+            ...result,
+            remembered: rememberComposerVizConfig(remembered, bar),
+        });
+        expect(back).toBe(stored);
+    });
+
+    test('leaving custom restores the remembered chart', () => {
+        const chart = line({ groupBy: [{ reference: 'region' }] });
+        const back = switchComposerVizKind(custom(), 'line', {
+            ...result,
+            remembered: { chart, custom: null },
+        });
+        expect(fieldConfig(back)).toEqual(fieldConfig(chart));
+    });
+
+    test('custom with nothing fitting remembered keeps the value', () => {
+        const value = line();
+        expect(switchComposerVizKind(value, 'custom', edit)).toBe(value);
+    });
+
+    test('a table is never remembered', () => {
+        const table = switchComposerVizKind(line(), 'table', edit);
+        expect(
+            rememberComposerVizConfig(COMPOSER_VIZ_NOTHING_REMEMBERED, table),
+        ).toBe(COMPOSER_VIZ_NOTHING_REMEMBERED);
+    });
+
+    test('edits leave a custom config untouched', () => {
+        const value = custom();
+        expect(setComposerVizX(value, 'region', columns)).toBe(value);
+        expect(addComposerVizY(value, columns)).toBe(value);
+        expect(getComposerVizSort(value)).toBeNull();
+    });
+
+    test('summarizes as a custom chart', () => {
+        expect(summarizeComposerVizConfig(custom(), columns)).toBe(
+            'Custom chart',
+        );
+    });
+
+    test('parse passes a custom config through', () => {
+        const value = custom();
+        expect(parseComposerVizConfig(value)).toEqual({
+            ok: true,
+            vizConfig: value,
+        });
+        expect(
+            parseComposerVizConfig({
+                ...value,
+                optionValues: {
+                    palette: { colors: ['#000', '#fff'], min: 'auto', max: 1 },
+                },
+            }).ok,
+        ).toBe(true);
+    });
+
+    test.each<{ name: string; input: unknown }>([
+        {
+            name: 'a missing version',
+            input: { ...custom(), dataAppVizVersion: undefined },
+        },
+        {
+            name: 'an empty field id',
+            input: { ...custom(), fieldMapping: { category: '' } },
+        },
+        {
+            name: 'an object option value',
+            input: { ...custom(), optionValues: { stacked: { on: true } } },
+        },
+        { name: 'extra keys', input: { ...custom(), display: {} } },
+    ])('rejects a custom config with $name', ({ input }) => {
         expect(parseComposerVizConfig(input).ok).toBe(false);
     });
 });

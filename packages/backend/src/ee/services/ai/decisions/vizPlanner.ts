@@ -1,23 +1,41 @@
 import {
+    assertUnreachable,
     buildComposerVizConfig,
     ChartKind,
     DimensionType,
+    getComposerCustomVizPool,
+    getComposerCustomVizPools,
+    getComposerCustomVizSelectedFields,
     getComposerFieldConfig,
     getComposerVizKind,
+    getDataAppVizChartConfigErrors,
+    isComposerCustomVizConfig,
     isComposerNumericColumn,
     isVizTableConfig,
+    pruneDataAppVizOptionValues,
     VizAggregationOptions,
     type AllVizChartConfig,
     type AnyType,
     type ComposerChartKind,
+    type ComposerCustomVizConfig,
+    type ComposerVizConfig,
     type ComposerVizKind,
     type ComposerVizPlan,
+    type CustomChartType,
+    type DataAppVizConfigOption,
+    type DataAppVizField,
+    type DataAppVizFieldMapping,
+    type DataAppVizOptionValues,
     type ResultColumn,
     type ResultColumns,
+    type SourceQuery,
 } from '@lightdash/common';
 import Logger from '../../../../logging/logger';
 import type { DbAiPromptComposerVizDecision } from '../../../database/entities/ai';
-import type { RecordPromptDecisionFn } from '../types/aiAgentDependencies';
+import type {
+    RecordPromptDecisionFn,
+    ResolveCustomChartTypeFn,
+} from '../types/aiAgentDependencies';
 import type { AgentDecisionContext } from './agentQuestion';
 import {
     AiDecisionClient,
@@ -36,6 +54,9 @@ export const VIZ_PLANNER_THRESHOLDS = {
     y: 0.85,
     groupBy: 0.85,
     explicitStyle: 0.85,
+    slot: 0.85,
+    slotMember: 0.6,
+    option: 0.85,
 } as const;
 
 const KEEP = 'keep';
@@ -46,7 +67,16 @@ const MAX_SAMPLE_LENGTH = 40;
 const MAX_SERIES = 12;
 const ID_LIKE_SUFFIX = /(^|[_\s.])(id|uuid|key)$/i;
 const ID_LIKE_CAMEL_SUFFIX = /[a-z](Id|Uuid|Key)$/;
-const COMPOSER_VIZ_KINDS: ComposerVizKind[] = [
+const DEFAULT = 'default';
+const MAX_CUSTOM_TYPES = 5;
+const MAX_POOL = 30;
+
+type BuiltInVizKind = Exclude<ComposerVizKind, 'custom'>;
+type CustomKindKey = `custom:${string}`;
+/** A built-in kind or an offered custom chart type, keyed by slug. */
+export type VizPlannerKind = BuiltInVizKind | CustomKindKey;
+
+const COMPOSER_VIZ_KINDS: BuiltInVizKind[] = [
     'table',
     'bar',
     'line',
@@ -54,22 +84,53 @@ const COMPOSER_VIZ_KINDS: ComposerVizKind[] = [
     'big_number',
 ];
 
+const customKindKey = (slug: string): CustomKindKey => `custom:${slug}`;
+
+export type PlannedComposerViz = {
+    vizConfig: ComposerVizConfig;
+    /** The composer tool result line telling the agent what the artifact opens on. */
+    note: string;
+};
+
 export type PlanComposerViz = (args: {
     title: string | null;
     description: string | null;
     terminalNode: { title: string | null; description: string | null };
+    node: SourceQuery | null;
     columns: ResultColumns;
     rows: Record<string, AnyType>[];
     rowCount: number;
     enableDataAccess: boolean;
-    previousVizConfig: AllVizChartConfig | null;
-}) => Promise<AllVizChartConfig | null>;
+    previousVizConfig: ComposerVizConfig | null;
+}) => Promise<PlannedComposerViz | null>;
+
+type AskedOption = Extract<
+    DataAppVizConfigOption,
+    { type: 'select' | 'boolean' }
+>;
+
+/** A custom chart type every required slot of which the result can fill. */
+export type OfferedCustomChartType = {
+    key: CustomKindKey;
+    type: CustomChartType;
+    /** Result column ids each slot may bind, in pool order. */
+    slots: { field: DataAppVizField; pool: string[] }[];
+    /** Options Jev may set; other option types keep their defaults. */
+    options: AskedOption[];
+};
+
+/** The previous viz config when it rendered an offered custom chart type. */
+export type PreviousCustomViz = {
+    key: CustomKindKey;
+    vizConfig: ComposerCustomVizConfig;
+};
 
 /** Code-gated candidates the planner may pick from; Jev only chooses among them. */
 export type VizPlannerShape = {
     columns: ResultColumn[];
     /** Kinds the result can render as; any other pick is unsupported. */
-    supportedKinds: ComposerVizKind[];
+    supportedKinds: VizPlannerKind[];
+    customTypes: OfferedCustomChartType[];
     xCandidates: string[];
     yCandidates: string[];
     pieCandidates: string[];
@@ -140,17 +201,79 @@ const isIdLikeName = ({ reference, label }: ResultColumn) =>
         (name) => ID_LIKE_SUFFIX.test(name) || ID_LIKE_CAMEL_SUFFIX.test(name),
     );
 
+const isAskedOption = (
+    option: DataAppVizConfigOption,
+): option is AskedOption => {
+    switch (option.type) {
+        case 'boolean':
+            return true;
+        case 'select':
+            return option.choices.every(
+                (choice) =>
+                    choice.value !== DEFAULT &&
+                    choice.value !== KEEP &&
+                    choice.value !== NONE,
+            );
+        case 'number':
+        case 'text':
+        case 'color':
+        case 'gradient':
+            return false;
+        default:
+            return assertUnreachable(option, 'Unknown config option type');
+    }
+};
+
+/** Custom chart types whose every required slot has a result column to bind, in library order, capped. */
+export const getOfferedCustomChartTypes = ({
+    customChartTypes,
+    columns,
+    node,
+    rowCount,
+}: {
+    customChartTypes: CustomChartType[];
+    columns: ResultColumn[];
+    node: SourceQuery | null;
+    rowCount: number;
+}): OfferedCustomChartType[] => {
+    if (rowCount === 0) return [];
+    const pools = getComposerCustomVizPools(columns, node);
+    return customChartTypes
+        .map((type) => ({
+            key: customKindKey(type.slug),
+            type,
+            slots: type.schema.fields.map((field) => ({
+                field,
+                pool: getComposerCustomVizPool(pools, field.type).slice(
+                    0,
+                    MAX_POOL,
+                ),
+            })),
+            options: type.schema.configOptions.filter(isAskedOption),
+        }))
+        .filter((offered) =>
+            offered.slots.every(
+                ({ field, pool }) => !field.required || pool.length > 0,
+            ),
+        )
+        .slice(0, MAX_CUSTOM_TYPES);
+};
+
 /** Result shape for the planner: code-gated candidates plus the state Jev sees. */
-const getVizPlannerShape = ({
+export const getVizPlannerShape = ({
     columns: resultColumns,
     rows,
     rowCount,
     enableDataAccess,
+    customChartTypes,
+    node,
 }: {
     columns: ResultColumns;
     rows: Record<string, AnyType>[];
     rowCount: number;
     enableDataAccess: boolean;
+    customChartTypes: CustomChartType[];
+    node: SourceQuery | null;
 }): { shape: VizPlannerShape; state: object[] } => {
     const columns = Object.values(resultColumns)
         .filter(
@@ -208,12 +331,19 @@ const getVizPlannerShape = ({
         .map((column) => column.reference)
         .filter((groupBy) => xCandidates.some((x) => x !== groupBy));
 
-    const supportedKinds: ComposerVizKind[] = ['table'];
+    const supportedKinds: VizPlannerKind[] = ['table'];
     if (rowCount > 0 && hasCartesian) supportedKinds.push('bar', 'line');
     if (rowCount > 0 && pieCandidates.length > 0 && yCandidates.length > 0)
         supportedKinds.push('pie');
     if (rowCount === 1 && yCandidates.length > 0)
         supportedKinds.push('big_number');
+    const customTypes = getOfferedCustomChartTypes({
+        customChartTypes,
+        columns,
+        node,
+        rowCount,
+    });
+    supportedKinds.push(...customTypes.map((offered) => offered.key));
 
     const state = columns.map((column) => {
         const columnStats = stats.get(column.reference);
@@ -237,6 +367,7 @@ const getVizPlannerShape = ({
         shape: {
             columns,
             supportedKinds,
+            customTypes,
             xCandidates,
             yCandidates,
             pieCandidates,
@@ -252,8 +383,12 @@ type PreviousAxes = {
     groupBy: string | null;
 };
 
-const previousAxes = (previous: AllVizChartConfig | null): PreviousAxes => {
-    if (!previous || isVizTableConfig(previous))
+const previousAxes = (previous: ComposerVizConfig | null): PreviousAxes => {
+    if (
+        !previous ||
+        isComposerCustomVizConfig(previous) ||
+        isVizTableConfig(previous)
+    )
         return { x: null, y: null, groupBy: null };
     return {
         x: previous.fieldConfig?.x?.reference ?? null,
@@ -278,7 +413,11 @@ const resolveColumn = (
     return choice !== null && candidates.includes(choice) ? choice : null;
 };
 
-const KIND_DESCRIPTIONS: Record<ComposerVizKind, string> = {
+/** Positive form of the identifier rule; `columns[].idLike` is in the state. */
+const ID_RULE =
+    'A column marked `idLike` in `columns` fits only when the question is about individual records.';
+
+const KIND_DESCRIPTIONS: Record<BuiltInVizKind, string> = {
     table: 'A table of the rows: detailed records, many fields, or no chart that answers the question.',
     bar: 'Bars comparing one measure across categories, optionally split into series by another category.',
     line: 'A line of one measure over an ordered axis, usually time, optionally one line per category.',
@@ -286,9 +425,133 @@ const KIND_DESCRIPTIONS: Record<ComposerVizKind, string> = {
     big_number: 'A single headline value.',
 };
 
+const slotSummary = ({ field }: OfferedCustomChartType['slots'][number]) =>
+    `${field.label} (${[
+        field.type,
+        ...(field.multiple ? ['multiple'] : []),
+        ...(field.required ? [] : ['optional']),
+    ].join(', ')})`;
+
+const sentence = (text: string) => {
+    const trimmed = text.trim();
+    return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+};
+
+const customKindDescription = (offered: OfferedCustomChartType) =>
+    `Custom chart "${offered.type.name}": ${sentence(
+        offered.type.description,
+    )} Slots: ${offered.slots.map(slotSummary).join('; ')}.`;
+
+const slotQuestionId = (key: CustomKindKey, slot: string) =>
+    `${key}:slot:${slot}`;
+const slotMemberQuestionId = (
+    key: CustomKindKey,
+    slot: string,
+    reference: string,
+) => `${key}:slot:${slot}:${reference}`;
+const optionQuestionId = (key: CustomKindKey, option: string) =>
+    `${key}:option:${option}`;
+
+/** A lone candidate for a required slot is bound without asking. */
+const isSlotAsked = ({
+    field,
+    pool,
+}: OfferedCustomChartType['slots'][number]) =>
+    pool.length > 0 && !(field.required && pool.length === 1);
+
+const previousSlotValue = (
+    previous: PreviousCustomViz | null,
+    key: CustomKindKey,
+    slot: string,
+): string | null => {
+    if (previous?.key !== key) return null;
+    const value = previous.vizConfig.fieldMapping[slot];
+    return typeof value === 'string' ? value : null;
+};
+
+/** Branch questions per offered type, phrased on the premise the type is chosen; only the chosen branch is read. */
+const getCustomQuestions = (
+    offered: OfferedCustomChartType,
+    labelOf: (reference: string) => string | null,
+    previous: PreviousCustomViz | null,
+): Record<string, DecisionQuestion> => {
+    const premise = `If the custom chart type "${offered.type.name}" were chosen`;
+    const questions: Record<string, DecisionQuestion> = {};
+    offered.slots.filter(isSlotAsked).forEach((slot) => {
+        const { field, pool } = slot;
+        const slotText = `the ${field.type} slot "${field.label}"${
+            field.description ? ` (${field.description})` : ''
+        }`;
+        if (field.multiple) {
+            pool.forEach((reference) => {
+                const label = labelOf(reference);
+                questions[
+                    slotMemberQuestionId(offered.key, field.name, reference)
+                ] = {
+                    type: 'noul',
+                    instructions: `${premise}, does the column ${reference}${
+                        label ? ` ("${label}")` : ''
+                    } belong in ${slotText}? Yes for every column the question asks to show there. ${ID_RULE}`,
+                };
+            });
+            return;
+        }
+        const keep = previousSlotValue(previous, offered.key, field.name);
+        questions[slotQuestionId(offered.key, field.name)] = {
+            type: 'choice',
+            instructions: `${premise}, which column fills ${slotText}? Pick the column the question names for this role. ${ID_RULE}${
+                field.required
+                    ? ''
+                    : ' Choose none to leave this optional slot empty.'
+            }`,
+            criteria: {
+                ...Object.fromEntries(
+                    pool.map((reference) => [reference, labelOf(reference)]),
+                ),
+                ...(field.required ? {} : { [NONE]: 'Leave the slot empty' }),
+                ...(keep !== null && pool.includes(keep)
+                    ? { [KEEP]: `Keep ${keep}` }
+                    : {}),
+            },
+        };
+    });
+    offered.options.forEach((option) => {
+        const id = optionQuestionId(offered.key, option.name);
+        switch (option.type) {
+            case 'select':
+                questions[id] = {
+                    type: 'choice',
+                    instructions: `${premise}, which value should its option "${option.label}" take? Choose default unless \`question\` or \`conversation\` asks for a specific one.`,
+                    criteria: {
+                        ...Object.fromEntries(
+                            option.choices.map((choice) => [
+                                choice.value,
+                                choice.label,
+                            ]),
+                        ),
+                        [DEFAULT]: `Keep the default (${option.default})`,
+                    },
+                };
+                break;
+            case 'boolean':
+                questions[id] = {
+                    type: 'noul',
+                    instructions: `${premise}, should its option "${option.label}" be on? It defaults to ${
+                        option.default ? 'on' : 'off'
+                    }; answer with that default unless \`question\` or \`conversation\` asks otherwise.`,
+                };
+                break;
+            default:
+                assertUnreachable(option, 'Unknown asked option type');
+        }
+    });
+    return questions;
+};
+
 const getQuestions = (
     shape: VizPlannerShape,
     previous: PreviousAxes,
+    previousCustom: PreviousCustomViz | null,
 ): Record<string, DecisionQuestion> => {
     const labelOf = (reference: string) =>
         shape.columns.find((column) => column.reference === reference)?.label ??
@@ -297,12 +560,18 @@ const getQuestions = (
         kind: {
             type: 'choice',
             instructions:
-                'Choose how the final result should be visualized to answer the question, given its columns and shape. Respect explicit visualization requests and agent instructions, even for a kind outside supportedKinds. Do not hide requested fields to make a chart fit. Choose none if uncertain.',
+                'Choose how the result is visualized to answer `question`, given `columns` and `rowCount`. An explicit visualization request in `question` or `conversation` wins, even for a kind outside `supportedKinds`. A custom chart type (`customChartTypes`) wins when its description, slots and inputGuidance fit the question better than a built-in kind. Keep every requested field visible. Choose none if unsure.',
             criteria: {
                 ...Object.fromEntries(
                     COMPOSER_VIZ_KINDS.map((kind) => [
                         kind,
                         KIND_DESCRIPTIONS[kind],
+                    ]),
+                ),
+                ...Object.fromEntries(
+                    shape.customTypes.map((offered) => [
+                        offered.key,
+                        customKindDescription(offered),
                     ]),
                 ),
                 [NONE]: 'Unsure',
@@ -311,14 +580,20 @@ const getQuestions = (
         explicitStyle: {
             type: 'noul',
             instructions:
-                'Did the user question or agent instructions explicitly request a visualization kind such as a table, bar, line, pie or single number?',
+                'Does `question` or `conversation` explicitly request a visualization kind: a table, bar, line, pie, single number or a named custom chart type?',
         },
+        ...Object.fromEntries(
+            shape.customTypes.flatMap((offered) =>
+                Object.entries(
+                    getCustomQuestions(offered, labelOf, previousCustom),
+                ),
+            ),
+        ),
     };
     if (shape.xCandidates.length > 0) {
         questions.x = {
             type: 'choice',
-            instructions:
-                'Choose the column for the x-axis or pie categories. Prefer the time column for a trend and the grouping the question asks about. Never choose an identifier unless the question is about individual records. Choose none if no column fits.',
+            instructions: `Choose the column for the x-axis or pie categories: the time column for a trend, otherwise the grouping the question asks about. ${ID_RULE} Choose none if no column fits.`,
             criteria: {
                 ...Object.fromEntries(
                     shape.xCandidates.map((reference) => [
@@ -343,8 +618,7 @@ const getQuestions = (
     if (Object.keys(yCriteria).length > 1) {
         questions.y = {
             type: 'choice',
-            instructions:
-                'Choose the measure the question asks about for the value axis. Never choose an identifier or a year used as a label.',
+            instructions: `Choose the measure the question asks about for the value axis. ${ID_RULE} A year used as a label is a category, not a measure.`,
             criteria: yCriteria,
         };
     }
@@ -352,7 +626,7 @@ const getQuestions = (
         questions.groupBy = {
             type: 'choice',
             instructions:
-                'For a bar or line chart, choose the column that splits the measure into one series per value, such as region in revenue by month by region. It must differ from the x-axis column. Choose none when the question does not ask for a breakdown or the rows have one value per x.',
+                'For a bar or line chart, choose the column that splits the measure into one series per value, such as region in "revenue by month by region". It must differ from the x-axis column. Choose none when the question asks for no breakdown or the rows have one value per x.',
             criteria: {
                 ...Object.fromEntries(
                     shape.groupByCandidates.map((reference) => [
@@ -428,18 +702,60 @@ const tableConfig = (columns: ResultColumn[]): AllVizChartConfig => ({
     display: undefined,
 });
 
-/** Applies the planner policy to Jev's answers; null when any pick is unsure or unsupported. */
-export const getVizConfigFromAnswers = ({
-    answers,
-    shape,
-    columns,
-    previousVizConfig,
-}: {
-    answers: DecisionAnswers;
-    shape: VizPlannerShape;
-    columns: ResultColumns;
-    previousVizConfig: AllVizChartConfig | null;
-}): AllVizChartConfig | null => {
+const KIND_NAMES: Record<ComposerVizKind, string> = {
+    table: 'table',
+    bar: 'bar chart',
+    line: 'line chart',
+    pie: 'pie chart',
+    big_number: 'big number',
+    custom: 'custom chart',
+};
+
+const axesNote = (x: string | undefined, y: string | undefined) =>
+    [...(x ? [`x = ${x}`] : []), ...(y ? [`y = ${y}`] : [])].join(', ');
+
+/** The composer tool result line for the column-type default, when nothing was planned. */
+export const getDefaultVizNote = ({ defaultKind, axes }: ComposerVizPlan) => {
+    if (defaultKind === 'table') return 'Visualization: default table.';
+    if (defaultKind === 'custom') return 'Visualization: default custom chart.';
+    const defaultAxes = axes[defaultKind];
+    const parts = axesNote(defaultAxes?.x?.reference, defaultAxes?.y.reference);
+    return `Visualization: default ${KIND_NAMES[defaultKind]}${parts ? `, ${parts}` : ''}.`;
+};
+
+/** The composer tool result line for a custom chart type. */
+export const getCustomVizConfigNote = (
+    name: string,
+    { fieldMapping }: ComposerCustomVizConfig,
+) => {
+    const parts = Object.entries(fieldMapping)
+        .map(
+            ([slot, value]) =>
+                `${slot} = ${Array.isArray(value) ? value.join(', ') : value}`,
+        )
+        .join(', ');
+    return `Visualization: custom chart "${name}"${parts ? `, ${parts}` : ''}.`;
+};
+
+/** The composer tool result line telling the agent what the artifact opens on. */
+export const getVizConfigNote = (vizConfig: AllVizChartConfig) => {
+    if (isVizTableConfig(vizConfig)) return 'Visualization: table.';
+    const x = vizConfig.fieldConfig?.x?.reference;
+    const y = vizConfig.fieldConfig?.y[0]?.reference;
+    const groupBy = vizConfig.fieldConfig?.groupBy?.[0]?.reference;
+    const parts = [
+        ...(x ? [`x = ${x}`] : []),
+        ...(y ? [`y = ${y}`] : []),
+        ...(groupBy ? [`split by ${groupBy}`] : []),
+    ].join(', ');
+    return `Visualization: ${KIND_NAMES[getComposerVizKind(vizConfig)]}${parts ? `, ${parts}` : ''}.`;
+};
+
+/** The kind Jev picked when it is supported and confident, or explicitly requested; null otherwise. */
+const getPickedKind = (
+    answers: DecisionAnswers,
+    shape: VizPlannerShape,
+): VizPlannerKind | null => {
     const answeredKind =
         answers.kind?.type === 'choice' ? answers.kind.choice : null;
     const kind = shape.supportedKinds.find(
@@ -455,6 +771,22 @@ export const getVizConfigFromAnswers = ({
         confidentChoice(answers.kind, VIZ_PLANNER_THRESHOLDS.kind) !== kind
     )
         return null;
+    return kind;
+};
+
+const getBuiltInVizConfig = ({
+    kind,
+    answers,
+    shape,
+    columns,
+    previousVizConfig,
+}: {
+    kind: BuiltInVizKind;
+    answers: DecisionAnswers;
+    shape: VizPlannerShape;
+    columns: ResultColumns;
+    previousVizConfig: ComposerVizConfig | null;
+}): AllVizChartConfig | null => {
     if (kind === 'table') return tableConfig(Object.values(columns));
 
     const previous = previousAxes(previousVizConfig);
@@ -498,37 +830,260 @@ export const getVizConfigFromAnswers = ({
     });
 };
 
-const KIND_NAMES: Record<ComposerVizKind, string> = {
-    table: 'table',
-    bar: 'bar chart',
-    line: 'line chart',
-    pie: 'pie chart',
-    big_number: 'big number',
+type SlotBinding =
+    | { status: 'bound'; value: string | string[] }
+    | { status: 'empty' }
+    | { status: 'unresolved' };
+
+const resolveSlot = (
+    answers: DecisionAnswers,
+    offered: OfferedCustomChartType,
+    slot: OfferedCustomChartType['slots'][number],
+    order: string[],
+    previous: PreviousCustomViz | null,
+): SlotBinding => {
+    const { field, pool } = slot;
+    const missing: SlotBinding = field.required
+        ? { status: 'unresolved' }
+        : { status: 'empty' };
+    if (pool.length === 0) return missing;
+    if (!isSlotAsked(slot)) {
+        return { status: 'bound', value: field.multiple ? [pool[0]] : pool[0] };
+    }
+    if (field.multiple) {
+        const members = pool
+            .filter(
+                (reference) =>
+                    (decisionProbability(
+                        answers[
+                            slotMemberQuestionId(
+                                offered.key,
+                                field.name,
+                                reference,
+                            )
+                        ],
+                    ) ?? 0) >= VIZ_PLANNER_THRESHOLDS.slotMember,
+            )
+            .sort((a, b) => order.indexOf(a) - order.indexOf(b));
+        return members.length > 0
+            ? { status: 'bound', value: members }
+            : missing;
+    }
+    const answer = answers[slotQuestionId(offered.key, field.name)];
+    if (
+        !field.required &&
+        confidentChoice(answer, VIZ_PLANNER_THRESHOLDS.slot) === NONE
+    )
+        return { status: 'empty' };
+    const reference = resolveColumn(
+        answer,
+        pool,
+        previousSlotValue(previous, offered.key, field.name),
+        VIZ_PLANNER_THRESHOLDS.slot,
+    );
+    return reference === null ? missing : { status: 'bound', value: reference };
 };
 
-const axesNote = (x: string | undefined, y: string | undefined) =>
-    [...(x ? [`x = ${x}`] : []), ...(y ? [`y = ${y}`] : [])].join(', ');
-
-/** The composer tool result line for the column-type default, when nothing was planned. */
-export const getDefaultVizNote = ({ defaultKind, axes }: ComposerVizPlan) => {
-    if (defaultKind === 'table') return 'Visualization: default table.';
-    const defaultAxes = axes[defaultKind];
-    const parts = axesNote(defaultAxes?.x?.reference, defaultAxes?.y.reference);
-    return `Visualization: default ${KIND_NAMES[defaultKind]}${parts ? `, ${parts}` : ''}.`;
+const resolveOptionValues = (
+    answers: DecisionAnswers,
+    offered: OfferedCustomChartType,
+    previous: PreviousCustomViz | null,
+): DataAppVizOptionValues => {
+    // Options Jev leaves unsure keep the previous value for the same type.
+    const values: DataAppVizOptionValues =
+        previous?.key === offered.key
+            ? pruneDataAppVizOptionValues(
+                  offered.type.schema.configOptions,
+                  previous.vizConfig.optionValues,
+              )
+            : {};
+    const set = (option: AskedOption, value: string | boolean) => {
+        if (value === option.default) delete values[option.name];
+        else values[option.name] = value;
+    };
+    offered.options.forEach((option) => {
+        const answer = answers[optionQuestionId(offered.key, option.name)];
+        switch (option.type) {
+            case 'select': {
+                const choice = confidentChoice(
+                    answer,
+                    VIZ_PLANNER_THRESHOLDS.option,
+                );
+                if (choice === DEFAULT) set(option, option.default);
+                else if (
+                    choice !== null &&
+                    option.choices.some(
+                        (candidate) => candidate.value === choice,
+                    )
+                )
+                    set(option, choice);
+                break;
+            }
+            case 'boolean': {
+                const probability = decisionProbability(answer);
+                if (probability === null) break;
+                if (probability >= VIZ_PLANNER_THRESHOLDS.option)
+                    set(option, true);
+                else if (probability <= 1 - VIZ_PLANNER_THRESHOLDS.option)
+                    set(option, false);
+                break;
+            }
+            default:
+                assertUnreachable(option, 'Unknown asked option type');
+        }
+    });
+    return values;
 };
 
-/** The composer tool result line telling the agent what the artifact opens on. */
-export const getVizConfigNote = (vizConfig: AllVizChartConfig) => {
-    if (isVizTableConfig(vizConfig)) return 'Visualization: table.';
-    const x = vizConfig.fieldConfig?.x?.reference;
-    const y = vizConfig.fieldConfig?.y[0]?.reference;
-    const groupBy = vizConfig.fieldConfig?.groupBy?.[0]?.reference;
-    const parts = [
-        ...(x ? [`x = ${x}`] : []),
-        ...(y ? [`y = ${y}`] : []),
-        ...(groupBy ? [`split by ${groupBy}`] : []),
-    ].join(', ');
-    return `Visualization: ${KIND_NAMES[getComposerVizKind(vizConfig)]}${parts ? `, ${parts}` : ''}.`;
+const getCustomVizConfig = async ({
+    offered,
+    answers,
+    columns,
+    node,
+    previousCustom,
+    resolveCustomChartType,
+}: {
+    offered: OfferedCustomChartType;
+    answers: DecisionAnswers;
+    columns: ResultColumns;
+    node: SourceQuery | null;
+    previousCustom: PreviousCustomViz | null;
+    resolveCustomChartType: ResolveCustomChartTypeFn;
+}): Promise<ComposerCustomVizConfig | null> => {
+    const order = Object.keys(columns);
+    const fieldMapping: DataAppVizFieldMapping = {};
+    const unresolved = offered.slots.some((slot) => {
+        const binding = resolveSlot(
+            answers,
+            offered,
+            slot,
+            order,
+            previousCustom,
+        );
+        if (binding.status === 'bound')
+            fieldMapping[slot.field.name] = binding.value;
+        return binding.status === 'unresolved';
+    });
+    if (unresolved) return null;
+    const optionValues = resolveOptionValues(answers, offered, previousCustom);
+    const resolved = await resolveCustomChartType(offered.type.slug);
+    if (!resolved) return null;
+    const errors = getDataAppVizChartConfigErrors(
+        { fieldMapping, optionValues },
+        resolved.schema,
+        getComposerCustomVizSelectedFields(Object.values(columns), node),
+    );
+    if (errors.length > 0) return null;
+    return {
+        type: ChartKind.DATA_APP_VIZ,
+        metadata: { version: 1 },
+        dataAppVizUuid: resolved.dataAppVizUuid,
+        dataAppVizVersion: resolved.dataAppVizVersion,
+        fieldMapping,
+        optionValues,
+    };
+};
+
+/** Applies the planner policy to Jev's answers; null when any pick is unsure, unsupported or invalid. */
+export const getVizConfigFromAnswers = async ({
+    answers,
+    shape,
+    columns,
+    node,
+    previousVizConfig,
+    previousCustom,
+    resolveCustomChartType,
+}: {
+    answers: DecisionAnswers;
+    shape: VizPlannerShape;
+    columns: ResultColumns;
+    node: SourceQuery | null;
+    previousVizConfig: ComposerVizConfig | null;
+    previousCustom: PreviousCustomViz | null;
+    resolveCustomChartType: ResolveCustomChartTypeFn;
+}): Promise<PlannedComposerViz | null> => {
+    const kind = getPickedKind(answers, shape);
+    if (kind === null) return null;
+    const offered = shape.customTypes.find(
+        (candidate) => candidate.key === kind,
+    );
+    if (offered) {
+        const vizConfig = await getCustomVizConfig({
+            offered,
+            answers,
+            columns,
+            node,
+            previousCustom,
+            resolveCustomChartType,
+        });
+        return vizConfig
+            ? {
+                  vizConfig,
+                  note: getCustomVizConfigNote(offered.type.name, vizConfig),
+              }
+            : null;
+    }
+    const builtIn = COMPOSER_VIZ_KINDS.find((candidate) => candidate === kind);
+    if (!builtIn) return null;
+    const vizConfig = getBuiltInVizConfig({
+        kind: builtIn,
+        answers,
+        shape,
+        columns,
+        previousVizConfig,
+    });
+    return vizConfig ? { vizConfig, note: getVizConfigNote(vizConfig) } : null;
+};
+
+/** The previous custom config when it renders one of the offered types. */
+const getPreviousCustom = async (
+    previousVizConfig: ComposerVizConfig | null,
+    customTypes: OfferedCustomChartType[],
+    resolveCustomChartType: ResolveCustomChartTypeFn,
+): Promise<PreviousCustomViz | null> => {
+    if (!previousVizConfig || !isComposerCustomVizConfig(previousVizConfig))
+        return null;
+    const resolved = await Promise.all(
+        customTypes.map((offered) => resolveCustomChartType(offered.type.slug)),
+    );
+    const index = resolved.findIndex(
+        (type) => type?.dataAppVizUuid === previousVizConfig.dataAppVizUuid,
+    );
+    return index === -1
+        ? null
+        : { key: customTypes[index].key, vizConfig: previousVizConfig };
+};
+
+const customTypeState = (offered: OfferedCustomChartType) => ({
+    slug: offered.type.slug,
+    name: offered.type.name,
+    description: offered.type.description,
+    inputGuidance: offered.type.schema.inputGuidance ?? null,
+    slots: offered.slots.map(({ field }) => ({
+        name: field.name,
+        label: field.label,
+        type: field.type,
+        required: field.required,
+        multiple: field.multiple ?? false,
+        description: field.description ?? null,
+        examples: field.examples ?? null,
+    })),
+});
+
+const previousVizState = (
+    previousVizConfig: ComposerVizConfig | null,
+    previous: PreviousAxes,
+    previousCustom: PreviousCustomViz | null,
+) => {
+    if (!previousVizConfig) return null;
+    if (isComposerCustomVizConfig(previousVizConfig)) {
+        return {
+            kind: previousCustom?.key ?? 'custom',
+            fieldMapping: previousVizConfig.fieldMapping,
+            optionValues: previousVizConfig.optionValues,
+        };
+    }
+    return { kind: getComposerVizKind(previousVizConfig), ...previous };
 };
 
 export const createVizPlanner =
@@ -538,6 +1093,8 @@ export const createVizPlanner =
         conversation,
         usage,
         recordDecision,
+        customChartTypes,
+        resolveCustomChartType,
     }: {
         decisions: Pick<AiDecisionClient, 'evaluate'>;
         question: string;
@@ -545,11 +1102,14 @@ export const createVizPlanner =
         conversation?: AgentDecisionContext;
         usage?: Pick<AiDecisionUsage, 'serviceMs'>;
         recordDecision?: RecordPromptDecisionFn;
+        customChartTypes: CustomChartType[];
+        resolveCustomChartType: ResolveCustomChartTypeFn;
     }): PlanComposerViz =>
     async ({
         title,
         description,
         terminalNode,
+        node,
         columns,
         rows,
         rowCount,
@@ -559,7 +1119,7 @@ export const createVizPlanner =
         const startedAt = performance.now();
         const serviceMsBefore = usage?.serviceMs ?? null;
         let answers: DecisionAnswers | null = null;
-        let vizConfig: AllVizChartConfig | null = null;
+        let planned: PlannedComposerViz | null = null;
         let outcome: DbAiPromptComposerVizDecision['outcome'] = 'unavailable';
         try {
             const { shape, state } = getVizPlannerShape({
@@ -567,13 +1127,21 @@ export const createVizPlanner =
                 rows,
                 rowCount,
                 enableDataAccess,
+                customChartTypes,
+                node,
             });
             if (shape.supportedKinds.length === 1) {
                 // Only the table fits: nothing for Jev to decide.
-                vizConfig = tableConfig(Object.values(columns));
+                const vizConfig = tableConfig(Object.values(columns));
+                planned = { vizConfig, note: getVizConfigNote(vizConfig) };
                 outcome = 'planned';
             } else if (question.trim()) {
                 const previous = previousAxes(previousVizConfig);
+                const previousCustom = await getPreviousCustom(
+                    previousVizConfig,
+                    shape.customTypes,
+                    resolveCustomChartType,
+                );
                 answers = await decisions.evaluate({
                     operation: VIZ_PLANNER_OPERATION,
                     state: {
@@ -581,39 +1149,43 @@ export const createVizPlanner =
                         conversation,
                         artifact: { title, description },
                         terminalNode,
-                        previousVizConfig: previousVizConfig
-                            ? {
-                                  kind: getComposerVizKind(previousVizConfig),
-                                  ...previous,
-                              }
-                            : null,
+                        previousVizConfig: previousVizState(
+                            previousVizConfig,
+                            previous,
+                            previousCustom,
+                        ),
                         supportedKinds: shape.supportedKinds,
+                        customChartTypes:
+                            shape.customTypes.map(customTypeState),
                         rowCount,
                         columns: state,
                     },
-                    questions: getQuestions(shape, previous),
+                    questions: getQuestions(shape, previous, previousCustom),
                 });
-                vizConfig = answers
-                    ? getVizConfigFromAnswers({
+                planned = answers
+                    ? await getVizConfigFromAnswers({
                           answers,
                           shape,
                           columns,
+                          node,
                           previousVizConfig,
+                          previousCustom,
+                          resolveCustomChartType,
                       })
                     : null;
-                if (answers) outcome = vizConfig ? 'planned' : 'unresolved';
+                if (answers) outcome = planned ? 'planned' : 'unresolved';
             }
         } catch (error) {
             Logger.warn(`Composer viz planner failed: ${String(error)}`);
-            vizConfig = null;
+            planned = null;
             outcome = 'unavailable';
         }
         const serviceMsAfter = usage?.serviceMs ?? null;
         await recordDecision?.({
             operation: VIZ_PLANNER_OPERATION,
             outcome,
-            intent: vizConfig ? { vizConfig } : null,
-            applied: vizConfig !== null,
+            intent: planned ? { vizConfig: planned.vizConfig } : null,
+            applied: planned !== null,
             answers,
             thresholds: VIZ_PLANNER_THRESHOLDS,
             latency_ms: Math.round(performance.now() - startedAt),
@@ -622,5 +1194,5 @@ export const createVizPlanner =
                     ? null
                     : Math.round(serviceMsAfter - (serviceMsBefore ?? 0)),
         });
-        return vizConfig;
+        return planned;
     };

@@ -10,6 +10,7 @@ import {
     IconChartPie,
     IconChartScatter,
     IconFilter,
+    IconPuzzle,
     IconTable,
 } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -34,6 +35,7 @@ const CHART_TYPE_ICONS: Record<SwitcherKind, typeof IconTable> = {
     pie: IconChartPie,
     funnel: IconFilter,
     big_number: Icon123,
+    custom: IconPuzzle,
 };
 
 export const AgentVisualizationChartTypeSwitcher = <T extends SwitcherKind>({

@@ -12,11 +12,22 @@ import {
     type PivotChartLayout,
     type VizSortBy,
 } from '../../visualizations/types';
+import {
+    getComposerCustomVizBoundFields,
+    isComposerCustomVizConfig,
+    type ComposerVizConfig,
+} from './composerCustomViz';
 
-/** How a displayed node result renders: the table or a chart kind. */
-export type ComposerVizKind = 'table' | 'bar' | 'line' | 'pie' | 'big_number';
+/** How a displayed node result renders: the table, a chart kind or a custom chart type. */
+export type ComposerVizKind =
+    | 'table'
+    | 'bar'
+    | 'line'
+    | 'pie'
+    | 'big_number'
+    | 'custom';
 
-export type ComposerChartKind = Exclude<ComposerVizKind, 'table'>;
+export type ComposerChartKind = Exclude<ComposerVizKind, 'table' | 'custom'>;
 
 /** A bar/line series split: one series per groupBy value, y aggregated per x and series. */
 export type ComposerSeriesSplit = {
@@ -39,12 +50,21 @@ export type ComposerVizPlan = {
     axes: Partial<Record<ComposerChartKind, ComposerVizAxes>>;
 };
 
-const KIND_ORDER: ComposerVizKind[] = [
-    'table',
+const CHART_KIND_ORDER: ComposerChartKind[] = [
     'bar',
     'line',
     'pie',
     'big_number',
+];
+
+/** Table, then chart kinds with axes, then custom when a custom config fits. */
+const availableKindsOf = (
+    axes: ComposerVizPlan['axes'],
+    custom: boolean,
+): ComposerVizKind[] => [
+    'table',
+    ...CHART_KIND_ORDER.filter((kind) => axes[kind] !== undefined),
+    ...(custom ? (['custom'] as const) : []),
 ];
 
 export const isComposerNumericColumn = (column: ResultColumn) =>
@@ -136,9 +156,7 @@ const getColumnTypeVizPlan = (
         axes.big_number = { x: null, y: y ?? numerics[0], seriesSplit: null };
     }
 
-    const availableKinds = KIND_ORDER.filter(
-        (kind) => kind === 'table' || axes[kind] !== undefined,
-    );
+    const availableKinds = availableKindsOf(axes, false);
     const defaultKind = ((): ComposerVizKind => {
         if (axes.big_number) return 'big_number';
         if (!x || !y || hasDuplicateValues(rows, x.reference)) return 'table';
@@ -169,22 +187,36 @@ export const getComposerChartKind = ({
 };
 
 export const getComposerVizKind = (
-    vizConfig: AllVizChartConfig,
-): ComposerVizKind =>
-    vizConfig.type === ChartKind.TABLE
+    vizConfig: ComposerVizConfig,
+): ComposerVizKind => {
+    if (isComposerCustomVizConfig(vizConfig)) return 'custom';
+    return vizConfig.type === ChartKind.TABLE
         ? 'table'
         : getComposerChartKind(vizConfig);
+};
 
 /** Stored axes drive every kind that can use them; the column-type plan fills the rest. Null when the viz config no longer fits the columns. */
 const seedFromVizConfig = (
     plan: ComposerVizPlan,
-    vizConfig: AllVizChartConfig,
+    vizConfig: ComposerVizConfig,
     columns: ResultColumn[],
     rows: RawResultRow[],
 ): ComposerVizPlan | null => {
     const byReference = new Map(
         columns.map((column) => [column.reference, column]),
     );
+    if (isComposerCustomVizConfig(vizConfig)) {
+        const fits = getComposerCustomVizBoundFields(vizConfig).every(
+            (reference) => byReference.has(reference),
+        );
+        return fits
+            ? {
+                  ...plan,
+                  availableKinds: availableKindsOf(plan.axes, true),
+                  defaultKind: 'custom',
+              }
+            : null;
+    }
     if (vizConfig.type === ChartKind.TABLE) {
         const known = Object.keys(vizConfig.columns).every((reference) =>
             byReference.has(reference),
@@ -240,9 +272,7 @@ const seedFromVizConfig = (
     const defaultKind = getComposerChartKind(vizConfig);
     if (!axes[defaultKind]) return null;
     return {
-        availableKinds: KIND_ORDER.filter(
-            (kind) => kind === 'table' || axes[kind] !== undefined,
-        ),
+        availableKinds: availableKindsOf(axes, false),
         defaultKind,
         axes,
     };
@@ -261,7 +291,7 @@ export const getComposerVizPlan = ({
     columns: ResultColumn[];
     rows: RawResultRow[];
     node: SourceQuery | null;
-    vizConfig: AllVizChartConfig | null;
+    vizConfig: ComposerVizConfig | null;
 }): ComposerVizPlan => {
     const plan = getColumnTypeVizPlan(columns, rows, node);
     if (!vizConfig) return plan;
@@ -310,7 +340,7 @@ export const buildComposerVizConfig = ({
 }: {
     kind: ComposerChartKind;
     fieldConfig: PivotChartLayout;
-}): AllVizChartConfig => {
+}): Exclude<AllVizChartConfig, { type: ChartKind.TABLE }> => {
     const metadata = { version: 1 };
     switch (kind) {
         case 'bar':

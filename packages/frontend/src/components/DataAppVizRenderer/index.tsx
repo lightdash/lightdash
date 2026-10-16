@@ -1,44 +1,23 @@
 import {
     ChartType,
-    CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE,
     deriveDataAppVizFieldMetadata,
     getEffectiveOptionValues,
     hasCustomBinDimension,
-    LOADING_CHART_CLASS,
     MERGE_TABLE_NAME,
-    type ApiError,
     type DataAppVizContext,
     type ExternalFetchRequest,
     type ItemsMap,
     type ResultRow,
 } from '@lightdash/common';
-import { Anchor, Box, Stack, Text } from '@mantine/core';
-import { IconPuzzle } from '@tabler/icons-react';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
-import { Link, useLocation } from 'react-router';
-import { v4 as uuidv4 } from 'uuid';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useLocation } from 'react-router';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
-import AppIframePreview from '../../features/apps/AppIframePreview';
 import { useChartVersionPreview } from '../../features/apps/ChartVersionPreview/useChartVersionPreview';
-import { getVisiblePreviewTokenError } from '../../features/apps/hooks/previewTokenQueryOptions';
-import { type SdkManifest } from '../../features/apps/hooks/useAppSdkBridge';
-import { usePreviewOrigin } from '../../features/apps/previewOrigin';
 import { useDocumentRenderTarget } from '../../features/chartTypes/documentRenderTarget/useDocumentRenderTarget';
-import {
-    useDataAppVizPreviewToken,
-    useDataAppVizRenderMetadata,
-} from '../../features/chartTypes/hooks/useDataAppVizRender';
+import { useDataAppVizRenderMetadata } from '../../features/chartTypes/hooks/useDataAppVizRender';
 import { useDataAppVizResolvedColors } from '../../features/chartTypes/hooks/useDataAppVizResolvedColors';
 import { useVizSubtotalSource } from '../../features/chartTypes/hooks/useVizSubtotalSource';
 import { reconcileDataAppVizFieldMapping } from '../../features/chartTypes/utils/autoMapDataAppVizFields';
-import { captureChartTypeError } from '../../features/chartTypes/utils/captureChartTypeError';
 import {
     getVizHierarchyDimensions,
     hasVizSubtotalValues,
@@ -50,19 +29,11 @@ import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import LoadingChart from '../common/LoadingChart';
-import MantineIcon from '../common/MantineIcon';
-import { DefaultSkeleton } from '../DashboardTiles/TileBase/LoadingSkeletonOverlay';
 import { isDataAppVizVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
-import {
-    FIRST_PAINT_REVEAL_FALLBACK_MS,
-    RENDER_ACK_FALLBACK_MS,
-    SCREENSHOT_READY_FALLBACK_MS,
-} from './constants';
+import { DataAppVizFrame } from './DataAppVizFrame';
 import DataAppVizPointMenu from './DataAppVizPointMenu';
-import classes from './DataAppVizRenderer.module.css';
 import { resolveVizDrillDownConfig } from './vizDrillDownConfig';
 import {
     resolveVizPointMenuState,
@@ -77,77 +48,9 @@ type Props = {
     onScreenshotError?: () => void;
 };
 
-type VizRenderReadinessState = {
-    navigationKey: string | null;
-    supportsRenderSignal: boolean;
-    sdkReady: boolean;
-    renderedId: string | null;
-};
-
-/** Create empty readiness state for one normalized iframe navigation. */
-const createVizRenderReadinessState = (
-    navigationKey: string | null,
-): VizRenderReadinessState => ({
-    navigationKey,
-    supportsRenderSignal: false,
-    sdkReady: false,
-    renderedId: null,
-});
-
-// Match the built-in charts: dashboard tiles load behind the tile skeleton,
-// other surfaces behind the standard loading chart.
-const DataAppVizLoading: FC<{ isInDashboard: boolean }> = ({ isInDashboard }) =>
-    isInDashboard ? (
-        <Box h="100%" w="100%" className={LOADING_CHART_CLASS}>
-            <DefaultSkeleton />
-        </Box>
-    ) : (
-        <LoadingChart />
-    );
-
-const DataAppVizPlaceholder: FC<{
-    message: string;
-    hint?: string;
-    hintLink?: { label: string; to: string };
-}> = ({ message, hint, hintLink }) => (
-    <Stack align="center" justify="center" gap="xs" h="100%" w="100%">
-        <MantineIcon icon={IconPuzzle} size="xl" color="ldGray.5" />
-        <Text c="dimmed" size="sm" ta="center">
-            {message}
-        </Text>
-        {hint && (
-            <Text c="dimmed" size="xs" ta="center" maw={360}>
-                {hint}
-                {hintLink && (
-                    <>
-                        {' '}
-                        <Anchor component={Link} to={hintLink.to} size="xs">
-                            {hintLink.label}
-                        </Anchor>
-                    </>
-                )}
-            </Text>
-        )}
-    </Stack>
-);
-
 const EMPTY_ITEMS_MAP: ItemsMap = {};
 const EMPTY_ROWS: ResultRow[] = [];
 const EMPTY_FIELD_MAPPING = {};
-
-const getTerminalRequestErrorMessage = (
-    errors: Array<ApiError | null | undefined>,
-): string | undefined => {
-    if (errors.some((error) => error?.error.statusCode === 403)) {
-        return "You don't have access to this custom chart type.";
-    }
-
-    if (errors.some((error) => error?.error.statusCode === 404)) {
-        return 'The chart type this chart was based on has been removed.';
-    }
-
-    return undefined;
-};
 
 const DataAppVizRenderer: FC<Props> = ({
     isInDashboard = false,
@@ -170,25 +73,11 @@ const DataAppVizRenderer: FC<Props> = ({
     } = useVisualizationContext();
     const { embedToken } = useEmbed();
     const { canViewUnderlyingData, canDrillInto } = useContextMenuPermissions();
-    const previewOrigin = usePreviewOrigin();
     const { user, health } = useApp();
-    const [loadedIframeNavigationKey, setLoadedIframeNavigationKey] = useState<
-        string | null
-    >(null);
     // Fail-silent: /minimal routes at desktop viewports mount no
     // TrackingProvider (App.tsx `enabled={isMobile || !isMinimalPage}`), so
     // screenshot/export/unfurl renders simply skip the drill-by event.
     const trackingContext = useTracking({ failSilently: true });
-    const hasSignaledScreenshotReady = useRef(false);
-    // Latest callback in a ref so the signal helper stays identity-stable —
-    // the fallback timer must arm once, not reset on parent re-renders.
-    const onScreenshotReadyRef = useRef(onScreenshotReady);
-    onScreenshotReadyRef.current = onScreenshotReady;
-    const signalScreenshotReady = useCallback(() => {
-        if (hasSignaledScreenshotReady.current) return;
-        hasSignaledScreenshotReady.current = true;
-        onScreenshotReadyRef.current?.();
-    }, []);
 
     // Fetch every page so the renderer gets all rows — surfaces that don't
     // auto-fetch (dashboard tiles) would otherwise push a partial result.
@@ -287,13 +176,6 @@ const DataAppVizRenderer: FC<Props> = ({
         renderSavedChartUuid,
         dataAppVizChartConfig,
     ]);
-    const { data: token, error: previewTokenError } = useDataAppVizPreviewToken(
-        projectUuid,
-        dataAppVizUuid,
-        readyMetadata?.version,
-        renderTarget,
-        renderPinnedVersion,
-    );
     const configOptions = readyMetadata?.schema.configOptions;
     const fields = readyMetadata?.schema.fields;
 
@@ -614,325 +496,71 @@ const DataAppVizRenderer: FC<Props> = ({
         pointMenuEnabled,
     ]);
 
-    // Terminal placeholders never mount the iframe — their frame is final,
-    // so report ready now instead of stalling until the fallback timeout.
-    const terminalRequestErrors = [
-        renderMetadataError,
-        getVisiblePreviewTokenError(previewTokenError, !!token),
-    ];
-    // 404 is the designed "chart type removed" state with its own recovery UX.
-    const reportableRenderError =
-        terminalRequestErrors.find(
-            (error) => error && error.error.statusCode !== 404,
-        ) ?? null;
-    useEffect(() => {
-        if (!reportableRenderError) return;
-        captureChartTypeError('chartTypeRender', reportableRenderError, {
-            dataAppVizUuid,
-            savedChartUuid,
-            pinnedVersion: config?.dataAppVizVersion,
-        });
-    }, [
-        reportableRenderError,
-        dataAppVizUuid,
-        savedChartUuid,
-        config?.dataAppVizVersion,
-    ]);
-    const terminalRequestErrorMessage = getTerminalRequestErrorMessage(
-        terminalRequestErrors,
-    );
-    const chartTypeRemoved = terminalRequestErrors.some(
-        (error) => error?.error.statusCode === 404,
-    );
-    const isTerminalPlaceholder =
-        !projectUuid ||
-        dataAppVizUuid === null ||
-        !!terminalRequestErrorMessage ||
-        renderMetadata?.state === 'building' ||
-        renderMetadata?.state === 'unavailable' ||
-        renderMetadata?.state === 'failed';
-    useEffect(() => {
-        if (isTerminalPlaceholder) signalScreenshotReady();
-    }, [isTerminalPlaceholder, signalScreenshotReady]);
+    const canRecover = !embedToken && !minimal;
+    const recoveryAction = isEditMode
+        ? 'Open Configure and choose another chart type'
+        : 'Edit the chart to choose another chart type';
+    // Embed viewers and headless captures can't act on the removal, so the
+    // recovery hint only shows in-app. Lands in edit mode with the config open.
+    const removedHint = canRecover
+        ? {
+              hint: health.data?.softDelete.enabled
+                  ? `${recoveryAction}, or restore the chart type from Recently deleted.`
+                  : `${recoveryAction}.`,
+              hintLink:
+                  !isEditMode && savedChartUuid
+                      ? {
+                            label: 'Edit chart',
+                            to: `/projects/${projectUuid}/saved/${savedChartUuid}/edit?openVizConfig=true`,
+                        }
+                      : undefined,
+          }
+        : null;
 
-    const previewUrl =
-        !isTerminalPlaceholder && readyMetadata && token
-            ? `${previewOrigin}/api/apps/${dataAppVizUuid}/versions/${readyMetadata.version}/t/${token}/?r=0#transport=postMessage&projectUuid=${projectUuid}`
-            : null;
-    // Token renewal updates the bridge without navigating the same bundle.
-    const iframeNavigationKey =
-        previewUrl && token
-            ? previewUrl.replace(token, '{preview-token}')
-            : null;
-    const isPreviewLoading =
-        isLoading || loadedIframeNavigationKey !== iframeNavigationKey;
-    useEffect(() => {
-        if (previewUrl === null) setLoadedIframeNavigationKey(null);
-    }, [previewUrl]);
-
-    const renderRequest = useMemo(
-        () => ({
-            id: uuidv4(),
-            context: dataAppVizContext,
-            navigationKey: iframeNavigationKey,
-        }),
-        [dataAppVizContext, iframeNavigationKey],
-    );
-    const [renderReadiness, setRenderReadiness] =
-        useState<VizRenderReadinessState>(() =>
-            createVizRenderReadinessState(iframeNavigationKey),
-        );
-    const activeRenderReadiness =
-        renderReadiness.navigationKey === iframeNavigationKey
-            ? renderReadiness
-            : createVizRenderReadinessState(iframeNavigationKey);
-    const { supportsRenderSignal, sdkReady, renderedId } =
-        activeRenderReadiness;
-
-    // Tag every update with the normalized navigation identity. When the
-    // iframe changes, stale readiness is ignored during render rather than
-    // cleared after commit by an effect. Token-only renewals keep the same key.
-    const updateRenderReadiness = useCallback(
-        (update: Partial<Omit<VizRenderReadinessState, 'navigationKey'>>) => {
-            setRenderReadiness((current) => ({
-                ...(current.navigationKey === iframeNavigationKey
-                    ? current
-                    : createVizRenderReadinessState(iframeNavigationKey)),
-                ...update,
-            }));
-        },
-        [iframeNavigationKey],
-    );
-    const handleVizContextRequest = useCallback(
-        () => updateRenderReadiness({ sdkReady: true }),
-        [updateRenderReadiness],
-    );
-    const handleScreenshotAvailabilityChange = useCallback(
-        (available: boolean) => {
-            if (available) updateRenderReadiness({ sdkReady: true });
-        },
-        [updateRenderReadiness],
-    );
-    const handleSdkManifest = useCallback(
-        (manifest: SdkManifest) => {
-            updateRenderReadiness({
-                sdkReady: true,
-                supportsRenderSignal:
-                    manifest.features.includes('viz-rendered'),
-            });
-        },
-        [updateRenderReadiness],
-    );
-    const handleVizRendered = useCallback(
-        (renderId: string) => updateRenderReadiness({ renderedId: renderId }),
-        [updateRenderReadiness],
-    );
-
-    // Keep the loading state up until a freshly loaded bundle paints, so the
-    // blank iframe never shows. Bundles that never report are revealed later.
-    const [paintFallbackKey, setPaintFallbackKey] = useState<string | null>(
-        null,
-    );
-    const isAwaitingFirstPaint =
-        iframeNavigationKey !== null &&
-        paintFallbackKey !== iframeNavigationKey &&
-        renderedId === null &&
-        (!sdkReady || supportsRenderSignal);
-    const isAwaitingIframeLoad =
-        loadedIframeNavigationKey !== iframeNavigationKey;
-    useEffect(() => {
-        if (!isAwaitingFirstPaint || isAwaitingIframeLoad) return;
-        const timer = setTimeout(
-            () => setPaintFallbackKey(iframeNavigationKey),
-            FIRST_PAINT_REVEAL_FALLBACK_MS,
-        );
-        return () => clearTimeout(timer);
-    }, [isAwaitingFirstPaint, isAwaitingIframeLoad, iframeNavigationKey]);
-    const isShowingLoading = isPreviewLoading || isAwaitingFirstPaint;
-
-    useEffect(() => {
-        if (
-            previewUrl &&
-            !isPreviewLoading &&
-            dataAppVizContext &&
-            renderedId === renderRequest.id
-        ) {
-            signalScreenshotReady();
-        }
-    }, [
-        previewUrl,
-        isPreviewLoading,
-        dataAppVizContext,
-        renderedId,
-        renderRequest.id,
-        signalScreenshotReady,
-    ]);
-
-    const hasVizContext = dataAppVizContext !== undefined;
-    // Set when a render-acknowledging bundle had to be released by the
-    // fallback timer, so the screenshot service can report it.
-    const [renderAckFallbackUsed, setRenderAckFallbackUsed] = useState(false);
-    // Legacy bundles have no paint acknowledgement. Give them time after
-    // the SDK, iframe and query load. Modern bundles acknowledge rendering,
-    // but still get a longer fallback: the acknowledgement relies on
-    // animation frames, which a browser may never run for an iframe it
-    // considers hidden.
-    useEffect(() => {
-        if (
-            !onScreenshotReadyRef.current ||
-            !sdkReady ||
-            !iframeNavigationKey ||
-            isPreviewLoading ||
-            !hasVizContext
-        )
-            return;
-        const timer = setTimeout(
-            () => {
-                if (hasSignaledScreenshotReady.current) return;
-                if (supportsRenderSignal) setRenderAckFallbackUsed(true);
-                signalScreenshotReady();
-            },
-            supportsRenderSignal
-                ? RENDER_ACK_FALLBACK_MS
-                : SCREENSHOT_READY_FALLBACK_MS,
-        );
-        return () => clearTimeout(timer);
-    }, [
-        supportsRenderSignal,
-        sdkReady,
-        iframeNavigationKey,
-        isPreviewLoading,
-        hasVizContext,
-        signalScreenshotReady,
-    ]);
-
-    if (!projectUuid || dataAppVizUuid === null) {
-        return (
-            <DataAppVizPlaceholder message="Pick a custom chart type to render." />
-        );
-    }
-
-    if (terminalRequestErrorMessage) {
-        // Embed viewers and headless captures can't act on the removal, so
-        // the recovery hint only shows in-app.
-        const canRecover = chartTypeRemoved && !embedToken && !minimal;
-        const recoveryAction = isEditMode
-            ? 'Open Configure and choose another chart type'
-            : 'Edit the chart to choose another chart type';
-        const recoveryHint = health.data?.softDelete.enabled
-            ? `${recoveryAction}, or restore the chart type from Recently deleted.`
-            : `${recoveryAction}.`;
-        // Lands in edit mode with the config sidebar already open.
-        const editLink =
-            canRecover && !isEditMode && savedChartUuid
-                ? {
-                      label: 'Edit chart',
-                      to: `/projects/${projectUuid}/saved/${savedChartUuid}/edit?openVizConfig=true`,
-                  }
-                : undefined;
-        return (
-            <DataAppVizPlaceholder
-                message={terminalRequestErrorMessage}
-                hint={canRecover ? recoveryHint : undefined}
-                hintLink={editLink}
-            />
-        );
-    }
-
-    if (!renderMetadata) {
-        return renderMetadataError ? (
-            <DataAppVizPlaceholder message="Custom chart type could not be loaded." />
-        ) : (
-            <DataAppVizLoading isInDashboard={isInDashboard} />
-        );
-    }
-
-    if (renderMetadata.state === 'building') {
-        return (
-            <DataAppVizPlaceholder message="Custom chart type is still generating…" />
-        );
-    }
-
-    if (renderMetadata.state === 'unavailable') {
-        const pinnedChartlessArtifact =
-            !renderSavedChartUuid &&
-            !isEditMode &&
-            renderPinnedVersion !== undefined;
-        return (
-            <DataAppVizPlaceholder
-                message={
-                    pinnedChartlessArtifact
-                        ? `Custom chart type version ${renderPinnedVersion} is unavailable.`
-                        : renderSavedChartUuid &&
-                            config?.dataAppVizVersion !== undefined
-                          ? 'The saved custom chart type version is unavailable.'
-                          : 'Custom chart type preview is unavailable.'
-                }
-                hint={
-                    pinnedChartlessArtifact
-                        ? 'Regenerate the chart to use a renderable version.'
-                        : undefined
-                }
-            />
-        );
-    }
-
-    if (renderMetadata.state === 'failed') {
-        return (
-            <DataAppVizPlaceholder message="Custom chart type failed to generate." />
-        );
-    }
-
-    if (!token || !previewUrl) {
-        return previewTokenError ? (
-            <DataAppVizPlaceholder message="Custom chart type could not be loaded." />
-        ) : (
-            <DataAppVizLoading isInDashboard={isInDashboard} />
-        );
-    }
+    const pinnedChartlessArtifact =
+        !renderSavedChartUuid &&
+        !isEditMode &&
+        renderPinnedVersion !== undefined;
+    const unavailablePlaceholder = pinnedChartlessArtifact
+        ? {
+              message: `Custom chart type version ${renderPinnedVersion} is unavailable.`,
+              hint: 'Regenerate the chart to use a renderable version.',
+          }
+        : {
+              message:
+                  renderSavedChartUuid &&
+                  config?.dataAppVizVersion !== undefined
+                      ? 'The saved custom chart type version is unavailable.'
+                      : 'Custom chart type preview is unavailable.',
+          };
 
     return (
-        <Box
-            className={classes.previewContainer}
-            {...(renderAckFallbackUsed && {
-                [CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE]: `${dataAppVizUuid}@${readyMetadata?.version}`,
-            })}
+        <DataAppVizFrame
+            projectUuid={projectUuid}
+            dataAppVizUuid={dataAppVizUuid}
+            renderTarget={renderTarget}
+            renderPinnedVersion={renderPinnedVersion}
+            renderMetadata={renderMetadata}
+            renderMetadataError={renderMetadataError}
+            chartContext={chartContext}
+            context={dataAppVizContext}
+            isLoading={isLoading}
+            isInDashboard={isInDashboard}
+            onScreenshotReady={onScreenshotReady}
+            errorReport={{
+                savedChartUuid,
+                pinnedVersion: config?.dataAppVizVersion,
+            }}
+            removedHint={removedHint}
+            unavailablePlaceholder={unavailablePlaceholder}
+            interactions={{
+                rewriteVizUnderlyingDataRequest,
+                onVizUnderlyingDataIntent,
+                onVizDrillDownIntent,
+                onVizPointMenuIntent,
+                onVizSubtotalsIntent: subtotalSource?.get,
+            }}
         >
-            <Box
-                className={classes.previewFrame}
-                inert={isShowingLoading}
-                aria-hidden={isShowingLoading}
-            >
-                <AppIframePreview
-                    key={renderRequest.navigationKey}
-                    src={previewUrl}
-                    previewToken={token}
-                    expectedPreviewOrigin={previewOrigin}
-                    projectUuid={projectUuid}
-                    appUuid={dataAppVizUuid}
-                    identityKey={dataAppVizUuid}
-                    dataAppVizContext={renderRequest.context}
-                    dataAppVizMode
-                    chartContext={chartContext}
-                    vizRenderId={renderRequest.id}
-                    onVizContextRequest={handleVizContextRequest}
-                    onScreenshotAvailabilityChange={
-                        handleScreenshotAvailabilityChange
-                    }
-                    onVizRendered={handleVizRendered}
-                    onSdkManifest={handleSdkManifest}
-                    onIframeLoad={() =>
-                        setLoadedIframeNavigationKey(iframeNavigationKey)
-                    }
-                    rewriteVizUnderlyingDataRequest={
-                        rewriteVizUnderlyingDataRequest
-                    }
-                    onVizUnderlyingDataIntent={onVizUnderlyingDataIntent}
-                    onVizDrillDownIntent={onVizDrillDownIntent}
-                    onVizPointMenuIntent={onVizPointMenuIntent}
-                    onVizSubtotalsIntent={subtotalSource?.get}
-                />
-            </Box>
             {pointMenuState && (
                 <DataAppVizPointMenu
                     state={pointMenuState}
@@ -959,15 +587,7 @@ const DataAppVizRenderer: FC<Props> = ({
                     }}
                 />
             )}
-            {isShowingLoading && (
-                <Box
-                    className={classes.loadingOverlay}
-                    data-in-dashboard={isInDashboard}
-                >
-                    <DataAppVizLoading isInDashboard={isInDashboard} />
-                </Box>
-            )}
-        </Box>
+        </DataAppVizFrame>
     );
 };
 
