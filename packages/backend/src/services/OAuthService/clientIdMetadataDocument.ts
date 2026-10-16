@@ -96,17 +96,15 @@ const parseDocument = (
     const authMethod = document.token_endpoint_auth_method;
     if (authMethod !== undefined && authMethod !== 'none') return null;
 
-    const grantTypes = document.grant_types ?? SUPPORTED_GRANT_TYPES;
-    if (
-        !Array.isArray(grantTypes) ||
-        grantTypes.length === 0 ||
-        !grantTypes.every(
-            (grant): grant is string =>
-                typeof grant === 'string' &&
-                SUPPORTED_GRANT_TYPES.includes(grant),
-        )
-    )
-        return null;
+    // Clients may advertise grants we do not issue (e.g. jwt-bearer); keep the
+    // supported subset, but the client must be able to use the authorization code flow.
+    const declaredGrantTypes = document.grant_types ?? SUPPORTED_GRANT_TYPES;
+    if (!Array.isArray(declaredGrantTypes)) return null;
+    const grantTypes = declaredGrantTypes.filter(
+        (grant): grant is string =>
+            typeof grant === 'string' && SUPPORTED_GRANT_TYPES.includes(grant),
+    );
+    if (!grantTypes.includes('authorization_code')) return null;
 
     const clientName =
         typeof document.client_name === 'string' &&

@@ -81,6 +81,20 @@ describe('ClientIdMetadataDocumentResolver', () => {
         });
     });
 
+    it('ignores unsupported grant types alongside authorization_code', async () => {
+        const { resolver } = createResolver({
+            ...validDocument,
+            grant_types: [
+                'authorization_code',
+                'refresh_token',
+                'urn:ietf:params:oauth:grant-type:jwt-bearer',
+            ],
+        });
+        await expect(resolver.resolve(clientId)).resolves.toMatchObject({
+            grantTypes: ['authorization_code', 'refresh_token'],
+        });
+    });
+
     it('defaults the client name and grant types', async () => {
         const { resolver } = createResolver({
             client_id: clientId,
@@ -116,8 +130,12 @@ describe('ClientIdMetadataDocumentResolver', () => {
             },
         ],
         [
-            'unsupported grant',
+            'no authorization_code grant',
             { ...validDocument, grant_types: ['client_credentials'] },
+        ],
+        [
+            'only refresh_token grant',
+            { ...validDocument, grant_types: ['refresh_token'] },
         ],
         ['array body', [validDocument]],
         ['invalid json', '{not json'],
