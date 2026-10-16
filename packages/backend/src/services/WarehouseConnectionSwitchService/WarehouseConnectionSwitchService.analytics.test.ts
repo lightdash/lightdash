@@ -478,6 +478,8 @@ describe('WarehouseConnectionSwitchService mixed warehouse types', () => {
         const { service, connectionModel, credentialPolicy } =
             buildService(true);
         const plan = await service.preview(account, projectUuid, mixedRequest);
+        expect(plan.original.warehouseType).toBe(WarehouseTypes.POSTGRES);
+        expect(plan.connection.warehouseType).toBe(WarehouseTypes.TRINO);
         await service.execute(account, projectUuid, {
             ...mixedRequest,
             planHash: plan.planHash,

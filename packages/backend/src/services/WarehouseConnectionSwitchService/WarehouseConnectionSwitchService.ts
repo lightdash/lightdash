@@ -672,7 +672,7 @@ export class WarehouseConnectionSwitchService extends BaseService {
                 }),
                 original: {
                     name: originalName,
-                    warehouseType: effectiveCredentials.type,
+                    warehouseType: original.type,
                     listAllDatabases: request.original.listAllDatabases,
                     additionalDatabases: request.original.additionalDatabases,
                 },
