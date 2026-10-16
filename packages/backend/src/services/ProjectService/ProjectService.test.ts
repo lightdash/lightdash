@@ -1636,6 +1636,159 @@ describe('ProjectService', () => {
             ).not.toHaveBeenCalled();
         });
 
+        test.each(['organization', 'project'] as const)(
+            'allows explicit %s analytics readers but not administration',
+            async (level) => {
+                const reader = {
+                    ...admin,
+                    ability: new Ability<PossibleAbilities>([
+                        {
+                            subject: 'SystemAnalytics',
+                            action: 'view',
+                            conditions:
+                                level === 'organization'
+                                    ? { organizationUuid: 'analytics-org' }
+                                    : { projectUuid: 'analytics-project' },
+                        },
+                    ]),
+                };
+                await expect(
+                    service.assertAnalyticsProjectAccess(reader, {
+                        organizationUuid: 'analytics-org',
+                        projectUuid: 'analytics-project',
+                        provisioningSource: 'analytics',
+                    }),
+                ).resolves.toBeUndefined();
+                await expect(
+                    service.ensureAnalyticsProject(reader),
+                ).rejects.toThrow(/administration/);
+                await expect(
+                    service.assertAnalyticsProjectAdministration(reader),
+                ).rejects.toThrow(/administration/);
+                await expect(
+                    service.assertAnalyticsProjectAccess(
+                        {
+                            ...reader,
+                            ability: new Ability<PossibleAbilities>([]),
+                        },
+                        {
+                            organizationUuid: 'analytics-org',
+                            projectUuid: 'analytics-project',
+                            provisioningSource: 'analytics',
+                        },
+                    ),
+                ).rejects.toThrow(/View managed analytics/);
+                expect(
+                    projectModel.runInAnalyticsProvisioningLock,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        test.each([
+            {
+                subject: 'SystemAnalytics',
+                action: 'view',
+                conditions: { projectUuid: 'other-project' },
+            },
+            {
+                subject: 'Analytics',
+                action: 'view',
+                conditions: { organizationUuid: 'analytics-org' },
+            },
+        ] as const)(
+            'rejects an unrelated analytics grant: %j',
+            async (rule) => {
+                await expect(
+                    service.assertAnalyticsProjectAccess(
+                        {
+                            ...admin,
+                            ability: new Ability<PossibleAbilities>([rule]),
+                        },
+                        {
+                            projectUuid: 'analytics-project',
+                            organizationUuid: 'analytics-org',
+                            provisioningSource: 'analytics',
+                        },
+                    ),
+                ).rejects.toThrow(/View managed analytics/);
+            },
+        );
+
+        test.each([false, true])(
+            'resolves analytics credentials using the current principal grant (service account: %s)',
+            async (isServiceAccount) => {
+                const credentials = {
+                    type: WarehouseTypes.DUCKDB as const,
+                    connectionType: DuckdbConnectionType.ANALYTICS as const,
+                    database: 'memory' as const,
+                    schema: 'main' as const,
+                };
+                projectModel.getWarehouseCredentialsForProject
+                    .mockResolvedValueOnce(credentials)
+                    .mockResolvedValueOnce(credentials)
+                    .mockResolvedValueOnce(credentials);
+                const analyticsSummary = {
+                    ...projectSummary,
+                    projectUuid: 'analytics-project',
+                    organizationUuid: 'analytics-org',
+                    provisioningSource: 'analytics',
+                };
+                projectModel.getSummary
+                    .mockResolvedValueOnce(analyticsSummary)
+                    .mockResolvedValueOnce(analyticsSummary);
+                const reload = vi.fn().mockResolvedValue({
+                    ...admin,
+                    userUuid: 'reader',
+                    ability: new Ability<PossibleAbilities>([
+                        {
+                            subject: 'SystemAnalytics',
+                            action: 'view',
+                            conditions: { projectUuid: 'analytics-project' },
+                        },
+                    ]),
+                });
+                const credentialService = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                );
+                Object.assign(credentialService.userModel, {
+                    findSessionUserAndOrgByUuid: reload,
+                });
+                const load = (isRegisteredUser: boolean) =>
+                    (
+                        credentialService as unknown as {
+                            loadSingleRouteCredentialBase: (args: {
+                                projectUuid: string;
+                                userId: string;
+                                isRegisteredUser: boolean;
+                                isServiceAccount: boolean;
+                                preloadedOrgWarehouseCredentialsUuid: null;
+                            }) => Promise<unknown>;
+                        }
+                    ).loadSingleRouteCredentialBase({
+                        projectUuid: 'analytics-project',
+                        userId: 'reader',
+                        isRegisteredUser,
+                        isServiceAccount,
+                        preloadedOrgWarehouseCredentialsUuid: null,
+                    });
+                await expect(load(true)).resolves.toMatchObject({
+                    credentials,
+                    organizationUuid: 'analytics-org',
+                });
+                expect(reload).toHaveBeenCalledWith('reader', 'analytics-org');
+                reload.mockResolvedValue({
+                    ...admin,
+                    ability: new Ability<PossibleAbilities>([]),
+                });
+                await expect(load(true)).rejects.toThrow(
+                    /View managed analytics/,
+                );
+                await expect(load(false)).rejects.toThrow(
+                    /authenticated organization member/,
+                );
+            },
+        );
+
         test('rejects another organization even with an unrestricted ability', async () => {
             await expect(
                 service.assertAnalyticsProjectAccess(
@@ -1646,6 +1799,7 @@ describe('ProjectService', () => {
                         ]),
                     },
                     {
+                        projectUuid: 'analytics-project',
                         provisioningSource: 'analytics',
                         organizationUuid: 'other-org',
                     },
@@ -1694,6 +1848,7 @@ describe('ProjectService', () => {
                 await expect(
                     service.assertAnalyticsProjectAccess(admin, {
                         organizationUuid: 'analytics-org',
+                        projectUuid: 'analytics-project',
                         provisioningSource: 'analytics',
                     }),
                 ).rejects.toThrow(/not enabled/);
@@ -1758,6 +1913,7 @@ describe('ProjectService', () => {
             await expect(
                 service.assertAnalyticsProjectAccess(admin, {
                     organizationUuid: 'analytics-org',
+                    projectUuid: 'analytics-project',
                     provisioningSource: null,
                 }),
             ).resolves.toBeUndefined();

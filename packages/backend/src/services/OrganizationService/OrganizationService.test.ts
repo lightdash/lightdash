@@ -151,6 +151,74 @@ describe('organization service', () => {
         },
     );
 
+    it.each([
+        {
+            scope: 'SystemAnalytics',
+            grantProject: 'analytics',
+            canView: true,
+            enabled: true,
+            visible: true,
+        },
+        {
+            scope: 'SystemAnalytics',
+            grantProject: 'other',
+            canView: true,
+            enabled: true,
+            visible: false,
+        },
+        {
+            scope: 'Analytics',
+            grantProject: 'analytics',
+            canView: true,
+            enabled: true,
+            visible: false,
+        },
+        {
+            scope: 'SystemAnalytics',
+            grantProject: 'analytics',
+            canView: false,
+            enabled: true,
+            visible: false,
+        },
+        {
+            scope: 'SystemAnalytics',
+            grantProject: 'analytics',
+            canView: true,
+            enabled: false,
+            visible: false,
+        },
+    ])(
+        'lists only explicitly accessible managed analytics: %j',
+        async ({ scope, grantProject, canView, enabled, visible }) => {
+            const account = buildAccount();
+            account.user.ability = new Ability<PossibleAbilities>([
+                ...(canView
+                    ? [{ action: 'view' as const, subject: 'Project' as const }]
+                    : []),
+                {
+                    action: 'view',
+                    subject: scope as 'SystemAnalytics' | 'Analytics',
+                    conditions: { projectUuid: grantProject },
+                },
+            ]);
+            const project = {
+                ...projectSummary,
+                projectUuid: 'analytics',
+                provisioningSource: 'analytics',
+            };
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([
+                project,
+            ]);
+            featureFlagModel.get.mockResolvedValueOnce({
+                id: FeatureFlags.AnalyticsProject,
+                enabled,
+            });
+            await expect(
+                organizationService.getProjects(account),
+            ).resolves.toEqual(visible ? [project] : []);
+        },
+    );
+
     describe('updateMember', () => {
         it('rejects assigning a system role above a custom-role caller', async () => {
             const limitedAbility = new Ability<PossibleAbilities>([

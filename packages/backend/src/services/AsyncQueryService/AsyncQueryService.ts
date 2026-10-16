@@ -2187,7 +2187,10 @@ export class AsyncQueryService extends ProjectService {
         project: Pick<Project, 'organizationUuid' | 'provisioningSource'>,
         queryHistory: QueryHistory,
     ): Promise<void> {
-        await this.assertAnalyticsProjectAccess(account, project);
+        await this.assertAnalyticsProjectAccess(account, {
+            ...project,
+            projectUuid,
+        });
         await this.assertQueryHistoryReadAccess(
             account,
             projectUuid,
