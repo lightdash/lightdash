@@ -1,7 +1,10 @@
 import * as mcpSdk from '@ai-sdk/mcp';
 import type { MCPClient } from '@ai-sdk/mcp';
 /* eslint-disable import/extensions */
-import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
+import {
+    auth,
+    UnauthorizedError,
+} from '@modelcontextprotocol/sdk/client/auth.js';
 /* eslint-enable import/extensions */
 import { asSchema, jsonSchema } from 'ai';
 import dns from 'node:dns';
@@ -641,6 +644,176 @@ describe('PersistentMcpOAuthClientProvider', () => {
                 }),
             }),
         );
+    });
+});
+
+describe('MCP OAuth resource indicator', () => {
+    // Drives the SDK's real auth() through our provider. The SDK's
+    // checkResourceAllowed is patched (patches/@modelcontextprotocol__sdk) so
+    // a server URL of /mcp accepts metadata that advertises /mcp/.
+    const buildProvider = (onAuthorizationUrl: (url: URL) => void) => {
+        const sharedCredential = {
+            uuid: 'credential-uuid',
+            mcpServerUuid: 'server-uuid',
+            credentialScope: 'shared',
+            userUuid: null,
+            createdByUserUuid: 'creator-uuid',
+            updatedByUserUuid: 'creator-uuid',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            credentials: {
+                type: 'oauth',
+                credentialScope: 'shared',
+                connectionStatus: 'not_connected',
+                configuredClientId: 'public-client',
+            },
+        } satisfies AiMcpCredential;
+        const aiAgentModel = {
+            getCredential: vi
+                .fn()
+                .mockImplementation(
+                    async (_serverUuid: string, scope: string) =>
+                        scope === 'shared' ? sharedCredential : undefined,
+                ),
+            upsertCredential: vi.fn(),
+        } as unknown as AiAgentModel;
+        const runtimeClient = new AiAgentMcpRuntimeClient({
+            aiAgentModel,
+            lightdashConfig: {
+                siteUrl: 'https://lightdash.example.com',
+                ai: {
+                    copilot: { mcpConnectionTimeoutMs: 20_000 },
+                },
+            } as LightdashConfig,
+        });
+        return (
+            runtimeClient as unknown as {
+                createMcpOAuthProvider: (args: {
+                    projectUuid: string;
+                    mcpServerUuid: string;
+                    credentialScope: 'user';
+                    userUuid: string;
+                    actorUserUuid: string;
+                    onAuthorizationUrl: (url: URL) => void;
+                }) => Parameters<typeof auth>[0];
+            }
+        ).createMcpOAuthProvider({
+            projectUuid: 'project-uuid',
+            mcpServerUuid: 'server-uuid',
+            credentialScope: 'user',
+            userUuid: 'user-uuid',
+            actorUserUuid: 'user-uuid',
+            onAuthorizationUrl,
+        });
+    };
+
+    const jsonResponse = (body: unknown) =>
+        new Response(JSON.stringify(body), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+        });
+
+    const buildFetch = (advertisedResource: string) =>
+        vi.fn(async (input: string | URL | Request) => {
+            const url = new URL(
+                input instanceof Request ? input.url : String(input),
+            );
+            if (
+                url.host === 'mcp.example.com' &&
+                url.pathname.startsWith('/.well-known/oauth-protected-resource')
+            ) {
+                return jsonResponse({
+                    resource: advertisedResource,
+                    authorization_servers: ['https://auth.example.com'],
+                });
+            }
+            if (
+                url.href ===
+                'https://auth.example.com/.well-known/oauth-authorization-server'
+            ) {
+                return jsonResponse({
+                    issuer: 'https://auth.example.com',
+                    authorization_endpoint:
+                        'https://auth.example.com/authorize',
+                    token_endpoint: 'https://auth.example.com/token',
+                    response_types_supported: ['code'],
+                    code_challenge_methods_supported: ['S256'],
+                });
+            }
+            return new Response('not found', { status: 404 });
+        }) as unknown as typeof fetch;
+
+    it('accepts metadata that only adds a trailing slash and sends it verbatim', async () => {
+        let authorizationUrl: URL | undefined;
+        const provider = buildProvider((url) => {
+            authorizationUrl = url;
+        });
+
+        await expect(
+            auth(provider, {
+                serverUrl: 'https://mcp.example.com/mcp',
+                fetchFn: buildFetch('https://mcp.example.com/mcp/'),
+            }),
+        ).resolves.toBe('REDIRECT');
+
+        expect(authorizationUrl?.searchParams.get('resource')).toBe(
+            'https://mcp.example.com/mcp/',
+        );
+        expect(authorizationUrl?.searchParams.get('client_id')).toBe(
+            'public-client',
+        );
+        expect(
+            authorizationUrl?.searchParams.get('code_challenge_method'),
+        ).toBe('S256');
+    });
+
+    it('accepts metadata that only drops the trailing slash', async () => {
+        let authorizationUrl: URL | undefined;
+        const provider = buildProvider((url) => {
+            authorizationUrl = url;
+        });
+
+        await expect(
+            auth(provider, {
+                serverUrl: 'https://mcp.example.com/mcp/',
+                fetchFn: buildFetch('https://mcp.example.com/mcp'),
+            }),
+        ).resolves.toBe('REDIRECT');
+
+        expect(authorizationUrl?.searchParams.get('resource')).toBe(
+            'https://mcp.example.com/mcp',
+        );
+    });
+
+    it('sends a pathless advertised resource without adding a slash', async () => {
+        let authorizationUrl: URL | undefined;
+        const provider = buildProvider((url) => {
+            authorizationUrl = url;
+        });
+
+        await expect(
+            auth(provider, {
+                serverUrl: 'https://mcp.example.com',
+                fetchFn: buildFetch('https://mcp.example.com'),
+            }),
+        ).resolves.toBe('REDIRECT');
+
+        expect(authorizationUrl?.searchParams.get('resource')).toBe(
+            'https://mcp.example.com',
+        );
+    });
+
+    it('still rejects metadata that advertises a different path', async () => {
+        const onAuthorizationUrl = vi.fn();
+        const provider = buildProvider(onAuthorizationUrl);
+
+        await expect(
+            auth(provider, {
+                serverUrl: 'https://mcp.example.com/mcp',
+                fetchFn: buildFetch('https://mcp.example.com/other/'),
+            }),
+        ).rejects.toThrow(/does not match/);
+        expect(onAuthorizationUrl).not.toHaveBeenCalled();
     });
 });
 
