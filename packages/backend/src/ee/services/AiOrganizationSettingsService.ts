@@ -1082,7 +1082,9 @@ export class AiOrganizationSettingsService extends BaseService {
 
         if (defaultCredential.status === 'ok') {
             const { config } = defaultCredential.credential;
-            await this.aiOrganizationSettingsModel.update(organizationUuid, {
+            // Upsert: the organization may never have saved AI settings, and
+            // the first credential must not fail on the missing settings row.
+            await this.aiOrganizationSettingsModel.upsert(organizationUuid, {
                 providerApiKeys: {
                     bedrock: {
                         apiKey: config.apiKey,
