@@ -1,3 +1,11 @@
+## [2.599.1](https://github.com/lightdash/lightdash/compare/2.599.0...2.599.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **mcp:** check manage rights before describing apps in iterate tools ([#31100](https://github.com/lightdash/lightdash/issues/31100)) ([c02b5eb](https://github.com/lightdash/lightdash/commit/c02b5ebaf1cf5ef3ac0b84f8395be9d14c3bd7a1))
+* **query-sdk:** qualify short field names with the explore's base table ([#31071](https://github.com/lightdash/lightdash/issues/31071)) ([cb0abd8](https://github.com/lightdash/lightdash/commit/cb0abd823e799f9335400ce9407ca932a96fe44b))
+
 # [2.599.0](https://github.com/lightdash/lightdash/compare/2.598.0...2.599.0) (2026-10-16)
 
 
