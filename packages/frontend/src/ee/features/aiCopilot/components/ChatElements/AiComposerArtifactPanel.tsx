@@ -92,6 +92,13 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     );
     const queryUuid = nodeQueryUuids?.[displayedNodeId];
 
+    const pivotArtifact = useMemo(
+        () =>
+            identityEnabled && !isEmbed
+                ? { agentUuid, artifactUuid, versionUuid }
+                : null,
+        [identityEnabled, isEmbed, agentUuid, artifactUuid, versionUuid],
+    );
     const results = useInfiniteQueryResults(
         projectUuid,
         isEmbed || !identityFlag.isLoading ? queryUuid : undefined,
@@ -262,6 +269,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                             projectUuid={projectUuid}
                             results={results}
                             queryUuid={queryUuid ?? null}
+                            pivotArtifact={pivotArtifact}
                             runError={runError}
                             vizConfig={value}
                             headerContent={head}

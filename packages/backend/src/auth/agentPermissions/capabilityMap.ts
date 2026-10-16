@@ -316,6 +316,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiAgentController.getArtifactQueryResults': [AgentCapability.ReadDiscover],
     'AiAgentController.getArtifactVersion': [AgentCapability.ReadDiscover],
     'AiAgentController.getArtifactVizQuery': [AgentCapability.Query],
+    'AiAgentController.executeArtifactPivotQuery': [AgentCapability.Query],
     'AiAgentController.getDashboardArtifactChartVizQuery': [
         AgentCapability.Query,
     ],

@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    AGENT_CLIENT_IDS,
     AgentActorSurface,
     AgentIdentityConnectEntryPoint,
     AgentIdentityConnectFailureReason,
@@ -6709,6 +6710,96 @@ describe('result producer compatibility', () => {
         });
         return { ...f, resolvePlan };
     };
+    const artifactOwnerClaim = (userUuid = account.user.id) =>
+        buildAgentIdentityClaim({
+            subject: { type: 'user', uuid: userUuid },
+            surface: AgentActorSurface.IN_APP_AGENT,
+            clientId: AGENT_CLIENT_IDS[AgentActorSurface.IN_APP_AGENT],
+            agentUuid: 'agent',
+        });
+
+    test('the thread owner reads an agent-produced node through the artifact owner reader', async () => {
+        const f = fixture(owners[0]);
+        const ownerClaim = artifactOwnerClaim();
+        await expect(
+            f.service.assertCanReadResults(
+                account,
+                'project',
+                ready(producerFor(owners[0], ownerClaim)),
+                {
+                    reader: {
+                        kind: 'agent',
+                        authMethod: testAuthMethod(ownerClaim),
+                        claim: ownerClaim,
+                    },
+                },
+            ),
+        ).resolves.not.toBeNull();
+    });
+
+    test('another person is refused the same node as a person and as an agent acting for them', async () => {
+        const f = fixture(owners[0]);
+        const ownerClaim = artifactOwnerClaim();
+        const otherClaim = artifactOwnerClaim('other-person');
+        const node = ready(producerFor(owners[0], ownerClaim));
+        await expect(
+            f.service.assertCanReadResults(account, 'project', node, {
+                reader: { kind: 'person', authMethod: testAuthMethod(null) },
+            }),
+        ).rejects.toBeInstanceOf(AiAccessRefusedError);
+        await expect(
+            f.service.assertCanReadResults(account, 'project', node, {
+                reader: {
+                    kind: 'agent',
+                    authMethod: testAuthMethod(otherClaim),
+                    claim: otherClaim,
+                },
+            }),
+        ).rejects.toBeInstanceOf(AiAccessRefusedError);
+    });
+
+    test('the owner reads the derived pivot of an agent-produced node and another person is refused', async () => {
+        const f = fixture(owners[0]);
+        const ownerClaim = artifactOwnerClaim();
+        const pivot: QueryHistoryWithLineage = {
+            ...ready(producerFor({ kind: 'derived' }, ownerClaim)),
+            queryUuid: 'pivot',
+            requestParameters: {
+                sql: 'SELECT * FROM src',
+                references: { src: 'source' },
+                resultProducer: producerFor({ kind: 'derived' }, ownerClaim),
+            },
+            duckdbExecutionReferences: null,
+        };
+        f.historyModel.get.mockImplementation(async (queryUuid: string) => {
+            expect(queryUuid).toBe('source');
+            return {
+                ...ready(producerFor(owners[0], ownerClaim)),
+                queryUuid: 'source',
+            };
+        });
+        await expect(
+            f.service.assertCanReadResults(account, 'project', pivot, {
+                reader: {
+                    kind: 'agent',
+                    authMethod: testAuthMethod(ownerClaim),
+                    claim: ownerClaim,
+                },
+            }),
+        ).resolves.toBeNull();
+        expect(f.historyModel.get).toHaveBeenCalled();
+        const otherClaim = artifactOwnerClaim('other-person');
+        await expect(
+            f.service.assertCanReadResults(account, 'project', pivot, {
+                reader: {
+                    kind: 'agent',
+                    authMethod: testAuthMethod(otherClaim),
+                    claim: otherClaim,
+                },
+            }),
+        ).rejects.toBeInstanceOf(AiAccessRefusedError);
+    });
+
     test.each(
         [
             AgentActorSurface.IN_APP_AGENT,

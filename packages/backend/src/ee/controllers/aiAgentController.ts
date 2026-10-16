@@ -8,6 +8,8 @@ import {
     ApiAgentAsCodeUpsertResponse,
     ApiAgentReadinessScoreResponse,
     ApiAgentSuggestionsResponse,
+    ApiAiAgentArtifactPivotQueryRequest,
+    ApiAiAgentArtifactPivotQueryResponse,
     ApiAiAgentArtifactResponseTSOACompat,
     ApiAiAgentArtifactVizQueryResponse,
     ApiAiAgentAvatarUploadResponse,
@@ -2058,6 +2060,48 @@ export class AiAgentController extends BaseController {
                     pageSize: pageSize ?? null,
                 },
                 req.account,
+            ),
+        };
+    }
+
+    /**
+     * Pivots a node result from this artifact version's run as its producer.
+     * @summary Pivot artifact result
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.executeArtifactPivotQuery',
+        ),
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post(
+        '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/pivot-query',
+    )
+    @OperationId('executeArtifactPivotQuery')
+    async executeArtifactPivotQuery(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() artifactUuid: string,
+        @Path() versionUuid: string,
+        @Body() body: ApiAiAgentArtifactPivotQueryRequest,
+    ): Promise<ApiAiAgentArtifactPivotQueryResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().executeArtifactPivotQuery(
+                toSessionUser(req.account),
+                {
+                    projectUuid,
+                    agentUuid,
+                    artifactUuid,
+                    versionUuid,
+                    queryUuid: body.queryUuid,
+                    pivotConfiguration: body.pivotConfiguration,
+                },
             ),
         };
     }

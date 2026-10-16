@@ -18,6 +18,7 @@ import {
     MAX_RETENTION_WINDOW_HOURS,
     MIN_RETENTION_WINDOW_HOURS,
 } from '../../types/dataRetention';
+import { type PivotConfiguration } from '../../types/pivot';
 import { type QueryNodeId } from '../../types/querySources';
 import assertUnreachable from '../../utils/assertUnreachable';
 import { type AllVizChartConfig } from '../../visualizations/types';
@@ -1070,6 +1071,16 @@ export const isAiAgentComposerArtifactVizQuery = (
 export type ApiAiAgentArtifactVizQueryResponse = {
     status: 'ok';
     results: ApiAiAgentArtifactVizQuery;
+};
+
+export type ApiAiAgentArtifactPivotQueryRequest = {
+    queryUuid: string;
+    pivotConfiguration: PivotConfiguration;
+};
+export type ApiAiAgentArtifactPivotQuery = { queryUuid: string };
+export type ApiAiAgentArtifactPivotQueryResponse = {
+    status: 'ok';
+    results: ApiAiAgentArtifactPivotQuery;
 };
 
 export type AiAgentUserPreferences = {

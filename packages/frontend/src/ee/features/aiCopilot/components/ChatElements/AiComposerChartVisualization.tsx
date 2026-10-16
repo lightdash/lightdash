@@ -30,7 +30,10 @@ import {
     type ComposerChartSpec,
 } from './composerChartSpec';
 import { useArtifactResultRows } from './useArtifactResultRows';
-import { useComposerPivot } from './useComposerPivot';
+import {
+    useComposerPivot,
+    type ComposerPivotArtifact,
+} from './useComposerPivot';
 
 export type ComposerChartVizConfig = Exclude<AllVizChartConfig, VizTableConfig>;
 
@@ -144,6 +147,7 @@ const buildSpecFrom = (input: SpecInput) =>
 
 type Props = {
     projectUuid: string;
+    pivotArtifact: ComposerPivotArtifact | null;
     results: InfiniteQueryResults;
     /** The displayed node's stored result, re-read for a pivot; null when there is none. */
     pivotQueryUuid: string | null;
@@ -157,6 +161,7 @@ type Props = {
 // The last chart stays on screen until the next one is built.
 export const AiComposerChartVisualization: FC<Props> = ({
     projectUuid,
+    pivotArtifact,
     results,
     pivotQueryUuid,
     vizConfig,
@@ -177,6 +182,7 @@ export const AiComposerChartVisualization: FC<Props> = ({
         projectUuid,
         queryUuid: pivotQueryUuid,
         layout: pivotLayout,
+        artifact: pivotArtifact,
     });
     const drawn = useMemo(
         () => (layout ? resolveComposerVizColumns(layout, columns) : null),

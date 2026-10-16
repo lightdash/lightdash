@@ -56,6 +56,7 @@ import {
     AndFilterGroup,
     AnonymousAccount,
     AnyType,
+    ApiAiAgentArtifactPivotQuery,
     ApiAiAgentArtifactVizQuery,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadDataAppRestoreRequest,
@@ -9434,6 +9435,82 @@ export class AiAgentService extends BaseService {
                 agentUuid: agent.uuid,
             }),
         };
+    }
+
+    async executeArtifactPivotQuery(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            queryUuid,
+            pivotConfiguration,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+            queryUuid: string;
+            pivotConfiguration: PivotConfiguration;
+        },
+    ): Promise<ApiAiAgentArtifactPivotQuery> {
+        if (!(await this.getIsCopilotEnabled(user)))
+            throw new ForbiddenError('Copilot is not enabled');
+        const artifact = await this.getArtifact(
+            user,
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+        );
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        if (enabled)
+            await this.asyncQueryService.assertQueryBoundToArtifact(
+                fromSession(user),
+                projectUuid,
+                queryUuid,
+                { agentUuid, artifactUuid, versionUuid },
+            );
+        const querySurface = await this.getArtifactQuerySurface(
+            artifact.promptUuid,
+        );
+        const execute = async (): Promise<ApiAiAgentArtifactPivotQuery> => {
+            const { queries } = await this.querySourceService.submitQueries({
+                account: fromSession(user),
+                projectUuid,
+                queries: [
+                    {
+                        sourceType: QuerySourceType.DUCKDB,
+                        nodeId: 'viz_pivot',
+                        sql: 'SELECT * FROM src',
+                        references: { src: queryUuid },
+                        pivotConfiguration,
+                    },
+                ],
+                context: QueryExecutionContext.AI,
+                querySurface,
+                parameters: {},
+                userAttributeOverrides: {},
+                invalidateCache: false,
+                plans: {},
+            });
+            const submission = queries[0];
+            if (!submission)
+                throw new UnexpectedServerError(
+                    'Pivot query was not submitted',
+                );
+            return { queryUuid: submission.queryUuid };
+        };
+        return this.executeArtifactQueriesAsOwner(
+            user,
+            { projectUuid, agentUuid, artifactUuid, versionUuid },
+            execute,
+            (result) => [result.queryUuid],
+        );
     }
 
     async getArtifactQueryResults(

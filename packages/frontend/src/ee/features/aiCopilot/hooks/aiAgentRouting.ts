@@ -41,3 +41,16 @@ export const getAiAgentArtifactResultsUrl = ({
     cached: boolean;
 }) =>
     `${getAiAgentApiBase(projectUuid)}/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}/query-results?${new URLSearchParams({ queryUuid, cached: String(cached) })}`;
+
+export const getAiAgentArtifactPivotQueryUrl = ({
+    projectUuid,
+    agentUuid,
+    artifactUuid,
+    versionUuid,
+}: {
+    projectUuid: string;
+    agentUuid: string;
+    artifactUuid: string;
+    versionUuid: string;
+}) =>
+    `${getAiAgentApiBase(projectUuid)}/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}/pivot-query`;

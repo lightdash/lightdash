@@ -192,6 +192,7 @@ export const OAUTH_UNCHECKED_OPERATIONS = {
     'AiAgentController.getArtifactVersion': 'read',
     'AiAgentController.getArtifactVizQuery': 'read',
     'AiAgentController.getArtifactQueryResults': 'read',
+    'AiAgentController.executeArtifactPivotQuery': 'read',
     'AiAgentController.createAiAgentThreadShare': 'write',
     'AiAgentController.updateArtifactVersionSavedDashboard': 'write',
     'AiAgentController.updateArtifactVersionSavedSql': 'write',
