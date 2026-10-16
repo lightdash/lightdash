@@ -2390,7 +2390,7 @@ export type DataAppViewedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         appUuid: string;
-        viewContext?: DataAppViewContext | 'embed';
+        viewContext?: DataAppViewContext | 'embed' | 'mcp';
     };
 };
 
