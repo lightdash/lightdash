@@ -34,7 +34,6 @@ import {
     useState,
 } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import {
     ContentTable,
     useContentTable,
@@ -50,6 +49,7 @@ import useSearchParams from '../../../../../hooks/useSearchParams';
 import SlackSvg from '../../../../../svgs/slack.svg?react';
 import { useAiAgentAdminAgents } from '../../hooks/useAiAgentAdmin';
 import { useAgentSettingsLinkState } from '../../utils/agentSettingsNavigation';
+import { AgentAvatar } from '../AgentAvatar';
 import ProjectsFilter from './ProjectsFilter';
 import { SearchFilter } from './SearchFilter';
 
@@ -218,10 +218,11 @@ const AiAgentAdminAgentsTable = () => {
                     return (
                         <Paper px="xs" w="fit-content">
                             <Group gap="two" wrap="nowrap">
-                                <LightdashUserAvatar
+                                <AgentAvatar
+                                    uuid={agent.uuid}
                                     size={16}
                                     name={agent.name}
-                                    src={agent.imageUrl}
+                                    imageUrl={agent.imageUrl}
                                 />
                                 <Text fz="sm" fw={600} truncate>
                                     {agent.name}

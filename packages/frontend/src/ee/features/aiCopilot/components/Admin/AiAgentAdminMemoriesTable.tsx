@@ -228,6 +228,7 @@ const AiAgentAdminMemoriesTable = () => {
                     }
                     return (
                         <AgentNamePill
+                            uuid={agent.uuid}
                             name={agent.name}
                             imageUrl={agent.imageUrl}
                         />

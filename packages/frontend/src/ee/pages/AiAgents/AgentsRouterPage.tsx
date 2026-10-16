@@ -21,10 +21,10 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { AgentAvatar } from '../../features/aiCopilot/components/AgentAvatar';
 import { AgentSettingsSelector } from '../../features/aiCopilot/components/AgentSelector';
 import { AutoModeSidebar } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentSidebar';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
@@ -527,10 +527,13 @@ const AgentsRouterPage = () => {
                                                     wrap="nowrap"
                                                     align="center"
                                                 >
-                                                    <LightdashUserAvatar
+                                                    <AgentAvatar
+                                                        uuid={c.agentUuid}
                                                         size={32}
                                                         name={c.name}
-                                                        src={c.agent?.imageUrl}
+                                                        imageUrl={
+                                                            c.agent?.imageUrl
+                                                        }
                                                     />
                                                     <Stack
                                                         gap={2}

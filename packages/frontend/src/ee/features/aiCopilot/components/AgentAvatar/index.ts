@@ -1,0 +1,1 @@
+export { AgentAvatar } from './AgentAvatar';
