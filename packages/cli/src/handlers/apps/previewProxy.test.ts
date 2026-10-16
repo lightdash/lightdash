@@ -18,28 +18,41 @@ type SeenRequest = {
     body: string;
 };
 
-/** Records every request and replies 200 with a JSON echo. */
+type UpstreamReply = { status: number; body: unknown };
+
+/** Records every request and replies 200 with a JSON echo unless overridden. */
 const startFakeUpstream = (): Promise<{
     url: string;
     seen: SeenRequest[];
+    setReply: (reply: (req: SeenRequest) => UpstreamReply) => void;
     close: () => Promise<void>;
 }> => {
     const seen: SeenRequest[] = [];
+    let replyFor: (req: SeenRequest) => UpstreamReply = () => ({
+        status: 200,
+        body: { status: 'ok' },
+    });
     const server = http.createServer((req, res) => {
         const chunks: Buffer[] = [];
         req.on('data', (chunk: Buffer) => chunks.push(chunk));
         req.on('end', () => {
-            seen.push({
+            const request: SeenRequest = {
                 method: req.method ?? '',
                 url: req.url ?? '',
                 headers: req.headers,
                 body: Buffer.concat(chunks).toString('utf-8'),
-            });
-            res.writeHead(200, {
+            };
+            seen.push(request);
+            const reply = replyFor(request);
+            res.writeHead(reply.status, {
                 'content-type': 'application/json',
                 'set-cookie': 'upstream=1',
             });
-            res.end(JSON.stringify({ status: 'ok' }));
+            res.end(
+                typeof reply.body === 'string'
+                    ? reply.body
+                    : JSON.stringify(reply.body),
+            );
         });
     });
     return new Promise((resolve) => {
@@ -48,6 +61,9 @@ const startFakeUpstream = (): Promise<{
             resolve({
                 url: `http://127.0.0.1:${port}`,
                 seen,
+                setReply: (reply) => {
+                    replyFor = reply;
+                },
                 close: () =>
                     new Promise<void>((r) => {
                         server.close(() => r());
@@ -242,5 +258,95 @@ describe('startPreviewProxy', () => {
         } finally {
             await serviceProxy.close();
         }
+    });
+    describe('explore base-table virtual route', () => {
+        const BASE_TABLE_PATH = '/__sdk/explore-base-table';
+
+        const requestBaseTable = (
+            path = BASE_TABLE_PATH,
+            body: unknown = { exploreName: 'orders_with_custom_dims' },
+            init: { nonce?: string | null } = {},
+        ) =>
+            proxyFetch(path, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify(body),
+                ...init,
+            });
+
+        it('answers with only the base table, read upstream with the credential', async () => {
+            upstream.setReply(() => ({
+                status: 200,
+                body: {
+                    status: 'ok',
+                    results: {
+                        name: 'orders_with_custom_dims',
+                        baseTable: 'orders',
+                        tables: { orders: { sqlTable: 'secret.orders' } },
+                    },
+                },
+            }));
+
+            const res = await requestBaseTable();
+
+            expect(res.status).toBe(200);
+            expect(await res.json()).toEqual({
+                status: 'ok',
+                results: { baseTable: 'orders' },
+            });
+            expect(upstream.seen).toHaveLength(1);
+            expect(upstream.seen[0].method).toBe('GET');
+            expect(upstream.seen[0].url).toBe(
+                `/api/v1/projects/${PROJECT_UUID}/explores/orders_with_custom_dims`,
+            );
+            expect(upstream.seen[0].headers.authorization).toBe(AUTHORIZATION);
+            expect(
+                upstream.seen[0].headers[PREVIEW_PROXY_NONCE_HEADER],
+            ).toBeUndefined();
+        });
+
+        it('answers null when the upstream explore request fails', async () => {
+            upstream.setReply(() => ({
+                status: 403,
+                body: { status: 'error', error: { message: 'Forbidden' } },
+            }));
+
+            const res = await requestBaseTable();
+
+            expect(res.status).toBe(200);
+            expect(await res.json()).toEqual({
+                status: 'ok',
+                results: { baseTable: null },
+            });
+        });
+
+        it('answers null when the upstream body is not JSON', async () => {
+            upstream.setReply(() => ({ status: 200, body: '<html>' }));
+
+            const res = await requestBaseTable();
+
+            expect(await res.json()).toEqual({
+                status: 'ok',
+                results: { baseTable: null },
+            });
+        });
+
+        it('rejects a request without an explore name', async () => {
+            const res = await requestBaseTable(BASE_TABLE_PATH, {
+                exploreName: '',
+            });
+
+            expect(res.status).toBe(400);
+            expect(upstream.seen).toHaveLength(0);
+        });
+
+        it('still requires the per-run nonce', async () => {
+            const res = await requestBaseTable(BASE_TABLE_PATH, undefined, {
+                nonce: null,
+            });
+
+            expect(res.status).toBe(401);
+            expect(upstream.seen).toHaveLength(0);
+        });
     });
 });
