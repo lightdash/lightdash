@@ -1,0 +1,18 @@
+version: 2
+models:
+  - name: sf_customers
+    description: Restricted Snowflake test table. Lightdash reads the existing table; dbt never builds it.
+    columns:
+      - name: customer_id
+        meta:
+          dimension: { type: number }
+          metrics:
+            customer_count: { type: count_distinct }
+      - name: segment
+        meta: { dimension: { type: string } }
+      - name: balance
+        meta:
+          dimension: { type: number }
+          metrics:
+            total_balance: { type: sum, round: 2 }
+            average_balance: { type: average, round: 2 }
