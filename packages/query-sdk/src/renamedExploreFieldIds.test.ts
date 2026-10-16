@@ -63,7 +63,11 @@ const metricQueryBody = (calls: Call[]) => {
 };
 
 describe('createFieldQualifier', () => {
-    const qualify = createFieldQualifier('orders_with_custom_dims', 'orders');
+    const qualify = createFieldQualifier(
+        'orders_with_custom_dims',
+        'orders',
+        [],
+    );
 
     it('prefixes short names with the base table', () => {
         expect(qualify('status')).toBe('orders_status');
@@ -78,23 +82,58 @@ describe('createFieldQualifier', () => {
     });
 
     it('prefixes a short name that starts with the explore name', () => {
-        const sales = createFieldQualifier('sales', 'sales_orders');
+        const sales = createFieldQualifier('sales', 'sales_orders', []);
         expect(sales('sales_amount')).toBe('sales_orders_sales_amount');
     });
 
     it('is unchanged for a normal explore', () => {
-        const normal = createFieldQualifier('orders', 'orders');
+        const normal = createFieldQualifier('orders', 'orders', []);
         expect(normal('status')).toBe('orders_status');
         expect(normal('orders_status')).toBe('orders_status');
         expect(normal('customers.first_name')).toBe('customers_first_name');
     });
 
     it('falls back to the explore name when the base table is unknown', () => {
-        const fallback = createFieldQualifier('orders_with_custom_dims', null);
+        const fallback = createFieldQualifier(
+            'orders_with_custom_dims',
+            null,
+            [],
+        );
         expect(fallback('status')).toBe('orders_with_custom_dims_status');
         expect(fallback('orders_with_custom_dims_status')).toBe(
             'orders_with_custom_dims_status',
         );
+    });
+});
+
+describe('createFieldQualifier with custom dimensions', () => {
+    it('resolves a short name to a custom dimension id written with either prefix', () => {
+        const withExplorePrefix = createFieldQualifier(
+            'orders_with_custom_dims',
+            'orders',
+            ['orders_with_custom_dims_status_label'],
+        );
+        expect(withExplorePrefix('status_label')).toBe(
+            'orders_with_custom_dims_status_label',
+        );
+        expect(withExplorePrefix('orders_with_custom_dims_status_label')).toBe(
+            'orders_with_custom_dims_status_label',
+        );
+
+        const withBasePrefix = createFieldQualifier(
+            'orders_with_custom_dims',
+            'orders',
+            ['orders_status_label'],
+        );
+        expect(withBasePrefix('status_label')).toBe('orders_status_label');
+    });
+
+    it('is unchanged for a normal explore', () => {
+        const normal = createFieldQualifier('orders', 'orders', [
+            'orders_status_label',
+        ]);
+        expect(normal('status_label')).toBe('orders_status_label');
+        expect(normal('status')).toBe('orders_status');
     });
 });
 

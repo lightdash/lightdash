@@ -178,6 +178,25 @@ describe('checkDataAppDataReferences on an explore defined under meta.explores',
         expect(errors).toEqual([]);
     });
 
+    it('accepts locally defined fields selected through the base table or by short name', () => {
+        const errors = checkDataAppDataReferences(
+            [
+                queryRef({
+                    explore: 'sales',
+                    dimensions: ['status_label', 'channel_label'],
+                    metrics: ['sales_orders.big_orders'],
+                    localFields: [
+                        'big_orders',
+                        'sales_status_label',
+                        'sales_orders_channel_label',
+                    ],
+                }),
+            ],
+            index,
+        );
+        expect(errors).toEqual([]);
+    });
+
     it('suggests the short name without the base-table prefix', () => {
         const errors = checkDataAppDataReferences(
             [queryRef({ explore: 'sales', dimensions: ['statu'] })],

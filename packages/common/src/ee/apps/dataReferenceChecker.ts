@@ -605,10 +605,20 @@ class DataAppReferenceChecker {
         ) {
             return true;
         }
-        const prefix = `${scope.explore}_`;
-        return (
-            qualifiedId.startsWith(prefix) &&
-            scope.localFields.has(qualifiedId.slice(prefix.length))
+        // Mirrors the SDK: a local field may be written with or without the
+        // table prefix (the base table, or the explore name for custom
+        // dimension ids written that way).
+        const prefixes = [
+            ...new Set([
+                scope.fields.baseTable ?? scope.explore,
+                scope.explore,
+            ]),
+        ].map((table) => `${table}_`);
+        return prefixes.some(
+            (prefix) =>
+                scope.localFields.has(`${prefix}${rawRef}`) ||
+                (qualifiedId.startsWith(prefix) &&
+                    scope.localFields.has(qualifiedId.slice(prefix.length))),
         );
     }
 
