@@ -52,6 +52,7 @@ export * from './toolGetDashboardChartsArgs';
 export * from './toolGetQueryResultArgs';
 export * from './toolGetProjectInfoArgs';
 export * from './toolFindCustomChartTypesArgs';
+export * from './toolFindCustomChartTypesMcpArgs';
 export * from './toolFindExploresArgs';
 export * from './toolFindFieldsArgs';
 export * from './toolListProjectsArgs';

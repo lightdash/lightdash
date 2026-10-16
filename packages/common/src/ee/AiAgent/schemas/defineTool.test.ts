@@ -353,6 +353,7 @@ describe('defineTool', () => {
 
         expect(structuredMcpToolNames).toEqual([
             'create_custom_chart_type',
+            'find_custom_chart_types',
             'generate_data_app',
             'generate_hashes',
             'get_ai_writeback_status',
