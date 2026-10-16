@@ -3,6 +3,7 @@ import { ServiceAccountScope } from '../ee/serviceAccounts/types';
 import { OrganizationMemberRole } from '../types/organizationMemberProfile';
 import { ProjectMemberRole } from '../types/projectMemberRole';
 import { getUserAbilityBuilder } from './index';
+import { getAllScopesForRole } from './roleToScopeMapping';
 import { buildAbilityFromScopes } from './scopeAbilityBuilder';
 import { applyServiceAccountAbilities } from './serviceAccountAbility';
 import { type MemberAbility } from './types';
@@ -67,6 +68,12 @@ describe('managed analytics custom permission', () => {
             ).toBe(false);
         },
     );
+
+    it('keeps managed analytics out of cloned project-admin roles', () => {
+        expect(getAllScopesForRole(ProjectMemberRole.ADMIN)).not.toContain(
+            'view:SystemAnalytics',
+        );
+    });
 
     it('allows organization admins to delegate the managed analytics scope', () => {
         const ability = getUserAbilityBuilder({

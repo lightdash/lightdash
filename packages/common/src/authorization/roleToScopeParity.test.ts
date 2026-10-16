@@ -269,7 +269,14 @@ const testOrgRoleScopeParity = (
         {
             userUuid: member.userUuid,
             organizationUuid: member.organizationUuid,
-            scopes: getAllScopesForRole(role),
+            // Managed analytics is explicit opt-in for project roles, while
+            // organization admins already have organization-wide access.
+            scopes: [
+                ...getAllScopesForRole(role),
+                ...(role === ProjectMemberRole.ADMIN
+                    ? ['view:SystemAnalytics']
+                    : []),
+            ],
             isEnterprise,
         },
         scopeBuilder,
@@ -434,8 +441,10 @@ describe('Role to Scope Parity', () => {
     // `BASE_ROLE_SCOPES` for at least one tier — closing the loop on
     // "how did the misc orphans drift in the first place?".
     describe('Scope vocabulary coverage', () => {
-        it('every scope except explicit agent opt-ins appears in a role tier', () => {
-            const explicitAgentOptIns = new Set([
+        it('every scope except explicit opt-ins appears in a role tier', () => {
+            const explicitOptIns = new Set([
+                // Do not grant organization-wide usage through Project Admin.
+                'view:SystemAnalytics',
                 'view:AgentContentWrite',
                 'view:AgentDelete',
                 'view:AgentPublish',
@@ -453,7 +462,7 @@ describe('Role to Scope Parity', () => {
             });
 
             const missing = [...allScopeNames].filter(
-                (s) => !tieredScopes.has(s) && !explicitAgentOptIns.has(s),
+                (s) => !tieredScopes.has(s) && !explicitOptIns.has(s),
             );
 
             if (missing.length > 0) {
