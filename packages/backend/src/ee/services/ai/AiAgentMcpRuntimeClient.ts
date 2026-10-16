@@ -344,28 +344,45 @@ const buildDefaultClientMetadata = (
     token_endpoint_auth_method: 'none',
 });
 
-const getOAuthClientInformation = (
-    payload: AiMcpOAuthCredentialPayload,
+/**
+ * Client information for a pre-registered OAuth client. A configured client
+ * ID without a secret is a public client: the SDK then authenticates the
+ * token request with PKCE only (`token_endpoint_auth_method: 'none'`).
+ */
+const getConfiguredClientInformation = (
+    payload: Pick<
+        AiMcpOAuthCredentialPayload,
+        'configuredClientId' | 'configuredClientSecret'
+    >,
 ): OAuthClientInformationMixed | undefined => {
-    if (payload.configuredClientId && payload.configuredClientSecret) {
+    if (!payload.configuredClientId) {
+        return undefined;
+    }
+
+    if (payload.configuredClientSecret) {
         return {
             client_id: payload.configuredClientId,
             client_secret: payload.configuredClientSecret,
         };
     }
 
-    return payload.clientInformation as OAuthClientInformationMixed | undefined;
+    return {
+        client_id: payload.configuredClientId,
+        token_endpoint_auth_method: 'none',
+    };
 };
+
+const getOAuthClientInformation = (
+    payload: AiMcpOAuthCredentialPayload,
+): OAuthClientInformationMixed | undefined =>
+    getConfiguredClientInformation(payload) ??
+    (payload.clientInformation as OAuthClientInformationMixed | undefined);
 
 const toPersistedOAuthPayload = (
     payload: AiMcpOAuthCredentialPayload,
     credentialScope: AiMcpCredentialScope,
 ): AiMcpOAuthCredentialPayload => {
-    if (
-        credentialScope !== 'user' ||
-        !payload.configuredClientId ||
-        !payload.configuredClientSecret
-    ) {
+    if (credentialScope !== 'user' || !payload.configuredClientId) {
         return payload;
     }
 
@@ -398,13 +415,9 @@ export const normalizeMcpOAuthPayloadForRedirect = (
         return {
             ...payload,
             credentialScope,
-            clientInformation:
-                payload.configuredClientId && payload.configuredClientSecret
-                    ? {
-                          client_id: payload.configuredClientId,
-                          client_secret: payload.configuredClientSecret,
-                      }
-                    : undefined,
+            clientInformation: getConfiguredClientInformation(payload) as
+                | Record<string, unknown>
+                | undefined,
             clientMetadata: defaultClientMetadata,
             codeVerifier: undefined,
             state: undefined,
@@ -1226,8 +1239,7 @@ export class AiAgentMcpRuntimeClient {
             if (
                 !sharedCredential ||
                 sharedPayload?.type !== 'oauth' ||
-                !sharedPayload.configuredClientId ||
-                !sharedPayload.configuredClientSecret
+                !sharedPayload.configuredClientId
             ) {
                 return credential;
             }

@@ -1428,18 +1428,21 @@ export class AiAgentModel {
                     return null;
                 }
 
-                if (!credentials.clientId || !credentials.clientSecret) {
+                if (!credentials.clientId) {
                     throw new ParameterError(
-                        'OAuth client ID and secret must be provided together',
+                        'OAuth client secret requires a client ID',
                     );
                 }
 
+                // No secret means a public client that authenticates with
+                // PKCE only; the SDK selects the `none` token auth method.
                 return {
                     type: 'oauth',
                     credentialScope: 'shared',
                     connectionStatus: 'not_connected',
                     configuredClientId: credentials.clientId,
-                    configuredClientSecret: credentials.clientSecret,
+                    configuredClientSecret:
+                        credentials.clientSecret || undefined,
                 };
             default:
                 return assertUnreachable(

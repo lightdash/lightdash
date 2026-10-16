@@ -6370,13 +6370,11 @@ export class AiAgentService extends BaseService {
                     );
                 }
                 if (
-                    (body.credentials?.clientId?.trim() &&
-                        !body.credentials?.clientSecret?.trim()) ||
-                    (!body.credentials?.clientId?.trim() &&
-                        body.credentials?.clientSecret?.trim())
+                    !body.credentials?.clientId?.trim() &&
+                    body.credentials?.clientSecret?.trim()
                 ) {
                     throw new ParameterError(
-                        'OAuth client ID and secret must be provided together',
+                        'OAuth client secret requires a client ID',
                     );
                 }
                 if (
