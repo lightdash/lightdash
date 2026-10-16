@@ -1,3 +1,11 @@
+## [2.592.2](https://github.com/lightdash/lightdash/compare/2.592.1...2.592.2) (2026-10-16)
+
+
+### Bug Fixes
+
+* compile models whose tables the warehouse credentials cannot read ([#31064](https://github.com/lightdash/lightdash/issues/31064)) ([19b8ba7](https://github.com/lightdash/lightdash/commit/19b8ba732e1853bf0aa3670f969479c98e779544)), closes [#31020](https://github.com/lightdash/lightdash/issues/31020)
+* **frontend:** keep a modal form's submit from reaching the page form ([#31069](https://github.com/lightdash/lightdash/issues/31069)) ([438654c](https://github.com/lightdash/lightdash/commit/438654c2ae71ebbf9a22fbc843b80a97f65a94b1)), closes [#31066](https://github.com/lightdash/lightdash/issues/31066)
+
 ## [2.592.1](https://github.com/lightdash/lightdash/compare/2.592.0...2.592.1) (2026-10-16)
 
 
