@@ -650,4 +650,29 @@ describe('McpSchemaCompatLayer', () => {
             ).not.toThrow();
         });
     });
+
+    describe('required numbers', () => {
+        const schema = z.object({
+            count: z.number().int().min(1).describe('How many'),
+            version: z.coerce.number(),
+            limit: z.number().optional(),
+        });
+        const mapped = mapZodSchema(schema);
+
+        test('stay required in the published JSON Schema', () => {
+            expect(toJsonSchema(mapped, { io: 'input' })).toMatchObject({
+                required: ['count', 'version'],
+                properties: { count: { description: 'How many' } },
+            });
+        });
+
+        test('still coerce numeric strings and keep their checks', () => {
+            expect(mapped.parse({ count: '2', version: '1' })).toEqual({
+                count: 2,
+                version: 1,
+            });
+            expect(() => mapped.parse({ count: '0', version: 1 })).toThrow();
+            expect(() => mapped.parse({ count: 2 })).toThrow();
+        });
+    });
 });
