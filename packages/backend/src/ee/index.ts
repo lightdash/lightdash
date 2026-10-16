@@ -1188,6 +1188,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     groupsModel: models.getGroupsModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     rolesModel: models.getRolesModel(),
+                    organizationSettingsModel:
+                        models.getOrganizationSettingsModel(),
                     onOrganizationCreated: ({ user, organizationUuid }) =>
                         provisionOnboardingOrgFlags({
                             user,

@@ -83,14 +83,6 @@ export const useSettingsContext = (): SettingsContext => {
         FeatureFlags.EnableDataAppAnalysis,
     );
     const { data: dataAppAnalysisFlag } = dataAppAnalysisFlagQuery;
-    // Data apps > General holds a single setting (automatic thumbnails), so its
-    // sidebar entry follows that flag. Drop this once another setting lands
-    // there; the route itself is not gated.
-    const dataAppAutomaticThumbnailsFlagQuery = useServerFeatureFlag(
-        FeatureFlags.EnableDataAppAutomaticThumbnails,
-    );
-    const isDataAppGeneralSettingsEnabled =
-        dataAppAutomaticThumbnailsFlagQuery.data?.enabled ?? false;
 
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
@@ -259,7 +251,6 @@ export const useSettingsContext = (): SettingsContext => {
             aiOrganizationSettingsQuery.isInitialLoading,
         dataAppsFlag,
         dataAppAnalysisFlag,
-        isDataAppGeneralSettingsEnabled,
         isDataAppsFlagLoading:
             dataAppsFlagQuery.isInitialLoading ||
             dataAppAnalysisFlagQuery.isInitialLoading,

@@ -26,6 +26,7 @@ import {
     parseDeliveryCaptureManifest,
     QueryHistoryStatus,
     RequestMethod,
+    resolveEffectiveOrganizationSettings,
     resolveExportTabs,
     SCREENSHOT_FAILED_STATUS,
     SCREENSHOT_SELECTORS,
@@ -74,6 +75,7 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DocumentModel } from '../../models/DocumentModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { HeadlessBrowserLoginGrantModel } from '../../models/HeadlessBrowserLoginGrantModel';
+import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -86,6 +88,7 @@ import { validatePublicHttpUrl } from '../../utils/ssrfProtection';
 import { type AgentDeliveryGuard } from '../AgentPermissionService/agentWorkAuthority';
 import { BaseService } from '../BaseService';
 import type { DocumentService } from '../DocumentService/DocumentService';
+import { getOrganizationSettingsInstanceDefaults } from '../OrganizationSettingsService/getInstanceDefaults';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { countPdfPages } from './countPdfPages';
 import { obscureFramesText, obscureThumbnailImage } from './obscureThumbnail';
@@ -412,6 +415,7 @@ type UnfurlServiceArguments = {
     documentModel: DocumentModel;
     documentService: DocumentService;
     userModel: UserModel;
+    organizationSettingsModel: Pick<OrganizationSettingsModel, 'get'>;
 };
 
 export class UnfurlService extends BaseService {
@@ -451,6 +455,8 @@ export class UnfurlService extends BaseService {
 
     userModel: UserModel;
 
+    organizationSettingsModel: Pick<OrganizationSettingsModel, 'get'>;
+
     private readonly screenshotTimeoutMs: number;
 
     constructor({
@@ -472,6 +478,7 @@ export class UnfurlService extends BaseService {
         documentModel,
         documentService,
         userModel,
+        organizationSettingsModel,
     }: UnfurlServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -492,8 +499,24 @@ export class UnfurlService extends BaseService {
         this.documentModel = documentModel;
         this.documentService = documentService;
         this.userModel = userModel;
+        this.organizationSettingsModel = organizationSettingsModel;
         this.screenshotTimeoutMs =
             lightdashConfig.headlessBrowser.screenshotTimeoutMs;
+    }
+
+    /**
+     * The org's effective "allow screenshots and attachments in data app
+     * builds" switch. A data app renders live data, so its Slack preview
+     * image follows it.
+     */
+    private async areDataAppCapturesEnabled(
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const settings = resolveEffectiveOrganizationSettings(
+            await this.organizationSettingsModel.get(organizationUuid),
+            getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
+        );
+        return settings.dataAppCapturesEnabled !== false;
     }
 
     async getPreviewSignedUrl(previewId: string): Promise<string> {
@@ -3661,6 +3684,20 @@ export class UnfurlService extends BaseService {
                         !this.lightdashConfig.slack
                             ?.linkShareImagePreviewEnabled
                     ) {
+                        return;
+                    }
+
+                    // A data app renders live data, so its preview image
+                    // follows the org's captures switch: text unfurl only.
+                    if (
+                        details.pageType === LightdashPage.APP &&
+                        !(await this.areDataAppCapturesEnabled(
+                            details.organizationUuid,
+                        ))
+                    ) {
+                        Logger.info(
+                            `Slack unfurl of ${details.minimalUrl}: image skipped, data app captures are off for the organization`,
+                        );
                         return;
                     }
 

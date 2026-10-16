@@ -1214,6 +1214,8 @@ export const AttachButton: FC<{
     onAddFiles: () => void;
     disabled: boolean;
     filesDisabled: boolean;
+    /** Hides the Files item entirely (the org turned captures off). */
+    filesHidden?: boolean;
     linkedAppUuid?: string;
     iconOnly?: boolean;
 }> = ({
@@ -1229,6 +1231,7 @@ export const AttachButton: FC<{
     onAddFiles,
     disabled,
     filesDisabled,
+    filesHidden = false,
     linkedAppUuid,
     iconOnly = false,
 }) => {
@@ -1365,25 +1368,27 @@ export const AttachButton: FC<{
                                 </Text>
                             </Box>
                         </UnstyledButton>
-                        <UnstyledButton
-                            className={classes.attachMenuItem}
-                            onClick={handleFilesClick}
-                            disabled={filesDisabled}
-                            ff="inherit"
-                            data-disabled={filesDisabled || undefined}
-                        >
-                            <MantineIcon icon={IconPhoto} />
-                            <Box flex={1}>
-                                <Text size="sm" fw={500}>
-                                    Files
-                                </Text>
-                                <Text size="xs" c="dimmed">
-                                    {filesDisabled
-                                        ? 'Attachment limit reached'
-                                        : 'Upload images, PDFs, or text files'}
-                                </Text>
-                            </Box>
-                        </UnstyledButton>
+                        {!filesHidden && (
+                            <UnstyledButton
+                                className={classes.attachMenuItem}
+                                onClick={handleFilesClick}
+                                disabled={filesDisabled}
+                                ff="inherit"
+                                data-disabled={filesDisabled || undefined}
+                            >
+                                <MantineIcon icon={IconPhoto} />
+                                <Box flex={1}>
+                                    <Text size="sm" fw={500}>
+                                        Files
+                                    </Text>
+                                    <Text size="xs" c="dimmed">
+                                        {filesDisabled
+                                            ? 'Attachment limit reached'
+                                            : 'Upload images, PDFs, or text files'}
+                                    </Text>
+                                </Box>
+                            </UnstyledButton>
+                        )}
                         <UnstyledButton
                             className={classes.attachMenuItem}
                             onClick={() => setView('connections')}

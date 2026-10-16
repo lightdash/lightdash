@@ -1730,6 +1730,43 @@ export class AppGenerateService extends BaseService {
         }
     }
 
+    /**
+     * The org's effective "allow screenshots and attachments in data app
+     * builds" switch (org setting capped by `LIGHTDASH_APP_CAPTURES_ENABLED`).
+     * Gates every path that captures an image of a running app or hands a
+     * user file to the coding agent.
+     */
+    async areDataAppCapturesEnabled(
+        organizationUuid: string,
+    ): Promise<boolean> {
+        return this.appThumbnailClient.areCapturesEnabled(organizationUuid);
+    }
+
+    private async assertDataAppCapturesEnabled(
+        organizationUuid: string,
+    ): Promise<void> {
+        if (!(await this.areDataAppCapturesEnabled(organizationUuid))) {
+            throw new ForbiddenError(
+                'Screenshots and file attachments are disabled for this organization',
+            );
+        }
+    }
+
+    /**
+     * Attachment ids a build may use. While captures are off, files staged
+     * earlier (or by a client that skipped the UI) are dropped rather than
+     * handed to the agent, so flipping the switch takes effect immediately.
+     */
+    private async permittedFileIds(
+        organizationUuid: string,
+        fileIds: string[] | undefined,
+    ): Promise<string[]> {
+        if (!fileIds || fileIds.length === 0) return [];
+        return (await this.areDataAppCapturesEnabled(organizationUuid))
+            ? fileIds
+            : [];
+    }
+
     async dataAppsEnabledFor(user: SessionUser): Promise<boolean> {
         const { enabled } = await this.featureFlagModel.get({
             user,
@@ -2361,20 +2398,25 @@ export class AppGenerateService extends BaseService {
         // row doesn't exist yet, so we authorize against `create:DataApp`
         // (anyone who can create an app can stage a file for it).
         const app = await this.appModel.findApp(appUuid, projectUuid);
+        let organizationUuid: string;
         if (app) {
             await this.assertCanManageApp(
                 user,
                 app,
                 'Insufficient permissions to upload app files',
             );
+            organizationUuid = app.organization_uuid;
         } else {
-            await this.assertDataAppAbility(
+            ({ organizationUuid } = await this.assertDataAppAbility(
                 user,
                 'create',
                 projectUuid,
                 'Insufficient permissions to upload app files',
-            );
+            ));
         }
+        // After authorization, so a caller without access gets the
+        // permissions error rather than learning the org's setting.
+        await this.assertDataAppCapturesEnabled(organizationUuid);
 
         const maxSize = 10 * 1024 * 1024; // 10 MB
         if (contentLength > maxSize) {
@@ -2487,6 +2529,12 @@ export class AppGenerateService extends BaseService {
             app,
             'Insufficient permissions to view app images',
         );
+        // Attached screenshots and images are captures too: kept, but not
+        // served while the org's switch is off.
+        await this.assertCapturesVisible(
+            app.organization_uuid,
+            `Image not found: ${imageId}`,
+        );
 
         const belongsToApp = await this.appModel.appImageExists(
             appUuid,
@@ -2509,11 +2557,12 @@ export class AppGenerateService extends BaseService {
 
     // Viewing a thumbnail is a read: anyone who can view the app can see it,
     // not just those who can manage it.
+    /** Returns the app row so callers can scope further checks to its org. */
     private async assertCanViewAppThumbnail(
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
-    ): Promise<void> {
+    ) {
         const app = await this.appModel.getApp(appUuid, projectUuid);
         if (app.template === DATA_APP_VIZ_TEMPLATE) {
             await assertChartTypesEnabled(this.featureFlagModel, user);
@@ -2521,17 +2570,19 @@ export class AppGenerateService extends BaseService {
                 organizationUuid: app.organization_uuid,
                 projectUuid,
             });
-            return;
+            return app;
         }
         await this.assertDataAppsEnabled(user);
         await this.assertCanViewApp(user, app);
+        return app;
     }
 
+    /** Returns the app row so callers can scope further checks to its org. */
     private async assertCanManageAppThumbnail(
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
-    ): Promise<void> {
+    ) {
         await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertCanManageApp(
@@ -2539,6 +2590,7 @@ export class AppGenerateService extends BaseService {
             app,
             'Insufficient permissions to update app thumbnail',
         );
+        return app;
     }
 
     /** Saves a manual thumbnail; `version: null` targets the latest ready version. */
@@ -2551,7 +2603,12 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         version: number | null,
     ): Promise<void> {
-        await this.assertCanManageAppThumbnail(user, projectUuid, appUuid);
+        const app = await this.assertCanManageAppThumbnail(
+            user,
+            projectUuid,
+            appUuid,
+        );
+        await this.assertDataAppCapturesEnabled(app.organization_uuid);
 
         if (mimeType !== 'image/png') {
             throw new ParameterError('App thumbnails must be PNG images');
@@ -2595,7 +2652,12 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
     ): Promise<{ thumbnailUrl: string }> {
-        await this.assertCanViewAppThumbnail(user, projectUuid, appUuid);
+        const app = await this.assertCanViewAppThumbnail(
+            user,
+            projectUuid,
+            appUuid,
+        );
+        await this.assertThumbnailsVisible(app.organization_uuid);
         const thumbnailUrl = await this.appThumbnailClient.getAppThumbnailUrl({
             projectUuid,
             appUuid,
@@ -2606,13 +2668,42 @@ export class AppGenerateService extends BaseService {
         return { thumbnailUrl };
     }
 
+    /**
+     * Stored thumbnails and attached images are kept but not served while the
+     * org's captures switch is off, so "off" means no image of the data is
+     * visible anywhere. Reads as "not found", which the hover cards and chat
+     * image chips already handle.
+     */
+    private async assertCapturesVisible(
+        organizationUuid: string,
+        message: string,
+    ): Promise<void> {
+        if (!(await this.areDataAppCapturesEnabled(organizationUuid))) {
+            throw new NotFoundError(message);
+        }
+    }
+
+    private async assertThumbnailsVisible(
+        organizationUuid: string,
+    ): Promise<void> {
+        await this.assertCapturesVisible(
+            organizationUuid,
+            'App thumbnail not found',
+        );
+    }
+
     async getVersionThumbnailUrl(
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
         version: number,
     ): Promise<{ thumbnailUrl: string }> {
-        await this.assertCanViewAppThumbnail(user, projectUuid, appUuid);
+        const app = await this.assertCanViewAppThumbnail(
+            user,
+            projectUuid,
+            appUuid,
+        );
+        await this.assertThumbnailsVisible(app.organization_uuid);
         const thumbnailUrl =
             await this.appThumbnailClient.getVersionThumbnailUrl({
                 projectUuid,
@@ -5622,7 +5713,10 @@ export class AppGenerateService extends BaseService {
         const { appUuid, version, projectUuid, isIteration, chartReferences } =
             payload;
         // Jobs enqueued before the fileIds rename still carry imageIds.
-        const fileIds = payload.fileIds ?? payload.imageIds;
+        const fileIds = await this.permittedFileIds(
+            payload.organizationUuid,
+            payload.fileIds ?? payload.imageIds,
+        );
 
         // Check if version was cancelled while we were dead
         const currentStatus = await this.appModel.getVersionStatus(
@@ -7160,7 +7254,9 @@ export class AppGenerateService extends BaseService {
                 projectUuid,
             ),
         ]);
-        const fileCount = fileIds?.length ?? 0;
+        const fileCount = (
+            await this.permittedFileIds(organizationUuid, fileIds)
+        ).length;
 
         // No `.max()` on the array — Anthropic's structured-output mode
         // rejects `maxItems` in the schema. The prompt already pins the
@@ -7486,6 +7582,10 @@ export class AppGenerateService extends BaseService {
         }
 
         AppGenerateService.validateFileIds(fileIds);
+        const permittedFileIds = await this.permittedFileIds(
+            organizationUuid,
+            fileIds,
+        );
 
         const appUuid = preGeneratedAppUuid ?? uuidv4();
         const version = 1;
@@ -7494,13 +7594,13 @@ export class AppGenerateService extends BaseService {
         // Resolve attachment types/filenames from the staged S3 objects so the
         // version resources can split image chips from file chips in the chat.
         let stagedFiles: StagedAppFile[] = [];
-        if (fileIds.length > 0) {
+        if (permittedFileIds.length > 0) {
             const { client: s3Client, bucket } = this.getS3Client();
             stagedFiles = await AppGenerateService.resolveStagedFiles(
                 s3Client,
                 bucket,
                 appUuid,
-                fileIds,
+                permittedFileIds,
             );
         }
 
@@ -7681,7 +7781,7 @@ export class AppGenerateService extends BaseService {
             prompt: pipelinePrompt,
             ...(creationExperience ? { creationExperience } : {}),
             template,
-            fileIds: fileIds.length > 0 ? fileIds : undefined,
+            fileIds: permittedFileIds.length > 0 ? permittedFileIds : undefined,
             isIteration: false,
             claudeEffort,
             chartReferences:
@@ -7743,17 +7843,21 @@ export class AppGenerateService extends BaseService {
         });
         AppGenerateService.assertNotRegistryManaged(app, 'edited');
         await this.assertDataAppCreditsAvailable(user);
+        const permittedFileIds = await this.permittedFileIds(
+            organizationUuid,
+            fileIds,
+        );
 
         // Resolve attachment types/filenames from the staged S3 objects so the
         // version resources can split image chips from file chips in the chat.
         let stagedFiles: StagedAppFile[] = [];
-        if (fileIds.length > 0) {
+        if (permittedFileIds.length > 0) {
             const { client: s3Client, bucket } = this.getS3Client();
             stagedFiles = await AppGenerateService.resolveStagedFiles(
                 s3Client,
                 bucket,
                 appUuid,
-                fileIds,
+                permittedFileIds,
             );
         }
 
@@ -7963,7 +8067,7 @@ export class AppGenerateService extends BaseService {
             userUuid: user.userUuid,
             prompt: pipelinePrompt,
             ...(creationExperience ? { creationExperience } : {}),
-            fileIds: fileIds.length > 0 ? fileIds : undefined,
+            fileIds: permittedFileIds.length > 0 ? permittedFileIds : undefined,
             isIteration: true,
             claudeEffort,
             chartReferences:

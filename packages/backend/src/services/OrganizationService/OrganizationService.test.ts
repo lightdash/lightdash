@@ -99,6 +99,8 @@ describe('organization service', () => {
             groupsModel: {} as GroupsModel,
             featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
             rolesModel: rolesModel as unknown as RolesModel,
+            // Nothing stored: every setting inherits the instance default.
+            organizationSettingsModel: { get: async () => ({}) } as never,
             onOrganizationCreated,
         });
     const organizationService = buildOrganizationService();
@@ -298,6 +300,7 @@ describe('organization service', () => {
         expect(await organizationService.get(account)).toEqual({
             ...organization,
             needsProject: false,
+            dataAppCapturesEnabled: true,
             // Default account is a developer (not an org admin), so the pgwire
             // connection details are withheld — only `enabled` is exposed.
             pgWire: {
@@ -316,6 +319,7 @@ describe('organization service', () => {
         expect(await organizationService.get(account)).toEqual({
             ...organization,
             needsProject: true,
+            dataAppCapturesEnabled: true,
             pgWire: {
                 enabled: false,
                 tlsRequired: true,

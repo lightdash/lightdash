@@ -42,7 +42,13 @@ export const useUpdateOrganizationSettings = () => {
     >(updateOrganizationSettings, {
         mutationKey: ['organization_settings', 'update'],
         onSuccess: async () => {
-            await queryClient.invalidateQueries(QUERY_KEY);
+            await Promise.all([
+                queryClient.invalidateQueries(QUERY_KEY),
+                // GET /org carries the resolved data app captures switch for
+                // every member; refresh it so open builders hide their
+                // capture affordances without a reload.
+                queryClient.invalidateQueries(['organization']),
+            ]);
             showToastSuccess({ title: 'Organization settings saved' });
         },
         onError: ({ error }) => {

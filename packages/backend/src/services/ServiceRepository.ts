@@ -801,6 +801,8 @@ export class ServiceRepository
                     groupsModel: this.models.getGroupsModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     rolesModel: this.models.getRolesModel(),
+                    organizationSettingsModel:
+                        this.models.getOrganizationSettingsModel(),
                 }),
         );
     }
@@ -1647,6 +1649,8 @@ export class ServiceRepository
                     documentModel: this.models.getDocumentModel(),
                     documentService: this.getDocumentService(),
                     userModel: this.models.getUserModel(),
+                    organizationSettingsModel:
+                        this.models.getOrganizationSettingsModel(),
                 }),
         );
     }

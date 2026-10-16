@@ -884,7 +884,7 @@ type AiAgentServiceDependencies = {
     >;
     appGenerateService: Pick<
         AppGenerateService,
-        'canViewApp' | 'restoreVersion'
+        'canViewApp' | 'restoreVersion' | 'areDataAppCapturesEnabled'
     >;
     aiAgentMemoryModel: AiAgentMemoryModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
@@ -1201,7 +1201,7 @@ export class AiAgentService extends BaseService {
 
     private readonly appGenerateService: Pick<
         AppGenerateService,
-        'canViewApp' | 'restoreVersion'
+        'canViewApp' | 'restoreVersion' | 'areDataAppCapturesEnabled'
     >;
 
     private readonly inFlightStreamPrompts = new Map<
@@ -12893,6 +12893,15 @@ Use your existing tools to inspect them when relevant to the user's question (re
         deliveryGuard: AgentDeliveryGuard,
     ): Promise<KnownBlock | undefined> {
         const capture = async (): Promise<KnownBlock | undefined> => {
+            // The org's captures switch covers this image too: the outcome
+            // then posts text and a link only.
+            if (
+                !(await this.appGenerateService.areDataAppCapturesEnabled(
+                    prompt.organizationUuid,
+                ))
+            ) {
+                return undefined;
+            }
             const { imageBuffer, imageUrl } =
                 await this.unfurlService.exportDataApp({
                     projectUuid: prompt.projectUuid,

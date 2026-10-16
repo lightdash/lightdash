@@ -8,7 +8,10 @@ import { DataAppGeneralSettingsPage } from './DataAppGeneralSettingsPage';
 
 type SettingsQuery = {
     data:
-        | Pick<OrganizationSettings, 'dataAppAutomaticThumbnailsEnabled'>
+        | Pick<
+              OrganizationSettings,
+              'dataAppAutomaticThumbnailsEnabled' | 'dataAppCapturesEnabled'
+          >
         | undefined;
     isInitialLoading: boolean;
     isError: boolean;
@@ -16,6 +19,7 @@ type SettingsQuery = {
 };
 
 const LABEL = 'Automatically capture thumbnails for data app versions';
+const CAPTURES_LABEL = 'Allow screenshots and attachments in data app builds';
 
 const {
     automaticThumbnailsFlag,
@@ -27,7 +31,10 @@ const {
 } = vi.hoisted(() => {
     const settingsQuery: { current: SettingsQuery } = {
         current: {
-            data: { dataAppAutomaticThumbnailsEnabled: true },
+            data: {
+                dataAppAutomaticThumbnailsEnabled: true,
+                dataAppCapturesEnabled: true,
+            },
             isInitialLoading: false,
             isError: false,
             error: undefined,
@@ -36,7 +43,7 @@ const {
 
     return {
         automaticThumbnailsFlag: { enabled: true },
-        health: { hasHeadlessBrowser: true },
+        health: { hasHeadlessBrowser: true, capturesEnabledOnInstance: true },
         mutationState: { isLoading: false },
         refetchSettings: vi.fn(),
         settingsQuery,
@@ -64,7 +71,10 @@ vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
 
 vi.mock('../../../hooks/health/useHealth', () => ({
     default: () => ({
-        data: { hasHeadlessBrowser: health.hasHeadlessBrowser },
+        data: {
+            hasHeadlessBrowser: health.hasHeadlessBrowser,
+            dataApps: { capturesEnabled: health.capturesEnabledOnInstance },
+        },
         isInitialLoading: false,
     }),
 }));
@@ -79,12 +89,16 @@ const renderPage = () =>
 describe('DataAppGeneralSettingsPage', () => {
     beforeEach(() => {
         settingsQuery.current = {
-            data: { dataAppAutomaticThumbnailsEnabled: true },
+            data: {
+                dataAppAutomaticThumbnailsEnabled: true,
+                dataAppCapturesEnabled: true,
+            },
             isInitialLoading: false,
             isError: false,
             error: undefined,
         };
         health.hasHeadlessBrowser = true;
+        health.capturesEnabledOnInstance = true;
         automaticThumbnailsFlag.enabled = true;
         mutationState.isLoading = false;
         refetchSettings.mockReset();
@@ -141,6 +155,7 @@ describe('DataAppGeneralSettingsPage', () => {
         const user = userEvent.setup();
         settingsQuery.current.data = {
             dataAppAutomaticThumbnailsEnabled: false,
+            dataAppCapturesEnabled: true,
         };
         renderPage();
 
@@ -168,6 +183,72 @@ describe('DataAppGeneralSettingsPage', () => {
         expect(
             screen.getByText('No headless browser is configured'),
         ).toBeInTheDocument();
+    });
+
+    describe('screenshots and attachments', () => {
+        it('is on, and shown even when automatic thumbnails are not available', () => {
+            automaticThumbnailsFlag.enabled = false;
+            renderPage();
+
+            const toggle = screen.getByRole('switch', { name: CAPTURES_LABEL });
+            expect(toggle).toBeChecked();
+            expect(toggle).toBeEnabled();
+            expect(
+                screen.queryByRole('switch', { name: LABEL }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('turns captures off when unticked', async () => {
+            const user = userEvent.setup();
+            renderPage();
+
+            await user.click(
+                screen.getByRole('switch', { name: CAPTURES_LABEL }),
+            );
+
+            expect(updateSettings).toHaveBeenCalledExactlyOnceWith({
+                dataAppCapturesEnabled: false,
+            });
+        });
+
+        it('locks automatic thumbnails off while captures are off', () => {
+            settingsQuery.current.data = {
+                dataAppCapturesEnabled: false,
+                // The API resolves this to false while captures are off.
+                dataAppAutomaticThumbnailsEnabled: false,
+            };
+            renderPage();
+
+            expect(
+                screen.getByRole('switch', { name: CAPTURES_LABEL }),
+            ).not.toBeChecked();
+            const thumbnails = screen.getByRole('switch', { name: LABEL });
+            expect(thumbnails).not.toBeChecked();
+            expect(thumbnails).toBeDisabled();
+            expect(
+                screen.getByText(
+                    'Off while screenshots and attachments are not allowed.',
+                ),
+            ).toBeInTheDocument();
+        });
+
+        it('cannot be turned on when the instance env has captures off', () => {
+            health.capturesEnabledOnInstance = false;
+            settingsQuery.current.data = {
+                dataAppCapturesEnabled: false,
+                dataAppAutomaticThumbnailsEnabled: false,
+            };
+            renderPage();
+
+            const toggle = screen.getByRole('switch', { name: CAPTURES_LABEL });
+            expect(toggle).not.toBeChecked();
+            expect(toggle).toBeDisabled();
+            expect(
+                screen.getByText(
+                    'Screenshots and attachments are disabled on this instance',
+                ),
+            ).toBeInTheDocument();
+        });
     });
 
     it('shows a settings error and allows retrying', async () => {

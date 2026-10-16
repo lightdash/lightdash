@@ -891,6 +891,13 @@ export type HealthState = {
          * the frontend hides the per-chart "include sample data" opt-in.
          */
         sampleDataEnabled: boolean;
+        /**
+         * Instance-wide ceiling for data app captures (prompt-bar screenshots,
+         * file attachments, thumbnails, Slack build-outcome images). When false
+         * no org can enable them; the org-level switch is on `GET /org` and
+         * `GET /org/settings`.
+         */
+        capturesEnabled: boolean;
     };
 };
 
