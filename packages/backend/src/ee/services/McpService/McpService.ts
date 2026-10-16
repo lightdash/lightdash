@@ -158,11 +158,17 @@ import {
 import { getOAuthScopeContext } from '../../../auth/oauthScopes/scopedAbility';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
+import { type AnalyticsModel } from '../../../models/AnalyticsModel';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { McpContextModel } from '../../../models/McpContextModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import { buildCspHeader } from '../../../routers/appPreviewRouter';
+import {
+    verifyPreviewToken,
+    type PreviewTokenPayload,
+} from '../../../routers/appPreviewToken';
 import type { AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
 import {
     buildResultReader,
@@ -235,11 +241,13 @@ import {
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiRouterService } from '../AiRouterService/AiRouterService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
+import { getAppVersionIndexHtmlReader } from '../AppGenerateService/appBundleStorage';
 import {
     buildMcpCustomChartTypeIndexUrl,
     buildMcpCustomChartTypeVizContext,
     getMcpCustomChartTypeConfigErrors,
     getMcpPreviewOrigin,
+    prepareMcpCustomChartTypeHtml,
 } from './buildMcpCustomChartTypeRender';
 import {
     buildMcpExploreConfigState,
@@ -501,6 +509,7 @@ type McpServiceArguments = {
     aiAccessService: AiAccessService;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
+    analyticsModel: Pick<AnalyticsModel, 'addAppViewEvent'>;
     asyncQueryService: AsyncQueryService;
     catalogService: CatalogService;
     contentVerificationService: ContentVerificationService;
@@ -635,6 +644,8 @@ export class McpService extends BaseService {
 
     private analytics: LightdashAnalytics;
 
+    private analyticsModel: Pick<AnalyticsModel, 'addAppViewEvent'>;
+
     private asyncQueryService: AsyncQueryService;
 
     private catalogService: CatalogService;
@@ -678,6 +689,7 @@ export class McpService extends BaseService {
         aiAccessService,
         lightdashConfig,
         analytics,
+        analyticsModel,
         asyncQueryService,
         catalogService,
         contentVerificationService,
@@ -702,6 +714,7 @@ export class McpService extends BaseService {
         this.aiAccessService = aiAccessService;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
+        this.analyticsModel = analyticsModel;
         this.asyncQueryService = asyncQueryService;
         this.catalogService = catalogService;
         this.contentVerificationService = contentVerificationService;
@@ -1559,6 +1572,18 @@ export class McpService extends BaseService {
                 dataAppVizUuid: resolved.dataAppVizUuid,
                 version: resolved.dataAppVizVersion,
             });
+        const indexUrl = buildMcpCustomChartTypeIndexUrl({
+            previewOrigin,
+            dataAppVizUuid: resolved.dataAppVizUuid,
+            version: resolved.dataAppVizVersion,
+            token,
+        });
+        const html = await this.loadCustomChartTypeHtml({
+            dataAppVizUuid: resolved.dataAppVizUuid,
+            version: resolved.dataAppVizVersion,
+            token,
+            indexUrl,
+        });
 
         const content = [
             {
@@ -1566,6 +1591,10 @@ export class McpService extends BaseService {
                 text: `Custom chart type "${resolved.name}" (${slug}, version ${resolved.dataAppVizVersion}) rendered for queryUuid: ${renderTool.queryUuid}.${
                     results.rows.length === 0
                         ? ' The query returned 0 rows.'
+                        : ''
+                }${
+                    html === null
+                        ? ' The chart type could not be loaded, so the chart view shows the query rows instead.'
                         : ''
                 }${exploreUrl ? ` Explore from here: ${exploreUrl}` : ''}`,
             },
@@ -1595,12 +1624,8 @@ export class McpService extends BaseService {
                     echartsOption: null,
                     exploreUrl,
                     customChartType: {
-                        indexUrl: buildMcpCustomChartTypeIndexUrl({
-                            previewOrigin,
-                            dataAppVizUuid: resolved.dataAppVizUuid,
-                            version: resolved.dataAppVizVersion,
-                            token,
-                        }),
+                        indexUrl,
+                        html,
                         previewOrigin,
                         vizContext: buildMcpCustomChartTypeVizContext({
                             chartConfig,
@@ -1624,6 +1649,80 @@ export class McpService extends BaseService {
                 },
             },
         };
+    }
+
+    /** The bundle's index.html, ready for the chart view to run from a blob: URL. */
+    private async loadCustomChartTypeHtml({
+        dataAppVizUuid,
+        version,
+        token,
+        indexUrl,
+    }: {
+        dataAppVizUuid: string;
+        version: number;
+        token: string;
+        indexUrl: string;
+    }): Promise<string | null> {
+        const { appRuntime, lightdashSecrets } = this.lightdashConfig;
+        const verified = verifyPreviewToken(
+            token,
+            lightdashSecrets,
+            dataAppVizUuid,
+            version,
+        );
+        if (!verified.ok || !appRuntime.s3) {
+            this.logger.warn(
+                'Cannot load custom chart type bundle for MCP render',
+                { dataAppVizUuid, version, storageConfigured: !!appRuntime.s3 },
+            );
+            return null;
+        }
+        try {
+            const indexHtml = await getAppVersionIndexHtmlReader(appRuntime.s3)(
+                dataAppVizUuid,
+                version,
+            );
+            const html = prepareMcpCustomChartTypeHtml({
+                indexHtml,
+                indexUrl,
+                cspHeader: buildCspHeader(
+                    appRuntime,
+                    [],
+                    verified.payload.browserImageOrigins,
+                ),
+            });
+            if (html !== null) {
+                this.trackCustomChartTypeView(verified.payload);
+            }
+            return html;
+        } catch (error) {
+            this.logger.warn('Failed to read custom chart type bundle', {
+                dataAppVizUuid,
+                version,
+                error,
+            });
+            return null;
+        }
+    }
+
+    private trackCustomChartTypeView(payload: PreviewTokenPayload): void {
+        this.analyticsModel
+            .addAppViewEvent(payload.appUuid, payload.userUuid)
+            .catch((error) => {
+                this.logger.warn('Failed to record chart type view', {
+                    error,
+                });
+            });
+        this.analytics.track({
+            event: 'data_app.view',
+            userId: payload.userUuid,
+            properties: {
+                organizationId: payload.organizationUuid,
+                projectId: payload.projectUuid,
+                appUuid: payload.appUuid,
+                viewContext: payload.viewContext,
+            },
+        });
     }
 
     private static buildMetricQueryPollResult({

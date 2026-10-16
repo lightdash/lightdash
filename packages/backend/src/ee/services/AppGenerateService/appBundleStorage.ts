@@ -1,4 +1,5 @@
 import {
+    GetObjectCommand,
     HeadObjectCommand,
     S3ServiceException,
     type S3Client,
@@ -90,4 +91,42 @@ export const getBundleServableChecker = (
     const checker = createBundleServableChecker(s3Config);
     checkersByConfig.set(s3Config, checker);
     return checker;
+};
+
+export type AppVersionIndexHtmlReader = (
+    appUuid: string,
+    version: number,
+) => Promise<string>;
+
+const indexHtmlReadersByConfig = new WeakMap<
+    S3Config,
+    AppVersionIndexHtmlReader
+>();
+
+/** Reads a version's index.html as text. Throws when it cannot be read. */
+export const getAppVersionIndexHtmlReader = (
+    s3Config: S3Config,
+): AppVersionIndexHtmlReader => {
+    const cached = indexHtmlReadersByConfig.get(s3Config);
+    if (cached) {
+        return cached;
+    }
+    let client: S3Client | null = null;
+    const reader: AppVersionIndexHtmlReader = async (appUuid, version) => {
+        if (!client) {
+            client = createS3ClientFromConfig(s3Config);
+        }
+        const response = await client.send(
+            new GetObjectCommand({
+                Bucket: s3Config.bucket,
+                Key: appVersionIndexHtmlKey(appUuid, version),
+            }),
+        );
+        if (!response.Body) {
+            throw new Error('App bundle index.html has no body');
+        }
+        return response.Body.transformToString('utf-8');
+    };
+    indexHtmlReadersByConfig.set(s3Config, reader);
+    return reader;
 };
