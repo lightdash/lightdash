@@ -4155,7 +4155,12 @@ export class McpService extends BaseService {
                                         connectDomains: previewDomains,
                                         resourceDomains: previewDomains,
                                         baseUriDomains: previewDomains,
-                                        frameDomains: previewDomains,
+                                        // Custom chart types run in a blob: frame; hosts that build
+                                        // frame-src from this list block it otherwise.
+                                        frameDomains: [
+                                            ...previewDomains,
+                                            'blob:',
+                                        ],
                                     },
                                 },
                             },

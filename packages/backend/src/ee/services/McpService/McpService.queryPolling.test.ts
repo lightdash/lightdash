@@ -2775,7 +2775,7 @@ describe('render_chart with a custom chart type', () => {
             connectDomains: ['https://preview.lightdash.example'],
             resourceDomains: ['https://preview.lightdash.example'],
             baseUriDomains: ['https://preview.lightdash.example'],
-            frameDomains: ['https://preview.lightdash.example'],
+            frameDomains: ['https://preview.lightdash.example', 'blob:'],
         });
     });
 });
