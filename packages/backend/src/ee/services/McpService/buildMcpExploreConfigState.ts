@@ -1,35 +1,74 @@
 import {
+    ChartType,
+    deriveDataAppVizPivotConfig,
     getRunQueryChartConfig,
     type CreateSavedChartVersion,
+    type DataAppVizSchema,
     type ItemsMap,
     type MetricQuery,
     type ToolRunQueryArgsTransformed,
+    type ToolRunQueryCustomChartTypeConfig,
 } from '@lightdash/common';
 
 type McpExploreConfigState = Pick<
     CreateSavedChartVersion,
-    'tableName' | 'metricQuery' | 'tableConfig' | 'chartConfig'
+    'tableName' | 'metricQuery' | 'tableConfig' | 'chartConfig' | 'pivotConfig'
 >;
+
+export type McpExploreCustomChart = {
+    config: ToolRunQueryCustomChartTypeConfig;
+    chartType: {
+        dataAppVizUuid: string;
+        dataAppVizVersion: number;
+        fields: DataAppVizSchema['fields'];
+    };
+};
 
 export const buildMcpExploreConfigState = ({
     queryTool,
     metricQuery,
     fieldsMap,
     columnOrder,
+    customChart,
 }: {
     queryTool: ToolRunQueryArgsTransformed;
     metricQuery: MetricQuery;
     fieldsMap: ItemsMap;
     columnOrder: string[];
-}): McpExploreConfigState => ({
-    tableName: queryTool.queryConfig.exploreName,
-    metricQuery,
-    tableConfig: {
-        columnOrder,
-    },
-    chartConfig: getRunQueryChartConfig({
-        queryTool,
+    customChart: McpExploreCustomChart | null;
+}): McpExploreConfigState => {
+    const base = {
+        tableName: queryTool.queryConfig.exploreName,
         metricQuery,
-        fieldsMap,
-    }),
-});
+        tableConfig: {
+            columnOrder,
+        },
+    };
+    if (!customChart) {
+        return {
+            ...base,
+            chartConfig: getRunQueryChartConfig({
+                queryTool,
+                metricQuery,
+                fieldsMap,
+            }),
+        };
+    }
+    const { config, chartType } = customChart;
+    return {
+        ...base,
+        chartConfig: {
+            type: ChartType.DATA_APP_VIZ,
+            config: {
+                dataAppVizUuid: chartType.dataAppVizUuid,
+                dataAppVizVersion: chartType.dataAppVizVersion,
+                fieldMapping: structuredClone(config.fieldMapping),
+                optionValues: config.options ?? undefined,
+            },
+        },
+        pivotConfig: deriveDataAppVizPivotConfig(
+            chartType.fields,
+            config.fieldMapping,
+        ),
+    };
+};
