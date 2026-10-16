@@ -9,7 +9,11 @@
  * mapping) stays in the SDK's apiTransport.
  */
 
-import { createApiTransport, type FetchAdapter } from './apiTransport';
+import {
+    createApiTransport,
+    createHostExploreBaseTableResolver,
+    type FetchAdapter,
+} from './apiTransport';
 import { mountDeliveryRender } from './deliveryRender';
 import { mountHostContext } from './hostContext';
 import { announceSdkManifest } from './manifest';
@@ -387,6 +391,9 @@ export function createPostMessageTransport(
     const httpTransport = createApiTransport(
         { apiKey: '', baseUrl: '', projectUuid: config.projectUuid },
         adapter,
+        {
+            resolveExploreBaseTable: createHostExploreBaseTableResolver(adapter),
+        },
     );
     const externalFetch = createPostMessageExternalFetch({
         targetWindow: config.targetWindow,

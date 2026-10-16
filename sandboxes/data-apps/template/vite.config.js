@@ -177,6 +177,32 @@ export default defineConfig(({ mode }) => {
     // so all API traffic must pass through the allowlisted /api proxy.
     // script-src/style-src stay permissive because Vite's dev runtime needs
     // inline + eval, so this is NOT a full stand-in for the deployed sandbox.
+    // Under `lightdash apps preview`, requests go to the CLI's loopback proxy,
+    // which checks the route against the data-app SDK allowlist and attaches
+    // the credential before forwarding to Lightdash. Without the CLI (bare
+    // `npm run dev`) requests go to the instance uncredentialed and fail with
+    // 401 — preview requires the CLI command.
+    const previewProxy = {
+        target: previewProxyTarget || lightdashUrl,
+        changeOrigin: true,
+        secure: true,
+        configure: (proxy) => {
+            if (!previewProxyNonce) return;
+            proxy.on('proxyReq', (proxyReq, req) => {
+                // Do not turn Vite into an unauthenticated front door to the
+                // nonce-protected CLI proxy. The SDK presents the run-scoped
+                // nonce as its local API key; only matching requests receive
+                // the inner proxy header.
+                if (req.headers.authorization === `ApiKey ${previewProxyNonce}`) {
+                    proxyReq.setHeader(
+                        'x-lightdash-preview-nonce',
+                        previewProxyNonce,
+                    );
+                }
+            });
+        },
+    };
+
     const previewCsp = [
         `default-src 'none'`,
         `script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:`,
@@ -207,36 +233,10 @@ export default defineConfig(({ mode }) => {
             cors: false,
             headers: { 'Content-Security-Policy': previewCsp },
             proxy: {
-                '/api': {
-                    // Under `lightdash apps preview`, /api goes to the CLI's
-                    // loopback proxy, which checks the route against the
-                    // data-app SDK allowlist and attaches the credential
-                    // before forwarding to Lightdash. Without the CLI (bare
-                    // `npm run dev`) requests go to the instance uncredentialed
-                    // and fail with 401 — preview requires the CLI command.
-                    target: previewProxyTarget || lightdashUrl,
-                    changeOrigin: true,
-                    secure: true,
-                    configure: (proxy) => {
-                        if (!previewProxyNonce) return;
-                        proxy.on('proxyReq', (proxyReq, req) => {
-                            // Do not turn Vite into an unauthenticated front
-                            // door to the nonce-protected CLI proxy. The SDK
-                            // presents the run-scoped nonce as its local API
-                            // key; only matching requests receive the inner
-                            // proxy header.
-                            if (
-                                req.headers.authorization ===
-                                `ApiKey ${previewProxyNonce}`
-                            ) {
-                                proxyReq.setHeader(
-                                    'x-lightdash-preview-nonce',
-                                    previewProxyNonce,
-                                );
-                            }
-                        });
-                    },
-                },
+                '/api': previewProxy,
+                // SDK virtual routes (e.g. explore base table) are answered
+                // by the CLI proxy itself, never by the instance.
+                '/__sdk': previewProxy,
             },
         },
     };

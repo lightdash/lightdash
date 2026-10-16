@@ -341,6 +341,18 @@ export type VizPointMenuIntent = {
 /** `shown: false` means the host had no applicable action for this point. */
 export type VizPointMenuResult = { shown: boolean };
 
+/**
+ * Host-answered virtual route returning an explore's base table. Duplicated
+ * from `@lightdash/common` (`APP_SDK_EXPLORE_BASE_TABLE_PATH`) — this package
+ * must not depend on common. The bridge and the CLI preview proxy answer it;
+ * the backend has no such route.
+ */
+export const EXPLORE_BASE_TABLE_PATH = '/__sdk/explore-base-table';
+
+export type ExploreBaseTableRequest = { exploreName: string };
+
+export type ExploreBaseTableResult = { baseTable: string | null };
+
 // --- Client config ---
 
 export type LightdashClientConfig = {

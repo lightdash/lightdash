@@ -2641,3 +2641,152 @@ describe('viz underlying-data host dialog virtual route', () => {
         expect(fetch).not.toHaveBeenCalled();
     });
 });
+
+describe('explore base-table virtual route', () => {
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+        mockUseEmbed.mockReturnValue({
+            embedToken: undefined,
+            projectUuid: undefined,
+        });
+    });
+
+    const BASE_TABLE_PATH = '/__sdk/explore-base-table';
+    const EXPLORE_PATH = `/api/v1/projects/${PROJECT_UUID}/explores/orders_with_custom_dims`;
+
+    function requestBaseTable(
+        path = BASE_TABLE_PATH,
+        body: unknown = { exploreName: 'orders_with_custom_dims' },
+    ) {
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: POST_ID,
+            method: 'POST',
+            path,
+            body,
+        });
+    }
+
+    function mockExploreResponse() {
+        (fetch as Mock).mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: async () => ({
+                status: 'ok',
+                results: {
+                    name: 'orders_with_custom_dims',
+                    baseTable: 'orders',
+                    tables: { orders: { sqlTable: 'secret_schema.orders' } },
+                },
+            }),
+        } as unknown as Response);
+    }
+
+    const expectResponse = async (
+        postMessageSpy: ReturnType<typeof vi.spyOn>,
+        response: Record<string, unknown>,
+    ) =>
+        vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                {
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    ...response,
+                },
+                '*',
+            ),
+        );
+
+    it('answers locally with only the base table, though the route is not allowlisted', async () => {
+        mockExploreResponse();
+        renderBridge(() => {});
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+        requestBaseTable();
+
+        await expectResponse(postMessageSpy, {
+            result: { baseTable: 'orders' },
+        });
+        expect(fetch).toHaveBeenCalledTimes(1);
+        const [url, init] = (fetch as Mock).mock.calls[0];
+        expect(url).toBe(EXPLORE_PATH);
+        expect(init.method).toBe('GET');
+        expect(init.headers).toMatchObject({
+            [LightdashAppUuidHeader]: APP_UUID,
+        });
+        expect(init.headers).not.toHaveProperty(JWT_HEADER_NAME);
+    });
+
+    it('authenticates the explore fetch with the embed token', async () => {
+        mockUseEmbed.mockReturnValue({
+            embedToken: 'embed-jwt',
+            projectUuid: PROJECT_UUID,
+        });
+        mockExploreResponse();
+        renderBridge(() => {});
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+        requestBaseTable();
+
+        await expectResponse(postMessageSpy, {
+            result: { baseTable: 'orders' },
+        });
+        expect((fetch as Mock).mock.calls[0][1].headers).toMatchObject({
+            [JWT_HEADER_NAME]: 'embed-jwt',
+        });
+    });
+
+    it('answers null when the explore fetch fails', async () => {
+        (fetch as Mock).mockResolvedValueOnce({
+            ok: false,
+            status: 403,
+            json: async () => ({
+                status: 'error',
+                error: { message: 'Forbidden: secret detail' },
+            }),
+        } as unknown as Response);
+        renderBridge(() => {});
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+        requestBaseTable();
+
+        await expectResponse(postMessageSpy, { result: { baseTable: null } });
+    });
+
+    it('answers null when the explore fetch rejects or the body is not JSON', async () => {
+        mockFetchReject(new Error('network down'));
+        renderBridge(() => {});
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+        requestBaseTable();
+        await expectResponse(postMessageSpy, { result: { baseTable: null } });
+
+        postMessageSpy.mockClear();
+        (fetch as Mock).mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: async () => {
+                throw new SyntaxError('Unexpected token <');
+            },
+        } as unknown as Response);
+        requestBaseTable();
+        await expectResponse(postMessageSpy, { result: { baseTable: null } });
+    });
+
+    it('rejects a request without an explore name without fetching', async () => {
+        renderBridge(() => {});
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+        requestBaseTable(BASE_TABLE_PATH, { exploreName: '' });
+
+        await expectResponse(postMessageSpy, {
+            error: 'Invalid explore base-table request.',
+        });
+        expect(fetch).not.toHaveBeenCalled();
+    });
+});
