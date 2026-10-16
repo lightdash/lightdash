@@ -29,13 +29,16 @@ const buildService = ({
         projectUuid: 'project-uuid',
         organizationUuid: 'org-uuid',
         slackUserId: SLACK_USER_ID,
+        errorMessage: 'Generation failed',
     } as object | null,
     threadPromptUuids = [PROMPT_UUID],
     claimed = true,
+    enqueueError = null,
 }: {
     slackPrompt?: object | null;
     threadPromptUuids?: string[];
     claimed?: boolean;
+    enqueueError?: Error | null;
 } = {}) => {
     const aiAgentModel = {
         findSlackPrompt: vi.fn().mockResolvedValue(slackPrompt ?? undefined),
@@ -46,9 +49,12 @@ const buildService = ({
             ),
         resetFailedPromptForRetry: vi.fn().mockResolvedValue(claimed),
         deleteAiPromptInterrupt: vi.fn().mockResolvedValue(undefined),
+        updateModelResponse: vi.fn().mockResolvedValue(true),
     };
     const schedulerClient = {
-        slackAiPrompt: vi.fn().mockResolvedValue(undefined),
+        slackAiPrompt: enqueueError
+            ? vi.fn().mockRejectedValue(enqueueError)
+            : vi.fn().mockResolvedValue(undefined),
     };
     const service = new AiAgentService({
         aiAgentModel,
@@ -156,5 +162,21 @@ describe('AiAgentService.handleSlackPromptRetryButton', () => {
 
         expect(schedulerClient.slackAiPrompt).not.toHaveBeenCalled();
         expect(respond).toHaveBeenCalled();
+    });
+
+    it('restores the failed state when the retry cannot be enqueued', async () => {
+        const { handler, aiAgentModel } = buildService({
+            enqueueError: new Error('queue unavailable'),
+        });
+
+        const { respond } = await click(handler);
+
+        expect(aiAgentModel.updateModelResponse).toHaveBeenCalledWith(
+            { promptUuid: PROMPT_UUID, errorMessage: 'Generation failed' },
+            { onlyIfPending: true },
+        );
+        expect(respond).toHaveBeenCalledWith(
+            expect.objectContaining({ response_type: 'ephemeral' }),
+        );
     });
 });
