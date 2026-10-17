@@ -16,6 +16,7 @@ import { type LightdashConfig } from '../../config/parseConfig';
 import { type OrganizationAgentIdentityRulesModel } from '../../models/OrganizationAgentIdentityRulesModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
 import { type OrganizationSnowflakeAgentClientModel } from '../../models/OrganizationSnowflakeAgentClientModel';
+import { createLegacyWarehouseCredentialReader } from '../../models/WarehouseCredentialReader/createLegacyWarehouseCredentialReader';
 import { AiAccessService } from '../../services/AiAccessService/AiAccessService';
 import { type ServiceRepository } from '../../services/ServiceRepository';
 import { OrganizationAgentIdentityController } from './OrganizationAgentIdentityController';
@@ -77,6 +78,9 @@ const setup = () => {
         } as unknown as OrganizationSnowflakeAgentClientModel,
         analytics: analyticsMock,
         aiServiceAccountCredentialsModel: slots,
+        warehouseCredentialReader: createLegacyWarehouseCredentialReader({
+            aiServiceAccountCredentialsModel: slots as never,
+        }),
         featureFlagModel: flags,
         lightdashConfig: {
             ...lightdashConfigMock,
