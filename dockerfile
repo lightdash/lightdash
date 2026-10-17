@@ -95,7 +95,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-databricks~=1.6.0" \
     "dbt-trino==1.6.0" \
     "dbt-clickhouse~=1.6.0" \
-    "psycopg2-binary==2.9.6"\
+    "psycopg2-binary==2.9.6" \
+    "dbt-loom==0.9.6" \
     && ln -s /usr/local/dbt1.6/bin/dbt /usr/local/bin/dbt1.6 \
     && python3 -m venv /usr/local/dbt1.7 \
     && /usr/local/dbt1.7/bin/pip install \
@@ -107,6 +108,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-trino==1.7.0" \
     "dbt-clickhouse~=1.7.0" \
     "psycopg2-binary==2.9.6" \
+    "dbt-loom==0.9.6" \
     && ln -s /usr/local/dbt1.7/bin/dbt /usr/local/bin/dbt1.7 \
     && python3 -m venv /usr/local/dbt1.8 \
     && /usr/local/dbt1.8/bin/pip install \
@@ -120,6 +122,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-trino~=1.8.0" \
     "dbt-clickhouse~=1.8.0" \
     "dbt-duckdb~=1.8.0" \
+    "dbt-loom==0.9.6" \
     && ln -s /usr/local/dbt1.8/bin/dbt /usr/local/bin/dbt1.8 \
     && python3 -m venv /usr/local/dbt1.9 \
     && /usr/local/dbt1.9/bin/pip install \
@@ -133,6 +136,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.9.0" \
     "dbt-duckdb~=1.9.0" \
+    "dbt-loom==0.9.6" \
     && ln -s /usr/local/dbt1.9/bin/dbt /usr/local/bin/dbt1.9 \
     && python3 -m venv /usr/local/dbt1.10 \
     && /usr/local/dbt1.10/bin/pip install \
@@ -146,6 +150,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.10.0" \
     "dbt-duckdb~=1.10.0" \
+    "dbt-loom==0.9.6" \
     && ln -s /usr/local/dbt1.10/bin/dbt /usr/local/bin/dbt1.10 \
     && python3 -m venv /usr/local/dbt1.11 \
     && /usr/local/dbt1.11/bin/pip install \
@@ -159,6 +164,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.10.0" \
     "dbt-duckdb~=1.10.0" \
+    "dbt-loom==0.9.6" \
     && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11 \
     && python3 -m venv /usr/local/dbt1.12 \
 # dbt-databricks 1.12 requires dbt-core below 1.12.1.
@@ -173,6 +179,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.10.0" \
     "dbt-duckdb~=1.10.0" \
+    "dbt-loom==0.9.6" \
     && ln -s /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12
 
 # -----------------------------

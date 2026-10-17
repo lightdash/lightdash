@@ -13489,6 +13489,7 @@ type ResolveCompileAdapterArgs = {
         dbtVersionOption: DbtVersionOptionLatest;
         dbtPartialParse: boolean;
         dbtTargetPolicy: { explicitCredentials: boolean };
+        dbtLoomEnabled: boolean;
     };
     manifestFetchAdapters: ProjectAdapter[];
 };
@@ -13571,6 +13572,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         dbtVersionOption: DbtVersionOptionLatest.LATEST,
         dbtPartialParse: false,
         dbtTargetPolicy: { explicitCredentials: false },
+        dbtLoomEnabled: false,
     };
     const baseArgs: ResolveCompileAdapterArgs = {
         projectUuid: 'project-uuid',
@@ -13671,6 +13673,8 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                         name: `country_codes_${seedPackageName}`,
                         package_name: seedPackageName,
                         resource_type: 'seed',
+                        path: `seeds/country_codes_${seedPackageName}.csv`,
+                        original_file_path: `seeds/country_codes_${seedPackageName}.csv`,
                         compiled: true,
                         database: 'analytics',
                         schema: 'public',
@@ -14504,10 +14508,14 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             }),
             null,
             primary.dbtTargetPolicy,
+            primary.dbtLoomEnabled,
         );
         expect(buildSourceAdapter.mock.calls[1][2]).toBe('org-uuid');
         expect(buildSourceAdapter.mock.calls[1][5]).toBe(
             primary.dbtTargetPolicy,
+        );
+        expect(buildSourceAdapter.mock.calls[1][6]).toBe(
+            primary.dbtLoomEnabled,
         );
     });
 
@@ -14524,6 +14532,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             primary,
             null,
             primary.dbtTargetPolicy,
+            primary.dbtLoomEnabled,
         );
 
         expect(warehouseClientFromCredentials).toHaveBeenCalledWith(
@@ -14594,6 +14603,8 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             name: 'countries',
             package_name: 'pkg_a',
             resource_type: 'seed',
+            path: 'seeds/countries.csv',
+            original_file_path: 'seeds/countries.csv',
             database: 'analytics',
             schema: 'public',
             config: { materialized: 'seed' },
@@ -20217,6 +20228,7 @@ describe('compile adapter connection credentials', () => {
                         dbtVersionOption: DbtVersionOptionLatest.LATEST,
                         dbtPartialParse: false,
                         dbtTargetPolicy: { explicitCredentials: false },
+                        dbtLoomEnabled: false,
                     },
                 });
                 expect(derive).toHaveBeenCalledWith(ducklakeCredentials);

@@ -12,6 +12,7 @@ export const cliArgs = {
     environment: {},
     environmentVariableAllowlist: [],
     explicitCredentials: false,
+    dbtLoomEnabled: false,
     profileName: 'profileName',
     target: 'target',
     partialParseBaselinePath: null,

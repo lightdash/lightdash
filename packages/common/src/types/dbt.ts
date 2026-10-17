@@ -945,13 +945,18 @@ export type DbtExposure = {
     tags?: string[];
 };
 
+export const isExternalDbtNode = (
+    node: Pick<DbtRawModelNode, 'path' | 'original_file_path'>,
+): boolean => !node.path && !node.original_file_path;
+
 export const getModelsFromManifest = (
     manifest: DbtManifest,
 ): DbtModelNode[] => {
     const models = Object.values(manifest.nodes).filter(
         (node) =>
             ['model', 'seed'].includes(node.resource_type) &&
-            node.config?.materialized !== 'ephemeral',
+            node.config?.materialized !== 'ephemeral' &&
+            !isExternalDbtNode(node as DbtRawModelNode),
     ) as DbtRawModelNode[];
 
     if (!isSupportedDbtAdapter(manifest.metadata)) {

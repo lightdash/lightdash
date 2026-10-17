@@ -17,6 +17,10 @@ describe('validateDbtSelector', () => {
             '@my_model', // select my_model, its descendants, and the ancestors of its descendants
             'events +customers tag:lightdash', // Complex selector with multiple parts
             'model/name', // forward slash
+            'package:analytics,tag:lightdash',
+            '+dim_calendar,package:shared_dimensions',
+            '@a @b',
+            'shared_dimensions.dim_calendar',
         ];
 
         validSelectors.forEach((selector) => {
@@ -33,6 +37,10 @@ describe('validateDbtSelector', () => {
             'model;name', // semicolon
             'model`name', // backtick
             'model"name', // quotes
+            'a,,b',
+            ',a',
+            'a,',
+            '',
         ];
 
         invalidSelectors.forEach((selector) => {

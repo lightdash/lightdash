@@ -29,6 +29,7 @@ export type DbtGitProjectAdapterArgs = {
     projectDirectorySubPath: string;
     dbtTarget: DbtTargetResult;
     explicitCredentials: boolean;
+    dbtLoomEnabled: boolean;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
     environmentVariableAllowlist: string[];
@@ -65,6 +66,7 @@ export class DbtGitProjectAdapter
         projectDirectorySubPath,
         dbtTarget,
         explicitCredentials,
+        dbtLoomEnabled,
         targetName,
         environment,
         environmentVariableAllowlist,
@@ -88,6 +90,7 @@ export class DbtGitProjectAdapter
             projectDir,
             dbtTarget,
             explicitCredentials,
+            dbtLoomEnabled,
             targetName,
             environment,
             environmentVariableAllowlist,

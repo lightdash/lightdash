@@ -18,6 +18,7 @@ type Args = {
     projectDirectorySubPath: string;
     dbtTarget: DbtTargetResult;
     explicitCredentials: boolean;
+    dbtLoomEnabled: boolean;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
     environmentVariableAllowlist: string[];
@@ -41,6 +42,7 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
         projectDirectorySubPath,
         dbtTarget,
         explicitCredentials,
+        dbtLoomEnabled,
         targetName,
         environment,
         environmentVariableAllowlist,
@@ -59,6 +61,7 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
             projectDirectorySubPath,
             dbtTarget,
             explicitCredentials,
+            dbtLoomEnabled,
             targetName,
             environment,
             environmentVariableAllowlist,

@@ -5,6 +5,7 @@ import {
     flattenAiHints,
     getEffectiveFieldAiHints,
     getModelsFromManifest,
+    isExternalDbtNode,
     patchPathParts,
     type DbtManifest,
 } from './dbt';
@@ -150,6 +151,30 @@ const baseModel = {
     language: 'sql',
     relation_name: '"db"."public"."model"',
 };
+
+describe('isExternalDbtNode', () => {
+    it('excludes a loom stub and keeps local and package models', () => {
+        const stub = {
+            ...baseModel,
+            package_name: 'shared_dimensions',
+            path: '',
+            original_file_path: '',
+            raw_code: '',
+        };
+        const packageModel = {
+            ...baseModel,
+            package_name: 'shared_dimensions',
+        };
+        expect(isExternalDbtNode(stub)).toBe(true);
+        expect(isExternalDbtNode(baseModel)).toBe(false);
+        expect(isExternalDbtNode(packageModel)).toBe(false);
+        expect(
+            getModelsFromManifest(
+                makeManifest({ stub, normal: baseModel, packageModel }),
+            ),
+        ).toHaveLength(2);
+    });
+});
 
 describe('getModelsFromManifest', () => {
     it('should include models with config.materialized set to table', () => {

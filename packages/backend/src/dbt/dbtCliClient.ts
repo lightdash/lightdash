@@ -22,6 +22,7 @@ import path from 'path';
 import Logger from '../logging/logger';
 import { traceSpan } from '../tracing/tracing';
 import { DbtClient } from '../types';
+import { resolveDbtLoomEnvironment } from './dbtLoomConfig';
 import {
     saveDbtPartialParse,
     seedDbtPartialParse,
@@ -38,6 +39,7 @@ type DbtCliArgs = {
     environmentVariableAllowlist: string[];
 
     explicitCredentials: boolean;
+    dbtLoomEnabled: boolean;
     profileName?: string;
     target?: string;
     dbtVersion: SupportedDbtVersions;
@@ -69,6 +71,7 @@ export class DbtCliClient implements DbtClient {
     environmentVariableAllowlist: string[];
 
     explicitCredentials: boolean;
+    dbtLoomEnabled: boolean;
 
     profileName: string | undefined;
 
@@ -88,12 +91,15 @@ export class DbtCliClient implements DbtClient {
 
     partialParseSeeded: boolean;
 
+    private dbtLoomEnvironment: Promise<{ DBT_LOOM_CONFIG: string }> | null;
+
     constructor({
         dbtProjectDirectory,
         dbtProfilesDirectory,
         environment,
         environmentVariableAllowlist,
         explicitCredentials,
+        dbtLoomEnabled,
         profileName,
         target,
         dbtVersion,
@@ -108,6 +114,8 @@ export class DbtCliClient implements DbtClient {
         this.environment = environment;
         this.environmentVariableAllowlist = environmentVariableAllowlist;
         this.explicitCredentials = explicitCredentials;
+        this.dbtLoomEnabled = dbtLoomEnabled;
+        this.dbtLoomEnvironment = null;
         this.profileName = profileName;
         this.target = target;
         this.targetDirectory = undefined;
@@ -150,6 +158,7 @@ export class DbtCliClient implements DbtClient {
                 force: true,
             });
             this.targetDirectory = undefined;
+            this.dbtLoomEnvironment = null;
         }
     }
 
@@ -254,6 +263,23 @@ export class DbtCliClient implements DbtClient {
         }
 
         try {
+            const dbtEnvironment = getDbtProcessEnvironment({
+                processEnvironment: process.env,
+                explicitCredentials: this.explicitCredentials,
+                environmentVariableAllowlist: this.environmentVariableAllowlist,
+                projectEnvironment: this.environment,
+                targetPath,
+                partialParse: this.partialParseBaselinePath !== null,
+                gitConfigGlobalPath: this.gitConfigGlobalPath,
+            });
+            this.dbtLoomEnvironment ??= resolveDbtLoomEnvironment({
+                projectDirectory: this.dbtProjectDirectory,
+                targetPath,
+                enabled: this.dbtLoomEnabled,
+                explicitCredentials: this.explicitCredentials,
+                dbtEnvironment,
+            });
+            const loomEnvironment = await this.dbtLoomEnvironment;
             Logger.debug(
                 `Running dbt command with version "${
                     this.dbtVersion
@@ -265,16 +291,7 @@ export class DbtCliClient implements DbtClient {
                 all: true,
                 stdio: ['pipe', 'pipe', process.stderr],
                 extendEnv: false,
-                env: getDbtProcessEnvironment({
-                    processEnvironment: process.env,
-                    explicitCredentials: this.explicitCredentials,
-                    environmentVariableAllowlist:
-                        this.environmentVariableAllowlist,
-                    projectEnvironment: this.environment,
-                    targetPath,
-                    partialParse: this.partialParseBaselinePath !== null,
-                    gitConfigGlobalPath: this.gitConfigGlobalPath,
-                }),
+                env: { ...dbtEnvironment, ...loomEnvironment },
             });
             return {
                 logs: DbtCliClient.parseDbtJsonLogs(dbtProcess.all),
@@ -296,12 +313,26 @@ export class DbtCliClient implements DbtClient {
                 const missingVariablesHint = getMissingEnvironmentVariableHint(
                     execaError.all,
                 );
+                const loomHint =
+                    !this.dbtLoomEnabled &&
+                    execaError.all.includes('which was not found') &&
+                    (await fs
+                        .access(
+                            path.join(
+                                this.dbtProjectDirectory,
+                                'dbt_loom.config.yml',
+                            ),
+                        )
+                        .then(() => true)
+                        .catch(() => false))
+                        ? 'This dbt project uses dbt-loom for cross-project references, which is not enabled for this organization.'
+                        : null;
                 throw new DbtError(
                     `Failed to run "${dbtExec} ${command.join(
                         ' ',
                     )}" with dbt version "${this.dbtVersion}"${
                         missingVariablesHint ? `. ${missingVariablesHint}` : ''
-                    }`,
+                    }${loomHint ? `. ${loomHint}` : ''}`,
                     DbtCliClient.parseDbtJsonLogs(execaError.all),
                 );
             }

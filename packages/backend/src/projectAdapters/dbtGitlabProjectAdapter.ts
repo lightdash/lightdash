@@ -17,6 +17,7 @@ type DbtGitlabProjectAdapterArgs = {
     projectDirectorySubPath: string;
     dbtTarget: DbtTargetResult;
     explicitCredentials: boolean;
+    dbtLoomEnabled: boolean;
     hostDomain?: string;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
@@ -37,6 +38,7 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
         projectDirectorySubPath,
         dbtTarget,
         explicitCredentials,
+        dbtLoomEnabled,
         hostDomain,
         targetName,
         environment,
@@ -58,6 +60,7 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
             projectDirectorySubPath,
             dbtTarget,
             explicitCredentials,
+            dbtLoomEnabled,
             targetName,
             environment,
             environmentVariableAllowlist,

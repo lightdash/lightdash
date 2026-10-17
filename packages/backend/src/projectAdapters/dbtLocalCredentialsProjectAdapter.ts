@@ -23,6 +23,7 @@ type DbtLocalCredentialsProjectAdapterArgs = {
     projectDir: string;
     dbtTarget: DbtTargetResult;
     explicitCredentials: boolean;
+    dbtLoomEnabled: boolean;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
     environmentVariableAllowlist: string[];
@@ -43,6 +44,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         projectDir,
         dbtTarget,
         explicitCredentials,
+        dbtLoomEnabled,
         targetName,
         environment,
         environmentVariableAllowlist,
@@ -83,6 +85,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
             environment: updatedEnvironment,
             environmentVariableAllowlist,
             explicitCredentials,
+            dbtLoomEnabled,
             cachedWarehouse,
             dbtVersion,
             selector,
