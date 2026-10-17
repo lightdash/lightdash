@@ -1,3 +1,10 @@
+## [2.602.1](https://github.com/lightdash/lightdash/compare/2.602.0...2.602.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* **mcp:** serve favicon.ico cross-origin so Claude can show the connector icon ([#31117](https://github.com/lightdash/lightdash/issues/31117)) ([9422463](https://github.com/lightdash/lightdash/commit/942246331c49e8fc2aac22692b4cc8f535eb4b09))
+
 # [2.602.0](https://github.com/lightdash/lightdash/compare/2.601.0...2.602.0) (2026-10-17)
 
 
