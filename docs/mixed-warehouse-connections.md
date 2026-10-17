@@ -106,10 +106,11 @@ models compiled on the same connection.
   `mixed-warehouse-connections` on, `ProjectDbtSourcesService` also accepts
   `manifest` sources, so an uploaded manifest can run on an extra connection.
   With the flag off, the GitHub-only rule and its message are unchanged.
-- One change is not behind the flag: a Trino connection with an empty
-  password runs dbt with the `none` method instead of `ldap`
-  (`dbt/targets/trino.ts`). dbt-trino refuses authentication over HTTP, so this
-  setup failed to compile before; connections with a password are unchanged.
+- With the flag on, a Trino connection with an empty password gets a dbt
+  target with the `none` method instead of `ldap` (`dbt/targets/trino.ts`,
+  through `DbtTargetPolicy.trinoPasswordlessAuth`). With the flag off, the
+  target is the same as before. Lightdash runs only `dbt deps`, `ls` and
+  `parse`, which do not connect, so both targets compile.
 - Three identifier paths that predate this feature wrap identifiers without
   escaping embedded delimiters: `ExploreCompiler.compileDimensionReference('TABLE')`,
   `MetricQueryBuilder.getBaseTableFromSQL` and `getCustomSqlDimensionSql`.
