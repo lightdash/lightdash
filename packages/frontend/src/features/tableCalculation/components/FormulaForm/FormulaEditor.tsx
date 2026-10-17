@@ -15,6 +15,10 @@ import { useEditor, type Editor } from '@tiptap/react';
 import type { JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import {
+    aiInlineHintClasses,
+    buildAiInlineHint,
+} from '../../../../components/common/AiInlineHint';
 import ResizableSplitter from '../../../../components/common/ResizableSplitter';
 import {
     generateFieldSuggestion,
@@ -103,40 +107,19 @@ const buildGhostPlugin = (state: GhostState) =>
                 const showTab = state.getShowTab();
                 const showRetry = state.getShowRetry();
                 const showLoading = state.getShowLoading();
-                if (!preview && !showTab && !showRetry) {
-                    return DecorationSet.empty;
-                }
-
                 // `content.size - 1` lands inside the closing paragraph token,
                 // which for this single-paragraph editor is always a valid
                 // inline position.
                 const end = editorState.doc.content.size;
                 const anchor = Math.max(0, end - 1);
 
-                const container = document.createElement('span');
-                container.className = 'formula-ghost-container';
-                container.setAttribute('aria-hidden', 'true');
-
-                if (preview) {
-                    const ghost = document.createElement('span');
-                    ghost.className = 'formula-preview-ghost';
-                    ghost.textContent = ` → ${preview}`;
-                    container.appendChild(ghost);
-                }
-
-                if (showTab || showRetry) {
-                    const classes = ['formula-inline-chip'];
-                    if (showRetry) classes.push('formula-inline-chip--retry');
-                    // Shimmer the keycap while a preview is being generated in the background.
-                    // Gated on !showRetry so error state stays visually still.
-                    if (showLoading && !preview && !showRetry) {
-                        classes.push('formula-inline-chip--loading');
-                    }
-                    const badge = document.createElement('kbd');
-                    badge.className = classes.join(' ');
-                    badge.textContent = showRetry ? '⇥ Retry' : '⇥ Tab';
-                    container.appendChild(badge);
-                }
+                const container = buildAiInlineHint({
+                    preview,
+                    showTab,
+                    showRetry,
+                    showLoading,
+                });
+                if (!container) return DecorationSet.empty;
 
                 return DecorationSet.create(editorState.doc, [
                     Decoration.widget(anchor, container, { side: 1 }),
@@ -447,7 +430,7 @@ export const FormulaEditor: FC<Props> = ({
     };
 
     return (
-        <Box className={styles.container}>
+        <Box className={`${styles.container} ${aiInlineHintClasses.host}`}>
             <ResizableSplitter
                 handleLabel="Resize formula reference"
                 classNames={{ handle: styles.resizeHandle }}

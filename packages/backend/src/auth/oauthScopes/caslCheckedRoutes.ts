@@ -84,6 +84,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'AiController.generateCustomViz',
     'AiController.generateFormulaTableCalculation',
     'AiController.generateGoogleSheetsExtensionReportDraft',
+    'AiController.generateSqlRunnerQuery',
     'AiController.generateTableCalculation',
     'AiController.generateTooltip',
     'AiController.suggestChartTypeExplore',

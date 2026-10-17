@@ -3,8 +3,7 @@ import {
     type GeneratedFormulaTableCalculation,
     type MetricQuery,
 } from '@lightdash/common';
-import { Box, Flex, Group, Loader, Text } from '@mantine/core';
-import { IconSparkles } from '@tabler/icons-react';
+import { Box, Flex } from '@mantine/core';
 import {
     forwardRef,
     useCallback,
@@ -13,7 +12,7 @@ import {
     useRef,
     useState,
 } from 'react';
-import MantineIcon from '../../../../components/common/MantineIcon';
+import { AiGenerationStatus } from '../../../../components/common/AiInlineHint';
 import { useAmbientAiEnabled } from '../../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import { useGenerateFormulaTableCalculation } from '../../../../hooks/useGenerateFormulaTableCalculation';
 import { useProject } from '../../../../hooks/useProject';
@@ -290,27 +289,11 @@ export const FormulaForm = forwardRef<FormulaFormHandle, Props>(
                             />
                         )}
                 </Box>
-                {(error || aiError) && (
-                    <Text className={classes.errorText}>
-                        {error || aiError}
-                    </Text>
-                )}
-                {isGenerating && pendingPrompt && (
-                    <Group gap={6} wrap="nowrap" className={classes.generating}>
-                        <Loader size="xs" color="indigo.4" />
-                        <Text span inherit>
-                            Generating from &ldquo;{pendingPrompt}&rdquo;…
-                        </Text>
-                    </Group>
-                )}
-                {showProvenance && (
-                    <Group gap={6} wrap="nowrap" className={classes.provenance}>
-                        <MantineIcon icon={IconSparkles} size="xs" />
-                        <Text span inherit>
-                            Generated from &ldquo;{provenancePrompt}&rdquo;
-                        </Text>
-                    </Group>
-                )}
+                <AiGenerationStatus
+                    error={error || aiError}
+                    generatingPrompt={isGenerating ? pendingPrompt : null}
+                    provenancePrompt={showProvenance ? provenancePrompt : null}
+                />
             </Flex>
         );
     },

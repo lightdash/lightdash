@@ -49,6 +49,7 @@ import type {
     ApiAiGenerateChartMetadataResponse,
     ApiAiGenerateCustomDimensionResponse,
     ApiAiGenerateFormulaTableCalculationResponse,
+    ApiAiGenerateSqlRunnerQueryResponse,
     ApiAiGenerateTableCalculationResponse,
     ApiAiOrganizationRuntimeSettingsResponse,
     ApiAiOrganizationSettingsResponse,
@@ -1553,6 +1554,7 @@ type ApiResults =
     | ApiAiSuggestChartTypeExploreResponse['results']
     | ApiAiGenerateCustomDimensionResponse['results']
     | ApiAiGenerateFormulaTableCalculationResponse['results']
+    | ApiAiGenerateSqlRunnerQueryResponse['results']
     | ApiAiGenerateTableCalculationResponse['results']
     | ApiCatalogMetadataResults
     | ApiCatalogAnalyticsResults

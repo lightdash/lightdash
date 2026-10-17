@@ -3,6 +3,7 @@ import {
     ApiAiGenerateCustomDimensionResponse,
     ApiAiGenerateCustomVizResponse,
     ApiAiGenerateFormulaTableCalculationResponse,
+    ApiAiGenerateSqlRunnerQueryResponse,
     ApiAiGenerateTableCalculationResponse,
     ApiAiGenerateTooltipResponse,
     ApiAiSuggestChartTypeExploreResponse,
@@ -12,6 +13,7 @@ import {
     GenerateChartMetadataRequest,
     GenerateCustomDimensionRequest,
     GenerateFormulaTableCalculationRequest,
+    GenerateSqlRunnerQueryRequest,
     GenerateTableCalculationRequest,
     GenerateTooltipRequest,
     ItemsMap,
@@ -180,6 +182,27 @@ export class AiController extends BaseController {
         return {
             status: 'ok',
             results: await this.getAiService().generateFormulaTableCalculation(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/sql-runner/generate')
+    @OperationId('generateSqlRunnerQuery')
+    async generateSqlRunnerQuery(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: GenerateSqlRunnerQueryRequest,
+    ): Promise<ApiAiGenerateSqlRunnerQueryResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiService().generateSqlRunnerQuery(
                 toSessionUser(req.account),
                 projectUuid,
                 body,
