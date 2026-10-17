@@ -270,6 +270,7 @@ const SavedExplorer = () => {
     return (
         <Provider store={store} key={`saved-${savedQueryUuid}`}>
             <MergeProvider
+                key={mode === 'edit' ? 'edit' : 'view'}
                 savedMerge={data?.merge ?? null}
                 readOnly={mode !== 'edit'}
             >

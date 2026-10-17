@@ -226,7 +226,7 @@ describe('validateMergeQuery', () => {
             );
         });
 
-        it('rejects a merge with more than two sources', () => {
+        it('accepts a merge with more than two sources', () => {
             const queryC: MergeQuerySource = {
                 id: 'c',
                 metricQuery: metricQuery(
@@ -251,9 +251,7 @@ describe('validateMergeQuery', () => {
                 }),
             );
 
-            expect(errors.map((error) => error.kind)).toEqual(
-                expect.arrayContaining([MergeQueryErrorKind.TOO_MANY_SOURCES]),
-            );
+            expect(errors).toEqual([]);
         });
 
         it('rejects duplicate source ids', () => {
