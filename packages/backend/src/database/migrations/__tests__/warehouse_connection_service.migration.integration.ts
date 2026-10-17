@@ -644,6 +644,9 @@ describe('WarehouseConnectionService on the real schema', () => {
         ])(
             'rejects interactive browser authentication on an extra Snowflake connection (%s)',
             async (authenticationType) => {
+                mixedTypes.enabled =
+                    authenticationType ===
+                    SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE;
                 const fixture = await createProject({
                     mode: 'multi',
                     warehouseType: WarehouseTypes.SNOWFLAKE,
@@ -680,6 +683,9 @@ describe('WarehouseConnectionService on the real schema', () => {
         ])(
             'applies Snowflake authentication rules when editing an extra connection (%s)',
             async (authenticationType) => {
+                mixedTypes.enabled =
+                    authenticationType ===
+                    SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE;
                 const fixture = await createProject({
                     mode: 'multi',
                     warehouseType: WarehouseTypes.SNOWFLAKE,
@@ -1015,6 +1021,7 @@ describe('WarehouseConnectionService on the real schema', () => {
         });
 
         test('refuses Snowflake interactive authentication', async () => {
+            mixedTypes.enabled = true;
             const fixture = await createProject({ mode: 'multi' });
 
             await expect(
@@ -1319,7 +1326,9 @@ describe('WarehouseConnectionService on the real schema', () => {
                               },
                     ),
                 ).rejects.toThrow(
-                    "A connection's warehouse type cannot be changed. Add a new connection instead.",
+                    enabled
+                        ? "A connection's warehouse type cannot be changed. Add a new connection instead."
+                        : 'An extra connection must use the same warehouse type as the original connection.',
                 );
                 const row = await database('warehouse_connections')
                     .where(

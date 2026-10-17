@@ -11,6 +11,7 @@ export const ProjectFormProvider: FC<
     primaryRequiresUserCredentials,
     projectUuid,
     warehouseConnectionUuid,
+    dbtSourceWarehouseConnectionUuid,
     children,
 }) => {
     const value = useMemo(
@@ -22,6 +23,7 @@ export const ProjectFormProvider: FC<
             primaryRequiresUserCredentials,
             projectUuid,
             warehouseConnectionUuid,
+            dbtSourceWarehouseConnectionUuid,
         }),
         [
             savedProject,
@@ -31,6 +33,7 @@ export const ProjectFormProvider: FC<
             primaryRequiresUserCredentials,
             projectUuid,
             warehouseConnectionUuid,
+            dbtSourceWarehouseConnectionUuid,
         ],
     );
     return <Context.Provider value={value}>{children}</Context.Provider>;

@@ -35,6 +35,7 @@ import {
 } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import { useDbtSourceBindings } from '../../hooks/useDbtSourceBindings';
+import { useMixedWarehouseConnectionsEnabled } from '../../hooks/useExploreWarehouseConnection';
 import {
     useCreateProjectDbtSourceMutation,
     useDeleteProjectDbtSourceMutation,
@@ -174,9 +175,14 @@ const DbtSourceFields: FC<{
     form: Form;
     intro: string;
     projectUuid: string;
-}> = ({ form, intro, projectUuid }) => (
+    dbtSourceWarehouseConnectionUuid?: string | null;
+}> = ({ form, intro, projectUuid, dbtSourceWarehouseConnectionUuid }) => (
     <FormProvider form={form}>
-        <ProjectFormProvider isDbtSource projectUuid={projectUuid}>
+        <ProjectFormProvider
+            isDbtSource
+            projectUuid={projectUuid}
+            dbtSourceWarehouseConnectionUuid={dbtSourceWarehouseConnectionUuid}
+        >
             <Stack gap="md">
                 <Text size="sm" c="dimmed">
                     {intro}
@@ -267,6 +273,17 @@ const EditDbtSourceModalInner: FC<{
     const updateMutation = useUpdateProjectDbtSourceMutation(projectUuid, {
         onSuccess: onClose,
     });
+    const mixedWarehouseConnectionsEnabled =
+        useMixedWarehouseConnectionsEnabled();
+    const { data: bindings } = useDbtSourceBindings(
+        projectUuid,
+        mixedWarehouseConnectionsEnabled,
+    );
+    const dbtSourceWarehouseConnectionUuid =
+        bindings?.sources.find(
+            (binding) =>
+                binding.projectDbtSourceUuid === source.projectDbtSourceUuid,
+        )?.warehouseConnectionUuid ?? null;
     const form = useForm({
         initialValues: {
             name: source.name,
@@ -322,6 +339,9 @@ const EditDbtSourceModalInner: FC<{
             <DbtSourceFields
                 form={form}
                 projectUuid={projectUuid}
+                dbtSourceWarehouseConnectionUuid={
+                    dbtSourceWarehouseConnectionUuid
+                }
                 intro="Update this source's connection. Leave the access token blank to keep the saved one."
             />
         </MantineModal>

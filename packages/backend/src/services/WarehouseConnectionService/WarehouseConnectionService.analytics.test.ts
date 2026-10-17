@@ -692,7 +692,7 @@ describe('connection type immutability', () => {
             ['project', 'organization'].map((source) => ({ enabled, source })),
         ),
     )(
-        'refuses a type change with flag $enabled and $source credentials',
+        "refuses a type change with flag $enabled and $source credentials, with main's message when off",
         async ({ enabled, source }) => {
             const { service, model, credentialPolicy } = buildService(enabled);
             model.get.mockResolvedValue(connection(extraUuid, false));
@@ -712,7 +712,9 @@ describe('connection type immutability', () => {
                           },
                 ),
             ).rejects.toThrow(
-                "A connection's warehouse type cannot be changed. Add a new connection instead.",
+                enabled
+                    ? "A connection's warehouse type cannot be changed. Add a new connection instead."
+                    : 'An extra connection must use the same warehouse type as the original connection.',
             );
             expect(model.transaction).not.toHaveBeenCalled();
             expect(

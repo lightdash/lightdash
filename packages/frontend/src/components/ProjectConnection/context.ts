@@ -14,6 +14,7 @@ export type ProjectFormContext = {
     // fields that read the project's own warehouse connection.
     projectUuid?: string;
     warehouseConnectionUuid?: string | null;
+    dbtSourceWarehouseConnectionUuid?: string | null;
 };
 
 const Context = createContext<ProjectFormContext | undefined>(undefined);
