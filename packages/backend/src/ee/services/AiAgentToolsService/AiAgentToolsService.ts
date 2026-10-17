@@ -49,6 +49,7 @@ import {
     SessionUser,
     shouldUseStaticFilterAutocomplete,
     TimeoutError,
+    toMcpCustomChartTypeVizSchema,
     UnexpectedServerError,
     UserAttributeValueMap,
     WarehouseQueryError,
@@ -64,6 +65,8 @@ import {
     type DataAppVizSchema,
     type Document,
     type FieldValueSearchResult,
+    type McpCustomChartType,
+    type McpListCustomChartTypesOutput,
     type ParameterDefinitions,
     type PersistedDataAppDataReferences,
     type SchedulerAiAugmentation,
@@ -75,7 +78,10 @@ import { type AgentToolEffect } from '../../../auth/agentPermissions/capabilityM
 import { type DbApp } from '../../../database/entities/apps';
 import Logger from '../../../logging/logger';
 import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
-import { AppModel } from '../../../models/AppModel';
+import {
+    AppModel,
+    type DbDataAppVizWithLatestReadyVersion,
+} from '../../../models/AppModel';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
@@ -394,6 +400,16 @@ export type IterateCustomChartTypeFn = (args: {
     vizContext: AppVizBuildContext | null;
 }) => Promise<{ appUuid: string; slug: string; version: number; name: string }>;
 
+export type SearchCustomChartTypesFn = (
+    args: { query: string } | { slug: string },
+) => Promise<McpCustomChartType[]>;
+
+export type ListCustomChartTypesPageFn = (args: { page: number }) => Promise<{
+    output: McpListCustomChartTypesOutput;
+    /** Rows on this page dropped because their stored viz_schema failed validation. */
+    skippedOnPage: number;
+}>;
+
 export type McpAiAgentToolsRuntime = Omit<
     AiAgentToolsRuntime,
     'getExplore' | 'findExplores' | 'findFields' | 'updateUserName'
@@ -401,6 +417,8 @@ export type McpAiAgentToolsRuntime = Omit<
     getDataAppBuildStatus: GetDataAppBuildStatusFn;
     createCustomChartType: CreateCustomChartTypeFn;
     iterateCustomChartType: IterateCustomChartTypeFn;
+    searchCustomChartTypes: SearchCustomChartTypesFn;
+    listCustomChartTypesPage: ListCustomChartTypesPageFn;
     createDocumentContent: (content: unknown) => Promise<DocumentContentResult>;
     readDocumentContent: (
         slug: string,
@@ -1009,6 +1027,10 @@ export class AiAgentToolsService extends BaseService {
                 this.withWriteRefusal(context, 'app', 'update', () =>
                     this.iterateCustomChartType(context, args),
                 ),
+            searchCustomChartTypes: (args) =>
+                this.searchCustomChartTypes(context, args),
+            listCustomChartTypesPage: (args) =>
+                this.listCustomChartTypesPage(context, args),
             createDocumentContent: (content) =>
                 this.withWriteRefusal(context, 'document', 'create', () =>
                     this.createDocumentContent(context, content),
@@ -1354,6 +1376,125 @@ export class AiAgentToolsService extends BaseService {
                 return this.parseCustomChartTypes(data);
             },
         );
+    }
+
+    /** Chart Studio's gallery gate: chart types enabled and manage:Explore. */
+    async canUseCustomChartTypes(context: {
+        user: SessionUser;
+        projectUuid: string | null;
+    }): Promise<boolean> {
+        return this.appGenerateService.canUseChartTypes(
+            context.user,
+            context.projectUuid,
+        );
+    }
+
+    /** MCP-only: the agent's lookups behind the gallery gate, with version and Chart Studio link. */
+    private searchCustomChartTypes(
+        context: AiAgentToolsRuntimeContext,
+        args: Parameters<SearchCustomChartTypesFn>[0],
+    ): ReturnType<SearchCustomChartTypesFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.searchCustomChartTypes`,
+            args,
+            async () => {
+                if (!(await this.canUseCustomChartTypes(context))) {
+                    throw new ForbiddenError(
+                        'You do not have permission to use chart types in this project',
+                    );
+                }
+                const rows =
+                    'slug' in args
+                        ? [
+                              await this.appModel.findDataAppVisualizationBySlug(
+                                  context.projectUuid,
+                                  args.slug,
+                              ),
+                          ].filter((row) => row !== undefined)
+                        : (
+                              await this.appModel.listDataAppVisualizations(
+                                  context.projectUuid,
+                                  {
+                                      page: 1,
+                                      pageSize:
+                                          AiAgentToolsService.CUSTOM_CHART_TYPES_SEARCH_LIMIT,
+                                  },
+                                  args.query,
+                              )
+                          ).data;
+                return this.toMcpCustomChartTypes(context, rows);
+            },
+        );
+    }
+
+    static readonly CUSTOM_CHART_TYPES_LIST_PAGE_SIZE = 10;
+
+    /** MCP-only: browse the project's chart types newest first, behind the gallery gate. */
+    private listCustomChartTypesPage(
+        context: AiAgentToolsRuntimeContext,
+        { page }: Parameters<ListCustomChartTypesPageFn>[0],
+    ): ReturnType<ListCustomChartTypesPageFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.listCustomChartTypesPage`,
+            { page },
+            async () => {
+                if (!(await this.canUseCustomChartTypes(context))) {
+                    throw new ForbiddenError(
+                        'You do not have permission to use chart types in this project',
+                    );
+                }
+                const pageSize =
+                    AiAgentToolsService.CUSTOM_CHART_TYPES_LIST_PAGE_SIZE;
+                const { data, pagination } =
+                    await this.appModel.listDataAppVisualizations(
+                        context.projectUuid,
+                        { page, pageSize },
+                    );
+                if (pagination === undefined) {
+                    throw new UnexpectedServerError(
+                        'Custom chart types page returned without pagination',
+                    );
+                }
+                const results = this.toMcpCustomChartTypes(context, data);
+                return {
+                    output: {
+                        pagination: {
+                            page,
+                            pageSize,
+                            totalResults: pagination.totalResults,
+                            totalPageCount: pagination.totalPageCount,
+                        },
+                        results,
+                    },
+                    skippedOnPage: data.length - results.length,
+                };
+            },
+        );
+    }
+
+    private toMcpCustomChartTypes(
+        context: AiAgentToolsRuntimeContext,
+        rows: DbDataAppVizWithLatestReadyVersion[],
+    ): McpCustomChartType[] {
+        return rows.flatMap((row) => {
+            const parsed = dataAppVizSchema.safeParse(row.viz_schema);
+            if (!parsed.success) {
+                this.logger.warn(
+                    `Dropping custom chart type "${row.slug}": persisted viz_schema failed validation`,
+                );
+                return [];
+            }
+            return [
+                {
+                    slug: row.slug,
+                    name: row.name,
+                    description: row.description || null,
+                    version: row.latest_ready_version,
+                    chartStudioUrl: `${this.lightdashConfig.siteUrl}/projects/${context.projectUuid}/chart-studio/${row.slug}`,
+                    vizSchema: toMcpCustomChartTypeVizSchema(parsed.data),
+                },
+            ];
+        });
     }
 
     // Slug → the data needed to validate and persist an answer rendered
@@ -2348,6 +2489,11 @@ export class AiAgentToolsService extends BaseService {
                     'update',
                     'Chart type',
                 );
+                await this.appGenerateService.assertCanIterateApp(
+                    context.user,
+                    context.projectUuid,
+                    app.app_id,
+                );
                 if (app.template !== DATA_APP_VIZ_TEMPLATE) {
                     throw new ParameterError(
                         `"${slug}" is a data app, not a custom chart type. Use iterate_data_app to change it`,
@@ -2423,13 +2569,6 @@ export class AiAgentToolsService extends BaseService {
                         toolCallId,
                         'iterateDataApp',
                     );
-                const designUuid =
-                    themeSlug === null
-                        ? undefined
-                        : await this.resolveDataAppThemeReference(
-                              context,
-                              themeSlug,
-                          );
                 const app = await this.appModel.findAppBySlug(
                     context.projectUuid,
                     appSlug,
@@ -2446,6 +2585,11 @@ export class AiAgentToolsService extends BaseService {
                     'update',
                     'Data app',
                 );
+                await this.appGenerateService.assertCanIterateApp(
+                    context.user,
+                    context.projectUuid,
+                    app.app_id,
+                );
                 if (
                     context.source === 'mcp' &&
                     app.template === DATA_APP_VIZ_TEMPLATE
@@ -2454,6 +2598,13 @@ export class AiAgentToolsService extends BaseService {
                         `"${appSlug}" is a custom chart type. Use iterate_custom_chart_type to change it`,
                     );
                 }
+                const designUuid =
+                    themeSlug === null
+                        ? undefined
+                        : await this.resolveDataAppThemeReference(
+                              context,
+                              themeSlug,
+                          );
                 const dashboard =
                     dashboardSlug === null
                         ? undefined

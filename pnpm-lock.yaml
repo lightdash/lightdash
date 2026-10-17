@@ -142,6 +142,7 @@ packageExtensionsChecksum: sha256-dssFMdNh289VAmJNNfz2Un2yyQ65P87lDvF3ZdZoc94=
 pnpmfileChecksum: sha256-o1QtWIlgEjjL8bDSRr9nQwG/oM2WttnwQNHJevp/IMg=
 
 patchedDependencies:
+  '@modelcontextprotocol/sdk@1.31.0': d64b1a3562496091599e71c635f6dad9d83bcc07a17bde5ae323f3871311881c
   scim-patch@0.9.3: 4de2501c306a9217656f6499387bbb2bed68a5037a46446d6340e93ac0cf4e92
 
 importers:
@@ -323,7 +324,7 @@ importers:
         version: link:../warehouses
       '@modelcontextprotocol/sdk':
         specifier: 1.31.0
-        version: 1.31.0(@cfworker/json-schema@4.1.1)(supports-color@5.5.0)(zod@4.4.3)
+        version: 1.31.0(patch_hash=d64b1a3562496091599e71c635f6dad9d83bcc07a17bde5ae323f3871311881c)(@cfworker/json-schema@4.1.1)(supports-color@5.5.0)(zod@4.4.3)
       '@node-oauth/oauth2-server':
         specifier: 5.3.0
         version: 5.3.0
@@ -834,7 +835,7 @@ importers:
         version: link:../../../../../../common
       '@modelcontextprotocol/ext-apps':
         specifier: 1.7.1
-        version: 1.7.1(@modelcontextprotocol/sdk@1.31.0(@cfworker/json-schema@4.1.1)(supports-color@9.1.0)(zod@4.4.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.4.3)
+        version: 1.7.1(@modelcontextprotocol/sdk@1.31.0(patch_hash=d64b1a3562496091599e71c635f6dad9d83bcc07a17bde5ae323f3871311881c)(@cfworker/json-schema@4.1.1)(supports-color@9.1.0)(zod@4.4.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.4.3)
       echarts:
         specifier: 5.6.0
         version: 5.6.0
@@ -20067,16 +20068,16 @@ snapshots:
 
   '@mixmark-io/domino@2.2.0': {}
 
-  '@modelcontextprotocol/ext-apps@1.7.1(@modelcontextprotocol/sdk@1.31.0(@cfworker/json-schema@4.1.1)(supports-color@9.1.0)(zod@4.4.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.4.3)':
+  '@modelcontextprotocol/ext-apps@1.7.1(@modelcontextprotocol/sdk@1.31.0(patch_hash=d64b1a3562496091599e71c635f6dad9d83bcc07a17bde5ae323f3871311881c)(@cfworker/json-schema@4.1.1)(supports-color@9.1.0)(zod@4.4.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.4.3)':
     dependencies:
-      '@modelcontextprotocol/sdk': 1.31.0(@cfworker/json-schema@4.1.1)(supports-color@9.1.0)(zod@4.4.3)
+      '@modelcontextprotocol/sdk': 1.31.0(patch_hash=d64b1a3562496091599e71c635f6dad9d83bcc07a17bde5ae323f3871311881c)(@cfworker/json-schema@4.1.1)(supports-color@9.1.0)(zod@4.4.3)
       '@standard-schema/spec': 1.1.0
       zod: 4.4.3
     optionalDependencies:
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
 
-  '@modelcontextprotocol/sdk@1.31.0(@cfworker/json-schema@4.1.1)(supports-color@5.5.0)(zod@4.4.3)':
+  '@modelcontextprotocol/sdk@1.31.0(patch_hash=d64b1a3562496091599e71c635f6dad9d83bcc07a17bde5ae323f3871311881c)(@cfworker/json-schema@4.1.1)(supports-color@5.5.0)(zod@4.4.3)':
     dependencies:
       '@hono/node-server': 1.19.9(hono@4.13.7)
       ajv: 8.18.0
@@ -20100,7 +20101,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@modelcontextprotocol/sdk@1.31.0(@cfworker/json-schema@4.1.1)(supports-color@9.1.0)(zod@4.4.3)':
+  '@modelcontextprotocol/sdk@1.31.0(patch_hash=d64b1a3562496091599e71c635f6dad9d83bcc07a17bde5ae323f3871311881c)(@cfworker/json-schema@4.1.1)(supports-color@9.1.0)(zod@4.4.3)':
     dependencies:
       '@hono/node-server': 1.19.9(hono@4.13.7)
       ajv: 8.18.0

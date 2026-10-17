@@ -93,6 +93,7 @@ export const OAUTH_OPERATIONS: Partial<
     Space: OAUTH_ACTIONS,
     SpotlightTableConfig: OAUTH_ACTIONS,
     SqlRunner: OAUTH_ACTIONS,
+    SystemAnalytics: ['view'],
     Tags: OAUTH_ACTIONS,
     UnderlyingData: ['view'],
     User: ['impersonate'],

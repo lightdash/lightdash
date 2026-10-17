@@ -660,3 +660,48 @@ it('uses embed UI overrides for capability and setting requirement labels', () =
         screen.queryByText(/warehouse confirmation for this project/),
     ).not.toBeInTheDocument();
 });
+
+it.each(['card', 'inline'] as const)(
+    'offers Run as me for a result refusal in the %s variant',
+    (variant) => {
+        const onRerun = vi.fn();
+        const resultRefusal = new AiAccessRefusedError(
+            AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+        ).refusal;
+        renderWithProviders(
+            <MemoryRouter>
+                <AiAccessCallout
+                    projectUuid="project"
+                    refusal={resultRefusal}
+                    variant={variant}
+                    onRerun={onRerun}
+                />
+            </MemoryRouter>,
+        );
+        fireEvent.click(screen.getByRole('button', { name: 'Run as me' }));
+        expect(onRerun).toHaveBeenCalledOnce();
+    },
+);
+
+it('hides Run as me without a handler or for other reasons', () => {
+    const resultRefusal = new AiAccessRefusedError(
+        AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+    ).refusal;
+    const content = (value: AiAccessRefusal, onRerun?: () => void) => (
+        <MemoryRouter>
+            <AiAccessCallout
+                projectUuid="project"
+                refusal={value}
+                onRerun={onRerun}
+            />
+        </MemoryRouter>
+    );
+    const { rerender } = renderWithProviders(content(resultRefusal));
+    expect(
+        screen.queryByRole('button', { name: 'Run as me' }),
+    ).not.toBeInTheDocument();
+    rerender(content(refusal, vi.fn()));
+    expect(
+        screen.queryByRole('button', { name: 'Run as me' }),
+    ).not.toBeInTheDocument();
+});

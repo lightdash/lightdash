@@ -12,14 +12,18 @@ import {
     APP_SDK_VIZ_SUBTOTALS_PATH,
     APP_SDK_VIZ_UNDERLYING_DATA_OPEN_PATH,
     APP_SDK_VIZ_UNDERLYING_DATA_PATH,
+    APP_SDK_EXPLORE_BASE_TABLE_PATH,
     extractAppSdkRouteProjectUuid,
+    extractExploreBaseTable,
     isAllowedAppSdkRoute,
     isAppSdkScheduleDownloadRoute,
     JWT_HEADER_NAME,
     LightdashAppPreviewTokenHeader,
     LightdashAppUuidHeader,
     LightdashSignedDownloadHeader,
+    parseAppSdkExploreBaseTableRequest,
     type AppColorScheme,
+    type AppSdkExploreBaseTableResult,
     type DashboardFilters,
     type DataAppInsightAction,
     type DataAppInsightsPayload,
@@ -65,6 +69,45 @@ const getEmbedAuthHeaders = (
     embedToken: string | undefined,
 ): Record<string, string> =>
     embedToken ? { [JWT_HEADER_NAME]: embedToken } : {};
+
+// Headers every API call made on the app's behalf carries: embed auth and
+// self-reported app attribution (the backend tags warehouse queries with it).
+const getAppSdkRequestHeaders = (
+    embedToken: string | undefined,
+    appUuid: string,
+): Record<string, string> => ({
+    'Content-Type': 'application/json',
+    ...getEmbedAuthHeaders(embedToken),
+    ...(appUuid ? { [LightdashAppUuidHeader]: appUuid } : {}),
+});
+
+const fetchExploreBaseTable = async ({
+    projectUuid,
+    exploreName,
+    embedToken,
+    appUuid,
+}: {
+    projectUuid: string;
+    exploreName: string;
+    embedToken: string | undefined;
+    appUuid: string;
+}): Promise<string | null> => {
+    try {
+        const res = await fetch(
+            resolveFetchUrl(
+                `/api/v1/projects/${projectUuid}/explores/${encodeURIComponent(exploreName)}`,
+            ),
+            {
+                method: 'GET',
+                headers: getAppSdkRequestHeaders(embedToken, appUuid),
+            },
+        );
+        if (!res.ok) return null;
+        return extractExploreBaseTable(await res.json());
+    } catch {
+        return null;
+    }
+};
 
 export type QueryEventTableCalculation = {
     name: string;
@@ -970,6 +1013,26 @@ export function useAppSdkBridge({
                 return;
             }
 
+            // Host-answered virtual route: only the base table leaves the
+            // host, never the explore itself.
+            if (path === APP_SDK_EXPLORE_BASE_TABLE_PATH) {
+                const request = parseAppSdkExploreBaseTableRequest(body);
+                if (request === null) {
+                    respond({ error: 'Invalid explore base-table request.' });
+                    return;
+                }
+                const result: AppSdkExploreBaseTableResult = {
+                    baseTable: await fetchExploreBaseTable({
+                        projectUuid,
+                        exploreName: request.exploreName,
+                        embedToken,
+                        appUuid,
+                    }),
+                };
+                respond({ result });
+                return;
+            }
+
             if (!isAllowedAppSdkRoute(method, path)) {
                 respond({ error: `Blocked: ${method} ${path}` });
                 return;
@@ -1123,13 +1186,7 @@ export function useAppSdkBridge({
                 const res = await fetch(resolveFetchUrl(effectivePath), {
                     method,
                     headers: {
-                        'Content-Type': 'application/json',
-                        ...getEmbedAuthHeaders(embedToken),
-                        // Self-reported app attribution; the backend tags
-                        // warehouse queries with it. Tracking only.
-                        ...(appUuid
-                            ? { [LightdashAppUuidHeader]: appUuid }
-                            : {}),
+                        ...getAppSdkRequestHeaders(embedToken, appUuid),
                         ...(isMetricQueryPost(method, path)
                             ? {
                                   [LightdashAppPreviewTokenHeader]:

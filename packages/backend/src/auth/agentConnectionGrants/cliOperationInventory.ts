@@ -229,7 +229,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             '`/api/v2/projects/${projectUuid}/query/${queryUuid}${pageSizeParam}`',
             ['QueryController.getAsyncQueryResults'],
         ),
-        allowed('handlers/compile.ts:518', 'GET', 'manifestEndpoint', [
+        allowed('handlers/compile.ts:521', 'GET', 'manifestEndpoint', [
             'ProjectController.getMergedManifest',
         ]),
         refused(

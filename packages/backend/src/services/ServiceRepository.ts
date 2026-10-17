@@ -29,7 +29,10 @@ import { AdminNotificationService } from './AdminNotificationService/AdminNotifi
 import { AgentConnectionApprovalService } from './AgentConnectionApprovalService/AgentConnectionApprovalService';
 import { AgentPermissionService } from './AgentPermissionService/AgentPermissionService';
 import { areOrganizationGroupsAvailable } from './AgentPermissionService/groupsAvailable';
-import { AiAccessService } from './AiAccessService/AiAccessService';
+import {
+    AiAccessService,
+    type AgentResultReadAccess,
+} from './AiAccessService/AiAccessService';
 import { SnowflakeAgentClientResolver } from './AiAccessService/SnowflakeAgentClientResolver';
 import { AiServiceAccountService } from './AiServiceAccountService/AiServiceAccountService';
 import { AnalyticsProjectService } from './AnalyticsProjectService/AnalyticsProjectService';
@@ -1105,6 +1108,10 @@ export class ServiceRepository
             'aiAccessService',
             () =>
                 new AiAccessService({
+                    getAgentResultReadAccess: () =>
+                        this.providers.aiAgentService != null
+                            ? this.getAiAgentService<AgentResultReadAccess>()
+                            : null,
                     getAgentConnectionGrantService: () =>
                         this.getAgentConnectionGrantService(),
                     agentActionLogModel: this.models.getAgentActionLogModel(),

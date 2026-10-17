@@ -16,6 +16,7 @@ import {
     FilterOperator,
     ForbiddenError,
     JobStatusType,
+    mcpFindCustomChartTypesOutputSchema,
     NotFoundError,
     PossibleAbilities,
     PromotionAction,
@@ -4777,6 +4778,7 @@ describe('AiAgentToolsService createCustomChartType', () => {
 
 describe('AiAgentToolsService iterateDataApp', () => {
     const makeAppGenerateService = () => ({
+        assertCanIterateApp: vi.fn().mockResolvedValue(undefined),
         iterateApp: vi
             .fn()
             .mockResolvedValue({ appUuid: 'app-uuid', version: 2 }),
@@ -5065,7 +5067,10 @@ describe('AiAgentToolsService iterateDataApp over MCP', () => {
     it('refuses a chart type slug and starts no build', async () => {
         const iterateApp = vi.fn();
         const service = makeService({
-            appGenerateService: { iterateApp },
+            appGenerateService: {
+                assertCanIterateApp: vi.fn().mockResolvedValue(undefined),
+                iterateApp,
+            },
             appModel: {
                 findAppBySlug: vi.fn().mockResolvedValue({
                     app_id: 'viz-uuid',
@@ -5096,7 +5101,10 @@ describe('AiAgentToolsService iterateDataApp over MCP', () => {
     it('hides an out-of-scope chart type as a missing data app', async () => {
         const iterateApp = vi.fn();
         const service = makeService({
-            appGenerateService: { iterateApp },
+            appGenerateService: {
+                assertCanIterateApp: vi.fn().mockResolvedValue(undefined),
+                iterateApp,
+            },
             appModel: {
                 findAppBySlug: vi.fn().mockResolvedValue({
                     app_id: 'viz-uuid',
@@ -5134,7 +5142,10 @@ describe('AiAgentToolsService iterateDataApp over MCP', () => {
             .fn()
             .mockResolvedValue({ appUuid: 'viz-uuid', version: 2 });
         const service = makeService({
-            appGenerateService: { iterateApp },
+            appGenerateService: {
+                assertCanIterateApp: vi.fn().mockResolvedValue(undefined),
+                iterateApp,
+            },
             appModel: {
                 findAppBySlug: vi.fn().mockResolvedValue({
                     app_id: 'viz-uuid',
@@ -5160,6 +5171,72 @@ describe('AiAgentToolsService iterateDataApp over MCP', () => {
     });
 });
 
+describe('AiAgentToolsService iterateDataApp without manage rights', () => {
+    const refusal = () =>
+        new ForbiddenError('Insufficient permissions to modify data apps');
+
+    it.each([
+        ['a chart type slug over MCP', 'mcp', DATA_APP_VIZ_TEMPLATE, null],
+        ['a data app with an unknown theme over MCP', 'mcp', null, 'neon'],
+        [
+            'a data app with an unknown theme in the agent',
+            'ai_agent',
+            null,
+            'neon',
+        ],
+    ] as const)(
+        'refuses %s with the permission error and starts no build',
+        async (_label, source, template, themeSlug) => {
+            const assertCanIterateApp = vi.fn().mockRejectedValue(refusal());
+            const iterateApp = vi.fn();
+            const organizationDesignModel = makeDesignModelWithThemes([
+                { designUuid: 'brand-uuid', slug: 'brand', name: 'Brand' },
+            ]);
+            const service = makeService({
+                appGenerateService: { assertCanIterateApp, iterateApp },
+                organizationDesignModel,
+                appModel: {
+                    findAppBySlug: vi.fn().mockResolvedValue({
+                        app_id: 'app-uuid',
+                        slug: 'sankey-flow',
+                        space_uuid: null,
+                        template,
+                    }),
+                },
+            });
+
+            const runtime =
+                source === 'mcp'
+                    ? service.createRuntime(
+                          makeRuntimeContext({ source: 'mcp' }),
+                      )
+                    : service.createRuntime(
+                          makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+                      );
+
+            await expect(
+                runtime.iterateDataApp({
+                    appSlug: 'sankey-flow',
+                    prompt: 'Colour the links',
+                    dashboardSlug: null,
+                    chartSlugs: null,
+                    themeSlug,
+                    toolCallId: source === 'mcp' ? null : 'tool-call-1',
+                }),
+            ).rejects.toThrow(refusal());
+            expect(assertCanIterateApp).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                'app-uuid',
+            );
+            expect(
+                organizationDesignModel.findByIdOrSlug,
+            ).not.toHaveBeenCalled();
+            expect(iterateApp).not.toHaveBeenCalled();
+        },
+    );
+});
+
 describe('AiAgentToolsService iterateCustomChartType', () => {
     const vizSchema: DataAppVizSchema = {
         fields: [
@@ -5180,7 +5257,8 @@ describe('AiAgentToolsService iterateCustomChartType', () => {
             slug: 'sankey-flow',
             version: 3,
         }),
-    ) => ({ iterateApp });
+        assertCanIterateApp = vi.fn().mockResolvedValue(undefined),
+    ) => ({ assertCanIterateApp, iterateApp });
 
     const makeAppModel = ({
         template = DATA_APP_VIZ_TEMPLATE,
@@ -5344,6 +5422,49 @@ describe('AiAgentToolsService iterateCustomChartType', () => {
             '"sankey-flow" is a data app, not a custom chart type. Use iterate_data_app to change it',
         );
         expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
+    });
+
+    describe('caller without manage rights', () => {
+        const refusal = () =>
+            new ForbiddenError('Insufficient permissions to modify data apps');
+
+        it.each([
+            ['a chart type', DATA_APP_VIZ_TEMPLATE, null],
+            ['a data app', null, null],
+            [
+                'a chart type with an unknown theme',
+                DATA_APP_VIZ_TEMPLATE,
+                'neon',
+            ],
+            ['a data app with an unknown theme', null, 'neon'],
+        ])(
+            'refuses %s with the permission error and starts no build',
+            async (_label, template, themeSlug) => {
+                const appGenerateService = makeAppGenerateService(
+                    undefined,
+                    vi.fn().mockRejectedValue(refusal()),
+                );
+                const organizationDesignModel = makeDesignModelWithThemes([
+                    { designUuid: 'brand-uuid', slug: 'brand', name: 'Brand' },
+                ]);
+                const service = makeService({
+                    appGenerateService,
+                    appModel: makeAppModel({ template }),
+                    organizationDesignModel,
+                });
+
+                await expect(
+                    runIterateChartType(service, null, null, themeSlug),
+                ).rejects.toThrow(refusal());
+                expect(
+                    appGenerateService.assertCanIterateApp,
+                ).toHaveBeenCalledWith(user, projectUuid, 'viz-uuid');
+                expect(
+                    organizationDesignModel.findByIdOrSlug,
+                ).not.toHaveBeenCalled();
+                expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
+            },
+        );
     });
 
     it('reads an unknown slug as not found and starts no build', async () => {
@@ -6147,5 +6268,364 @@ test('SQL admission uses a fresh handle on each invocation of one mapped runtime
         groups: 0,
         people: 0,
         membership: 1,
+    });
+});
+
+describe('AiAgentToolsService searchCustomChartTypes', () => {
+    const storedSchema = {
+        fields: [
+            {
+                name: 'stage',
+                label: 'Stage',
+                type: 'dimension',
+                required: true,
+                multiple: true,
+            },
+        ],
+        configOptions: [
+            {
+                name: 'sort',
+                label: 'Sort',
+                type: 'select',
+                choices: [{ value: 'desc', label: 'Descending' }],
+                default: 'desc',
+            },
+        ],
+        colorPalette: { group: 'Colors' },
+        hierarchy: { field: 'stage' },
+    };
+    const row = {
+        app_id: 'viz-uuid',
+        slug: 'funnel-viz',
+        name: 'Funnel',
+        description: '',
+        project_uuid: projectUuid,
+        viz_schema: storedSchema,
+        latest_ready_version: 4,
+    };
+
+    const search = (
+        args: { query: string } | { slug: string },
+        {
+            canUseChartTypes = true,
+            appModel = {},
+        }: { canUseChartTypes?: boolean; appModel?: Record<string, unknown> },
+    ) => {
+        const service = makeService({
+            appGenerateService: {
+                canUseChartTypes: vi.fn().mockResolvedValue(canUseChartTypes),
+            },
+            appModel,
+        });
+        return (
+            service as unknown as {
+                searchCustomChartTypes: (
+                    context: AiAgentToolsRuntimeContext,
+                    a: typeof args,
+                ) => Promise<unknown>;
+            }
+        ).searchCustomChartTypes(makeRuntimeContext({ source: 'mcp' }), args);
+    };
+
+    it('refuses a caller who fails the gallery gate', async () => {
+        const listDataAppVisualizations = vi.fn();
+        await expect(
+            search(
+                { query: 'funnel' },
+                {
+                    canUseChartTypes: false,
+                    appModel: { listDataAppVisualizations },
+                },
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(listDataAppVisualizations).not.toHaveBeenCalled();
+    });
+
+    it('returns query matches with version, link and plain schema, without uuids', async () => {
+        const listDataAppVisualizations = vi
+            .fn()
+            .mockResolvedValue({ data: [row] });
+
+        const result = await search(
+            { query: 'funnel' },
+            { appModel: { listDataAppVisualizations } },
+        );
+
+        expect(listDataAppVisualizations).toHaveBeenCalledWith(
+            projectUuid,
+            {
+                page: 1,
+                pageSize: AiAgentToolsService.CUSTOM_CHART_TYPES_SEARCH_LIMIT,
+            },
+            'funnel',
+        );
+        expect(result).toEqual([
+            {
+                slug: 'funnel-viz',
+                name: 'Funnel',
+                description: null,
+                version: 4,
+                chartStudioUrl: `https://lightdash.example/projects/${projectUuid}/chart-studio/funnel-viz`,
+                vizSchema: {
+                    fields: [
+                        {
+                            name: 'stage',
+                            label: 'Stage',
+                            type: 'dimension',
+                            required: true,
+                            multiple: true,
+                            description: null,
+                        },
+                    ],
+                    configOptions: [
+                        {
+                            name: 'sort',
+                            label: 'Sort',
+                            type: 'select',
+                            group: null,
+                            default: 'desc',
+                            choices: [{ value: 'desc', label: 'Descending' }],
+                            min: null,
+                            max: null,
+                        },
+                    ],
+                    colorPalette: { group: 'Colors' },
+                    hierarchy: { field: 'stage' },
+                    inputGuidance: null,
+                },
+            },
+        ]);
+        expect(JSON.stringify(result)).not.toContain('viz-uuid');
+    });
+
+    it('fetches one chart type by slug', async () => {
+        const findDataAppVisualizationBySlug = vi
+            .fn()
+            .mockResolvedValueOnce(row)
+            .mockResolvedValueOnce(undefined);
+        const appModel = { findDataAppVisualizationBySlug };
+
+        await expect(
+            search({ slug: 'funnel-viz' }, { appModel }),
+        ).resolves.toMatchObject([{ slug: 'funnel-viz', version: 4 }]);
+        await expect(
+            search({ slug: 'missing' }, { appModel }),
+        ).resolves.toEqual([]);
+        expect(findDataAppVisualizationBySlug).toHaveBeenLastCalledWith(
+            projectUuid,
+            'missing',
+        );
+    });
+
+    const searchWithLoggerSpy = async (rows: unknown[]) => {
+        const service = makeService({
+            appGenerateService: {
+                canUseChartTypes: vi.fn().mockResolvedValue(true),
+            },
+            appModel: {
+                listDataAppVisualizations: vi
+                    .fn()
+                    .mockResolvedValue({ data: rows }),
+            },
+        });
+        const warn = vi.spyOn(
+            (service as unknown as { logger: { warn: () => void } }).logger,
+            'warn',
+        );
+        const results = await (
+            service as unknown as {
+                searchCustomChartTypes: (
+                    context: AiAgentToolsRuntimeContext,
+                    a: { query: string },
+                ) => Promise<unknown[]>;
+            }
+        ).searchCustomChartTypes(makeRuntimeContext({ source: 'mcp' }), {
+            query: 'chart',
+        });
+        return { results, warn };
+    };
+
+    it.each([
+        {
+            name: 'number',
+            option: {
+                name: 'radius',
+                label: 'Radius',
+                type: 'number',
+                default: 4,
+                min: 1,
+                max: null,
+            },
+            expected: { default: 4, choices: null, min: 1, max: null },
+        },
+        {
+            name: 'gradient',
+            option: {
+                name: 'scale',
+                label: 'Scale',
+                type: 'gradient',
+                showBounds: false,
+                default: {
+                    colors: ['#000000', '#ffffff'],
+                    min: 'auto',
+                    max: 10,
+                },
+            },
+            expected: {
+                default: {
+                    colors: ['#000000', '#ffffff'],
+                    min: 'auto',
+                    max: 10,
+                },
+                choices: null,
+                min: null,
+                max: null,
+            },
+        },
+    ])(
+        'maps a $name option to the output schema',
+        async ({ option, expected }) => {
+            const { results } = await searchWithLoggerSpy([
+                {
+                    ...row,
+                    viz_schema: { ...storedSchema, configOptions: [option] },
+                },
+            ]);
+
+            const parsed = mcpFindCustomChartTypesOutputSchema.parse({
+                results,
+            });
+            expect(parsed.results[0].vizSchema.configOptions).toEqual([
+                {
+                    name: option.name,
+                    label: option.label,
+                    type: option.type,
+                    group: null,
+                    ...expected,
+                },
+            ]);
+        },
+    );
+
+    it('drops a row whose stored schema fails validation and logs a warning', async () => {
+        const { results, warn } = await searchWithLoggerSpy([
+            { ...row, slug: 'broken-viz', viz_schema: { fields: 'nope' } },
+            row,
+        ]);
+
+        expect(results).toMatchObject([{ slug: 'funnel-viz' }]);
+        expect(warn).toHaveBeenCalledWith(
+            expect.stringContaining('"broken-viz"'),
+        );
+    });
+
+    describe('listCustomChartTypesPage', () => {
+        const list = (
+            page: number,
+            {
+                canUseChartTypes = true,
+                appModel = {},
+            }: {
+                canUseChartTypes?: boolean;
+                appModel?: Record<string, unknown>;
+            },
+        ) => {
+            const service = makeService({
+                appGenerateService: {
+                    canUseChartTypes: vi
+                        .fn()
+                        .mockResolvedValue(canUseChartTypes),
+                },
+                appModel,
+            });
+            return (
+                service as unknown as {
+                    listCustomChartTypesPage: (
+                        context: AiAgentToolsRuntimeContext,
+                        a: { page: number },
+                    ) => Promise<unknown>;
+                }
+            ).listCustomChartTypesPage(makeRuntimeContext({ source: 'mcp' }), {
+                page,
+            });
+        };
+
+        it('refuses a caller who fails the gallery gate before any query', async () => {
+            const listDataAppVisualizations = vi.fn();
+            await expect(
+                list(1, {
+                    canUseChartTypes: false,
+                    appModel: { listDataAppVisualizations },
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(listDataAppVisualizations).not.toHaveBeenCalled();
+        });
+
+        it('passes the page through without a search and maps items like find', async () => {
+            const listDataAppVisualizations = vi.fn().mockResolvedValue({
+                data: [row],
+                pagination: {
+                    page: 2,
+                    pageSize: 10,
+                    totalResults: 11,
+                    totalPageCount: 2,
+                },
+            });
+            const findDataAppVisualizationBySlug = vi
+                .fn()
+                .mockResolvedValue(row);
+
+            const result = await list(2, {
+                appModel: { listDataAppVisualizations },
+            });
+            const [found] = (await search(
+                { slug: 'funnel-viz' },
+                { appModel: { findDataAppVisualizationBySlug } },
+            )) as unknown[];
+
+            expect(listDataAppVisualizations).toHaveBeenCalledWith(
+                projectUuid,
+                {
+                    page: 2,
+                    pageSize:
+                        AiAgentToolsService.CUSTOM_CHART_TYPES_LIST_PAGE_SIZE,
+                },
+            );
+            expect(result).toEqual({
+                output: {
+                    pagination: {
+                        page: 2,
+                        pageSize: 10,
+                        totalResults: 11,
+                        totalPageCount: 2,
+                    },
+                    results: [found],
+                },
+                skippedOnPage: 0,
+            });
+            expect(JSON.stringify(result)).not.toContain('viz-uuid');
+        });
+
+        it('counts rows dropped for an invalid schema and keeps the totals', async () => {
+            const pagination = {
+                page: 1,
+                pageSize: 10,
+                totalResults: 2,
+                totalPageCount: 1,
+            };
+            const listDataAppVisualizations = vi.fn().mockResolvedValue({
+                data: [{ ...row, slug: 'broken-viz', viz_schema: {} }, row],
+                pagination,
+            });
+
+            const result = await list(1, {
+                appModel: { listDataAppVisualizations },
+            });
+
+            expect(result).toMatchObject({
+                output: { pagination, results: [{ slug: 'funnel-viz' }] },
+                skippedOnPage: 1,
+            });
+        });
     });
 });

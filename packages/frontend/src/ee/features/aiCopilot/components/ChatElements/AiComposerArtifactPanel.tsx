@@ -48,6 +48,7 @@ type Props = {
     /** The run started on open; null while it starts or when it failed. */
     run: ApiAiAgentComposerArtifactVizQuery | null;
     runError: ApiError | null;
+    onRerun: () => void;
     /** Whether edits on the terminal node are written to the artifact version. */
     canEdit: boolean;
     onClose: (() => void) | null;
@@ -65,6 +66,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     config,
     run,
     runError,
+    onRerun,
     canEdit,
     onClose,
 }) => {
@@ -263,6 +265,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                             results={results}
                             queryUuid={queryUuid ?? null}
                             runError={runError}
+                            onRerun={onRerun}
                             vizConfig={value}
                             headerContent={head}
                             flush

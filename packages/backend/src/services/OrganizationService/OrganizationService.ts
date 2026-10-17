@@ -701,10 +701,6 @@ export class OrganizationService extends BaseService {
             projects.some(
                 (project) => project.provisioningSource === 'analytics',
             ) &&
-            auditedAbility.can(
-                'manage',
-                subject('Organization', { organizationUuid }),
-            ) &&
             (await isAnalyticsProjectEnabled(
                 this.featureFlagModel,
                 organizationUuid,
@@ -714,7 +710,18 @@ export class OrganizationService extends BaseService {
             (project, index) =>
                 accessResults[index] &&
                 (project.provisioningSource !== 'analytics' ||
-                    analyticsEnabled),
+                    (analyticsEnabled &&
+                        (auditedAbility.can(
+                            'manage',
+                            subject('Organization', { organizationUuid }),
+                        ) ||
+                            auditedAbility.can(
+                                'view',
+                                subject('SystemAnalytics', {
+                                    organizationUuid,
+                                    projectUuid: project.projectUuid,
+                                }),
+                            )))),
         );
     }
 

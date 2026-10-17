@@ -1,0 +1,8 @@
+name: chain_c
+version: '1.0.0'
+config-version: 2
+profile: cross_source_refs
+model-paths: ['models']
+models:
+  chain_c:
+    +materialized: table

@@ -5,6 +5,8 @@
  * If the feature flag is no longer in use, remove it from this enum.
  */
 export enum FeatureFlags {
+    /** Organization-scoped, off by default. Retry missing cross-project refs with sibling models injected through a generated dbt plugin. */
+    CrossSourceDbtRefs = 'cross-source-dbt-refs',
     DbtExplicitCredentials = 'dbt-explicit-credentials',
     /**
      * Agent identity gates agent query identity, organisation settings and

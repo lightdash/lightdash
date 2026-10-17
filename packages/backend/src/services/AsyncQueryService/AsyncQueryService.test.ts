@@ -9157,7 +9157,7 @@ describe('AsyncQueryService', () => {
                 const expected = {
                     disabled: 'analytics disabled',
                     'cross-org': 'another organization',
-                    'non-admin': 'administration',
+                    'non-admin': 'View managed analytics',
                 }[reason];
                 await expect(
                     service.getAsyncQueryHistory(args),

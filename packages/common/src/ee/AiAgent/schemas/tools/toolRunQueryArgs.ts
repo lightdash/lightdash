@@ -579,7 +579,7 @@ Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel.
 - For single values or detailed data: use \`table\`.
 - Always provide axis labels.
 
-The full chart payload is app metadata; structuredContent contains only a lightweight placeholder. Custom artifacts should build visuals from query data instead.
+The full chart payload is app metadata, drawn only by MCP App-capable clients. In structuredContent, \`echartsOption: {}\` is a placeholder for that payload, not a failed render. If your client cannot display MCP Apps, the user has not seen the chart: build the visual from the query rows. Custom artifacts should build visuals from query data instead.
 
 ${MCP_ARTIFACT_INTEGRATION_NOTE}`;
 

@@ -94,6 +94,7 @@ const createMcpService = (documentsEnabled: boolean) =>
         isFilterExpressionsEnabled: vi.fn().mockResolvedValue(true),
         isRunMetricQueryEnabled: vi.fn().mockResolvedValue(false),
         isDataAppBuildsEnabled: vi.fn().mockResolvedValue(false),
+        isCustomChartTypesEnabled: vi.fn().mockResolvedValue(false),
         isAgentIdentityEnabled: vi.fn().mockResolvedValue(false),
         isRunSqlEnabled: vi.fn().mockResolvedValue(false),
         recordToolList: vi.fn(),
@@ -412,6 +413,10 @@ describe('project-scoped MCP route', () => {
             PROJECT_UUID,
         );
         expect(mcpService.isRunMetricQueryEnabled).toHaveBeenCalledWith(
+            expect.objectContaining({ userUuid: 'user-uuid' }),
+            PROJECT_UUID,
+        );
+        expect(mcpService.isCustomChartTypesEnabled).toHaveBeenCalledWith(
             expect.objectContaining({ userUuid: 'user-uuid' }),
             PROJECT_UUID,
         );

@@ -14,6 +14,18 @@ import { getAiAccessRefusalBlocks } from '../ai/utils/getSlackBlocks';
 import { getSlackArtifactCardBlockId } from '../ai/utils/slackArtifactImages';
 import { AiAgentService } from './AiAgentService';
 
+const retryBlock = {
+    type: 'actions',
+    elements: [
+        {
+            type: 'button',
+            action_id: 'ai_prompt_retry',
+            text: { type: 'plain_text', text: 'Retry' },
+            value: 'prompt-1',
+        },
+    ],
+};
+
 const siteUrl = 'https://lightdash.example.com';
 const signIn = new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN, {
     connectUrl: `${siteUrl}/connect?entryPoint=slack_link&token=a%2Fb`,
@@ -64,15 +76,16 @@ describe.each([false, true])(
             const updateSlackResponseTs = vi.fn().mockResolvedValue(undefined);
             const postDeliveryStore = vi.fn().mockResolvedValue(undefined);
             const refusalStore = vi.fn().mockResolvedValue(undefined);
-            const updateModelResponse = vi
-                .fn()
-                .mockImplementation((data) =>
-                    data.errorMessage &&
+            const errorStore = vi.fn().mockResolvedValue(undefined);
+            const updateModelResponse = vi.fn().mockImplementation((data) => {
+                if (data.errorMessage && !('response' in data))
+                    return errorStore(data);
+                return data.errorMessage &&
                     'response' in data &&
                     data.response === undefined
-                        ? refusalStore(data)
-                        : postDeliveryStore(data),
-                );
+                    ? refusalStore(data)
+                    : postDeliveryStore(data);
+            });
             const getPendingSqlApprovalForPrompt = vi
                 .fn()
                 .mockResolvedValue(null);
@@ -417,6 +430,7 @@ describe.each([false, true])(
                         type: 'section',
                         text: { type: 'mrkdwn', text: '🔴 Generation failed' },
                     },
+                    retryBlock,
                     {
                         type: 'context',
                         elements: [
@@ -1022,6 +1036,7 @@ describe.each([false, true])(
                             },
                         },
                         ...expectedGroup,
+                        retryBlock,
                         ...(card
                             ? []
                             : [

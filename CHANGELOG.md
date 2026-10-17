@@ -1,3 +1,96 @@
+# [2.603.0](https://github.com/lightdash/lightdash/compare/2.602.1...2.603.0) (2026-10-17)
+
+
+### Features
+
+* **dbt:** resolve cross-source dbt refs without dbt-loom ([#31113](https://github.com/lightdash/lightdash/issues/31113)) ([b36463f](https://github.com/lightdash/lightdash/commit/b36463f0eaa8bb92a45853ca7783bf04ab4760c8)), closes [#31025](https://github.com/lightdash/lightdash/issues/31025)
+
+## [2.602.1](https://github.com/lightdash/lightdash/compare/2.602.0...2.602.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* **mcp:** serve favicon.ico cross-origin so Claude can show the connector icon ([#31117](https://github.com/lightdash/lightdash/issues/31117)) ([9422463](https://github.com/lightdash/lightdash/commit/942246331c49e8fc2aac22692b4cc8f535eb4b09))
+
+# [2.602.0](https://github.com/lightdash/lightdash/compare/2.601.0...2.602.0) (2026-10-17)
+
+
+### Features
+
+* **mcp:** advertise each tool's title in its annotations ([#31116](https://github.com/lightdash/lightdash/issues/31116)) ([46ce99c](https://github.com/lightdash/lightdash/commit/46ce99c20d0581c615eb5ac04e2daf58e3ca2e0b))
+
+# [2.601.0](https://github.com/lightdash/lightdash/compare/2.600.1...2.601.0) (2026-10-17)
+
+
+### Features
+
+* **plugins:** add the Lightdash plugin for Claude with a per-instance MCP URL ([#31114](https://github.com/lightdash/lightdash/issues/31114)) ([0200785](https://github.com/lightdash/lightdash/commit/02007851bfb14cae22f993720d064abe8110378d))
+
+## [2.600.1](https://github.com/lightdash/lightdash/compare/2.600.0...2.600.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **ai-agents:** let a person read and re-shape the results an agent produced for them ([#31103](https://github.com/lightdash/lightdash/issues/31103)) ([87a1137](https://github.com/lightdash/lightdash/commit/87a11371c085442cf4549eacaf6a86f0d9f443f2))
+
+# [2.600.0](https://github.com/lightdash/lightdash/compare/2.599.2...2.600.0) (2026-10-16)
+
+
+### Features
+
+* **sandboxes:** add scikit-learn and polars to the python-runner sandbox ([#31101](https://github.com/lightdash/lightdash/issues/31101)) ([2c83a79](https://github.com/lightdash/lightdash/commit/2c83a792ead526c8504e13ffb1485fdff0127965))
+
+## [2.599.2](https://github.com/lightdash/lightdash/compare/2.599.1...2.599.2) (2026-10-16)
+
+
+### Bug Fixes
+
+* **mcp:** explain render_chart placeholder to agents ([#31105](https://github.com/lightdash/lightdash/issues/31105)) ([92434d4](https://github.com/lightdash/lightdash/commit/92434d4520c3a0ee01ea14cb698b67230c12572b))
+
+## [2.599.1](https://github.com/lightdash/lightdash/compare/2.599.0...2.599.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **mcp:** check manage rights before describing apps in iterate tools ([#31100](https://github.com/lightdash/lightdash/issues/31100)) ([c02b5eb](https://github.com/lightdash/lightdash/commit/c02b5ebaf1cf5ef3ac0b84f8395be9d14c3bd7a1))
+* **query-sdk:** qualify short field names with the explore's base table ([#31071](https://github.com/lightdash/lightdash/issues/31071)) ([cb0abd8](https://github.com/lightdash/lightdash/commit/cb0abd823e799f9335400ce9407ca932a96fe44b))
+
+# [2.599.0](https://github.com/lightdash/lightdash/compare/2.598.0...2.599.0) (2026-10-16)
+
+
+### Bug Fixes
+
+* **ai-agents:** allow MCP OAuth client ID without a secret (public client with PKCE) ([#31087](https://github.com/lightdash/lightdash/issues/31087)) ([a38b39d](https://github.com/lightdash/lightdash/commit/a38b39dd05e4730d86e374904422465c4b9b7587)), closes [#31084](https://github.com/lightdash/lightdash/issues/31084)
+* **ai-agents:** tolerate a trailing slash between the MCP server URL and its advertised resource ([#31088](https://github.com/lightdash/lightdash/issues/31088)) ([7c03aa0](https://github.com/lightdash/lightdash/commit/7c03aa06e2842ff57114fee9b15e4e6fd90a5d42)), closes [#31085](https://github.com/lightdash/lightdash/issues/31085) [#31087](https://github.com/lightdash/lightdash/issues/31087) [modelcontextprotocol/typescript-sdk#1968](https://github.com/modelcontextprotocol/typescript-sdk/issues/1968) [#30682](https://github.com/lightdash/lightdash/issues/30682) [#31087](https://github.com/lightdash/lightdash/issues/31087)
+* **mcp:** address review findings on chart type discovery tools ([#31091](https://github.com/lightdash/lightdash/issues/31091)) ([8816ff5](https://github.com/lightdash/lightdash/commit/8816ff597e3d3d2eb8ed3b414c08a0aed2147bcc))
+
+
+### Features
+
+* **mcp:** find custom chart types ([#31081](https://github.com/lightdash/lightdash/issues/31081)) ([14de15d](https://github.com/lightdash/lightdash/commit/14de15dcab037f19a158db2c576a937e189315a3))
+* **mcp:** list custom chart types page by page ([#31083](https://github.com/lightdash/lightdash/issues/31083)) ([0be5c20](https://github.com/lightdash/lightdash/commit/0be5c2055f50c158f5a5eefb6e93269c82eb49dc))
+
+# [2.598.0](https://github.com/lightdash/lightdash/compare/2.597.1...2.598.0) (2026-10-16)
+
+
+### Features
+
+* add managed analytics read permission ([#31079](https://github.com/lightdash/lightdash/issues/31079)) ([a04a6a5](https://github.com/lightdash/lightdash/commit/a04a6a531a448f9447435cf350159238ac15fa33))
+
+## [2.597.1](https://github.com/lightdash/lightdash/compare/2.597.0...2.597.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **ai:** lock the availability toggle of the only org provider key ([#31090](https://github.com/lightdash/lightdash/issues/31090)) ([32d7cf0](https://github.com/lightdash/lightdash/commit/32d7cf0d921889f2502276a98028297e7d514760)), closes [#31089](https://github.com/lightdash/lightdash/issues/31089)
+
+# [2.597.0](https://github.com/lightdash/lightdash/compare/2.596.0...2.597.0) (2026-10-16)
+
+
+### Features
+
+* **ai:** add a Retry button to Slack agent error replies ([#31070](https://github.com/lightdash/lightdash/issues/31070)) ([0c1f4d1](https://github.com/lightdash/lightdash/commit/0c1f4d17cf8feb0ce190455db4f638c0aad08d72))
+
 # [2.596.0](https://github.com/lightdash/lightdash/compare/2.595.0...2.596.0) (2026-10-16)
 
 

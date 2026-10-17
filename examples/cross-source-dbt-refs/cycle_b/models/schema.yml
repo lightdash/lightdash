@@ -1,0 +1,16 @@
+version: 2
+models:
+  - name: model_b
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics:
+          row_count:
+            type: count
+            sql: ${TABLE}.id
+    columns:
+      - name: id
+        meta:
+          dimension:
+            type: number

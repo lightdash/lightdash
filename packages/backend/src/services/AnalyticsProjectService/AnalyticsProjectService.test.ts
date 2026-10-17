@@ -42,7 +42,7 @@ describe('AnalyticsProjectService', () => {
             hiddenJoins: explore.joinedTables.filter((join) => join.hidden)
                 .length,
         }));
-    const assertAnalyticsProjectAccess = vi.fn();
+    const assertAnalyticsProjectAdministration = vi.fn();
     const ensureAnalyticsProject = vi.fn();
     const deleteProject = vi.fn();
     const invalidateSessionUserCache = vi.fn();
@@ -69,7 +69,7 @@ describe('AnalyticsProjectService', () => {
             },
         },
         projectService: {
-            assertAnalyticsProjectAccess,
+            assertAnalyticsProjectAdministration,
             ensureAnalyticsProject,
             delete: deleteProject,
         },
@@ -100,10 +100,7 @@ describe('AnalyticsProjectService', () => {
             })),
         );
         const result = await service.getStatus(user);
-        expect(assertAnalyticsProjectAccess).toHaveBeenCalledWith(user, {
-            organizationUuid: user.organizationUuid,
-            provisioningSource: 'analytics',
-        });
+        expect(assertAnalyticsProjectAdministration).toHaveBeenCalledWith(user);
         expect(getAllByOrganizationUuid).toHaveBeenCalledWith(
             user.organizationUuid,
         );
@@ -213,7 +210,7 @@ describe('AnalyticsProjectService', () => {
     );
 
     it('checks authorization before reading content counts', async () => {
-        assertAnalyticsProjectAccess.mockRejectedValue(
+        assertAnalyticsProjectAdministration.mockRejectedValue(
             new ForbiddenError('Not allowed'),
         );
         await expect(service.getStatus(user)).rejects.toThrow('Not allowed');
@@ -346,7 +343,7 @@ describe('AnalyticsProjectService', () => {
     it.each(['getStatus', 'delete', 'installSampleContent'] as const)(
         'rejects %s before reads or writes when the existing feature/admin guard denies access',
         async (operation) => {
-            assertAnalyticsProjectAccess.mockRejectedValue(
+            assertAnalyticsProjectAdministration.mockRejectedValue(
                 new ForbiddenError('disabled'),
             );
             const operations = {

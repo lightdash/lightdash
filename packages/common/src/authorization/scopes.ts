@@ -903,6 +903,14 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'view:SystemAnalytics',
+        description: 'View managed analytics for the entire organization',
+        isEnterprise: false,
+        group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'create:Job',
         description: 'Create background jobs',
         isEnterprise: false,

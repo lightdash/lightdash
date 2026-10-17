@@ -6,7 +6,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": false
+                "readOnlyHint": true,
+                "title": "Clear agent (deprecated)"
             },
             "description": "@deprecated Omit agentUuid from scoped tool calls instead. Clears legacy shared agent context for older clients only.",
             "inputSchema": {
@@ -20,10 +21,11 @@
         },
         {
             "annotations": {
-                "destructiveHint": false,
+                "destructiveHint": true,
                 "idempotentHint": false,
                 "openWorldHint": false,
-                "readOnlyHint": false
+                "readOnlyHint": false,
+                "title": "Create content"
             },
             "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
             "inputSchema": {
@@ -265,10 +267,11 @@
         },
         {
             "annotations": {
-                "destructiveHint": false,
+                "destructiveHint": true,
                 "idempotentHint": false,
                 "openWorldHint": false,
-                "readOnlyHint": false
+                "readOnlyHint": false,
+                "title": "Create custom chart type"
             },
             "description": "Tool: create_custom_chart_type\n\nBuild a custom chart type: a reusable visualization for saved charts in the project, when built-in chart types cannot draw what the user wants. For a whole interactive app, use generate_data_app.\n\n- Describe the expected data by role (a date, a category, a value), not by a query's fields. Pass queryUuid to share sample rows from a completed run_metric_query.\n- Poll get_data_app_build_status with the returned slug as appSlug until \"ready\", \"error\" or \"cancelled\", then send the user to Chart Studio. Call this tool once per request.\n- Use the returned slug: a taken name gets a numeric suffix.\n- For a named theme, brand or look, find its themeSlug with list_data_app_themes.\n- A chart type created over MCP is the caller's personal one, in no space, so a space-restricted agent-scoped session cannot read it. Omit agentUuid here and in get_data_app_build_status.\n",
             "inputSchema": {
@@ -335,10 +338,11 @@
         },
         {
             "annotations": {
-                "destructiveHint": false,
+                "destructiveHint": true,
                 "idempotentHint": false,
                 "openWorldHint": true,
-                "readOnlyHint": false
+                "readOnlyHint": false,
+                "title": "Create scheduled delivery"
             },
             "description": "Create a LIVE scheduled delivery that sends a saved chart or dashboard to Slack channels and/or email recipients on a cron schedule. IMPORTANT: before calling this tool, propose the full configuration to the user (name, schedule in plain words, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Requires an existing saved chart or dashboard — if the content only exists in this conversation, create it with create_content first, then schedule the created uuid. On success, share the returned href with the user — the delivery is managed (paused, edited, deleted) from that page.",
             "inputSchema": {
@@ -472,7 +476,8 @@
                 "destructiveHint": true,
                 "idempotentHint": false,
                 "openWorldHint": false,
-                "readOnlyHint": false
+                "readOnlyHint": false,
+                "title": "Edit content"
             },
             "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting",
             "inputSchema": {
@@ -506,7 +511,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Find content"
             },
             "description": "Tool: \"find_content\"\nPurpose:\nFinds spaces, charts, dashboards, or Data Apps by name or description within a project, returning detailed information about each.\n\nUsage tips:\n- IMPORTANT: Pass the user's full query or relevant portion directly (e.g., \"revenue based on campaigns\" instead of just \"campaigns\").\n- The search engine understands natural language and context — more descriptive queries yield better results.\n- You can provide multiple search queries to look for different topics simultaneously (e.g., [\"monthly revenue\", \"user acquisition trends\"]).\n- Pass spaceSlug to search only inside that space and its descendants.\n- verifiedOnly=true searches only admin-verified charts/dashboards (spaces omitted). Data Apps have no verification state and remain included. Verification is a status, not text — search topic keywords, never the word \"verified\". If nothing matches, verified content may still exist under other terms, so never claim the project has none from one query. Re-run with verifiedOnly=false only if unverified charts or dashboards are acceptable.\n- If results aren't relevant, retry with the full user query or more specific terms.\n- Dashboards with validation errors will be deprioritized.\n- Returns space breadcrumb/path metadata and canonical chart, dashboard, and Data App URLs when available.\n- Dashboards show a preview of the first 5 charts and the total chart count. Use \"read_content\" to see all charts for a specific dashboard.\n- Data Apps are readable: call \"read_content\" with type \"data_app\" and the app slug to see what the app shows, the charts and dashboard it was generated from, and the explores, fields, filters, parameters and external connections it queries.\n- It doesn't provide summaries for dashboards yet, so don't suggest this capability.\n- If neither run_metric_query nor run_sql is available, search here FIRST: saved charts/dashboards may answer the question. Search before claiming information is unavailable or suggesting raw SQL or elevated permissions.",
             "inputSchema": {
@@ -551,9 +557,367 @@
         {
             "annotations": {
                 "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false,
+                "readOnlyHint": true,
+                "title": "Find custom chart types"
+            },
+            "description": "Tool: find_custom_chart_types\n\nSearch the project's custom chart types (reusable visualizations, including ones installed from the library) by `query` against name and description, or fetch one by `slug`. Set exactly one of the two; to browse page by page, use list_custom_chart_types.\n\n- Each match has its latest version, field slots, config options and a Chart Studio link.\n- Reuse a fitting type before building one with create_custom_chart_type, if available.\n- To save a chart with a type, call create_content (if available) with chartConfig { type: \"data_app_viz\", config: { dataAppVizSlug, fieldMapping, optionValues } }, binding each slot name to query field IDs.\n",
+            "inputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "properties": {
+                    "query": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": null,
+                        "description": "Keyword terms matched against chart type names and descriptions. Set exactly one of query or slug."
+                    },
+                    "slug": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": null,
+                        "description": "Exact slug of one chart type. Set exactly one of query or slug."
+                    }
+                },
+                "type": "object"
+            },
+            "name": "find_custom_chart_types",
+            "outputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                    "results": {
+                        "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                                "chartStudioUrl": {
+                                    "type": "string"
+                                },
+                                "description": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "null"
+                                        }
+                                    ]
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "slug": {
+                                    "type": "string"
+                                },
+                                "version": {
+                                    "description": "Latest ready version, the one a new chart renders.",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991,
+                                    "type": "integer"
+                                },
+                                "vizSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "colorPalette": {
+                                            "anyOf": [
+                                                {
+                                                    "additionalProperties": false,
+                                                    "properties": {
+                                                        "group": {
+                                                            "anyOf": [
+                                                                {
+                                                                    "type": "string"
+                                                                },
+                                                                {
+                                                                    "type": "null"
+                                                                }
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": ["group"],
+                                                    "type": "object"
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ],
+                                            "description": "Set when the chart colours series from the palette."
+                                        },
+                                        "configOptions": {
+                                            "description": "Settings the chart accepts in optionValues.",
+                                            "items": {
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "choices": {
+                                                        "anyOf": [
+                                                            {
+                                                                "items": {
+                                                                    "additionalProperties": false,
+                                                                    "properties": {
+                                                                        "label": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "value": {
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "value",
+                                                                        "label"
+                                                                    ],
+                                                                    "type": "object"
+                                                                },
+                                                                "type": "array"
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ],
+                                                        "description": "Allowed values of a select option."
+                                                    },
+                                                    "default": {
+                                                        "anyOf": [
+                                                            {
+                                                                "type": "boolean"
+                                                            },
+                                                            {
+                                                                "type": "number"
+                                                            },
+                                                            {
+                                                                "type": "string"
+                                                            },
+                                                            {
+                                                                "additionalProperties": false,
+                                                                "properties": {
+                                                                    "colors": {
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "maxItems": 5,
+                                                                        "minItems": 2,
+                                                                        "type": "array"
+                                                                    },
+                                                                    "max": {
+                                                                        "anyOf": [
+                                                                            {
+                                                                                "type": "number"
+                                                                            },
+                                                                            {
+                                                                                "const": "auto",
+                                                                                "type": "string"
+                                                                            }
+                                                                        ]
+                                                                    },
+                                                                    "min": {
+                                                                        "anyOf": [
+                                                                            {
+                                                                                "type": "number"
+                                                                            },
+                                                                            {
+                                                                                "const": "auto",
+                                                                                "type": "string"
+                                                                            }
+                                                                        ]
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "colors",
+                                                                    "min",
+                                                                    "max"
+                                                                ],
+                                                                "type": "object"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "group": {
+                                                        "anyOf": [
+                                                            {
+                                                                "type": "string"
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "label": {
+                                                        "type": "string"
+                                                    },
+                                                    "max": {
+                                                        "anyOf": [
+                                                            {
+                                                                "type": "number"
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "min": {
+                                                        "anyOf": [
+                                                            {
+                                                                "type": "number"
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "name": {
+                                                        "description": "Option name: the key to set in optionValues.",
+                                                        "type": "string"
+                                                    },
+                                                    "type": {
+                                                        "enum": [
+                                                            "boolean",
+                                                            "select",
+                                                            "number",
+                                                            "text",
+                                                            "color",
+                                                            "gradient"
+                                                        ],
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "name",
+                                                    "label",
+                                                    "type",
+                                                    "group",
+                                                    "default",
+                                                    "choices",
+                                                    "min",
+                                                    "max"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "fields": {
+                                            "description": "Field slots to bind query fields to.",
+                                            "items": {
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "description": {
+                                                        "anyOf": [
+                                                            {
+                                                                "type": "string"
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "label": {
+                                                        "type": "string"
+                                                    },
+                                                    "multiple": {
+                                                        "description": "Whether the slot takes an ordered list.",
+                                                        "type": "boolean"
+                                                    },
+                                                    "name": {
+                                                        "description": "Slot name: the key to bind in fieldMapping.",
+                                                        "type": "string"
+                                                    },
+                                                    "required": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "type": {
+                                                        "enum": [
+                                                            "dimension",
+                                                            "metric",
+                                                            "series",
+                                                            "column"
+                                                        ],
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "name",
+                                                    "label",
+                                                    "type",
+                                                    "required",
+                                                    "multiple",
+                                                    "description"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "hierarchy": {
+                                            "anyOf": [
+                                                {
+                                                    "additionalProperties": false,
+                                                    "properties": {
+                                                        "field": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": ["field"],
+                                                    "type": "object"
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ]
+                                        },
+                                        "inputGuidance": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "fields",
+                                        "configOptions",
+                                        "colorPalette",
+                                        "hierarchy",
+                                        "inputGuidance"
+                                    ],
+                                    "type": "object"
+                                }
+                            },
+                            "required": [
+                                "slug",
+                                "name",
+                                "description",
+                                "version",
+                                "chartStudioUrl",
+                                "vizSchema"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["results"],
+                "type": "object"
+            },
+            "title": "Find custom chart types"
+        },
+        {
+            "annotations": {
+                "destructiveHint": true,
                 "idempotentHint": false,
                 "openWorldHint": false,
-                "readOnlyHint": false
+                "readOnlyHint": false,
+                "title": "Generate data app"
             },
             "description": "Tool: generate_data_app\n\nPurpose:\nStart building a new data app: an interactive application generated from a brief on top of a Lightdash project's semantic layer. Each build produces one version of the app. Charts, dashboards, and other saved content have their own tools.\n\nImportant:\n- You name the app. The name fixes both the app's name and its slug at creation, and neither changes afterwards. A name already taken in the project gets a numeric suffix on the slug, so identify the app by the slug this call returns, never one you derived from the name.\n- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the returned slug every 15 seconds until its status is \"ready\", \"error\", or \"cancelled\". Call this tool once per request.\n- The app is created as the calling user's personal app: at the project root, in no space, visible only to them until they move it.\n- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.\n- An unknown themeSlug fails before the build starts and lists the valid slugs. Call list_data_app_themes when the user names a theme, brand, or look.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<confirmation that the build started>\" }]\n- structuredContent: {\n    slug:    string, // the app's permanent slug; pass it to get_data_app_build_status\n    version: number  // the version of the app this build produces\n  }\n\nErrors: an unknown themeSlug, dashboardSlug, or chartSlug returns an error and starts no build.\n",
             "inputSchema": {
@@ -654,7 +1018,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Generate hashes"
             },
             "description": "Generate deterministic base-36 hashes for input strings.",
             "inputSchema": {
@@ -697,7 +1062,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Get AI writeback status"
             },
             "description": "Tool: get_ai_writeback_status\n\nPurpose:\nCheck the status of a writeback run started by run_ai_writeback, and get the pull request URL once it's ready.\n\nImportant:\n- Poll every 10-15 seconds rather than immediately looping — a run typically takes a few minutes.\n- \"status\" is either \"pending\" (not yet picked up), an in-progress pipeline stage (e.g. \"sandbox\", \"agent\", \"pull_request\"), or a terminal value: \"ready\" (finished — check prUrl), \"error\" (finished — check errorMessage; this also covers the \"more than one dbt source\" case described in run_ai_writeback), or \"cancelled\" (stopped before finishing).\n\nParameters:\n- aiWritebackRunUuid: The id returned by run_ai_writeback.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<human-readable status summary>\" }]\n- structuredContent: {\n    status:       string,        // \"pending\" | a pipeline stage | \"ready\" | \"error\" | \"cancelled\"\n    prUrl:        string | null, // set once status is \"ready\" and a PR was opened\n    errorMessage: string | null  // set once status is \"error\"\n  }\n",
             "inputSchema": {
@@ -755,7 +1121,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Get context"
             },
             "description": "Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call. When agent-specific scope is useful and routing is available, use route_agent and pass its returned agentUuid explicitly. If routing is unavailable or full project scope is desired, omit agentUuid; use set_agent for manual selection. This tool reports context but does not establish implicit execution state. When the session is pinned to a project, activeProject is the only allowed project. Otherwise it is a stored default, not a restriction on projectUuid. Use the project the user requested; if none was specified, use activeProject if present or ask. If the requested project is unavailable or rejected, explain rather than substitute another project.",
             "inputSchema": {
@@ -926,7 +1293,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Get current agent (deprecated)"
             },
             "description": "@deprecated Use get_context for legacy configured context or route_agent for an explicit agent selection.",
             "inputSchema": {
@@ -943,7 +1311,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Get current project (deprecated)"
             },
             "description": "@deprecated Use get_context instead. Returns legacy shared project context for older clients.",
             "inputSchema": {
@@ -960,7 +1329,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Get data app build status"
             },
             "description": "Tool: get_data_app_build_status\n\nPurpose:\nCheck how a data app build is going, and get the app's URL once it is ready. A data app is an interactive application generated from a brief on top of a Lightdash project's semantic layer; each build produces one version of it.\n\nImportant:\n- Poll every 15 seconds — \"nextPollAfterMs\" in the response carries the same number in milliseconds. A build usually takes several minutes.\n- Stop polling once \"status\" is \"ready\", \"error\", or \"cancelled\". Those are terminal; the version never changes again.\n- \"slug\" is the app's permanent identifier and never changes, even when the app is renamed. Keep using the slug you started the build with.\n- An agent-scoped session restricted to specific spaces cannot read a personal app, which is what a build started over MCP creates. Call this tool without agentUuid to poll a build you started.\n\nParameters:\n- appSlug: The app's slug, as returned when the build started.\n- version: Which version of the app to report on. Omit it for the latest version, which is the one a build you just started produces.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<human-readable status summary>\" }]\n- structuredContent: {\n    status:          string,        // \"pending\" | \"sandbox\" | \"catalog\" | \"generating\" | \"building\" | \"packaging\" | \"ready\" | \"error\" | \"cancelled\"\n    statusMessage:   string,        // short line describing what the build is doing, or how it ended\n    errorMessage:    string | null, // why the build failed, set only when status is \"error\"\n    name:            string,        // the app's name\n    slug:            string,        // the app's permanent slug\n    href:            string,        // URL to open the app in Lightdash; Chart Studio for a custom chart type\n    nextPollAfterMs: number         // how long to wait before polling again\n  }\n\nErrors: an unknown slug, or an app or version this caller may not view, returns an error rather than a status.\n",
             "inputSchema": {
@@ -1054,7 +1424,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Get Lightdash version"
             },
             "description": "Get the current Lightdash version",
             "inputSchema": {
@@ -1071,7 +1442,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Get metadata"
             },
             "description": "Tool: get_metadata\n\nPurpose:\nGet the full metadata for specific explores and/or fields that you already know the IDs of (typically from grep_fields). grep_fields is lean — it tells you WHICH fields exist; get_metadata gives you the DETAIL you need to build a correct query: an explore's joined tables, table filters, required filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table. A field marked with required parameters returns different results depending on the parameter values the query runs with — unset parameters resolve to their default.\n\nCall this AFTER grep_fields, once you have narrowed down to the explore(s) and field(s) you intend to use, and BEFORE render_chart. You can ask for several explores and several fields across explores in a SINGLE call — batch everything you need at once instead of one request per item.\n\nEach entry in `requests` is one of:\n- `{ \"type\": \"explore\", \"exploreIds\": [\"orders\", \"customers\"] }` — full metadata for those explores (joined tables, table filters, field counts).\n- `{ \"type\": \"field\", \"fields\": [{ \"exploreId\": \"orders\", \"fieldId\": \"orders_status\" }] }` — full metadata for those specific fields.\n",
             "inputSchema": {
@@ -1583,7 +1955,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Get query result"
             },
             "description": "Poll an existing run_sql or run_metric_query query until done, error, cancelled, or expired. Use the exact queryUuid returned by the query tool; never invent it. This tool retrieves results without rerunning the query.\n\nIf running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.\nStop on terminal errors and correct the request before retrying.\n\nReturns the original query's data on completion. For a visual, call render_chart after get_query_result returns done for a metric query. SQL results cannot be rendered by render_chart.\n\nWhen building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: \"mcp-artifact-integration\") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
             "inputSchema": {
@@ -1788,7 +2161,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Search fields"
             },
             "description": "Tool: grep_fields\n\nPurpose:\nFind which explores and fields can answer a question by grepping an in-memory, annotated view of the project's fields (names, labels, descriptions, hints and tags). Returns matching fields as `explore/fieldId  [kind type]` lines grouped by explore.\n\nUse this as the FIRST step whenever the user asks a data question (counts, totals, breakdowns, trends, \"what is\", \"show me\", \"how many\"). Do NOT call this for questions about existing dashboards/charts (use find_content).\n\nEach pattern is a case-insensitive keyword pattern (not a full regex): use `|` to OR synonyms (\"revenue|sales\") and a space or `.*` between words to require all of them (\"order.*status\" matches fields mentioning both \"order\" and \"status\"). Pass 1–5 patterns in a SINGLE call covering the different angles of the question — they run together so you see all results at once instead of grepping one at a time. Start broad with meaningful keywords (e.g. [\"revenue|sales\", \"country|region\", \"segment|tier\"]) and narrow from there — long natural-language phrases will not match. If results are empty, try synonyms or broader patterns before giving up. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.\n\nA description or hint ending in \"...(truncated)\" is incomplete — call get_metadata to read the full text before using that field.\n\nA field annotated with `⚠params: <names>` depends on those Lightdash parameters — what it returns changes with the parameter values the query runs with (unset parameters resolve to their default). Call get_metadata on its explore to see the parameter definitions before querying such a field.\n",
             "inputSchema": {
@@ -2222,10 +2596,11 @@
         },
         {
             "annotations": {
-                "destructiveHint": false,
+                "destructiveHint": true,
                 "idempotentHint": false,
                 "openWorldHint": false,
-                "readOnlyHint": false
+                "readOnlyHint": false,
+                "title": "Iterate on custom chart type"
             },
             "description": "Tool: iterate_custom_chart_type\n\nStart a build that adds a version to an existing custom chart type from a follow-up brief. For a new chart type use create_custom_chart_type; for a data app use iterate_data_app.\n\n- Describe the change, not the whole chart type. The build keeps the chart type's inputs, so charts that already use it keep working. Pass queryUuid to share the first rows of a completed run_metric_query as sample data. Pass themeSlug only to switch the theme.\n- Poll get_data_app_build_status with appSlug set to the slug until it is \"ready\", \"error\" or \"cancelled\". If a version is already building, wait for it to end before calling again.\n- A chart type created over MCP is the caller's personal one, in no space, so a space-restricted agent-scoped session cannot read it. Omit agentUuid here and in get_data_app_build_status.\n",
             "inputSchema": {
@@ -2292,10 +2667,11 @@
         },
         {
             "annotations": {
-                "destructiveHint": false,
+                "destructiveHint": true,
                 "idempotentHint": false,
                 "openWorldHint": false,
-                "readOnlyHint": false
+                "readOnlyHint": false,
+                "title": "Iterate on data app"
             },
             "description": "Tool: iterate_data_app\n\nPurpose:\nStart a build that adds a version to an existing data app from a follow-up brief. Use it to change, fix, or extend an app that already exists; generate_data_app is the tool for a brand-new app.\n\nImportant:\n- The coding agent works from the app's current source, so the brief describes the change rather than restating the whole app.\n- The app's name and slug stay as they are. The build adds a version to the app named by appSlug.\n- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the same appSlug every 15 seconds until its status is \"ready\", \"error\", or \"cancelled\". Call this tool once per request.\n- While a version is already building for the app, this call fails with \"A version is already building for this app\". Poll get_data_app_build_status until that build reaches a terminal status, then call this tool again.\n- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.\n- Pass themeSlug only when the user asks to switch the app's theme; omitting it keeps the current one. An unknown themeSlug fails before the build starts and lists the valid slugs, which list_data_app_themes also returns.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<confirmation that the build started>\" }]\n- structuredContent: {\n    slug:    string, // the app's slug, unchanged by this build\n    version: number  // the version of the app this build produces\n  }\n\nErrors: an unknown appSlug, themeSlug, dashboardSlug, or chartSlug returns an error and starts no build. So does a custom chart type's slug: use iterate_custom_chart_type for those.\n",
             "inputSchema": {
@@ -2378,7 +2754,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "List agents"
             },
             "description": "List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection.",
             "inputSchema": {
@@ -2399,7 +2776,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "List content"
             },
             "description": "Tool: \"list_content\"\nPurpose:\nLists accessible Lightdash content in a project as a browsable hierarchy.\n\nUsage tips:\n- By default, lists root-level spaces.\n- Pass a spaceSlug to list direct children and content inside that space.\n- Use page for pagination. Page starts at 1.\n- Results include names, slugs, content types, URLs, and space content counts.",
             "inputSchema": {
@@ -2426,7 +2804,379 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "List custom chart types"
+            },
+            "description": "Tool: list_custom_chart_types\n\nBrowse the project's custom chart types (including ones installed from the library), newest first, one page at a time. Page starts at 1.\n\n- Each item has the same fields as find_custom_chart_types: latest version, field slots, config options and a Chart Studio link.\n- Use find_custom_chart_types to search by text or fetch one by slug.\n",
+            "inputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "properties": {
+                    "page": {
+                        "description": "Paginate results starting at 1. Pass a positive number (e.g. 1), never NaN or the string \"null\".",
+                        "exclusiveMinimum": 0,
+                        "type": "number"
+                    }
+                },
+                "type": "object"
+            },
+            "name": "list_custom_chart_types",
+            "outputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                    "pagination": {
+                        "additionalProperties": false,
+                        "properties": {
+                            "page": {
+                                "maximum": 9007199254740991,
+                                "minimum": -9007199254740991,
+                                "type": "integer"
+                            },
+                            "pageSize": {
+                                "maximum": 9007199254740991,
+                                "minimum": -9007199254740991,
+                                "type": "integer"
+                            },
+                            "totalPageCount": {
+                                "maximum": 9007199254740991,
+                                "minimum": -9007199254740991,
+                                "type": "integer"
+                            },
+                            "totalResults": {
+                                "maximum": 9007199254740991,
+                                "minimum": -9007199254740991,
+                                "type": "integer"
+                            }
+                        },
+                        "required": [
+                            "page",
+                            "pageSize",
+                            "totalResults",
+                            "totalPageCount"
+                        ],
+                        "type": "object"
+                    },
+                    "results": {
+                        "description": "Chart types on this page, newest first.",
+                        "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                                "chartStudioUrl": {
+                                    "type": "string"
+                                },
+                                "description": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "null"
+                                        }
+                                    ]
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "slug": {
+                                    "type": "string"
+                                },
+                                "version": {
+                                    "description": "Latest ready version, the one a new chart renders.",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991,
+                                    "type": "integer"
+                                },
+                                "vizSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "colorPalette": {
+                                            "anyOf": [
+                                                {
+                                                    "additionalProperties": false,
+                                                    "properties": {
+                                                        "group": {
+                                                            "anyOf": [
+                                                                {
+                                                                    "type": "string"
+                                                                },
+                                                                {
+                                                                    "type": "null"
+                                                                }
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": ["group"],
+                                                    "type": "object"
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ],
+                                            "description": "Set when the chart colours series from the palette."
+                                        },
+                                        "configOptions": {
+                                            "description": "Settings the chart accepts in optionValues.",
+                                            "items": {
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "choices": {
+                                                        "anyOf": [
+                                                            {
+                                                                "items": {
+                                                                    "additionalProperties": false,
+                                                                    "properties": {
+                                                                        "label": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "value": {
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "value",
+                                                                        "label"
+                                                                    ],
+                                                                    "type": "object"
+                                                                },
+                                                                "type": "array"
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ],
+                                                        "description": "Allowed values of a select option."
+                                                    },
+                                                    "default": {
+                                                        "anyOf": [
+                                                            {
+                                                                "type": "boolean"
+                                                            },
+                                                            {
+                                                                "type": "number"
+                                                            },
+                                                            {
+                                                                "type": "string"
+                                                            },
+                                                            {
+                                                                "additionalProperties": false,
+                                                                "properties": {
+                                                                    "colors": {
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "maxItems": 5,
+                                                                        "minItems": 2,
+                                                                        "type": "array"
+                                                                    },
+                                                                    "max": {
+                                                                        "anyOf": [
+                                                                            {
+                                                                                "type": "number"
+                                                                            },
+                                                                            {
+                                                                                "const": "auto",
+                                                                                "type": "string"
+                                                                            }
+                                                                        ]
+                                                                    },
+                                                                    "min": {
+                                                                        "anyOf": [
+                                                                            {
+                                                                                "type": "number"
+                                                                            },
+                                                                            {
+                                                                                "const": "auto",
+                                                                                "type": "string"
+                                                                            }
+                                                                        ]
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "colors",
+                                                                    "min",
+                                                                    "max"
+                                                                ],
+                                                                "type": "object"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "group": {
+                                                        "anyOf": [
+                                                            {
+                                                                "type": "string"
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "label": {
+                                                        "type": "string"
+                                                    },
+                                                    "max": {
+                                                        "anyOf": [
+                                                            {
+                                                                "type": "number"
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "min": {
+                                                        "anyOf": [
+                                                            {
+                                                                "type": "number"
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "name": {
+                                                        "description": "Option name: the key to set in optionValues.",
+                                                        "type": "string"
+                                                    },
+                                                    "type": {
+                                                        "enum": [
+                                                            "boolean",
+                                                            "select",
+                                                            "number",
+                                                            "text",
+                                                            "color",
+                                                            "gradient"
+                                                        ],
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "name",
+                                                    "label",
+                                                    "type",
+                                                    "group",
+                                                    "default",
+                                                    "choices",
+                                                    "min",
+                                                    "max"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "fields": {
+                                            "description": "Field slots to bind query fields to.",
+                                            "items": {
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "description": {
+                                                        "anyOf": [
+                                                            {
+                                                                "type": "string"
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "label": {
+                                                        "type": "string"
+                                                    },
+                                                    "multiple": {
+                                                        "description": "Whether the slot takes an ordered list.",
+                                                        "type": "boolean"
+                                                    },
+                                                    "name": {
+                                                        "description": "Slot name: the key to bind in fieldMapping.",
+                                                        "type": "string"
+                                                    },
+                                                    "required": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "type": {
+                                                        "enum": [
+                                                            "dimension",
+                                                            "metric",
+                                                            "series",
+                                                            "column"
+                                                        ],
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "name",
+                                                    "label",
+                                                    "type",
+                                                    "required",
+                                                    "multiple",
+                                                    "description"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "hierarchy": {
+                                            "anyOf": [
+                                                {
+                                                    "additionalProperties": false,
+                                                    "properties": {
+                                                        "field": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": ["field"],
+                                                    "type": "object"
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ]
+                                        },
+                                        "inputGuidance": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "fields",
+                                        "configOptions",
+                                        "colorPalette",
+                                        "hierarchy",
+                                        "inputGuidance"
+                                    ],
+                                    "type": "object"
+                                }
+                            },
+                            "required": [
+                                "slug",
+                                "name",
+                                "description",
+                                "version",
+                                "chartStudioUrl",
+                                "vizSchema"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["pagination", "results"],
+                "type": "object"
+            },
+            "title": "List custom chart types"
+        },
+        {
+            "annotations": {
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false,
+                "readOnlyHint": true,
+                "title": "List data app themes"
             },
             "description": "Tool: list_data_app_themes\n\nPurpose:\nList the organization's data app themes. A theme is a bundle of styling a data app can be built with; each has a slug you pass as themeSlug to generate_data_app.\n\nImportant:\n- Call it when the user names a theme, brand, or look for a data app, then match the request to a theme and pass its slug.\n- Skip it when the user says nothing about the look: the organization default theme applies.\n- An organization may have no themes at all, in which case omit themeSlug.\n\nParameters: none.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<the themes, one per line>\" }]\n- structuredContent: {\n    themes: [{\n      slug:        string,        // pass as themeSlug to generate_data_app\n      name:        string,\n      isDefault:   boolean,       // applied when themeSlug is omitted\n      description: string | null\n    }]\n  }\n",
             "inputSchema": {
@@ -2489,7 +3239,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "List explores"
             },
             "description": "Tool: list_explores\n\nPurpose:\nLists all Explores available to the user in the current project. Returns a summary of each explore including its name, label, base table, and tags.\n\nUsage Tips:\n- Use this to discover what data sources are available before using MCP schema-discovery tools for detailed field information\n- No arguments needed - automatically uses the current project context\n- Results are filtered based on user permissions and selected tags\n- Returns explore metadata without field details for quick overview\n",
             "inputSchema": {
@@ -2506,7 +3257,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "List projects"
             },
             "description": "List all accessible projects in the organization. Projects contain explores, fields, and content. Prefer get_context for bootstrap, then pass the selected projectUuid explicitly to every project-scoped operation. Each project includes a \"type\": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so queries can fail with 403 errors even when the schema is still visible. Only select a PREVIEW project if the user explicitly asks for it.",
             "inputSchema": {
@@ -2523,7 +3275,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "List Skills"
             },
             "description": "List Lightdash built-in skills available to this MCP server. Use this when the client does not expose MCP resources directly.",
             "inputSchema": {
@@ -2630,7 +3383,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "List verified content"
             },
             "description": "List all verified charts, dashboards, and data apps in the required projectUuid. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Each item includes contentType (chart, dashboard, or data_app), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or MCP schema-discovery tools on its explore.",
             "inputSchema": {
@@ -2647,7 +3401,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Read content"
             },
             "description": "Read a dashboard, chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only and returned without code.",
             "inputSchema": {
@@ -2676,7 +3431,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Read Skill"
             },
             "description": "Read the main SKILL.md instructions for a Lightdash built-in skill. Call list_skills first to discover available skill names.",
             "inputSchema": {
@@ -2789,7 +3545,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Read Skill Resource"
             },
             "description": "Read a supporting resource file for a Lightdash built-in skill. Use the resource path returned by list_skills.",
             "inputSchema": {
@@ -2946,9 +3703,10 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Render chart"
             },
-            "description": "Render a completed run_metric_query result in Lightdash's built-in chart app in MCP App-capable clients.\n\nUse when the user wants a visual. If the query is running, call get_query_result first. This tool does not start, poll or rerun queries.\nPass the exact queryUuid returned for this query by run_metric_query or get_query_result (also available in the `queryUuid: <id>` text block). Never invent an ID or reuse one from another query or session. SQL Runner/run_sql results are not supported.\n\nSupported types: table, bar, horizontal_bar, line, scatter, pie, funnel.\n- For time series: use `line` with `xAxisType: 'time'`.\n- For categorical comparisons: use `bar` or `horizontal_bar`.\n- For single values or detailed data: use `table`.\n- Always provide axis labels.\n\nThe full chart payload is app metadata; structuredContent contains only a lightweight placeholder. Custom artifacts should build visuals from query data instead.\n\nWhen building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: \"mcp-artifact-integration\") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
+            "description": "Render a completed run_metric_query result in Lightdash's built-in chart app in MCP App-capable clients.\n\nUse when the user wants a visual. If the query is running, call get_query_result first. This tool does not start, poll or rerun queries.\nPass the exact queryUuid returned for this query by run_metric_query or get_query_result (also available in the `queryUuid: <id>` text block). Never invent an ID or reuse one from another query or session. SQL Runner/run_sql results are not supported.\n\nSupported types: table, bar, horizontal_bar, line, scatter, pie, funnel.\n- For time series: use `line` with `xAxisType: 'time'`.\n- For categorical comparisons: use `bar` or `horizontal_bar`.\n- For single values or detailed data: use `table`.\n- Always provide axis labels.\n\nThe full chart payload is app metadata, drawn only by MCP App-capable clients. In structuredContent, `echartsOption: {}` is a placeholder for that payload, not a failed render. If your client cannot display MCP Apps, the user has not seen the chart: build the visual from the query rows. Custom artifacts should build visuals from query data instead.\n\nWhen building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: \"mcp-artifact-integration\") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -3110,7 +3868,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Resolve URL"
             },
             "description": "Tool: resolve_url\n\nPurpose:\nExpands a Lightdash share short-link into the full URL it redirects to. Share links are opaque — this tool is the only way to see what they point at.\n\nWhen to use:\n- ONLY for URLs whose path is \"/share/<id>\" (e.g. \"<host>/share/aBcD1234...\"). Nothing else is a share link.\n- NEVER call this for any other URL. A URL like \"/projects/<uuid>/saved/<uuid>\" or \"/projects/<uuid>/dashboards/<uuid>\" already contains its identifiers — read them directly from the path and go straight to the appropriate tool.\n\nUsage tips:\n- Read the identifiers (project uuid, chart or dashboard uuid, explore name) from the expanded URL, then use other tools (e.g. read_content) to fetch the content.\n- URLs that don't belong to this Lightdash instance cannot be resolved.",
             "inputSchema": {
@@ -3132,9 +3891,10 @@
         {
             "annotations": {
                 "destructiveHint": false,
-                "idempotentHint": false,
+                "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": false
+                "readOnlyHint": true,
+                "title": "Route agent"
             },
             "description": "Select the best AI agent for a user request within the required projectUuid when agent-specific scope is useful and routing is available. Pass the returned agentUuid explicitly to subsequent scoped tools. If routing is unavailable, use list_agents and set_agent for manual selection; omit agentUuid when full project scope is desired. Also updates shared agent context for clients that use it.",
             "inputSchema": {
@@ -3272,7 +4032,8 @@
                 "destructiveHint": true,
                 "idempotentHint": false,
                 "openWorldHint": true,
-                "readOnlyHint": false
+                "readOnlyHint": false,
+                "title": "Run AI writeback"
             },
             "description": "Tool: run_ai_writeback\n\nChange a Lightdash project's dbt project from a natural-language prompt. The GitHub repository and dbt sub-folder are resolved server-side from its dbt connection; never specify them.\n\nSafety and requirements:\n- NOT read-only or idempotent: each call can start a run and open a new pull request. Use only when the user explicitly wants a dbt change.\n- Requires a GitHub-backed dbt connection, the organization's GitHub App installation, and AI writeback enabled for the organization.\n\nExecution:\n- Returns immediately with aiWritebackRunUuid; does not wait for completion. A background sandbox clones the project's GitHub repository and runs the prompt through Claude Code CLI against dbt. If files change, a branch is committed and pushed, and a pull request opened.\n- Runs usually take a few minutes. Poll get_ai_writeback_status every 10-15 seconds with aiWritebackRunUuid for progress and the pull request URL.\n- Clients declaring io.modelcontextprotocol/tasks in per-request capabilities instead get a task handle (resultType: \"task\", taskId = run id). Poll tasks/get and cancel via tasks/cancel, rather than using get_ai_writeback_status.\n\nInput:\n- prompt: a clear, self-contained change, e.g. \"Add a total_revenue metric to orders as the sum of amount\".\n- With multiple dbt sources, name the intended source in the prompt, e.g. \"In the marketing dbt project, ...\"; never pass a source ID. If ambiguous, the run ends with status \"error\" and an error message listing the source names. Call run_ai_writeback again with the intended source named in the prompt.\n\nNormal response (MCP CallToolResult): content contains a text message saying the run started and to poll get_ai_writeback_status; structuredContent is { aiWritebackRunUuid: string }.\n",
             "inputSchema": {
@@ -3333,7 +4094,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Run composer queries"
             },
             "description": "Run a pipeline: one or more queries submitted together, where duckdb queries join or transform the others' results. The terminal node's table is shown in the thread as a chart artifact and its rows are returned to you.\n\nNode kinds:\n- \"semanticLayer\": a metric query against an explore. Result columns are the requested field ids.\n- \"sql\": raw SQL against the project warehouse; may need user approval. A lone sql node is how raw SQL runs when there is no runSql tool.\n- \"external\": DuckDB SQL over uploaded or connected tables declared in \"tables\".\n- \"duckdb\": DuckDB SQL over other results declared in \"references\".\n\nEvery node has a \"nodeId\" (for references) and a \"title\" (what users see). The terminal node is the unique sink by default, or \"terminalNodeId\".\n\nReuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in \"references\" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id. Every call lists its nodes' ids and titles. The artifact always shows your latest call's terminal result, so end with the pipeline that produces the table the user should see.",
             "inputSchema": {
@@ -3619,7 +4381,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Run metric query"
             },
             "description": "Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore. For running queries, follow the polling instructions in the response.\n\nIf any selected field is marked \"requires parameters\" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.\n\nIf the user mentions any time period, add an explicit date filter; never use sort + limit instead. Use inThePast for relative windows. Date fields from joined tables work identically in filters.\n\nBefore authoring table calculations, read the `table-calculations` skill. Use type `formula`.\n\nAdd a customMetrics entry only after grep_fields / get_metadata confirm no existing metric fits.\n\nThis tool returns metric query data only. For a visual, call render_chart after run_metric_query returns done for a metric query.\n\nIf running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.\nStop on terminal errors and correct the request before retrying.\n\nWhen building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: \"mcp-artifact-integration\") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.\n",
             "inputSchema": {
@@ -7887,7 +8650,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Run SQL"
             },
             "description": "Execute a read-only SQL query against the project's data warehouse. For running queries, follow the polling instructions in the response. Prefer run_metric_query when the semantic layer can answer the question; use SQL for ad-hoc analysis or queries outside modeled explores.\n\nUse a complete SELECT statement in the connected warehouse's SQL dialect. Lightdash applies the row limit (default 500, max 5000).\nFor visuals supported by the semantic layer, prefer run_metric_query then render_chart. render_chart does not support run_sql results.\n\nReturns SQL data, not chart artifacts. The platform provides a query-specific SQL Runner action; do not add your own SQL Runner link in the final answer.\nIf running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.\nStop on terminal errors and correct the request before retrying.\n\nWhen building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: \"mcp-artifact-integration\") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
             "inputSchema": {
@@ -8012,7 +8776,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": true
+                "readOnlyHint": true,
+                "title": "Search field values"
             },
             "description": "Tool: search_field_values\n\nPurpose:\nValidate or discover concrete values for a specific dimension before building a filter. Returns up to 100 unique values matching the query.\n\nUsage Tips:\n- Specify the table and field ID whose values you want to search\n- Prefer a non-empty query containing candidate text, such as \"complete\" for a status\n- Do not omit query or use an empty query to enumerate a warehouse column. A query without candidate text can return curated values defined in field metadata; otherwise it may be rejected to prevent an unbounded distinct-value scan\n- If the user or field metadata already provides the exact value, use it directly instead of searching\n- Omit filters when the search does not need additional filters\n- When a filters object is provided, include type, dimensions, metrics, and tableCalculations. Use null or [] for every unused category; never omit a category\n",
             "inputSchema": {
@@ -10708,7 +11473,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": false
+                "readOnlyHint": true,
+                "title": "Set agent"
             },
             "description": "Manually select an AI agent for the required projectUuid. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Pass the agentUuid explicitly to subsequent scoped tools and use this context to guide them — prefer the agent's explores when calling MCP schema-discovery tools, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
             "inputSchema": {
@@ -10730,7 +11496,8 @@
                 "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
-                "readOnlyHint": false
+                "readOnlyHint": true,
+                "title": "Set project"
             },
             "description": "Set the configured project context. Most tools (list_explores, MCP schema-discovery tools, run_metric_query, etc.) also require its projectUuid explicitly. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request and pass its returned agentUuid explicitly to subsequent scoped tools; use list_agents and set_agent only for manual override.",
             "inputSchema": {

@@ -144,6 +144,11 @@ import {
     toolFindCustomChartTypesOutputSchema,
 } from './toolFindCustomChartTypesArgs';
 import {
+    MCP_TOOL_FIND_CUSTOM_CHART_TYPES_DESCRIPTION,
+    mcpFindCustomChartTypesArgsSchema,
+    mcpFindCustomChartTypesOutputSchema,
+} from './toolFindCustomChartTypesMcpArgs';
+import {
     TOOL_FIND_DASHBOARDS_DESCRIPTION,
     toolFindDashboardsArgsSchema,
     toolFindDashboardsOutputSchema,
@@ -232,6 +237,11 @@ import {
     toolListContentArgsSchema,
     toolListContentOutputSchema,
 } from './toolListContentArgs';
+import {
+    MCP_TOOL_LIST_CUSTOM_CHART_TYPES_DESCRIPTION,
+    mcpListCustomChartTypesArgsSchema,
+    mcpListCustomChartTypesOutputSchema,
+} from './toolListCustomChartTypesMcpArgs';
 import {
     MCP_TOOL_LIST_DATA_APP_THEMES_DESCRIPTION,
     mcpListDataAppThemesStructuredOutputSchema,
@@ -371,35 +381,24 @@ const readOnlyAnnotations: McpToolAnnotations = {
     openWorldHint: false,
 };
 
+// Every tool that writes user data declares destructiveHint so hosts ask
+// before running it; the directory review requires one of the two hints.
 const writeAnnotations: McpToolAnnotations = {
-    readOnlyHint: false,
-    destructiveHint: false,
-    idempotentHint: false,
-    openWorldHint: false,
-};
-
-const destructiveWriteAnnotations: McpToolAnnotations = {
     readOnlyHint: false,
     destructiveHint: true,
     idempotentHint: false,
     openWorldHint: false,
 };
 
+// Only changes the session's active project or agent, never user data.
 const contextWriteAnnotations: McpToolAnnotations = {
-    readOnlyHint: false,
+    readOnlyHint: true,
     destructiveHint: false,
     idempotentHint: true,
     openWorldHint: false,
 };
 
 const externalWriteAnnotations: McpToolAnnotations = {
-    readOnlyHint: false,
-    destructiveHint: false,
-    idempotentHint: false,
-    openWorldHint: true,
-};
-
-const destructiveExternalWriteAnnotations: McpToolAnnotations = {
     readOnlyHint: false,
     destructiveHint: true,
     idempotentHint: false,
@@ -963,7 +962,7 @@ export const editContentToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolEditContentOutputSchema },
     mcp: {
         name: 'edit_content',
-        annotations: destructiveWriteAnnotations,
+        annotations: writeAnnotations,
     },
 });
 
@@ -1776,7 +1775,7 @@ export const routeAgentToolDefinition: ToolDefinitionWithMcpOutput<
     availability: ['mcp'],
     inputSchema: routeAgentArgsSchema,
     mcp: {
-        annotations: writeAnnotations,
+        annotations: contextWriteAnnotations,
         structuredContentSchema: routeAgentStructuredOutputSchema,
     },
 });
@@ -1854,7 +1853,7 @@ export const runAiWritebackToolDefinition: ToolDefinitionWithMcpOutput<
     availability: ['mcp'],
     inputSchema: mcpRunAiWritebackArgsSchema,
     mcp: {
-        annotations: destructiveExternalWriteAnnotations,
+        annotations: externalWriteAnnotations,
         structuredContentSchema: mcpRunAiWritebackStructuredOutputSchema,
     },
 });
@@ -1910,6 +1909,43 @@ export const createCustomChartTypeToolDefinition: ToolDefinitionWithMcpOutput<
     mcp: {
         annotations: writeAnnotations,
         structuredContentSchema: mcpCustomChartTypeBuildStartedOutputSchema,
+    },
+});
+
+// MCP counterpart of findCustomChartTypes: structured output, read-only.
+export const mcpFindCustomChartTypesToolDefinition: ToolDefinitionWithMcpOutput<
+    'findCustomChartTypes',
+    typeof mcpFindCustomChartTypesArgsSchema,
+    typeof mcpFindCustomChartTypesArgsSchema,
+    undefined,
+    typeof mcpFindCustomChartTypesOutputSchema
+> = defineTool({
+    name: 'findCustomChartTypes',
+    title: 'Find custom chart types',
+    description: MCP_TOOL_FIND_CUSTOM_CHART_TYPES_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: mcpFindCustomChartTypesArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpFindCustomChartTypesOutputSchema,
+    },
+});
+
+export const mcpListCustomChartTypesToolDefinition: ToolDefinitionWithMcpOutput<
+    'listCustomChartTypes',
+    typeof mcpListCustomChartTypesArgsSchema,
+    typeof mcpListCustomChartTypesArgsSchema,
+    undefined,
+    typeof mcpListCustomChartTypesOutputSchema
+> = defineTool({
+    name: 'listCustomChartTypes',
+    title: 'List custom chart types',
+    description: MCP_TOOL_LIST_CUSTOM_CHART_TYPES_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: mcpListCustomChartTypesArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpListCustomChartTypesOutputSchema,
     },
 });
 
@@ -2133,6 +2169,8 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     getDataAppBuildStatusToolDefinition,
     createCustomChartTypeToolDefinition,
     iterateCustomChartTypeToolDefinition,
+    mcpFindCustomChartTypesToolDefinition,
+    mcpListCustomChartTypesToolDefinition,
 ] as const;
 
 export type BuiltInToolDefinition = ToolDefinitionInstance;
@@ -2170,7 +2208,7 @@ export const mcpEditContentToolDefinition = defineTool({
         'Edit dashboards, charts, and SQL charts with RFC6902 patch. A SQL chart (type sql_chart) needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL. For Documents, use documentEdit: replace the Markdown (keep unchanged charts by their <document-chart id> tag alone), patch one chart by id, or update metadata, including spaceSlug to save a personal Document into a Space. Stale versions are rejected; read again and retry.',
     availability: ['agent', 'mcp'],
     inputSchema: mcpEditContentArgsSchema,
-    mcp: { name: 'edit_content', annotations: destructiveWriteAnnotations },
+    mcp: { name: 'edit_content', annotations: writeAnnotations },
 });
 
 export const mcpToolDefinitions: readonly ToolDefinitionInstance[] =

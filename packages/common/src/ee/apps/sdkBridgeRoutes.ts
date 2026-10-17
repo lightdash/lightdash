@@ -86,3 +86,29 @@ export const extractAppSdkRouteProjectUuid = (path: string): string | null => {
     const match = path.match(/^\/api\/v2\/projects\/([^/]+)\//);
     return match ? match[1] : null;
 };
+
+// Body and reply of the `APP_SDK_EXPLORE_BASE_TABLE_PATH` virtual route.
+export type AppSdkExploreBaseTableRequest = { exploreName: string };
+
+export type AppSdkExploreBaseTableResult = { baseTable: string | null };
+
+export const parseAppSdkExploreBaseTableRequest = (
+    body: unknown,
+): AppSdkExploreBaseTableRequest | null => {
+    if (typeof body !== 'object' || body === null) return null;
+    const { exploreName } = body as { exploreName?: unknown };
+    return typeof exploreName === 'string' && exploreName.length > 0
+        ? { exploreName }
+        : null;
+};
+
+/** Reads `baseTable` from an explore API body (`{ results: Explore }`). */
+export const extractExploreBaseTable = (body: unknown): string | null => {
+    if (typeof body !== 'object' || body === null) return null;
+    const { results } = body as { results?: unknown };
+    if (typeof results !== 'object' || results === null) return null;
+    const { baseTable } = results as { baseTable?: unknown };
+    return typeof baseTable === 'string' && baseTable.length > 0
+        ? baseTable
+        : null;
+};

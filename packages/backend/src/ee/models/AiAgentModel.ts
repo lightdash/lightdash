@@ -270,6 +270,7 @@ import {
     type SqlApprovalDecision,
     type SqlApprovalDecisionOnCall,
 } from '../services/ai/tools/sqlApprovals';
+import { normalizeAiMcpOAuthClientCredentials } from '../services/ai/utils/mcpServerCredentials';
 import { type AiAgentThreadLiveStateSignals } from '../services/AiAgentService/aiAgentThreadLiveStatus';
 import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from '../services/AiDeepResearchService/constants';
 import { AI_AGENT_THREAD_PENDING_TIMEOUT_MS } from './aiAgentConstants';
@@ -1423,24 +1424,21 @@ export class AiAgentModel {
                     type: 'bearer',
                     bearerToken: credentials.bearerToken,
                 };
-            case 'oauth':
-                if (!credentials?.clientId && !credentials?.clientSecret) {
+            case 'oauth': {
+                const oauthClient =
+                    normalizeAiMcpOAuthClientCredentials(credentials);
+                if (!oauthClient) {
                     return null;
-                }
-
-                if (!credentials.clientId || !credentials.clientSecret) {
-                    throw new ParameterError(
-                        'OAuth client ID and secret must be provided together',
-                    );
                 }
 
                 return {
                     type: 'oauth',
                     credentialScope: 'shared',
                     connectionStatus: 'not_connected',
-                    configuredClientId: credentials.clientId,
-                    configuredClientSecret: credentials.clientSecret,
+                    configuredClientId: oauthClient.clientId,
+                    configuredClientSecret: oauthClient.clientSecret,
                 };
+            }
             default:
                 return assertUnreachable(
                     authType,
@@ -6240,6 +6238,24 @@ export class AiAgentModel {
             })
             .where('ai_prompt_uuid', promptUuid)
             .modify((query) => wherePromptResponseState(query, previousState))
+            .returning<{ ai_prompt_uuid: string }[]>('ai_prompt_uuid');
+
+        return rows.length > 0;
+    }
+
+    async resetFailedPromptForRetry(promptUuid: string): Promise<boolean> {
+        const rows = await this.database(AiPromptTableName)
+            .update({
+                responded_at: this.database.raw('NULL'),
+                error_message: null,
+                token_usage: null,
+                needs_user_input: null,
+                needs_user_input_metadata: null,
+                retried_at: this.database.fn.now(),
+            })
+            .where('ai_prompt_uuid', promptUuid)
+            .whereNull('response')
+            .whereNotNull('error_message')
             .returning<{ ai_prompt_uuid: string }[]>('ai_prompt_uuid');
 
         return rows.length > 0;

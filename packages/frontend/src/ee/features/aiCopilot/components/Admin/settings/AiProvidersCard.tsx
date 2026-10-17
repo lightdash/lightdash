@@ -82,6 +82,10 @@ type ProviderRowProps = {
     providerModels: AiModelOption[];
     visibility: ProviderVisibility | undefined;
     locked: boolean;
+    // True when this is the only provider the org holds a key for. Every other
+    // provider is then locked, so turning this one off would leave no models
+    // and the backend rejects the write — removing the key is the way out.
+    onlyKeyedProvider: boolean;
     disabled: boolean;
     dataAppModels: {
         visibility: DataAppModelVisibility | null;
@@ -174,6 +178,7 @@ const ProviderRow: FC<ProviderRowProps> = ({
     providerModels,
     visibility,
     locked,
+    onlyKeyedProvider,
     disabled,
     dataAppModels,
     onSaveKey,
@@ -195,6 +200,7 @@ const ProviderRow: FC<ProviderRowProps> = ({
     // here). The instance's model options exist regardless, so gate on the key.
     const showAvailability = hasAnyByoKey && providerModels.length > 0;
     const isEnabled = !locked && (visibility?.enabled ?? true);
+    const cannotDisable = onlyKeyedProvider && isEnabled;
 
     return (
         <Stack gap="xs">
@@ -219,7 +225,7 @@ const ProviderRow: FC<ProviderRowProps> = ({
                         size="md"
                         aria-label={`${label} available to users`}
                         checked={isEnabled}
-                        disabled={disabled || locked}
+                        disabled={disabled || locked || cannotDisable}
                         onChange={(event) =>
                             onUpdateVisibility({
                                 enabled: event.currentTarget.checked,
@@ -304,6 +310,15 @@ const ProviderRow: FC<ProviderRowProps> = ({
                     disabled={disabled}
                     onUpdateVisibility={dataAppModels.onUpdate}
                 />
+            )}
+
+            {showAvailability && cannotDisable && (
+                <Text c="dimmed" fz="xs">
+                    {label} is the only provider your organization has a key
+                    for, so its models can&apos;t be turned off — that would
+                    leave no models available. Remove the key to go back to the
+                    instance&apos;s default keys.
+                </Text>
             )}
 
             {locked && (
@@ -446,6 +461,10 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                             )}
                             visibility={modelVisibility?.[provider]}
                             locked={isLockedByByok(provider)}
+                            onlyKeyedProvider={
+                                setKeyCount === 1 &&
+                                providerApiKeysSet[provider]
+                            }
                             disabled={disabled}
                             dataAppModels={
                                 showDataAppModels && provider === 'anthropic'

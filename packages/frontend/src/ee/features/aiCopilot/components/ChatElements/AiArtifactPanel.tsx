@@ -280,9 +280,11 @@ const AiArtifactPanelContent: FC<
             parsedChartConfig?.type === AiResultType.QUERY_RESULT &&
             !isCustomChartTypeAnswer;
 
-        const accessRefusal =
+        const artifactAccessRefusal =
             getAiAccessRefusal(artifactError?.error) ??
-            getAiAccessRefusal(threadError?.error) ??
+            getAiAccessRefusal(threadError?.error);
+        const accessRefusal =
+            artifactAccessRefusal ??
             getAiAccessRefusal(queryExecutionHandle.error?.error) ??
             getAiAccessRefusal(queryResults.error?.error);
 
@@ -292,6 +294,15 @@ const AiArtifactPanelContent: FC<
                     <AiAccessCallout
                         projectUuid={artifact.projectUuid}
                         refusal={accessRefusal}
+                        onRerun={
+                            artifactAccessRefusal
+                                ? undefined
+                                : () => {
+                                      if (queryExecutionHandle.error)
+                                          void queryExecutionHandle.refetch();
+                                      else void queryResults.refetchRows();
+                                  }
+                        }
                         variant="inline"
                     />
                 </Box>
@@ -385,6 +396,7 @@ const AiArtifactPanelContent: FC<
                     config={composerConfig}
                     run={composerRun}
                     runError={queryExecutionHandle.error ?? null}
+                    onRerun={() => void queryExecutionHandle.refetch()}
                     onClose={
                         showCloseButton ? () => dispatch(clearPreview()) : null
                     }

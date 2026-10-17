@@ -778,6 +778,7 @@ describe('MCP catalogue audit', () => {
                                 filterExpressionsEnabled: true,
                                 documentsEnabled: false,
                                 dataAppBuildsEnabled: false,
+                                customChartTypesEnabled: false,
                                 agentIdentityEnabled: false,
                             },
                         },
@@ -1606,6 +1607,9 @@ describe('MCP async query polling', () => {
                 },
             },
         });
+        const [summary] = (result as { content: { text: string }[] }).content;
+        expect(summary.text).toContain('placeholder, not a failed render');
+        expect(summary.text).toContain('build the visual from the query rows');
         expect(
             asyncQueryService.executeAsyncMetricQuery,
         ).not.toHaveBeenCalled();
