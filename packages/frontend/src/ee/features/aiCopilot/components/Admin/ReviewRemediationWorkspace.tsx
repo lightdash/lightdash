@@ -244,6 +244,7 @@ export const ReviewRemediationWorkspace = () => {
                 </Group>
                 {buildAgent && (
                     <AgentNamePill
+                        uuid={buildAgent.uuid}
                         name={buildAgent.name}
                         imageUrl={buildAgent.imageUrl ?? null}
                         variant="inline"

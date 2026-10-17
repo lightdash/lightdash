@@ -249,6 +249,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                 <Group gap="xs">
                     {selectedAgent && (
                         <AgentNamePill
+                            uuid={selectedAgent.uuid}
                             name={selectedAgent.name}
                             imageUrl={selectedAgent.imageUrl}
                             variant="pill"

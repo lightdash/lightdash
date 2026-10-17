@@ -183,6 +183,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
             description={
                 showAgentName ? (
                     <AgentNamePill
+                        uuid={thread.agentUuid}
                         name={thread.agentName}
                         imageUrl={thread.agentImageUrl}
                         variant="inline"

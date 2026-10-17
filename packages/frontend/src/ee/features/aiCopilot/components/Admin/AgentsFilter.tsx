@@ -1,13 +1,13 @@
 import { Group, Text } from '@mantine/core';
 import { IconRobotFace } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
-import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import FilterFacet, {
     type FilterFacetGroup,
 } from '../../../../../components/common/FilterFacet';
 import { useProjects } from '../../../../../hooks/useProjects';
 import { useAiAgentAdminAgents } from '../../hooks/useAiAgentAdmin';
 import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
+import { AgentAvatar } from '../AgentAvatar';
 import { buildAgentFilterGroups } from './projectFilterOrdering';
 
 type AgentsFilterProps = Pick<
@@ -56,10 +56,11 @@ const AgentsFilter: FC<AgentsFilterProps> = ({
                     searchLabel: agent.name,
                     label: (
                         <Group gap="two" wrap="nowrap">
-                            <LightdashUserAvatar
+                            <AgentAvatar
+                                uuid={agent.uuid}
                                 size={16}
                                 name={agent.name}
-                                src={agent.imageUrl}
+                                imageUrl={agent.imageUrl}
                             />
                             <Text fz="xs" truncate>
                                 {agent.name}

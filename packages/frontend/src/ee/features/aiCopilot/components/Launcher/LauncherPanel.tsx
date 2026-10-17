@@ -23,7 +23,6 @@ import {
     type FC,
 } from 'react';
 import { createPath, useLocation, useNavigate } from 'react-router';
-import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import useApp from '../../../../../providers/App/useApp';
 import { findRetryableDeepResearchRun } from '../../deepResearch/deepResearchRegistry';
 import { runDeepResearchAgain } from '../../deepResearch/runAgain';
@@ -59,6 +58,7 @@ import {
 } from '../../store/hooks';
 import { type AiAgentToolResult } from '../../types';
 import { getDashboardNavigationUrlFromContentToolResult } from '../../utils/contentToolResultNavigation';
+import { AgentAvatar } from '../AgentAvatar';
 import { AiAgentNewThreadMcpConnections } from '../AiAgentNewThreadMcpConnections';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
@@ -352,10 +352,11 @@ const NewThreadPanel: FC<{
                             </Text>
                         </Avatar>
                     ) : (
-                        <LightdashUserAvatar
+                        <AgentAvatar
+                            uuid={agent.uuid}
                             size="lg"
                             name={agent.name}
-                            src={agent.imageUrl}
+                            imageUrl={agent.imageUrl}
                         />
                     )}
                     <Text size="sm" fw={500}>
@@ -443,10 +444,11 @@ const LauncherAgentPicker: FC<{
                     variant="default"
                     justify="start"
                     leftSection={
-                        <LightdashUserAvatar
+                        <AgentAvatar
+                            uuid={candidate.agentUuid}
                             size="xs"
                             name={candidate.name}
-                            src={candidate.agent?.imageUrl}
+                            imageUrl={candidate.agent?.imageUrl}
                         />
                     }
                     onClick={() => onPick(candidate.agentUuid)}
