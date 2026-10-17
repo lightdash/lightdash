@@ -101,7 +101,10 @@ models compiled on the same connection.
   dashboard filter can target fields from several explores. Each tile's query
   uses its own connection's week start.
 - `getExploreResponse` resolves the bound connection on each request.
-- Additional dbt sources accept GitHub connections only.
+- Additional dbt sources accept GitHub connections. With
+  `mixed-warehouse-connections` on, `ProjectDbtSourcesService` also accepts
+  `manifest` sources, so an uploaded manifest can run on an extra connection.
+  With the flag off, the GitHub-only rule and its message are unchanged.
 - Three identifier paths that predate this feature wrap identifiers without
   escaping embedded delimiters: `ExploreCompiler.compileDimensionReference('TABLE')`,
   `MetricQueryBuilder.getBaseTableFromSQL` and `getCustomSqlDimensionSql`.
@@ -119,5 +122,11 @@ models compiled on the same connection.
   (`crossConnectionRefs.test.ts`).
 - Real-schema integration tests run the connection service, switch and SQL
   runner flows with the flag on and off.
-- Local fixtures for live testing: [Trino](../examples/trino-dev/README.md),
-  and [BigQuery, Snowflake and DuckLake](../examples/mixed-warehouse-dev/README.md).
+- [`scripts/mixed-warehouse-scale-test`](../scripts/mixed-warehouse-scale-test/README.md)
+  drives a local instance through the API across 20 or more projects: every
+  available warehouse as the original with every other as an extra, live
+  connection changes, failure cases, cross-source refs, dashboards with a
+  scheduled delivery, previews, CLI deploy, and a flag-off pass.
+- Local fixtures: [Trino](../examples/trino-dev/README.md), and
+  [Postgres, DuckLake, ClickHouse, BigQuery, Snowflake, Athena and a Redshift
+  stand-in](../examples/mixed-warehouse-dev/README.md).
