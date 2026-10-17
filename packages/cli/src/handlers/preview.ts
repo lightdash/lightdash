@@ -5,6 +5,9 @@ import {
     PreviewExpiresAt,
     Project,
     ProjectType,
+    type ApiUpdateWarehouseConnectionRequest,
+    type DbtSourceBindings,
+    type WarehouseConnection,
 } from '@lightdash/common';
 import chokidar from 'chokidar';
 import inquirer from 'inquirer';
@@ -510,6 +513,7 @@ export const previewHandler = async (
 const refreshPreviewWarehouseCredentials = async (
     projectUuid: string,
     options: PreviewHandlerOptions,
+    upstreamProjectUuid: string | undefined,
 ): Promise<void> => {
     const source = getWarehouseCredentialsSource(options);
     if (source.source === 'organization') {
@@ -541,16 +545,73 @@ const refreshPreviewWarehouseCredentials = async (
         );
         return;
     }
+    const project = await getProject(projectUuid);
+    let connection: DbtSourceBindings['connections'][number] | undefined;
+    if (project.connectionRoute === 'multi') {
+        const sourceUuid = await resolveProjectSourceUuid(
+            projectUuid,
+            options.source,
+            upstreamProjectUuid,
+        );
+        if (sourceUuid) {
+            const keepStoredCredentials = () =>
+                console.error(
+                    styles.warning(
+                        `Could not read which connection source ${options.source ?? sourceUuid} uses; keeping the warehouse credentials already stored on the preview.`,
+                    ),
+                );
+            let bindings: DbtSourceBindings;
+            try {
+                bindings = await lightdashApi<DbtSourceBindings>({
+                    method: 'GET',
+                    url: `/api/v1/projects/${projectUuid}/warehouse-connections/dbt-sources/bindings`,
+                    body: undefined,
+                });
+            } catch {
+                keepStoredCredentials();
+                return;
+            }
+            const boundConnectionUuid =
+                bindings.sources.find(
+                    (item) => item.projectDbtSourceUuid === sourceUuid,
+                )?.warehouseConnectionUuid ?? null;
+            if (boundConnectionUuid !== null) {
+                const boundConnection = bindings.connections.find(
+                    (item) =>
+                        item.warehouseConnectionUuid === boundConnectionUuid,
+                );
+                if (!boundConnection) {
+                    keepStoredCredentials();
+                    return;
+                }
+                connection = boundConnection.isOriginal
+                    ? undefined
+                    : boundConnection;
+            }
+        }
+    }
     const spinner = GlobalState.startSpinner(
-        '  Refreshing warehouse credentials...',
+        connection
+            ? `  Refreshing warehouse credentials for "${connection.name}"...`
+            : '  Refreshing warehouse credentials...',
     );
     try {
-        const project = await getProject(projectUuid);
-        await updateProjectWarehouseConnection(
-            project,
-            loaded.credentials,
-            'Refreshing warehouse credentials',
-        );
+        if (connection) {
+            const body: ApiUpdateWarehouseConnectionRequest = {
+                warehouseConnection: loaded.credentials,
+            };
+            await lightdashApi<WarehouseConnection>({
+                method: 'PATCH',
+                url: `/api/v1/projects/${projectUuid}/warehouse-connections/${connection.warehouseConnectionUuid}`,
+                body: JSON.stringify(body),
+            });
+        } else {
+            await updateProjectWarehouseConnection(
+                project,
+                loaded.credentials,
+                'Refreshing warehouse credentials',
+            );
+        }
         spinner.succeed('  Warehouse credentials refreshed');
     } catch (e) {
         spinner.fail();
@@ -617,10 +678,14 @@ export const startPreviewHandler = async (
             options.expiresIn,
         );
 
-        await refreshPreviewWarehouseCredentials(previewProject.projectUuid, {
-            ...options,
-            warehouseCredentials: projectTypeConfig.warehouseCredentials,
-        });
+        await refreshPreviewWarehouseCredentials(
+            previewProject.projectUuid,
+            {
+                ...options,
+                warehouseCredentials: projectTypeConfig.warehouseCredentials,
+            },
+            config.context?.project,
+        );
 
         // Update
         const previewSettings = await getProjectDeploySettings(
