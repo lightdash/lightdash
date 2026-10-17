@@ -18,7 +18,7 @@ describe('explicit dbt credential policy', () => {
                     {
                         type: 'unsupported',
                     } as unknown as CreateWarehouseCredentials,
-                    { explicitCredentials, trinoPasswordlessAuth: false },
+                    { explicitCredentials },
                 ),
             ).toThrowError(
                 new Error(
@@ -33,7 +33,6 @@ describe('explicit dbt credential policy', () => {
         ({ credentials, ambientMode }) => {
             const result = toDbtTarget(credentials, {
                 explicitCredentials: true,
-                trinoPasswordlessAuth: false,
             });
             expect(result).toEqual({
                 kind: 'none',
@@ -54,12 +53,8 @@ describe('explicit dbt credential policy', () => {
         ({ credentials, target, environment }) => {
             const off = toDbtTarget(credentials, {
                 explicitCredentials: false,
-                trinoPasswordlessAuth: false,
             });
-            const on = toDbtTarget(credentials, {
-                explicitCredentials: true,
-                trinoPasswordlessAuth: false,
-            });
+            const on = toDbtTarget(credentials, { explicitCredentials: true });
             expect(on).toEqual({ kind: 'target', target, environment });
             expect(on).toEqual(off);
         },
@@ -70,7 +65,6 @@ describe('explicit dbt credential policy', () => {
         ({ name, credentials, environment }) => {
             const result = toDbtTarget(credentials, {
                 explicitCredentials: false,
-                trinoPasswordlessAuth: false,
             });
             expect(result.kind).toBe('target');
             if (result.kind !== 'target')

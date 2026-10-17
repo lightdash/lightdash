@@ -172,10 +172,7 @@ it.each([false, true])(
             'ai_service_account',
         );
         expect(
-            registry.toDbtTarget(result, result, {
-                explicitCredentials,
-                trinoPasswordlessAuth: false,
-            }),
+            registry.toDbtTarget(result, result, { explicitCredentials }),
         ).toEqual({
             kind: 'none',
             reason: "Shared agent account credentials cannot run dbt. Use the connection's key or a person's sign-in instead.",

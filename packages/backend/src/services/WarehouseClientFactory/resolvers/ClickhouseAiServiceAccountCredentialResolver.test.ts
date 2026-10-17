@@ -204,7 +204,6 @@ it.each([false, true])(
         expect(
             result[credentialResolution]?.toDbtTarget(result, {
                 explicitCredentials: explicit,
-                trinoPasswordlessAuth: false,
             }),
         ).toMatchObject({ kind: 'none' });
     },

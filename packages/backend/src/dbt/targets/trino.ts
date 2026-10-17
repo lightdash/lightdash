@@ -10,40 +10,22 @@ export const trinoTarget = (
         CreateWarehouseCredentials,
         { type: WarehouseTypes.TRINO }
     >,
-    policy: DbtTargetPolicy,
-): DbtTargetResult => {
-    if (policy.trinoPasswordlessAuth && !credentials.password) {
-        return {
-            kind: 'target',
-            target: {
-                type: credentials.type,
-                host: credentials.host,
-                method: 'none',
-                user: envVarReference('user'),
-                port: credentials.port,
-                database: credentials.dbname,
-                schema: credentials.schema,
-                http_scheme: credentials.http_scheme,
-            },
-            environment: { [envVar('user')]: credentials.user },
-        };
-    }
-    return {
-        kind: 'target',
-        target: {
-            type: credentials.type,
-            host: credentials.host,
-            method: 'ldap',
-            user: envVarReference('user'),
-            password: envVarReference('password'),
-            port: credentials.port,
-            database: credentials.dbname,
-            schema: credentials.schema,
-            http_scheme: credentials.http_scheme,
-        },
-        environment: {
-            [envVar('user')]: credentials.user,
-            [envVar('password')]: credentials.password,
-        },
-    };
-};
+    _policy: DbtTargetPolicy,
+): DbtTargetResult => ({
+    kind: 'target',
+    target: {
+        type: credentials.type,
+        host: credentials.host,
+        method: 'ldap',
+        user: envVarReference('user'),
+        password: envVarReference('password'),
+        port: credentials.port,
+        database: credentials.dbname,
+        schema: credentials.schema,
+        http_scheme: credentials.http_scheme,
+    },
+    environment: {
+        [envVar('user')]: credentials.user,
+        [envVar('password')]: credentials.password,
+    },
+});
