@@ -26,6 +26,10 @@ macro so the configured schema is used as written.
 | `bigquery` | BigQuery | `bigquery-public-data.samples.shakespeare` | Development bundle `bigquery` |
 | `snowflake` | Snowflake | `AGENT_DEMO.PUBLIC.CUSTOMERS` | Development bundle `snowflake` |
 | `ducklake` | DuckDB (DuckLake) | `ducklake.main.duck_events` | None, local files |
+| `athena` | Athena | `awsdatacatalog.athena_spike.xp_fixture_types` | Development bundle `athena` |
+| `clickhouse` | ClickHouse | `analytics.ch_sessions` | None, local Docker (`docker-compose.yml`) |
+| `redshift` | Redshift **stand-in** on Postgres | `redshift_standin.public.rs_orders` | ldenv Postgres |
+| `postgres` | Postgres | `<jaffle warehouse db>.jaffle.orders` | ldenv Postgres (`PG_WAREHOUSE_DATABASE`) |
 
 ## Credentials
 
@@ -79,3 +83,29 @@ allow `DbtProjectType.MANIFEST` in the two GitHub-only checks in
 3. Create a dbt source per fixture and bind it to its connection with
    `PUT /api/v1/projects/{projectUuid}/warehouse-connections/dbt-sources/{sourceUuid}`.
 4. Refresh the project and query each explore.
+
+## Athena
+
+The `athena` bundle arrives as `LIGHTDASH_TEST_ATHENA_CREDENTIALS`: client keys
+and a role per region. The client keys can only assume the role, so a
+Lightdash Athena connection uses the keys with the role as **Assume role
+ARN**. Queries run in a workgroup that has its own result location: set the
+connection's workgroup, and leave the S3 staging directory empty so the
+workgroup setting applies. The fixture tables have a few rows, so queries
+scan under 1 KB.
+
+For `dbt parse`, the profile reads `ATHENA_REGION`, `ATHENA_WORKGROUP` and
+`ATHENA_S3_STAGING_DIR`; parsing does not connect, so placeholder values work.
+Keep the workgroup, bucket, account ID and role ARNs out of commits and
+screenshots.
+
+## ClickHouse and the Redshift stand-in
+
+`docker compose -p ld-mixed-dev up -d` starts ClickHouse on HTTP port 18123
+(user and password `lightdash`). Seed it with `analytics.ch_sessions`, then
+parse the `clickhouse` project.
+
+The Redshift stand-in is a `redshift_standin` database on the ldenv Postgres,
+queried through Lightdash's Redshift client. It checks the Redshift code paths
+and the Postgres-compatible dialect, not Redshift itself.
+
