@@ -418,7 +418,15 @@ import {
 import {
     assertAgentQueryWithinEstimateLimit,
     QueryEstimateCache,
+    type QueryEstimateResult,
 } from './queryCostEstimate';
+import {
+    buildQueryCostEstimateAgentRefusedEvent,
+    buildQueryCostEstimateCompletedEvent,
+    getInteractiveQueryCostEstimateSource,
+    unavailableInteractiveEstimateRecord,
+    type InteractiveQueryCostEstimateRecord,
+} from './queryCostEstimateTelemetry';
 import { canReuseQueryResult } from './queryResultReuse';
 import { queryUsageProperties } from './queryUsage';
 import {
@@ -622,7 +630,7 @@ type PreparedAsyncQueryArgs = Omit<
 };
 
 export class AsyncQueryService extends ProjectService {
-    private readonly queryEstimateCache = new QueryEstimateCache();
+    private readonly queryEstimateCache: QueryEstimateCache;
 
     private readonly mergeSubmissionQueries = new AsyncLocalStorage<
         Map<string, Promise<QueryHistory>>
@@ -808,6 +816,9 @@ export class AsyncQueryService extends ProjectService {
         this.exportsStorageClient = this.fileStorageClient;
         this.pivotTableService = args.pivotTableService;
         this.prometheusMetrics = args.prometheusMetrics;
+        this.queryEstimateCache = new QueryEstimateCache(
+            args.prometheusMetrics,
+        );
         this.schedulerClient = args.schedulerClient;
         this.natsClient = args.natsClient;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
@@ -5041,6 +5052,23 @@ export class AsyncQueryService extends ProjectService {
                         sql: query,
                         tags: warehouseQueryTags,
                         timezone: resolvedDataTimezone,
+                    },
+                    {
+                        projectUuid,
+                        organizationUuid,
+                        onRefused: (refusal) =>
+                            this.analytics.track({
+                                ...analyticsIdentity,
+                                ...buildQueryCostEstimateAgentRefusedEvent({
+                                    organizationUuid,
+                                    projectUuid,
+                                    queryContext: queryTags.query_context,
+                                    queryUuid,
+                                    warehouseType:
+                                        warehouseClient.credentials.type,
+                                    ...refusal,
+                                }),
+                            }),
                     },
                 );
             }
@@ -10160,24 +10188,42 @@ export class AsyncQueryService extends ProjectService {
         connectionRoute: ConnectionRouteWithOriginal | null;
     }): Promise<QueryCostEstimate> {
         const settings = getQueryCostEstimateSettings(warehouseCredentials);
-        if (!settings?.estimateQueryBytes) return { status: 'unavailable' };
+        const telemetry = {
+            source: getInteractiveQueryCostEstimateSource(context),
+            projectUuid,
+            organizationUuid,
+        };
+        const base = {
+            ...telemetry,
+            warehouseType: warehouseCredentials.type,
+            thresholdBytes: settings?.confirmEstimatedBytesAbove ?? null,
+        };
+        if (!settings?.estimateQueryBytes) {
+            this.recordInteractiveQueryCostEstimate(
+                account,
+                unavailableInteractiveEstimateRecord(base),
+            );
+            return { status: 'unavailable' };
+        }
+        let result: QueryEstimateResult;
         try {
-            const estimate =
-                await this.warehouseClientFactory.withWarehouseClient(
-                    {
-                        kind: 'resolved',
-                        projectUuid,
-                        credentials: warehouseCredentials,
-                        aiPlan,
-                        warehouseConnectionUuid,
-                        connectionRoute,
-                    },
-                    connectionContextFromAccount(account, {
-                        organizationUuid,
-                        queryContext: context,
-                    }),
-                    ({ warehouseClient }) =>
-                        this.queryEstimateCache.estimate(warehouseClient, {
+            result = await this.warehouseClientFactory.withWarehouseClient(
+                {
+                    kind: 'resolved',
+                    projectUuid,
+                    credentials: warehouseCredentials,
+                    aiPlan,
+                    warehouseConnectionUuid,
+                    connectionRoute,
+                },
+                connectionContextFromAccount(account, {
+                    organizationUuid,
+                    queryContext: context,
+                }),
+                ({ warehouseClient }) =>
+                    this.queryEstimateCache.estimate(
+                        warehouseClient,
+                        {
                             sql,
                             tags: withAgentMarkerTag({
                                 user_uuid: account.user.id,
@@ -10185,27 +10231,70 @@ export class AsyncQueryService extends ProjectService {
                                 project_uuid: projectUuid,
                                 query_context: context,
                             }),
-                        }),
-                );
-            if (estimate === null) return { status: 'unavailable' };
-            const { confirmEstimatedBytesAbove } = settings;
-            return {
-                status: 'estimated',
-                totalBytesProcessed: estimate.totalBytesProcessed,
-                confirmEstimatedBytesAbove,
-                requiresConfirmation:
-                    confirmEstimatedBytesAbove !== null &&
-                    estimate.totalBytesProcessed > confirmEstimatedBytesAbove,
-            };
-        } catch (e) {
-            if (
-                e instanceof WarehouseQueryError ||
-                e instanceof WarehouseConnectionError
-            ) {
-                return { status: 'error', message: getErrorMessage(e) };
-            }
-            throw e;
+                        },
+                        telemetry,
+                    ),
+            );
+        } catch (error) {
+            result = { kind: 'failed', error, dryRunDurationMs: null };
         }
+        if (result.kind === 'unavailable') {
+            this.recordInteractiveQueryCostEstimate(
+                account,
+                unavailableInteractiveEstimateRecord(base),
+            );
+            return { status: 'unavailable' };
+        }
+        if (result.kind === 'failed') {
+            const { error } = result;
+            this.recordInteractiveQueryCostEstimate(account, {
+                ...base,
+                outcome: 'error',
+                cache: result.dryRunDurationMs === null ? 'none' : 'miss',
+                dryRunDurationMs: result.dryRunDurationMs,
+                estimatedBytes: null,
+                requiresConfirmation: null,
+                error,
+            });
+            if (
+                error instanceof WarehouseQueryError ||
+                error instanceof WarehouseConnectionError
+            ) {
+                return { status: 'error', message: getErrorMessage(error) };
+            }
+            throw error;
+        }
+        const { totalBytesProcessed } = result.estimate;
+        const { confirmEstimatedBytesAbove } = settings;
+        const requiresConfirmation =
+            confirmEstimatedBytesAbove !== null &&
+            totalBytesProcessed > confirmEstimatedBytesAbove;
+        this.recordInteractiveQueryCostEstimate(account, {
+            ...base,
+            outcome: 'ok',
+            cache: result.cacheHit ? 'hit' : 'miss',
+            dryRunDurationMs: result.dryRunDurationMs,
+            estimatedBytes: totalBytesProcessed,
+            requiresConfirmation,
+            error: null,
+        });
+        return {
+            status: 'estimated',
+            totalBytesProcessed,
+            confirmEstimatedBytesAbove,
+            requiresConfirmation,
+        };
+    }
+
+    private recordInteractiveQueryCostEstimate(
+        account: Account,
+        record: InteractiveQueryCostEstimateRecord,
+    ): void {
+        this.queryEstimateCache.record(record);
+        this.analytics.trackAccount(
+            account,
+            buildQueryCostEstimateCompletedEvent(record),
+        );
     }
 
     /**
@@ -10274,7 +10363,18 @@ export class AsyncQueryService extends ProjectService {
                 ...getAccountAgentIdentityFacts(account),
             }),
         ]);
-        if (getQueryCostEstimateSettings(warehouseCredentials) === null) {
+        const estimateSettings =
+            getQueryCostEstimateSettings(warehouseCredentials);
+        const unavailableRecord = unavailableInteractiveEstimateRecord({
+            source: 'explorer',
+            projectUuid,
+            organizationUuid,
+            warehouseType: warehouseCredentials.type,
+            thresholdBytes:
+                estimateSettings?.confirmEstimatedBytesAbove ?? null,
+        });
+        if (estimateSettings === null) {
+            this.recordInteractiveQueryCostEstimate(account, unavailableRecord);
             return { status: 'unavailable' };
         }
 
@@ -10289,6 +10389,7 @@ export class AsyncQueryService extends ProjectService {
         });
         // Pre-aggregate hits are served without scanning the warehouse.
         if (routingDecision.target !== 'warehouse') {
+            this.recordInteractiveQueryCostEstimate(account, unavailableRecord);
             return { status: 'unavailable' };
         }
 
