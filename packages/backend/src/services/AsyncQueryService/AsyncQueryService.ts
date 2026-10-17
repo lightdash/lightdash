@@ -300,7 +300,10 @@ import {
     personaliseSharedSignInError,
     personaliseStoredSharedSignInError,
 } from '../../utils/sharedSignInExpiry';
-import { splitJsonlStream } from '../../utils/streamUtils';
+import {
+    splitJsonlStream,
+    writeWithBackpressure,
+} from '../../utils/streamUtils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { copyWarehouseCredentialVersions } from '../../utils/warehouseCredentialVersion';
 import {
@@ -11187,7 +11190,7 @@ export class AsyncQueryService extends ProjectService {
                         timeoutMs: AsyncQueryService.PYTHON_RUN_TIMEOUT_MS,
                     });
 
-                    const { meta, rows } = await traceSpan(
+                    const { meta, chunks, rowCount } = await traceSpan(
                         {
                             op: 'python.query.validate_output',
                             name: 'python.query.validate_output',
@@ -11203,16 +11206,16 @@ export class AsyncQueryService extends ProjectService {
                             );
                             return {
                                 meta: parsedMeta,
-                                rows: validatePythonResultRows(
+                                ...(await validatePythonResultRows(
                                     run.resultJsonl,
                                     parsedMeta,
                                     limit,
-                                ),
+                                )),
                             };
                         },
                     );
                     span.setAttributes({
-                        'lightdash.rowCount': rows.length,
+                        'lightdash.rowCount': rowCount,
                         'lightdash.truncated': meta.truncated,
                         ...(meta.timingsMs && {
                             'lightdash.harness.loadMs': meta.timingsMs.load,
@@ -11237,7 +11240,7 @@ export class AsyncQueryService extends ProjectService {
                             name: 'python.query.upload_result',
                             attributes: {
                                 ...attributes,
-                                'lightdash.totalRows': rows.length,
+                                'lightdash.totalRows': rowCount,
                             },
                         },
                         async () => {
@@ -11248,7 +11251,13 @@ export class AsyncQueryService extends ProjectService {
                                     ),
                                     { contentType: 'application/jsonl' },
                                 );
-                            await upload.write(rows);
+                            for (const chunk of chunks) {
+                                // eslint-disable-next-line no-await-in-loop
+                                await writeWithBackpressure(
+                                    upload.writeStream,
+                                    chunk,
+                                );
+                            }
                             await upload.close();
                         },
                     );
@@ -11264,7 +11273,7 @@ export class AsyncQueryService extends ProjectService {
                             status: QueryHistoryStatus.READY,
                             error: null,
                             warehouse_execution_time_ms: Date.now() - startedAt,
-                            total_row_count: rows.length,
+                            total_row_count: rowCount,
                             cache_key: resultsKey,
                             results_file_name: fileName,
                             results_created_at: createdAt,
@@ -11286,7 +11295,7 @@ export class AsyncQueryService extends ProjectService {
                         context,
                     );
                     this.logger.info(
-                        `Python query ${queryUuid} ready: ${rows.length} rows${
+                        `Python query ${queryUuid} ready: ${rowCount} rows${
                             meta.truncated ? ' (truncated)' : ''
                         } in ${Date.now() - startedAt}ms`,
                     );

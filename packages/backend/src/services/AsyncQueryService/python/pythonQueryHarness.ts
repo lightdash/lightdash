@@ -110,16 +110,25 @@ export const parsePythonResultMeta = (raw: string): PythonResultMeta => {
     return result.data;
 };
 
+const RESULT_BATCH_BYTES = 1024 * 1024;
+
+const yieldToEventLoop = () =>
+    new Promise<void>((resolve) => {
+        setImmediate(resolve);
+    });
+
 /**
  * The sandbox output is written by a process that also ran user code, so it is
  * untrusted: every line must be a JSON object with exactly the declared
- * columns, and the row count must match the metadata and the limit.
+ * columns, and the row count must match the metadata and the limit. Lines are
+ * checked in batches that yield the event loop and re-serialised as the
+ * JSONL a result file holds, so nothing is uploaded until all of it passes.
  */
-export const validatePythonResultRows = (
+export const validatePythonResultRows = async (
     jsonl: Buffer,
     meta: PythonResultMeta,
     limit: number,
-): Record<string, unknown>[] => {
+): Promise<{ chunks: string[]; rowCount: number }> => {
     if (jsonl.byteLength > PYTHON_MAX_RESULT_BYTES) {
         throw new ParameterError(
             `Python result exceeds ${PYTHON_MAX_RESULT_BYTES} bytes`,
@@ -131,42 +140,63 @@ export const validatePythonResultRows = (
         );
     }
     const expected = new Set(meta.columns.map((column) => column.name));
-    const lines = jsonl
-        .toString('utf8')
-        .split('\n')
-        .filter((line) => line.length > 0);
-    if (lines.length !== meta.rowCount) {
+    const chunks: string[] = [];
+    let rowCount = 0;
+    let offset = 0;
+    while (offset < jsonl.byteLength) {
+        const newline = jsonl.indexOf(
+            0x0a,
+            Math.min(offset + RESULT_BATCH_BYTES, jsonl.byteLength - 1),
+        );
+        const end = newline === -1 ? jsonl.byteLength : newline + 1;
+        const lines = jsonl
+            .toString('utf8', offset, end)
+            .split('\n')
+            .filter((line) => line.length > 0);
+        if (rowCount + lines.length > meta.rowCount) {
+            throw new ParameterError(
+                `Python result declares ${meta.rowCount} rows but the file has more`,
+            );
+        }
+        const firstRow = rowCount + 1;
+        const normalised = lines.map((line, index) => {
+            const rowNumber = firstRow + index;
+            let row: unknown;
+            try {
+                row = JSON.parse(line);
+            } catch {
+                throw new ParameterError(
+                    `Python result row ${rowNumber} is not valid JSON`,
+                );
+            }
+            if (row === null || typeof row !== 'object' || Array.isArray(row)) {
+                throw new ParameterError(
+                    `Python result row ${rowNumber} is not an object`,
+                );
+            }
+            const keys = Object.keys(row);
+            if (
+                keys.length !== expected.size ||
+                keys.some((key) => !expected.has(key))
+            ) {
+                throw new ParameterError(
+                    `Python result row ${rowNumber} does not match the declared columns`,
+                );
+            }
+            return `${JSON.stringify(row)}\n`;
+        });
+        rowCount += lines.length;
+        chunks.push(normalised.join(''));
+        offset = end;
+        // eslint-disable-next-line no-await-in-loop
+        await yieldToEventLoop();
+    }
+    if (rowCount !== meta.rowCount) {
         throw new ParameterError(
-            `Python result declares ${meta.rowCount} rows but the file has ${lines.length}`,
+            `Python result declares ${meta.rowCount} rows but the file has ${rowCount}`,
         );
     }
-    return lines.map((line, index) => {
-        let row: unknown;
-        try {
-            row = JSON.parse(line);
-        } catch {
-            throw new ParameterError(
-                `Python result row ${index + 1} is not valid JSON`,
-            );
-        }
-        if (row === null || typeof row !== 'object' || Array.isArray(row)) {
-            throw new ParameterError(
-                `Python result row ${index + 1} is not an object`,
-            );
-        }
-        const keys = Object.keys(row);
-        if (
-            keys.length !== expected.size ||
-            keys.some((key) => !expected.has(key))
-        ) {
-            throw new ParameterError(
-                `Python result row ${
-                    index + 1
-                } does not match the declared columns`,
-            );
-        }
-        return row as Record<string, unknown>;
-    });
+    return { chunks, rowCount };
 };
 
 const toDimensionType = (type: PythonColumnType): DimensionType => {
@@ -246,7 +276,9 @@ export const resultColumnsToPythonInput = (
 /**
  * The harness that runs inside the sandbox. It owns the file contract:
  * inputs are loaded as typed DataFrames, user `run()` is called, and the
- * returned DataFrame is validated, truncated and serialised. The backend
+ * returned DataFrame is validated, truncated and serialised. Reading and
+ * writing are columnar (pyarrow in, polars out) with a row-wise fallback for
+ * values the columnar paths would encode differently. The backend
  * re-validates everything it reads back, so this is a convenience, not the
  * trust boundary.
  */
@@ -254,6 +286,7 @@ export const PYTHON_RUNNER_SOURCE = `
 import importlib.util
 import json
 import math
+import os
 import re
 import sys
 import time
@@ -261,11 +294,15 @@ import traceback
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
+import pyarrow.json as pa_json
 
 WORK = "${PYTHON_WORK_DIR}"
 IN_DIR = f"{WORK}/in"
 OUT_DIR = f"{WORK}/out"
 COLUMN_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,62}$")
+# Below this many cells the row-wise writer beats importing polars
+COLUMNAR_MIN_CELLS = 20_000
 
 
 def fail(message):
@@ -273,22 +310,58 @@ def fail(message):
     sys.exit(1)
 
 
-def load_input(name, spec):
+def read_arrow(path, spec):
+    """Columnar parse; raises on anything the row-wise reader handles differently."""
+    if os.path.getsize(path) == 0:
+        raise ValueError("empty input")
+    # Number columns are inferred so integer columns stay int64, as with pandas
+    schema = pa.schema(
+        [
+            (column, pa.bool_() if kind == "boolean" else pa.string())
+            for column, kind in spec["columns"].items()
+            if kind != "number"
+        ]
+    )
+    table = pa_json.read_json(
+        path,
+        parse_options=pa_json.ParseOptions(
+            explicit_schema=schema, unexpected_field_behavior="infer"
+        ),
+    )
+    present = [column for column in spec["columns"] if column in table.column_names]
+    frame = table.select(present).to_pandas(
+        types_mapper={pa.bool_(): pd.BooleanDtype()}.get
+    )
+    for column in spec["columns"]:
+        if column not in frame.columns:
+            frame[column] = None
+    return frame[list(spec["columns"])]
+
+
+def read_rows(path, spec):
     rows = []
-    with open(f"{IN_DIR}/{name}.jsonl", encoding="utf-8") as handle:
+    with open(path, encoding="utf-8") as handle:
         for line in handle:
             line = line.strip()
             if line:
                 rows.append(json.loads(line))
-    columns = list(spec["columns"].keys())
-    frame = pd.DataFrame(rows, columns=columns)
+    return pd.DataFrame(rows, columns=list(spec["columns"].keys()))
+
+
+def load_input(name, spec):
+    path = f"{IN_DIR}/{name}.jsonl"
+    try:
+        frame = read_arrow(path, spec)
+    except Exception:
+        frame = read_rows(path, spec)
     for column, kind in spec["columns"].items():
         if kind == "number":
             frame[column] = pd.to_numeric(frame[column], errors="coerce")
         elif kind == "boolean":
-            frame[column] = frame[column].map(
-                lambda value: pd.NA if pd.isna(value) else bool(value)
-            ).astype("boolean")
+            if not isinstance(frame[column].dtype, pd.BooleanDtype):
+                frame[column] = frame[column].map(
+                    lambda value: pd.NA if pd.isna(value) else bool(value)
+                ).astype("boolean")
         elif kind in ("date", "timestamp"):
             frame[column] = pd.to_datetime(frame[column], errors="coerce", utc=(kind == "timestamp"))
         else:
@@ -326,6 +399,43 @@ def to_json_value(value, kind):
     return value
 
 
+def write_rows(result, names, kinds, path):
+    records = result.to_dict(orient="records")
+    with open(path, "w", encoding="utf-8") as handle:
+        for record in records:
+            row = {name: to_json_value(record[name], kinds[name]) for name in names}
+            handle.write(json.dumps(row, allow_nan=False) + "\\n")
+
+
+def write_columnar(result, names, kinds, path):
+    """Vectorised writer; raises for any column it cannot encode like write_rows."""
+    import polars as pl
+
+    frame = pl.from_pandas(result)
+    expressions = []
+    for name in names:
+        kind = kinds[name]
+        dtype = frame.schema[name]
+        column = pl.col(name)
+        if kind == "boolean" and dtype == pl.Boolean:
+            expressions.append(column)
+        elif kind == "number" and dtype.is_float():
+            column = column.cast(pl.Float64)
+            expressions.append(pl.when(column.is_finite()).then(column))
+        elif kind == "number" and dtype.is_integer():
+            expressions.append(column)
+        elif kind == "timestamp" and isinstance(dtype, pl.Datetime):
+            offset = "%:z" if dtype.time_zone else ""
+            expressions.append(column.dt.to_string(f"%Y-%m-%dT%H:%M:%S%.f{offset}"))
+        elif kind == "string" and dtype == pl.Date:
+            expressions.append(column.dt.to_string("%Y-%m-%d"))
+        elif kind == "string" and dtype in (pl.String, pl.Categorical, pl.Null):
+            expressions.append(column.cast(pl.String))
+        else:
+            raise TypeError(f"{name}: {dtype} has no columnar encoding")
+    frame.select(expressions).write_ndjson(path)
+
+
 def main():
     with open(f"{IN_DIR}/meta.json", encoding="utf-8") as handle:
         meta = json.load(handle)
@@ -349,7 +459,6 @@ def main():
         result = run(inputs, meta.get("params", {}))
     except Exception:
         fail("run() raised:\\n" + traceback.format_exc())
-
     ran = time.perf_counter()
 
     if not isinstance(result, pd.DataFrame):
@@ -372,17 +481,23 @@ def main():
         result = result.iloc[:limit]
 
     kinds = {name: column_type(result[name]) for name in names}
-    records = result.to_dict(orient="records")
-    with open(f"{OUT_DIR}/result.jsonl", "w", encoding="utf-8") as handle:
-        for record in records:
-            row = {name: to_json_value(record[name], kinds[name]) for name in names}
-            handle.write(json.dumps(row, allow_nan=False) + "\\n")
+    os.makedirs(OUT_DIR, exist_ok=True)
+    result_path = f"{OUT_DIR}/result.jsonl"
+    written = False
+    if len(result) * len(names) >= COLUMNAR_MIN_CELLS:
+        try:
+            write_columnar(result, names, kinds, result_path)
+            written = True
+        except Exception:
+            pass
+    if not written:
+        write_rows(result, names, kinds, result_path)
 
     with open(f"{OUT_DIR}/meta.json", "w", encoding="utf-8") as handle:
         json.dump(
             {
                 "columns": [{"name": name, "type": kinds[name]} for name in names],
-                "rowCount": len(records),
+                "rowCount": len(result),
                 "truncated": truncated,
                 "timingsMs": {
                     "load": round((loaded - started) * 1000, 1),

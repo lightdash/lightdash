@@ -161,31 +161,43 @@ export class PythonSandboxRunner {
         );
 
         try {
-            await traceSpan(
-                {
-                    op: 'python.sandbox.compile',
-                    name: 'python.sandbox.compile',
-                    attributes,
-                },
-                () => PythonSandboxRunner.compile(handle, code),
-            );
-
-            await traceSpan(
-                {
-                    op: 'python.sandbox.write_inputs',
-                    name: 'python.sandbox.write_inputs',
-                    attributes: {
-                        ...attributes,
-                        'lightdash.inputCount': inputs.length,
-                        'lightdash.inputBytes': inputs.reduce(
-                            (total, input) => total + input.jsonl.byteLength,
-                            0,
-                        ),
+            await Promise.all([
+                handle.files.write(PYTHON_MAIN_PATH, code),
+                handle.files.write(PYTHON_RUNNER_PATH, PYTHON_RUNNER_SOURCE),
+            ]);
+            // Inputs upload while the code compiles; a syntax error still
+            // fails the query before the harness reads them
+            await Promise.all([
+                traceSpan(
+                    {
+                        op: 'python.sandbox.compile',
+                        name: 'python.sandbox.compile',
+                        attributes,
                     },
-                },
-                () =>
-                    PythonSandboxRunner.writeInputs(handle, inputs, inputMeta),
-            );
+                    () => PythonSandboxRunner.compile(handle),
+                ),
+                traceSpan(
+                    {
+                        op: 'python.sandbox.write_inputs',
+                        name: 'python.sandbox.write_inputs',
+                        attributes: {
+                            ...attributes,
+                            'lightdash.inputCount': inputs.length,
+                            'lightdash.inputBytes': inputs.reduce(
+                                (total, input) =>
+                                    total + input.jsonl.byteLength,
+                                0,
+                            ),
+                        },
+                    },
+                    () =>
+                        PythonSandboxRunner.writeInputs(
+                            handle,
+                            inputs,
+                            inputMeta,
+                        ),
+                ),
+            ]);
 
             const stdout = await traceSpan(
                 {
@@ -243,13 +255,8 @@ export class PythonSandboxRunner {
         }
     }
 
-    /** Syntax errors surface here, before any data enters the sandbox. */
-    private static async compile(
-        handle: SandboxHandle,
-        code: string,
-    ): Promise<void> {
-        await handle.files.write(PYTHON_MAIN_PATH, code);
-        await handle.files.write(PYTHON_RUNNER_PATH, PYTHON_RUNNER_SOURCE);
+    /** Syntax errors surface here, before the harness runs. */
+    private static async compile(handle: SandboxHandle): Promise<void> {
         try {
             await handle.commands.run(
                 `python3 -I -m py_compile ${PYTHON_MAIN_PATH}`,
@@ -273,22 +280,19 @@ export class PythonSandboxRunner {
         inputs: PythonSandboxInput[],
         inputMeta: PythonInputMeta,
     ): Promise<void> {
-        await handle.commands.run(
-            `mkdir -p ${PYTHON_INPUT_DIR} ${PYTHON_OUTPUT_DIR}`,
-            { maxOutputBytes: MAX_LOG_BYTES },
-        );
-        await Promise.all(
-            inputs.map((input) =>
+        // The image creates the input directory; the harness creates the output one
+        await Promise.all([
+            ...inputs.map((input) =>
                 handle.files.write(
                     `${PYTHON_INPUT_DIR}/${input.name}.jsonl`,
                     input.jsonl,
                 ),
             ),
-        );
-        await handle.files.write(
-            PYTHON_INPUT_META_PATH,
-            JSON.stringify(inputMeta),
-        );
+            handle.files.write(
+                PYTHON_INPUT_META_PATH,
+                JSON.stringify(inputMeta),
+            ),
+        ]);
     }
 
     private static async execute(

@@ -208,15 +208,15 @@ const silentLogger: SandboxLogger = {
     debug: () => {},
 };
 
-/** Writes rows the way runPythonQuery does, into a null sink instead of S3. */
-const writeRowsToSink = async (rows: Record<string, unknown>[]) => {
+/** Writes the validated JSONL the way runPythonQuery does, into a null sink instead of S3. */
+const writeChunksToSink = async (chunks: string[]) => {
     const sink = new PassThrough({ highWaterMark: 16 * 1024 * 1024 });
     let bytes = 0;
     sink.on('data', (chunk: Buffer) => {
         bytes += chunk.length;
     });
-    for (const row of rows) {
-        await writeWithBackpressure(sink, `${JSON.stringify(row)}\n`);
+    for (const chunk of chunks) {
+        await writeWithBackpressure(sink, chunk);
     }
     sink.end();
     return bytes;
@@ -261,7 +261,7 @@ const runOnce = async (
 
     started = performance.now();
     const meta = parsePythonResultMeta(result.resultMeta);
-    const rows = validatePythonResultRows(
+    const { chunks, rowCount } = await validatePythonResultRows(
         result.resultJsonl,
         meta,
         scenario.rows,
@@ -269,7 +269,7 @@ const runOnce = async (
     timings.set('backend.validate', performance.now() - started);
 
     started = performance.now();
-    const outBytes = await writeRowsToSink(rows);
+    const outBytes = await writeChunksToSink(chunks);
     timings.set('backend.serialise_upload', performance.now() - started);
 
     timings.set('total', performance.now() - total);
@@ -282,7 +282,7 @@ const runOnce = async (
     timings.set('harness.load', meta.timingsMs?.load ?? NaN);
     timings.set('harness.user_code', meta.timingsMs?.run ?? NaN);
     timings.set('harness.write', meta.timingsMs?.write ?? NaN);
-    return { inBytes: input.length, outBytes, rows: rows.length };
+    return { inBytes: input.length, outBytes, rows: rowCount };
 };
 
 const median = (values: number[]) => {

@@ -1,5 +1,6 @@
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { readBoundedStream } from '../../../ee/services/SandboxRuntime/boundedOutput';
+import { SandboxCommandError } from '../../../ee/services/SandboxRuntime/errors';
 import {
     type FileReadOptions,
     type SandboxHandle,
@@ -106,4 +107,50 @@ describe('PythonSandboxRunner output limits', () => {
             );
         },
     );
+
+    it('reports a compile error and never runs the harness', async () => {
+        const run = vi.fn(async (command: string) => {
+            if (command.includes('py_compile')) {
+                throw new SandboxCommandError(1, 'SyntaxError: invalid', '');
+            }
+            return { stdout: '', stderr: '', exitCode: 0 };
+        });
+        const write = vi.fn(async () => {});
+        create.mockResolvedValue({
+            sandboxId: 'python-compile',
+            commands: { run },
+            files: { write },
+        } as unknown as SandboxHandle);
+        destroy.mockResolvedValue(undefined);
+        const runner = new PythonSandboxRunner({
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                appRuntime: {
+                    ...lightdashConfigMock.appRuntime,
+                    sandboxProvider: 'e2b',
+                },
+            },
+            logger: {
+                info: vi.fn(),
+                warn: vi.fn(),
+                debug: vi.fn(),
+                error: vi.fn(),
+            },
+        });
+        await expect(
+            runner.run({
+                queryUuid: 'query',
+                code: 'def run(inputs, params):\n    return (',
+                inputs: [{ name: 'source', jsonl: Buffer.from('{}\n') }],
+                inputMeta: { inputs: {}, params: {}, limit: 10 },
+                timeoutMs: 1000,
+            }),
+        ).rejects.toEqual(
+            new PythonExecutionError(
+                'Python code does not compile:\nSyntaxError: invalid',
+            ),
+        );
+        expect(run).toHaveBeenCalledTimes(1);
+        expect(destroy).toHaveBeenCalledWith('python-compile');
+    });
 });
