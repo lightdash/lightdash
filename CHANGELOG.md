@@ -1,3 +1,10 @@
+# [2.603.0](https://github.com/lightdash/lightdash/compare/2.602.1...2.603.0) (2026-10-17)
+
+
+### Features
+
+* **dbt:** resolve cross-source dbt refs without dbt-loom ([#31113](https://github.com/lightdash/lightdash/issues/31113)) ([b36463f](https://github.com/lightdash/lightdash/commit/b36463f0eaa8bb92a45853ca7783bf04ab4760c8)), closes [#31025](https://github.com/lightdash/lightdash/issues/31025)
+
 ## [2.602.1](https://github.com/lightdash/lightdash/compare/2.602.0...2.602.1) (2026-10-17)
 
 
