@@ -10,6 +10,8 @@ import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
 
 export const WAREHOUSE_TYPE_REASON =
+    'Multiple connections are supported for Postgres, Athena, and Snowflake projects only.';
+export const PROVISIONED_WAREHOUSE_REASON =
     'Multiple connections require a user-connectable warehouse connection.';
 export const ENTITLEMENT_REASON =
     'An extra connection needs the Enterprise multi-connection add-on.';
@@ -72,5 +74,5 @@ export const getProvisionedOriginalBlockReason = async (
             project.projectUuid,
         ),
     )
-        ? WAREHOUSE_TYPE_REASON
+        ? PROVISIONED_WAREHOUSE_REASON
         : null;

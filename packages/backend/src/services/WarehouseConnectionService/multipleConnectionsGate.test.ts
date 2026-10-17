@@ -72,7 +72,9 @@ describe('multiple connections gate', () => {
             ),
         ).toBe(WAREHOUSE_TYPE_REASON);
         expect(featureFlagService.get).not.toHaveBeenCalled();
-        expect(WAREHOUSE_TYPE_REASON).toContain('user-connectable');
+        expect(WAREHOUSE_TYPE_REASON).toBe(
+            'Multiple connections are supported for Postgres, Athena, and Snowflake projects only.',
+        );
     });
 });
 
