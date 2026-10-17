@@ -8638,6 +8638,11 @@ export class ProjectService
                 featureFlagId: FeatureFlags.CrossSourceDbtRefs,
                 user: { userUuid, organizationUuid },
             });
+        const { enabled: mixedWarehouseConnectionsEnabled } =
+            await this.featureFlagModel.get({
+                featureFlagId: FeatureFlags.MixedWarehouseConnections,
+                user: { userUuid, organizationUuid },
+            });
         const sourceAdapters = new Map<string, ProjectAdapter>();
         const compileContext = connectionContextFromUser(
             { userUuid },
@@ -8701,6 +8706,7 @@ export class ProjectService
             dbtVersion: resolveDbtVersion(primary.dbtVersionOption),
             includeUnboundSources,
             crossSourceRefsEnabled,
+            mixedWarehouseConnectionsEnabled,
             prepareSourceManifest: async (source, credentials, connection) =>
                 ProjectService.scanAdapter(
                     await getSourceAdapter(source, credentials, connection),

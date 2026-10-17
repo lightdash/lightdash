@@ -340,6 +340,7 @@ describe('Multi-connection compile on the real schema', () => {
                     dbtVersion: SupportedDbtVersions.V1_8,
                     includeUnboundSources,
                     crossSourceRefsEnabled: false,
+                    mixedWarehouseConnectionsEnabled: false,
                     fetchSourceManifest,
                     loadExtraCredentials: loadExtraCredentials(
                         fixture.projectUuid,

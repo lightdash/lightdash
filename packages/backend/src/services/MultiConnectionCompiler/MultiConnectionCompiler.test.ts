@@ -190,6 +190,7 @@ describe('multi-source compilation diagnostics', () => {
                     dbtVersion: SupportedDbtVersions.V1_7,
                     includeUnboundSources: true,
                     crossSourceRefsEnabled: false,
+                    mixedWarehouseConnectionsEnabled: false,
                     fetchSourceManifest: async () => {
                         throw new DbtError('Failed to run dbt ls', [log]);
                     },
@@ -279,6 +280,7 @@ describe('cross-source compilation', () => {
                 dbtVersion: SupportedDbtVersions.V1_7,
                 includeUnboundSources: true,
                 crossSourceRefsEnabled: false,
+                mixedWarehouseConnectionsEnabled: false,
                 fetchSourceManifest,
                 loadExtraCredentials: vi.fn(),
             }),
@@ -438,6 +440,7 @@ describe('cross-source compilation', () => {
                 dbtVersion: SupportedDbtVersions.V1_7,
                 includeUnboundSources: true,
                 crossSourceRefsEnabled: true,
+                mixedWarehouseConnectionsEnabled: false,
                 fetchSourceManifest,
                 prepareSourceManifest,
                 loadExtraCredentials: vi.fn(),
@@ -648,6 +651,7 @@ describe('extra connection scope cleanup', () => {
                 dbtVersion: SupportedDbtVersions.V1_7,
                 includeUnboundSources: true,
                 crossSourceRefsEnabled: false,
+                mixedWarehouseConnectionsEnabled: false,
                 fetchSourceManifest,
                 loadExtraCredentials: vi.fn(async () => extraCredentials),
             });
