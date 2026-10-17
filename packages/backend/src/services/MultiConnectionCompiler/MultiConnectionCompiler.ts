@@ -16,7 +16,10 @@ import {
 import { promisify } from 'node:util';
 import { gzip } from 'node:zlib';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { withCrossSourceRefsHint } from '../../dbt/dbtExternalNodes';
+import {
+    getMissingDbtNodeReferences,
+    withCrossSourceRefsHint,
+} from '../../dbt/dbtExternalNodes';
 import { type DbtProjectScan } from '../../dbt/dbtProjectScan';
 import { DbtSourceError } from '../../dbt/DbtSourceError';
 import Logger from '../../logging/logger';
@@ -110,6 +113,7 @@ type CompiledExtraGroup = {
     manifest: Buffer;
     catalog: WarehouseCatalog | null;
     modelNames: string[];
+    sourceManifests: SourceManifest[];
 };
 
 type MultiConnectionCompilerArguments = {
@@ -401,6 +405,7 @@ export class MultiConnectionCompiler {
                 ).map((explore) => withErrorSource(explore, sources));
                 return {
                     plan,
+                    sourceManifests,
                     explores,
                     modelNames: getModelsFromManifest(manifest).map(
                         (model) => model.name,
@@ -499,6 +504,7 @@ export class MultiConnectionCompiler {
         fetchSourceManifest,
         prepareSourceManifest,
         crossSourceRefsEnabled,
+        mixedWarehouseConnectionsEnabled,
         concurrency,
         loadExtraCredentials,
         beforeLoadExtraCredentials,
@@ -513,6 +519,7 @@ export class MultiConnectionCompiler {
         fetchSourceManifest: FetchSourceManifest;
         prepareSourceManifest?: PrepareSourceManifest;
         crossSourceRefsEnabled: boolean;
+        mixedWarehouseConnectionsEnabled: boolean;
         concurrency: number;
         loadExtraCredentials: LoadExtraConnectionCredentials;
         beforeLoadExtraCredentials?: () => Promise<void>;
@@ -596,6 +603,7 @@ export class MultiConnectionCompiler {
             if (beforeLoadExtraCredentials) await beforeLoadExtraCredentials();
             let extraWarehouseType: CreateWarehouseCredentials['type'] | null =
                 null;
+            const sourceErrors = new Map<string | null, unknown>();
             try {
                 compiledExtraGroups.push(
                     await this.compileExtraGroup({
@@ -603,7 +611,23 @@ export class MultiConnectionCompiler {
                         context,
                         plan: extraPlan,
                         dbtVersion,
-                        fetchSourceManifest,
+                        fetchSourceManifest:
+                            mixedWarehouseConnectionsEnabled &&
+                            crossSourceRefsEnabled
+                                ? async (...args) => {
+                                      try {
+                                          const result =
+                                              await fetchSourceManifest(
+                                                  ...args,
+                                              );
+                                          sourceErrors.delete(args[0].name);
+                                          return result;
+                                      } catch (error) {
+                                          sourceErrors.set(args[0].name, error);
+                                          throw error;
+                                      }
+                                  }
+                                : fetchSourceManifest,
                         prepareSourceManifest,
                         crossSourceRefsEnabled,
                         concurrency,
@@ -675,11 +699,50 @@ export class MultiConnectionCompiler {
                         );
                     }
                 }
+                const diagnostics: string[] = [];
+                if (
+                    mixedWarehouseConnectionsEnabled &&
+                    crossSourceRefsEnabled
+                ) {
+                    if (sourceErrors.size === 0) sourceErrors.set(null, error);
+                    const knownSources = [
+                        ...originalSources.map((source) => ({
+                            source,
+                            connectionName: originalPlan.connectionName,
+                        })),
+                        ...compiledExtraGroups.flatMap((group) =>
+                            group.sourceManifests.map((source) => ({
+                                source,
+                                connectionName: group.plan.connectionName,
+                            })),
+                        ),
+                    ];
+                    for (const [sourceName, sourceError] of sourceErrors) {
+                        for (const ref of getMissingDbtNodeReferences(
+                            sourceError,
+                        )) {
+                            const provider = knownSources.find(
+                                ({ source }) =>
+                                    source.manifest.metadata.project_name ===
+                                    ref.packageName,
+                            );
+                            if (provider) {
+                                const consumer =
+                                    sourceName === null
+                                        ? 'dbt'
+                                        : `dbt source "${sourceName}"`;
+                                const diagnostic = `${consumer} references project "${ref.packageName}", which belongs to dbt source "${provider.source.name}" on connection "${provider.connectionName}". Refs across connections are not supported; bind both sources to the same connection.`;
+                                if (!diagnostics.includes(diagnostic))
+                                    diagnostics.push(diagnostic);
+                            }
+                        }
+                    }
+                }
                 const warning = `Connection "${
                     extraPlan.connectionName
                 }" failed to compile, so its previous explores are kept: ${getErrorMessage(
                     error,
-                )}`;
+                )}${diagnostics.length > 0 ? ` ${diagnostics.join(' ')}` : ''}`;
                 warnings.push(warning);
                 Logger.warn(
                     `dbt.compile.connectionCarriedForward projectUuid=${projectUuid} warehouseConnectionUuid=${extraPlan.warehouseConnectionUuid}: ${warning}`,
