@@ -25,6 +25,10 @@ const exploreConnection: ApiExploreResults['warehouseConnection'] = {
 
 vi.mock('../api', () => ({ lightdashApi: vi.fn() }));
 vi.mock('./useQueryError', () => ({ default: () => vi.fn() }));
+const flag = vi.hoisted(() => ({ enabled: true }));
+vi.mock('./useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({ data: { enabled: flag.enabled } }),
+}));
 vi.mock('./useProject', () => ({
     useProject: () => ({ data: { warehouseConnection: projectConnection } }),
 }));
@@ -49,6 +53,7 @@ describe('resolveExploreWarehouseConnection', () => {
             resolveExploreWarehouseConnection(
                 exploreConnection,
                 projectConnection,
+                true,
             ),
         ).toEqual({
             warehouseType: WarehouseTypes.BIGQUERY,
@@ -61,6 +66,7 @@ describe('resolveExploreWarehouseConnection', () => {
             resolveExploreWarehouseConnection(
                 { ...exploreConnection, startOfWeek: null },
                 projectConnection,
+                true,
             ),
         ).toEqual({
             warehouseType: WarehouseTypes.BIGQUERY,
@@ -68,9 +74,25 @@ describe('resolveExploreWarehouseConnection', () => {
         });
     });
 
+    it('keeps the project week start with mixed warehouse connections off', () => {
+        expect(
+            resolveExploreWarehouseConnection(
+                {
+                    ...exploreConnection,
+                    warehouseType: WarehouseTypes.POSTGRES,
+                },
+                projectConnection,
+                false,
+            ),
+        ).toEqual({
+            warehouseType: WarehouseTypes.POSTGRES,
+            startOfWeek: WeekDay.MONDAY,
+        });
+    });
+
     it('falls back to the project connection without an explore', () => {
         expect(
-            resolveExploreWarehouseConnection(null, projectConnection),
+            resolveExploreWarehouseConnection(null, projectConnection, true),
         ).toEqual({
             warehouseType: WarehouseTypes.POSTGRES,
             startOfWeek: WeekDay.MONDAY,
@@ -78,7 +100,7 @@ describe('resolveExploreWarehouseConnection', () => {
     });
 
     it('returns explicit nulls without either connection', () => {
-        expect(resolveExploreWarehouseConnection(null, null)).toEqual({
+        expect(resolveExploreWarehouseConnection(null, null, true)).toEqual({
             warehouseType: null,
             startOfWeek: null,
         });
@@ -86,7 +108,27 @@ describe('resolveExploreWarehouseConnection', () => {
 });
 
 describe('useExploreWarehouseConnection', () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+        flag.enabled = true;
+    });
+
+    it('uses the project week start for an extra connection with the flag off', () => {
+        flag.enabled = false;
+        const { queryClient, wrapper } = setup();
+        queryClient.setQueryData(exploreKey, {
+            warehouseConnection: exploreConnection,
+        });
+        const { result } = renderHook(
+            () => useExploreWarehouseConnection('orders', 'project-uuid'),
+            { wrapper },
+        );
+
+        expect(result.current).toEqual({
+            warehouseType: WarehouseTypes.BIGQUERY,
+            startOfWeek: WeekDay.MONDAY,
+        });
+    });
 
     it('reads the existing explore cache without a request, including on invalidation', async () => {
         const { queryClient, wrapper } = setup();
