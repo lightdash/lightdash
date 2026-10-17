@@ -22,7 +22,10 @@ import { useMergeChangeSinceRun } from '../../../features/mergeQuery/hooks/useMe
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { useExploreConnectionName } from '../../../hooks/useConnectionBadges';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
-import { useExploreWarehouseConnection } from '../../../hooks/useExploreWarehouseConnection';
+import {
+    useExploreWarehouseConnection,
+    useMixedWarehouseConnectionsEnabled,
+} from '../../../hooks/useExploreWarehouseConnection';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { useVerificationSavePrompt } from '../../../hooks/useVerificationSavePrompt';
@@ -30,10 +33,10 @@ import { Can } from '../../../providers/Ability';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
 import { useIsModalHosted } from '../../../providers/Explorer/useIsModalHosted';
+import { getExplorerConnectionLabel } from '../../../utils/mixedWarehouseConnections';
 import ConnectionBadge from '../../common/ConnectionBadge';
 import MantineIcon from '../../common/MantineIcon';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
-import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/utils';
 import { RefreshButton } from '../../RefreshButton';
 import RefreshDbtButton from '../../RefreshDbtButton';
 import SaveChartButton from '../SaveChartButton';
@@ -104,10 +107,13 @@ const ExplorerHeader: FC = memo(() => {
         unsavedChartVersion.tableName,
         projectUuid,
     );
-    const connectionLabel =
-        connectionName && warehouseType
-            ? `${connectionName} · ${getWarehouseLabel(warehouseType)}`
-            : connectionName;
+    const mixedWarehouseConnectionsEnabled =
+        useMixedWarehouseConnectionsEnabled();
+    const connectionLabel = getExplorerConnectionLabel(
+        connectionName,
+        warehouseType,
+        mixedWarehouseConnectionsEnabled,
+    );
 
     const { getHasDashboardChanges } = useDashboardStorage();
 

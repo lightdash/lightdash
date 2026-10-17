@@ -70,10 +70,14 @@ import useHealth from '../../../hooks/health/useHealth';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useConvertSqlToFormula } from '../../../hooks/useConvertSqlToFormula';
 import { useExplore } from '../../../hooks/useExplore';
-import { useExploreWarehouseConnection } from '../../../hooks/useExploreWarehouseConnection';
+import {
+    useExploreWarehouseConnection,
+    useMixedWarehouseConnectionsEnabled,
+} from '../../../hooks/useExploreWarehouseConnection';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useCannotAuthorCustomSqlTableCalculations } from '../../../hooks/user/useCannotAuthorCustomSqlTableCalculations';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { resolveNewCalculationEditMode } from '../../../utils/mixedWarehouseConnections';
 import { useAiAccessGate } from '../../aiAccess/useAiAccessGate';
 import { getUniqueTableCalculationName } from '../utils';
 import { FormatRow } from './FormatRow/FormatRow';
@@ -250,10 +254,15 @@ const TableCalculationModal: FC<Props> = ({
           ? EditMode.FORMULA
           : EditMode.SQL;
     const [preferredEditMode, setEditMode] = useState<EditMode>(defaultMode);
-    const editMode =
-        isNewCalculation && !isFormulaSupported
-            ? EditMode.SQL
-            : preferredEditMode;
+    const mixedWarehouseConnectionsEnabled =
+        useMixedWarehouseConnectionsEnabled();
+    const editMode = resolveNewCalculationEditMode({
+        preferredMode: preferredEditMode,
+        sqlMode: EditMode.SQL,
+        isNewCalculation,
+        isFormulaSupported,
+        mixedWarehouseConnectionsEnabled,
+    });
 
     useEffect(() => {
         if (isNewCalculation && isFormulaSupported) {

@@ -46,11 +46,14 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useEditorTheme } from '../../../hooks/useEditorTheme';
 import { useExplore } from '../../../hooks/useExplore';
 import { useCustomDimensionsAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
-import { useExploreWarehouseConnection } from '../../../hooks/useExploreWarehouseConnection';
+import {
+    useExploreWarehouseConnection,
+    useMixedWarehouseConnectionsEnabled,
+} from '../../../hooks/useExploreWarehouseConnection';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { getWarehouseSqlCaption } from '../../../utils/mixedWarehouseConnections';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
-import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/utils';
 import classes from './CustomSqlDimensionModal.module.css';
 
 type FormValues = {
@@ -97,6 +100,10 @@ export const CustomSqlDimensionModal: FC<{
     const { warehouseType } = useExploreWarehouseConnection(
         tableName,
         projectUuid,
+    );
+    const sqlCaption = getWarehouseSqlCaption(
+        warehouseType,
+        useMixedWarehouseConnectionsEnabled(),
     );
 
     const toggleModal = () =>
@@ -312,9 +319,9 @@ export const CustomSqlDimensionModal: FC<{
                         data-tour-input="true"
                         data-tour-suggest="CASE WHEN ${orders.amount} < 100 THEN 'small' ELSE 'large' END"
                     >
-                        {warehouseType !== null && (
+                        {sqlCaption !== null && (
                             <Text size="xs" c="dimmed">
-                                {getWarehouseLabel(warehouseType)} SQL
+                                {sqlCaption}
                             </Text>
                         )}
                         <SqlEditor
