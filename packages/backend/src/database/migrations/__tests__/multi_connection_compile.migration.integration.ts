@@ -309,6 +309,7 @@ describe('Multi-connection compile on the real schema', () => {
             context,
             async (connection) => {
                 const compilation = await compiler.compile({
+                    concurrency: 1,
                     context,
                     projectUuid: fixture.projectUuid,
                     primary: {

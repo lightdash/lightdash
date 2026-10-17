@@ -118,21 +118,79 @@ export const resolveCrossSourceManifests = async <T>({
     for (const error of pending.values()) {
         if (getMissingDbtNodeReferences(error).length === 0) throw error;
     }
-    const unresolvedError = () =>
-        new ParameterError(
-            `Cannot resolve cross-source dbt refs: the pending sources depend on each other or on an upstream source that failed. ${[
-                ...pending,
-            ]
+    const unresolvedError = () => {
+        const cycleReason =
+            'the pending sources depend on each other or on an upstream source that failed';
+        const failures = [...pending].map(([task, error]) => ({
+            task,
+            references: getMissingDbtNodeReferences(error).map((ref) => {
+                const provider = [...resolved.values()].find(({ result }) =>
+                    getDbtManifestPackageNames(result.manifest).includes(
+                        ref.packageName,
+                    ),
+                );
+                const pendingProvider = [...pending.keys()].some(
+                    (candidate) => candidate.key === ref.packageName,
+                );
+                if (provider) {
+                    return {
+                        ...ref,
+                        providerState: 'resolved',
+                        reason: `source "${provider.task.key}" provides project "${ref.packageName}" but has no model "${ref.model}"`,
+                    };
+                }
+                if (pendingProvider) {
+                    return {
+                        ...ref,
+                        providerState: 'pending',
+                        reason: cycleReason,
+                    };
+                }
+                return {
+                    ...ref,
+                    providerState: 'missing',
+                    reason: `No connected dbt source provides project "${ref.packageName}"`,
+                };
+            }),
+        }));
+        if (
+            failures.length === 1 &&
+            failures[0].references.length === 1 &&
+            failures[0].references[0].providerState === 'missing'
+        ) {
+            const [
+                {
+                    task,
+                    references: [ref],
+                },
+            ] = failures;
+            return new ParameterError(
+                `Cannot resolve dbt source "${task.key}": ref "${ref.packageName}.${ref.model}" was not found. ${ref.reason}.`,
+            );
+        }
+        const onlyPendingProviders = failures.every(({ references }) =>
+            references.every((ref) => ref.providerState === 'pending'),
+        );
+        return new ParameterError(
+            `Cannot resolve cross-source dbt refs: ${
+                onlyPendingProviders ? `${cycleReason}. ` : ''
+            }${failures
                 .map(
-                    ([task, error]) =>
-                        `Source "${task.key}": ${getMissingDbtNodeReferences(
-                            error,
-                        )
-                            .map((ref) => `${ref.packageName}.${ref.model}`)
+                    ({ task, references }) =>
+                        `Source "${task.key}": ${references
+                            .map(
+                                (ref) =>
+                                    `${ref.packageName}.${ref.model}${
+                                        onlyPendingProviders
+                                            ? ''
+                                            : `: ${ref.reason}`
+                                    }`,
+                            )
                             .join(', ')}`,
                 )
                 .join('; ')}`,
         );
+    };
     const resolvePending = async (): Promise<void> => {
         if (pending.size === 0) return;
         const providers = [...resolved.values()];
@@ -152,10 +210,6 @@ export const resolveCrossSourceManifests = async <T>({
             );
             if (!missing) {
                 retryable.push(task);
-            } else if (pending.size === 1) {
-                throw new ParameterError(
-                    `Cannot resolve dbt source "${task.key}": ref "${missing.packageName}.${missing.model}" was not found. No connected dbt source provides project "${missing.packageName}".`,
-                );
             }
         }
         if (retryable.length === 0) throw unresolvedError();

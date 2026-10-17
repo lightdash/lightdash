@@ -15,7 +15,6 @@ import {
 import { promisify } from 'node:util';
 import { gzip } from 'node:zlib';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { resolveDbtSourceFetchConcurrency } from '../../config/dbtSourceFetchConcurrency';
 import { withCrossSourceRefsHint } from '../../dbt/dbtExternalNodes';
 import { DbtSourceError } from '../../dbt/DbtSourceError';
 import Logger from '../../logging/logger';
@@ -186,6 +185,8 @@ export class MultiConnectionCompiler {
         connection: ScopedWarehouseConnection,
         fetchSourceManifest: FetchSourceManifest,
         enabled: boolean,
+        concurrency: number,
+        projectUuid: string,
         primaryTask?: CrossSourceFetchTask<
             Omit<SourceManifest, 'manifest' | 'selectedModelIds'>
         >,
@@ -245,12 +246,13 @@ export class MultiConnectionCompiler {
         }
         const resolution = await resolveCrossSourceManifests({
             enabled,
-            concurrency: resolveDbtSourceFetchConcurrency(undefined).chosen,
+            concurrency,
             tasks: [...(primaryTask ? [primaryTask] : []), ...sourceTasks],
         });
         if (resolution.rounds > 1) {
             Logger.info('dbt.compile.crossSourceRefsResolved', {
                 event: 'dbt.compile.crossSourceRefsResolved',
+                projectUuid,
                 rounds: resolution.rounds,
                 sources: resolution.results.map(({ task, injectedFrom }) => ({
                     name: task.key,
@@ -272,6 +274,7 @@ export class MultiConnectionCompiler {
         dbtVersion,
         fetchSourceManifest,
         crossSourceRefsEnabled,
+        concurrency,
         loadExtraCredentials,
         beforeAcquireClient,
         trackingParams,
@@ -283,6 +286,7 @@ export class MultiConnectionCompiler {
         dbtVersion: SupportedDbtVersions;
         fetchSourceManifest: FetchSourceManifest;
         crossSourceRefsEnabled: boolean;
+        concurrency: number;
         loadExtraCredentials: LoadExtraConnectionCredentials;
         beforeAcquireClient?: () => Promise<void>;
         trackingParams: TrackingParams | undefined;
@@ -323,6 +327,8 @@ export class MultiConnectionCompiler {
                         connection,
                         fetchSourceManifest,
                         crossSourceRefsEnabled,
+                        concurrency,
+                        projectUuid,
                     );
                 const { manifest, selectedModelIds } =
                     mergeCompileGroupManifests(sourceManifests);
@@ -401,6 +407,7 @@ export class MultiConnectionCompiler {
         includeUnboundSources,
         fetchSourceManifest,
         crossSourceRefsEnabled,
+        concurrency,
         loadExtraCredentials,
         beforeLoadExtraCredentials,
         trackingParams,
@@ -413,6 +420,7 @@ export class MultiConnectionCompiler {
         includeUnboundSources: boolean;
         fetchSourceManifest: FetchSourceManifest;
         crossSourceRefsEnabled: boolean;
+        concurrency: number;
         loadExtraCredentials: LoadExtraConnectionCredentials;
         beforeLoadExtraCredentials?: () => Promise<void>;
         trackingParams?: TrackingParams;
@@ -433,6 +441,8 @@ export class MultiConnectionCompiler {
                 primary.connection,
                 fetchSourceManifest,
                 crossSourceRefsEnabled,
+                concurrency,
+                projectUuid,
                 {
                     key: identity.dbtSourceName,
                     context: {
@@ -497,6 +507,7 @@ export class MultiConnectionCompiler {
                         dbtVersion,
                         fetchSourceManifest,
                         crossSourceRefsEnabled,
+                        concurrency,
                         loadExtraCredentials,
                         beforeAcquireClient: beforeLoadExtraCredentials,
                         trackingParams,

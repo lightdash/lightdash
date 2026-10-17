@@ -253,6 +253,48 @@ describe('resolveCrossSourceManifests', () => {
             'Cannot resolve dbt source "b": ref "unknown.orders" was not found. No connected dbt source provides project "unknown".',
         );
     });
+    it('lists missing providers for each of two pending sources', async () => {
+        await expect(
+            resolve([
+                task('a', vi.fn().mockRejectedValue(missing('unknown'))),
+                task(
+                    'b',
+                    vi.fn().mockRejectedValue(missing('nowhere', 'ghost')),
+                ),
+            ]),
+        ).rejects.toHaveProperty(
+            'message',
+            'Cannot resolve cross-source dbt refs: Source "a": unknown.orders: No connected dbt source provides project "unknown"; Source "b": nowhere.ghost: No connected dbt source provides project "nowhere"',
+        );
+    });
+    it('classifies each ref when a source has missing and pending providers', async () => {
+        const error = new DbtError(
+            [missing('a', 'absent'), missing('unknown'), missing('c')]
+                .map((failure) => failure.message)
+                .join('\n'),
+        );
+        await expect(
+            resolve([
+                task('a'),
+                task('b', vi.fn().mockRejectedValue(error)),
+                task('c', vi.fn().mockRejectedValue(missing('b'))),
+            ]),
+        ).rejects.toHaveProperty(
+            'message',
+            'Cannot resolve cross-source dbt refs: Source "b": a.absent: source "a" provides project "a" but has no model "absent", unknown.orders: No connected dbt source provides project "unknown", c.orders: the pending sources depend on each other or on an upstream source that failed; Source "c": b.orders: the pending sources depend on each other or on an upstream source that failed',
+        );
+    });
+    it('identifies a pending upstream source separately from its missing provider', async () => {
+        await expect(
+            resolve([
+                task('b', vi.fn().mockRejectedValue(missing('c'))),
+                task('c', vi.fn().mockRejectedValue(missing('unknown'))),
+            ]),
+        ).rejects.toHaveProperty(
+            'message',
+            'Cannot resolve cross-source dbt refs: Source "b": c.orders: the pending sources depend on each other or on an upstream source that failed; Source "c": unknown.orders: No connected dbt source provides project "unknown"',
+        );
+    });
     it('lists pending sources and refs when they form a cycle', async () => {
         await expect(
             resolve([
@@ -297,7 +339,7 @@ describe('resolveCrossSourceManifests', () => {
     it('stops when an injected project still cannot resolve a model', async () => {
         const b = task('b', vi.fn().mockRejectedValue(missing('a', 'absent')));
         await expect(resolve([task('a'), b])).rejects.toThrow(
-            'Source "b": a.absent',
+            'Cannot resolve cross-source dbt refs: Source "b": a.absent: source "a" provides project "a" but has no model "absent"',
         );
         expect(b.fetch).toHaveBeenCalledTimes(2);
     });

@@ -27,6 +27,7 @@ import Logger from '../../logging/logger';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type CompileGroupPlan } from '../../projectAdapters/CompileGroup';
+import * as crossSourceRefs from '../../projectAdapters/crossSourceRefs';
 import { DbtManifestProjectAdapter } from '../../projectAdapters/dbtManifestProjectAdapter';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import {
@@ -144,6 +145,7 @@ describe('multi-source compilation diagnostics', () => {
         await expect(
             jobModel.tryJobStep('job-uuid', JobStepType.COMPILING, () =>
                 compiler.compile({
+                    concurrency: 1,
                     projectUuid: 'project-uuid',
                     context: connectionContextFromUser(
                         { userUuid: 'user-uuid' },
@@ -249,6 +251,7 @@ describe('cross-source compilation', () => {
             .mockRejectedValue(new DbtError('sibling failed'));
         await expect(
             compiler.compile({
+                concurrency: 1,
                 projectUuid: 'project-uuid',
                 context: connectionContextFromUser(
                     { userUuid: 'user' },
@@ -284,6 +287,11 @@ describe('cross-source compilation', () => {
     });
 
     it('fetches the primary lazily with sibling nodes and compiles real models once', async () => {
+        const resolveManifests = vi.spyOn(
+            crossSourceRefs,
+            'resolveCrossSourceManifests',
+        );
+        const log = vi.spyOn(Logger, 'info');
         const compiler = new MultiConnectionCompiler({
             projectModel: {
                 getDbtSourceIdentity: vi.fn().mockResolvedValue({
@@ -367,6 +375,7 @@ describe('cross-source compilation', () => {
             .fn<FetchSourceManifest>()
             .mockResolvedValue({ manifest: upstream, timings });
         await compiler.compile({
+            concurrency: 1,
             projectUuid: 'project-uuid',
             context: connectionContextFromUser(
                 { userUuid: 'user' },
@@ -396,6 +405,13 @@ describe('cross-source compilation', () => {
             fetchSourceManifest,
             loadExtraCredentials: vi.fn(),
         });
+        expect(resolveManifests).toHaveBeenCalledWith(
+            expect.objectContaining({ concurrency: 1 }),
+        );
+        expect(log).toHaveBeenCalledWith(
+            'dbt.compile.crossSourceRefsResolved',
+            expect.objectContaining({ projectUuid: 'project-uuid', rounds: 2 }),
+        );
         expect(fetchManifest).toHaveBeenCalledTimes(2);
         expect(fetchManifest.mock.calls[1][0]).toEqual({
             externalNodes: [
@@ -563,6 +579,7 @@ describe('extra connection scope cleanup', () => {
                 typeof compiler.compile
             >[0]['fetchSourceManifest'];
             const result = await compiler.compile({
+                concurrency: 1,
                 projectUuid: 'project',
                 context,
                 primary: {
@@ -690,6 +707,10 @@ describe('Snowflake extra compile credentials', () => {
             },
         );
         const loadExtraCredentials = vi.fn(async () => credentials);
+        const resolveManifests = vi.spyOn(
+            crossSourceRefs,
+            'resolveCrossSourceManifests',
+        );
         const internals = compiler as unknown as {
             compileExtraGroup: (args: {
                 projectUuid: string;
@@ -697,12 +718,16 @@ describe('Snowflake extra compile credentials', () => {
                 plan: CompileGroupPlan & { warehouseConnectionUuid: string };
                 dbtVersion: SupportedDbtVersions;
                 fetchSourceManifest: FetchSourceManifest;
+                crossSourceRefsEnabled: boolean;
+                concurrency: number;
                 loadExtraCredentials: typeof loadExtraCredentials;
                 trackingParams: undefined;
                 warnings: string[];
             }) => Promise<unknown>;
         };
         await internals.compileExtraGroup({
+            concurrency: 1,
+            crossSourceRefsEnabled: true,
             projectUuid: 'project-uuid',
             context: connectionContextFromUser(
                 { userUuid: 'user' },
@@ -736,6 +761,9 @@ describe('Snowflake extra compile credentials', () => {
             trackingParams: undefined,
             warnings: [],
         });
+        expect(resolveManifests).toHaveBeenCalledWith(
+            expect.objectContaining({ concurrency: 1 }),
+        );
         expect(loadExtraCredentials).toHaveBeenCalledWith('extra-uuid');
         expect(getCatalogCache).toHaveBeenCalledWith(
             'project-uuid',
@@ -808,6 +836,10 @@ describe('DuckLake extra compile credentials', () => {
             manifest,
             timings: { gitRefreshMs: null, depsMs: null, manifestMs: 0 },
         }));
+        const resolveManifests = vi.spyOn(
+            crossSourceRefs,
+            'resolveCrossSourceManifests',
+        );
         const internals = compiler as unknown as {
             compileExtraGroup: (args: {
                 projectUuid: string;
@@ -815,12 +847,16 @@ describe('DuckLake extra compile credentials', () => {
                 plan: CompileGroupPlan & { warehouseConnectionUuid: string };
                 dbtVersion: SupportedDbtVersions;
                 fetchSourceManifest: FetchSourceManifest;
+                crossSourceRefsEnabled: boolean;
+                concurrency: number;
                 loadExtraCredentials: () => Promise<CreateWarehouseCredentials>;
                 trackingParams: undefined;
                 warnings: string[];
             }) => Promise<unknown>;
         };
         await internals.compileExtraGroup({
+            concurrency: 1,
+            crossSourceRefsEnabled: true,
             projectUuid: 'project-uuid',
             context: connectionContextFromUser(
                 { userUuid: 'user' },
@@ -854,6 +890,9 @@ describe('DuckLake extra compile credentials', () => {
             trackingParams: undefined,
             warnings: [],
         });
+        expect(resolveManifests).toHaveBeenCalledWith(
+            expect.objectContaining({ concurrency: 1 }),
+        );
         expect(fetchSourceManifest.mock.calls[0][1]).toEqual(credentials);
         expect(
             fetchSourceManifest.mock.calls[0][2].warehouseClient.credentials,

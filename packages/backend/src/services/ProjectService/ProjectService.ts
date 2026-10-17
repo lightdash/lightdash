@@ -8590,6 +8590,9 @@ export class ProjectService
             : await primary.adapter.getDbtManifest();
         return this.multiConnectionCompiler.compile({
             projectUuid,
+            concurrency: resolveDbtSourceFetchConcurrency(
+                this.lightdashConfig.dbt.sourceFetchConcurrency,
+            ).chosen,
             primary: {
                 fetchManifest: async (options) =>
                     primaryManifest ?? primary.adapter.getDbtManifest(options),
