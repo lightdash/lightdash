@@ -8,7 +8,10 @@ import {
 import { describe, expect, it, vi } from 'vitest';
 import { metricQueryMock } from '../../../../services/ProjectService/ProjectService.mock';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
-import { getRunContentQuery } from './runContentQuery';
+import {
+    CONTENT_SQL_DISABLED_RESULT,
+    getRunContentQuery,
+} from './runContentQuery';
 import { getRunSavedChart } from './runSavedChart';
 
 const actualQuery = {
@@ -66,6 +69,7 @@ const makeDependencies = (rows = [{ a_dim1: 'EMEA', a_met1: 42 }]) => ({
     maxLimit: 50,
     maxContextRows: 50,
     enableDataAccess: true,
+    sqlQuerying: null,
 });
 const options = { messages: [], toolCallId: 'call', context: {} };
 
@@ -296,4 +300,15 @@ describe('content and saved query review', () => {
             expect(deps.runSavedChartQuery).not.toHaveBeenCalled();
         },
     );
+
+    it('refuses a SQL source when SQL mode is off', async () => {
+        const output = await getRunContentQuery(makeDependencies()).execute!(
+            { source: { type: 'sql', sql: 'select 1', limit: null } },
+            options,
+        );
+        expect(output).toMatchObject({
+            result: CONTENT_SQL_DISABLED_RESULT,
+            metadata: { status: 'error' },
+        });
+    });
 });

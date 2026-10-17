@@ -339,6 +339,7 @@ export const ToolCallDescription: FC<{
             return (
                 <RunContentQueryToolCallDescription
                     source={runContentQueryArgs.source}
+                    approval={approval}
                 />
             );
         case 'describeWarehouseTable':
