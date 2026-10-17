@@ -3,6 +3,7 @@ import {
     AlreadyExistsError,
     DbtProjectType,
     EMPTY_WAREHOUSE_LOCATION,
+    FeatureFlags,
     ForbiddenError,
     ParameterError,
     PossibleAbilities,
@@ -93,6 +94,16 @@ const githubAppInstallationsModel = {
     ),
 };
 
+const mixedWarehouseConnections = { enabled: false };
+const featureFlagService = {
+    get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+        id: featureFlagId,
+        enabled:
+            featureFlagId === FeatureFlags.MixedWarehouseConnections &&
+            mixedWarehouseConnections.enabled,
+    })),
+};
+
 const getService = () =>
     new ProjectDbtSourcesService({
         lightdashConfig: {} as never,
@@ -100,11 +111,13 @@ const getService = () =>
         projectModel: projectModel as never,
         projectDbtSourcesModel: projectDbtSourcesModel as never,
         githubAppInstallationsModel: githubAppInstallationsModel as never,
+        featureFlagService,
     });
 
 describe('ProjectDbtSourcesService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mixedWarehouseConnections.enabled = false;
         projectModel.getSummary.mockResolvedValue({
             organizationUuid: 'org-uuid',
             projectUuid,
@@ -283,6 +296,80 @@ describe('ProjectDbtSourcesService', () => {
             ).rejects.toThrow(ParameterError);
 
             expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
+        });
+
+        it('refuses a manifest source when mixed warehouse connections are off', async () => {
+            const service = getService();
+
+            await expect(
+                service.createProjectDbtSource(adminAccount, projectUuid, {
+                    name: 'trino_models',
+                    dbtConnection: {
+                        type: DbtProjectType.MANIFEST,
+                        manifest: '{}',
+                        hideRefreshButton: false,
+                    } as never,
+                }),
+            ).rejects.toThrow(
+                'Additional dbt sources currently support GitHub connections only',
+            );
+            expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
+        });
+
+        it('creates a manifest source when mixed warehouse connections are on', async () => {
+            mixedWarehouseConnections.enabled = true;
+            projectDbtSourcesModel.getSources.mockResolvedValue([]);
+            projectDbtSourcesModel.createSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                name: 'trino_models',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: {
+                    type: DbtProjectType.MANIFEST,
+                    manifest: '{}',
+                    hideRefreshButton: false,
+                },
+            } as never);
+            const service = getService();
+
+            const created = await service.createProjectDbtSource(
+                adminAccount,
+                projectUuid,
+                {
+                    name: 'trino_models',
+                    dbtConnection: {
+                        type: DbtProjectType.MANIFEST,
+                        manifest: '{}',
+                        hideRefreshButton: false,
+                    } as never,
+                },
+            );
+
+            expect(created.name).toBe('trino_models');
+            expect(featureFlagService.get).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    featureFlagId: FeatureFlags.MixedWarehouseConnections,
+                }),
+            );
+        });
+
+        it('still refuses other non-GitHub sources when mixed warehouse connections are on', async () => {
+            mixedWarehouseConnections.enabled = true;
+            const service = getService();
+
+            await expect(
+                service.createProjectDbtSource(adminAccount, projectUuid, {
+                    name: 'gitlab_models',
+                    dbtConnection: {
+                        type: DbtProjectType.GITLAB,
+                        repository: 'acme/models',
+                        branch: 'main',
+                        project_sub_path: '/',
+                    } as never,
+                }),
+            ).rejects.toThrow(
+                'Additional dbt sources currently support GitHub connections only',
+            );
         });
 
         it('creates a GitHub source at precedence = max(existing) + 1', async () => {
