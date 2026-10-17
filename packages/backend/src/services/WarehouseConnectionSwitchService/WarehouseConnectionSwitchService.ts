@@ -7,6 +7,7 @@ import {
     ForbiddenError,
     ParameterError,
     ProjectType,
+    SnowflakeAuthenticationType,
     validateWarehouseConnectionName,
     WAREHOUSE_CONNECTION_ALREADY_MULTI_MESSAGE,
     WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE,
@@ -409,9 +410,10 @@ export class WarehouseConnectionSwitchService extends BaseService {
         summary: ProjectSummary,
         source: WarehouseConnectionCredentialSource,
         credentials: CreateWarehouseCredentials | null,
+        mixedTypesEnabled: boolean,
     ): void {
-        if (credentials !== null) {
-            assertExtraConnectionAuthentication(credentials);
+        if (credentials !== null && mixedTypesEnabled) {
+            assertExtraConnectionAuthentication(credentials, true);
         }
         this.credentialPolicy.assertCanWriteWarehouseConnection(
             account,
@@ -566,11 +568,29 @@ export class WarehouseConnectionSwitchService extends BaseService {
         const source = WarehouseConnectionSwitchService.toSource(
             request.connection,
         );
+        const { enabled: mixedTypesEnabled } =
+            await this.featureFlagService.get({
+                user: {
+                    userUuid: account.user.userUuid,
+                    organizationUuid: summary.organizationUuid,
+                },
+                featureFlagId: FeatureFlags.MixedWarehouseConnections,
+            });
+        if (
+            !mixedTypesEnabled &&
+            source.kind === 'project' &&
+            source.credentials.type === WarehouseTypes.SNOWFLAKE &&
+            source.credentials.authenticationType ===
+                SnowflakeAuthenticationType.EXTERNAL_BROWSER
+        ) {
+            assertExtraConnectionAuthentication(source.credentials, false);
+        }
         this.assertCanWrite(
             account,
             summary,
             source,
             source.kind === 'project' ? source.credentials : null,
+            mixedTypesEnabled,
         );
         const originalName = WarehouseConnectionSwitchService.parseName(
             request.original.name,
@@ -590,15 +610,13 @@ export class WarehouseConnectionSwitchService extends BaseService {
                       project.organizationUuid,
                       source.organizationWarehouseCredentialsUuid,
                   );
-        this.assertCanWrite(account, summary, source, credentials);
-        const { enabled: mixedTypesEnabled } =
-            await this.featureFlagService.get({
-                user: {
-                    userUuid: account.user.userUuid,
-                    organizationUuid: project.organizationUuid,
-                },
-                featureFlagId: FeatureFlags.MixedWarehouseConnections,
-            });
+        this.assertCanWrite(
+            account,
+            summary,
+            source,
+            credentials,
+            mixedTypesEnabled,
+        );
         if (
             !canUseExtraConnectionWarehouseType({
                 originalWarehouseType: project.originalWarehouseType,
@@ -632,6 +650,7 @@ export class WarehouseConnectionSwitchService extends BaseService {
         const needsTest = shouldTestExtraCredentials(
             effectiveCredentials,
             project.originalWarehouseType,
+            mixedTypesEnabled,
         );
         const resolvedCredentials = needsTest
             ? await this.assertConnectionWorks(

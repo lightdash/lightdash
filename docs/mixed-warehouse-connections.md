@@ -33,14 +33,17 @@ add-connection dialog.
 ## Connection rules
 
 - **Type is fixed after creation.** An update that changes the warehouse type
-  is refused before the connection test, after the project lock and under the
-  credential row lock. `WarehouseConnectionModel` never writes `warehouse_type`
+  is refused before the connection test and again under the credential row
+  lock. With the flag off, the same-type rule refuses it first, with the
+  existing message. `WarehouseConnectionModel` never writes `warehouse_type`
   on update.
 - **Authentication.** `extraConnectionAuthentication.ts` decides per type and
-  mode. Snowflake external browser and OAuth authorisation code are refused.
-  BigQuery SSO and Redshift browser IAM are refused, because an extra
-  connection compiles dbt with its stored shared credentials. Snowflake `None`
-  still requires personal credentials on the primary, as before.
+  mode. With the flag on, Snowflake external browser and OAuth authorisation
+  code, BigQuery SSO and Redshift browser IAM are refused, because an extra
+  connection compiles dbt with its stored shared credentials. With the flag
+  off, only Snowflake external browser is refused, as before. Snowflake `None`
+  requires personal credentials: on the primary for a Snowflake project, as
+  before, or on the extra itself under a primary of another type.
 - **Credential inheritance.** A same-type extra inherits the primary's
   "require user credentials" setting, as before. A different-type extra keeps
   its own setting.

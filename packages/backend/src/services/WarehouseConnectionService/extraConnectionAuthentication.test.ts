@@ -100,6 +100,7 @@ describe('shouldTestExtraCredentials', () => {
                 shouldTestExtraCredentials(
                     credentials,
                     WarehouseTypes.POSTGRES,
+                    true,
                 ),
             ).toBe(true);
         },
@@ -115,12 +116,13 @@ describe('shouldTestExtraCredentials', () => {
         'refuses personal-only $type authentication with requireUserCredentials=$requireUserCredentials',
         (credentials) => {
             expect(() =>
-                assertExtraConnectionAuthentication(credentials),
+                assertExtraConnectionAuthentication(credentials, true),
             ).toThrow(ParameterError);
             expect(() =>
                 shouldTestExtraCredentials(
                     credentials,
                     WarehouseTypes.POSTGRES,
+                    true,
                 ),
             ).toThrow('compilation requires shared credentials');
         },
@@ -134,12 +136,14 @@ describe('shouldTestExtraCredentials', () => {
             shouldTestExtraCredentials(
                 { ...credentials, requireUserCredentials: true },
                 WarehouseTypes.SNOWFLAKE,
+                true,
             ),
         ).toBe(false);
         expect(() =>
             shouldTestExtraCredentials(
                 { ...credentials, requireUserCredentials: false },
                 WarehouseTypes.SNOWFLAKE,
+                true,
             ),
         ).toThrow(
             'A Snowflake connection without shared credentials requires users to provide their own credentials on the original connection.',
@@ -148,6 +152,7 @@ describe('shouldTestExtraCredentials', () => {
             shouldTestExtraCredentials(
                 { ...credentials, requireUserCredentials: false },
                 WarehouseTypes.POSTGRES,
+                true,
             ),
         ).toThrow(
             'A Snowflake connection without shared credentials requires users to provide their own credentials for this project.',
@@ -164,7 +169,44 @@ describe('shouldTestExtraCredentials', () => {
                     authenticationType,
                 },
                 WarehouseTypes.SNOWFLAKE,
+                true,
             ),
         ).toThrow('External browser authentication is not supported');
+    });
+    it('keeps main behaviour with mixed warehouse connections off', () => {
+        const snowflake = credentialsFor(WarehouseTypes.SNOWFLAKE);
+        expect(() =>
+            shouldTestExtraCredentials(
+                {
+                    ...snowflake,
+                    authenticationType:
+                        SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+                },
+                WarehouseTypes.SNOWFLAKE,
+                false,
+            ),
+        ).toThrow(
+            'External browser authentication is not supported for an extra Snowflake connection.',
+        );
+        expect(
+            shouldTestExtraCredentials(
+                {
+                    ...snowflake,
+                    authenticationType:
+                        SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
+                },
+                WarehouseTypes.SNOWFLAKE,
+                false,
+            ),
+        ).toBe(true);
+        expect(() =>
+            assertExtraConnectionAuthentication(
+                {
+                    ...credentialsFor(WarehouseTypes.BIGQUERY),
+                    authenticationType: BigqueryAuthenticationType.SSO,
+                } as never,
+                false,
+            ),
+        ).not.toThrow();
     });
 });

@@ -964,6 +964,9 @@ describe('Enable multiple connections on the real schema', () => {
         ])(
             'rejects Snowflake interactive authentication in preview and execution (%s)',
             async (authenticationType) => {
+                mixedTypes.enabled =
+                    authenticationType ===
+                    SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE;
                 const fixture = await createProject({
                     credentials: {
                         ...snowflakeCredentials,

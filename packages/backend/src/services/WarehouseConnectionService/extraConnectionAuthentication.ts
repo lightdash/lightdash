@@ -10,7 +10,19 @@ import {
 
 export const assertExtraConnectionAuthentication = (
     credentials: CreateWarehouseCredentials,
+    mixedTypesEnabled: boolean,
 ): void => {
+    if (
+        !mixedTypesEnabled &&
+        credentials.type === WarehouseTypes.SNOWFLAKE &&
+        credentials.authenticationType ===
+            SnowflakeAuthenticationType.EXTERNAL_BROWSER
+    ) {
+        throw new ParameterError(
+            'External browser authentication is not supported for an extra Snowflake connection.',
+        );
+    }
+    if (!mixedTypesEnabled) return;
     if (
         credentials.type === WarehouseTypes.BIGQUERY &&
         credentials.authenticationType === BigqueryAuthenticationType.SSO
@@ -44,8 +56,9 @@ export const assertExtraConnectionAuthentication = (
 export const shouldTestExtraCredentials = (
     credentials: CreateWarehouseCredentials,
     originalWarehouseType: WarehouseTypes | null,
+    mixedTypesEnabled: boolean,
 ): boolean => {
-    assertExtraConnectionAuthentication(credentials);
+    assertExtraConnectionAuthentication(credentials, mixedTypesEnabled);
     switch (credentials.type) {
         case WarehouseTypes.SNOWFLAKE:
             if (
