@@ -3,3 +3,4 @@ logs/
 dbt_packages/
 .work/
 __pycache__/
+projects/

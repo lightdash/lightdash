@@ -12,10 +12,25 @@ library. Building also needs `dbt1.12` with the Postgres adapter.
 
 ## Generate
 
+The generated projects are not committed. `projects/` is in `.gitignore`.
+Generate them before you build, register or verify:
+
 ```bash
 cd examples/cross-source-dbt-refs/scale
 python3 generate.py --count 20 --out projects --seed 42 --large-models 1500
 ```
+
+For a larger run, raise the count. Every kind stays present from 12 projects up:
+
+```bash
+python3 generate.py --count 50 --out projects --seed 42 --large-models 1500
+```
+
+The server clones each source from a git branch, so registration needs the
+generated projects on a branch the server can reach. Commit them on a scratch
+branch for the run and delete that branch afterwards; do not add them to the
+pull request. The N=20 run recorded in PR #31113 used 20 sources, 1,622 models
+and 62 cross-project refs.
 
 Generation is deterministic. A repeat run replaces generated source files and
 removes stale files listed in `.generated-files.json`. It keeps dbt build
