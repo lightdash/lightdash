@@ -546,7 +546,6 @@ export class DbtCliClient implements DbtClient {
             },
             async () => {
                 await this.ensureDbtProjectDir();
-                await this.installDeps();
                 const { logs } = await this._runDbtCommand(['parse']);
                 await this.keepPartialParse('parse', logs);
             },

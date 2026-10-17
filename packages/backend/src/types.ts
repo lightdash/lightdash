@@ -28,7 +28,13 @@ export type DbtManifestFetchResult = DbtRpcGetManifestResults & {
     timings: DbtManifestFetchTimings;
 };
 
+export type DbtSourcePreparation = {
+    projectDir: string | null;
+    timings: { gitRefreshMs: number | null; depsMs: number | null };
+};
+
 export interface ProjectAdapter {
+    prepareDbtSource(): Promise<DbtSourcePreparation>;
     /**
      * Compile all explores
      * @param trackingParams - Optional tracking parameters to track the compilation and lightdash project config (lightdash.config.yml) overrides

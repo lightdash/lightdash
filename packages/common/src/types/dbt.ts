@@ -62,9 +62,14 @@ export type DbtNode = {
 };
 export type DbtRawModelNode = Omit<
     CompiledModelNode,
-    'resource_type' | 'compiled' | 'language'
+    'resource_type' | 'compiled' | 'language' | 'refs'
 > & {
     resource_type: 'model' | 'seed';
+    refs?: {
+        name: string;
+        package: string | null;
+        version: string | number | null;
+    }[];
     version?: string | number | null;
     latest_version?: string | number | null;
     access?: string | null;

@@ -1,0 +1,10 @@
+version: 2
+models:
+  - name: dim_a
+    access: public
+  - name: dim_b
+    access: public
+  - name: customers
+    access: public
+  - name: prot
+    access: protected

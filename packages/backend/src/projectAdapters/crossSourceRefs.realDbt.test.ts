@@ -9,6 +9,7 @@ import * as fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import { DbtCliClient } from '../dbt/dbtCliClient';
+import { scanDbtProject } from '../dbt/dbtProjectScan';
 import {
     resolveCrossSourceManifests,
     type CrossSourceFetchTask,
@@ -106,6 +107,8 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 project: string,
                 enabledModel: string | null = null,
                 restrictAccess = false,
+                scan = false,
+                dynamicOnly = false,
             ): Promise<CrossSourceFetchTask<string>> => {
                 const copy = await fs.mkdtemp(
                     path.join(directory, `${project}-`),
@@ -117,6 +120,22 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                             path.basename(source),
                         ),
                 });
+                if (dynamicOnly) {
+                    await Promise.all(
+                        (await fs.readdir(path.join(copy, 'models')))
+                            .filter(
+                                (entry) =>
+                                    ![
+                                        'm_var.sql',
+                                        'm_set.sql',
+                                        'm_macro.sql',
+                                    ].includes(entry),
+                            )
+                            .map((entry) =>
+                                fs.rm(path.join(copy, 'models', entry)),
+                            ),
+                    );
+                }
                 if (restrictAccess) {
                     await fs.appendFile(
                         path.join(copy, 'dbt_project.yml'),
@@ -169,8 +188,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                         PGUSER: process.env.PGUSER ?? 'postgres',
                         PGPASSWORD: process.env.PGPASSWORD ?? 'password',
                         PGDATABASE: process.env.PGDATABASE ?? 'postgres',
-                        SEED_SCHEMA:
-                            process.env.SEED_SCHEMA ?? 'cross_source_refs',
+                        SEED_SCHEMA: `${process.env.SEED_SCHEMA ?? 'cross_source_refs'}_${project}`,
                     },
                     environmentVariableAllowlist: [],
                     explicitCredentials: true,
@@ -179,6 +197,12 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 });
                 clients.push(client);
                 return {
+                    prepare: scan
+                        ? async () => {
+                              await client.installDeps();
+                              return scanDbtProject(copy);
+                          }
+                        : undefined,
                     key: project,
                     context: project,
                     fetch: async (options) => {
@@ -202,7 +226,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                         projects.map((project) => task(project)),
                     ),
                     enabled,
-                    concurrency: 2,
+                    concurrency: 1,
                 });
 
             const access = () => {
@@ -212,6 +236,43 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 ]);
                 return accessResolution;
             };
+
+            it('orders a scanned chain with one dbt ls per source', async () => {
+                const resolution = await resolveCrossSourceManifests({
+                    tasks: await Promise.all(
+                        ['chain_c', 'analytics', 'shared_dimensions'].map(
+                            (name) => task(name, null, false, true),
+                        ),
+                    ),
+                    enabled: true,
+                    concurrency: 1,
+                });
+                expect(resolution.attempts).toBe(3);
+                expect(resolution.firstAttemptInjected).toBe(2);
+                expect(resolution.results[0].injectedFrom.sort()).toEqual([
+                    'analytics',
+                    'shared_dimensions',
+                ]);
+            }, 120_000);
+
+            it('resolves dynamic var, macro and set refs missed by the scan with a retry', async () => {
+                const resolution = await resolveCrossSourceManifests({
+                    tasks: [
+                        await task('dyn_downstream', null, false, true, true),
+                        await task('dyn_upstream', null, false, true),
+                        await task('dyn_upstream2', null, false, true),
+                    ],
+                    enabled: true,
+                    concurrency: 1,
+                });
+                expect(resolution.attempts).toBeGreaterThan(3);
+                for (const name of ['m_var', 'm_set', 'm_macro'])
+                    expect(
+                        resolution.results[0].result.manifest.nodes[
+                            `model.dyn_downstream.${name}`
+                        ],
+                    ).toBeDefined();
+            }, 120_000);
 
             it('resolves two sources in two rounds and strips stubs while keeping dependencies', async () => {
                 const resolution = await resolve([
@@ -374,7 +435,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                             ),
                         ]),
                         enabled: true,
-                        concurrency: 2,
+                        concurrency: 1,
                     });
                     expect(resolution.rounds).toBe(2);
                     expect(
@@ -400,7 +461,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                         resolveCrossSourceManifests({
                             tasks,
                             enabled: true,
-                            concurrency: 2,
+                            concurrency: 1,
                         }),
                     ),
                 ).toContain(
@@ -418,7 +479,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                         resolveCrossSourceManifests({
                             tasks,
                             enabled: true,
-                            concurrency: 2,
+                            concurrency: 1,
                         }),
                     ),
                 ).toContain(

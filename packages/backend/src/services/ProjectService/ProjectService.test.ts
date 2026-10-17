@@ -13507,6 +13507,7 @@ type BuildMergedManifestAdapterArgs = {
 type ResolvedCompileAdapter = {
     adapter: ProjectAdapter;
     stagedMergedManifest?: Buffer;
+    connectionWarnings?: string[];
 };
 
 // resolveCompileAdapter/buildMergedManifestAdapter/featureFlagModel/
@@ -13705,6 +13706,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         timings: DbtManifestFetchTimings = NO_FETCH_TIMINGS,
     ) =>
         ({
+            prepareDbtSource: vi.fn(async () => ({
+                projectDir: null,
+                timings: { gitRefreshMs: null, depsMs: null },
+            })),
             getDbtManifest: vi.fn(async () => ({
                 manifest,
                 ...(selectedModelIds ? { selectedModelIds } : {}),
@@ -13776,6 +13781,34 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         return (await adapter).adapter;
     };
 
+    it('names a source preparation failure before fetching any manifest', async () => {
+        const { projectService } = buildServiceWithMocks(true, []);
+        projectService.featureFlagModel.get = vi.fn(async (args: unknown) => ({
+            id: (args as { featureFlagId: FeatureFlags }).featureFlagId,
+            enabled: true,
+        }));
+        const preparedPrimary = buildAdapterWithManifest(buildManifest([]));
+        const sourceAdapter = buildAdapterWithManifest(buildManifest([]));
+        vi.mocked(sourceAdapter.prepareDbtSource).mockRejectedValue(
+            new Error('deps failed'),
+        );
+        vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
+            sourceAdapter,
+        );
+        await expect(
+            projectService.buildMergedManifestAdapter({
+                userUuid: 'user-uuid',
+                projectUuid: 'project-uuid',
+                organizationUuid: 'org-uuid',
+                primary: { ...primary, adapter: preparedPrimary },
+                sources: [buildSource('source-b')],
+                manifestFetchAdapters: [],
+            }),
+        ).rejects.toThrow('Failed to load dbt source "source-b": deps failed');
+        expect(preparedPrimary.getDbtManifest).not.toHaveBeenCalled();
+        expect(sourceAdapter.getDbtManifest).not.toHaveBeenCalled();
+    });
+
     it.each([true, false])(
         'gates managed cross-source retries with flag enabled=%s',
         async (enabled) => {
@@ -13804,6 +13837,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 },
             ]);
             downstream.metadata.project_name = 'analytics';
+            Object.assign(downstream.nodes['model.analytics.orders'], {
+                refs: [{ name: 'calendar', package: null, version: null }],
+                depends_on: { nodes: ['model.shared.calendar'] },
+            });
             const stub = {
                 ...(upstream.nodes['model.shared.calendar'] as DbtRawModelNode &
                     DbtManifest['nodes'][string]),
@@ -13843,7 +13880,11 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 manifestFetchAdapters: [],
             });
             if (enabled) {
-                const { adapter } = await resolution;
+                const { adapter, connectionWarnings } = await resolution;
+                expect(connectionWarnings).toEqual([
+                    "Model \"orders\" in dbt source \"analytics\" uses ref('calendar'), which resolved to external model model.shared.calendar from another dbt source. Use ref('shared', 'calendar') to make the cross-source reference explicit.",
+                ]);
+
                 const merged = await adapter.getDbtManifest();
                 expect(merged.manifest.nodes[stub.unique_id]).toMatchObject({
                     path: 'models/calendar.sql',

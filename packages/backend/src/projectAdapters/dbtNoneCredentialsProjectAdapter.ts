@@ -10,7 +10,10 @@ import {
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import Logger from '../logging/logger';
-import { type DbtManifestFetchOptions } from '../types';
+import {
+    type DbtManifestFetchOptions,
+    type DbtSourcePreparation,
+} from '../types';
 import { ProjectAdapter } from '../types';
 
 type DbtNoneCredentialsProjectAdapterArgs = {
@@ -20,6 +23,11 @@ type DbtNoneCredentialsProjectAdapterArgs = {
 export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
     warehouseClient: WarehouseClient;
 
+    private readonly sourcePreparation: DbtSourcePreparation = {
+        projectDir: null,
+        timings: { gitRefreshMs: null, depsMs: null },
+    };
+
     constructor({ warehouseClient }: DbtNoneCredentialsProjectAdapterArgs) {
         this.warehouseClient = warehouseClient;
     }
@@ -27,6 +35,10 @@ export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
     // eslint-disable-next-line class-methods-use-this
     async destroy(): Promise<void> {
         Logger.debug(`Destroy none project adapter`);
+    }
+
+    public async prepareDbtSource(): Promise<DbtSourcePreparation> {
+        return this.sourcePreparation;
     }
 
     public async test(): Promise<void> {
@@ -63,6 +75,7 @@ export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
     public async getDbtManifest(
         _options?: DbtManifestFetchOptions,
     ): Promise<never> {
+        await this.prepareDbtSource();
         throw new ParameterError(
             'Cannot read a dbt manifest as this project was created via CLI and has no dbt connection configured.',
         );

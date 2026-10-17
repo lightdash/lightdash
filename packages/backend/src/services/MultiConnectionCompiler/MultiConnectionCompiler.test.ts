@@ -286,147 +286,190 @@ describe('cross-source compilation', () => {
         expect(fetchSourceManifest).not.toHaveBeenCalled();
     });
 
-    it('fetches the primary lazily with sibling nodes and compiles real models once', async () => {
-        const resolveManifests = vi.spyOn(
-            crossSourceRefs,
-            'resolveCrossSourceManifests',
-        );
-        const log = vi.spyOn(Logger, 'info');
-        const compiler = new MultiConnectionCompiler({
-            projectModel: {
-                getDbtSourceIdentity: vi.fn().mockResolvedValue({
-                    dbtSourceName: 'primary',
-                    dbtSourceUuid: 'primary-uuid',
-                }),
-            },
-            projectDbtSourcesModel: {},
-            warehouseConnectionCompileModel: {},
-        } as unknown as ConstructorParameters<
-            typeof MultiConnectionCompiler
-        >[0]);
-        vi.spyOn(compiler, 'planGroups').mockResolvedValue([
-            {
-                warehouseConnectionUuid: null,
-                connectionName: 'original',
-                listedDatabases: {
-                    listAllDatabases: false,
-                    additionalDatabases: [],
-                },
-                sources: [
-                    {
-                        name: 'shared',
-                        precedence: 1,
-                        projectDbtSourceUuid: 'shared-uuid',
-                        dbtConnection: { type: DbtProjectType.NONE },
-                    },
-                ],
-            } as unknown as CompileGroupPlan,
-        ]);
-        const prepare = vi
-            .spyOn(DbtManifestProjectAdapter.prototype, 'prepareExploreStream')
-            .mockResolvedValue(
-                (async function* empty() {
-                    yield* [];
-                })(),
+    it.each([false, true])(
+        'prepares sources, reuses fetches and returns warnings with scanned=%s',
+        async (scanned) => {
+            const resolveManifests = vi.spyOn(
+                crossSourceRefs,
+                'resolveCrossSourceManifests',
             );
-        const sharedNode = {
-            unique_id: 'model.shared.calendar',
-            resource_type: 'model',
-            name: 'calendar',
-            package_name: 'shared',
-            path: 'calendar.sql',
-            original_file_path: 'models/calendar.sql',
-            schema: 'public',
-            database: 'db',
-            alias: 'calendar',
-            columns: {},
-            meta: {},
-        };
-        const upstream = {
-            ...manifest,
-            metadata: { ...manifest.metadata, project_name: 'shared' },
-            nodes: { [sharedNode.unique_id]: sharedNode },
-        };
-        const primaryManifest = {
-            ...manifest,
-            metadata: { ...manifest.metadata, project_name: 'analytics' },
-            nodes: {
-                [sharedNode.unique_id]: {
-                    ...sharedNode,
-                    path: '',
-                    original_file_path: '',
+            const log = vi.spyOn(Logger, 'info');
+            const compiler = new MultiConnectionCompiler({
+                projectModel: {
+                    getDbtSourceIdentity: vi.fn().mockResolvedValue({
+                        dbtSourceName: 'primary',
+                        dbtSourceUuid: 'primary-uuid',
+                    }),
                 },
-            },
-        };
-        const timings = { gitRefreshMs: null, depsMs: null, manifestMs: 0 };
-        const fetchManifest = vi
-            .fn()
-            .mockRejectedValueOnce(
-                new DbtError(
-                    "depends on a node named 'calendar' in package or project 'shared' which was not found",
-                ),
-            )
-            .mockResolvedValueOnce({
+                projectDbtSourcesModel: {},
+                warehouseConnectionCompileModel: {},
+            } as unknown as ConstructorParameters<
+                typeof MultiConnectionCompiler
+            >[0]);
+            vi.spyOn(compiler, 'planGroups').mockResolvedValue([
+                {
+                    warehouseConnectionUuid: null,
+                    connectionName: 'original',
+                    listedDatabases: {
+                        listAllDatabases: false,
+                        additionalDatabases: [],
+                    },
+                    sources: [
+                        {
+                            name: 'shared',
+                            precedence: 1,
+                            projectDbtSourceUuid: 'shared-uuid',
+                            dbtConnection: { type: DbtProjectType.NONE },
+                        },
+                    ],
+                } as unknown as CompileGroupPlan,
+            ]);
+            const prepare = vi
+                .spyOn(
+                    DbtManifestProjectAdapter.prototype,
+                    'prepareExploreStream',
+                )
+                .mockResolvedValue(
+                    (async function* empty() {
+                        yield* [];
+                    })(),
+                );
+            const sharedNode = {
+                unique_id: 'model.shared.calendar',
+                resource_type: 'model',
+                name: 'calendar',
+                package_name: 'shared',
+                path: 'calendar.sql',
+                original_file_path: 'models/calendar.sql',
+                schema: 'public',
+                database: 'db',
+                alias: 'calendar',
+                columns: {},
+                meta: {},
+            };
+            const upstream = {
+                ...manifest,
+                metadata: { ...manifest.metadata, project_name: 'shared' },
+                nodes: { [sharedNode.unique_id]: sharedNode },
+            };
+            const primaryManifest = {
+                ...manifest,
+                metadata: { ...manifest.metadata, project_name: 'analytics' },
+                nodes: {
+                    'model.analytics.orders': {
+                        ...sharedNode,
+                        unique_id: 'model.analytics.orders',
+                        name: 'orders',
+                        package_name: 'analytics',
+                        refs: [
+                            { name: 'calendar', package: null, version: null },
+                        ],
+                        depends_on: { nodes: [sharedNode.unique_id] },
+                    },
+                    [sharedNode.unique_id]: {
+                        ...sharedNode,
+                        path: '',
+                        original_file_path: '',
+                    },
+                },
+            };
+            const timings = { gitRefreshMs: null, depsMs: null, manifestMs: 0 };
+            const fetchManifest = vi.fn().mockResolvedValue({
                 manifest: primaryManifest,
                 selectedModelIds: [sharedNode.unique_id],
                 timings,
             });
-        const fetchSourceManifest = vi
-            .fn<FetchSourceManifest>()
-            .mockResolvedValue({ manifest: upstream, timings });
-        await compiler.compile({
-            concurrency: 1,
-            projectUuid: 'project-uuid',
-            context: connectionContextFromUser(
-                { userUuid: 'user' },
-                {
-                    organizationUuid: 'org',
-                    queryContext: null,
-                    purpose: 'compile',
+            if (!scanned)
+                fetchManifest.mockRejectedValueOnce(
+                    new DbtError(
+                        "depends on a node named 'calendar' in package or project 'shared' which was not found",
+                    ),
+                );
+            const preparePrimary = vi.fn(async () =>
+                scanned
+                    ? {
+                          projectName: 'analytics',
+                          referencedProjects: ['shared'],
+                          declaredUpstreams: [],
+                      }
+                    : null,
+            );
+            const prepareSourceManifest = vi.fn(async () =>
+                scanned
+                    ? {
+                          projectName: 'shared',
+                          referencedProjects: [],
+                          declaredUpstreams: [],
+                      }
+                    : null,
+            );
+            const fetchSourceManifest = vi
+                .fn<FetchSourceManifest>()
+                .mockResolvedValue({ manifest: upstream, timings });
+            const compilation = await compiler.compile({
+                concurrency: 1,
+                projectUuid: 'project-uuid',
+                context: connectionContextFromUser(
+                    { userUuid: 'user' },
+                    {
+                        organizationUuid: 'org',
+                        queryContext: null,
+                        purpose: 'compile',
+                    },
+                ),
+                primary: {
+                    prepare: preparePrimary,
+                    fetchManifest,
+                    connection: {
+                        deriveClient: vi.fn(() => warehouseClientMock),
+                    } as unknown as Parameters<
+                        typeof compiler.compile
+                    >[0]['primary']['connection'],
+                    warehouseCredentials: warehouseClientMock.credentials,
+                    cachedWarehouse: {
+                        warehouseCatalog: undefined,
+                        onWarehouseCatalogChange: vi.fn(),
+                    },
+                    dbtProjectDir: undefined,
                 },
-            ),
-            primary: {
-                fetchManifest,
-                connection: {
-                    deriveClient: vi.fn(() => warehouseClientMock),
-                } as unknown as Parameters<
-                    typeof compiler.compile
-                >[0]['primary']['connection'],
-                warehouseCredentials: warehouseClientMock.credentials,
-                cachedWarehouse: {
-                    warehouseCatalog: undefined,
-                    onWarehouseCatalogChange: vi.fn(),
-                },
-                dbtProjectDir: undefined,
-            },
-            dbtVersion: SupportedDbtVersions.V1_7,
-            includeUnboundSources: true,
-            crossSourceRefsEnabled: true,
-            fetchSourceManifest,
-            loadExtraCredentials: vi.fn(),
-        });
-        expect(resolveManifests).toHaveBeenCalledWith(
-            expect.objectContaining({ concurrency: 1 }),
-        );
-        expect(log).toHaveBeenCalledWith(
-            'dbt.compile.crossSourceRefsResolved',
-            expect.objectContaining({ projectUuid: 'project-uuid', rounds: 2 }),
-        );
-        expect(fetchManifest).toHaveBeenCalledTimes(2);
-        expect(fetchManifest.mock.calls[1][0]).toEqual({
-            externalNodes: [
+                dbtVersion: SupportedDbtVersions.V1_7,
+                includeUnboundSources: true,
+                crossSourceRefsEnabled: true,
+                fetchSourceManifest,
+                prepareSourceManifest,
+                loadExtraCredentials: vi.fn(),
+            });
+            expect(resolveManifests).toHaveBeenCalledWith(
+                expect.objectContaining({ concurrency: 1 }),
+            );
+            expect(log).toHaveBeenCalledWith(
+                'dbt.compile.crossSourceRefsResolved',
                 expect.objectContaining({
-                    package_name: 'shared',
-                    name: 'calendar',
+                    projectUuid: 'project-uuid',
+                    rounds: 2,
                 }),
-            ],
-        });
-        expect(fetchSourceManifest).toHaveBeenCalledTimes(1);
-        expect(fetchSourceManifest.mock.calls[0][3]).toEqual({
-            externalNodes: [],
-        });
-        expect(prepare).toHaveBeenCalledTimes(1);
-    });
+            );
+            expect(fetchManifest).toHaveBeenCalledTimes(scanned ? 1 : 2);
+            expect(fetchManifest.mock.calls[scanned ? 0 : 1][0]).toEqual({
+                externalNodes: [
+                    expect.objectContaining({
+                        package_name: 'shared',
+                        name: 'calendar',
+                    }),
+                ],
+            });
+            expect(fetchSourceManifest).toHaveBeenCalledTimes(1);
+            expect(fetchSourceManifest.mock.calls[0][3]).toEqual({
+                externalNodes: [],
+            });
+            expect(prepare).toHaveBeenCalledTimes(1);
+            expect(preparePrimary).toHaveBeenCalledTimes(1);
+            expect(prepareSourceManifest).toHaveBeenCalledTimes(1);
+            expect(compilation.warnings).toEqual([
+                "Model \"orders\" in dbt source \"primary\" uses ref('calendar'), which resolved to external model model.shared.calendar from another dbt source. Use ref('shared', 'calendar') to make the cross-source reference explicit.",
+            ]);
+        },
+    );
 });
 
 describe('extra connection scope cleanup', () => {

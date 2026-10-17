@@ -1,10 +1,15 @@
 import {
+    DbtError,
     getDbtManifestPackageNames,
     getExternalModelNodesFromManifest,
+    isExternalDbtNode,
     ParameterError,
     stripExternalDbtNodes,
+    type DbtRawModelNode,
 } from '@lightdash/common';
 import { getMissingDbtNodeReferences } from '../dbt/dbtExternalNodes';
+import { type DbtProjectScan } from '../dbt/dbtProjectScan';
+import Logger from '../logging/logger';
 import {
     type DbtManifestFetchOptions,
     type DbtManifestFetchResult,
@@ -19,6 +24,7 @@ export type CrossSourceFetchTask<T> = {
         options: DbtManifestFetchOptions,
     ) => Promise<CrossSourceFetchResult>;
     context: T;
+    prepare?: () => Promise<DbtProjectScan | null>;
 };
 
 export type CrossSourceResolution<T> = {
@@ -28,6 +34,10 @@ export type CrossSourceResolution<T> = {
         injectedFrom: string[];
     }[];
     rounds: number;
+    attempts: number;
+    warnings: string[];
+    scan: { known: number; ordered: number };
+    firstAttemptInjected: number;
 };
 
 type FetchOutcome =
@@ -56,7 +66,14 @@ export const resolveCrossSourceManifests = async <T>({
             }),
         );
         onRoundComplete?.(1);
-        return { results, rounds: 1 };
+        return {
+            results,
+            rounds: 1,
+            attempts: tasks.length,
+            warnings: [],
+            scan: { known: 0, ordered: 0 },
+            firstAttemptInjected: 0,
+        };
     }
     const resolved = new Map<
         CrossSourceFetchTask<T>,
@@ -65,7 +82,195 @@ export const resolveCrossSourceManifests = async <T>({
     const pending = new Map<CrossSourceFetchTask<T>, unknown>();
     const neededPackages = new Map<CrossSourceFetchTask<T>, Set<string>>();
     const attempts = new Map<CrossSourceFetchTask<T>, Set<string>>();
-    let rounds = 0;
+    const scans = new Map<CrossSourceFetchTask<T>, DbtProjectScan | null>();
+    await runWithConcurrency(tasks, concurrency, async (task) => {
+        scans.set(task, (await task.prepare?.()) ?? null);
+    });
+    const providersByName = new Map<string, CrossSourceFetchTask<T>[]>();
+    for (const task of tasks) {
+        const scan = scans.get(task);
+        if (scan?.projectName) {
+            const providers = providersByName.get(scan.projectName) ?? [];
+            providers.push(task);
+            providersByName.set(scan.projectName, providers);
+        }
+    }
+    for (const [name, providers] of providersByName) {
+        if (
+            providers.length > 1 &&
+            providers.some((task) => {
+                const scan = scans.get(task);
+                return (
+                    scan?.referencedProjects.includes(name) ||
+                    scan?.declaredUpstreams.includes(name) ||
+                    scan?.referencesOwnProject
+                );
+            })
+        ) {
+            throw new ParameterError(
+                `dbt sources "${providers[0].key}" and "${providers[1].key}" both use the dbt project name "${name}". A model cannot reference another dbt project that has its own name. Change the name: value in one repository's dbt_project.yml.`,
+            );
+        }
+    }
+    const declared = new Map(
+        tasks.map((task) => [task, new Set<CrossSourceFetchTask<T>>()]),
+    );
+    const edges = new Map(
+        tasks.map((task) => [task, new Set<CrossSourceFetchTask<T>>()]),
+    );
+    for (const task of tasks) {
+        const scan = scans.get(task);
+        for (const name of scan?.declaredUpstreams ?? []) {
+            const providers = providersByName.get(name);
+            if (!providers?.length) {
+                throw new ParameterError(
+                    `dbt source "${task.key}" declares upstream project "${name}" in dependencies.yml, but no connected dbt source provides project "${name}".`,
+                );
+            }
+            providers.forEach((provider) => declared.get(task)!.add(provider));
+        }
+        declared
+            .get(task)!
+            .forEach((provider) => edges.get(task)!.add(provider));
+        for (const name of scan?.referencedProjects ?? []) {
+            for (const provider of providersByName.get(name) ?? []) {
+                if (provider !== task && !edges.get(task)!.has(provider)) {
+                    edges.get(task)!.add(provider);
+                }
+            }
+        }
+    }
+    const scannedEdges = [...edges.values()].reduce(
+        (count, upstreams) => count + upstreams.size,
+        0,
+    );
+    const findCycle = (
+        graph: typeof edges,
+    ): CrossSourceFetchTask<T>[] | null => {
+        const visited = new Set<CrossSourceFetchTask<T>>();
+        const stack: CrossSourceFetchTask<T>[] = [];
+        const visit = (
+            task: CrossSourceFetchTask<T>,
+        ): CrossSourceFetchTask<T>[] | null => {
+            const index = stack.indexOf(task);
+            if (index >= 0) return [...stack.slice(index), task];
+            if (visited.has(task)) return null;
+            stack.push(task);
+            for (const provider of graph.get(task) ?? []) {
+                const cycle = visit(provider);
+                if (cycle) return cycle;
+            }
+            stack.pop();
+            visited.add(task);
+            return null;
+        };
+        for (const task of tasks) {
+            const cycle = visit(task);
+            if (cycle) return cycle;
+        }
+        return null;
+    };
+    const declaredCycle = findCycle(declared);
+    if (declaredCycle) {
+        throw new ParameterError(
+            `Declared dbt upstreams form a cycle: ${declaredCycle.map((task) => `"${scans.get(task)?.projectName}"`).join(' -> ')}. Fix dependencies.yml in one of the repositories.`,
+        );
+    }
+    let scanCycle = findCycle(edges);
+    while (scanCycle) {
+        Logger.debug('dbt.compile.crossSourceScanCycleIgnored', {
+            event: 'dbt.compile.crossSourceScanCycleIgnored',
+            sources: scanCycle.map((task) => task.key),
+        });
+        for (let index = 0; index < scanCycle.length - 1; index += 1) {
+            const consumer = scanCycle[index];
+            const provider = scanCycle[index + 1];
+            if (!declared.get(consumer)!.has(provider))
+                edges.get(consumer)!.delete(provider);
+        }
+        scanCycle = findCycle(edges);
+    }
+    const warnings = new Set<string>();
+    let dbtLsRuns = 0;
+    const fetchedTasks = new Set<CrossSourceFetchTask<T>>();
+    let firstAttemptInjected = 0;
+    let rounds = 1;
+    const externalNodesFrom = (
+        providers: CrossSourceResolution<T>['results'],
+    ) => [
+        ...new Map(
+            providers
+                .flatMap(({ result }) =>
+                    getExternalModelNodesFromManifest(result.manifest),
+                )
+                .map((node) => [
+                    `${node.package_name}.${node.name}.${node.version ?? ''}`,
+                    node,
+                ]),
+        ).values(),
+    ];
+    const fetchOne = async (
+        task: CrossSourceFetchTask<T>,
+        options: DbtManifestFetchOptions,
+    ): Promise<FetchOutcome> => {
+        dbtLsRuns += 1;
+        if (!fetchedTasks.has(task) && options.externalNodes.length > 0)
+            firstAttemptInjected += 1;
+        fetchedTasks.add(task);
+        try {
+            const result = await task.fetch(options);
+            if (options.externalNodes.length === 0) return { ok: true, result };
+            Object.values(result.manifest.nodes)
+                .filter((node) => node.resource_type === 'model')
+                .map((node) => node as DbtRawModelNode)
+                .filter((node) => !isExternalDbtNode(node))
+                .forEach((node) => {
+                    (node.refs ?? [])
+                        .filter((ref) => ref.package == null)
+                        .forEach((ref) => {
+                            (node.depends_on?.nodes ?? []).forEach((id) => {
+                                const dependency = result.manifest.nodes[id] as
+                                    | DbtRawModelNode
+                                    | undefined;
+                                if (
+                                    dependency !== undefined &&
+                                    dependency.name === ref.name &&
+                                    isExternalDbtNode(dependency)
+                                ) {
+                                    const warning = `Model "${node.name}" in dbt source "${task.key}" uses ref('${ref.name}'), which resolved to external model ${id} from another dbt source. Use ref('${dependency.package_name}', '${ref.name}') to make the cross-source reference explicit.`;
+                                    if (!warnings.has(warning))
+                                        Logger.warn(
+                                            `dbt.compile.crossSourceRefWarning ${warning}`,
+                                            {
+                                                event: 'dbt.compile.crossSourceRefWarning',
+                                                source: task.key,
+                                                warning,
+                                            },
+                                        );
+                                    warnings.add(warning);
+                                }
+                            });
+                        });
+                });
+            const manifest = stripExternalDbtNodes(result.manifest);
+            return {
+                ok: true,
+                result: {
+                    ...result,
+                    manifest,
+                    ...(result.selectedModelIds
+                        ? {
+                              selectedModelIds: result.selectedModelIds.filter(
+                                  (id) => id in manifest.nodes,
+                              ),
+                          }
+                        : {}),
+                },
+            };
+        } catch (error) {
+            return { ok: false, error };
+        }
+    };
     const fetchRound = async (
         roundTasks: CrossSourceFetchTask<T>[],
         options: DbtManifestFetchOptions,
@@ -73,51 +278,94 @@ export const resolveCrossSourceManifests = async <T>({
         const outcomes = await runWithConcurrency(
             roundTasks,
             concurrency,
-            async (task): Promise<FetchOutcome> => {
-                try {
-                    const result = await task.fetch(options);
-                    if (rounds === 0) return { ok: true, result };
-                    const manifest = stripExternalDbtNodes(result.manifest);
-                    return {
-                        ok: true,
-                        result: {
-                            ...result,
-                            manifest,
-                            ...(result.selectedModelIds
-                                ? {
-                                      selectedModelIds:
-                                          result.selectedModelIds.filter(
-                                              (id) => id in manifest.nodes,
-                                          ),
-                                  }
-                                : {}),
-                        },
-                    };
-                } catch (error) {
-                    return { ok: false, error };
-                }
-            },
+            (task) => fetchOne(task, options),
         );
         rounds += 1;
         onRoundComplete?.(rounds);
         return outcomes;
     };
-    const firstRound = await fetchRound(tasks, { externalNodes: [] });
-    firstRound.forEach((outcome, index) => {
-        const task = tasks[index];
+    const remaining = new Set(tasks);
+    const active = new Map<
+        CrossSourceFetchTask<T>,
+        Promise<{
+            task: CrossSourceFetchTask<T>;
+            outcome: FetchOutcome;
+            providers: CrossSourceResolution<T>['results'];
+        }>
+    >();
+    const depths = new Map<CrossSourceFetchTask<T>, number>();
+    const runReady = async (): Promise<void> => {
+        for (const task of remaining) {
+            if (active.size >= Math.max(1, concurrency)) break;
+            const upstreams = [...edges.get(task)!];
+            if (upstreams.every((provider) => resolved.has(provider))) {
+                remaining.delete(task);
+                const providers = upstreams.map(
+                    (provider) => resolved.get(provider)!,
+                );
+                const externalNodes = externalNodesFrom(providers);
+                const depth =
+                    1 +
+                    Math.max(
+                        0,
+                        ...upstreams.map(
+                            (provider) => depths.get(provider) ?? 0,
+                        ),
+                    );
+                depths.set(task, depth);
+                rounds = Math.max(rounds, depth);
+                active.set(
+                    task,
+                    fetchOne(task, { externalNodes }).then((outcome) => ({
+                        task,
+                        outcome,
+                        providers,
+                    })),
+                );
+            }
+        }
+        if (active.size === 0) return;
+        const { task, outcome, providers } = await Promise.race(
+            active.values(),
+        );
+        active.delete(task);
         if (outcome.ok) {
             resolved.set(task, {
                 task,
                 result: outcome.result,
-                injectedFrom: [],
+                injectedFrom: providers.map((provider) => provider.task.key),
             });
         } else {
+            if (getMissingDbtNodeReferences(outcome.error).length === 0)
+                throw outcome.error;
             pending.set(task, outcome.error);
         }
-    });
-    for (const error of pending.values()) {
-        if (getMissingDbtNodeReferences(error).length === 0) throw error;
-    }
+        return runReady();
+    };
+    await runReady();
+    const blocked = new Set(remaining);
+    const updateBlockedFailure = (task: CrossSourceFetchTask<T>) => {
+        const upstreams = [...edges.get(task)!].filter(
+            (provider) => !resolved.has(provider),
+        );
+        if (upstreams.length > 0) {
+            pending.set(
+                task,
+                new DbtError(
+                    upstreams
+                        .map((provider) => {
+                            const name =
+                                scans.get(provider)?.projectName ??
+                                provider.key;
+                            return `depends on a node named '*' in package or project '${name}' which was not found`;
+                        })
+                        .join('\n'),
+                ),
+            );
+        }
+    };
+    blocked.forEach(updateBlockedFailure);
+    onRoundComplete?.(rounds);
     const unresolvedError = () => {
         const cycleReason =
             'the pending sources depend on each other or on an upstream source that failed';
@@ -130,7 +378,9 @@ export const resolveCrossSourceManifests = async <T>({
                     ),
                 );
                 const pendingProvider = [...pending.keys()].some(
-                    (candidate) => candidate.key === ref.packageName,
+                    (candidate) =>
+                        candidate.key === ref.packageName ||
+                        scans.get(candidate)?.projectName === ref.packageName,
                 );
                 if (provider) {
                     return {
@@ -193,6 +443,7 @@ export const resolveCrossSourceManifests = async <T>({
     };
     const resolvePending = async (): Promise<void> => {
         if (pending.size === 0) return;
+        blocked.forEach(updateBlockedFailure);
         const providers = [...resolved.values()];
         const packages = new Set(
             providers.flatMap(({ result }) =>
@@ -208,23 +459,17 @@ export const resolveCrossSourceManifests = async <T>({
             const missing = references.find(
                 (ref) => !packages.has(ref.packageName),
             );
-            if (!missing) {
+            if (
+                !missing &&
+                [...edges.get(task)!].every((provider) =>
+                    resolved.has(provider),
+                )
+            ) {
                 retryable.push(task);
             }
         }
         if (retryable.length === 0) throw unresolvedError();
-        const externalNodes = [
-            ...new Map(
-                providers
-                    .flatMap(({ result }) =>
-                        getExternalModelNodesFromManifest(result.manifest),
-                    )
-                    .map((node) => [
-                        `${node.package_name}.${node.name}.${node.version ?? ''}`,
-                        node,
-                    ]),
-            ).values(),
-        ];
+        const externalNodes = externalNodesFrom(providers);
         retryable.forEach((task) => {
             const signature = `${resolved.size}:${getMissingDbtNodeReferences(
                 pending.get(task),
@@ -241,6 +486,7 @@ export const resolveCrossSourceManifests = async <T>({
         let progressed = false;
         outcomes.forEach((outcome, index) => {
             const task = retryable[index];
+            blocked.delete(task);
             const previousRefs = getMissingDbtNodeReferences(pending.get(task));
             if (outcome.ok) {
                 pending.delete(task);
@@ -270,6 +516,16 @@ export const resolveCrossSourceManifests = async <T>({
     await resolvePending();
     return {
         rounds,
+        attempts: dbtLsRuns,
+        warnings: [...warnings],
+        scan: {
+            known: scannedEdges,
+            ordered: [...edges.values()].reduce(
+                (count, upstreams) => count + upstreams.size,
+                0,
+            ),
+        },
+        firstAttemptInjected,
         results: tasks.map((task) => {
             const entry = resolved.get(task)!;
             const manifest = stripExternalDbtNodes(entry.result.manifest);
