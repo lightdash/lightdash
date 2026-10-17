@@ -1,10 +1,8 @@
 import {
     GITHUB_MCP_SERVER_NAME,
-    type AiMcpCredentialScope,
     type AiMcpServer,
 } from '@lightdash/common';
 import { Box, Button, Group, Paper, Stack, Text } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
 import {
     IconBrandGithub,
     IconCircleCheck,
@@ -17,13 +15,11 @@ import { useProjectUpdateAiAgentMutation } from '../hooks/useProjectAiAgents';
 import {
     useAgentAiMcpServers,
     useConnectGithubMcpServerAppMutation,
-    useConnectGithubMcpServerMutation,
     useGithubMcpAvailability,
     useStartMcpOAuthConnectionMutation,
 } from '../hooks/useProjectAiMcpServers';
 import styles from './AiAgentNewThreadMcpConnections.module.css';
 import { AiMcpServerIcon } from './AiMcpServerIcon';
-import { GithubMcpConnectModal } from './GithubMcpConnectModal';
 import {
     GITHUB_MCP_CONNECTED_HEADLINE,
     GITHUB_MCP_CONNECTED_SUMMARY,
@@ -154,8 +150,6 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
         projectUuid,
         { enabled: !!projectUuid },
     );
-    const { mutateAsync: connectGithubMcp, isLoading: isConnectingGithubMcp } =
-        useConnectGithubMcpServerMutation(projectUuid);
     const {
         mutateAsync: connectGithubMcpApp,
         isLoading: isConnectingGithubMcpApp,
@@ -164,9 +158,6 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
         useProjectUpdateAiAgentMutation(projectUuid, {
             showSuccessToast: false,
         });
-    const [isGithubConfirmModalOpen, githubConfirmModalHandlers] =
-        useDisclosure(false);
-
     const mcpServersNeedingConnection = useMemo(
         () =>
             (mcpServers ?? []).filter((mcpServer) =>
@@ -175,7 +166,6 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
         [mcpServers],
     );
     const githubConnectModes = githubMcpAvailability?.availableModes ?? [];
-    const canGithubAppConnect = githubConnectModes.includes('github_app');
     const canOneClickConnectGithub =
         githubConnectModes.length > 0 &&
         githubMcpAvailability?.alreadyConnected === false;
@@ -226,37 +216,9 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                     mcpServerUuids: [...attachedUuids, server.uuid],
                 });
             }
-            githubConfirmModalHandlers.close();
             setJustConnectedGithub(true);
         },
-        [
-            agentUuid,
-            githubConfirmModalHandlers,
-            mcpServers,
-            updateAgentMcpServers,
-        ],
-    );
-
-    const handleConnectGithubMcp = useCallback(
-        async (
-            personalAccessToken: string,
-            credentialScope: AiMcpCredentialScope,
-        ) => {
-            try {
-                const server = await connectGithubMcp({
-                    personalAccessToken,
-                    credentialScope,
-                });
-                if (!server) {
-                    return;
-                }
-                await attachGithubMcpServer(server);
-            } catch {
-            } finally {
-                await refetchAgentMcpServers();
-            }
-        },
-        [attachGithubMcpServer, connectGithubMcp, refetchAgentMcpServers],
+        [agentUuid, mcpServers, updateAgentMcpServers],
     );
 
     const handleConnectGithubMcpApp = useCallback(async () => {
@@ -352,16 +314,8 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
             variant="subtle"
             color="gray"
             leftSection={<MantineIcon icon={IconBrandGithub} />}
-            loading={
-                isConnectingGithubMcp ||
-                isConnectingGithubMcpApp ||
-                isAttachingGithub
-            }
-            onClick={
-                canGithubAppConnect
-                    ? () => void handleConnectGithubMcpApp()
-                    : githubConfirmModalHandlers.open
-            }
+            loading={isConnectingGithubMcpApp || isAttachingGithub}
+            onClick={() => void handleConnectGithubMcpApp()}
         >
             GitHub
         </Button>
@@ -435,12 +389,6 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                     </Group>
                 </Stack>
             </Group>
-            <GithubMcpConnectModal
-                opened={isGithubConfirmModalOpen}
-                onClose={githubConfirmModalHandlers.close}
-                isLoading={isConnectingGithubMcp || isAttachingGithub}
-                onConnect={handleConnectGithubMcp}
-            />
         </Box>
     );
 };

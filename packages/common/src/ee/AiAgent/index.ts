@@ -783,14 +783,9 @@ export const isGithubMcpServerUrl = (url: string): boolean => {
     }
 };
 
-export type ApiConnectGithubMcpServerBody = {
-    personalAccessToken: string;
-    credentialScope: AiMcpCredentialScope;
-};
-
 // 'github_app' mints a short-lived token per run and stores no long-lived
-// secret; 'pat' stores a user-provided token, gated by ai-mcp-github-pat.
-export type AiMcpGithubConnectMode = 'github_app' | 'pat';
+// secret. Personal access tokens are not accepted for the GitHub MCP server.
+export type AiMcpGithubConnectMode = 'github_app';
 
 export type AiMcpGithubAvailability = {
     /** @deprecated Use availableModes */

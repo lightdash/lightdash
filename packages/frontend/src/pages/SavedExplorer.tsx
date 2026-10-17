@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -32,7 +31,6 @@ import { tryParseCreateSavedChartVersionParam } from '../hooks/useExplorerRoute'
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useRecordContentView } from '../hooks/useRecordContentView';
 import { useSavedQuery } from '../hooks/useSavedQuery';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import { ExplorerSection } from '../providers/Explorer/types';
 import { getCandidateExploreNames } from '../utils/exploreSplitError';
@@ -81,10 +79,6 @@ const SavedExplorer = () => {
     }>();
 
     const isEditMode = mode === 'edit';
-    const chartEditorFlag = useServerFeatureFlag(
-        FeatureFlags.InDashboardChartEditor,
-    );
-    const isChartEditorEnabled = chartEditorFlag.data?.enabled === true;
 
     const { setDashboardChartInfo } = useDashboardStorage();
 
@@ -153,16 +147,13 @@ const SavedExplorer = () => {
         parsedUrlChartVersion !== undefined &&
         parsedUrlChartVersion.tableName === data.tableName &&
         parsedUrlChartVersion.metricQuery.exploreName === data.tableName;
-    const urlChartVersion =
-        isChartEditorEnabled && isMatchingUrlChartVersion
-            ? parsedUrlChartVersion
-            : undefined;
-    const isChartEditorFlagBlockingHandover =
-        chartEditorFlag.isLoading && isMatchingUrlChartVersion;
+    const urlChartVersion = isMatchingUrlChartVersion
+        ? parsedUrlChartVersion
+        : undefined;
 
     // Reset store state when data/mode changes
     useEffect(() => {
-        if (!data || isChartEditorFlagBlockingHandover) return;
+        if (!data) return;
 
         const currentSavedChart = store.getState().explorer.savedChart;
         const isNewChart = currentSavedChart?.uuid !== data.uuid;
@@ -212,7 +203,6 @@ const SavedExplorer = () => {
         isEditMode,
         health.data?.query.defaultLimit,
         urlChartVersion,
-        isChartEditorFlagBlockingHandover,
         navigate,
     ]);
 

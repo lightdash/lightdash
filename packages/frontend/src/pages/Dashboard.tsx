@@ -931,13 +931,9 @@ const Dashboard: FC = () => {
         (c) => c.hasTilesThatSupportFilters,
     );
 
-    // The modal editor and the shared-metrics layer roll out independently;
-    // metrics only ever activate through the modal's surfaces.
-    const chartEditorFlag = useServerFeatureFlag(
-        FeatureFlags.InDashboardChartEditor,
-    );
-    const isChartEditorEnabled =
-        authoringEnabled && chartEditorFlag.data?.enabled === true;
+    // The shared-metrics layer only ever activates through the modal
+    // editor's surfaces, which authoring users always have.
+    const isChartEditorEnabled = authoringEnabled;
     const dashboardControlsFlag = useServerFeatureFlag(
         FeatureFlags.DashboardControls,
     );

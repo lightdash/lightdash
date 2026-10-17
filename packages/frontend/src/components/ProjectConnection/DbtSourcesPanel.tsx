@@ -1,7 +1,6 @@
 import {
     DbtProjectType,
     DefaultSupportedDbtVersion,
-    FeatureFlags,
     validateProjectDbtSourceName,
     WarehouseTypes,
     type CreateWarehouseCredentials,
@@ -42,7 +41,6 @@ import {
     useProjectDbtSources,
     useUpdateProjectDbtSourceMutation,
 } from '../../hooks/useProjectDbtSources';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { dbtDefaults } from './DbtForms/defaultValues';
@@ -425,10 +423,9 @@ const DbtSourcesPanel: FC<{
     project: Pick<Project, 'projectUuid' | 'connectionRoute'>;
 }> = ({ project }) => {
     const { projectUuid } = project;
-    const { data: flag } = useServerFeatureFlag(FeatureFlags.MultiDbtSources);
     const { data: bindings } = useDbtSourceBindings(
         projectUuid,
-        flag?.enabled === true && project.connectionRoute === 'multi',
+        project.connectionRoute === 'multi',
     );
     const [rebound, setRebound] = useState<ReboundDbtSource | null>(null);
     const {
@@ -444,11 +441,6 @@ const DbtSourcesPanel: FC<{
     const [primarySourceToRename, setPrimarySourceToRename] =
         useState<ProjectDbtSourceSummary | null>(null);
     const [isAddOpen, setIsAddOpen] = useState(false);
-
-    // Only show the panel when the feature is on.
-    if (!flag?.enabled) {
-        return null;
-    }
 
     const primarySource = sources?.find((source) => source.isPrimary);
     const additionalSources = (sources ?? []).filter(

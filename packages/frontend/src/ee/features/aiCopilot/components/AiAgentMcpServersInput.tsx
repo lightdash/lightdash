@@ -1,6 +1,5 @@
 import {
     isGithubMcpServerUrl,
-    type AiMcpCredentialScope,
     type AiMcpServer,
     type AiProjectMcpServer,
     type AiMcpServerConnectionStatus,
@@ -53,7 +52,6 @@ import useToaster from '../../../../hooks/toaster/useToaster';
 import { useProjectUpdateAiAgentMutation } from '../hooks/useProjectAiAgents';
 import {
     useConnectGithubMcpServerAppMutation,
-    useConnectGithubMcpServerMutation,
     useDisconnectMcpOAuthConnectionMutation,
     useGithubMcpAvailability,
     useProjectAiMcpServers,
@@ -72,7 +70,6 @@ import { AgentSettingsSubsection } from './AgentSettingsSubsection';
 import classes from './AiAgentMcpServersInput.module.css';
 import { AiAgentMcpServerToolsPanel } from './AiAgentMcpServerToolsPanel';
 import { AiMcpServerIcon } from './AiMcpServerIcon';
-import { GithubMcpConnectModal } from './GithubMcpConnectModal';
 import { ManageMcpServersModal } from './ManageMcpServersModal';
 import {
     getMcpAuthTypeLabel,
@@ -730,8 +727,6 @@ export const AiAgentMcpServersInput = ({
         useDisclosure(false);
     const [isManageMcpServersModalOpen, manageMcpServersModalHandlers] =
         useDisclosure(false);
-    const [isGithubConfirmModalOpen, githubConfirmModalHandlers] =
-        useDisclosure(false);
     const [isGithubNudgeModalOpen, githubNudgeModalHandlers] =
         useDisclosure(false);
     const [attachSelection, setAttachSelection] = useState<string[]>([]);
@@ -773,8 +768,6 @@ export const AiAgentMcpServersInput = ({
     } = useRefreshAiMcpServerToolsMutation(projectUuid);
     const { data: githubMcpAvailability } =
         useGithubMcpAvailability(projectUuid);
-    const { mutateAsync: connectGithubMcp, isLoading: isConnectingGithubMcp } =
-        useConnectGithubMcpServerMutation(projectUuid);
     const {
         mutateAsync: connectGithubMcpApp,
         isLoading: isConnectingGithubMcpApp,
@@ -800,7 +793,6 @@ export const AiAgentMcpServersInput = ({
     // removed from this agent.
     const githubConnectModes = githubMcpAvailability?.availableModes ?? [];
     const canGithubAppConnect = githubConnectModes.includes('github_app');
-    const canGithubPatConnect = githubConnectModes.includes('pat');
     const canOneClickConnectGithub =
         githubConnectModes.length > 0 && !isGithubConnectedToAgent;
     // This settings surface is only reachable by users who can manage the
@@ -958,36 +950,6 @@ export const AiAgentMcpServersInput = ({
         [agentUuid, onChange, onPersistedChange, updateAgentMcpServers],
     );
 
-    const handleConnectGithubMcp = useCallback(
-        async (
-            personalAccessToken: string,
-            credentialScope: AiMcpCredentialScope,
-        ) => {
-            try {
-                const server = await connectGithubMcp({
-                    personalAccessToken,
-                    credentialScope,
-                });
-                if (!server) {
-                    return;
-                }
-                if (!value.includes(server.uuid)) {
-                    await persistMcpServerSelection(
-                        [...value, server.uuid],
-                        value,
-                    );
-                }
-                githubConfirmModalHandlers.close();
-            } catch {}
-        },
-        [
-            connectGithubMcp,
-            persistMcpServerSelection,
-            value,
-            githubConfirmModalHandlers,
-        ],
-    );
-
     const handleConnectGithubMcpApp = useCallback(async () => {
         try {
             const server = await connectGithubMcpApp();
@@ -1007,31 +969,19 @@ export const AiAgentMcpServersInput = ({
             void handleConnectGithubMcpApp();
             return;
         }
-        if (canGithubPatConnect) {
-            githubConfirmModalHandlers.open();
-            return;
-        }
         githubNudgeModalHandlers.open();
-    }, [
-        canGithubAppConnect,
-        canGithubPatConnect,
-        githubConfirmModalHandlers,
-        githubNudgeModalHandlers,
-        handleConnectGithubMcpApp,
-    ]);
+    }, [canGithubAppConnect, githubNudgeModalHandlers, handleConnectGithubMcpApp]);
 
     const githubConnectTooltip = canGithubAppConnect
         ? "Let the agent read the code behind your metrics, using your organization's GitHub App installation."
-        : canGithubPatConnect
-          ? 'Let the agent read the code behind your metrics, using a GitHub personal access token.'
-          : 'Let the agent read the code behind your metrics. Requires the Lightdash GitHub App.';
+        : 'Let the agent read the code behind your metrics. Requires the Lightdash GitHub App.';
 
     const renderGithubConnectButton = (size: 'xs' | 'compact-xs') => (
         <Button
             variant="default"
             size={size}
             leftSection={<MantineIcon icon={IconBrandGithub} />}
-            loading={isConnectingGithubMcp || isConnectingGithubMcpApp}
+            loading={isConnectingGithubMcpApp}
             onClick={handleGithubConnectClick}
         >
             Connect GitHub
@@ -1272,8 +1222,7 @@ export const AiAgentMcpServersInput = ({
                             {isExpanded ? 'Hide tools' : 'View tools'}
                         </Menu.Item>
                         {mcpServer.authType === 'bearer' &&
-                            (!isGithubMcpServerUrl(mcpServer.url) ||
-                                canGithubPatConnect) && (
+                            !isGithubMcpServerUrl(mcpServer.url) && (
                                 <Menu.Item
                                     type="button"
                                     leftSection={<MantineIcon icon={IconKey} />}
@@ -1382,7 +1331,6 @@ export const AiAgentMcpServersInput = ({
             );
         },
         [
-            canGithubPatConnect,
             handleDisconnectMcpOAuthConnection,
             handleRemoveMcpServer,
             handleRetestMcpServerConnection,
@@ -1812,13 +1760,6 @@ export const AiAgentMcpServersInput = ({
                 onClose={manageMcpServersModalHandlers.close}
                 projectUuid={projectUuid}
                 onDeleted={handleMcpServerDeleted}
-            />
-            <GithubMcpConnectModal
-                opened={isGithubConfirmModalOpen}
-                onClose={githubConfirmModalHandlers.close}
-                isLoading={isConnectingGithubMcp || isPersistingSelection}
-                canChooseScope
-                onConnect={handleConnectGithubMcp}
             />
             <MantineModal
                 opened={isGithubNudgeModalOpen}

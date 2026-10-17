@@ -5,7 +5,6 @@ import {
     ContentType,
     DashboardTileTypes,
     DirectAccessResourceType,
-    FeatureFlags,
     ResourceViewItemType,
     type ResourceViewChartItem,
 } from '@lightdash/common';
@@ -79,7 +78,6 @@ import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUrlIdentifier } from '../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import ContentSlugRenameModal from '../../common/ContentSlugRenameModal/ContentSlugRenameModal';
@@ -151,10 +149,6 @@ const ChartActionsMenu: FC<Props> = ({
     schedulerDeepLink = null,
 }) => {
     const authoringEnabled = useContentAuthoringEnabled();
-    const { data: changeChartExploreFlag } = useServerFeatureFlag(
-        FeatureFlags.ChangeChartExplore,
-    );
-    const changeChartExploreEnabled = changeChartExploreFlag?.enabled === true;
 
     const projectUuid = useProjectUuid();
     const projectUrlIdentifier = useProjectUrlIdentifier();
@@ -257,7 +251,7 @@ const ChartActionsMenu: FC<Props> = ({
         userCanManageChartViaSpace &&
         chartBelongsToDashboard;
     const canChangeExplore =
-        canAuthorChart && host === 'page' && changeChartExploreEnabled;
+        canAuthorChart && host === 'page';
     const canPromoteChart = authoringEnabled && userCanPromoteChart;
 
     const { mutate: verifyChart } = useVerifyChartMutation();

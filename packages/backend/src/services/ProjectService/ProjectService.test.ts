@@ -709,6 +709,7 @@ const getMockedProjectService = (
             overrides.projectDbtSourcesModel ??
             ({
                 copySources: vi.fn(async () => undefined),
+                getSources: vi.fn(async () => []),
             } as unknown as ProjectDbtSourcesModel),
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
@@ -13580,28 +13581,13 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         manifestFetchAdapters: [],
     };
 
-    const buildServiceWithMocks = (
-        flagEnabled: boolean,
-        sources: unknown[],
-    ) => {
+    const buildServiceWithMocks = (sources: unknown[]) => {
         const getSources = vi.fn(async () => sources);
         const projectService = getMockedProjectService(
             lightdashConfigWithGoogleOAuthMock,
         ) as unknown as ProjectServiceInternals;
-        // featureFlagModel and projectDbtSourcesModel are private fields set in
-        // the constructor; override them post-construction for this test only.
-        projectService.featureFlagModel = {
-            get: vi.fn(async (args: unknown) => {
-                const { featureFlagId } = args as { featureFlagId: string };
-                return {
-                    id: featureFlagId,
-                    enabled:
-                        featureFlagId === FeatureFlags.MultiDbtSources
-                            ? flagEnabled
-                            : false,
-                };
-            }),
-        };
+        // projectDbtSourcesModel is a private field set in the constructor;
+        // override it post-construction for this test only.
         projectService.projectDbtSourcesModel = { getSources };
         return { projectService, getSources };
     };
@@ -14692,22 +14678,8 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         ).toHaveProperty('compiled', false);
     });
 
-    it('flag OFF returns the primary adapter by identity and never queries getSources', async () => {
-        const { projectService, getSources } = buildServiceWithMocks(false, [
-            { name: 'jaffle-2' },
-        ]);
-
-        const result = await projectService.resolveCompileAdapter(baseArgs);
-
-        expect(result.adapter).toBe(primaryAdapter);
-        expect(getSources).not.toHaveBeenCalled();
-        expect(projectModel.deleteMergedManifest).toHaveBeenCalledWith(
-            'project-uuid',
-        );
-    });
-
-    it('flag ON with zero sources (N=0) returns the primary adapter by identity', async () => {
-        const { projectService, getSources } = buildServiceWithMocks(true, []);
+    it('zero sources (N=0) returns the primary adapter by identity', async () => {
+        const { projectService, getSources } = buildServiceWithMocks([]);
 
         const result = await projectService.resolveCompileAdapter(baseArgs);
 
@@ -14719,16 +14691,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
     });
 
-    it.each([
-        { path: 'feature flag off', flagEnabled: false, sources: [] },
-        { path: 'zero additional sources', flagEnabled: true, sources: [] },
-    ])(
+    it.each([{ path: 'zero additional sources', sources: [] }])(
         'BC-6: $path returns the primary adapter when stale manifest deletion fails',
-        async ({ flagEnabled, sources }) => {
-            const { projectService } = buildServiceWithMocks(
-                flagEnabled,
-                sources,
-            );
+        async ({ sources }) => {
+            const { projectService } = buildServiceWithMocks(sources);
             const warn = vi.spyOn(projectService.logger, 'warn');
             projectModel.deleteMergedManifest.mockRejectedValueOnce(
                 new Error('database unavailable'),
@@ -14748,7 +14714,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             id: 'merged-adapter',
         } as unknown as ProjectAdapter;
         const stagedMergedManifest = Buffer.from('staged-manifest');
-        const { projectService } = buildServiceWithMocks(true, [
+        const { projectService } = buildServiceWithMocks([
             { name: 'jaffle-2' },
         ]);
         const buildMergedManifestAdapterSpy = vi
@@ -14880,7 +14846,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             get: vi.fn(
                 async ({ featureFlagId }: { featureFlagId: string }) => ({
                     id: featureFlagId,
-                    enabled: featureFlagId === FeatureFlags.MultiDbtSources,
+                    enabled: false,
                 }),
             ),
         } as unknown as FeatureFlagModel;
@@ -14906,6 +14872,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             vi.mocked(configured.featureFlagModel.get).mockResolvedValue({
                 enabled: false,
             } as never);
+            // A CLI project has no dbt connection to merge sources into.
+            vi.mocked(
+                configured.projectDbtSourcesModel.getSources,
+            ).mockResolvedValue([]);
             const manifest = buildManifest([
                 {
                     uniqueId: 'model.test.orders',
@@ -15865,7 +15835,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     });
 
     it('propagates a ParameterError from buildMergedManifestAdapter when sources collide', async () => {
-        const { projectService } = buildServiceWithMocks(true, [
+        const { projectService } = buildServiceWithMocks([
             { name: 'jaffle-2' },
         ]);
         vi.spyOn(

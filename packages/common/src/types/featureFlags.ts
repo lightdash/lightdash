@@ -71,11 +71,6 @@ export enum FeatureFlags {
     CustomGroupBins = 'custom-group-bins',
 
     /**
-     * Enable changing the explore a chart points to from the chart UI
-     */
-    ChangeChartExplore = 'change-chart-explore',
-
-    /**
      * Keep visited dashboard tabs mounted in the DOM (hidden) for instant
      * re-switching. Enabled by default; disabled per-org for orgs where
      * large dashboards spiked browser memory to 3 GB+ from accumulated
@@ -159,12 +154,6 @@ export enum FeatureFlags {
     AiAutopilot = 'ai-autopilot',
 
     /**
-     * Legacy no-op retained so existing self-hosted feature flag configuration
-     * remains valid. Deep Research now follows AI Copilot availability.
-     */
-    AiDeepResearch = 'ai-deep-research',
-
-    /**
      * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
      * Gates the option in the Map Type segmented control. Existing charts
      * already saved with the hexbin layer continue to render either way.
@@ -208,16 +197,6 @@ export enum FeatureFlags {
     AiReviewReplayCapture = 'ai-review-replay-capture',
 
     /**
-     * Enable the AI writeback sandbox agent's preview-deploy secondary task:
-     * detecting whether a repo deploys Lightdash preview projects via GitHub
-     * Actions, offering to set it up during a writeback, and the
-     * setupPreviewDeploy tool (direct or on consent). Off by default and
-     * independent of AiWriteback, so this outward-facing behaviour (it opens
-     * extra PRs) can be dark-launched and killed without touching writeback.
-     */
-    AiPreviewDeploySetup = 'ai-preview-deploy-setup',
-
-    /**
      * Enable the built-in system agent fallback in Slack. When enabled, if a
      * Slack channel has no configured agent, the system will use the built-in
      * system agent instead of showing an error. Independent of AiWriteback so
@@ -231,17 +210,6 @@ export enum FeatureFlags {
      * always on; this flag only controls who can see/configure the panel.
      */
     ProLimits = 'pro-limits',
-
-    /**
-     * Allow a single Lightdash project to connect to multiple dbt sources
-     * (repos/CLI deploys). Each source stores its latest compiled manifest in
-     * S3; on every deploy or preview the backend merges all sources' manifests
-     * into one, compiles once, and writes a single combined explore set. Off by
-     * default; the N=0 short-circuit (a project with zero registered sources
-     * runs today's single-source code path byte-for-byte) is the regression
-     * firewall. Enable per-org for gradual rollout.
-     */
-    MultiDbtSources = 'multi-dbt-sources',
 
     /**
      * Enable the general-purpose coding agent: the WRITE counterpart to repo
@@ -261,17 +229,6 @@ export enum FeatureFlags {
      * the CLI, APIs, and installed skills remain available independently.
      */
     CodingAgentOnboarding = 'coding-agent-onboarding',
-
-    /**
-     * Allow storing long-lived GitHub personal access tokens as GitHub MCP
-     * credentials (guided connect flow and generic bearer endpoints targeting
-     * the hosted GitHub MCP URL). Off by default — orgs should authenticate
-     * via the Lightdash GitHub App, which mints a short-lived installation
-     * token per run and stores no long-lived secret. When off, previously
-     * stored PATs are also ignored at runtime. Enable
-     * per-org only as a stopgap for orgs that cannot install the GitHub App.
-     */
-    AiMcpGithubPat = 'ai-mcp-github-pat',
 
     /**
      * Gate the whole new onboarding experience as one unit: email-only
@@ -389,11 +346,6 @@ export enum FeatureFlags {
      * Off by default.
      */
     DashboardCustomMetrics = 'dashboard-custom-metrics',
-    /**
-     * Build and edit charts in a full-screen modal over the dashboard
-     * instead of navigating away. Off by default.
-     */
-    InDashboardChartEditor = 'in-dashboard-chart-editor',
 
     /**
      * AI agent battle mode: send one prompt to two models in paired threads

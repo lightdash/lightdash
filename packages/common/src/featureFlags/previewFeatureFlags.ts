@@ -19,18 +19,11 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     // Changes the signup flow and needs SMTP for the email OTP. The register
     // page evaluates it anonymously, so an override can't switch it back off.
     FeatureFlags.NewOnboarding,
-    // Acts outside the environment: opens pull requests on real repos.
-    FeatureFlags.AiPreviewDeploySetup,
     // Off pending a security review, or only meaningful for eval orgs.
     FeatureFlags.SsoOrganizationSettings,
     FeatureFlags.AiReviewReplayCapture,
-    // Security hardening: previews must not accept long-lived GitHub PATs.
-    FeatureFlags.AiMcpGithubPat,
-    // Same reason: the dashboard E2E specs drive the navigate-away "New chart"
-    // flow, which the in-dashboard modal replaces. Opt-in POC — keep previews
-    // on the shipped path until it has its own coverage. The metrics layer
-    // rides inside the modal, so it must stay off with it.
-    FeatureFlags.InDashboardChartEditor,
+    // Opt-in POC: previews stay on the shipped chart editor until the
+    // dashboard custom-metrics layer has its own coverage.
     FeatureFlags.DashboardCustomMetrics,
     // Replaces the dashboard filter bar's edit mode with a sidebar that is
     // still being built. Opt-in: previews and the dashboard E2E specs stay on
