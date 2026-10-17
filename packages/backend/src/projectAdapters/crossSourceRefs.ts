@@ -118,20 +118,46 @@ export const resolveCrossSourceManifests = async <T>({
     const edges = new Map(
         tasks.map((task) => [task, new Set<CrossSourceFetchTask<T>>()]),
     );
+    const unresolvedDeclared = new Map<CrossSourceFetchTask<T>, Set<string>>();
+    const updateDeclaredUpstreams = () => {
+        for (const task of tasks) {
+            const missing = new Set<string>();
+            for (const name of scans.get(task)?.declaredUpstreams ?? []) {
+                const providers = new Set(providersByName.get(name) ?? []);
+                for (const [provider, { result }] of resolved) {
+                    if (
+                        getDbtManifestPackageNames(result.manifest).includes(
+                            name,
+                        )
+                    )
+                        providers.add(provider);
+                }
+                if (providers.size === 0) {
+                    if (
+                        tasks.every(
+                            (source) =>
+                                scans.get(source) !== null ||
+                                resolved.has(source),
+                        )
+                    ) {
+                        throw new ParameterError(
+                            `dbt source "${task.key}" declares upstream project "${name}" in dependencies.yml, but no connected dbt source provides project "${name}".`,
+                        );
+                    }
+                    missing.add(name);
+                }
+                providers.forEach((provider) => {
+                    declared.get(task)!.add(provider);
+                    edges.get(task)!.add(provider);
+                });
+            }
+            if (missing.size > 0) unresolvedDeclared.set(task, missing);
+            else unresolvedDeclared.delete(task);
+        }
+    };
+    updateDeclaredUpstreams();
     for (const task of tasks) {
         const scan = scans.get(task);
-        for (const name of scan?.declaredUpstreams ?? []) {
-            const providers = providersByName.get(name);
-            if (!providers?.length) {
-                throw new ParameterError(
-                    `dbt source "${task.key}" declares upstream project "${name}" in dependencies.yml, but no connected dbt source provides project "${name}".`,
-                );
-            }
-            providers.forEach((provider) => declared.get(task)!.add(provider));
-        }
-        declared
-            .get(task)!
-            .forEach((provider) => edges.get(task)!.add(provider));
         for (const name of scan?.referencedProjects ?? []) {
             for (const provider of providersByName.get(name) ?? []) {
                 if (provider !== task && !edges.get(task)!.has(provider)) {
@@ -228,28 +254,40 @@ export const resolveCrossSourceManifests = async <T>({
                     (node.refs ?? [])
                         .filter((ref) => ref.package == null)
                         .forEach((ref) => {
-                            (node.depends_on?.nodes ?? []).forEach((id) => {
-                                const dependency = result.manifest.nodes[id] as
-                                    | DbtRawModelNode
-                                    | undefined;
-                                if (
-                                    dependency !== undefined &&
-                                    dependency.name === ref.name &&
-                                    isExternalDbtNode(dependency)
-                                ) {
-                                    const warning = `Model "${node.name}" in dbt source "${task.key}" uses ref('${ref.name}'), which resolved to external model ${id} from another dbt source. Use ref('${dependency.package_name}', '${ref.name}') to make the cross-source reference explicit.`;
-                                    if (!warnings.has(warning))
-                                        Logger.warn(
-                                            `dbt.compile.crossSourceRefWarning ${warning}`,
-                                            {
-                                                event: 'dbt.compile.crossSourceRefWarning',
-                                                source: task.key,
-                                                warning,
-                                            },
-                                        );
-                                    warnings.add(warning);
-                                }
-                            });
+                            const matches = (node.depends_on?.nodes ?? [])
+                                .map(
+                                    (id) =>
+                                        result.manifest.nodes[id] as
+                                            | DbtRawModelNode
+                                            | undefined,
+                                )
+                                .filter(
+                                    (
+                                        dependency,
+                                    ): dependency is DbtRawModelNode =>
+                                        dependency !== undefined &&
+                                        dependency.name === ref.name,
+                                );
+                            const dependency =
+                                matches.find(
+                                    (candidate) =>
+                                        candidate.package_name ===
+                                        node.package_name,
+                                ) ??
+                                (matches.length === 1 ? matches[0] : undefined);
+                            if (dependency && isExternalDbtNode(dependency)) {
+                                const warning = `Model "${node.name}" in dbt source "${task.key}" uses ref('${ref.name}'), which resolved to external model ${dependency.unique_id} from another dbt source. Use ref('${dependency.package_name}', '${ref.name}') to make the cross-source reference explicit.`;
+                                if (!warnings.has(warning))
+                                    Logger.warn(
+                                        `dbt.compile.crossSourceRefWarning ${warning}`,
+                                        {
+                                            event: 'dbt.compile.crossSourceRefWarning',
+                                            source: task.key,
+                                            warning,
+                                        },
+                                    );
+                                warnings.add(warning);
+                            }
                         });
                 });
             const manifest = stripExternalDbtNodes(result.manifest);
@@ -273,12 +311,12 @@ export const resolveCrossSourceManifests = async <T>({
     };
     const fetchRound = async (
         roundTasks: CrossSourceFetchTask<T>[],
-        options: DbtManifestFetchOptions,
+        options: (task: CrossSourceFetchTask<T>) => DbtManifestFetchOptions,
     ) => {
         const outcomes = await runWithConcurrency(
             roundTasks,
             concurrency,
-            (task) => fetchOne(task, options),
+            (task) => fetchOne(task, options(task)),
         );
         rounds += 1;
         onRoundComplete?.(rounds);
@@ -295,10 +333,14 @@ export const resolveCrossSourceManifests = async <T>({
     >();
     const depths = new Map<CrossSourceFetchTask<T>, number>();
     const runReady = async (): Promise<void> => {
+        updateDeclaredUpstreams();
         for (const task of remaining) {
             if (active.size >= Math.max(1, concurrency)) break;
             const upstreams = [...edges.get(task)!];
-            if (upstreams.every((provider) => resolved.has(provider))) {
+            if (
+                !unresolvedDeclared.has(task) &&
+                upstreams.every((provider) => resolved.has(provider))
+            ) {
                 remaining.delete(task);
                 const providers = upstreams.map(
                     (provider) => resolved.get(provider)!,
@@ -330,6 +372,7 @@ export const resolveCrossSourceManifests = async <T>({
         );
         active.delete(task);
         if (outcome.ok) {
+            pending.delete(task);
             resolved.set(task, {
                 task,
                 result: outcome.result,
@@ -348,17 +391,21 @@ export const resolveCrossSourceManifests = async <T>({
         const upstreams = [...edges.get(task)!].filter(
             (provider) => !resolved.has(provider),
         );
-        if (upstreams.length > 0) {
+        const names = [
+            ...upstreams.map(
+                (provider) => scans.get(provider)?.projectName ?? provider.key,
+            ),
+            ...(unresolvedDeclared.get(task) ?? []),
+        ];
+        if (names.length > 0) {
             pending.set(
                 task,
                 new DbtError(
-                    upstreams
-                        .map((provider) => {
-                            const name =
-                                scans.get(provider)?.projectName ??
-                                provider.key;
-                            return `depends on a node named '*' in package or project '${name}' which was not found`;
-                        })
+                    names
+                        .map(
+                            (name) =>
+                                `depends on a node named '*' in package or project '${name}' which was not found`,
+                        )
                         .join('\n'),
                 ),
             );
@@ -443,6 +490,7 @@ export const resolveCrossSourceManifests = async <T>({
     };
     const resolvePending = async (): Promise<void> => {
         if (pending.size === 0) return;
+        updateDeclaredUpstreams();
         blocked.forEach(updateBlockedFailure);
         const providers = [...resolved.values()];
         const packages = new Set(
@@ -461,6 +509,7 @@ export const resolveCrossSourceManifests = async <T>({
             );
             if (
                 !missing &&
+                !unresolvedDeclared.has(task) &&
                 [...edges.get(task)!].every((provider) =>
                     resolved.has(provider),
                 )
@@ -468,9 +517,46 @@ export const resolveCrossSourceManifests = async <T>({
                 retryable.push(task);
             }
         }
-        if (retryable.length === 0) throw unresolvedError();
-        const externalNodes = externalNodesFrom(providers);
-        retryable.forEach((task) => {
+        const releaseHints = async () => {
+            const released = [...blocked].filter(
+                (task) =>
+                    !fetchedTasks.has(task) &&
+                    !unresolvedDeclared.has(task) &&
+                    [...declared.get(task)!].every((provider) =>
+                        resolved.has(provider),
+                    ),
+            );
+            if (released.length === 0) throw unresolvedError();
+            released.forEach((task) => {
+                for (const provider of edges.get(task)!) {
+                    if (
+                        !resolved.has(provider) &&
+                        !declared.get(task)!.has(provider)
+                    )
+                        edges.get(task)!.delete(provider);
+                }
+                pending.delete(task);
+                blocked.delete(task);
+            });
+            await runReady();
+            for (const task of blocked) {
+                if (fetchedTasks.has(task)) blocked.delete(task);
+            }
+            blocked.forEach(updateBlockedFailure);
+            return resolvePending();
+        };
+        if (retryable.length === 0) return releaseHints();
+        const attemptProviders = new Map(
+            retryable.map((task) => [
+                task,
+                fetchedTasks.has(task)
+                    ? providers
+                    : providers.filter((provider) =>
+                          edges.get(task)!.has(provider.task),
+                      ),
+            ]),
+        );
+        for (const task of retryable) {
             const signature = `${resolved.size}:${getMissingDbtNodeReferences(
                 pending.get(task),
             )
@@ -478,14 +564,17 @@ export const resolveCrossSourceManifests = async <T>({
                 .sort()
                 .join(',')}`;
             const previousAttempts = attempts.get(task) ?? new Set<string>();
-            if (previousAttempts.has(signature)) throw unresolvedError();
+            if (previousAttempts.has(signature)) return releaseHints();
             previousAttempts.add(signature);
             attempts.set(task, previousAttempts);
-        });
-        const outcomes = await fetchRound(retryable, { externalNodes });
+        }
+        const outcomes = await fetchRound(retryable, (task) => ({
+            externalNodes: externalNodesFrom(attemptProviders.get(task)!),
+        }));
         let progressed = false;
         outcomes.forEach((outcome, index) => {
             const task = retryable[index];
+            remaining.delete(task);
             blocked.delete(task);
             const previousRefs = getMissingDbtNodeReferences(pending.get(task));
             if (outcome.ok) {
@@ -493,7 +582,8 @@ export const resolveCrossSourceManifests = async <T>({
                 resolved.set(task, {
                     task,
                     result: outcome.result,
-                    injectedFrom: providers
+                    injectedFrom: attemptProviders
+                        .get(task)!
                         .filter(({ result }) =>
                             getDbtManifestPackageNames(result.manifest).some(
                                 (name) => neededPackages.get(task)?.has(name),
@@ -510,7 +600,7 @@ export const resolveCrossSourceManifests = async <T>({
                 pending.set(task, outcome.error);
             }
         });
-        if (!progressed && pending.size > 0) throw unresolvedError();
+        if (!progressed && pending.size > 0) return releaseHints();
         return resolvePending();
     };
     await resolvePending();
