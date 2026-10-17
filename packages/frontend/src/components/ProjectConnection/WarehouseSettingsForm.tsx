@@ -86,7 +86,12 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
                             const warehouseType = value as WarehouseTypes;
 
                             form.setValues({
-                                organizationWarehouseCredentialsUuid: undefined,
+                                ...(allowMixedWarehouseTypes
+                                    ? {
+                                          organizationWarehouseCredentialsUuid:
+                                              undefined,
+                                      }
+                                    : {}),
                                 warehouse:
                                     warehouseDefaultValues[warehouseType],
                             });

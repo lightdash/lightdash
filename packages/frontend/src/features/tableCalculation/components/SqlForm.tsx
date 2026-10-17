@@ -17,7 +17,6 @@ import { IconAlertCircle, IconSparkles, IconWand } from '@tabler/icons-react';
 import { useCallback, type CSSProperties, type FC } from 'react';
 import AceEditor, { type IAceEditorProps } from 'react-ace';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { getWarehouseLabel } from '../../../components/ProjectConnection/ProjectConnectFlow/utils';
 import { SqlEditorActions } from '../../../components/SqlRunner/SqlEditorActions';
 import {
     AiSlot,
@@ -27,8 +26,12 @@ import { useAmbientAiEnabled } from '../../../ee/features/ambientAi/hooks/useAmb
 import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
 import { useEditorTheme } from '../../../hooks/useEditorTheme';
 import { useTableCalculationAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
-import { useExploreWarehouseConnection } from '../../../hooks/useExploreWarehouseConnection';
+import {
+    useExploreWarehouseConnection,
+    useMixedWarehouseConnectionsEnabled,
+} from '../../../hooks/useExploreWarehouseConnection';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { getWarehouseSqlCaption } from '../../../utils/mixedWarehouseConnections';
 import { selectTableName, useExplorerSelector } from '../../explorer/store';
 import { type TableCalculationForm } from '../types';
 import FormulaConversionPreviewBody from './FormulaConversionPreview';
@@ -122,6 +125,10 @@ export const SqlForm: FC<Props> = ({
     const { warehouseType } = useExploreWarehouseConnection(
         tableName,
         projectUuid,
+    );
+    const sqlCaption = getWarehouseSqlCaption(
+        warehouseType,
+        useMixedWarehouseConnectionsEnabled(),
     );
     const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid);
     const isEmbedded = useIsEmbedded();
@@ -217,9 +224,9 @@ export const SqlForm: FC<Props> = ({
                 flex={1}
                 className={conversionState ? classes.editorBlurred : undefined}
             >
-                {warehouseType !== null && (
+                {sqlCaption !== null && (
                     <Text size="xs" c="dimmed">
-                        {getWarehouseLabel(warehouseType)} SQL
+                        {sqlCaption}
                     </Text>
                 )}
                 <SqlEditor

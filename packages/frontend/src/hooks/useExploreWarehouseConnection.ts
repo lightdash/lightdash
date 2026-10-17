@@ -37,6 +37,13 @@ export const resolveExploreWarehouseConnection = (
     };
 };
 
+export const useMixedWarehouseConnectionsEnabled = (): boolean => {
+    const mixedWarehouseFlag = useServerFeatureFlag(
+        FeatureFlags.MixedWarehouseConnections,
+    );
+    return mixedWarehouseFlag.data?.enabled === true;
+};
+
 export const useExploreWarehouseConnection = (
     exploreName: string | null,
     projectUuid: string | undefined,
@@ -47,13 +54,12 @@ export const useExploreWarehouseConnection = (
         { enabled: false },
     );
     const { data: project } = useProject(projectUuid);
-    const mixedWarehouseFlag = useServerFeatureFlag(
-        FeatureFlags.MixedWarehouseConnections,
-    );
+    const mixedWarehouseConnectionsEnabled =
+        useMixedWarehouseConnectionsEnabled();
 
     return resolveExploreWarehouseConnection(
         explore?.warehouseConnection ?? null,
         project?.warehouseConnection ?? null,
-        mixedWarehouseFlag.data?.enabled === true,
+        mixedWarehouseConnectionsEnabled,
     );
 };

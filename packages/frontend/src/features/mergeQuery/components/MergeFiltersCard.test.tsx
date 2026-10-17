@@ -7,6 +7,10 @@ import { MergeFiltersCard } from './MergeFiltersCard';
 
 vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
 vi.mock('../../../hooks/useQueryError', () => ({ default: () => vi.fn() }));
+const flag = vi.hoisted(() => ({ enabled: true }));
+vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({ data: { enabled: flag.enabled } }),
+}));
 vi.mock('../../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project',
 }));
@@ -67,7 +71,7 @@ vi.mock('../../../components/common/Filters/FiltersProvider', () => ({
 }));
 
 describe('MergeFiltersCard', () => {
-    it('gives each source its bound connection week start', () => {
+    const renderCard = () => {
         const queryClient = new QueryClient({
             defaultOptions: { queries: { retry: false, staleTime: Infinity } },
         });
@@ -92,12 +96,27 @@ describe('MergeFiltersCard', () => {
                 </MantineProvider>
             </QueryClientProvider>,
         );
+    };
 
+    it('gives each source its bound connection week start with the flag on', () => {
+        flag.enabled = true;
+        renderCard();
         expect(screen.getByTestId('orders-filters')).toHaveTextContent(
             String(WeekDay.SUNDAY),
         );
         expect(screen.getByTestId('payments-filters')).toHaveTextContent(
             String(WeekDay.WEDNESDAY),
+        );
+    });
+
+    it('gives each source the project week start with the flag off', () => {
+        flag.enabled = false;
+        renderCard();
+        expect(screen.getByTestId('orders-filters')).toHaveTextContent(
+            String(WeekDay.MONDAY),
+        );
+        expect(screen.getByTestId('payments-filters')).toHaveTextContent(
+            String(WeekDay.MONDAY),
         );
     });
 });
