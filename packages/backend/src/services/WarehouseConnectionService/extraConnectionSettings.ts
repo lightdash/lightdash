@@ -30,6 +30,7 @@ export const assertConnectionDatabaseListing = (
 export function assertExtraConnectionSettings(
     credentials: CreateWarehouseCredentials,
     settings: ListingSettings,
+    mixedTypesEnabled: boolean,
 ): asserts credentials is Exclude<
     CreateWarehouseCredentials,
     {
@@ -42,5 +43,7 @@ export function assertExtraConnectionSettings(
             'Internal analytics connections cannot be added as extra connections.',
         );
     }
-    assertConnectionDatabaseListing(credentials.type, settings);
+    if (mixedTypesEnabled) {
+        assertConnectionDatabaseListing(credentials.type, settings);
+    }
 }

@@ -614,7 +614,11 @@ export class WarehouseConnectionSwitchService extends BaseService {
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
             );
-        assertExtraConnectionSettings(credentials, request.connection);
+        assertExtraConnectionSettings(
+            credentials,
+            request.connection,
+            mixedTypesEnabled,
+        );
         const effectiveCredentials: CreateWarehouseCredentials =
             source.kind === 'project'
                 ? {

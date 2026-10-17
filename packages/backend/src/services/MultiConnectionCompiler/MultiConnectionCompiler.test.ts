@@ -954,9 +954,13 @@ describe('DuckLake extra compile credentials', () => {
 });
 
 describe('cross-connection join warnings', () => {
-    it.each(['customers', 'missing_model'])(
-        'explains a skipped join to %s',
-        async (table) => {
+    it.each([
+        { table: 'customers', mixed: true },
+        { table: 'missing_model', mixed: true },
+        { table: 'customers', mixed: false },
+    ])(
+        'explains a skipped join to $table with the mixed flag $mixed',
+        async ({ table, mixed }) => {
             const warning = {
                 type: InlineErrorType.MISSING_TABLE,
                 message: `Join "customer_alias" to table "${table}" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.`,
@@ -988,6 +992,7 @@ describe('cross-connection join warnings', () => {
                         modelNames: string[];
                     }[],
                     originalModels: string[],
+                    mixedWarehouseConnectionsEnabled: boolean,
                 ) => AsyncIterable<Explore>;
             };
             const results: Explore[] = [];
@@ -1005,11 +1010,12 @@ describe('cross-connection join warnings', () => {
                     },
                 ],
                 ['customers'],
+                mixed,
             ))
                 results.push(explore);
             expect(results).toHaveLength(2);
             expect(results[1].warnings).toEqual([
-                table === 'customers'
+                mixed && table === 'customers'
                     ? {
                           type: InlineErrorType.MISSING_TABLE,
                           message:

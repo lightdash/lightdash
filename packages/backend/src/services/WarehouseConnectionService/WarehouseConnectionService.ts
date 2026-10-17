@@ -781,7 +781,7 @@ export class WarehouseConnectionService extends BaseService {
             credentials.type,
             mixedTypesEnabled,
         );
-        assertExtraConnectionSettings(credentials, request);
+        assertExtraConnectionSettings(credentials, request, mixedTypesEnabled);
         let persistedSource = source;
         if (shouldTestExtraCredentials(credentials)) {
             const testedCredentials = await this.assertConnectionWorks(
@@ -994,30 +994,33 @@ export class WarehouseConnectionService extends BaseService {
             );
         }
         this.assertCanWrite(account, summary, effectiveSource, credentials);
-        assertConnectionDatabaseListing(
-            credentials?.type ?? existing.warehouseType,
-            {
-                listAllDatabases:
-                    request.listAllDatabases ?? existing.listAllDatabases,
-                additionalDatabases:
-                    request.additionalDatabases ?? existing.additionalDatabases,
-            },
-        );
+        const { enabled: mixedTypesEnabled } =
+            await this.featureFlagService.get({
+                user: {
+                    userUuid: account.user.userUuid,
+                    organizationUuid: project.organizationUuid,
+                },
+                featureFlagId: FeatureFlags.MixedWarehouseConnections,
+            });
+        if (mixedTypesEnabled) {
+            assertConnectionDatabaseListing(
+                credentials?.type ?? existing.warehouseType,
+                {
+                    listAllDatabases:
+                        request.listAllDatabases ?? existing.listAllDatabases,
+                    additionalDatabases:
+                        request.additionalDatabases ??
+                        existing.additionalDatabases,
+                },
+            );
+        }
         if (credentials !== null)
-            assertExtraConnectionSettings(credentials, request);
+            assertExtraConnectionSettings(
+                credentials,
+                request,
+                mixedTypesEnabled,
+            );
         let persistedSource = source;
-        const mixedTypesEnabled =
-            credentials !== null && source !== null
-                ? (
-                      await this.featureFlagService.get({
-                          user: {
-                              userUuid: account.user.userUuid,
-                              organizationUuid: project.organizationUuid,
-                          },
-                          featureFlagId: FeatureFlags.MixedWarehouseConnections,
-                      })
-                  ).enabled
-                : false;
         if (credentials !== null && source !== null) {
             if (
                 !canUseExtraConnectionWarehouseType({

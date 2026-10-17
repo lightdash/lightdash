@@ -425,6 +425,7 @@ export class MultiConnectionCompiler {
         originalConnectionName: string,
         extraGroups: CompiledExtraGroup[],
         originalModelNames: string[],
+        mixedWarehouseConnectionsEnabled: boolean,
     ): AsyncIterable<Explore | ExploreError> {
         const groups = [
             {
@@ -440,7 +441,12 @@ export class MultiConnectionCompiler {
             explore: Explore | ExploreError,
             connectionName: string,
         ): Explore | ExploreError => {
-            if (isExploreError(explore) || !explore.warnings) return explore;
+            if (
+                !mixedWarehouseConnectionsEnabled ||
+                isExploreError(explore) ||
+                !explore.warnings
+            )
+                return explore;
             return {
                 ...explore,
                 warnings: explore.warnings.map((warning) => {
@@ -780,6 +786,7 @@ export class MultiConnectionCompiler {
                 getModelsFromManifest(originalMerged.manifest).map(
                     (model) => model.name,
                 ),
+                mixedWarehouseConnectionsEnabled,
             ),
             bindingOf: (exploreName) => extraBindings.get(exploreName) ?? null,
             carry: {

@@ -93,5 +93,8 @@ python3 scripts/mixed-warehouse-scale-test/run.py ... --mode flag-off --out /tmp
 
 The script waits while the 1-minute load average is 6 or more. Results go to
 `<out>/<mode>/results.json` and `summary.md`. Credentials are read from the
-env file and never printed; account numbers, ARNs and S3 paths are redacted
-from recorded messages.
+env file and never printed. Recorded messages are redacted before they are
+truncated: known credential values (project IDs, account identifiers, user
+names, keys, the Athena workgroup and bucket), ARNs, S3 paths and 12-digit
+account numbers. At start-up the script checks that each known value is
+redacted and stops if one is not.

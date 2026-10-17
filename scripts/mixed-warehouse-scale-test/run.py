@@ -61,16 +61,49 @@ def ok(response):
     return isinstance(response, dict) and response.get('status') == 'ok'
 
 
+SENSITIVE_VALUES = set()
+
+
+def register_sensitive(env):
+    def load(name):
+        try:
+            return json.loads(env.get(name) or '{}')
+        except ValueError:
+            return {}
+
+    bigquery = load('LIGHTDASH_TEST_BIGQUERY_CREDENTIALS')
+    snowflake = load('LIGHTDASH_TEST_SNOWFLAKE_CREDENTIALS')
+    athena = load('LIGHTDASH_TEST_ATHENA_CREDENTIALS')
+    staging = os.environ.get('ATHENA_S3_STAGING_DIR', '')
+    values = [
+        bigquery.get('project_id'), bigquery.get('client_email'),
+        bigquery.get('private_key_id'), os.environ.get('BIGQUERY_DATASET'),
+        snowflake.get('account'), snowflake.get('username'),
+        athena.get('accountId'), athena.get('accessKeyId'),
+        athena.get('secretAccessKey'), *(athena.get('roles') or {}).values(),
+        os.environ.get('ATHENA_WORKGROUP'), staging,
+        staging.removeprefix('s3://').split('/')[0],
+    ]
+    SENSITIVE_VALUES.update(v for v in values if isinstance(v, str) and len(v) >= 4)
+    for value in SENSITIVE_VALUES:
+        sample = redact(f'error near "{value}" and {value.upper()}.')
+        if value in sample or value.upper() in sample:
+            raise SystemExit('redaction check failed for a registered credential value')
+
+
 def redact(text):
-    text = re.sub(r'arn:aws[\w-]*:[^\s"\']+', '<arn>', str(text))
+    text = str(text)
+    for value in sorted(SENSITIVE_VALUES, key=len, reverse=True):
+        text = re.sub(re.escape(value), '<redacted>', text, flags=re.IGNORECASE)
+    text = re.sub(r'arn:aws[\w-]*:[^\s"\']+', '<arn>', text)
     text = re.sub(r's3://[^\s"\']+', '<s3>', text)
     return re.sub(r'\b\d{12}\b', '<account>', text)
 
 
 def message(response):
     if not isinstance(response, dict):
-        return redact(str(response)[:300])
-    return redact(((response.get('error') or {}).get('message') or '')[:400])
+        return redact(str(response))[:300]
+    return redact((response.get('error') or {}).get('message') or '')[:400]
 
 
 def read_env(path):
@@ -794,6 +827,7 @@ def main():
     args = parser.parse_args()
 
     env = read_env(args.env_file)
+    register_sensitive(env)
     api = Api(args.url, os.environ.get('LIGHTDASH_EMAIL', 'demo@lightdash.com'), os.environ.get('LIGHTDASH_PASSWORD', 'demo_password!'))
     out = Path(args.out) / args.mode
     recorder = Recorder(out)
