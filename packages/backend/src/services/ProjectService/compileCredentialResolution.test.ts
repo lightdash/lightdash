@@ -1296,32 +1296,7 @@ describe('factory dbt target handoff to the real local adapter', () => {
                     clientCredentials: expect.objectContaining(bigqueryAdc),
                 }),
                 expect.objectContaining(bigqueryAdc),
-                { explicitCredentials: false, trinoPasswordlessAuth: false },
-            );
-        },
-    );
-
-    it.each(paths)(
-        '%s passes the mixed warehouse flag of the project organization to the dbt target',
-        async (compilePath) => {
-            const f = setupTarget(false);
-            f.featureFlagModel.get.mockImplementation(
-                async ({ featureFlagId }) => ({
-                    id: featureFlagId,
-                    enabled:
-                        featureFlagId ===
-                        FeatureFlags.MixedWarehouseConnections,
-                }),
-            );
-            await f.run(compilePath);
-            expect(f.featureFlagModel.get).toHaveBeenCalledWith({
-                user: { organizationUuid: f.project.organizationUuid },
-                featureFlagId: FeatureFlags.MixedWarehouseConnections,
-            });
-            expect(f.resolver.toDbtTarget).toHaveBeenCalledExactlyOnceWith(
-                expect.anything(),
-                expect.anything(),
-                { explicitCredentials: false, trinoPasswordlessAuth: true },
+                { explicitCredentials: false },
             );
         },
     );
@@ -1417,7 +1392,7 @@ describe('factory dbt target handoff to the real local adapter', () => {
                     clientCredentials: expect.objectContaining(bigqueryAdc),
                 }),
                 expect.objectContaining(bigqueryAdc),
-                { explicitCredentials: true, trinoPasswordlessAuth: false },
+                { explicitCredentials: true },
             );
             expect.soft(f.writeProfile).not.toHaveBeenCalled();
             expect.soft(f.createDirectory).not.toHaveBeenCalled();

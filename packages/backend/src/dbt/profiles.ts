@@ -31,9 +31,6 @@ export const profileFromCredentials = (
     customTargetName: string | undefined = undefined,
 ) =>
     profileFromTarget(
-        toDbtTarget(credentials, {
-            explicitCredentials: false,
-            trinoPasswordlessAuth: false,
-        }),
+        toDbtTarget(credentials, { explicitCredentials: false }),
         customTargetName,
     );

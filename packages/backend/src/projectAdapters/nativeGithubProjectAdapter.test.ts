@@ -67,15 +67,9 @@ describe('native GitHub server compilation', () => {
                             dbname: 'postgres',
                             schema: 'public',
                         },
-                        {
-                            explicitCredentials: false,
-                            trinoPasswordlessAuth: false,
-                        },
+                        { explicitCredentials: false },
                     ),
-                policy: {
-                    explicitCredentials: false,
-                    trinoPasswordlessAuth: false,
-                },
+                policy: { explicitCredentials: false },
             },
         );
     const adapters: Awaited<ReturnType<typeof createAdapter>>[] = [];

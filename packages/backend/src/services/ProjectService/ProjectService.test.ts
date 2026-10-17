@@ -20342,12 +20342,7 @@ describe('compile adapter connection credentials', () => {
                     .mocked(projectAdapterModule.projectAdapterFromConfig)
                     .mock.calls.at(-1)?.[6]
                     ?.resolve(),
-            ).toEqual(
-                toDbtTarget(expected, {
-                    explicitCredentials: false,
-                    trinoPasswordlessAuth: false,
-                }),
-            );
+            ).toEqual(toDbtTarget(expected, { explicitCredentials: false }));
             expect(passedCredentials).toEqual(expected);
         },
     );
@@ -20380,7 +20375,6 @@ describe('compile adapter connection credentials', () => {
             ).toEqual(
                 toDbtTarget(ducklakeCredentials, {
                     explicitCredentials: false,
-                    trinoPasswordlessAuth: false,
                 }),
             );
         } finally {
@@ -20429,10 +20423,7 @@ describe('compile adapter connection credentials', () => {
                         .mock.calls.at(-1)?.[6]
                         ?.resolve(),
                 ).toEqual(
-                    toDbtTarget(expected, {
-                        explicitCredentials: false,
-                        trinoPasswordlessAuth: false,
-                    }),
+                    toDbtTarget(expected, { explicitCredentials: false }),
                 );
             },
         );

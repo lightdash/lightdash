@@ -7987,21 +7987,11 @@ export class ProjectService
             throw new ForbiddenError(
                 'Project organization is required to run dbt.',
             );
-        const [explicitCredentials, mixedWarehouseConnections] =
-            await Promise.all([
-                this.featureFlagModel.get({
-                    user: { organizationUuid },
-                    featureFlagId: FeatureFlags.DbtExplicitCredentials,
-                }),
-                this.featureFlagModel.get({
-                    user: { organizationUuid },
-                    featureFlagId: FeatureFlags.MixedWarehouseConnections,
-                }),
-            ]);
-        return {
-            explicitCredentials: explicitCredentials.enabled,
-            trinoPasswordlessAuth: mixedWarehouseConnections.enabled,
-        };
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.DbtExplicitCredentials,
+        });
+        return { explicitCredentials: enabled };
     }
 
     private async isDbtPartialParseEnabled(

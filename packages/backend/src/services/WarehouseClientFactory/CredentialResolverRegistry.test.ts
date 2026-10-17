@@ -523,10 +523,7 @@ describe('dbt target resolution', () => {
             dbname: 'source_database',
             schema: 'source_schema',
         };
-        const policy = {
-            explicitCredentials: true,
-            trinoPasswordlessAuth: false,
-        };
+        const policy = { explicitCredentials: true };
         expect(registry.toDbtTarget(resolved, finalConnection, policy)).toEqual(
             toDbtTarget(finalConnection, policy),
         );
@@ -558,7 +555,6 @@ describe('dbt target resolution', () => {
         expect(
             registry.toDbtTarget(resolved, resolved, {
                 explicitCredentials: true,
-                trinoPasswordlessAuth: false,
             }),
         ).toEqual(refusal);
         expect(transport.toDbtTarget).not.toHaveBeenCalled();
@@ -580,10 +576,7 @@ describe('dbt target resolution', () => {
             dbname: 'source_database',
             schema: 'source_schema',
         };
-        const policy = {
-            explicitCredentials: false,
-            trinoPasswordlessAuth: false,
-        };
+        const policy = { explicitCredentials: false };
         expect(registry.toDbtTarget(resolved, finalConnection, policy)).toEqual(
             toDbtTarget(finalConnection, policy),
         );
@@ -651,7 +644,6 @@ test.each([true, false])(
         expect(
             registry.toDbtTarget(materialized, materialized, {
                 explicitCredentials,
-                trinoPasswordlessAuth: false,
             }),
         ).toMatchObject({ kind: 'none' });
         expect(legacy).not.toHaveBeenCalled();

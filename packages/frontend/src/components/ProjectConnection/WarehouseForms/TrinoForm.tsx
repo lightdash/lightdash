@@ -1,12 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
-import {
-    TextInput,
-    Stack,
-    Anchor,
-    Select,
-    PasswordInput,
-    Text,
-} from '@mantine/core';
+import { TextInput, Stack, Anchor, Select, PasswordInput } from '@mantine/core';
 import React, { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import { NumberInput } from '../../common/NumberInput';
@@ -41,11 +34,7 @@ const TrinoForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
-    const {
-        savedProject,
-        isProjectExtraConnection,
-        inheritsPrimaryCredentialRequirement = true,
-    } = useProjectFormContext();
+    const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.TRINO;
     const form = useFormContext();
@@ -98,26 +87,18 @@ const TrinoForm: FC<{
 
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt="xs">
-                        {isProjectExtraConnection &&
-                        inheritsPrimaryCredentialRequirement ? (
-                            <Text size="sm" c="dimmed">
-                                Require users to provide their own credentials
-                                follows the primary connection.
-                            </Text>
-                        ) : (
-                            <BooleanSwitch
-                                name="warehouse.requireUserCredentials"
-                                label="Require users to provide their own credentials"
-                                {...form.getInputProps(
-                                    'warehouse.requireUserCredentials',
-                                    { type: 'checkbox' },
-                                )}
-                                defaultChecked={
-                                    TrinoDefaultValues.requireUserCredentials
-                                }
-                                disabled={disabled}
-                            />
-                        )}
+                        <BooleanSwitch
+                            name="warehouse.requireUserCredentials"
+                            label="Require users to provide their own credentials"
+                            {...form.getInputProps(
+                                'warehouse.requireUserCredentials',
+                                { type: 'checkbox' },
+                            )}
+                            defaultChecked={
+                                TrinoDefaultValues.requireUserCredentials
+                            }
+                            disabled={disabled}
+                        />
 
                         <NumberInput
                             name="warehouse.port"
