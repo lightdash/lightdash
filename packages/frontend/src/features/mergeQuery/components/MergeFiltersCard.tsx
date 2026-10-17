@@ -11,7 +11,7 @@ import FiltersForm from '../../../components/common/Filters';
 import FiltersProvider from '../../../components/common/Filters/FiltersProvider';
 import { useFieldsWithSuggestions } from '../../../components/Explorer/FiltersCard/useFieldsWithSuggestions';
 import { useExplore } from '../../../hooks/useExplore';
-import { useProject } from '../../../hooks/useProject';
+import { useExploreWarehouseConnection } from '../../../hooks/useExploreWarehouseConnection';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import {
@@ -62,7 +62,6 @@ const FilterSectionTitle: FC<{
 /** Both source filters in one card. Join-key rules are shared automatically. */
 export const MergeFiltersCard: FC = () => {
     const projectUuid = useProjectUuid();
-    const project = useProject(projectUuid);
     const merge = useMerge();
     const additionalSource = merge.additionalSources[0];
     const dispatch = useExplorerDispatch();
@@ -81,6 +80,15 @@ export const MergeFiltersCard: FC = () => {
     const { data: additionalExplore } = useExplore(
         additionalSource?.exploreName ?? undefined,
     );
+    const { startOfWeek: primaryStartOfWeek } = useExploreWarehouseConnection(
+        tableName,
+        projectUuid,
+    );
+    const { startOfWeek: additionalStartOfWeek } =
+        useExploreWarehouseConnection(
+            additionalSource?.exploreName ?? null,
+            projectUuid,
+        );
     const [hasEverOpened, setHasEverOpened] = useState(false);
     useEffect(() => {
         if (filterIsOpen) setHasEverOpened(true);
@@ -181,10 +189,7 @@ export const MergeFiltersCard: FC = () => {
                         <FiltersProvider
                             projectUuid={projectUuid}
                             itemsMap={primaryFields}
-                            startOfWeek={
-                                project.data?.warehouseConnection
-                                    ?.startOfWeek ?? undefined
-                            }
+                            startOfWeek={primaryStartOfWeek ?? undefined}
                             popoverProps={{ withinPortal: true }}
                             baseTable={primaryExplore?.baseTable}
                             parameterValues={parameterValues}
@@ -220,10 +225,7 @@ export const MergeFiltersCard: FC = () => {
                         <FiltersProvider
                             projectUuid={projectUuid}
                             itemsMap={additionalFields}
-                            startOfWeek={
-                                project.data?.warehouseConnection
-                                    ?.startOfWeek ?? undefined
-                            }
+                            startOfWeek={additionalStartOfWeek ?? undefined}
                             popoverProps={{ withinPortal: true }}
                             baseTable={additionalExplore?.baseTable}
                             parameterValues={parameterValues}

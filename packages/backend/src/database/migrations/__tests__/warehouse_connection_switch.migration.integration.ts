@@ -144,6 +144,7 @@ describe('Enable multiple connections on the real schema', () => {
     let connectionModel: WarehouseConnectionModel;
     let projectService: ProjectService;
     const flag = { enabled: true };
+    const mixedTypes = { enabled: false };
     const testWarehouseConnectionCredentials = vi.fn();
     const resolveTestedCredentials = vi.fn(
         (credentials: CreateWarehouseCredentials) => credentials,
@@ -151,9 +152,12 @@ describe('Enable multiple connections on the real schema', () => {
     const analytics = { track: vi.fn() };
 
     const featureFlagService = () => ({
-        get: vi.fn(async () => ({
-            id: FeatureFlags.MultiConnectionProjects,
-            enabled: flag.enabled,
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+            id: featureFlagId,
+            enabled:
+                featureFlagId === FeatureFlags.MultiConnectionProjects
+                    ? flag.enabled
+                    : mixedTypes.enabled,
         })),
     });
 
@@ -414,6 +418,7 @@ describe('Enable multiple connections on the real schema', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
         flag.enabled = true;
+        mixedTypes.enabled = false;
         analytics.track.mockReset();
         vi.mocked(logAuditEvent).mockReset();
         testWarehouseConnectionCredentials.mockReset();
@@ -953,32 +958,42 @@ describe('Enable multiple connections on the real schema', () => {
             expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
         });
 
-        test('rejects Snowflake external browser authentication in preview and execution', async () => {
-            const fixture = await createProject({
-                credentials: {
-                    ...snowflakeCredentials,
-                    requireUserCredentials: true,
-                },
-            });
-            await refusesBoth(
-                fixture,
-                new ParameterError(
-                    'External browser authentication is not supported for an extra Snowflake connection.',
-                ),
-                fixture.admin,
-                switchRequest({
-                    connection: {
-                        name: 'Browser',
-                        warehouseConnection: {
-                            ...snowflakeCredentials,
-                            authenticationType:
-                                SnowflakeAuthenticationType.EXTERNAL_BROWSER,
-                        },
+        test.each([
+            SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+            SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
+        ])(
+            'rejects Snowflake interactive authentication in preview and execution (%s)',
+            async (authenticationType) => {
+                mixedTypes.enabled =
+                    authenticationType ===
+                    SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE;
+                const fixture = await createProject({
+                    credentials: {
+                        ...snowflakeCredentials,
+                        requireUserCredentials: true,
                     },
-                }),
-            );
-            expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
-        });
+                });
+                await refusesBoth(
+                    fixture,
+                    new ParameterError(
+                        'External browser authentication is not supported for an extra Snowflake connection.',
+                    ),
+                    fixture.admin,
+                    switchRequest({
+                        connection: {
+                            name: 'Browser',
+                            warehouseConnection: {
+                                ...snowflakeCredentials,
+                                authenticationType,
+                            },
+                        },
+                    }),
+                );
+                expect(
+                    testWarehouseConnectionCredentials,
+                ).not.toHaveBeenCalled();
+            },
+        );
 
         test('saves the resolved Snowflake SSO refresh token when switching', async () => {
             const fixture = await createProject({
@@ -1029,7 +1044,7 @@ describe('Enable multiple connections on the real schema', () => {
             expect(await state(fixture.projectUuid)).toEqual(singleState);
         });
 
-        test('requires the rollout flag, the licence and a supported warehouse type', async () => {
+        test('requires the rollout flag and the licence', async () => {
             const flagged = await createProject();
             flag.enabled = false;
             await refusesBoth(flagged, new ForbiddenError(ROLLOUT_REASON));
@@ -1044,25 +1059,45 @@ describe('Enable multiple connections on the real schema', () => {
                 buildService(false),
             );
 
-            const redshift = await createProject({
-                credentials: redshiftCredentials,
-            });
-            await refusesBoth(
-                redshift,
-                new ForbiddenError(WAREHOUSE_TYPE_REASON),
-                redshift.admin,
-                switchRequest({
-                    connection: {
-                        name: 'Finance',
-                        warehouseConnection: redshiftCredentials,
-                    },
-                }),
-            );
-            for (const fixture of [flagged, unlicensed, redshift]) {
+            for (const fixture of [flagged, unlicensed]) {
                 // eslint-disable-next-line no-await-in-loop
                 expect(await state(fixture.projectUuid)).toEqual(singleState);
             }
         });
+
+        test.each([false, true])(
+            'gates a Redshift primary and same-type extra with mixed types %s',
+            async (enabled) => {
+                mixedTypes.enabled = enabled;
+                const fixture = await createProject({
+                    credentials: redshiftCredentials,
+                });
+                const request = switchRequest({
+                    original: {
+                        name: 'Main warehouse',
+                        listAllDatabases: false,
+                        additionalDatabases: [],
+                    },
+                    connection: {
+                        name: 'Extra',
+                        warehouseConnection: redshiftCredentials,
+                    },
+                });
+                const preview = buildService().preview(
+                    fixture.admin,
+                    fixture.projectUuid,
+                    request,
+                );
+                if (enabled) {
+                    await expect(preview).resolves.toBeDefined();
+                } else {
+                    await expect(preview).rejects.toThrow(
+                        WAREHOUSE_TYPE_REASON,
+                    );
+                }
+                expect(await state(fixture.projectUuid)).toEqual(singleState);
+            },
+        );
 
         test.each([
             { name: 'a preview', type: ProjectType.PREVIEW, source: null },
@@ -1158,6 +1193,27 @@ describe('Enable multiple connections on the real schema', () => {
                 }),
             );
             expect(await state(fixture.projectUuid)).toEqual(singleState);
+        });
+
+        test('previews an extra connection of another warehouse type when mixed types are enabled', async () => {
+            mixedTypes.enabled = true;
+            const fixture = await createProject();
+
+            const plan = await buildService().preview(
+                fixture.admin,
+                fixture.projectUuid,
+                switchRequest({
+                    connection: {
+                        name: 'Finance',
+                        warehouseConnection: snowflakeCredentials,
+                    },
+                }),
+            );
+
+            expect(plan.original.warehouseType).toBe(WarehouseTypes.POSTGRES);
+            expect(plan.connection.warehouseType).toBe(
+                WarehouseTypes.SNOWFLAKE,
+            );
         });
 
         test.each([

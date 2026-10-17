@@ -304,6 +304,7 @@ import {
     type UUID,
     type WarehouseLocation,
     type WarehouseSqlBuilder,
+    type WeekDay,
 } from '@lightdash/common';
 import { extractColumnRefs, parse as parseFormula } from '@lightdash/formula';
 import {
@@ -5764,6 +5765,41 @@ export class ProjectService
         }
     }
 
+    async getDeployStartOfWeekByExplore(args: {
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+        explores: (Explore | ExploreError)[];
+        sourceUuid: string | null;
+    }): Promise<Map<string, WeekDay | null>> {
+        const withPreAggregates = args.explores.filter(
+            (explore) => explore.preAggregates?.length,
+        );
+        if (withPreAggregates.length === 0) return new Map();
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.MixedWarehouseConnections,
+            user: {
+                userUuid: args.userUuid,
+                organizationUuid: args.organizationUuid,
+            },
+        });
+        if (!enabled) return new Map();
+        const entries = await Promise.all(
+            withPreAggregates.map(async (explore) => {
+                const deployStartOfWeek =
+                    await this.projectModel.getDeployStartOfWeek(
+                        args.projectUuid,
+                        explore.name,
+                        args.sourceUuid,
+                    );
+                return deployStartOfWeek.kind === 'extra'
+                    ? [[explore.name, deployStartOfWeek.startOfWeek] as const]
+                    : [];
+            }),
+        );
+        return new Map(entries.flat());
+    }
+
     private async setExploresInternal(
         user: SessionUser,
         projectUuid: string,
@@ -5805,10 +5841,20 @@ export class ProjectService
             );
         }
 
+        const startOfWeekByExplore = this.lightdashConfig.preAggregates.enabled
+            ? await this.getDeployStartOfWeekByExplore({
+                  userUuid: user.userUuid,
+                  organizationUuid: project.organizationUuid,
+                  projectUuid,
+                  explores,
+                  sourceUuid: cliDeploy.sourceUuid,
+              })
+            : new Map<string, WeekDay | null>();
         const exploresWithPreAggregates = enhanceExploresForPreAggregates({
             explores,
             enabled: this.lightdashConfig.preAggregates.enabled,
             startOfWeek: project.warehouseConnection?.startOfWeek ?? null,
+            startOfWeekByExplore,
         });
 
         await this.saveDeployExplores({
@@ -8609,6 +8655,11 @@ export class ProjectService
                 featureFlagId: FeatureFlags.CrossSourceDbtRefs,
                 user: { userUuid, organizationUuid },
             });
+        const { enabled: mixedWarehouseConnectionsEnabled } =
+            await this.featureFlagModel.get({
+                featureFlagId: FeatureFlags.MixedWarehouseConnections,
+                user: { userUuid, organizationUuid },
+            });
         const sourceAdapters = new Map<string, ProjectAdapter>();
         const compileContext = connectionContextFromUser(
             { userUuid },
@@ -8672,6 +8723,7 @@ export class ProjectService
             dbtVersion: resolveDbtVersion(primary.dbtVersionOption),
             includeUnboundSources,
             crossSourceRefsEnabled,
+            mixedWarehouseConnectionsEnabled,
             prepareSourceManifest: async (source, credentials, connection) =>
                 ProjectService.scanAdapter(
                     await getSourceAdapter(source, credentials, connection),
@@ -13740,15 +13792,36 @@ export class ProjectService
             undefined,
             false,
         );
+        const [warehouseConnectionUuid, settings, target] = await Promise.all([
+            this.projectModel.getExploreWarehouseConnectionUuid(
+                projectUuid,
+                exploreName,
+            ),
+            this.getWarehouseSqlBuilderSettings(projectUuid, {
+                kind: 'explore',
+                exploreName,
+            }),
+            this.projectModel.resolveWarehouseCredentialRead(projectUuid, {
+                kind: 'explore',
+                exploreName,
+            }),
+        ]);
         return {
             ...(this.cannotViewEmbedCompiledSql(account, projectUuid)
                 ? redactExploreSql(explore)
                 : explore),
-            warehouseConnectionUuid:
-                await this.projectModel.getExploreWarehouseConnectionUuid(
-                    projectUuid,
-                    exploreName,
-                ),
+            warehouseConnectionUuid,
+            warehouseConnection: {
+                warehouseConnectionUuid:
+                    target.kind === 'extra'
+                        ? target.warehouseConnectionUuid
+                        : null,
+                warehouseType:
+                    explore.type === ExploreType.EXTERNAL_SOURCE
+                        ? WarehouseTypes.DUCKDB
+                        : settings.type,
+                startOfWeek: settings.startOfWeek,
+            },
         };
     }
 

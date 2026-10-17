@@ -1,0 +1,11 @@
+name: trino_dev
+version: '1.0.0'
+config-version: 2
+profile: trino_dev
+
+model-paths: ['models']
+target-path: target
+
+models:
+  trino_dev:
+    +materialized: table

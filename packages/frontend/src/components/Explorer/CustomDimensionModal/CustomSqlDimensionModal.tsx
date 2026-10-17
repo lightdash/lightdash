@@ -15,6 +15,7 @@ import {
     Group,
     Select,
     Stack,
+    Text,
     TextInput,
     Tooltip,
 } from '@mantine/core';
@@ -45,7 +46,12 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useEditorTheme } from '../../../hooks/useEditorTheme';
 import { useExplore } from '../../../hooks/useExplore';
 import { useCustomDimensionsAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
+import {
+    useExploreWarehouseConnection,
+    useMixedWarehouseConnectionsEnabled,
+} from '../../../hooks/useExploreWarehouseConnection';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { getWarehouseSqlCaption } from '../../../utils/mixedWarehouseConnections';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import classes from './CustomSqlDimensionModal.module.css';
@@ -91,6 +97,14 @@ export const CustomSqlDimensionModal: FC<{
     const tableCalculations = useExplorerSelector(selectTableCalculations);
     const tableName = useExplorerSelector(selectTableName);
     const { data: explore } = useExplore(tableName);
+    const { warehouseType } = useExploreWarehouseConnection(
+        tableName,
+        projectUuid,
+    );
+    const sqlCaption = getWarehouseSqlCaption(
+        warehouseType,
+        useMixedWarehouseConnectionsEnabled(),
+    );
 
     const toggleModal = () =>
         dispatch(explorerActions.toggleCustomDimensionModal());
@@ -305,6 +319,11 @@ export const CustomSqlDimensionModal: FC<{
                         data-tour-input="true"
                         data-tour-suggest="CASE WHEN ${orders.amount} < 100 THEN 'small' ELSE 'large' END"
                     >
+                        {sqlCaption !== null && (
+                            <Text size="xs" c="dimmed">
+                                {sqlCaption}
+                            </Text>
+                        )}
                         <SqlEditor
                             mode="sql"
                             placeholder="Enter SQL"

@@ -1,0 +1,11 @@
+clickhouse_dev:
+  target: dev
+  outputs:
+    dev:
+      type: clickhouse
+      host: localhost
+      port: "{{ env_var('CLICKHOUSE_HTTP_PORT', '18123') | as_number }}"
+      user: lightdash
+      password: lightdash
+      schema: analytics
+      threads: 1

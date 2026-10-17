@@ -2,14 +2,15 @@ import { subject } from '@casl/ability';
 import {
     allowsOptionalUserCredentials,
     assertRegisteredAccount,
+    canUseExtraConnectionWarehouseType,
     ConflictError,
+    FeatureFlags,
     fillOmittedSecrets,
     ForbiddenError,
+    isUserConnectableWarehouseConnection,
     ParameterError,
-    sensitiveCredentialsFieldNames,
     SingleConnectionProjectError,
     SnowflakeAuthenticationType,
-    supportsMultipleConnections,
     validateWarehouseConnectionName,
     WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE,
     WarehouseTypes,
@@ -25,11 +26,11 @@ import {
     type WarehouseConnectionTestResults,
     type WarehouseConnectionUserCredentials,
     type WarehouseConnectionWithCredentials,
-    type WarehouseCredentials,
 } from '@lightdash/common';
 import { DatabaseError } from 'pg';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { trackSafely } from '../../analytics/trackSafely';
+import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import {
@@ -41,12 +42,21 @@ import {
 import { BaseService } from '../BaseService';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
-import { shouldTestExtraCredentials } from './extraConnectionAuthentication';
+import {
+    assertExtraConnectionAuthentication,
+    shouldTestExtraCredentials,
+} from './extraConnectionAuthentication';
+import {
+    assertConnectionDatabaseListing,
+    assertExtraConnectionSettings,
+} from './extraConnectionSettings';
 import { getExtraConnectionRequireUserCredentials } from './extraConnectionUserCredentials';
 import {
     ENTITLEMENT_REASON,
     getMultipleConnectionsBlockReason,
+    getProvisionedOriginalBlockReason,
     ROLLOUT_REASON,
+    WAREHOUSE_TYPE_REASON,
 } from './multipleConnectionsGate';
 
 export type WarehouseCredentialPolicy = {
@@ -89,23 +99,6 @@ type WarehouseConnectionServiceArguments = {
 
 const NAME_UNIQUE_CONSTRAINT = 'warehouse_connections_project_name_unique';
 
-type MultiConnectionCredentials = Extract<
-    CreateWarehouseCredentials,
-    {
-        type:
-            | WarehouseTypes.POSTGRES
-            | WarehouseTypes.ATHENA
-            | WarehouseTypes.SNOWFLAKE;
-    }
->;
-
-const inheritsPrimaryCredentialRequirement = (
-    credentials: CreateWarehouseCredentials,
-): credentials is MultiConnectionCredentials =>
-    credentials.type === WarehouseTypes.POSTGRES ||
-    credentials.type === WarehouseTypes.ATHENA ||
-    credentials.type === WarehouseTypes.SNOWFLAKE;
-
 const BINDING_FOREIGN_KEYS = [
     'cached_explore_warehouse_connection_fkey',
     'project_dbt_sources_warehouse_connection_fkey',
@@ -120,6 +113,7 @@ const isBindingConflict = (error: unknown): boolean =>
 
 export {
     ENTITLEMENT_REASON,
+    PROVISIONED_WAREHOUSE_REASON,
     ROLLOUT_REASON,
     WAREHOUSE_TYPE_REASON,
 } from './multipleConnectionsGate';
@@ -145,18 +139,6 @@ const describeBoundContent = (
         ? [`in-flight queries: ${boundContent.inFlightQueries}`]
         : []),
 ];
-
-const toNonSensitiveCredentials = (
-    credentials: CreateWarehouseCredentials,
-): WarehouseCredentials =>
-    Object.fromEntries(
-        Object.entries(credentials).filter(
-            ([key]) =>
-                !(sensitiveCredentialsFieldNames as readonly string[]).includes(
-                    key,
-                ),
-        ),
-    ) as WarehouseCredentials;
 
 export class WarehouseConnectionService extends BaseService {
     private readonly warehouseConnectionModel: WarehouseConnectionModel;
@@ -308,6 +290,11 @@ export class WarehouseConnectionService extends BaseService {
         account: RegisteredAccount,
         project: WarehouseConnectionProject,
     ): Promise<string | null> {
+        const provisionedReason = await getProvisionedOriginalBlockReason(
+            this.projectModel,
+            project,
+        );
+        if (provisionedReason !== null) return provisionedReason;
         return getMultipleConnectionsBlockReason(
             {
                 licenseService: this.licenseService,
@@ -318,11 +305,18 @@ export class WarehouseConnectionService extends BaseService {
         );
     }
 
-    private static assertSameWarehouseType(
+    private static assertExtraWarehouseType(
         project: WarehouseConnectionProject,
         warehouseType: WarehouseTypes,
+        mixedTypesEnabled: boolean,
     ): void {
-        if (project.originalWarehouseType !== warehouseType) {
+        if (
+            !canUseExtraConnectionWarehouseType({
+                originalWarehouseType: project.originalWarehouseType,
+                extraWarehouseType: warehouseType,
+                mixedTypesEnabled,
+            })
+        ) {
             throw new ParameterError(
                 'An extra connection must use the same warehouse type as the original connection.',
             );
@@ -412,21 +406,24 @@ export class WarehouseConnectionService extends BaseService {
         projectUuid: string,
         source: WarehouseConnectionCredentialSource,
     ): Promise<WarehouseConnectionCredentialSource> {
-        if (
-            source.kind === 'organization' ||
-            !inheritsPrimaryCredentialRequirement(source.credentials)
-        )
-            return source;
+        if (source.kind === 'organization') return source;
         const originalCredentials =
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
             );
+        if (!isUserConnectableWarehouseConnection(source.credentials)) {
+            throw new ParameterError(
+                'Internal analytics connections cannot be added as extra connections.',
+            );
+        }
         return {
             kind: 'project',
             credentials: {
                 ...source.credentials,
                 requireUserCredentials:
-                    originalCredentials.requireUserCredentials,
+                    originalCredentials.type === source.credentials.type
+                        ? originalCredentials.requireUserCredentials
+                        : (source.credentials.requireUserCredentials ?? false),
             },
         };
     }
@@ -436,7 +433,11 @@ export class WarehouseConnectionService extends BaseService {
         summary: ProjectSummary,
         source: WarehouseConnectionCredentialSource | null,
         credentials: CreateWarehouseCredentials | null,
+        mixedTypesEnabled: boolean,
     ): void {
+        if (credentials !== null && mixedTypesEnabled) {
+            assertExtraConnectionAuthentication(credentials, true);
+        }
         this.credentialPolicy.assertCanWriteWarehouseConnection(
             account,
             summary,
@@ -488,16 +489,15 @@ export class WarehouseConnectionService extends BaseService {
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
             );
-        const warehouseConnection = toNonSensitiveCredentials(
-            source.credentials,
-        );
-        if (supportsMultipleConnections(warehouseConnection.type)) {
-            warehouseConnection.requireUserCredentials =
-                getExtraConnectionRequireUserCredentials(
-                    originalCredentials,
-                    source,
-                ) === true;
-        }
+        const warehouseConnection =
+            OrganizationWarehouseCredentialsModel.stripSensitiveCredentials(
+                source.credentials,
+            );
+        warehouseConnection.requireUserCredentials =
+            getExtraConnectionRequireUserCredentials(
+                originalCredentials,
+                source,
+            ) === true;
         return {
             ...connection,
             warehouseConnection,
@@ -620,7 +620,9 @@ export class WarehouseConnectionService extends BaseService {
                     source,
                 ) === true,
             allowsOptionalUserCredentials: allowsOptionalUserCredentials(
-                toNonSensitiveCredentials(source.credentials),
+                OrganizationWarehouseCredentialsModel.stripSensitiveCredentials(
+                    source.credentials,
+                ),
             ),
             userWarehouseCredentials:
                 preferredUuid === null
@@ -707,6 +709,14 @@ export class WarehouseConnectionService extends BaseService {
             account,
             projectUuid,
         );
+        const { enabled: mixedTypesEnabled } =
+            await this.featureFlagService.get({
+                user: {
+                    userUuid: account.user.userUuid,
+                    organizationUuid: project.organizationUuid,
+                },
+                featureFlagId: FeatureFlags.MixedWarehouseConnections,
+            });
         const requestedSource =
             WarehouseConnectionService.toCreateSource(request);
         this.assertCanWrite(
@@ -716,6 +726,7 @@ export class WarehouseConnectionService extends BaseService {
             requestedSource.kind === 'project'
                 ? requestedSource.credentials
                 : null,
+            mixedTypesEnabled,
         );
         const source = await this.inheritPrimaryCredentialRequirement(
             projectUuid,
@@ -749,8 +760,20 @@ export class WarehouseConnectionService extends BaseService {
             throw new ForbiddenError(blockReason);
         }
         const credentials = await this.resolveCredentialSource(project, source);
-        this.assertCanWrite(account, summary, source, credentials);
-        if (project.originalWarehouseType !== credentials.type) {
+        this.assertCanWrite(
+            account,
+            summary,
+            source,
+            credentials,
+            mixedTypesEnabled,
+        );
+        if (
+            !canUseExtraConnectionWarehouseType({
+                originalWarehouseType: project.originalWarehouseType,
+                extraWarehouseType: credentials.type,
+                mixedTypesEnabled,
+            })
+        ) {
             await this.trackRefusal(
                 account,
                 summary.organizationUuid,
@@ -762,12 +785,20 @@ export class WarehouseConnectionService extends BaseService {
                 project,
             );
         }
-        WarehouseConnectionService.assertSameWarehouseType(
+        WarehouseConnectionService.assertExtraWarehouseType(
             project,
             credentials.type,
+            mixedTypesEnabled,
         );
+        assertExtraConnectionSettings(credentials, request, mixedTypesEnabled);
         let persistedSource = source;
-        if (shouldTestExtraCredentials(credentials)) {
+        if (
+            shouldTestExtraCredentials(
+                credentials,
+                project.originalWarehouseType,
+                mixedTypesEnabled,
+            )
+        ) {
             const testedCredentials = await this.assertConnectionWorks(
                 account,
                 project,
@@ -790,9 +821,10 @@ export class WarehouseConnectionService extends BaseService {
                     await model.lockProject(projectUuid);
                     const lockedProject = await model.getProject(projectUuid);
                     WarehouseConnectionService.assertMultiMode(lockedProject);
-                    WarehouseConnectionService.assertSameWarehouseType(
+                    WarehouseConnectionService.assertExtraWarehouseType(
                         lockedProject,
                         credentials.type,
+                        mixedTypesEnabled,
                     );
                     const newConnection = await model.createExtra(
                         lockedProject,
@@ -909,6 +941,14 @@ export class WarehouseConnectionService extends BaseService {
             account,
             projectUuid,
         );
+        const { enabled: mixedTypesEnabled } =
+            await this.featureFlagService.get({
+                user: {
+                    userUuid: account.user.userUuid,
+                    organizationUuid: project.organizationUuid,
+                },
+                featureFlagId: FeatureFlags.MixedWarehouseConnections,
+            });
         this.assertCanWrite(
             account,
             summary,
@@ -920,6 +960,7 @@ export class WarehouseConnectionService extends BaseService {
                   }
                 : null,
             null,
+            mixedTypesEnabled,
         );
         const existing = await this.warehouseConnectionModel.get(
             project,
@@ -969,16 +1010,47 @@ export class WarehouseConnectionService extends BaseService {
                 ? null
                 : await this.resolveCredentialSource(project, source);
         if (
+            !mixedTypesEnabled &&
             credentials?.type === WarehouseTypes.SNOWFLAKE &&
             credentials.authenticationType ===
                 SnowflakeAuthenticationType.EXTERNAL_BROWSER
         ) {
-            shouldTestExtraCredentials(credentials);
+            assertExtraConnectionAuthentication(credentials, false);
         }
-        this.assertCanWrite(account, summary, effectiveSource, credentials);
+        this.assertCanWrite(
+            account,
+            summary,
+            effectiveSource,
+            credentials,
+            mixedTypesEnabled,
+        );
+        if (mixedTypesEnabled) {
+            assertConnectionDatabaseListing(
+                credentials?.type ?? existing.warehouseType,
+                {
+                    listAllDatabases:
+                        request.listAllDatabases ?? existing.listAllDatabases,
+                    additionalDatabases:
+                        request.additionalDatabases ??
+                        existing.additionalDatabases,
+                },
+            );
+        }
+        if (credentials !== null)
+            assertExtraConnectionSettings(
+                credentials,
+                request,
+                mixedTypesEnabled,
+            );
         let persistedSource = source;
         if (credentials !== null && source !== null) {
-            if (project.originalWarehouseType !== credentials.type) {
+            if (
+                !canUseExtraConnectionWarehouseType({
+                    originalWarehouseType: project.originalWarehouseType,
+                    extraWarehouseType: credentials.type,
+                    mixedTypesEnabled,
+                })
+            ) {
                 await this.trackRefusal(
                     account,
                     summary.organizationUuid,
@@ -990,11 +1062,23 @@ export class WarehouseConnectionService extends BaseService {
                     project,
                 );
             }
-            WarehouseConnectionService.assertSameWarehouseType(
+            WarehouseConnectionService.assertExtraWarehouseType(
                 project,
                 credentials.type,
+                mixedTypesEnabled,
             );
-            if (shouldTestExtraCredentials(credentials)) {
+            if (credentials.type !== existing.warehouseType) {
+                throw new ParameterError(
+                    "A connection's warehouse type cannot be changed. Add a new connection instead.",
+                );
+            }
+            if (
+                shouldTestExtraCredentials(
+                    credentials,
+                    project.originalWarehouseType,
+                    mixedTypesEnabled,
+                )
+            ) {
                 const testedCredentials = await this.assertConnectionWorks(
                     account,
                     project,
@@ -1017,8 +1101,24 @@ export class WarehouseConnectionService extends BaseService {
                 await model.lockProject(projectUuid);
                 const lockedProject = await model.getProject(projectUuid);
                 WarehouseConnectionService.assertMultiMode(lockedProject);
-                await model.get(lockedProject, warehouseConnectionUuid);
-                if (persistedSource !== null) {
+                const lockedConnection = await model.get(
+                    lockedProject,
+                    warehouseConnectionUuid,
+                );
+                if (
+                    credentials !== null &&
+                    credentials.type !== lockedConnection.warehouseType
+                ) {
+                    throw new ParameterError(
+                        "A connection's warehouse type cannot be changed. Add a new connection instead.",
+                    );
+                }
+                if (persistedSource !== null && credentials !== null) {
+                    WarehouseConnectionService.assertExtraWarehouseType(
+                        lockedProject,
+                        credentials.type,
+                        mixedTypesEnabled,
+                    );
                     await model.updateExtraCredentials(
                         lockedProject,
                         warehouseConnectionUuid,
@@ -1086,7 +1186,7 @@ export class WarehouseConnectionService extends BaseService {
             account,
             projectUuid,
         );
-        this.assertCanWrite(account, summary, null, null);
+        this.assertCanWrite(account, summary, null, null, false);
         const parsedName = WarehouseConnectionService.parseName(name);
         try {
             const renamed = await this.warehouseConnectionModel.transaction(
@@ -1151,7 +1251,7 @@ export class WarehouseConnectionService extends BaseService {
             account,
             projectUuid,
         );
-        this.assertCanWrite(account, summary, null, null);
+        this.assertCanWrite(account, summary, null, null, false);
         let connectionName: string | null = null;
         let removedWarehouseType: WarehouseTypes | null = null;
         let refusalReason: 'original_connection' | 'bound_content' | null =

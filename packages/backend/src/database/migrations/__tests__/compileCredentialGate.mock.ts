@@ -41,6 +41,7 @@ export const compileCredentialGateFixture = async (
     factoryResolution: boolean,
     multi = false,
     credentials: CreateWarehouseCredentials = postgresWarehouse(databaseName),
+    extraCredentials: CreateWarehouseCredentials = credentials,
 ) => {
     const f = await connectionFixture(database);
     await database('project_memberships')
@@ -124,8 +125,8 @@ export const compileCredentialGateFixture = async (
             await warehouseConnectionModel.getProject(f.projectUuid),
             {
                 name: 'Extra',
-                warehouseType: credentials.type,
-                source: { kind: 'project', credentials },
+                warehouseType: extraCredentials.type,
+                source: { kind: 'project', credentials: extraCredentials },
                 listAllDatabases: false,
                 additionalDatabases: [],
                 createdByUserUuid: f.userUuid,

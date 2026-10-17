@@ -73,6 +73,7 @@ import {
     PR_TITLE_CLOSE,
     PR_TITLE_OPEN,
     PR_TITLE_PATH,
+    WAREHOUSE_SKILL_PATH,
 } from './constants';
 import { DeniedPathError } from './deniedPaths';
 import {
@@ -187,6 +188,9 @@ const buildService = (overrides: Record<string, AnyType> = {}) => {
                 dbtSourceUuid: PRIMARY_SOURCE_UUID,
                 dbtSourceName: DEFAULT_PROJECT_DBT_SOURCE_NAME,
             }),
+            getDbtSourceWarehouseType: vi
+                .fn()
+                .mockResolvedValue(WarehouseTypes.POSTGRES),
             ...projectModelOverride,
         } as AnyType,
         // Default: no additional dbt sources, so the single-source (primary)
@@ -609,6 +613,85 @@ describe('AiWritebackService.prepareTurn', () => {
             dbtVersion: SupportedDbtVersions.V1_9,
         });
     });
+
+    it.each([
+        [PRIMARY_SOURCE_UUID, WarehouseTypes.POSTGRES],
+        ['bigquery-source', WarehouseTypes.BIGQUERY],
+    ])(
+        'uses the selected source %s warehouse for skills and the dbt prompt',
+        async (dbtSourceUuid, warehouseType) => {
+            const project = githubProject();
+            const getDbtSourceWarehouseType = vi
+                .fn()
+                .mockResolvedValue(WarehouseTypes.BIGQUERY);
+            const service = buildService({
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: true }),
+                },
+                projectModel: {
+                    get: vi.fn().mockResolvedValue(project),
+                    getDbtSourceWarehouseType,
+                },
+                projectDbtSourcesModel: {
+                    getSources: vi.fn().mockResolvedValue([
+                        {
+                            projectDbtSourceUuid: 'bigquery-source',
+                            name: 'BigQuery dbt',
+                            warehouseConnectionUuid: 'bigquery-connection',
+                            dbtConnection: {
+                                ...project.dbtConnection,
+                                repository: 'acme/bigquery-analytics',
+                            },
+                        },
+                    ]),
+                },
+            });
+            const prepared = await (service as AnyType).prepareTurn({
+                user: userWithOrg(true),
+                projectUuid: 'p1',
+                prompt: 'add a revenue metric',
+                dbtSourceUuid,
+                mode: 'dbt-writeback',
+            });
+            expect(prepared).toMatchObject({
+                kind: 'run',
+                turn: { warehouseType },
+            });
+            if (dbtSourceUuid === PRIMARY_SOURCE_UUID) {
+                expect(getDbtSourceWarehouseType).not.toHaveBeenCalled();
+            } else {
+                expect(getDbtSourceWarehouseType).toHaveBeenCalledWith(
+                    'p1',
+                    dbtSourceUuid,
+                );
+            }
+            const sandbox = { files: { write: vi.fn() } };
+            await (service as AnyType).prepareWarehouseSkills(
+                sandbox,
+                prepared.turn,
+            );
+            expect(sandbox.files.write).toHaveBeenCalledWith(
+                WAREHOUSE_SKILL_PATH,
+                expect.stringContaining(`name: warehouse-${warehouseType}`),
+            );
+            vi.spyOn(service as AnyType, 'gatherRepoContext').mockResolvedValue(
+                null,
+            );
+            vi.spyOn(service as AnyType, 'prepareProfiles').mockResolvedValue(
+                false,
+            );
+            const setup = await (service as AnyType)
+                .dbtWritebackConfig()
+                .buildAgentSetup({
+                    sandbox,
+                    turn: prepared.turn,
+                    repository: prepared.turn.gitConnection.repo,
+                });
+            expect(setup.systemPrompt).toContain(
+                `warehouse is **${warehouseType}**`,
+            );
+        },
+    );
 
     it('resolves the project `latest` dbt version to the newest supported version', async () => {
         const service = buildService({

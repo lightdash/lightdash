@@ -1,0 +1,14 @@
+snowflake_dev:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE') }}"
+      authenticator: snowflake_jwt
+      private_key: unused-for-parse
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
+      database: AGENT_DEMO
+      schema: PUBLIC
+      threads: 1

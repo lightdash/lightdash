@@ -1,12 +1,15 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
+    FeatureFlags,
     omitEmptySecrets,
     ProjectType,
     supportsConnectionDatabaseListing,
+    supportsMultipleConnections,
     validateWarehouseConnectionName,
     WAREHOUSE_CONNECTION_NAME_MAX_LENGTH,
     type WarehouseTypes,
+    type ApiWarehouseConnectionsResponse,
     type CreateWarehouseCredentials,
     type Project,
     type WarehouseConnection,
@@ -36,6 +39,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useRef, useState, type FC } from 'react';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import {
     hidesConnectionsPanel,
     isSingleConnectionProject,
@@ -141,6 +145,10 @@ const AddConnectionModal: FC<{
     primaryRequiresUserCredentials,
     onClose,
 }) => {
+    const mixedWarehouseFlag = useServerFeatureFlag(
+        FeatureFlags.MixedWarehouseConnections,
+    );
+    const mixedTypesEnabled = mixedWarehouseFlag.data?.enabled === true;
     const form = useForm({
         initialValues: {
             name: '',
@@ -150,9 +158,22 @@ const AddConnectionModal: FC<{
             organizationWarehouseCredentialsUuid: undefined,
             ...unusedDbtFormValues,
         },
-        validate: {
-            name: validateWarehouseConnectionName,
-            warehouse: warehouseValueValidators[warehouseType],
+        validate: (values) => {
+            const errors: Record<string, string> = {};
+            const nameError = validateWarehouseConnectionName(
+                values.name ?? '',
+            );
+            if (nameError) errors.name = nameError;
+            Object.entries(
+                warehouseValueValidators[values.warehouse.type],
+            ).forEach(([field, validator]) => {
+                const error = validator(
+                    Reflect.get(values.warehouse, field),
+                    values,
+                );
+                if (error) errors[`warehouse.${field}`] = error;
+            });
+            return errors;
         },
         validateInputOnBlur: true,
     });
@@ -201,7 +222,12 @@ const AddConnectionModal: FC<{
                 warehouseType={warehouseType}
                 primaryRequiresUserCredentials={primaryRequiresUserCredentials}
                 showName
-                intro="Add another connection of the project's warehouse type. It is tested before it is saved."
+                allowMixedWarehouseTypes={mixedTypesEnabled}
+                intro={
+                    mixedTypesEnabled
+                        ? 'Add another warehouse connection. It is tested before it is saved.'
+                        : "Add another connection of the project's warehouse type. It is tested before it is saved."
+                }
             />
         </MantineModal>
     );
@@ -270,6 +296,7 @@ const EditConnectionForm: FC<{
                 form={form}
                 projectUuid={projectUuid}
                 warehouseType={connection.warehouseType}
+                allowMixedWarehouseTypes={false}
                 savedProject={savedProject}
                 warehouseConnectionUuid={
                     connection.isOriginal
@@ -498,6 +525,24 @@ const ConnectionActionModal: FC<{
     }
 };
 
+const useCanAddConnection = (
+    data: ApiWarehouseConnectionsResponse['results'] | undefined,
+): boolean => {
+    const mixedWarehouseFlag = useServerFeatureFlag(
+        FeatureFlags.MixedWarehouseConnections,
+    );
+    const original = data?.connections.find(
+        (connection) => connection.isOriginal,
+    );
+    return (
+        data?.capabilities.canAddConnection === true &&
+        supportsMultipleConnections(
+            original?.warehouseType ?? null,
+            mixedWarehouseFlag.data?.enabled === true,
+        )
+    );
+};
+
 const ConnectionsPanelContent: FC<{
     projectUuid: string;
     primaryRequiresUserCredentials: boolean;
@@ -506,6 +551,7 @@ const ConnectionsPanelContent: FC<{
         useWarehouseConnections(projectUuid);
     const [action, setAction] = useState<ConnectionAction | null>(null);
     const [isAddOpen, setIsAddOpen] = useState(false);
+    const canAddConnection = useCanAddConnection(data);
 
     if (isEnabled && isSingleConnectionProject(error)) {
         return (
@@ -523,7 +569,6 @@ const ConnectionsPanelContent: FC<{
     const originalWarehouseType = connections.find(
         (connection) => connection.isOriginal,
     )?.warehouseType;
-    const canAddConnection = data?.capabilities.canAddConnection ?? false;
     const closeAction = () => setAction(null);
 
     return (

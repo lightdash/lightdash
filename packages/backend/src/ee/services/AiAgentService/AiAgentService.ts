@@ -16004,6 +16004,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                           { kind: 'connection', warehouseConnectionUuid: null },
                       )
                     : null;
+                const warehouseConnections = canRunSql
+                    ? await this.projectModel.getWarehouseConnectionsMetadata(
+                          prompt.projectUuid,
+                      )
+                    : [];
                 const warehouseType = warehouseCredentials?.type ?? null;
                 const warehouseSchema = warehouseCredentials
                     ? ('schema' in warehouseCredentials &&
@@ -16661,6 +16666,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     slackLinksOnly,
                     warehouseType,
                     warehouseSchema,
+                    warehouseConnections,
                     sqlScope: agentSqlScope,
                     hyphenatedIdentifiers,
                     availableSkills,

@@ -1,0 +1,22 @@
+version: 2
+models:
+  - name: ch_sessions
+    description: Local ClickHouse fixture (see README). Lightdash reads the existing table.
+    columns:
+      - name: session_id
+        meta:
+          dimension: { type: number }
+          metrics:
+            session_count: { type: count_distinct }
+      - name: user_id
+        meta: { dimension: { type: number } }
+      - name: platform
+        meta: { dimension: { type: string } }
+      - name: session_date
+        meta:
+          dimension: { type: date, time_intervals: ['DAY', 'WEEK', 'MONTH'] }
+      - name: duration_minutes
+        meta:
+          dimension: { type: number }
+          metrics:
+            total_minutes: { type: sum, round: 2 }

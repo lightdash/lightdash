@@ -77,6 +77,12 @@ export type CapabilitySectionArgs = {
     enableComposerQueries?: boolean;
     warehouseType?: WarehouseTypes | null;
     warehouseSchema?: string | null;
+    warehouseConnections?: {
+        name: string;
+        warehouseConnectionUuid: string | null;
+        warehouseType: WarehouseTypes;
+        isOriginal: boolean;
+    }[];
     sqlScope?: AgentSqlScope | null;
     runSqlMaxLimit?: number;
 };
@@ -88,6 +94,7 @@ const getCapabilitySections = (
         ? getRunSqlSection({
               warehouseType: args.warehouseType ?? null,
               warehouseSchema: args.warehouseSchema ?? null,
+              warehouseConnections: args.warehouseConnections ?? [],
               sqlScope: args.sqlScope ?? null,
               runSqlMaxLimit: args.runSqlMaxLimit,
               viaComposerQueries: args.enableComposerQueries ?? false,
@@ -175,6 +182,12 @@ export const getSystemPromptV2 = (args: {
     enableMergeQueries?: boolean;
     warehouseType?: WarehouseTypes | null;
     warehouseSchema?: string | null;
+    warehouseConnections?: {
+        name: string;
+        warehouseConnectionUuid: string | null;
+        warehouseType: WarehouseTypes;
+        isOriginal: boolean;
+    }[];
     sqlScope?: AgentSqlScope | null;
     // runSql's own max, quoted in its prompt section.
     runSqlMaxLimit?: number;
@@ -219,6 +232,9 @@ export const getSystemPromptV2 = (args: {
     } else if (enableComposerQueries) {
         crossExploreJoinRule =
             '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use runComposerQueries: one semanticLayer node per explore plus a duckdb node that joins their results.';
+    } else if (canRunSql && (args.warehouseConnections?.length ?? 0) > 1) {
+        crossExploreJoinRule =
+            '  - You cannot mix fields from different explores in a single generateVisualization call. Raw SQL can combine tables only on the original connection. Do not join tables across connections; explain this limit if merge queries are unavailable.';
     } else if (canRunSql) {
         crossExploreJoinRule =
             '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.';

@@ -12,7 +12,7 @@ import {
 } from '../../../../features/explorer/store';
 import { useExplore } from '../../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../../hooks/useExplorerQuery';
-import { useProject } from '../../../../hooks/useProject';
+import { useExploreWarehouseConnection } from '../../../../hooks/useExploreWarehouseConnection';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import { useFieldsWithSuggestions } from '../../FiltersCard/useFieldsWithSuggestions';
 
@@ -27,7 +27,6 @@ export const useDataForFiltersProvider = (
     queryContext?: CustomMetricQueryContext,
 ) => {
     const projectUuid = useProjectUuid();
-    const project = useProject(projectUuid);
 
     const explorerTableName = useExplorerSelector(selectTableName);
     const explorerAdditionalMetrics = useExplorerSelector(
@@ -55,6 +54,10 @@ export const useDataForFiltersProvider = (
     const rows = queryResults.rows;
 
     const { data: exploreData } = useExplore(tableName);
+    const { startOfWeek } = useExploreWarehouseConnection(
+        tableName ?? null,
+        projectUuid,
+    );
 
     const fieldsWithSuggestions = useFieldsWithSuggestions({
         exploreData,
@@ -68,6 +71,6 @@ export const useDataForFiltersProvider = (
     return {
         projectUuid,
         fieldsMap: fieldsWithSuggestions,
-        startOfWeek: project.data?.warehouseConnection?.startOfWeek,
+        startOfWeek,
     };
 };
