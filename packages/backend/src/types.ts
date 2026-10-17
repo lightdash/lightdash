@@ -96,7 +96,7 @@ export interface DbtClient {
 
     getSelector(): string | undefined;
 
-    test(): Promise<void>;
+    test(prepareDependencies?: () => Promise<void>): Promise<void>;
 
     cleanup?(): Promise<void>;
 }

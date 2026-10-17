@@ -538,7 +538,9 @@ export class DbtCliClient implements DbtClient {
         }
     }
 
-    async test(): Promise<void> {
+    async test(
+        prepareDependencies: () => Promise<void> = () => this.installDeps(),
+    ): Promise<void> {
         return traceSpan(
             {
                 op: 'dbt',
@@ -546,6 +548,7 @@ export class DbtCliClient implements DbtClient {
             },
             async () => {
                 await this.ensureDbtProjectDir();
+                await prepareDependencies();
                 const { logs } = await this._runDbtCommand(['parse']);
                 await this.keepPartialParse('parse', logs);
             },

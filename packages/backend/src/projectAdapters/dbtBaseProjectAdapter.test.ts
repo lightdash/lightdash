@@ -212,9 +212,11 @@ describe('getDbtManifest', () => {
         expect(getDbtManifest).toHaveBeenCalledTimes(2);
     });
 
-    it('prepares dependencies once after testing the client', async () => {
+    it('prepares dependencies once while testing the client', async () => {
         const installDeps = vi.fn(async () => undefined);
-        const test = vi.fn(async () => undefined);
+        const test = vi.fn(async (prepareDependencies: () => Promise<void>) => {
+            await prepareDependencies();
+        });
         const adapter = new DbtBaseProjectAdapter(
             {
                 installDeps,
@@ -228,7 +230,7 @@ describe('getDbtManifest', () => {
             SupportedDbtVersions.V1_9,
         );
         await adapter.test();
-        expect(installDeps).not.toHaveBeenCalled();
+        expect(installDeps).toHaveBeenCalledTimes(1);
         await adapter.getDbtManifest();
         await adapter.getDbtManifest();
         expect(installDeps).toHaveBeenCalledTimes(1);

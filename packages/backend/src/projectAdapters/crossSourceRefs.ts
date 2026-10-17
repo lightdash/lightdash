@@ -259,10 +259,15 @@ export const resolveCrossSourceManifests = async <T>({
                                     candidate.package_name ===
                                     node.package_name,
                             );
+                            const rootMatches = matches.filter(
+                                (candidate) =>
+                                    candidate.package_name ===
+                                    result.manifest.metadata.project_name,
+                            );
                             const candidates =
-                                localMatches.length > 0
-                                    ? localMatches
-                                    : matches;
+                                [localMatches, rootMatches].find(
+                                    (group) => group.length > 0,
+                                ) ?? matches;
                             const dependency =
                                 (ref.version == null
                                     ? candidates.find(

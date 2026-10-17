@@ -98,7 +98,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     public async test(): Promise<void> {
         Logger.debug('Test dbt client');
-        await this.dbtClient.test();
+        await this.dbtClient.test(async () => {
+            await this.prepareDbtSource();
+        });
         Logger.debug('Test warehouse client');
         await this.warehouseClient.test();
     }

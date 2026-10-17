@@ -57,6 +57,8 @@ export class DbtGitProjectAdapter
 
     git: SimpleGit;
 
+    private gitRefresh: Promise<number> | null = null;
+
     private gitPreparation: Promise<DbtSourcePreparation> | null = null;
 
     constructor({
@@ -160,15 +162,22 @@ export class DbtGitProjectAdapter
     }
 
     public async test() {
-        await this.prepareDbtSource();
+        await this.prepareRepository();
         await super.test();
+    }
+
+    private prepareRepository(): Promise<number> {
+        this.gitRefresh ??= (async () => {
+            const startedAt = Date.now();
+            await this._refreshRepo();
+            return Date.now() - startedAt;
+        })();
+        return this.gitRefresh;
     }
 
     public prepareDbtSource(): Promise<DbtSourcePreparation> {
         this.gitPreparation ??= (async () => {
-            const startedAt = Date.now();
-            await this._refreshRepo();
-            const gitRefreshMs = Date.now() - startedAt;
+            const gitRefreshMs = await this.prepareRepository();
             const preparation = await super.prepareDbtSource();
             return {
                 ...preparation,

@@ -761,6 +761,32 @@ describe('ordered cross-source refs', () => {
         const resolution = await resolve([consumer, scannedTask('upstream')]);
         expect(resolution.warnings).toEqual([]);
     });
+    it('does not warn for an installed-package ref resolved in the root project beside a qualified external version', async () => {
+        const consumer = scannedTask('root', ['upstream']);
+        const fetched = result('root');
+        const local = model('root');
+        const stub = {
+            ...model('upstream'),
+            unique_id: 'model.upstream.orders.v2',
+            version: 2,
+            latest_version: 2,
+            path: '',
+            original_file_path: '',
+        };
+        const mixed = {
+            ...model('installed', 'mixed'),
+            refs: [
+                { name: 'orders', package: null, version: null },
+                { name: 'orders', package: 'upstream', version: 2 },
+            ],
+            depends_on: { nodes: [stub.unique_id, local.unique_id] },
+        };
+        fetched.manifest.nodes[stub.unique_id] = stub;
+        fetched.manifest.nodes[mixed.unique_id] = mixed;
+        consumer.fetch.mockResolvedValue(fetched);
+        const resolution = await resolve([consumer, scannedTask('upstream')]);
+        expect(resolution.warnings).toEqual([]);
+    });
     it('does not prepare or inject when disabled', async () => {
         const a = scannedTask('a');
         await resolve([a], false);
