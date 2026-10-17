@@ -304,6 +304,7 @@ import {
     type UUID,
     type WarehouseLocation,
     type WarehouseSqlBuilder,
+    type WeekDay,
 } from '@lightdash/common';
 import { extractColumnRefs, parse as parseFormula } from '@lightdash/formula';
 import {
@@ -5764,6 +5765,41 @@ export class ProjectService
         }
     }
 
+    async getDeployStartOfWeekByExplore(args: {
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+        explores: (Explore | ExploreError)[];
+        sourceUuid: string | null;
+    }): Promise<Map<string, WeekDay | null>> {
+        const withPreAggregates = args.explores.filter(
+            (explore) => explore.preAggregates?.length,
+        );
+        if (withPreAggregates.length === 0) return new Map();
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.MixedWarehouseConnections,
+            user: {
+                userUuid: args.userUuid,
+                organizationUuid: args.organizationUuid,
+            },
+        });
+        if (!enabled) return new Map();
+        const entries = await Promise.all(
+            withPreAggregates.map(async (explore) => {
+                const deployStartOfWeek =
+                    await this.projectModel.getDeployStartOfWeek(
+                        args.projectUuid,
+                        explore.name,
+                        args.sourceUuid,
+                    );
+                return deployStartOfWeek.kind === 'extra'
+                    ? [[explore.name, deployStartOfWeek.startOfWeek] as const]
+                    : [];
+            }),
+        );
+        return new Map(entries.flat());
+    }
+
     private async setExploresInternal(
         user: SessionUser,
         projectUuid: string,
@@ -5805,34 +5841,15 @@ export class ProjectService
             );
         }
 
-        const startOfWeekByExplore = new Map(
-            (
-                await Promise.all(
-                    explores
-                        .filter(
-                            (explore) =>
-                                this.lightdashConfig.preAggregates.enabled &&
-                                explore.preAggregates?.length,
-                        )
-                        .map(async (explore) => {
-                            const deployStartOfWeek =
-                                await this.projectModel.getDeployStartOfWeek(
-                                    projectUuid,
-                                    explore.name,
-                                    cliDeploy.sourceUuid,
-                                );
-                            return deployStartOfWeek.kind === 'extra'
-                                ? [
-                                      [
-                                          explore.name,
-                                          deployStartOfWeek.startOfWeek,
-                                      ] as const,
-                                  ]
-                                : [];
-                        }),
-                )
-            ).flat(),
-        );
+        const startOfWeekByExplore = this.lightdashConfig.preAggregates.enabled
+            ? await this.getDeployStartOfWeekByExplore({
+                  userUuid: user.userUuid,
+                  organizationUuid: project.organizationUuid,
+                  projectUuid,
+                  explores,
+                  sourceUuid: cliDeploy.sourceUuid,
+              })
+            : new Map<string, WeekDay | null>();
         const exploresWithPreAggregates = enhanceExploresForPreAggregates({
             explores,
             enabled: this.lightdashConfig.preAggregates.enabled,
