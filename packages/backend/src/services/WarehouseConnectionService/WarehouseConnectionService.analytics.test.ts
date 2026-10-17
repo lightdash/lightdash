@@ -613,6 +613,25 @@ describe('WarehouseConnectionService database listing validation', () => {
             ).not.toHaveBeenCalled();
         },
     );
+    it('keeps listing settings on a Snowflake extra with the flag off', async () => {
+        const { service, model } = buildService(false);
+        model.getProject.mockResolvedValue({
+            ...project,
+            originalWarehouseType: WarehouseTypes.SNOWFLAKE,
+        });
+        model.get.mockResolvedValue({
+            ...connection(extraUuid, false),
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+        });
+        await service.update(account, projectUuid, extraUuid, {
+            listAllDatabases: true,
+        });
+        expect(model.updateListingSettings).toHaveBeenCalledWith(
+            expect.anything(),
+            extraUuid,
+            expect.objectContaining({ listAllDatabases: true }),
+        );
+    });
 });
 
 describe('WarehouseConnectionService primary DuckDB variants', () => {

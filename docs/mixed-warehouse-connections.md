@@ -45,8 +45,9 @@ add-connection dialog.
   "require user credentials" setting, as before. A different-type extra keeps
   its own setting.
 - **Database listing.** `listAllDatabases` and `additionalDatabases` stay
-  limited to Postgres and Athena. Other types refuse these settings
-  (`extraConnectionSettings.ts`) instead of ignoring them.
+  limited to Postgres and Athena. With the flag on, other types refuse these
+  settings (`extraConnectionSettings.ts`) instead of ignoring them. With the
+  flag off, they are stored and ignored, as before.
 - **Secrets.** Connection details pass through
   `OrganizationWarehouseCredentialsModel.stripSensitiveCredentials`, which also
   removes DuckLake catalog passwords and storage keys. The switch plan, the
@@ -81,7 +82,7 @@ models compiled on the same connection.
 
 - A join to a model on another connection is skipped by partial compilation.
   `MultiConnectionCompiler` rewrites the warning to name the model and both
-  connections.
+  connections. With the mixed flag off, the warning is unchanged.
 - With [cross-source dbt refs](../examples/cross-source-dbt-refs/README.md)
   on, refs resolve inside one group. When a group fails because it refs a dbt
   project that an earlier, successful group compiled, and both
