@@ -1,3 +1,10 @@
+# [2.601.0](https://github.com/lightdash/lightdash/compare/2.600.1...2.601.0) (2026-10-17)
+
+
+### Features
+
+* **plugins:** add the Lightdash plugin for Claude with a per-instance MCP URL ([#31114](https://github.com/lightdash/lightdash/issues/31114)) ([0200785](https://github.com/lightdash/lightdash/commit/02007851bfb14cae22f993720d064abe8110378d))
+
 ## [2.600.1](https://github.com/lightdash/lightdash/compare/2.600.0...2.600.1) (2026-10-16)
 
 
