@@ -119,6 +119,7 @@ import {
     ResultsExpiredError,
     S3Error,
     SchedulerFormat,
+    SpaceMemberRole,
     SqlChart,
     SupportedDbtAdapter,
     TimeFrames,
@@ -236,7 +237,10 @@ import {
     QueryHistoryModel,
 } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
-import type { ConnectionRouteWithOriginal } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
+import type {
+    ConnectionBinding,
+    ConnectionRouteWithOriginal,
+} from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import {
     compileMetricQuery,
@@ -8424,6 +8428,78 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    private async withSpaceBinding({
+        projectUuid,
+        spaceUuid,
+        binding,
+    }: {
+        account: Account;
+        projectUuid: string;
+        spaceUuid: string | null;
+        binding: ConnectionBinding;
+    }): Promise<ConnectionBinding> {
+        if (spaceUuid === null) return binding;
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+        });
+        return enabled
+            ? { kind: 'space', spaceUuid, fallback: binding }
+            : binding;
+    }
+
+    private async assertSpaceConnectionAccess({
+        account,
+        projectUuid,
+        organizationUuid,
+        warehouseConnectionUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        warehouseConnectionUuid: string;
+    }): Promise<void> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+        });
+        if (!enabled) return;
+        const spaceUuids = await this.spaceModel.getSpaceUuidsBoundToConnection(
+            {
+                projectUuid,
+                warehouseConnectionUuid,
+            },
+        );
+        if (spaceUuids.length === 0) return;
+        const contexts = await Promise.all(
+            spaceUuids.map((spaceUuid) =>
+                this.spacePermissionService.resolveAccess(account.user.id, {
+                    type: 'space',
+                    spaceUuid,
+                }),
+            ),
+        );
+        const ability = this.createAuditedAbility(account);
+        if (
+            !contexts.some(
+                (ctx) =>
+                    ability.can('manage', subject('Space', ctx)) ||
+                    ctx.access.some(
+                        (access) =>
+                            access.userUuid === account.user.id &&
+                            (access.role === SpaceMemberRole.EDITOR ||
+                                access.role === SpaceMemberRole.ADMIN),
+                    ),
+            )
+        ) {
+            throw new ForbiddenError(
+                'This connection is reserved for a space you cannot edit.',
+            );
+        }
+    }
+
     async executeAsyncSavedChartQuery({
         account,
         projectUuid,
@@ -8679,7 +8755,12 @@ export class AsyncQueryService extends ProjectService {
             querySurface,
             context,
             projectUuid,
-            binding: { kind: 'explore', exploreName: explore.name },
+            binding: await this.withSpaceBinding({
+                account,
+                projectUuid,
+                spaceUuid: savedChartSpaceUuid,
+                binding: { kind: 'explore', exploreName: explore.name },
+            }),
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
@@ -9480,7 +9561,12 @@ export class AsyncQueryService extends ProjectService {
                 querySurface,
                 context,
                 projectUuid,
-                binding: { kind: 'explore', exploreName: explore.name },
+                binding: await this.withSpaceBinding({
+                    account,
+                    projectUuid,
+                    spaceUuid: savedChart.spaceUuid,
+                    binding: { kind: 'explore', exploreName: explore.name },
+                }),
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
@@ -10066,6 +10152,18 @@ export class AsyncQueryService extends ProjectService {
             throw new ParameterError(
                 'A SQL query can name a connection only in a project with multiple connections',
             );
+        }
+
+        if (
+            requestedConnectionUuid !== undefined &&
+            requestedConnectionUuid !== null
+        ) {
+            await this.assertSpaceConnectionAccess({
+                account,
+                projectUuid,
+                organizationUuid,
+                warehouseConnectionUuid: requestedConnectionUuid,
+            });
         }
 
         // Combine default parameter values with request parameters first
@@ -13727,6 +13825,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardUuid,
         userAttributeOverrides,
         requestedConnectionUuid = null,
+        binding,
     }: {
         account: Account;
         projectUuid: string;
@@ -13745,6 +13844,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardUuid?: string;
         userAttributeOverrides?: UserAttributeValueMap;
         requestedConnectionUuid?: string | null;
+        binding?: ConnectionBinding;
     }) {
         const startTime = performance.now();
 
@@ -13757,12 +13857,15 @@ export class AsyncQueryService extends ProjectService {
                 {
                     kind: 'binding',
                     projectUuid,
-                    binding: chartUuid
-                        ? { kind: 'sqlChart', savedSqlUuid: chartUuid }
-                        : {
-                              kind: 'connection',
-                              warehouseConnectionUuid: requestedConnectionUuid,
-                          },
+                    binding:
+                        binding ??
+                        (chartUuid
+                            ? { kind: 'sqlChart', savedSqlUuid: chartUuid }
+                            : {
+                                  kind: 'connection',
+                                  warehouseConnectionUuid:
+                                      requestedConnectionUuid,
+                              }),
                 },
                 connectionContextFromAccount(account, {
                     organizationUuid,
@@ -14070,6 +14173,15 @@ export class AsyncQueryService extends ProjectService {
             config: sqlChart.config,
             limit: limit ?? sqlChart.limit,
             parameters: combinedParameters,
+            binding: await this.withSpaceBinding({
+                account,
+                projectUuid,
+                spaceUuid: sqlChart.space.uuid,
+                binding: {
+                    kind: 'sqlChart',
+                    savedSqlUuid: sqlChart.savedSqlUuid,
+                },
+            }),
             chartUuid: sqlChart.savedSqlUuid,
         });
 
@@ -14241,6 +14353,15 @@ export class AsyncQueryService extends ProjectService {
             dashboardSorts,
             limit: limit ?? savedChart.limit,
             parameters: combinedParameters,
+            binding: await this.withSpaceBinding({
+                account,
+                projectUuid,
+                spaceUuid: savedChart.space.uuid,
+                binding: {
+                    kind: 'sqlChart',
+                    savedSqlUuid: savedChart.savedSqlUuid,
+                },
+            }),
             chartUuid: savedChart.savedSqlUuid,
             dashboardUuid,
         });

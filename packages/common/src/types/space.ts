@@ -75,6 +75,7 @@ export type Space = {
     inheritParentPermissions: boolean;
     projectMemberAccessRole: SpaceMemberRole | null;
     colorPaletteUuid: string | null;
+    warehouseConnectionUuid: string | null;
     // ltree path serialized as string
     path: string;
     breadcrumbs?: {
@@ -97,6 +98,7 @@ export type SpaceSummaryBase = Pick<
     | 'pinnedListUuid'
     | 'pinnedListOrder'
     | 'slug'
+    | 'warehouseConnectionUuid'
     | 'parentSpaceUuid'
     | 'path'
 > & {
@@ -132,6 +134,7 @@ export type UpdateSpace = {
     /** When set, all project members get this role on the space */
     projectMemberAccessRole?: SpaceMemberRole | null;
     colorPaletteUuid?: string | null;
+    warehouseConnectionUuid?: string | null;
 };
 
 export type SpaceAccessUserMetadata = {

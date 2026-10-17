@@ -36,6 +36,7 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel, type CascadedDocument } from '../../models/SpaceModel';
+import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import {
     assertHumanManagedMutation,
     getManagedAgentPolicy,
@@ -51,6 +52,7 @@ import { SpacePermissionService } from './SpacePermissionService';
 
 type SpaceServiceArguments = {
     featureFlagModel: FeatureFlagModel;
+    warehouseConnectionModel: WarehouseConnectionModel;
     analytics: LightdashAnalytics;
     lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
@@ -99,6 +101,8 @@ export class SpaceService
 {
     private readonly featureFlagModel: FeatureFlagModel;
 
+    private readonly warehouseConnectionModel: WarehouseConnectionModel;
+
     private readonly analytics: LightdashAnalytics;
 
     private readonly lightdashConfig: LightdashConfig;
@@ -126,6 +130,7 @@ export class SpaceService
     constructor(args: SpaceServiceArguments) {
         super();
         this.featureFlagModel = args.featureFlagModel;
+        this.warehouseConnectionModel = args.warehouseConnectionModel;
         this.analytics = args.analytics;
         this.lightdashConfig = args.lightdashConfig;
         this.projectModel = args.projectModel;
@@ -451,6 +456,44 @@ export class SpaceService
         }
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+
+        if (updateSpace.warehouseConnectionUuid !== undefined) {
+            const { enabled } = await this.featureFlagModel.get({
+                user: { organizationUuid: space.organizationUuid },
+                featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+            });
+            const ability = this.createAuditedAbility(user);
+            if (
+                !enabled ||
+                ability.cannot(
+                    'manage',
+                    subject('Project', {
+                        organizationUuid: space.organizationUuid,
+                        projectUuid: space.projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    'You cannot change this space connection',
+                );
+            }
+            if (updateSpace.warehouseConnectionUuid !== null) {
+                const project = await this.warehouseConnectionModel.getProject(
+                    space.projectUuid,
+                );
+                try {
+                    await this.warehouseConnectionModel.get(
+                        project,
+                        updateSpace.warehouseConnectionUuid,
+                    );
+                } catch (error) {
+                    if (!(error instanceof NotFoundError)) throw error;
+                    throw new ParameterError(
+                        'Connection does not belong to this project',
+                    );
+                }
+            }
+        }
 
         if (updateSpace.colorPaletteUuid) {
             const palette = await this.organizationModel.findColorPalette(

@@ -18,6 +18,7 @@ export type DbSpace = {
     deleted_by_user_uuid: string | null;
     is_default_user_space: boolean;
     color_palette_uuid: string | null;
+    warehouse_connection_uuid: string | null;
 };
 
 export type CreateDbSpace = Pick<
@@ -39,6 +40,7 @@ export type UpdateDbSpace = Partial<
         | 'inherit_parent_permissions'
         | 'project_member_access_role'
         | 'color_palette_uuid'
+        | 'warehouse_connection_uuid'
     >
 >;
 

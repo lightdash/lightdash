@@ -209,7 +209,10 @@ export const wrapResourceView = (
     resources.map((resource) => wrapResource(resource, type));
 
 export const spaceToResourceViewItem = (
-    space: Omit<SpaceSummary, 'inheritsFromOrgOrProject'>,
+    space: Omit<
+        SpaceSummary,
+        'inheritsFromOrgOrProject' | 'warehouseConnectionUuid'
+    >,
 ): ResourceViewSpaceItem['data'] => ({
     organizationUuid: space.organizationUuid,
     projectUuid: space.projectUuid,

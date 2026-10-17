@@ -1,9 +1,14 @@
-import { Stack, TextInput } from '@mantine/core';
+import { subject } from '@casl/ability';
+import { FeatureFlags } from '@lightdash/common';
+import { Select, Stack, TextInput } from '@mantine/core';
 import { type FC } from 'react';
 import { type SpaceModalBody } from '.';
 import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
 import useHealth from '../../../hooks/health/useHealth';
 import { useProject } from '../../../hooks/useProject';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useWarehouseConnections } from '../../../hooks/useWarehouseConnections';
+import useApp from '../../../providers/App/useApp';
 import Callout from '../Callout';
 import { PalettePicker } from '../PalettePicker/PalettePicker';
 
@@ -11,10 +16,25 @@ type Props = SpaceModalBody & {
     projectUuid: string;
 };
 
+const INHERIT_VALUE = '__inherit__';
+
 const UpdateSpaceModalContent: FC<Props> = ({ form, projectUuid }) => {
     const { data: project } = useProject(projectUuid);
     const { data: palettes = [] } = useColorPalettes();
     const { data: health } = useHealth();
+    const { user } = useApp();
+    const { data: spaceWarehouseConnectionsFlag } = useServerFeatureFlag(
+        FeatureFlags.SpaceWarehouseConnections,
+    );
+    const { data: warehouseConnections, isEnabled } =
+        useWarehouseConnections(projectUuid);
+    const canManageProject = user.data?.ability.can(
+        'manage',
+        subject('Project', {
+            organizationUuid: user.data.organizationUuid,
+            projectUuid,
+        }),
+    );
 
     const overrideActive =
         !!health?.appearance.overrideColorPalette &&
@@ -51,6 +71,43 @@ const UpdateSpaceModalContent: FC<Props> = ({ form, projectUuid }) => {
                 parentLabel={parentLabel}
                 disabled={overrideActive}
             />
+            {spaceWarehouseConnectionsFlag?.enabled &&
+                isEnabled &&
+                warehouseConnections &&
+                canManageProject && (
+                    <Select
+                        label="Warehouse connection"
+                        description="Content in this space and its sub-spaces queries with this connection. People who can edit this space can also pick it in the SQL runner."
+                        inputWrapperOrder={[
+                            'label',
+                            'input',
+                            'description',
+                            'error',
+                        ]}
+                        data={[
+                            {
+                                value: INHERIT_VALUE,
+                                label: 'Inherit from parent space or project',
+                            },
+                            ...warehouseConnections.connections.map(
+                                (connection) => ({
+                                    value: connection.warehouseConnectionUuid,
+                                    label: connection.name,
+                                }),
+                            ),
+                        ]}
+                        value={
+                            form.values.warehouseConnectionUuid ?? INHERIT_VALUE
+                        }
+                        onChange={(value) =>
+                            form.setFieldValue(
+                                'warehouseConnectionUuid',
+                                value === INHERIT_VALUE ? null : value,
+                            )
+                        }
+                        allowDeselect={false}
+                    />
+                )}
         </Stack>
     );
 };

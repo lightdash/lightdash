@@ -1,6 +1,7 @@
 import {
     AbilityAction,
     AgentActorSurface,
+    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     OrganizationMemberRole,
@@ -59,6 +60,7 @@ describe('Document deletion impact', () => {
                 spaceUuids.includes('space') ? [document] : [],
             );
         const service = new SpaceService({
+            warehouseConnectionModel: {} as never,
             featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled }) },
             spaceModel: {
                 getDescendantSpaceUuids: vi.fn().mockResolvedValue([]),
@@ -111,6 +113,7 @@ describe('SpaceService', () => {
         mockGetSpaceAccessContext.mockReset();
 
         service = new SpaceService({
+            warehouseConnectionModel: {} as never,
             featureFlagModel: {
                 get: vi.fn().mockResolvedValue({ enabled: false }),
             } as never,
@@ -150,6 +153,7 @@ describe('SpaceService', () => {
                 can: vi.fn(async () => true),
             };
             const moveService = new SpaceService({
+                warehouseConnectionModel: {} as never,
                 featureFlagModel: {
                     get: vi.fn().mockResolvedValue({ enabled: false }),
                 } as never,
@@ -1050,6 +1054,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         vi.resetAllMocks();
 
         service = new SpaceService({
+            warehouseConnectionModel: {} as never,
             featureFlagModel: {
                 get: vi.fn().mockResolvedValue({ enabled: false }),
             } as never,
@@ -1131,6 +1136,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         } as unknown as SessionUser;
         const withProjectModel = () =>
             new SpaceService({
+                warehouseConnectionModel: {} as never,
                 featureFlagModel: {
                     get: vi.fn().mockResolvedValue({ enabled: false }),
                 } as never,
@@ -1827,6 +1833,7 @@ describe('SpaceService - space share target validation', () => {
         vi.resetAllMocks();
 
         service = new SpaceService({
+            warehouseConnectionModel: {} as never,
             featureFlagModel: {
                 get: vi.fn().mockResolvedValue({ enabled: false }),
             } as never,
@@ -2083,6 +2090,7 @@ describe('Space cascade audit for Documents', () => {
             }),
         };
         const service = new SpaceService({
+            warehouseConnectionModel: {} as never,
             analytics: analyticsMock,
             spaceModel,
         } as unknown as ConstructorParameters<typeof SpaceService>[0]);
@@ -2165,6 +2173,7 @@ describe('managed space updates', () => {
                 updateWithCopiedPermissions: vi.fn(),
             };
             const service = new SpaceService({
+                warehouseConnectionModel: {} as never,
                 featureFlagModel: {
                     get: vi.fn().mockResolvedValue({ enabled: mode !== 'off' }),
                 },
@@ -2268,6 +2277,7 @@ describe('space metadata updates after a human revocation', () => {
                 updateWithCopiedPermissions: vi.fn(),
             };
             const service = new SpaceService({
+                warehouseConnectionModel: {} as never,
                 featureFlagModel: {
                     get: vi.fn().mockResolvedValue({ enabled: mode !== 'off' }),
                 },
@@ -2314,4 +2324,145 @@ describe('space metadata updates after a human revocation', () => {
             }
         },
     );
+});
+
+describe('Space warehouse connection updates', () => {
+    const user = createTestUser({
+        organizationUuid: 'org',
+        projectUuid: 'project',
+    }) as SessionUser;
+    const getFlag = vi.fn().mockResolvedValue({ enabled: true });
+    const getProject = vi.fn();
+    const getConnection = vi.fn().mockResolvedValue({});
+    const update = vi.fn().mockResolvedValue(undefined);
+    const updatedSpace = { uuid: 'space', warehouseConnectionUuid: null };
+    const model = {
+        getSpaceSummary: vi.fn().mockResolvedValue({
+            uuid: 'space',
+            name: 'Space',
+            projectUuid: 'project',
+            organizationUuid: 'org',
+            inheritParentPermissions: false,
+            projectMemberAccessRole: null,
+        }),
+        get: vi.fn().mockResolvedValue(updatedSpace),
+        update,
+    };
+    const can = vi.fn();
+    const service = new SpaceService({
+        featureFlagModel: { get: getFlag },
+        warehouseConnectionModel: {
+            getProject,
+            get: getConnection,
+        },
+        spaceModel: model,
+        analytics: { track: vi.fn() },
+        spacePermissionService: {
+            can,
+            getRawDirectAccess: vi.fn().mockResolvedValue({}),
+        },
+    } as never);
+    const completed = new Error('Reached full space assembly');
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        can.mockResolvedValue(true);
+        getProject.mockResolvedValue({ projectUuid: 'project' });
+        model.getSpaceSummary.mockResolvedValue({
+            uuid: 'space',
+            name: 'Space',
+            projectUuid: 'project',
+            organizationUuid: 'org',
+            inheritParentPermissions: false,
+            projectMemberAccessRole: null,
+        });
+        update.mockResolvedValue(undefined);
+        getFlag.mockResolvedValue({ enabled: true });
+        getConnection.mockResolvedValue({});
+        user.ability.update([
+            {
+                action: 'manage',
+                subject: 'Project',
+                conditions: { projectUuid: 'project', organizationUuid: 'org' },
+            },
+        ]);
+        vi.spyOn(
+            service as unknown as { assembleFullSpace: () => Promise<never> },
+            'assembleFullSpace',
+        ).mockRejectedValue(completed);
+    });
+
+    it.each([null, 'connection'])(
+        'refuses a %s binding update while disabled',
+        async (warehouseConnectionUuid) => {
+            getFlag.mockResolvedValue({ enabled: false });
+            await expect(
+                service.updateSpace(user, 'space', {
+                    name: 'Space',
+                    warehouseConnectionUuid,
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(update).not.toHaveBeenCalled();
+            expect(getFlag).toHaveBeenCalledWith({
+                user: { organizationUuid: 'org' },
+                featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+            });
+        },
+    );
+
+    it('requires project management even when the user manages the space', async () => {
+        user.ability.update([{ action: 'manage', subject: 'Space' }]);
+        await expect(
+            service.updateSpace(user, 'space', {
+                name: 'Space',
+                warehouseConnectionUuid: 'connection',
+            }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(update).not.toHaveBeenCalled();
+    });
+
+    it('refuses a connection outside the project', async () => {
+        getConnection.mockRejectedValue(
+            new NotFoundError('Connection not found'),
+        );
+        await expect(
+            service.updateSpace(user, 'space', {
+                name: 'Space',
+                warehouseConnectionUuid: 'connection',
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(update).not.toHaveBeenCalled();
+    });
+
+    it.each([null, 'connection'])(
+        'writes the %s binding after the checks pass',
+        async (warehouseConnectionUuid) => {
+            await expect(
+                service.updateSpace(user, 'space', {
+                    name: 'Space',
+                    warehouseConnectionUuid,
+                }),
+            ).rejects.toBe(completed);
+            expect(update).toHaveBeenCalledWith(
+                'space',
+                expect.objectContaining({ warehouseConnectionUuid }),
+            );
+            if (warehouseConnectionUuid === null)
+                expect(getConnection).not.toHaveBeenCalled();
+            else
+                expect(getConnection).toHaveBeenCalledWith(
+                    { projectUuid: 'project' },
+                    warehouseConnectionUuid,
+                );
+        },
+    );
+
+    it('keeps ordinary updates available while disabled', async () => {
+        getFlag.mockResolvedValue({ enabled: false });
+        await expect(
+            service.updateSpace(user, 'space', { name: 'Space' }),
+        ).rejects.toBe(completed);
+        expect(getFlag).not.toHaveBeenCalled();
+        expect(update).toHaveBeenCalledOnce();
+    });
 });
