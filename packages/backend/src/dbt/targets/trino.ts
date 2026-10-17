@@ -10,9 +10,9 @@ export const trinoTarget = (
         CreateWarehouseCredentials,
         { type: WarehouseTypes.TRINO }
     >,
-    _policy: DbtTargetPolicy,
+    policy: DbtTargetPolicy,
 ): DbtTargetResult => {
-    if (!credentials.password) {
+    if (policy.trinoPasswordlessAuth && !credentials.password) {
         return {
             kind: 'target',
             target: {

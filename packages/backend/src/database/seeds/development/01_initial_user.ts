@@ -296,8 +296,12 @@ export async function seed(knex: Knex): Promise<void> {
                 resolve: () =>
                     toDbtTarget(warehouseCredentials, {
                         explicitCredentials: false,
+                        trinoPasswordlessAuth: false,
                     }),
-                policy: { explicitCredentials: false },
+                policy: {
+                    explicitCredentials: false,
+                    trinoPasswordlessAuth: false,
+                },
             },
         );
         const explores = await adapter.compileAllExplores({
