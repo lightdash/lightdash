@@ -3338,6 +3338,12 @@ describe('Multi-connection compile on the real schema', () => {
                     database,
                     encryptionUtil,
                 }),
+                featureFlagService: {
+                    get: async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: false,
+                    }),
+                },
             });
 
         const salesConnection = {

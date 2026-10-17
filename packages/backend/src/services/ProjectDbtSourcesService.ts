@@ -6,6 +6,7 @@ import {
     DbtProjectConfig,
     DbtProjectType,
     EMPTY_WAREHOUSE_LOCATION,
+    FeatureFlags,
     ForbiddenError,
     getDbtEnvironmentVariableKeyError,
     getWarehouseLocation,
@@ -30,6 +31,7 @@ import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { assertGithubInstallationResolved } from '../projectAdapters/githubAuthorization';
 import { omitDbtEnvironment } from '../utils/dbtProjectConfig';
 import { BaseService } from './BaseService';
+import { type FeatureFlagService } from './FeatureFlag/FeatureFlagService';
 import { applyCurrentGithubInstallationId } from './ProjectService/resolveGithubInstallationId';
 
 type ProjectDbtSourcesServiceArguments = {
@@ -38,6 +40,7 @@ type ProjectDbtSourcesServiceArguments = {
     projectModel: ProjectModel;
     projectDbtSourcesModel: ProjectDbtSourcesModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
+    featureFlagService: Pick<FeatureFlagService, 'get'>;
 };
 
 const assertProjectDbtSourceName = (name: string): void => {
@@ -61,6 +64,8 @@ export class ProjectDbtSourcesService extends BaseService {
 
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
 
+    private readonly featureFlagService: Pick<FeatureFlagService, 'get'>;
+
     constructor(args: ProjectDbtSourcesServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
@@ -68,6 +73,25 @@ export class ProjectDbtSourcesService extends BaseService {
         this.projectModel = args.projectModel;
         this.projectDbtSourcesModel = args.projectDbtSourcesModel;
         this.githubAppInstallationsModel = args.githubAppInstallationsModel;
+        this.featureFlagService = args.featureFlagService;
+    }
+
+    private async assertSupportedSourceType(
+        account: Account,
+        organizationUuid: string,
+        type: DbtProjectType,
+    ): Promise<void> {
+        if (type === DbtProjectType.GITHUB) return;
+        if (type === DbtProjectType.MANIFEST) {
+            const { enabled } = await this.featureFlagService.get({
+                user: { userUuid: account.user.id, organizationUuid },
+                featureFlagId: FeatureFlags.MixedWarehouseConnections,
+            });
+            if (enabled) return;
+        }
+        throw new ParameterError(
+            'Additional dbt sources currently support GitHub connections only',
+        );
     }
 
     /**
@@ -272,13 +296,11 @@ export class ProjectDbtSourcesService extends BaseService {
             'manage',
         );
         assertProjectDbtSourceName(data.name);
-        // GitHub-only for now: additional sources are restricted to GitHub
-        // connections until the other git providers are validated end-to-end.
-        if (data.dbtConnection.type !== DbtProjectType.GITHUB) {
-            throw new ParameterError(
-                'Additional dbt sources currently support GitHub connections only',
-            );
-        }
+        await this.assertSupportedSourceType(
+            account,
+            organizationUuid,
+            data.dbtConnection.type,
+        );
         ProjectDbtSourcesService.validateGithubPersonalAccessToken(
             data.dbtConnection,
         );
@@ -436,13 +458,11 @@ export class ProjectDbtSourcesService extends BaseService {
                 );
             }
         }
-        // GitHub-only for now, matching createProjectDbtSource.
-        if (
-            data.dbtConnection &&
-            data.dbtConnection.type !== DbtProjectType.GITHUB
-        ) {
-            throw new ParameterError(
-                'Additional dbt sources currently support GitHub connections only',
+        if (data.dbtConnection) {
+            await this.assertSupportedSourceType(
+                account,
+                organizationUuid,
+                data.dbtConnection.type,
             );
         }
         if (data.dbtConnection) {
