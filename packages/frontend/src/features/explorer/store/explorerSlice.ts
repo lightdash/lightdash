@@ -170,6 +170,7 @@ const explorerSlice = createSlice({
         setSavedChartMetadata: (state, action: PayloadAction<SavedChart>) => {
             if (!state.savedChart) return;
             const {
+                tableName,
                 metricQuery,
                 chartConfig,
                 tableConfig,

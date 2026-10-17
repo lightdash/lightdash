@@ -1,9 +1,18 @@
-import { ChartType, type SavedChart } from '@lightdash/common';
-import { screen, waitFor } from '@testing-library/react';
+import { ChartType, MergeJoinType, type SavedChart } from '@lightdash/common';
+import { configureStore } from '@reduxjs/toolkit';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Provider } from 'react-redux';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../api';
+import {
+    aiAgentThreadStreamSlice,
+    setParts,
+    startStreaming,
+    stopStreaming,
+    type StreamPart,
+} from '../ee/features/aiCopilot/store/aiAgentThreadStreamSlice';
 import { renderWithProviders } from '../testing/testUtils';
 import SavedExplorer from './SavedExplorer';
 
@@ -29,12 +38,15 @@ vi.mock('../components/Explorer', async () => {
     const {
         explorerActions,
         selectHasUnsavedChanges,
+        selectSavedChart,
         selectUnsavedChartVersion,
         selectUnsavedColorPaletteUuid,
         useExplorerDispatch,
         useExplorerSelector,
     } = await import('../features/explorer/store');
     const { useLocation, useNavigate } = await import('react-router');
+    const { useMerge } =
+        await import('../features/mergeQuery/context/useMerge');
     const StoreProbe = () => {
         const dispatch = useExplorerDispatch();
         const navigate = useNavigate();
@@ -44,13 +56,23 @@ vi.mock('../components/Explorer', async () => {
         );
         const hasUnsavedChanges = useExplorerSelector(selectHasUnsavedChanges);
         const paletteUuid = useExplorerSelector(selectUnsavedColorPaletteUuid);
+        const savedChart = useExplorerSelector(selectSavedChart);
+        const merge = useMerge();
         return (
             <div>
                 <div data-testid="session">
                     {unsavedChartVersion.metricQuery.limit}|
-                    {String(hasUnsavedChanges)}|{paletteUuid}
+                    {String(hasUnsavedChanges)}|{paletteUuid}|
+                    {unsavedChartVersion.chartConfig.type}
                 </div>
                 <div data-testid="search">{search}</div>
+                <div data-testid="saved-name">{savedChart?.name}</div>
+                <div data-testid="merge">
+                    {merge.joinType}|
+                    {merge.additionalSources
+                        .map((s) => s.exploreName)
+                        .join(',')}
+                </div>
                 <button
                     type="button"
                     onClick={() =>
@@ -170,17 +192,30 @@ const urlChartVersion = {
     tableConfig: savedChart.tableConfig,
 };
 
-const savedExplorerRouter = (search: string, mode: 'edit' | 'view') => {
-    const path = `/projects/${PROJECT_UUID}/saved/${savedChart.slug}/${mode}${search}`;
+const createAgentStore = () =>
+    configureStore({
+        reducer: { aiAgentThreadStream: aiAgentThreadStreamSlice.reducer },
+    });
+let agentStore = createAgentStore();
+let currentSavedChart = savedChart;
+
+const savedExplorerRouter = (
+    search: string,
+    mode: 'edit' | 'view',
+    identifier = savedChart.slug,
+) => {
+    const path = `/projects/${PROJECT_UUID}/saved/${identifier}/${mode}${search}`;
     return (
-        <MemoryRouter initialEntries={[path]}>
-            <Routes>
-                <Route
-                    path="/projects/:projectUuid/saved/:savedQueryUuid/:mode"
-                    element={<SavedExplorer />}
-                />
-            </Routes>
-        </MemoryRouter>
+        <Provider store={agentStore}>
+            <MemoryRouter initialEntries={[path]}>
+                <Routes>
+                    <Route
+                        path="/projects/:projectUuid/saved/:savedQueryUuid/:mode"
+                        element={<SavedExplorer />}
+                    />
+                </Routes>
+            </MemoryRouter>
+        </Provider>
     );
 };
 
@@ -192,8 +227,62 @@ const searchWithChartVersion = (payload: unknown) =>
         JSON.stringify(payload),
     )}&fromDashboard=dashboard-uuid`;
 
-describe('SavedExplorer with an unsaved chart version in the url', () => {
+const publishAgentEdit = (complete = false) => {
+    act(() => {
+        agentStore.dispatch(
+            setParts({
+                threadUuid: 'thread',
+                parts: [
+                    {
+                        type: 'toolCall',
+                        toolCallId: 'edit-chart',
+                        toolName: 'editContent',
+                        isPreliminary: false,
+                        toolArgs: {
+                            type: 'chart',
+                            slug: savedChart.slug,
+                            patch: [],
+                        },
+                        toolResult: {
+                            result: '{}',
+                            structuredContent: {
+                                type: 'chart',
+                                href: `/projects/${PROJECT_UUID}/saved/${savedChart.slug}`,
+                                content: {},
+                                warnings: [],
+                            },
+                            metadata: {
+                                name: savedChart.name,
+                                href: `/projects/${PROJECT_UUID}/saved/${savedChart.slug}`,
+                                warnings: [],
+                                versionUuids: { before: null, after: null },
+                                status: 'success',
+                                uuid: savedChart.uuid,
+                                slug: savedChart.slug,
+                            },
+                        },
+                    } as StreamPart,
+                ],
+            }),
+        );
+        if (complete)
+            agentStore.dispatch(stopStreaming({ threadUuid: 'thread' }));
+    });
+};
+
+describe('SavedExplorer', () => {
     beforeEach(() => {
+        currentSavedChart = savedChart;
+        agentStore = createAgentStore();
+        agentStore.dispatch(
+            startStreaming({
+                threadUuid: 'thread',
+                messageUuid: 'message',
+                projectUuid: PROJECT_UUID,
+                agentUuid: 'agent',
+                autoApproveSql: false,
+            }),
+        );
         featureFlagState.inDashboardChartEditorEnabled = true;
         featureFlagState.isLoading = false;
         featureFlagState.handoverSearch =
@@ -211,11 +300,121 @@ describe('SavedExplorer with an unsaved chart version in the url', () => {
                 typeof url === 'string' &&
                 url.includes('/saved/')
             ) {
-                return savedChart;
+                return currentSavedChart;
             }
             return new Promise(() => {});
         }) as typeof lightdashApi);
     });
+
+    it.each([savedChart.slug, savedChart.uuid])(
+        'shows an agent-edited visualization without reloading the saved chart at %s',
+        async (identifier) => {
+            renderWithProviders(savedExplorerRouter('', 'view', identifier));
+            await waitFor(() =>
+                expect(screen.getByTestId('session')).toHaveTextContent(
+                    'cartesian',
+                ),
+            );
+            currentSavedChart = {
+                ...savedChart,
+                metricQuery: { ...savedChart.metricQuery, limit: 1000 },
+                chartConfig: { type: ChartType.BIG_NUMBER, config: {} },
+            };
+            publishAgentEdit(identifier === savedChart.uuid);
+            await waitFor(() =>
+                expect(screen.getByTestId('session')).toHaveTextContent(
+                    'big_number',
+                ),
+            );
+            expect(screen.getByTestId('session')).toHaveTextContent(
+                '1000|false',
+            );
+        },
+    );
+
+    it('refreshes an existing saved merge after the agent changes its sources and join', async () => {
+        const merge = {
+            queries: {
+                refunds: {
+                    explore: 'payments',
+                    dimensions: ['payments_payment_method'],
+                    metrics: [],
+                },
+            },
+            join: MergeJoinType.FULL,
+            keys: {
+                payments_payment_method: ['refunds.payments_payment_method'],
+            },
+            limit: 500,
+        };
+        currentSavedChart = { ...savedChart, merge };
+        renderSavedExplorer('', 'view');
+        await waitFor(() =>
+            expect(screen.getByTestId('merge')).toHaveTextContent(
+                'full|payments',
+            ),
+        );
+        currentSavedChart = {
+            ...currentSavedChart,
+            merge: {
+                ...merge,
+                join: MergeJoinType.INNER,
+                queries: {
+                    refunds: {
+                        explore: 'orders',
+                        dimensions: ['orders_status'],
+                        metrics: [],
+                    },
+                },
+                keys: { payments_payment_method: ['refunds.orders_status'] },
+            },
+        };
+        publishAgentEdit();
+        await waitFor(() =>
+            expect(screen.getByTestId('merge')).toHaveTextContent(
+                'inner|orders',
+            ),
+        );
+    });
+
+    it.each(['payments', 'orders'])(
+        'keeps local editor changes when the agent saves a version using %s',
+        async (tableName) => {
+            const user = userEvent.setup();
+            renderSavedExplorer(
+                searchWithChartVersion(urlChartVersion),
+                'edit',
+            );
+            await waitFor(() =>
+                expect(screen.getByTestId('session')).toHaveTextContent(
+                    '25|true',
+                ),
+            );
+            await user.click(screen.getByText('stage palette'));
+
+            currentSavedChart = {
+                ...savedChart,
+                name: 'Updated by agent',
+                tableName,
+                metricQuery: {
+                    ...savedChart.metricQuery,
+                    exploreName: tableName,
+                    limit: 1000,
+                },
+                chartConfig: { type: ChartType.BIG_NUMBER, config: {} },
+                colorPaletteUuid: 'server-palette',
+            };
+            publishAgentEdit();
+            await waitFor(() =>
+                expect(screen.getByTestId('saved-name')).toHaveTextContent(
+                    'Updated by agent',
+                ),
+            );
+            expect(screen.getByTestId('session')).toHaveTextContent(
+                '25|true|staged-palette|cartesian',
+            );
+        },
+    );
 
     it('starts the edit session on the version the url carries', async () => {
         renderSavedExplorer(searchWithChartVersion(urlChartVersion), 'edit');

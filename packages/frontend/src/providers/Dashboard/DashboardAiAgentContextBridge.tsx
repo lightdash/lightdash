@@ -8,7 +8,7 @@ import {
     isDashboardChartTileType,
     isDashboardSqlChartTile,
 } from '@lightdash/common';
-import { useQueryClient } from '@tanstack/react-query';
+import { isCancelledError, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useParams } from 'react-router';
 import { scrollToDashboardTile } from '../../components/common/Dashboard/scrollToDashboardTile';
@@ -22,7 +22,7 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../ee/features/aiCopilot/store/hooks';
-import { useActiveAiAgentThreadStreamParts } from '../../ee/features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
+import { useAiAgentProjectStreamParts } from '../../ee/features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
 import { getDashboard } from '../../hooks/dashboard/useDashboard';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { getSavedQuery } from '../../hooks/useSavedQuery';
@@ -39,16 +39,6 @@ const emptyFilters: DashboardFilters = {
     metrics: [],
     tableCalculations: [],
 };
-
-const isDashboardChartReadyQueryForCharts = (
-    queryKey: readonly unknown[],
-    savedChartUuids: string[],
-    dashboardUuid: string,
-) =>
-    queryKey[0] === 'dashboard_chart_ready_query' &&
-    typeof queryKey[2] === 'string' &&
-    savedChartUuids.includes(queryKey[2]) &&
-    queryKey[3] === dashboardUuid;
 
 const isSavedSqlChartQueryForCharts = (
     queryKey: readonly unknown[],
@@ -74,6 +64,9 @@ const DashboardAiAgentContextBridge = () => {
         (state) => state.aiAgentLauncher.dashboardRefreshRequest,
     );
     const dashboard = useDashboardContext((c) => c.dashboard);
+    const includeUnpublishedDraft = useDashboardContext(
+        (c) => c.includeUnpublishedDraft,
+    );
     const activeTab = useDashboardContext((c) => c.activeTab);
     const allFilters = useDashboardContext((c) => c.allFilters);
     const originalDashboardFilters = useDashboardContext(
@@ -100,7 +93,7 @@ const DashboardAiAgentContextBridge = () => {
         (c) => c.setDashboardTemporaryFilters,
     );
 
-    const activeThreadParts = useActiveAiAgentThreadStreamParts();
+    const activeThreadParts = useAiAgentProjectStreamParts(projectUuid);
 
     const handledToolCallIdsRef = useRef<Set<string>>(new Set());
     const pendingChartToFocusRef = useRef<DashboardAiAgentChartRef | null>(
@@ -151,8 +144,13 @@ const DashboardAiAgentContextBridge = () => {
         parameterValues,
     ]);
     const dashboardQueryKey = useMemo(
-        () => ['saved_dashboard_query', dashboardUuidOrSlug, projectUuid],
-        [dashboardUuidOrSlug, projectUuid],
+        () => [
+            'saved_dashboard_query',
+            dashboardUuidOrSlug,
+            projectUuid,
+            includeUnpublishedDraft,
+        ],
+        [dashboardUuidOrSlug, projectUuid, includeUnpublishedDraft],
     );
 
     const scrollToTile = useCallback((tile: DashboardTile) => {
@@ -185,35 +183,48 @@ const DashboardAiAgentContextBridge = () => {
                         'saved_query',
                         savedChartUuid,
                         projectUuid,
+                        includeUnpublishedDraft,
                     ];
+                    await queryClient.cancelQueries({ queryKey, exact: true });
                     await queryClient.invalidateQueries({
                         queryKey,
                         refetchType: 'none',
                     });
 
-                    const freshChart = await queryClient.fetchQuery({
-                        queryKey,
-                        queryFn: () =>
-                            getSavedQuery(savedChartUuid, projectUuid),
-                    });
+                    const freshChart = await queryClient
+                        .fetchQuery({
+                            queryKey,
+                            queryFn: () =>
+                                getSavedQuery(
+                                    savedChartUuid,
+                                    projectUuid,
+                                    includeUnpublishedDraft,
+                                ),
+                        })
+                        .catch((error: unknown) => {
+                            if (isCancelledError(error)) return null;
+                            throw error;
+                        });
+                    if (!freshChart) return;
 
                     queryClient.setQueryData(
-                        ['saved_query', freshChart.slug, projectUuid],
+                        [
+                            'saved_query',
+                            freshChart.slug,
+                            projectUuid,
+                            includeUnpublishedDraft,
+                        ],
                         freshChart,
                     );
                 }),
             );
-
-            await queryClient.resetQueries({
-                predicate: (query) =>
-                    isDashboardChartReadyQueryForCharts(
-                        query.queryKey,
-                        savedChartUuids,
-                        currentDashboardUuid,
-                    ),
-            });
         },
-        [currentDashboardUuid, projectUuid, queryClient],
+        [
+            currentDashboardUuid,
+            projectUuid,
+            queryClient,
+            includeUnpublishedDraft,
+        ],
     );
 
     // Tile results are keyed on the chart's last update, so refetching the chart reruns its results.
@@ -278,15 +289,30 @@ const DashboardAiAgentContextBridge = () => {
         async (chartToFocus: DashboardAiAgentChartRef | null) => {
             if (!projectUuid || !dashboardUuidOrSlug) return false;
 
+            await queryClient.cancelQueries({
+                queryKey: dashboardQueryKey,
+                exact: true,
+            });
             await queryClient.invalidateQueries({
                 queryKey: dashboardQueryKey,
                 refetchType: 'none',
             });
 
-            const freshDashboard = await queryClient.fetchQuery({
-                queryKey: dashboardQueryKey,
-                queryFn: () => getDashboard(dashboardUuidOrSlug, projectUuid),
-            });
+            const freshDashboard = await queryClient
+                .fetchQuery({
+                    queryKey: dashboardQueryKey,
+                    queryFn: () =>
+                        getDashboard(
+                            dashboardUuidOrSlug,
+                            projectUuid,
+                            includeUnpublishedDraft,
+                        ),
+                })
+                .catch((error: unknown) => {
+                    if (isCancelledError(error)) return null;
+                    throw error;
+                });
+            if (!freshDashboard) return false;
 
             setDashboardTiles(freshDashboard.tiles);
             setDashboardTabs(freshDashboard.tabs);
@@ -320,6 +346,7 @@ const DashboardAiAgentContextBridge = () => {
             dashboardQueryKey,
             dashboardUuidOrSlug,
             projectUuid,
+            includeUnpublishedDraft,
             queryClient,
             refreshSavedChartTiles,
             refreshSqlChartTiles,
