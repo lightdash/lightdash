@@ -115,6 +115,9 @@ describe('DeployService', () => {
                 assertAgentConnectionEffect: vi.fn(),
                 saveDeployExplores: vi.fn().mockResolvedValue('index-job-uuid'),
                 trackCliSourceDeploy: vi.fn().mockResolvedValue(undefined),
+                getDeployStartOfWeekByExplore: vi
+                    .fn()
+                    .mockResolvedValue(new Map()),
             };
             const deploySessionModel = {
                 getSession: vi.fn().mockResolvedValue({
@@ -227,6 +230,9 @@ describe('DeployService', () => {
                 assertAgentConnectionEffect: vi.fn(),
                 saveDeployExplores,
                 trackCliSourceDeploy,
+                getDeployStartOfWeekByExplore: vi
+                    .fn()
+                    .mockResolvedValue(new Map()),
             },
             schedulerClient: {
                 generateValidation,
@@ -324,6 +330,9 @@ describe('DeployService', () => {
                 assertAgentConnectionEffect: vi.fn(),
                 saveDeployExplores: vi.fn().mockResolvedValue('index-job-uuid'),
                 trackCliSourceDeploy,
+                getDeployStartOfWeekByExplore: vi
+                    .fn()
+                    .mockResolvedValue(new Map()),
             },
             schedulerClient: {
                 generateValidation: vi.fn().mockRejectedValue(failure),
@@ -395,6 +404,9 @@ describe('DeployService', () => {
                 assertConnectionPreAggregateRefresh: vi.fn(),
                 assertAgentConnectionEffect: vi.fn(),
                 trackCliSourceDeploy: vi.fn().mockResolvedValue(undefined),
+                getDeployStartOfWeekByExplore: vi
+                    .fn()
+                    .mockResolvedValue(new Map()),
             },
             schedulerClient: {},
         } as never);

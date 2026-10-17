@@ -70,7 +70,7 @@ Places that used to read the primary's type now read the explore's connection:
 | AI dbt writeback | `AiWritebackService` uses the selected dbt source's bound connection (`ProjectModel.getDbtSourceWarehouseType`) |
 | dbt YAML writeback | `GitIntegrationService` builds the SQL builder from the explore's binding |
 | dbt source location check | `ProjectDbtSourcesService` validates against the source's bound connection |
-| Pre-aggregate week start at deploy | `ProjectModel.getDeployStartOfWeek` returns the week start for explores on extra connections; explores on the primary keep the project value |
+| Pre-aggregate week start at deploy | `ProjectService.getDeployStartOfWeekByExplore` uses the week start of an extra connection for its explores when the flag is on; explores on the primary, and every explore with the flag off, keep the project value |
 | AI agent | `getProjectInfo` lists every connection with its type, and the run-SQL prompt states each dialect. Raw SQL still runs on the primary |
 | Explore API | `ApiExploreResults.warehouseConnection` returns `{ warehouseConnectionUuid, warehouseType, startOfWeek }` |
 | Frontend | `useExploreWarehouseConnection` feeds SQL display, the formula editor gate, editor dialect labels, explorer filters, merge-query source filters, reference lines and scheduler chart overrides |
@@ -106,6 +106,10 @@ models compiled on the same connection.
   `mixed-warehouse-connections` on, `ProjectDbtSourcesService` also accepts
   `manifest` sources, so an uploaded manifest can run on an extra connection.
   With the flag off, the GitHub-only rule and its message are unchanged.
+- One change is not behind the flag: a Trino connection with an empty
+  password runs dbt with the `none` method instead of `ldap`
+  (`dbt/targets/trino.ts`). dbt-trino refuses authentication over HTTP, so this
+  setup failed to compile before; connections with a password are unchanged.
 - Three identifier paths that predate this feature wrap identifiers without
   escaping embedded delimiters: `ExploreCompiler.compileDimensionReference('TABLE')`,
   `MetricQueryBuilder.getBaseTableFromSQL` and `getCustomSqlDimensionSql`.

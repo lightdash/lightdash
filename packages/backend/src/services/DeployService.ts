@@ -56,6 +56,13 @@ type ProjectServiceInterface = {
         dbtModelNames?: string[];
         cliDeploy: CliDeploySelection;
     }) => Promise<string>;
+    getDeployStartOfWeekByExplore: (args: {
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+        explores: (Explore | ExploreError)[];
+        sourceUuid: string | null;
+    }) => Promise<Map<string, WeekDay | null>>;
     trackCliSourceDeploy: (
         args: {
             userUuid: string;
@@ -318,30 +325,14 @@ export class DeployService extends BaseService {
             const deployData =
                 await this.deploySessionModel.getDeployData(sessionUuid);
             const uploadedExplores = deployData.explores;
-            const startOfWeekByExplore = new Map(
-                (
-                    await Promise.all(
-                        uploadedExplores
-                            .filter((explore) => explore.preAggregates?.length)
-                            .map(async (explore) => {
-                                const deployStartOfWeek =
-                                    await this.projectModel.getDeployStartOfWeek(
-                                        projectUuid,
-                                        explore.name,
-                                        cliDeploy.sourceUuid,
-                                    );
-                                return deployStartOfWeek.kind === 'extra'
-                                    ? [
-                                          [
-                                              explore.name,
-                                              deployStartOfWeek.startOfWeek,
-                                          ] as const,
-                                      ]
-                                    : [];
-                            }),
-                    )
-                ).flat(),
-            );
+            const startOfWeekByExplore =
+                await this.projectService.getDeployStartOfWeekByExplore({
+                    userUuid: user.userUuid,
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                    explores: uploadedExplores,
+                    sourceUuid: cliDeploy.sourceUuid,
+                });
             const explores = this.exploreEnhancer(uploadedExplores, {
                 startOfWeek: project.warehouseConnection?.startOfWeek ?? null,
                 startOfWeekByExplore,

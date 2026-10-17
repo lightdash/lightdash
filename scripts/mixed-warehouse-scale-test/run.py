@@ -54,7 +54,7 @@ class Api:
         try:
             return json.loads(raw) if raw else {'status': 'ok'}
         except json.JSONDecodeError:
-            return {'status': 'error', 'error': {'message': raw[:300].decode(errors='replace')}}
+            return {'status': 'error', 'error': {'message': clip(raw.decode(errors='replace'), 300)}}
 
 
 def ok(response):
@@ -86,9 +86,10 @@ def register_sensitive(env):
     ]
     SENSITIVE_VALUES.update(v for v in values if isinstance(v, str) and len(v) >= 4)
     for value in SENSITIVE_VALUES:
-        sample = redact(f'error near "{value}" and {value.upper()}.')
-        if value in sample or value.upper() in sample:
-            raise SystemExit('redaction check failed for a registered credential value')
+        text = f'error near "{value}" and {value.upper()}.'
+        for cut in range(len(text) + 1):
+            if value[:4].lower() in clip(text, cut).lower():
+                raise SystemExit('redaction check failed for a registered credential value')
 
 
 def redact(text):
@@ -100,10 +101,14 @@ def redact(text):
     return re.sub(r'\b\d{12}\b', '<account>', text)
 
 
+def clip(text, length):
+    return redact(text)[:length]
+
+
 def message(response):
     if not isinstance(response, dict):
-        return redact(str(response))[:300]
-    return redact((response.get('error') or {}).get('message') or '')[:400]
+        return clip(str(response), 300)
+    return clip((response.get('error') or {}).get('message') or '', 400)
 
 
 def read_env(path):
@@ -399,7 +404,7 @@ class Runner:
             time.sleep(2)
         errors = [s.get('stepError') for s in result.get('steps', []) if s.get('stepError')]
         passed = result.get('jobStatus') == 'DONE'
-        detail = json.dumps(result.get('jobResults'))[:300] + (' ' + ' | '.join(errors) if errors else '')
+        detail = clip(json.dumps(result.get('jobResults')), 300) + (' ' + ' | '.join(errors) if errors else '')
         self.rec.step(label, passed, detail, time.time() - start)
         return result
 
@@ -454,7 +459,7 @@ class Runner:
             explore is not None and bound.get('warehouseType') == expected_type
             and bound.get('warehouseConnectionUuid') == connection_uuid
             and not explore.get('errors'),
-            json.dumps({'targetDatabase': (explore or {}).get('targetDatabase'), 'warehouseConnection': bound, 'errors': (explore or {}).get('errors')})[:300],
+            clip(json.dumps({'targetDatabase': (explore or {}).get('targetDatabase'), 'warehouseConnection': bound, 'errors': (explore or {}).get('errors')}), 300),
         )
         base = {
             'exploreName': probe['explore'], 'dimensions': [probe['dim']],
@@ -530,7 +535,7 @@ class Runner:
                     break
                 time.sleep(0.5)
             if state.get('status') != 'ready':
-                failures.append(str(state.get('error'))[:200])
+                failures.append(clip(str(state.get('error')), 200))
         self.rec.step(f'dashboard: {len(dashboard["tiles"])} tiles run on their own connections', not failures, ' | '.join(failures), time.time() - start)
         if schedule:
             self.scheduled_delivery(dashboard['uuid'])
@@ -642,7 +647,7 @@ class Runner:
         bound = (explore or {}).get('warehouseConnection') or {}
         self.rec.step('ref between two sources on the Trino connection resolves', explore is not None and bound.get('warehouseConnectionUuid') == trino_uuid, json.dumps(bound))
         warnings = json.dumps((explore or {}).get('warnings') or [])
-        self.rec.step('join to a model on another connection is skipped with a warning naming both connections', 'Joins across connections are not supported' in warnings and 'Postgres (original)' in warnings, warnings[:300])
+        self.rec.step('join to a model on another connection is skipped with a warning naming both connections', 'Joins across connections are not supported' in warnings and 'Postgres (original)' in warnings, clip(warnings, 300))
         self.run_query(project, {'exploreName': 'trino_nation_regions', 'dimensions': ['trino_nation_regions_nation_name'], 'metrics': ['trino_nation_regions_nation_count'], 'filters': {}, 'sorts': [], 'limit': 5, 'tableCalculations': [], 'additionalMetrics': [], 'customDimensions': []}, 'query the explore built from a cross-source ref')
         self.rec.finish()
 
@@ -658,7 +663,7 @@ class Runner:
         result = self.refresh(project, 'compile with a ref across connections')
         warnings = json.dumps(((result or {}).get('jobResults') or {}).get('connectionWarnings') or [])
         expected = 'Refs across connections are not supported'
-        self.rec.step('the Trino connection fails with a cross-connection ref warning', expected in warnings and 'pg_shared' in warnings, warnings[:400], expected=expected)
+        self.rec.step('the Trino connection fails with a cross-connection ref warning', expected in warnings and 'pg_shared' in warnings, clip(warnings, 400), expected=expected)
         self.rec.step('the original connection still compiles', self.explore(project, 'pg_calendar') is not None)
         self.rec.finish()
 
@@ -709,7 +714,7 @@ class Runner:
             ['node', str(REPO / 'packages/cli/dist/index.js'), 'deploy', '--source', 'trino_cli', '--project-dir', str(cli_dir), '--profiles-dir', str(cli_dir), '--skip-warehouse-catalog', '--assume-yes'],
             env=env, capture_output=True, text=True, timeout=900,
         )
-        tail = (completed.stdout + completed.stderr)[-400:]
+        tail = redact(completed.stdout + completed.stderr)[-400:]
         self.rec.step('CLI deploy --source into the Trino connection', completed.returncode == 0, tail.replace('\n', ' '), time.time() - start)
         explore = self.explore(project, 'trino_orders')
         bound = (explore or {}).get('warehouseConnection') or {}
@@ -729,7 +734,7 @@ class Runner:
         self.add_github_source(project, 'pg_xconn', 'examples/mixed-warehouse-dev/xref/pg_xconn', replica, branch)
         result = self.refresh(project, 'compile with a ref across two Postgres connections')
         warnings = json.dumps(((result or {}).get('jobResults') or {}).get('connectionWarnings') or [])
-        self.rec.step('the replica fails with the existing message and no cross-connection explanation', 'pg_shared' in warnings and 'Refs across connections' not in warnings, warnings[:400])
+        self.rec.step('the replica fails with the existing message and no cross-connection explanation', 'pg_shared' in warnings and 'Refs across connections' not in warnings, clip(warnings, 400))
         self.rec.finish()
 
     def flag_off(self, state):
@@ -760,7 +765,7 @@ class Runner:
                 self.refresh(project, 'initial compile of the original')
                 mode = self.api.call('GET', f'/api/v1/projects/{project}/warehouse-connection-mode')
                 can_switch = (mode.get('results') or {}).get('canSwitch')
-                self.rec.step(f'{kind} project reports it cannot switch', can_switch is False, json.dumps(mode.get('results'))[:300])
+                self.rec.step(f'{kind} project reports it cannot switch', can_switch is False, clip(json.dumps(mode.get('results')), 300))
                 self.switch(project, f'{kind} (original)', f'{kind} replica', kind, expect_ok=False)
             self.rec.finish()
 

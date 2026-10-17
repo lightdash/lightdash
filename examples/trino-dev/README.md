@@ -57,10 +57,12 @@ This creates `memory.tpch_dev.trino_orders` (15,000 rows) and
 | Schema | `tpch_dev` |
 | HTTP scheme | `http` |
 
-An empty password makes Lightdash send only the `X-Trino-User` header. Trino
-with no authenticator rejects any password over HTTP
-(`Password not allowed for insecure authentication`). The connection form still
-marks the password as required, so use the API for an empty password.
+Trino with no authenticator rejects any password over HTTP
+(`Password not allowed for insecure authentication`), so leave it empty. With an
+empty password, Lightdash runs dbt with the `none` method instead of `ldap`,
+because dbt-trino refuses authentication over HTTP. Queries send the user with
+an empty Basic password, which Trino accepts. The connection form still marks
+the password as required, so use the API for an empty password.
 
 ## 4. Add Trino as an extra connection on a Postgres project
 
