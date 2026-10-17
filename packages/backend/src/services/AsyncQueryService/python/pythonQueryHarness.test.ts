@@ -78,7 +78,7 @@ describe.skipIf(!hasPythonDependencies)(
                         'utf8',
                     ),
                 );
-                expect(meta).toEqual({
+                expect(meta).toMatchObject({
                     columns: [{ name: 'flag', type: 'boolean' }],
                     rowCount: values.length,
                     truncated: false,

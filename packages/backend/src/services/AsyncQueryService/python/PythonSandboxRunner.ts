@@ -74,9 +74,11 @@ export class PythonSandboxRunner {
     constructor(args: {
         lightdashConfig: LightdashConfig;
         logger: SandboxLogger;
+        provider?: SandboxProvider;
     }) {
         this.lightdashConfig = args.lightdashConfig;
         this.logger = args.logger;
+        this.provider = args.provider;
     }
 
     private getProvider(): SandboxProvider {

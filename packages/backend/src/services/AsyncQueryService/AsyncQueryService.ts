@@ -11214,6 +11214,11 @@ export class AsyncQueryService extends ProjectService {
                     span.setAttributes({
                         'lightdash.rowCount': rows.length,
                         'lightdash.truncated': meta.truncated,
+                        ...(meta.timingsMs && {
+                            'lightdash.harness.loadMs': meta.timingsMs.load,
+                            'lightdash.harness.runMs': meta.timingsMs.run,
+                            'lightdash.harness.writeMs': meta.timingsMs.write,
+                        }),
                     });
 
                     const resultsStorageClient =

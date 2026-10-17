@@ -69,6 +69,14 @@ const pythonResultMetaSchema = z.object({
         .min(1),
     rowCount: z.number().int().nonnegative(),
     truncated: z.boolean(),
+    /** Harness phase durations; written next to user code, so telemetry only. */
+    timingsMs: z
+        .object({
+            load: z.number().nonnegative(),
+            run: z.number().nonnegative(),
+            write: z.number().nonnegative(),
+        })
+        .optional(),
 });
 
 export type PythonResultMeta = z.infer<typeof pythonResultMetaSchema>;
@@ -248,6 +256,7 @@ import json
 import math
 import re
 import sys
+import time
 import traceback
 
 import numpy as np
@@ -321,7 +330,9 @@ def main():
     with open(f"{IN_DIR}/meta.json", encoding="utf-8") as handle:
         meta = json.load(handle)
 
+    started = time.perf_counter()
     inputs = {name: load_input(name, spec) for name, spec in meta["inputs"].items()}
+    loaded = time.perf_counter()
 
     spec = importlib.util.spec_from_file_location("user_main", f"{WORK}/main.py")
     module = importlib.util.module_from_spec(spec)
@@ -338,6 +349,8 @@ def main():
         result = run(inputs, meta.get("params", {}))
     except Exception:
         fail("run() raised:\\n" + traceback.format_exc())
+
+    ran = time.perf_counter()
 
     if not isinstance(result, pd.DataFrame):
         fail(f"run() must return a pandas DataFrame, got {type(result).__name__}")
@@ -371,6 +384,11 @@ def main():
                 "columns": [{"name": name, "type": kinds[name]} for name in names],
                 "rowCount": len(records),
                 "truncated": truncated,
+                "timingsMs": {
+                    "load": round((loaded - started) * 1000, 1),
+                    "run": round((ran - loaded) * 1000, 1),
+                    "write": round((time.perf_counter() - ran) * 1000, 1),
+                },
             },
             handle,
         )
