@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     type ApiExploreResults,
     type Project,
     type WarehouseTypes,
@@ -6,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { useExploreByProjectUuid } from './useExplore';
 import { useProject } from './useProject';
+import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 type ExploreWarehouseConnection = {
     warehouseType: WarehouseTypes | null;
@@ -18,11 +20,14 @@ export const resolveExploreWarehouseConnection = (
         NonNullable<Project['warehouseConnection']>,
         'type' | 'startOfWeek'
     > | null,
+    mixedWarehouseConnectionsEnabled: boolean,
 ): ExploreWarehouseConnection => {
     if (exploreConnection) {
         return {
             warehouseType: exploreConnection.warehouseType,
-            startOfWeek: exploreConnection.startOfWeek,
+            startOfWeek: mixedWarehouseConnectionsEnabled
+                ? exploreConnection.startOfWeek
+                : (projectConnection?.startOfWeek ?? null),
         };
     }
 
@@ -42,9 +47,13 @@ export const useExploreWarehouseConnection = (
         { enabled: false },
     );
     const { data: project } = useProject(projectUuid);
+    const mixedWarehouseFlag = useServerFeatureFlag(
+        FeatureFlags.MixedWarehouseConnections,
+    );
 
     return resolveExploreWarehouseConnection(
         explore?.warehouseConnection ?? null,
         project?.warehouseConnection ?? null,
+        mixedWarehouseFlag.data?.enabled === true,
     );
 };
