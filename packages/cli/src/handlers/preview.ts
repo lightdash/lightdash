@@ -626,6 +626,7 @@ export const startPreviewHandler = async (
         const previewSettings = await getProjectDeploySettings(
             options.disableTimestampConversion,
             previewProject.projectUuid,
+            undefined,
         );
         options.disableTimestampConversion =
             previewSettings.disableTimestampConversion;
