@@ -1683,6 +1683,23 @@ describe('Extra connection credentials on the real schema', () => {
             );
         });
 
+        test('saves the original with its own type and refuses a change to the extra type in a mixed project', async () => {
+            const organization = await createOrganization();
+            const project = await createProject(organization, {
+                mode: 'multi',
+                credentials: postgres,
+            });
+            await createExtra(project, { credentials: trino });
+
+            await saveOriginal(project, { ...postgres, host: 'new-host' });
+            await expect(saveOriginal(project, trino)).rejects.toEqual(
+                new ConflictError(ORIGINAL_TYPE_LOCKED_MESSAGE),
+            );
+            expect(await storedOriginalType(project)).toBe(
+                WarehouseTypes.POSTGRES,
+            );
+        });
+
         test('keeps main behaviour: same-type saves with extras, and type changes without extras', async () => {
             const organization = await createOrganization();
             const withExtra = await createProject(organization, {

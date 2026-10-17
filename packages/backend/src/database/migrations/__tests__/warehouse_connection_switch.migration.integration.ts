@@ -941,7 +941,7 @@ describe('Enable multiple connections on the real schema', () => {
             await refusesBoth(
                 withoutPersonal,
                 new ParameterError(
-                    'A Snowflake connection without shared credentials requires users to provide their own credentials for this project.',
+                    'A Snowflake connection without shared credentials requires users to provide their own credentials on the original connection.',
                 ),
                 withoutPersonal.admin,
                 request,

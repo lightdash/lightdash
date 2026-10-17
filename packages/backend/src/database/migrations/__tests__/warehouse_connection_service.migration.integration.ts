@@ -614,7 +614,7 @@ describe('WarehouseConnectionService on the real schema', () => {
                     request,
                 ),
             ).rejects.toThrow(
-                'A Snowflake connection without shared credentials requires users to provide their own credentials for this project.',
+                'A Snowflake connection without shared credentials requires users to provide their own credentials on the original connection.',
             );
             expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
 
@@ -709,7 +709,7 @@ describe('WarehouseConnectionService on the real schema', () => {
                         },
                     ),
                 ).rejects.toThrow(
-                    'A Snowflake connection without shared credentials requires users to provide their own credentials for this project.',
+                    'A Snowflake connection without shared credentials requires users to provide their own credentials on the original connection.',
                 );
                 await expect(
                     service.update(

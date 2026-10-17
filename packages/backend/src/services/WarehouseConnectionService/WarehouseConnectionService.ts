@@ -783,7 +783,12 @@ export class WarehouseConnectionService extends BaseService {
         );
         assertExtraConnectionSettings(credentials, request, mixedTypesEnabled);
         let persistedSource = source;
-        if (shouldTestExtraCredentials(credentials)) {
+        if (
+            shouldTestExtraCredentials(
+                credentials,
+                project.originalWarehouseType,
+            )
+        ) {
             const testedCredentials = await this.assertConnectionWorks(
                 account,
                 project,
@@ -1045,7 +1050,12 @@ export class WarehouseConnectionService extends BaseService {
                 credentials.type,
                 mixedTypesEnabled,
             );
-            if (shouldTestExtraCredentials(credentials)) {
+            if (
+                shouldTestExtraCredentials(
+                    credentials,
+                    project.originalWarehouseType,
+                )
+            ) {
                 const testedCredentials = await this.assertConnectionWorks(
                     account,
                     project,

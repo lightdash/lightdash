@@ -63,6 +63,8 @@ describe('extra connection user credentials', () => {
         },
     );
     it('tests Trino shared credentials', () => {
-        expect(shouldTestExtraCredentials(extra)).toBe(true);
+        expect(shouldTestExtraCredentials(extra, WarehouseTypes.POSTGRES)).toBe(
+            true,
+        );
     });
 });
