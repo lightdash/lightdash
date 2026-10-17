@@ -95,23 +95,6 @@ export const resolveCrossSourceManifests = async <T>({
             providersByName.set(scan.projectName, providers);
         }
     }
-    for (const [name, providers] of providersByName) {
-        if (
-            providers.length > 1 &&
-            providers.some((task) => {
-                const scan = scans.get(task);
-                return (
-                    scan?.referencedProjects.includes(name) ||
-                    scan?.declaredUpstreams.includes(name) ||
-                    scan?.referencesOwnProject
-                );
-            })
-        ) {
-            throw new ParameterError(
-                `dbt sources "${providers[0].key}" and "${providers[1].key}" both use the dbt project name "${name}". A model cannot reference another dbt project that has its own name. Change the name: value in one repository's dbt_project.yml.`,
-            );
-        }
-    }
     const declared = new Map(
         tasks.map((task) => [task, new Set<CrossSourceFetchTask<T>>()]),
     );
@@ -266,17 +249,40 @@ export const resolveCrossSourceManifests = async <T>({
                                         dependency,
                                     ): dependency is DbtRawModelNode =>
                                         dependency !== undefined &&
-                                        dependency.name === ref.name,
+                                        dependency.name === ref.name &&
+                                        (ref.version == null ||
+                                            String(dependency.version) ===
+                                                String(ref.version)),
                                 );
+                            const localMatches = matches.filter(
+                                (candidate) =>
+                                    candidate.package_name ===
+                                    node.package_name,
+                            );
+                            const candidates =
+                                localMatches.length > 0
+                                    ? localMatches
+                                    : matches;
                             const dependency =
-                                matches.find(
-                                    (candidate) =>
-                                        candidate.package_name ===
-                                        node.package_name,
-                                ) ??
-                                (matches.length === 1 ? matches[0] : undefined);
+                                (ref.version == null
+                                    ? candidates.find(
+                                          (candidate) =>
+                                              candidate.version != null &&
+                                              String(candidate.version) ===
+                                                  String(
+                                                      candidate.latest_version,
+                                                  ),
+                                      )
+                                    : undefined) ??
+                                (candidates.length === 1
+                                    ? candidates[0]
+                                    : undefined);
                             if (dependency && isExternalDbtNode(dependency)) {
-                                const warning = `Model "${node.name}" in dbt source "${task.key}" uses ref('${ref.name}'), which resolved to external model ${dependency.unique_id} from another dbt source. Use ref('${dependency.package_name}', '${ref.name}') to make the cross-source reference explicit.`;
+                                const versionArg =
+                                    ref.version == null
+                                        ? ''
+                                        : `, v=${JSON.stringify(ref.version)}`;
+                                const warning = `Model "${node.name}" in dbt source "${task.key}" uses ref('${ref.name}'${versionArg}), which resolved to external model ${dependency.unique_id} from another dbt source. Use ref('${dependency.package_name}', '${ref.name}'${versionArg}) to make the cross-source reference explicit.`;
                                 if (!warnings.has(warning))
                                     Logger.warn(
                                         `dbt.compile.crossSourceRefWarning ${warning}`,
@@ -306,6 +312,19 @@ export const resolveCrossSourceManifests = async <T>({
                 },
             };
         } catch (error) {
+            const name = scans.get(task)?.projectName;
+            const providers = name ? providersByName.get(name) : undefined;
+            if (
+                providers &&
+                providers.some((provider) => provider !== task) &&
+                getMissingDbtNodeReferences(error).some(
+                    (ref) => ref.packageName === name,
+                )
+            ) {
+                throw new ParameterError(
+                    `dbt sources "${providers[0].key}" and "${providers[1].key}" both use the dbt project name "${name}". A model cannot reference another dbt project that has its own name. Change the name: value in one repository's dbt_project.yml.`,
+                );
+            }
             return { ok: false, error };
         }
     };

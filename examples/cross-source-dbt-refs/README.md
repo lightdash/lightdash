@@ -9,10 +9,14 @@ Two dbt projects that live in separate repositories in real life:
 
 Connect both as dbt sources of one Lightdash project (the `multi-dbt-sources`
 feature flag). With the `cross-source-dbt-refs` feature flag on, the server
-compile resolves the ref without dbt-loom: when the `analytics` source fails
-with `depends on a node named 'dim_calendar' in package or project
-'shared_dimensions' which was not found`, the compile injects the models of
-the sources that already compiled through a generated dbt plugin and retries.
+compile resolves the ref without dbt-loom. Each source is prepared once (git
+refresh and `dbt deps`), then scanned for its `dbt_project.yml` name, literal
+two-argument refs and `dependencies.yml` `projects:`. The scan orders the
+sources, so `shared_dimensions` compiles first and `analytics` gets its models
+injected through a generated dbt plugin on its first `dbt ls`. A ref the scan
+cannot see (built in a macro, `{% set %}` or `var()`) still fails with
+`depends on a node named ... which was not found` and is retried with the
+resolved sources injected; that retry reruns only `dbt ls`.
 
 ## Local run
 

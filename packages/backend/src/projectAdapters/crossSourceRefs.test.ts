@@ -3,6 +3,7 @@ import {
     type DbtManifest,
     type DbtRawModelNode,
 } from '@lightdash/common';
+import { type DbtProjectScan } from '../dbt/dbtProjectScan';
 import { type DbtManifestFetchOptions } from '../types';
 import {
     resolveCrossSourceManifests,
@@ -371,11 +372,13 @@ const scannedTask = (
     declared: string[] = [],
 ) => ({
     ...task(key),
-    prepare: vi.fn(async () => ({
-        projectName: key,
-        referencedProjects: references,
-        declaredUpstreams: declared,
-    })),
+    prepare: vi.fn(
+        async (): Promise<DbtProjectScan> => ({
+            projectName: key,
+            referencedProjects: references,
+            declaredUpstreams: declared,
+        }),
+    ),
 });
 
 describe('ordered cross-source refs', () => {
@@ -565,29 +568,80 @@ describe('ordered cross-source refs', () => {
         expect(provider.fetch).toHaveBeenCalledTimes(1);
         expect(consumer.fetch).not.toHaveBeenCalled();
     });
-    it('rejects shared project names only when a source references that project', async () => {
-        const a = scannedTask('a');
-        const b = scannedTask('b');
-        a.prepare.mockResolvedValue({
-            projectName: 'p',
-            referencedProjects: ['p'],
-            declaredUpstreams: [],
+    it.each([true, false])(
+        'compiles disjoint same-named sources with a comment-only own-project hint: %s',
+        async (referencesOwnProject) => {
+            const sources = ['a', 'b'].map((key) => {
+                const source = scannedTask(key);
+                source.prepare.mockResolvedValue({
+                    projectName: 'p',
+                    referencedProjects: [],
+                    declaredUpstreams: [],
+                    referencesOwnProject,
+                });
+                const fetched = result('p');
+                const node = {
+                    ...model('p', key),
+                    raw_code: "{# {{ ref('p', 'comment_only') }} #} select 1",
+                };
+                fetched.manifest.nodes = { [node.unique_id]: node };
+                source.fetch.mockResolvedValue(fetched);
+                return source;
+            });
+            const resolution = await resolve(sources);
+            expect(resolution.attempts).toBe(2);
+            expect(
+                resolution.results.map(({ result: fetched }) =>
+                    Object.keys(fetched.manifest.nodes),
+                ),
+            ).toEqual([['model.p.a'], ['model.p.b']]);
+            sources.forEach((source) =>
+                expect(source.fetch).toHaveBeenCalledExactlyOnceWith({
+                    externalNodes: [],
+                }),
+            );
+        },
+    );
+    it.each([false, true])(
+        'rejects an actual missing ref to a shared project name on a retry: %s',
+        async (onRetry) => {
+            const a = scannedTask('a');
+            const b = scannedTask('b');
+            for (const source of [a, b]) {
+                source.prepare.mockResolvedValue({
+                    projectName: 'p',
+                    referencedProjects: [],
+                    declaredUpstreams: [],
+                });
+            }
+            b.fetch.mockResolvedValue(result('p'));
+            if (onRetry) a.fetch.mockRejectedValueOnce(missing('upstream'));
+            a.fetch.mockRejectedValue(missing('p'));
+            await expect(
+                resolve([a, b, scannedTask('upstream')]),
+            ).rejects.toHaveProperty(
+                'message',
+                'dbt sources "a" and "b" both use the dbt project name "p". A model cannot reference another dbt project that has its own name. Change the name: value in one repository\'s dbt_project.yml.',
+            );
+            expect(a.fetch).toHaveBeenCalledTimes(onRetry ? 2 : 1);
+        },
+    );
+    it('does not blame shared project names for an unrelated missing ref', async () => {
+        const sources = ['a', 'b'].map((key) => {
+            const source = scannedTask(key);
+            source.prepare.mockResolvedValue({
+                projectName: 'p',
+                referencedProjects: [],
+                declaredUpstreams: [],
+                referencesOwnProject: true,
+            });
+            return source;
         });
-        b.prepare.mockResolvedValue({
-            projectName: 'p',
-            referencedProjects: [],
-            declaredUpstreams: [],
-        });
-        await expect(resolve([a, b])).rejects.toHaveProperty(
+        sources[0].fetch.mockRejectedValue(missing('unknown'));
+        await expect(resolve(sources)).rejects.toHaveProperty(
             'message',
-            'dbt sources "a" and "b" both use the dbt project name "p". A model cannot reference another dbt project that has its own name. Change the name: value in one repository\'s dbt_project.yml.',
+            'Cannot resolve dbt source "a": ref "unknown.orders" was not found. No connected dbt source provides project "unknown".',
         );
-        a.prepare.mockResolvedValue({
-            projectName: 'p',
-            referencedProjects: [],
-            declaredUpstreams: [],
-        });
-        expect((await resolve([a, b])).attempts).toBe(2);
     });
     it('reports declared dependents without fetching them before their provider resolves', async () => {
         const a = scannedTask('provider');
@@ -640,6 +694,47 @@ describe('ordered cross-source refs', () => {
                           "Model \"orders\" in dbt source \"b\" uses ref('orders'), which resolved to external model model.a.orders from another dbt source. Use ref('a', 'orders') to make the cross-source reference explicit.",
                       ]
                     : [],
+            );
+        },
+    );
+    it.each([
+        { versions: [1, 2], requested: [1, 2], expected: [1, 2] },
+        { versions: [1, 2], requested: [null], expected: [2] },
+        { versions: [1], requested: [null], expected: [1] },
+    ])(
+        'warns for external versions $expected requested as $requested',
+        async ({ versions, requested, expected }) => {
+            const consumer = scannedTask('b', ['a']);
+            const fetched = result('b');
+            const dependencies = versions.map((version) => ({
+                ...model('a'),
+                unique_id: `model.a.orders.v${version}`,
+                version,
+                latest_version: 2,
+                path: '',
+                original_file_path: '',
+            }));
+            dependencies.forEach((dependency) => {
+                fetched.manifest.nodes[dependency.unique_id] = dependency;
+            });
+            Object.assign(fetched.manifest.nodes['model.b.orders'], {
+                refs: requested.map((version) => ({
+                    name: 'orders',
+                    package: null,
+                    version,
+                })),
+                depends_on: {
+                    nodes: dependencies.map(({ unique_id }) => unique_id),
+                },
+            });
+            consumer.fetch.mockResolvedValue(fetched);
+            const resolution = await resolve([consumer, scannedTask('a')]);
+            expect(resolution.warnings).toEqual(
+                expected.map((version, index) => {
+                    const versionArg =
+                        requested[index] === null ? '' : `, v=${version}`;
+                    return `Model "orders" in dbt source "b" uses ref('orders'${versionArg}), which resolved to external model model.a.orders.v${version} from another dbt source. Use ref('a', 'orders'${versionArg}) to make the cross-source reference explicit.`;
+                }),
             );
         },
     );

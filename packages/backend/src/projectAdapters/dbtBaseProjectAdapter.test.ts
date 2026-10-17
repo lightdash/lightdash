@@ -6,7 +6,11 @@ import {
     type WarehouseClient,
 } from '@lightdash/common';
 import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import { DbtCliClient } from '../dbt/dbtCliClient';
+import { cliArgs } from '../dbt/dbtCliClient.mock';
 import type { CachedWarehouse, DbtClient } from '../types';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 
@@ -208,7 +212,7 @@ describe('getDbtManifest', () => {
         expect(getDbtManifest).toHaveBeenCalledTimes(2);
     });
 
-    it('reuses dependency preparation after testing the client', async () => {
+    it('prepares dependencies once after testing the client', async () => {
         const installDeps = vi.fn(async () => undefined);
         const test = vi.fn(async () => undefined);
         const adapter = new DbtBaseProjectAdapter(
@@ -224,9 +228,33 @@ describe('getDbtManifest', () => {
             SupportedDbtVersions.V1_9,
         );
         await adapter.test();
+        expect(installDeps).not.toHaveBeenCalled();
+        await adapter.getDbtManifest();
         await adapter.getDbtManifest();
         expect(installDeps).toHaveBeenCalledTimes(1);
         expect(test).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a missing project directory before dependency preparation can fail', async () => {
+        const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'dbt-test-'));
+        const client = new DbtCliClient({
+            ...cliArgs,
+            dbtProjectDirectory: path.join(directory, 'missing-project'),
+            dbtVersion: SupportedDbtVersions.V1_9,
+        });
+        const installDeps = vi
+            .spyOn(client, 'installDeps')
+            .mockRejectedValue(new Error('deps failed'));
+        try {
+            await expect(buildAdapter(client).test()).rejects.toHaveProperty(
+                'message',
+                'dbt project directory not found: /missing-project',
+            );
+            expect(installDeps).not.toHaveBeenCalled();
+        } finally {
+            installDeps.mockRestore();
+            await fs.rmdir(directory);
+        }
     });
 
     it('reports no dependency time when the client installs no dependencies', async () => {
