@@ -1,4 +1,5 @@
 import {
+    DbtExternalModelNode,
     DbtPackages,
     DbtRpcGetManifestResults,
     Explore,
@@ -15,6 +16,8 @@ export type TrackingParams = {
     jobUuid?: string;
 };
 
+export type DbtManifestFetchOptions = { externalNodes: DbtExternalModelNode[] };
+
 export type DbtManifestFetchTimings = {
     gitRefreshMs: number | null;
     depsMs: number | null;
@@ -25,7 +28,13 @@ export type DbtManifestFetchResult = DbtRpcGetManifestResults & {
     timings: DbtManifestFetchTimings;
 };
 
+export type DbtSourcePreparation = {
+    projectDir: string | null;
+    timings: { gitRefreshMs: number | null; depsMs: number | null };
+};
+
 export interface ProjectAdapter {
+    prepareDbtSource(): Promise<DbtSourcePreparation>;
     /**
      * Compile all explores
      * @param trackingParams - Optional tracking parameters to track the compilation and lightdash project config (lightdash.config.yml) overrides
@@ -52,7 +61,9 @@ export interface ProjectAdapter {
      * by the multiple-dbt-sources merge to combine each source's manifest before
      * a single compile.
      */
-    getDbtManifest(): Promise<DbtManifestFetchResult>;
+    getDbtManifest(
+        options?: DbtManifestFetchOptions,
+    ): Promise<DbtManifestFetchResult>;
 
     test(): Promise<void>;
 
@@ -77,13 +88,15 @@ export interface ProjectAdapter {
 export interface DbtClient {
     installDeps?(): Promise<void>;
 
-    getDbtManifest(): Promise<DbtRpcGetManifestResults>;
+    getDbtManifest(
+        options?: DbtManifestFetchOptions,
+    ): Promise<DbtRpcGetManifestResults>;
 
     getDbtPackages?(): Promise<DbtPackages | undefined>;
 
     getSelector(): string | undefined;
 
-    test(): Promise<void>;
+    test(prepareDependencies?: () => Promise<void>): Promise<void>;
 
     cleanup?(): Promise<void>;
 }

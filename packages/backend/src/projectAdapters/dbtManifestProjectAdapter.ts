@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import { type DbtManifestFetchOptions } from '../types';
 import { CachedWarehouse, DbtClient } from '../types';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 
@@ -32,7 +33,9 @@ class ManifestDbtClient implements DbtClient {
     }
 
     // eslint-disable-next-line class-methods-use-this
-    async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
+    async getDbtManifest(
+        _options?: DbtManifestFetchOptions,
+    ): Promise<DbtRpcGetManifestResults> {
         const { manifest, parsedManifest } = this.manifestInput;
         if (!manifest && !parsedManifest) {
             throw new UnexpectedServerError(

@@ -1,0 +1,32 @@
+version: 2
+models:
+  - name: fct_orders
+    description: Daily order totals. Joins to the shared calendar from the shared_dimensions project.
+    config:
+      meta:
+        primary_key: order_date
+        joins:
+          - join: dim_calendar
+            sql_on: ${fct_orders.order_date} = ${dim_calendar.calendar_date}
+            relationship: many-to-one
+        metrics:
+          total_orders:
+            type: sum
+            sql: ${TABLE}.order_count
+          total_revenue:
+            type: sum
+            sql: ${TABLE}.revenue
+            round: 2
+    columns:
+      - name: order_date
+        meta:
+          dimension:
+            type: date
+      - name: order_count
+        meta:
+          dimension:
+            type: number
+      - name: revenue
+        meta:
+          dimension:
+            type: number

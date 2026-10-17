@@ -1,0 +1,20 @@
+version: 2
+models:
+  - name: customers
+    access: public
+    config:
+      meta:
+        primary_key: customer_id
+        metrics:
+          row_count:
+            type: count
+            sql: ${TABLE}.customer_id
+    columns:
+      - name: customer_id
+        meta:
+          dimension:
+            type: number
+      - name: is_downstream
+        meta:
+          dimension:
+            type: boolean

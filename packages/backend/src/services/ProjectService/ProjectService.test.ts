@@ -18,6 +18,7 @@ import {
     CustomSqlQueryForbiddenError,
     DatabricksAuthenticationType,
     DatabricksTokenError,
+    DbtError,
     DbtExposureType,
     DbtProjectType,
     DbtVersionOptionLatest,
@@ -72,6 +73,7 @@ import {
     SnowflakeTokenError,
     SshTunnelError,
     SupportedDbtAdapter,
+    SupportedDbtVersions,
     TableCalculation,
     TableCalculationTemplateType,
     UserWarehouseCredentialPurpose,
@@ -13494,6 +13496,7 @@ type ResolveCompileAdapterArgs = {
 };
 
 type BuildMergedManifestAdapterArgs = {
+    userUuid: string;
     projectUuid: string;
     organizationUuid: string | undefined;
     primary: ResolveCompileAdapterArgs['primary'];
@@ -13504,6 +13507,7 @@ type BuildMergedManifestAdapterArgs = {
 type ResolvedCompileAdapter = {
     adapter: ProjectAdapter;
     stagedMergedManifest?: Buffer;
+    connectionWarnings?: string[];
 };
 
 // resolveCompileAdapter/buildMergedManifestAdapter/featureFlagModel/
@@ -13671,6 +13675,8 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                         name: `country_codes_${seedPackageName}`,
                         package_name: seedPackageName,
                         resource_type: 'seed',
+                        path: 'seeds/country_codes.csv',
+                        original_file_path: 'seeds/country_codes.csv',
                         compiled: true,
                         database: 'analytics',
                         schema: 'public',
@@ -13700,6 +13706,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         timings: DbtManifestFetchTimings = NO_FETCH_TIMINGS,
     ) =>
         ({
+            prepareDbtSource: vi.fn(async () => ({
+                projectDir: null,
+                timings: { gitRefreshMs: null, depsMs: null },
+            })),
             getDbtManifest: vi.fn(async () => ({
                 manifest,
                 ...(selectedModelIds ? { selectedModelIds } : {}),
@@ -13739,6 +13749,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
 
         const adapter = projectService.buildMergedManifestAdapter({
+            userUuid: 'user-uuid',
             projectUuid: 'project-uuid',
             organizationUuid: 'org-uuid',
             primary: {
@@ -13769,6 +13780,135 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
         return (await adapter).adapter;
     };
+
+    it('names a source preparation failure before fetching any manifest', async () => {
+        const { projectService } = buildServiceWithMocks(true, []);
+        projectService.featureFlagModel.get = vi.fn(async (args: unknown) => ({
+            id: (args as { featureFlagId: FeatureFlags }).featureFlagId,
+            enabled: true,
+        }));
+        const preparedPrimary = buildAdapterWithManifest(buildManifest([]));
+        const sourceAdapter = buildAdapterWithManifest(buildManifest([]));
+        vi.mocked(sourceAdapter.prepareDbtSource).mockRejectedValue(
+            new Error('deps failed'),
+        );
+        vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
+            sourceAdapter,
+        );
+        await expect(
+            projectService.buildMergedManifestAdapter({
+                userUuid: 'user-uuid',
+                projectUuid: 'project-uuid',
+                organizationUuid: 'org-uuid',
+                primary: { ...primary, adapter: preparedPrimary },
+                sources: [buildSource('source-b')],
+                manifestFetchAdapters: [],
+            }),
+        ).rejects.toThrow('Failed to load dbt source "source-b": deps failed');
+        expect(preparedPrimary.getDbtManifest).not.toHaveBeenCalled();
+        expect(sourceAdapter.getDbtManifest).not.toHaveBeenCalled();
+    });
+
+    it.each([true, false])(
+        'gates managed cross-source retries with flag enabled=%s',
+        async (enabled) => {
+            const { projectService } = buildServiceWithMocks(true, []);
+            projectService.featureFlagModel.get = vi.fn(
+                async (args: unknown) => {
+                    const { featureFlagId } = args as {
+                        featureFlagId: FeatureFlags;
+                    };
+                    return { id: featureFlagId, enabled };
+                },
+            );
+            const upstream = buildManifest([
+                {
+                    uniqueId: 'model.shared.calendar',
+                    name: 'calendar',
+                    packageName: 'shared',
+                },
+            ]);
+            upstream.metadata.project_name = 'shared';
+            const downstream = buildManifest([
+                {
+                    uniqueId: 'model.analytics.orders',
+                    name: 'orders',
+                    packageName: 'analytics',
+                },
+            ]);
+            downstream.metadata.project_name = 'analytics';
+            Object.assign(downstream.nodes['model.analytics.orders'], {
+                refs: [{ name: 'calendar', package: null, version: null }],
+                depends_on: { nodes: ['model.shared.calendar'] },
+            });
+            const stub = {
+                ...(upstream.nodes['model.shared.calendar'] as DbtRawModelNode &
+                    DbtManifest['nodes'][string]),
+                path: '',
+                original_file_path: '',
+            };
+            const error = new DbtError(
+                "depends on a node named 'calendar' in package or project 'shared' which was not found",
+            );
+            const downstreamAdapter = buildAdapterWithManifest(downstream);
+            const fetchManifest = vi
+                .mocked(downstreamAdapter.getDbtManifest)
+                .mockRejectedValueOnce(error)
+                .mockResolvedValueOnce({
+                    manifest: {
+                        ...downstream,
+                        nodes: { ...downstream.nodes, [stub.unique_id]: stub },
+                    },
+                    selectedModelIds: [
+                        stub.unique_id,
+                        'model.analytics.orders',
+                    ],
+                    timings: NO_FETCH_TIMINGS,
+                });
+            const build = vi
+                .spyOn(projectService, 'buildSourceAdapter')
+                .mockResolvedValue(downstreamAdapter);
+            const resolution = projectService.buildMergedManifestAdapter({
+                userUuid: 'user-uuid',
+                projectUuid: 'project-uuid',
+                organizationUuid: 'org-uuid',
+                primary: {
+                    ...primary,
+                    adapter: buildAdapterWithManifest(upstream),
+                },
+                sources: [buildSource('analytics')],
+                manifestFetchAdapters: [],
+            });
+            if (enabled) {
+                const { adapter, connectionWarnings } = await resolution;
+                expect(connectionWarnings).toEqual([
+                    "Model \"orders\" in dbt source \"analytics\" uses ref('calendar'), which resolved to external model model.shared.calendar from another dbt source. Use ref('shared', 'calendar') to make the cross-source reference explicit.",
+                ]);
+
+                const merged = await adapter.getDbtManifest();
+                expect(merged.manifest.nodes[stub.unique_id]).toMatchObject({
+                    path: 'models/calendar.sql',
+                });
+                expect(fetchManifest).toHaveBeenCalledTimes(2);
+                expect(fetchManifest.mock.calls[1][0]?.externalNodes).toEqual([
+                    expect.objectContaining({
+                        package_name: 'shared',
+                        name: 'calendar',
+                    }),
+                ]);
+                expect(build).toHaveBeenCalledTimes(1);
+            } else {
+                await expect(resolution).rejects.toThrow(
+                    'This model references a model in another dbt project. Connect that project as a dbt source and enable cross-source dbt refs for your organization.',
+                );
+                expect(fetchManifest).toHaveBeenCalledTimes(1);
+            }
+            expect(projectService.featureFlagModel.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+                user: { userUuid: 'user-uuid', organizationUuid: 'org-uuid' },
+            });
+        },
+    );
 
     it('returns the deduplicated union when both sources select models', async () => {
         const primaryManifest = buildManifest([
@@ -13875,6 +14015,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 );
 
             await projectService.buildMergedManifestAdapter({
+                userUuid: 'user-uuid',
                 projectUuid: 'project-uuid',
                 organizationUuid: 'org-uuid',
                 primary: {
@@ -13972,6 +14113,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
             const { adapter } = await projectService.buildMergedManifestAdapter(
                 {
+                    userUuid: 'user-uuid',
                     projectUuid: 'project-uuid',
                     organizationUuid: 'org-uuid',
                     primary: {
@@ -14011,6 +14153,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             );
 
             await projectService.buildMergedManifestAdapter({
+                userUuid: 'user-uuid',
                 projectUuid: 'project-uuid',
                 organizationUuid: 'org-uuid',
                 primary: {
@@ -14043,6 +14186,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
             await expect(
                 projectService.buildMergedManifestAdapter({
+                    userUuid: 'user-uuid',
                     projectUuid: 'project-uuid',
                     organizationUuid: 'org-uuid',
                     primary: {
@@ -14082,6 +14226,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
             await expect(
                 projectService.buildMergedManifestAdapter({
+                    userUuid: 'user-uuid',
                     projectUuid: 'project-uuid',
                     organizationUuid: 'org-uuid',
                     primary: { ...primary, adapter: failingPrimaryAdapter },
@@ -14121,6 +14266,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
 
         await projectService.buildMergedManifestAdapter({
+            userUuid: 'user-uuid',
             projectUuid: 'project-uuid',
             organizationUuid: 'org-uuid',
             primary: {
@@ -14470,6 +14616,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         };
 
         await projectService.buildMergedManifestAdapter({
+            userUuid: 'user-uuid',
             projectUuid: 'project-uuid',
             organizationUuid: 'org-uuid',
             primary: {
@@ -14491,7 +14638,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             manifestFetchAdapters: [],
         });
 
-        expect(getFlag).not.toHaveBeenCalled();
+        expect(getFlag).toHaveBeenCalledExactlyOnceWith({
+            featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+            user: { userUuid: 'user-uuid', organizationUuid: 'org-uuid' },
+        });
         expect(projectModel.getSummary).not.toHaveBeenCalled();
         expect(buildSourceAdapter).toHaveBeenCalledTimes(2);
         expect(buildSourceAdapter).toHaveBeenNthCalledWith(
@@ -14594,6 +14744,8 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             name: 'countries',
             package_name: 'pkg_a',
             resource_type: 'seed',
+            path: 'seeds/country_codes.csv',
+            original_file_path: 'seeds/country_codes.csv',
             database: 'analytics',
             schema: 'public',
             config: { materialized: 'seed' },
@@ -15599,6 +15751,116 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             expect.objectContaining({ jobStatus: JobStatusType.DONE }),
         );
     });
+
+    it.each([
+        { enabled: true, missingRef: true, warehouseFails: false },
+        { enabled: false, missingRef: true, warehouseFails: false },
+        { enabled: true, missingRef: false, warehouseFails: false },
+        { enabled: true, missingRef: true, warehouseFails: true },
+    ])(
+        'defers only missing cross-project refs when enabled=$enabled missingRef=$missingRef warehouseFails=$warehouseFails',
+        async ({ enabled, missingRef, warehouseFails }) => {
+            const dbtError = new DbtError(
+                missingRef
+                    ? "Model 'model.analytics.orders' depends on a node named 'orders' in package or project 'upstream' which was not found"
+                    : 'dbt parse failed: invalid configuration',
+            );
+            const warehouseError = new Error('warehouse connection failed');
+            const warehouseTest = vi.spyOn(warehouseClientMock, 'test');
+            if (warehouseFails)
+                warehouseTest.mockRejectedValueOnce(warehouseError);
+            const adapter = new DbtBaseProjectAdapter(
+                {
+                    test: vi.fn().mockRejectedValue(dbtError),
+                } as unknown as ConstructorParameters<
+                    typeof DbtBaseProjectAdapter
+                >[0],
+                warehouseClientMock,
+                {
+                    warehouseCatalog: undefined,
+                    onWarehouseCatalogChange: () => {},
+                },
+                SupportedDbtVersions.V1_12,
+            );
+            vi.spyOn(
+                projectAdapterModule,
+                'projectAdapterFromConfig',
+            ).mockResolvedValueOnce(adapter);
+            const flags = {
+                get: vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId === FeatureFlags.CrossSourceDbtRefs &&
+                            enabled,
+                    }),
+                ),
+            };
+            const projectService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                {
+                    featureFlagModel: flags as unknown as FeatureFlagModel,
+                },
+            );
+            const internals = projectService as unknown as {
+                logger: { info: (message: string, metadata: unknown) => void };
+                testProjectAdapter: (
+                    data: Omit<UpdateProject, 'warehouseConnection'> & {
+                        warehouseConnection: {
+                            kind: 'submitted_resolved';
+                            credentials: CreateWarehouseCredentials;
+                        };
+                    },
+                    caller: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+                    context: 'project_update',
+                    method: RequestMethod,
+                    projectUuid: string,
+                    projectOrganizationUuid: string,
+                ) => Promise<unknown>;
+            };
+            const info = vi.spyOn(internals.logger, 'info');
+            const tested = internals.testProjectAdapter(
+                {
+                    ...projectWithSensitiveFields,
+                    warehouseConnection: {
+                        kind: 'submitted_resolved',
+                        credentials: warehouseClientMock.credentials,
+                    },
+                },
+                compileUser,
+                'project_update',
+                RequestMethod.WEB_APP,
+                'projectUuid',
+                'organizationUuid',
+            );
+            if (enabled && missingRef) {
+                if (warehouseFails)
+                    await expect(tested).rejects.toBe(warehouseError);
+                else await expect(tested).resolves.toMatchObject({ adapter });
+                expect(warehouseTest).toHaveBeenCalledOnce();
+                expect(info).toHaveBeenCalledWith(
+                    'dbt.test.deferredCrossSourceRefs',
+                    {
+                        refs: [{ packageName: 'upstream', model: 'orders' }],
+                    },
+                );
+                expect(flags.get).toHaveBeenCalledWith({
+                    featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+                    user: {
+                        userUuid: compileUser.userUuid,
+                        organizationUuid: 'organizationUuid',
+                    },
+                });
+            } else {
+                await expect(tested).rejects.toBe(dbtError);
+                expect(warehouseTest).not.toHaveBeenCalled();
+                expect(info).not.toHaveBeenCalledWith(
+                    'dbt.test.deferredCrossSourceRefs',
+                    expect.anything(),
+                );
+            }
+        },
+    );
 
     it('a failed adapter test destroys the adapter and releases the lease', async () => {
         const adapter = {
@@ -20202,6 +20464,7 @@ describe('compile adapter connection credentials', () => {
             async (connection) => {
                 const derive = vi.spyOn(connection, 'deriveClient');
                 await service.buildMergedManifestAdapter({
+                    userUuid: 'user-uuid',
                     projectUuid: 'project-uuid',
                     organizationUuid: 'org-uuid',
                     sources: [],
