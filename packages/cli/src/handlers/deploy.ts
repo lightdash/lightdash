@@ -851,6 +851,7 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         const projectSettings = await getProjectDeploySettings(
             options.disableTimestampConversion,
             existingProjectSelection.projectUuid,
+            sourceUuid,
         );
         options.disableTimestampConversion =
             projectSettings.disableTimestampConversion;
