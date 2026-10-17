@@ -112,6 +112,7 @@ const isBindingConflict = (error: unknown): boolean =>
 
 export {
     ENTITLEMENT_REASON,
+    PROVISIONED_WAREHOUSE_REASON,
     ROLLOUT_REASON,
     WAREHOUSE_TYPE_REASON,
 } from './multipleConnectionsGate';

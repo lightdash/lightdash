@@ -53,6 +53,7 @@ import {
     ENTITLEMENT_REASON,
     getMultipleConnectionsBlockReason,
     getProvisionedOriginalBlockReason,
+    PROVISIONED_WAREHOUSE_REASON,
     ROLLOUT_REASON,
     WAREHOUSE_TYPE_REASON,
 } from '../WarehouseConnectionService/multipleConnectionsGate';
@@ -182,7 +183,10 @@ export class WarehouseConnectionSwitchService extends BaseService {
             reason = 'license_required';
         } else if (message === ROLLOUT_REASON) {
             reason = 'feature_disabled';
-        } else if (message === WAREHOUSE_TYPE_REASON) {
+        } else if (
+            message === WAREHOUSE_TYPE_REASON ||
+            message === PROVISIONED_WAREHOUSE_REASON
+        ) {
             reason = 'warehouse_type_mismatch';
         } else if (
             message === WAREHOUSE_CONNECTION_SWITCH_PLAN_CHANGED_MESSAGE
@@ -238,6 +242,7 @@ export class WarehouseConnectionSwitchService extends BaseService {
             message === ENTITLEMENT_REASON ||
             message === ROLLOUT_REASON ||
             message === WAREHOUSE_TYPE_REASON ||
+            message === PROVISIONED_WAREHOUSE_REASON ||
             message?.startsWith('Warehouse connection test failed')
         ) {
             return;

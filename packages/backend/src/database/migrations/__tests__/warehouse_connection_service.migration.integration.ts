@@ -32,6 +32,7 @@ import { LicenseService } from '../../../services/LicenseService/LicenseService'
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
     ENTITLEMENT_REASON,
+    PROVISIONED_WAREHOUSE_REASON,
     ROLLOUT_REASON,
     WAREHOUSE_TYPE_REASON,
     WarehouseConnectionService,
@@ -847,7 +848,7 @@ describe('WarehouseConnectionService on the real schema', () => {
                     fixture.projectUuid,
                     { name: 'Extra', warehouseConnection: postgresCredentials },
                 ),
-            ).rejects.toEqual(new ForbiddenError(WAREHOUSE_TYPE_REASON));
+            ).rejects.toEqual(new ForbiddenError(PROVISIONED_WAREHOUSE_REASON));
         });
 
         test('refuses without the licence and without the rollout flag', async () => {
