@@ -1,0 +1,22 @@
+[
+  "scale_00_fanout",
+  "scale_01_leaf",
+  "scale_12_leaf",
+  "scale_13_leaf",
+  "scale_02_samename",
+  "scale_03_hub",
+  "scale_08_versioned",
+  "scale_17_diamond",
+  "scale_19_samename",
+  "scale_04_hub",
+  "scale_09_mixed",
+  "scale_05_chain",
+  "scale_07_diamond",
+  "scale_06_chain",
+  "scale_18_diamond",
+  "scale_14_chain",
+  "scale_15_chain",
+  "scale_16_chain",
+  "scale_10_large",
+  "scale_11_fanin"
+]

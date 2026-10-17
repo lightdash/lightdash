@@ -1,0 +1,3 @@
+id,label,amount,active,event_date
+1,seed_one,10,true,2026-01-02
+2,seed_two,20,false,2026-01-03

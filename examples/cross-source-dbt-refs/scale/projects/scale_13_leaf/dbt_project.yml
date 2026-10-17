@@ -1,0 +1,32 @@
+{
+  "name": "scale_13_leaf",
+  "version": "1.0.0",
+  "config-version": 2,
+  "profile": "cross_source_refs",
+  "model-paths": [
+    "models"
+  ],
+  "seed-paths": [
+    "seeds"
+  ],
+  "snapshot-paths": [
+    "snapshots"
+  ],
+  "models": {
+    "scale_13_leaf": {
+      "+materialized": "table",
+      "+access": "public",
+      "+schema": "scale_13_leaf"
+    }
+  },
+  "seeds": {
+    "scale_13_leaf": {
+      "+schema": "scale_13_leaf"
+    }
+  },
+  "snapshots": {
+    "scale_13_leaf": {
+      "+schema": "scale_13_leaf"
+    }
+  }
+}

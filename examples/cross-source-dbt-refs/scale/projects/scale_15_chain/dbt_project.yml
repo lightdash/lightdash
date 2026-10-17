@@ -1,0 +1,32 @@
+{
+  "name": "scale_15_chain",
+  "version": "1.0.0",
+  "config-version": 2,
+  "profile": "cross_source_refs",
+  "model-paths": [
+    "models"
+  ],
+  "seed-paths": [
+    "seeds"
+  ],
+  "snapshot-paths": [
+    "snapshots"
+  ],
+  "models": {
+    "scale_15_chain": {
+      "+materialized": "table",
+      "+access": "public",
+      "+schema": "scale_15_chain"
+    }
+  },
+  "seeds": {
+    "scale_15_chain": {
+      "+schema": "scale_15_chain"
+    }
+  },
+  "snapshots": {
+    "scale_15_chain": {
+      "+schema": "scale_15_chain"
+    }
+  }
+}
