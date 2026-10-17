@@ -1,3 +1,10 @@
+# [2.602.0](https://github.com/lightdash/lightdash/compare/2.601.0...2.602.0) (2026-10-17)
+
+
+### Features
+
+* **mcp:** advertise each tool's title in its annotations ([#31116](https://github.com/lightdash/lightdash/issues/31116)) ([46ce99c](https://github.com/lightdash/lightdash/commit/46ce99c20d0581c615eb5ac04e2daf58e3ca2e0b))
+
 # [2.601.0](https://github.com/lightdash/lightdash/compare/2.600.1...2.601.0) (2026-10-17)
 
 
