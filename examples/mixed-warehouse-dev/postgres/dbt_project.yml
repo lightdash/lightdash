@@ -1,0 +1,6 @@
+name: postgres_dev
+version: '1.0.0'
+config-version: 2
+profile: postgres_dev
+model-paths: ['models']
+target-path: target
