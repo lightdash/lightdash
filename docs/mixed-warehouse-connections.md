@@ -73,7 +73,7 @@ Places that used to read the primary's type now read the explore's connection:
 | Pre-aggregate week start at deploy | `ProjectService.getDeployStartOfWeekByExplore` uses the week start of an extra connection for its explores when the flag is on; explores on the primary, and every explore with the flag off, keep the project value |
 | AI agent | `getProjectInfo` lists every connection with its type, and the run-SQL prompt states each dialect. Raw SQL still runs on the primary |
 | Explore API | `ApiExploreResults.warehouseConnection` returns `{ warehouseConnectionUuid, warehouseType, startOfWeek }` |
-| Frontend | `useExploreWarehouseConnection` feeds SQL display, the formula editor gate, editor dialect labels, explorer filters, merge-query source filters, reference lines and scheduler chart overrides |
+| Frontend | `useExploreWarehouseConnection` feeds SQL display, the formula editor gate, editor dialect labels, explorer filters, merge-query source filters, reference lines and scheduler chart overrides. The explore's week start applies only with the flag on; with it off, these use the project week start |
 
 ## Joins and dbt refs across connections
 
