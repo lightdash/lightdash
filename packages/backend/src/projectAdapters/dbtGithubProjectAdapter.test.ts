@@ -26,7 +26,7 @@ describe('DbtGithubProjectAdapter', () => {
                     dbname: 'postgres',
                     schema: 'public',
                 } as CreateWarehouseCredentials,
-                { explicitCredentials: false },
+                { explicitCredentials: false, trinoPasswordlessAuth: false },
             ),
             targetName: undefined,
             environment: undefined,

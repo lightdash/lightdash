@@ -117,6 +117,7 @@ export type PreparedCredentials = CreateWarehouseCredentials & {
 
 export interface DbtTargetPolicy {
     explicitCredentials: boolean;
+    trinoPasswordlessAuth: boolean;
 }
 
 export type DbtTargetResult =
