@@ -629,7 +629,10 @@ export class WarehouseConnectionSwitchService extends BaseService {
                               : (credentials.requireUserCredentials ?? false),
                   }
                 : credentials;
-        const needsTest = shouldTestExtraCredentials(effectiveCredentials);
+        const needsTest = shouldTestExtraCredentials(
+            effectiveCredentials,
+            project.originalWarehouseType,
+        );
         const resolvedCredentials = needsTest
             ? await this.assertConnectionWorks(
                   account,

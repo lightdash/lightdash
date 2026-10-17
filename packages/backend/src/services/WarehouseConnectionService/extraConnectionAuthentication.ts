@@ -43,6 +43,7 @@ export const assertExtraConnectionAuthentication = (
 
 export const shouldTestExtraCredentials = (
     credentials: CreateWarehouseCredentials,
+    originalWarehouseType: WarehouseTypes | null,
 ): boolean => {
     assertExtraConnectionAuthentication(credentials);
     switch (credentials.type) {
@@ -53,7 +54,10 @@ export const shouldTestExtraCredentials = (
             ) {
                 if (!credentials.requireUserCredentials) {
                     throw new ParameterError(
-                        'A Snowflake connection without shared credentials requires users to provide their own credentials for this project.',
+                        originalWarehouseType === null ||
+                            originalWarehouseType === WarehouseTypes.SNOWFLAKE
+                            ? 'A Snowflake connection without shared credentials requires users to provide their own credentials on the original connection.'
+                            : 'A Snowflake connection without shared credentials requires users to provide their own credentials for this project.',
                     );
                 }
                 return false;

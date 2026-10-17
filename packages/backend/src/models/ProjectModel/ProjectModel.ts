@@ -1717,13 +1717,21 @@ export class ProjectModel {
             }
             const [project] = projects;
 
-            const extraOfAnotherType = await trx('warehouse_connections')
+            const extra = await trx('warehouse_connections')
                 .where('project_uuid', projectUuid)
                 .where('is_original', false)
-                .whereNot('warehouse_type', data.warehouseConnection.type)
-                .first('warehouse_connection_uuid');
-            if (extraOfAnotherType) {
-                throw new ConflictError(ORIGINAL_TYPE_LOCKED_MESSAGE);
+                .first('warehouse_type');
+            if (extra) {
+                const storedOriginal = await trx(WarehouseCredentialTableName)
+                    .where('project_id', project.project_id)
+                    .forUpdate()
+                    .first('warehouse_type');
+                if (
+                    (storedOriginal?.warehouse_type ?? extra.warehouse_type) !==
+                    data.warehouseConnection.type
+                ) {
+                    throw new ConflictError(ORIGINAL_TYPE_LOCKED_MESSAGE);
+                }
             }
 
             await this.upsertWarehouseConnection(
