@@ -764,9 +764,10 @@ class Runner:
             'joinType': 'full', 'tableCalculations': [], 'limit': 200,
         }, 'context': 'exploreView'}
         response = self.api.call('POST', f'/api/v2/projects/{project}/query/merge-query', body)
-        if not ok(response):
-            return self.rec.step(label, False, message(response), time.time() - start)
-        query_uuid = response['results']['queryUuid']
+        results = response.get('results') or {}
+        if not ok(response) or results.get('outcome') != 'started':
+            return self.rec.step(label, False, message(response) or clip(json.dumps(results.get('errors')), 300), time.time() - start)
+        query_uuid = results['query']['queryUuid']
         state = {}
         for _ in range(240):
             state = self.api.call('GET', f'/api/v2/projects/{project}/query/{query_uuid}?page=1&pageSize=200').get('results') or {}
@@ -809,8 +810,14 @@ class Runner:
             self.add_manifest_source(project, 'trino_cli', 'trino', trino_uuid)
             before = (self.api.call('GET', f'/api/v1/projects/{project}').get('results') or {}).get('warehouseConnection')
             name = f'CLI preview [{self.run_id}]'
+            profiles = Path(tempfile.mkdtemp(prefix='mixed-cli-profiles-'))
+            (profiles / 'profiles.yml').write_text(
+                'trino_dev:\n  target: dev\n  outputs:\n    dev:\n      type: trino\n      method: ldap\n'
+                '      user: lightdash\n      password: ""\n      host: localhost\n      port: 8080\n'
+                '      http_scheme: http\n      database: memory\n      schema: tpch_dev\n      threads: 2\n'
+            )
             start = time.time()
-            code, out = self.run_cli(env, ['start-preview', '--name', name, '--source', 'trino_cli', '--project-dir', str(TRINO_FIXTURE), '--profiles-dir', str(TRINO_FIXTURE), '--skip-warehouse-catalog'])
+            code, out = self.run_cli(env, ['start-preview', '--name', name, '--source', 'trino_cli', '--project-dir', str(TRINO_FIXTURE), '--profiles-dir', str(profiles), '--skip-warehouse-catalog'])
             self.rec.step('CLI start-preview --source into the Trino extra', code == 0, clip(out.replace('\n', ' ')[-400:], 400), time.time() - start)
             projects = self.api.call('GET', '/api/v1/org/projects').get('results') or []
             preview = next((p['projectUuid'] for p in projects if p['name'] == name), None)
@@ -833,7 +840,7 @@ class Runner:
         if clickhouse_source:
             response, seconds = timed(self.api.call, 'PATCH', f'/api/v1/projects/{project}/dbt-sources/{clickhouse_source}', {'warehouseLocation': {'database': 'other', 'schema': 'analytics'}})
             self.rec.step('a database override on a ClickHouse-bound source is refused', not ok(response) and 'not qualified by a database' in message(response), message(response), seconds)
-            response, seconds = timed(self.api.call, 'PATCH', f'/api/v1/projects/{project}/dbt-sources/{clickhouse_source}', {'warehouseLocation': {'schema': 'analytics'}})
+            response, seconds = timed(self.api.call, 'PATCH', f'/api/v1/projects/{project}/dbt-sources/{clickhouse_source}', {'warehouseLocation': {'database': None, 'schema': 'analytics'}})
             self.rec.step('a schema override on a ClickHouse-bound source is accepted', ok(response), message(response), seconds)
         if snowflake_source:
             response, seconds = timed(self.api.call, 'PATCH', f'/api/v1/projects/{project}/dbt-sources/{snowflake_source}', {'warehouseLocation': {'database': 'AGENT_DEMO', 'schema': 'PUBLIC'}})
@@ -964,6 +971,13 @@ def prepare_physical_fixtures(env, pg_database):
     ]
     for statement in statements:
         subprocess.run(trino + ['--execute', statement], check=True, capture_output=True)
+    clickhouse = f"http://localhost:{env.get('CLICKHOUSE_HTTP_PORT', '18123')}/?user=lightdash&password=lightdash"
+    for statement in [
+        'CREATE DATABASE IF NOT EXISTS analytics',
+        'CREATE TABLE IF NOT EXISTS analytics.ch_sessions (session_id UInt32, user_id UInt32, platform String, session_date Date, duration_minutes Float64) ENGINE = MergeTree ORDER BY session_id',
+        "INSERT INTO analytics.ch_sessions SELECT number + 1, number % 40, ['web', 'ios', 'android'][number % 3 + 1], toDate('2024-01-01') + number % 365, round((number % 90) * 1.5, 1) FROM numbers(2000) WHERE (SELECT count() FROM analytics.ch_sessions) = 0",
+    ]:
+        urllib.request.urlopen(urllib.request.Request(clickhouse, data=statement.encode(), method='POST'), timeout=60).read()
 
 
 def write_summary(recorder):
