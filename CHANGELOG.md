@@ -1,3 +1,10 @@
+## [2.603.3](https://github.com/lightdash/lightdash/compare/2.603.2...2.603.3) (2026-10-18)
+
+
+### Bug Fixes
+
+* copy upstream primary connection when lightdash preview --source creates a temporary preview ([#31121](https://github.com/lightdash/lightdash/issues/31121)) ([7a5a0ea](https://github.com/lightdash/lightdash/commit/7a5a0ea4319d75b0b64dd7fb999c2455324dc917)), closes [#28702](https://github.com/lightdash/lightdash/issues/28702)
+
 ## [2.603.2](https://github.com/lightdash/lightdash/compare/2.603.1...2.603.2) (2026-10-18)
 
 
