@@ -23,6 +23,33 @@ Summary of what a user notices, across all phases:
   second where a classic tile costs a third of one; classic dashboards are
   unchanged (Performance).
 
+## Removed and narrowed capabilities
+
+Everything a user could do before that they cannot do now, or can do less
+of. "Intended" means the design removes it; "gap" means nothing replaces it
+yet. The judgement on each is in
+[`migration-review.md`](migration-review.md), section "Removed capabilities:
+intended or gap".
+
+| Capability | Before | Now | Phase | Intended or gap |
+|---|---|---|---|---|
+| Aggregation in the SQL runner chart config | Pick sum, count, average, min or max per y-axis value; the chart aggregated the statement's rows | The chart draws the statement's rows. Write the `GROUP BY` in the SQL | 4 | Intended |
+| Editing the SQL of a legacy aggregated chart | Any saved SQL chart opened in the SQL runner | Charts that aggregated in the chart (most legacy bar, line, pie and big number charts) open read-only: the runner cannot represent the aggregating node. Change the config on the chart page, or rewrite the SQL with the aggregation and save a new chart | 4 | Intended, customer-visible |
+| Styling of folded SQL charts | SQL runner display config | Dropped on conversion: y-axis number format (`usd`, `%`), x-axis date format, 100% stacking (becomes normal stacking), table column order and bar colours, big number conditional formatting. Re-apply them in the chart page config panel | 3 | Gap: the converter could carry most of them |
+| Number formatting in folded tables | Typed columns | Columns are strings until the chart is saved again; numbers show unformatted and the dashboard filter picker offers string operators only | 3 | Gap |
+| SQL chart version history | Every version | The latest version only; older versions stay in `saved_sql_versions`, unreadable from the app | 3 | Decide: copy or accept |
+| The SQL runner's own config panel and the pivoted results table under the chart | Column-addressed config; a second table of the pivoted rows | The explorer's config panel; the pivot is visible in the chart only | 4 | Intended |
+| Big number in the agent viz switcher | Offered | Not offered | 1 | Intended |
+| Per-series aggregation in composer artifacts | Stored in viz schema v1 | Dropped on the read-time upgrade to v2; the pipeline aggregates | 1 | Intended |
+| Chart page downloads for pipeline charts | The SQL chart page had CSV, Excel and image | The pipeline chart page has no download menu (dashboard tile menus still export) | 3 | Gap |
+| Dashboard date zoom, semantic dashboard filters, column totals, drill, underlying data, view SQL, "Explore from here", the in-dashboard chart editor | Available on explore charts (date zoom and semantic filters never applied to SQL tiles) | Not applied to pipeline charts, folded SQL charts included | 2, 3 | Documented as not applied; each is a gap for folded charts where it worked before |
+| Threshold alerts and filter overrides on folded charts | Alert fields and overrides on SQL charts (where offered) | Alerts on folded tables see string fields only; delivery and alert filter overrides are not applied to pipeline runs | 3 | Gap |
+| Validation of SQL charts | Validator checked them | Pipeline charts are skipped; a broken one is found when it runs | 2 | Gap |
+| Deprecated SQL chart API fields | `views`, agent identity | `views` is 0, agent identity null | 3 | Intended (sunset) |
+| Old links for a chart whose slug collided | `/sql-runner/<slug>` opened the SQL chart | The slug was suffixed `-sql-<uuid8>`; the old link opens the explore chart that holds the slug | 3 | Gap: customer-visible with no warning |
+| SQL chart tile load time | One warehouse query, about 0.3 s | A pipeline run, about 0.6 s (table) to 1.1 s (aggregated chart) | 3 | Accepted cost, measured below |
+| Old `@lightdash/sdk` versions | Drew SQL tiles | Cannot draw pipeline charts; the host app must upgrade the SDK | 3 | Customer action |
+
 The plan this executes is in `docs/composer-viz-plan/` (query and result
 interface) with the viz target changed: the chart stack is the explorer's
 `ChartConfig` drawn by `@lightdash/visualization`, not the SQL runner's
@@ -308,8 +335,12 @@ classic charts are unchanged. Numbers are in the Performance section.
   `viz-unification-p3-sql-charts-fold-into-saved-charts`.
 - **API**: the saved SQL chart endpoints keep their paths and shapes and
   operate on saved charts (see the declaration). `GET .../sqlRunner/saved/*`
-  returns a SQL runner config rebuilt from the explorer config, which is
-  lossy for styling the SQL runner could not express.
+  returns a SQL runner config rebuilt from the explorer config.
+- **Conversion losses**: the fold drops y-axis number formats, x-axis date
+  formats, 100% stacking, table column order and bar colours, and big number
+  conditional formatting (`sqlChartPipeline.ts` does not carry them). The
+  deprecated GET cannot return them either. They must be re-applied on the
+  chart page. The rig confirmed the loss on every seeded chart that had them.
 - **Permissions**: a SQL chart's direct grants are the saved chart's; the
   `sqlChart` access target resolves as a chart.
 - **Views and favourites**: SQL charts had none; they now count views like

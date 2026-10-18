@@ -144,6 +144,7 @@ were not exercised.
 | QA-SCHD-P03, P04 | Legacy SQL chart syncs are not listed on the chart, and show the old name after a rename |
 | QA-CODE-P04 | `sqlCharts` download without ids returns nothing |
 | QA-SQLR-P02, P03 | Config round-trips are lossy; the colliding chart's old slug opens the other chart |
+| QA-SQLR-U05 | Folded charts lost their y-axis number format, x-axis date format, table column order and bar colours on conversion (numbers unchanged) |
 
 **Expected changes seen**
 

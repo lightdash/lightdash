@@ -58,7 +58,8 @@ tests are net −13,600 lines.
 - **Adapter**: an old endpoint or model keeps its contract by translating to
   the new shape. Removed after a deprecation window.
 - **Customer action**: something outside the database (a repo, an SDK version,
-  a link) needs the customer to change it.
+  a link) needs the customer to change it. Section "Code in the wild" lists
+  every one.
 - **None**: code change only.
 
 ## Feature by feature
@@ -94,6 +95,76 @@ to finish it (removal). Low, medium, high.
 | `@lightdash/query-sdk`, `@lightdash/visualization` | — | None | — | None; the backend now depends on the visualization package | — | EMBD-N05, N06 |
 | Slack images, MCP `render_chart` | — | None | — | Lower than before: one chart engine instead of two | — | AI-N05, AI-N07 |
 | Pipeline charts (new content shape) | `saved_queries_version_pipelines` | New table | — | **High and ongoing**: every chart consumer needs a pipeline branch. Today these do not have one: dashboard date zoom, semantic dashboard filters, totals and subtotals, drill and underlying data, data app generation, managed agent fixes, embed available filters and filter search, alerts and filter overrides, chart page downloads | Either build pipeline support in each, or keep the list documented as "not applied" | DASH-N03, N04; APPS-P01; EMBD-P02 to P05; CHRT-P03, P04 |
+
+## Code in the wild
+
+Everything outside this database that holds the old shape. These are what
+stop a change from landing overnight: we can rewrite our own rows in one
+migration, but a pinned SDK, a customer's git repo, a script, a bookmarked
+link or a browser tab is changed by the customer, on the customer's schedule.
+"Window" is the deprecation period we owe; "customer action" is what they
+must do; "ours" means we can change it in one release.
+
+| What | Where it lives | Old shape | Today | To retire | Who moves it |
+|---|---|---|---|---|---|
+| Saved SQL chart REST API (9 operations under `sqlRunner/saved*`) | Customer scripts, Terraform-style tooling, anything written against the public API | SQL chart with a SQL runner config | Adapter over saved charts; `Deprecation` and `Sunset` headers; sunset 2027-01-18 | Delete after sunset. Add a deprecated-call log alert so we know who still calls them | Window, then customer action |
+| `POST /api/v2/…/query/sql-chart`, `…/query/dashboard-sql-chart` | Public, documented endpoints; any script that read SQL chart results | Rows keyed by column names (`amount_sum`) | Rows keyed by field ids (`aggregated_amount_sum`); declared first-party-only, which a public endpoint is not | Decide: a compatibility mode that maps keys back, or a `breaking` declaration and a deprecation window | Ours to decide; customer action either way |
+| Dashboard, space and content API shapes | Customer scripts; the generated OpenAPI clients customers build from `swagger.json` | `sql_chart` tiles with `savedSqlUuid`; `sqlCharts` array on spaces; SQL chart content type in search | Tiles come back as `saved_chart`; `sqlCharts` is empty; one content type. Not declared | Declare it; keep accepting `sql_chart` tiles on write (we do) for a window | Customer action |
+| Embed SQL tile endpoints (`embed/{p}/sql-chart-tile/{tile}`, `embed/{p}/query/dashboard-sql-chart`) | Host apps that call the embed API directly (rare; the SDK calls it for them) | SQL tile and its query | Always 400; dead | Delete | Window |
+| `@lightdash/sdk` | Pinned in customer `package.json`; bundles our tile components | SQL tile component requests explore `sql` | Old versions cannot draw folded or pipeline charts (404 on the explore) | Nothing server-side fixes this short of keeping the old tile shape | **Customer action**: upgrade the SDK. The single biggest overnight blocker |
+| `@lightdash/query-sdk` | Pinned in customer apps | `savedChart(uuid)` | Same call; folded charts run as pipelines and return field-id keys | None | None (keys change for former SQL charts) |
+| Embed JWTs | Minted by host apps; name content by uuid | Chart and dashboard uuids | Same uuids (the fold keeps them) | None | None |
+| Content-as-code YAML: `charts/*.sql.yml` | Customer git repos; CI runs `lightdash upload` | `SqlChartAsCode` (`contentType: sql_chart`) | Accepted through the adapter, written as a pipeline chart; download under `sqlCharts` returns nothing without ids; a repo re-downloaded on the branch holds both `x.sql.yml` and `x.yml` and writes the chart twice per upload; a slug now owned by another chart is dropped silently (CODE-P03) | Keep accepting `.sql.yml` for a window; ship a `lightdash` command that deletes them after re-download | Window, then customer action |
+| Content-as-code YAML: `dashboards/*.yml` | Customer git repos | Tiles of `type: sql_chart` | Accepted and stored as chart tiles; legacy tile slugs in downloads come from `saved_sql` (pre-suffix, stale after rename) | Keep accepting `sql_chart` tiles; fix the download to use the saved chart slug | Window |
+| Content-as-code YAML: `charts/*.yml` with `pipeline:` | Customer git repos; CI runs `lightdash lint` | No `pipeline` key | Old CLI lint fails (`additionalProperties: false`); old CLI upload passes it through | Nothing to retire; schema is still `chart-as-code-1.0` with a new optional key | Customer action: upgrade the CLI where CI lints |
+| `@lightdash/cli` | Pinned in customer CI (`npm i -g @lightdash/cli@x`) | Downloads SQL charts as `.sql.yml` | No CLI code changed on the branch; behaviour changes through the server. An old CLI keeps working except lint | None | Customer action for lint only |
+| Document content: `<saved-sql-chart uuid>` tags and inline `source: 'sql'` charts | Our `document_versions` rows and documents-as-code YAML in repos | SQL chart link; SQL runner config | Tag parsed and rewritten to a chart link on read; inline config converted on every run; a new tag for a post-upgrade chart is rejected (DOCS-P01) | Rewrite stored rows; keep parsing the tag as an alias of `<saved-chart>` forever (it costs one regex) | Ours, plus alias kept |
+| URLs: `/projects/:p/sql-runner/:slug` | Bookmarks, chat, Slack unfurls, delivery emails, other dashboards' markdown tiles | SQL chart page | Redirects to `/saved/:uuid/view` and keeps the query string; the colliding chart's old slug opens the other chart | Keep the redirect forever | None, except the collision cases: tell those customers |
+| SQL runner share links | `share_urls.params` in our database, but the links live in chat history | SQL runner state and config | Converted when opened | Keep the converter forever (one file) | None |
+| Translation keys (`contentOverrides`, keyed by chart slug) | Host apps | Slug | Same slug except colliding charts | None | Customer action for the collision cases |
+| MCP tools | Any MCP client; the committed tool snapshot | `render_chart` returned the Slack builders' ECharts option | Tool schemas unchanged (snapshot check passes); the option is the web engine's | None | None |
+| AI agent content tools (`create_content`, `edit_content`, `read_content`) | Agent prompts and skills written against type `sql_chart` | `sql_chart` type | Accepted through the adapter; `edit_content` as `chart` bypasses SQL approval (AI-P03) | Keep `sql_chart` as an alias | Ours |
+| `PATCH …/artifacts/…/viz-config` | The web app only; behind the agent flag | Viz config body | Removed; replaced by `…/viz`; declared, flag-gated | Done | None |
+| Public docs (docs.lightdash.com) | SQL runner chart docs describe per-value aggregation; API reference lists the deprecated operations | | Docs describe the old UI until `mintlify-docs` is updated | Update with the release; deprecation banners on the API pages | Ours |
+| Old browser tabs during a rolling update | Users' browsers | Old assets call the old tile endpoints | Declared; errors until refresh | None | None |
+| Old backend pods during a rolling update | Cloud rollouts | Write `saved_sql` | A SQL chart saved by an old pod after the fold migration ran is never copied and disappears (API-P01) | Run the fold as a post-rollout step, or re-run the copy on the first new-pod boot after the last old pod stops | Ours |
+
+What this means for "finish the fold overnight": the database side can. The
+API side cannot: the nine deprecated operations and the public v2 query
+endpoints need their window, and `.sql.yml` files, `sql_chart` dashboard
+tiles and `<saved-sql-chart>` tags need to stay accepted as aliases for as
+long as customer repos carry them. The SDK is the one place where nothing on
+our side helps: a host app on an old SDK shows broken tiles from the moment
+of the upgrade until it ships a new build.
+
+## Removed capabilities: intended or gap
+
+The full list of what a user loses is the "Removed and narrowed
+capabilities" table in [`migration.md`](migration.md). The judgement:
+
+- **Intended, and should be in the release notes**: aggregation leaves the
+  SQL runner config for the SQL; the runner's own config panel and pivoted
+  results table go; legacy aggregated charts cannot have their SQL edited in
+  the runner any more; big number leaves the agent viz switcher; composer
+  per-series aggregation moves to the pipeline. These were decisions of the
+  plan. The legacy-chart SQL editing one is the one customers will raise:
+  most saved SQL charts aggregated in the chart, so most of them lose the
+  Edit SQL path. A "rewrite with the aggregation in SQL" helper in the
+  runner would soften it.
+- **Gap, fix before release**: the conversion losses (y-axis formats, date
+  formats, 100% stacking, table column order and bar colours, big number
+  conditional formatting). The explorer config can express every one of
+  them; the converter just does not carry them. A dashboard of folded charts
+  loses its currency symbols on upgrade day, which reads as a regression,
+  not a migration.
+- **Gap, fix before release**: string-typed columns on folded tables (number
+  formatting and filter operators), and the colliding-slug link retarget
+  (at least log and surface which charts were suffixed).
+- **Gap, decide**: chart page downloads for pipeline charts; alerts and
+  filter overrides; version history beyond the latest version; validation.
+  Each worked for SQL charts before. Either build the pipeline branch or
+  say in the release notes that it is gone.
+- **Accepted cost**: tile load time. Measured; documented.
 
 ## What the branch retires and what it adds
 
@@ -149,6 +220,17 @@ Added and kept alive:
    confirmed), agent SQL artifact link (AI-P01), as-code slug collision
    (CODE-P03, confirmed) and pipeline removal (CODE-P01), agent SQL approval for
    pipeline edits (AI-P03).
+7. **Carry the SQL runner styling through the fold**: y-axis formats, x-axis
+   date formats, 100% stacking, table column order and bar colours, big
+   number conditional formatting. The explorer config holds all of them; the
+   gap is in `sqlChartPipeline.ts`. Re-run the fold's conversion for schema 0
+   pipelines once it does (they are converted on read, so no data migration).
+8. **Write the release notes from the "Removed and narrowed capabilities"
+   table** in `migration.md`, and update the SQL runner docs: aggregation is
+   in the SQL now.
+9. **Decide the public-API posture** for the v2 SQL chart query endpoints and
+   the dashboard, space and content shape changes (section "Code in the
+   wild"): a compatibility mode, or a `breaking` declaration and a window.
 
 ## Confirmed on the QA rig
 
