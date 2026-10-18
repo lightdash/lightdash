@@ -578,11 +578,45 @@ runs (within 10 ms), and the median ready time of every tile is identical on
 POP Tests. On Weekly revenue review three tiles are ready one poll later
 (the harness polls every 150 ms) in both phase 4 runs: those tiles finish
 within a few tens of milliseconds of the poll boundary, so the dashboard
-number moves by a whole poll interval. A re-run with a 50 ms poll is
-recorded below once it completes; the compose engine queries a pipeline chart
-submits are unchanged between the two images.
+number moves by a whole poll interval. The same A/B with a 50 ms poll, on
+the phase 4 head (`0117b06`, which adds the Slack and MCP rendering and the
+chart page actions), five runs each, phase 4 then phase 3 then phase 4:
+
+| Dashboard | Chart tiles | Warm wall ms (p4 run 1 → p3 → p4 run 2) |
+|---|---|---|
+| Jaffle dashboard | 5 | 748 → 722 → 759 |
+| Dashboard with dashboard charts | 1 | 297 → 301 → 310 |
+| Pivot Table Dashboard | 10 | 1029 → 1079 → 1065 |
+| Cartesian Charts (time dimensions) | 15 | 1141 → 1113 → 1174 |
+| Filter Tests Dashboard | 19 | 1280 → 1230 → 1274 |
+| POP Tests Dashboard | 5 | 567 → 542 → 507 |
+| Table Calculations Tests Dashboard | 8 | 730 → 695 → 657 |
+| Fanout Tests Dashboard | 8 | 955 → 942 → 969 |
+| [CF Coverage] Dashboard | 11 | 1003 → 969 → 969 |
+| Weekly revenue review | 6 | 710 → 658 → 538 |
+| Perf pipeline vs classic | 2 | 1174 → 1154 → 1172 |
+| Legacy SQL charts | 2 | 1180 → 1180 → 1187 |
+
+Per tile, over the 96 chart tiles the harness runs (median of the warm runs
+per tile, averaged):
+
+| | Phase 3 | Phase 4 run 1 | Phase 4 run 2 |
+|---|---|---|---|
+| Submit (POST dashboard-chart) ms | 315 | 328 | 325 |
+| Submit to ready ms | 496 | 507 | 501 |
+| Ready ms | 811 | 836 | 830 |
+
+Reading: phase 4 is within 10 to 25 ms per tile of phase 3 (about 3 percent),
+split evenly between the submit request and the wait for the result, with
+27 tiles more than 50 ms slower and 12 more than 50 ms faster. The dashboard
+path's code is the same on both images; a difference of that size on this
+environment is below what repeated runs of one image show. No dashboard is
+slower by more than the run to run spread, and the pipeline and folded SQL
+chart tiles are unchanged.
 
 Methodology and raw reports: `docs/viz-unification/perf/`
 (`dashboard-api-bench.mjs`, `baseline-main-a7333cf.json`,
 `p2-a070e57.json`, `p3-6285a84.json`, `p3-6285a84-ab.json`,
-`p4-5fae217-run1.json`, `p4-5fae217-run2.json`, `compare.mjs`).
+`p4-5fae217-run1.json`, `p4-5fae217-run2.json`, `p3-6285a84-fine.json`,
+`p4b-0117b06-fine-run1.json`, `p4b-0117b06-fine-run2.json`, `compare.mjs`).
+The harness polls every 150 ms by default; `--poll 50` is the finer run.

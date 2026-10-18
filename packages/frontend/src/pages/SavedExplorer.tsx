@@ -268,14 +268,18 @@ const SavedExplorer = () => {
         );
     }
 
-    // A pipeline chart has no explore; it has its own page
+    // A pipeline chart has no explore; it has its own page. The explorer
+    // store still carries the chart for the config panels and the chart
+    // modals (deliveries, syncs) that read it.
     if (data.pipeline) {
         return (
-            <SavedPipelineChartPage
-                key={data.uuid}
-                chart={data}
-                isEditMode={isEditMode}
-            />
+            <Provider store={store} key={`saved-${savedQueryUuid}`}>
+                <SavedPipelineChartPage
+                    key={data.uuid}
+                    chart={data}
+                    isEditMode={isEditMode}
+                />
+            </Provider>
         );
     }
 
