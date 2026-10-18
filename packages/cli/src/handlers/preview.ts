@@ -6,8 +6,10 @@ import {
     Project,
     ProjectType,
     type ApiUpdateWarehouseConnectionRequest,
+    type CreateWarehouseCredentials,
     type DbtSourceBindings,
     type WarehouseConnection,
+    type WarehouseConnectionWithCredentials,
 } from '@lightdash/common';
 import chokidar from 'chokidar';
 import inquirer from 'inquirer';
@@ -508,6 +510,17 @@ export const previewHandler = async (
     await cleanupProject(executionId, project.projectUuid, previewStartTime);
 };
 
+const withCurrentSettings = (
+    credentials: CreateWarehouseCredentials,
+    current: WarehouseConnectionWithCredentials['warehouseConnection'],
+): CreateWarehouseCredentials => {
+    if (!current || current.type !== credentials.type) return credentials;
+    const defined = Object.fromEntries(
+        Object.entries(credentials).filter(([, value]) => value !== undefined),
+    );
+    return { ...current, ...defined } as CreateWarehouseCredentials;
+};
+
 type SourceConnection =
     | { kind: 'primary' }
     | {
@@ -626,8 +639,17 @@ const refreshPreviewWarehouseCredentials = async (
     );
     try {
         if (connection) {
+            const current =
+                await lightdashApi<WarehouseConnectionWithCredentials>({
+                    method: 'GET',
+                    url: `/api/v1/projects/${projectUuid}/warehouse-connections/${connection.warehouseConnectionUuid}`,
+                    body: undefined,
+                });
             const body: ApiUpdateWarehouseConnectionRequest = {
-                warehouseConnection: loaded.credentials,
+                warehouseConnection: withCurrentSettings(
+                    loaded.credentials,
+                    current.warehouseConnection,
+                ),
             };
             await lightdashApi<WarehouseConnection>({
                 method: 'PATCH',
@@ -854,7 +876,7 @@ export const startPreviewHandler = async (
             );
         }
 
-        const previewSource = keepsUpstreamPrimary
+        const previewSource = upstreamProjectUuid
             ? await resolveSourceConnection(
                   await getProject(project.projectUuid),
                   options.source,

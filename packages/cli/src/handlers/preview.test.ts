@@ -436,4 +436,50 @@ describe('startPreviewHandler credential refresh', () => {
         );
         expect(credentialWrites()).toEqual([]);
     });
+
+    it('keeps the source connection settings that the profile does not set when refreshing', async () => {
+        extraConnection = {
+            warehouseConnectionUuid: 'extra',
+            name: 'Finance warehouse',
+            warehouseConnection: {
+                type: WarehouseTypes.POSTGRES,
+                host: 'old.example.com',
+                port: 5432,
+                dbname: 'finance',
+                schema: 'public',
+                requireUserCredentials: true,
+                startOfWeek: 2,
+            },
+        } as WarehouseConnectionWithCredentials;
+        await startPreviewHandler(options);
+        const [write] = credentialWrites();
+        expect(write.url).toBe(extraUrl);
+        expect(JSON.parse(write.body as string).warehouseConnection).toEqual({
+            ...credentials,
+            requireUserCredentials: true,
+            startOfWeek: 2,
+        });
+    });
+
+    it('reads the source connection timestamp setting for a new preview without warehouse credentials', async () => {
+        existingPreview = false;
+        vi.mocked(detectProjectType).mockResolvedValue({
+            type: CliProjectType.Dbt,
+            warehouseCredentials: false,
+            skipDbtCompile: undefined,
+            skipWarehouseCatalog: undefined,
+        });
+        vi.mocked(createProject).mockResolvedValue({
+            project,
+            hasContentCopy: true,
+        } as never);
+        await startPreviewHandler({ ...options, warehouseCredentials: false });
+        expect(createProject).toHaveBeenCalledWith(
+            expect.objectContaining({ warehouseCredentials: false }),
+        );
+        expect(credentialWrites()).toEqual([]);
+        expect(compileProject).toHaveBeenCalledWith(
+            expect.objectContaining({ disableTimestampConversion: true }),
+        );
+    });
 });
