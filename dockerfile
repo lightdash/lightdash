@@ -274,6 +274,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 # Build backend package
 FROM prod-builder AS build-backend
 COPY --from=build-common /usr/app/packages/common/ ./packages/common/
+COPY --from=build-visualization /usr/app/packages/visualization/ ./packages/visualization/
 COPY --from=build-formula /usr/app/packages/formula/ ./packages/formula/
 COPY --from=build-warehouses /usr/app/packages/warehouses/ ./packages/warehouses/
 COPY packages/backend/tsconfig.json ./packages/backend/

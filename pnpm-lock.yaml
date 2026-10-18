@@ -319,6 +319,9 @@ importers:
       '@lightdash/formula':
         specifier: workspace:*
         version: link:../formula
+      '@lightdash/visualization':
+        specifier: workspace:*
+        version: link:../visualization
       '@lightdash/warehouses':
         specifier: workspace:*
         version: link:../warehouses

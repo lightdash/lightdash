@@ -18,9 +18,8 @@ import { renderEcharts } from '../ai/utils/renderEcharts';
 import { getSlackArtifactCardBlockId } from '../ai/utils/slackArtifactImages';
 import { AiAgentService } from './AiAgentService';
 
-vi.mock('@lightdash/common', async (importOriginal) => ({
-    ...(await importOriginal<typeof import('@lightdash/common')>()),
-    getSlackAiEchartsConfig: vi.fn().mockResolvedValue({}),
+vi.mock('../ai/utils/renderAiChart', () => ({
+    buildAiChart: vi.fn().mockReturnValue({ kind: 'echarts', option: {} }),
 }));
 vi.mock('../ai/utils/renderEcharts', () => ({
     renderEcharts: vi.fn().mockResolvedValue(Buffer.from('image')),

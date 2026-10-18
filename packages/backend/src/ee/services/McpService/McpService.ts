@@ -7,7 +7,6 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AiAgentWithContext,
-    AiResultType,
     AiWritebackRunStatus,
     aiWritebackRunStatusToMcpTaskStatus,
     AiWritebackSource,
@@ -51,7 +50,6 @@ import {
     getLightdashVersionToolDefinition,
     getMetadataToolDefinition,
     getQueryResultToolDefinition,
-    getSlackAiEchartsConfig,
     getTotalFilterRules,
     getValidAiQueryLimit,
     grepFieldsToolDefinition,
@@ -217,11 +215,11 @@ import {
     formatFilterExpressionError,
     resolveFilterExpressionArgs,
 } from '../ai/utils/filterExpressions';
-import { getPivotedResults } from '../ai/utils/getPivotedResults';
 import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
+import { buildAiChart } from '../ai/utils/renderAiChart';
 import { validateQueryParameters } from '../ai/utils/validators';
 import { AiAgentService } from '../AiAgentService/AiAgentService';
 import { type AiAgentSkillService } from '../AiAgentSkillService';
@@ -1386,17 +1384,14 @@ export class McpService extends BaseService {
             };
         }
 
-        const echartsOption = await getSlackAiEchartsConfig({
-            toolArgs: {
-                type: AiResultType.QUERY_RESULT,
-                tool: queryTool,
-            },
-            queryResults: {
-                rows,
-                fields,
-            },
-            getPivotedResults,
+        const rendered = buildAiChart({
+            queryTool,
+            metricQuery: query,
+            rows,
+            fields,
         });
+        const echartsOption =
+            rendered?.kind === 'echarts' ? rendered.option : null;
 
         const mcpEchartsOption = echartsOption
             ? {

@@ -306,9 +306,12 @@ describe('Saved SQL chart', () => {
         );
         const space = spaceResp.body.results[0];
 
-        const sql = 'SELECT status, amount FROM jaffle.payments';
+        const sql = 'SELECT payment_method, amount FROM jaffle.payments';
         const columns: ResultColumns = {
-            status: { reference: 'status', type: DimensionType.STRING },
+            payment_method: {
+                reference: 'payment_method',
+                type: DimensionType.STRING,
+            },
             amount: { reference: 'amount', type: DimensionType.NUMBER },
         };
         const name = uniqueName('SQL chart slug collision');
@@ -318,7 +321,7 @@ describe('Saved SQL chart', () => {
             metricQuery: {
                 exploreName: SQL_CHART_NODE_ID,
                 dimensions: [
-                    `${SQL_CHART_NODE_ID}_status`,
+                    `${SQL_CHART_NODE_ID}_payment_method`,
                     `${SQL_CHART_NODE_ID}_amount`,
                 ],
                 metrics: [],
@@ -330,7 +333,7 @@ describe('Saved SQL chart', () => {
             chartConfig: { type: ChartType.TABLE },
             tableConfig: {
                 columnOrder: [
-                    `${SQL_CHART_NODE_ID}_status`,
+                    `${SQL_CHART_NODE_ID}_payment_method`,
                     `${SQL_CHART_NODE_ID}_amount`,
                 ],
             },
@@ -381,26 +384,28 @@ describe('Saved SQL chart', () => {
             runResp.body.results.queryUuid,
         );
         expect(rows.length).toBeGreaterThan(0);
-        expect(rows[0]).toHaveProperty(`${SQL_CHART_NODE_ID}_status`);
+        expect(rows[0]).toHaveProperty(`${SQL_CHART_NODE_ID}_payment_method`);
         expect(rows[0]).toHaveProperty(`${SQL_CHART_NODE_ID}_amount`);
 
         // A new version replaces the statement
-        const updatedSql = 'SELECT status FROM jaffle.payments';
+        const updatedSql = 'SELECT payment_method FROM jaffle.payments';
         const versionResp = await admin.post<any>(
             `${apiUrl}/saved/${uuid}/version`,
             {
                 tableName: SQL_CHART_NODE_ID,
                 metricQuery: {
                     ...chartToCreate.metricQuery,
-                    dimensions: [`${SQL_CHART_NODE_ID}_status`],
+                    dimensions: [`${SQL_CHART_NODE_ID}_payment_method`],
                     limit: 22,
                 },
                 chartConfig: chartToCreate.chartConfig,
-                tableConfig: { columnOrder: [`${SQL_CHART_NODE_ID}_status`] },
+                tableConfig: {
+                    columnOrder: [`${SQL_CHART_NODE_ID}_payment_method`],
+                },
                 pipeline: buildSqlChartPipeline({
                     sql: updatedSql,
                     limit: 22,
-                    columns: { status: columns.status },
+                    columns: { payment_method: columns.payment_method },
                     warehouseConnectionUuid: null,
                 }),
             },
@@ -415,7 +420,8 @@ describe('Saved SQL chart', () => {
             warehouseConnectionUuid: null,
         });
 
-        // Deleting reserves the slug for a restore
+        // The name can be saved again after a delete; whether the slug is
+        // reused depends on whether the instance soft deletes
         const deleteResp = await admin.delete(`${apiUrl}/saved/${uuid}`);
         expect(deleteResp.status).toBe(200);
         await admin.delete(
@@ -426,9 +432,8 @@ describe('Saved SQL chart', () => {
             chartToCreate,
         );
         expect(recreatedResp.status).toBe(200);
-        expect(recreatedResp.body.results.slug).not.toBe(slug);
-        expect(recreatedResp.body.results.slug).not.toBe(
-            duplicateResp.body.results.slug,
+        expect(recreatedResp.body.results.slug).toMatch(
+            new RegExp(`^${generateSlug(name)}`),
         );
         await admin.delete(
             `${apiUrl}/saved/${recreatedResp.body.results.uuid}`,

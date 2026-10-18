@@ -118,7 +118,6 @@ import {
     getItemId,
     getItemLabelWithoutTableName,
     getItemMap,
-    getSlackAiEchartsConfig,
     getValidAiQueryLimit,
     getWebAiChartConfig,
     GITHUB_MCP_SERVER_NAME,
@@ -566,7 +565,6 @@ import {
     createUserFacingErrorResolver,
     getUserFacingErrorMessage,
 } from '../ai/utils/errorMessages';
-import { getPivotedResults } from '../ai/utils/getPivotedResults';
 import {
     buildFeedbackContextActions,
     buildSlackTaskUpdate,
@@ -602,6 +600,7 @@ import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
+import { buildAiChart } from '../ai/utils/renderAiChart';
 import { renderEcharts } from '../ai/utils/renderEcharts';
 import { getSlackArtifactCardVersions } from '../ai/utils/slackArtifactImages';
 import { getSlackSelectedCardArtifacts } from '../ai/utils/slackChartSelection';
@@ -2107,7 +2106,10 @@ export class AiAgentService extends BaseService {
         const client = await this.slackClient.getWebClient(
             prompt.organizationUuid,
         );
-        const artifacts = new Map<string, AiArtifact>();
+        const artifacts = new Map<
+            string,
+            { artifact: AiArtifact; metricQuery: MetricQuery }
+        >();
         return {
             resultReader,
             findMessage: async (messageTs, versions) => {
@@ -2193,21 +2195,26 @@ export class AiAgentService extends BaseService {
                         ),
                     ),
                 );
-                await this.asyncQueryService.getAsyncQueryHistory({
-                    account: fromSession(user),
-                    reader: resultReader,
-                    projectUuid: prompt.projectUuid,
-                    queryUuid: input.queryUuid,
+                const queryHistory =
+                    await this.asyncQueryService.getAsyncQueryHistory({
+                        account: fromSession(user),
+                        reader: resultReader,
+                        projectUuid: prompt.projectUuid,
+                        queryUuid: input.queryUuid,
+                    });
+                artifacts.set(input.versionUuid, {
+                    artifact,
+                    metricQuery: queryHistory.metricQuery,
                 });
-                artifacts.set(input.versionUuid, artifact);
             },
             render: async (input) => {
                 signal?.throwIfAborted();
-                const artifact = artifacts.get(input.versionUuid);
-                if (!artifact)
+                const authorized = artifacts.get(input.versionUuid);
+                if (!authorized)
                     throw new ForbiddenError(
                         'Slack image has not been authorized',
                     );
+                const { artifact, metricQuery } = authorized;
                 if (artifact.chartConfig?.source === 'customChartType') {
                     const { imageUrl } =
                         await this.unfurlService.exportAiAgentArtifact(
@@ -2236,16 +2243,14 @@ export class AiAgentService extends BaseService {
                         maxRows: input.rowLimit,
                     });
                 if (queryResults.rows.length !== input.rowLimit) return null;
-                const options = await getSlackAiEchartsConfig({
-                    toolArgs: {
-                        type: AiResultType.QUERY_RESULT,
-                        tool: input.queryTool,
-                    },
-                    queryResults,
-                    getPivotedResults,
+                const rendered = buildAiChart({
+                    queryTool: input.queryTool,
+                    metricQuery,
+                    rows: queryResults.rows,
+                    fields: queryResults.fields,
                 });
-                if (!options) return null;
-                const image = await renderEcharts(options);
+                if (rendered?.kind !== 'echarts') return null;
+                const image = await renderEcharts(rendered.option);
                 return this.uploadSlackAgentCardImage(
                     {
                         organizationUuid: prompt.organizationUuid,

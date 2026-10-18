@@ -396,11 +396,36 @@ charts saved before the fold and old share links still convert.
   Document exports (PDF) draw inline SQL charts through the same renderer
   as every other chart.
 
+### Slack and MCP chart images
+
+The agent's Slack images and the MCP `render_chart` tool draw through the
+chart engine the web app uses (`@lightdash/visualization`'s `renderChart`).
+The tool's chart config becomes the explorer chart config the way the web
+answer does (`getRunQueryChartConfig`), a grouped chart pivots its rows in
+process into the shape the query API returns for a pivoted result
+(`pivotQueryResults`, with `pivotDetails`), the engine builds the ECharts
+option headlessly, and `renderEcharts` rasterizes it with node-canvas as
+before. The backend depends on `@lightdash/visualization` for this (the
+image build copies the package into the backend build stage).
+
+Deleted: the Slack ECharts config builders in
+`packages/common/src/ee/AiAgent/chartConfig/slack` and the DuckDB pivot
+(`getPivotedResults`). The backend keeps DuckDB for its other uses.
+
+What changes for a user:
+
+- **Slack images look like the web chart.** Same axes, legend, series
+  colours, number and date formats, stacking and grouping as the answer in
+  the app. Before, Slack had its own simplified drawing (plain default
+  colours, raw axis values).
+- **The MCP chart app** receives the same ECharts option the web draws.
+  Function formatters do not survive JSON, so the app keeps injecting its
+  own tooltip formatter; axis labels show the engine's formatted values.
+- **Tables and custom chart types** are unchanged: a table answer sends no
+  image, a custom chart type still exports through the headless browser.
+
 ### Not in phase 4
 
-- Slack and MCP chart images still render through their own ECharts path
-  (`renderEcharts`, the MCP chart app); unifying them on the headless
-  `renderChart` of `@lightdash/visualization` is the next step.
 - `saved_sql*` tables and the `saved_sql_uuid` columns (tiles, schedulers,
   documents, agent artifacts) are dropped in a later release once no pod
   reads them.
