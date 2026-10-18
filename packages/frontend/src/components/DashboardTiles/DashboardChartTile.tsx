@@ -2689,8 +2689,13 @@ export const GenericDashboardChartTile: FC<
                     }
                 />
             )}
-            <UnderlyingDataModal />
-            <DrillDownModal onExplore={onDrillDownExplore} />
+            {/* A pipeline chart has no explore to drill into or read underlying data from */}
+            {!dashboardChartReadyQuery.chart.pipeline && (
+                <>
+                    <UnderlyingDataModal />
+                    <DrillDownModal onExplore={onDrillDownExplore} />
+                </>
+            )}
         </MetricQueryDataProvider>
     );
 };

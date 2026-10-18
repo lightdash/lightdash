@@ -180,7 +180,7 @@ export const SavedPipelineChartPage: FC<Props> = ({ chart, isEditMode }) => {
 
     return (
         <Page title={chart.name} header={header} withFullHeight>
-            <Box h="100%" mih={0} display="flex">
+            <Box h="100%" mih={0} w="100%">
                 {pipeline ? (
                     <AiComposerPipelinePanel
                         projectUuid={chart.projectUuid}

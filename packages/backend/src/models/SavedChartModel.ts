@@ -3446,6 +3446,8 @@ export class SavedChartModel {
     async getInfoForAvailableFilters(savedChartUuids: string[]): Promise<
         ({
             spaceUuid: Space['uuid'];
+            /** A pipeline chart's filterable fields are its own, not an explore's. */
+            pipeline: SavedPipelineDefinition | null;
         } & Pick<
             SavedChartDAO,
             'uuid' | 'name' | 'tableName' | 'dashboardUuid'
@@ -3453,7 +3455,7 @@ export class SavedChartModel {
             Pick<Project, 'projectUuid'> &
             Pick<Organization, 'organizationUuid'>)[]
     > {
-        const charts = await this.database(SavedChartsTableName)
+        const rows = await this.database(SavedChartsTableName)
             .whereIn(
                 `${SavedChartsTableName}.saved_query_uuid`,
                 savedChartUuids,
@@ -3466,6 +3468,9 @@ export class SavedChartModel {
                 tableName: `${SavedChartVersionsTableName}.explore_name`,
                 projectUuid: `${SavedChartsTableName}.project_uuid`,
                 organizationUuid: 'organizations.organization_uuid',
+                pipelineSchemaVersion:
+                    'saved_queries_version_pipelines.schema_version',
+                pipeline: 'saved_queries_version_pipelines.pipeline',
             })
             .leftJoin(
                 DashboardsTableName,
@@ -3485,7 +3490,7 @@ export class SavedChartModel {
             })
             .joinRaw(
                 `inner join lateral (
-                    select sqv.explore_name
+                    select sqv.explore_name, sqv.saved_queries_version_id
                     from ?? as sqv
                     where sqv.saved_query_id = ??.saved_query_id
                     order by sqv.saved_queries_version_id desc
@@ -3496,6 +3501,11 @@ export class SavedChartModel {
                     SavedChartsTableName,
                     SavedChartVersionsTableName,
                 ],
+            )
+            .leftJoin(
+                'saved_queries_version_pipelines',
+                'saved_queries_version_pipelines.saved_queries_version_id',
+                `${SavedChartVersionsTableName}.saved_queries_version_id`,
             )
             .leftJoin(
                 'projects',
@@ -3510,10 +3520,17 @@ export class SavedChartModel {
             .whereNull(`${SavedChartsTableName}.deleted_at`)
             .whereNull(`${SpaceTableName}.deleted_at`);
 
-        if (charts.length === 0) {
+        if (rows.length === 0) {
             throw new NotFoundError('Saved queries not found');
         }
-        return charts;
+        return rows.map(({ pipelineSchemaVersion, pipeline, ...chart }) => ({
+            ...chart,
+            pipeline: resolveStoredPipeline(
+                pipeline === null || pipeline === undefined
+                    ? undefined
+                    : { schema_version: pipelineSchemaVersion, pipeline },
+            ).pipeline,
+        }));
     }
 
     async findInfoForDbtExposures(

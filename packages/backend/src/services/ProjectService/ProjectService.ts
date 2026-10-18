@@ -31,6 +31,7 @@ import {
     buildDataTimezonePreviewResponse,
     buildDataTimezonePreviewSql,
     buildMergeItems,
+    buildSavedPipelineExplore,
     CacheMetadata,
     calculateExploreWarningReport,
     ChartSourceType,
@@ -15088,11 +15089,14 @@ export class ProjectService
                     throw new ForbiddenError();
                 }
 
-                const explore = await this.getExplore(
-                    account,
-                    savedChart.projectUuid,
-                    savedChart.tableName,
-                );
+                // A pipeline chart's fields are its terminal columns
+                const explore = savedChart.pipeline
+                    ? buildSavedPipelineExplore(savedChart.pipeline)
+                    : await this.getExplore(
+                          account,
+                          savedChart.projectUuid,
+                          savedChart.tableName,
+                      );
 
                 const filters = getDimensions(explore).filter(
                     (field) => isFilterableDimension(field) && !field.hidden,
@@ -15156,8 +15160,8 @@ export class ProjectService
                     this.findExplores({
                         account,
                         projectUuid: savedCharts[0].projectUuid, // TODO: route should be updated to be project/dashboard specific. For now we pick it from first chart as they all should be from the same project
-                        exploreNames: savedCharts.map(
-                            (chart) => chart.tableName,
+                        exploreNames: savedCharts.flatMap((chart) =>
+                            chart.pipeline ? [] : [chart.tableName],
                         ),
                         organizationUuid: account.organization.organizationUuid,
                     }),
@@ -15212,7 +15216,10 @@ export class ProjectService
                         };
                     }
 
-                    const cachedExplore = exploresMap[savedChart.tableName];
+                    // A pipeline chart's fields are its terminal columns
+                    const cachedExplore = savedChart.pipeline
+                        ? buildSavedPipelineExplore(savedChart.pipeline)
+                        : exploresMap[savedChart.tableName];
                     const explore =
                         shouldRedactSql &&
                         cachedExplore &&
