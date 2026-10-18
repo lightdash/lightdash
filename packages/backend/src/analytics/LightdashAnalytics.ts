@@ -42,6 +42,7 @@ import {
     ValidateProjectPayload,
     WarehouseTypes,
     type AgentActorSurface,
+    type AgentSuggestionsSource,
     type AiAgentMemoryConsolidationTrigger,
     type AiAgentMemoryScope,
     type AiAgentMemoryStatus,
@@ -87,6 +88,7 @@ import ExecutionContext from 'node-execution-context';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
+import { type SuggestionFallbackReason } from '../ee/services/ai/agents/suggestionErrors';
 import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
 import type { EnsureOrganizationOverrideOutcome } from '../models/FeatureFlagModel/FeatureFlagModel';
@@ -3992,6 +3994,13 @@ export type AiAgentSuggestionsGeneratedEvent = BaseTrack & {
         latencyMs: number;
         modelId: string;
         usingFallback: boolean;
+        outcome: AgentSuggestionsSource | 'error';
+        source: AgentSuggestionsSource | null;
+        fallbackReason: SuggestionFallbackReason | null;
+        droppedChipCount: number;
+        client: string;
+        clientVersion: string | null;
+        clientBuild: string | null;
         // Server-added "Save this analysis as a Document" chip.
         documentChipShown: boolean;
     };
