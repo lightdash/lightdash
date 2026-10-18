@@ -448,6 +448,7 @@
             "type": "object"
         },
         "CartesianChartDisplay": {
+            "description": "The SQL runner chart's display options, as saved SQL charts stored them.",
             "properties": {
                 "legend": {
                     "properties": {
@@ -4879,6 +4880,10 @@
                 "title": {
                     "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it.",
                     "type": "string"
+                },
+                "warehouseConnectionUuid": {
+                    "description": "The project connection the statement runs on; the default connection when omitted.",
+                    "type": ["string", "null"]
                 }
             },
             "required": ["sql", "sourceType"],

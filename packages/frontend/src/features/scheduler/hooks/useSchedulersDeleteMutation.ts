@@ -18,7 +18,6 @@ export const useSchedulersDeleteMutation = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries(['chart_schedulers']);
             await queryClient.invalidateQueries(['dashboard_schedulers']);
-            await queryClient.invalidateQueries(['sql_chart_schedulers']);
             await queryClient.invalidateQueries(['app_schedulers']);
             await queryClient.invalidateQueries(['paginatedSchedulers']);
             showToastSuccess({

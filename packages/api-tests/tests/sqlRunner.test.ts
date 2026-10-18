@@ -1,9 +1,13 @@
 import {
-    ChartKind,
-    CreateSqlChart,
+    buildSqlChartPipeline,
+    ChartType,
+    CreateChartInSpace,
+    DimensionType,
     generateSlug,
+    getPipelineSqlChartSource,
+    ResultColumns,
     SEED_PROJECT,
-    UpdateSqlChart,
+    SQL_CHART_NODE_ID,
     WarehouseTypes,
 } from '@lightdash/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -296,119 +300,138 @@ describe('Saved SQL chart', () => {
         admin = await login();
     });
 
-    it('save & update SQL chart', async () => {
-        // Get spaces
+    it('saves, runs, updates and deletes a SQL chart as a saved chart', async () => {
         const spaceResp = await admin.get<any>(
             `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
         );
         const space = spaceResp.body.results[0];
 
-        const sqlChartName = uniqueName('SQL chart slug collision');
-        const sqlChartToCreate: CreateSqlChart = {
-            name: sqlChartName,
-            description: null,
-            sql: 'SELECT * FROM postgres.jaffle.payments',
-            limit: 21,
-            config: {
-                display: {},
-                metadata: {
-                    version: 1,
-                },
-                type: ChartKind.TABLE,
-                columns: {},
+        const sql = 'SELECT status, amount FROM jaffle.payments';
+        const columns: ResultColumns = {
+            status: { reference: 'status', type: DimensionType.STRING },
+            amount: { reference: 'amount', type: DimensionType.NUMBER },
+        };
+        const name = uniqueName('SQL chart slug collision');
+        const chartToCreate: CreateChartInSpace = {
+            name,
+            tableName: SQL_CHART_NODE_ID,
+            metricQuery: {
+                exploreName: SQL_CHART_NODE_ID,
+                dimensions: [
+                    `${SQL_CHART_NODE_ID}_status`,
+                    `${SQL_CHART_NODE_ID}_amount`,
+                ],
+                metrics: [],
+                filters: {},
+                sorts: [],
+                limit: 21,
+                tableCalculations: [],
             },
+            chartConfig: { type: ChartType.TABLE },
+            tableConfig: {
+                columnOrder: [
+                    `${SQL_CHART_NODE_ID}_status`,
+                    `${SQL_CHART_NODE_ID}_amount`,
+                ],
+            },
+            pipeline: buildSqlChartPipeline({
+                sql,
+                limit: 21,
+                columns,
+                warehouseConnectionUuid: null,
+            }),
             spaceUuid: space.uuid,
         };
 
-        // Create SQL chart
+        // Two charts with the same name take distinct slugs
         const [createResp, duplicateResp] = await Promise.all([
             admin.post<any>(
-                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved`,
-                sqlChartToCreate,
+                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/saved`,
+                chartToCreate,
             ),
             admin.post<any>(
-                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved`,
-                sqlChartToCreate,
+                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/saved`,
+                chartToCreate,
             ),
         ]);
         expect(createResp.status).toBe(200);
-        const { savedSqlUuid, slug } = createResp.body.results;
-
         expect(duplicateResp.status).toBe(200);
+        const { uuid, slug } = createResp.body.results;
         expect(new Set([slug, duplicateResp.body.results.slug])).toEqual(
-            new Set([
-                generateSlug(sqlChartName),
-                `${generateSlug(sqlChartName)}-1`,
-            ]),
+            new Set([generateSlug(name), `${generateSlug(name)}-1`]),
         );
-        const explicitConflictResp = await admin.post(
-            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved`,
-            {
-                ...sqlChartToCreate,
-                slug: generateSlug(sqlChartName),
-            },
-            { failOnStatusCode: false },
-        );
-        expect(explicitConflictResp.status).toBe(409);
 
-        const sqlChartToUpdate: UpdateSqlChart = {
-            unversionedData: {
-                name: 'test update',
-                description: null,
-                spaceUuid: space.uuid,
-            },
-            versionedData: {
-                sql: 'SELECT * FROM postgres.jaffle.payments',
-                limit: 22,
-                config: {
-                    display: {},
-                    metadata: {
-                        version: 1,
-                    },
-                    type: ChartKind.TABLE,
-                    columns: {},
-                },
-            },
-        };
-
-        // Update SQL chart
-        const updateResp = await admin.patch<any>(
-            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved/${savedSqlUuid}`,
-            sqlChartToUpdate,
-        );
-        expect(updateResp.status).toBe(200);
-
-        // Get SQL chart
-        const getResp = await admin.get<any>(
-            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved/${savedSqlUuid}`,
-        );
+        // The chart comes back as a one-node SQL pipeline
+        const getResp = await admin.get<any>(`${apiUrl}/saved/${uuid}`);
         expect(getResp.status).toBe(200);
-        const { results } = getResp.body;
-        expect(results.name).toBe('test update');
-        expect(results.sql).toBe('SELECT * FROM postgres.jaffle.payments');
+        expect(
+            getPipelineSqlChartSource(getResp.body.results.pipeline),
+        ).toEqual({ sql, limit: 21, warehouseConnectionUuid: null });
 
-        // Delete SQL chart
-        const deleteResp = await admin.delete(
-            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved/${savedSqlUuid}`,
+        // It runs through the saved chart query endpoint and its rows are
+        // keyed by the pipeline's field ids
+        const runResp = await admin.post<any>(
+            `${apiV2Url}/projects/${SEED_PROJECT.project_uuid}/query/chart`,
+            { chartUuid: uuid },
         );
+        expect(runResp.status).toBe(200);
+        const rows = await getAsyncSqlQueryRows(
+            admin,
+            SEED_PROJECT.project_uuid,
+            runResp.body.results.queryUuid,
+        );
+        expect(rows.length).toBeGreaterThan(0);
+        expect(rows[0]).toHaveProperty(`${SQL_CHART_NODE_ID}_status`);
+        expect(rows[0]).toHaveProperty(`${SQL_CHART_NODE_ID}_amount`);
+
+        // A new version replaces the statement
+        const updatedSql = 'SELECT status FROM jaffle.payments';
+        const versionResp = await admin.post<any>(
+            `${apiUrl}/saved/${uuid}/version`,
+            {
+                tableName: SQL_CHART_NODE_ID,
+                metricQuery: {
+                    ...chartToCreate.metricQuery,
+                    dimensions: [`${SQL_CHART_NODE_ID}_status`],
+                    limit: 22,
+                },
+                chartConfig: chartToCreate.chartConfig,
+                tableConfig: { columnOrder: [`${SQL_CHART_NODE_ID}_status`] },
+                pipeline: buildSqlChartPipeline({
+                    sql: updatedSql,
+                    limit: 22,
+                    columns: { status: columns.status },
+                    warehouseConnectionUuid: null,
+                }),
+            },
+        );
+        expect(versionResp.status).toBe(200);
+        const updatedResp = await admin.get<any>(`${apiUrl}/saved/${uuid}`);
+        expect(
+            getPipelineSqlChartSource(updatedResp.body.results.pipeline),
+        ).toEqual({
+            sql: updatedSql,
+            limit: 22,
+            warehouseConnectionUuid: null,
+        });
+
+        // Deleting reserves the slug for a restore
+        const deleteResp = await admin.delete(`${apiUrl}/saved/${uuid}`);
         expect(deleteResp.status).toBe(200);
         await admin.delete(
-            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved/${duplicateResp.body.results.savedSqlUuid}`,
+            `${apiUrl}/saved/${duplicateResp.body.results.uuid}`,
         );
-        const reusedDeletedSlugResp = await admin.post<any>(
-            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved`,
-            {
-                ...sqlChartToCreate,
-                slug: generateSlug(sqlChartName),
-            },
-            { failOnStatusCode: false },
+        const recreatedResp = await admin.post<any>(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/saved`,
+            chartToCreate,
         );
-        expect(reusedDeletedSlugResp.status).toBe(200);
-        expect(reusedDeletedSlugResp.body.results.slug).toBe(
-            generateSlug(sqlChartName),
+        expect(recreatedResp.status).toBe(200);
+        expect(recreatedResp.body.results.slug).not.toBe(slug);
+        expect(recreatedResp.body.results.slug).not.toBe(
+            duplicateResp.body.results.slug,
         );
         await admin.delete(
-            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved/${reusedDeletedSlugResp.body.results.savedSqlUuid}`,
+            `${apiUrl}/saved/${recreatedResp.body.results.uuid}`,
         );
     });
 });

@@ -10,7 +10,6 @@ import { type SyncModalFormValues } from '../components/syncModalFormContext';
 import { SyncModalProvider } from '../providers/SyncModalProvider';
 import { useSyncModal } from '../providers/useSyncModal';
 import { type SyncResource } from '../types';
-import { useSqlChartSchedulerCreateMutation } from './useSqlChartSchedulers';
 import { useSyncModalForm } from './useSyncModalForm';
 
 // Every mutation hook is mocked, so no QueryClient/App providers are needed —
@@ -27,13 +26,9 @@ vi.mock('../../scheduler/hooks/useScheduler', () => ({
 vi.mock('../../scheduler/hooks/useSchedulersUpdateMutation', () => ({
     useSchedulersUpdateMutation: vi.fn(),
 }));
-vi.mock('./useSqlChartSchedulers', () => ({
-    useSqlChartSchedulerCreateMutation: vi.fn(),
-}));
 
 const mockedAppMutation = vi.mocked(useAppSchedulerCreateMutation);
 const mockedChartMutation = vi.mocked(useChartSchedulerCreateMutation);
-const mockedSqlChartMutation = vi.mocked(useSqlChartSchedulerCreateMutation);
 const mockedUseScheduler = vi.mocked(useScheduler);
 const mockedUpdateMutation = vi.mocked(useSchedulersUpdateMutation);
 
@@ -74,19 +69,14 @@ const formValues: SyncModalFormValues = {
 describe('useSyncModalForm', () => {
     let createApp: ReturnType<typeof vi.fn>;
     let createChart: ReturnType<typeof vi.fn>;
-    let createSqlChart: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
         vi.clearAllMocks();
         createApp = vi.fn();
         createChart = vi.fn();
-        createSqlChart = vi.fn();
 
         mockedAppMutation.mockReturnValue(makeMutationResult(createApp));
         mockedChartMutation.mockReturnValue(makeMutationResult(createChart));
-        mockedSqlChartMutation.mockReturnValue(
-            makeMutationResult(createSqlChart),
-        );
         mockedUpdateMutation.mockReturnValue(
             makeMutationResult(vi.fn()) as unknown as ReturnType<
                 typeof useSchedulersUpdateMutation
@@ -128,9 +118,8 @@ describe('useSyncModalForm', () => {
         expect(data).not.toHaveProperty('appState');
         expect(data).not.toHaveProperty('message');
 
-        // Only the app mutation fires — never the chart/sql-chart ones.
+        // Only the app mutation fires — never the chart one.
         expect(createChart).not.toHaveBeenCalled();
-        expect(createSqlChart).not.toHaveBeenCalled();
     });
 
     it('creates a chart sync against the chart scheduler endpoint', () => {
@@ -146,24 +135,6 @@ describe('useSyncModalForm', () => {
         expect(resourceUuid).toBe('chart-1');
         expect(data.format).toBe(SchedulerFormat.GSHEETS);
         expect(createApp).not.toHaveBeenCalled();
-        expect(createSqlChart).not.toHaveBeenCalled();
-    });
-
-    it('creates a SQL chart sync against the SQL chart scheduler endpoint', () => {
-        const { result } = renderSyncModalForm({
-            type: 'sqlChart',
-            projectUuid: 'project-1',
-            savedSqlUuid: 'sql-chart-1',
-        });
-
-        result.current.syncForm.handleSubmit(formValues);
-
-        expect(createSqlChart).toHaveBeenCalledTimes(1);
-        const [{ resourceUuid, data }] = createSqlChart.mock.calls[0];
-        expect(resourceUuid).toBe('sql-chart-1');
-        expect(data.format).toBe(SchedulerFormat.GSHEETS);
-        expect(createApp).not.toHaveBeenCalled();
-        expect(createChart).not.toHaveBeenCalled();
     });
 
     it('keeps the tab name unset when "save in a new tab" is off, including for apps', () => {

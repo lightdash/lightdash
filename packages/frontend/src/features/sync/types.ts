@@ -3,5 +3,4 @@
 // which optional fields happen to be set.
 export type SyncResource =
     | { type: 'chart'; chartUuid: string }
-    | { type: 'sqlChart'; projectUuid: string; savedSqlUuid: string }
     | { type: 'app'; projectUuid: string; appUuid: string };

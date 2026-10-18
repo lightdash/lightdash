@@ -361,10 +361,33 @@ charts saved before the fold and old share links still convert.
 
 ### Backwards compatibility
 
-- **API**: no endpoint changes beyond phase 3. The saved SQL chart endpoints
-  stay as adapters for one release and are deprecated next; first party no
-  longer calls them. Content as code, promotion and the agent tools are
-  unchanged.
+- **API**: the saved SQL chart endpoints under
+  `/api/v1/projects/{projectUuid}/sqlRunner/saved` are deprecated on
+  2026-10-18 and sunset on 2027-01-18. They keep working as adapters over
+  saved charts until then, with `Deprecation` and `Sunset` headers on every
+  response. No first party client calls them. The replacements:
+
+  | Deprecated | Replacement |
+  |---|---|
+  | `GET sqlRunner/saved/{uuid}`, `GET sqlRunner/saved/slug/{slug}` | `GET /api/v2/projects/{projectUuid}/saved/{uuidOrSlug}` |
+  | `POST sqlRunner/saved` | `POST /api/v1/projects/{projectUuid}/saved` with a one-node SQL `pipeline` |
+  | `PATCH sqlRunner/saved/{uuid}` | `PATCH /api/v1/saved/{chartUuid}` (name, description, space) and `POST /api/v1/saved/{chartUuid}/version` (statement, chart config) |
+  | `DELETE sqlRunner/saved/{uuid}` | `DELETE /api/v2/projects/{projectUuid}/saved/{uuidOrSlug}` |
+  | `POST sqlRunner/saved/{uuid}/promote`, `GET .../promoteDiff` | `POST /api/v1/saved/{chartUuid}/promote`, `GET /api/v1/saved/{chartUuid}/promoteDiff` |
+  | `GET sqlRunner/saved/{uuid}/schedulers` | `GET /api/v2/saved/{chartUuid}/schedulers` |
+  | `POST sqlRunner/saved/{uuid}/schedulers` | `POST /api/v1/saved/{chartUuid}/schedulers` |
+
+  A SQL chart created through the saved charts endpoint carries the
+  statement as `pipeline.queries[0]` (`sourceType: "sql"`, `nodeId: "sql"`,
+  `sql`, `limit`, optional `warehouseConnectionUuid`), `terminalNodeId:
+  "sql"`, the result `columns`, and the chart config as the explorer draws
+  it with `sql_<column>` field ids. `packages/api-tests/tests/sqlRunner.test.ts`
+  exercises that shape end to end (create, run through
+  `POST /api/v2/projects/{projectUuid}/query/chart`, version, delete).
+  Content as code, promotion and the agent tools are unchanged.
+- **Google Sheets sync**: a SQL chart's sync is a saved chart's sync. The
+  sync modal's SQL chart branch, which posted to the deprecated scheduler
+  endpoint, is removed; the SQL chart page that opened it went in phase 3.
 - **Rolling update**: the old UI pod's SQL runner saves through the adapter
   endpoints and the new pod reads the saved charts; both shapes are read by
   both pods. Nothing here needs a declaration beyond phase 3's.
@@ -381,8 +404,6 @@ charts saved before the fold and old share links still convert.
 - `saved_sql*` tables and the `saved_sql_uuid` columns (tiles, schedulers,
   documents, agent artifacts) are dropped in a later release once no pod
   reads them.
-- The saved SQL chart endpoints are deprecated once no first party caller
-  remains in a shipped release.
 
 ## Performance
 

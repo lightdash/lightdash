@@ -14,7 +14,6 @@ import {
     useSyncModalForm as useSyncModalFormInstance,
     type SyncModalFormValues,
 } from '../components/syncModalFormContext';
-import { useSqlChartSchedulerCreateMutation } from '../hooks/useSqlChartSchedulers';
 import { SyncModalAction } from '../providers/types';
 import { useSyncModal } from '../providers/useSyncModal';
 import { type SyncResource } from '../types';
@@ -37,12 +36,9 @@ export const useSyncModalForm = (resource: SyncResource) => {
         isLoading: isUpdateChartSyncLoading,
         isSuccess: isUpdateChartSyncSuccess,
     } = useSchedulersUpdateMutation(currentSchedulerUuid ?? '');
-    // All three mutation hooks are called unconditionally (rules of hooks) —
+    // Both mutation hooks are called unconditionally (rules of hooks) —
     // only the one matching `resource.type` is ever invoked.
     const chartSchedulerMutation = useChartSchedulerCreateMutation();
-    const sqlChartSchedulerMutation = useSqlChartSchedulerCreateMutation(
-        resource.type === 'sqlChart' ? resource.projectUuid : undefined,
-    );
     const appSchedulerMutation = useAppSchedulerCreateMutation(
         resource.type === 'app' ? resource.projectUuid : '',
     );
@@ -50,8 +46,6 @@ export const useSyncModalForm = (resource: SyncResource) => {
         switch (resource.type) {
             case 'chart':
                 return chartSchedulerMutation;
-            case 'sqlChart':
-                return sqlChartSchedulerMutation;
             case 'app':
                 return appSchedulerMutation;
             default:
@@ -162,8 +156,6 @@ export const useSyncModalForm = (resource: SyncResource) => {
                 switch (resource.type) {
                     case 'chart':
                         return resource.chartUuid;
-                    case 'sqlChart':
-                        return resource.savedSqlUuid;
                     case 'app':
                         return resource.appUuid;
                     default:
