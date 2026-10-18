@@ -774,13 +774,13 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Project lifecycle and warehouse configuration changes are refused in v1.',
         ),
         allowed(
-            'handlers/preview.ts:257',
+            'handlers/preview.ts:418',
             'GET',
             '`/api/v1/projects/${config.context.project}`',
             ['ProjectController.getProject'],
         ),
         refused(
-            'handlers/preview.ts:551',
+            'handlers/preview.ts:239',
             'GET',
             '`/api/v1/projects/${project.projectUuid}/warehouse-connections/dbt-sources/bindings`',
             [
@@ -789,14 +789,14 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Project lifecycle and warehouse configuration changes are refused in v1.',
         ),
         refused(
-            'handlers/preview.ts:643',
+            'handlers/preview.ts:331',
             'GET',
             '`/api/v1/projects/${projectUuid}/warehouse-connections/${connection.warehouseConnectionUuid}`',
             ['WarehouseConnectionController.getWarehouseConnection'],
             'Project lifecycle and warehouse configuration changes are refused in v1.',
         ),
         refused(
-            'handlers/preview.ts:654',
+            'handlers/preview.ts:342',
             'PATCH',
             '`/api/v1/projects/${projectUuid}/warehouse-connections/${connection.warehouseConnectionUuid}`',
             ['WarehouseConnectionController.updateWarehouseConnection'],
