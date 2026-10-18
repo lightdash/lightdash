@@ -1,3 +1,10 @@
+## [2.603.4](https://github.com/lightdash/lightdash/compare/2.603.3...2.603.4) (2026-10-18)
+
+
+### Bug Fixes
+
+* **formula:** memoize the formula parser so nested calls parse in linear time ([#31122](https://github.com/lightdash/lightdash/issues/31122)) ([93bf1e2](https://github.com/lightdash/lightdash/commit/93bf1e203e409a1c8f49fa932408b088bb48e131))
+
 ## [2.603.3](https://github.com/lightdash/lightdash/compare/2.603.2...2.603.3) (2026-10-18)
 
 
