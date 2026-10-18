@@ -873,10 +873,26 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ['QueryController.executeAsyncSqlQuery'],
         ),
         allowed(
-            'handlers/timestampConversion.ts:35',
+            'handlers/timestampConversion.ts:39',
             'GET',
             '`/api/v1/projects/${projectUuid}`',
             ['ProjectController.getProject'],
+        ),
+        refused(
+            'handlers/timestampConversion.ts:51',
+            'GET',
+            '`/api/v1/projects/${projectUuid}/warehouse-connections/dbt-sources/bindings`',
+            [
+                'WarehouseConnectionBindingController.getDbtSourceWarehouseConnectionBindings',
+            ],
+            'Selected agent connections never choose a dbt source, so deploy does not read source bindings in v1.',
+        ),
+        refused(
+            'handlers/timestampConversion.ts:66',
+            'GET',
+            '`/api/v1/projects/${projectUuid}/warehouse-connections/${warehouseConnectionUuid}`',
+            ['WarehouseConnectionController.getWarehouseConnection'],
+            'Selected agent connections never choose a dbt source, so deploy does not read source connection settings in v1.',
         ),
         external(
             'handlers/upgradeCheck.ts:151',
