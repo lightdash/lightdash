@@ -15,6 +15,7 @@ import {
     type ConditionalFormattingConfig,
     type DashboardFilters,
     type DateZoom,
+    type DocumentQueryReference,
     type DownloadAsyncQueryResultsPayload,
     type DuckdbExecutionSpec,
     type ExecuteAsyncQueryRequestParams,
@@ -49,6 +50,15 @@ import type {
     TotalConfiguration,
 } from '../../utils/QueryBuilder/QueryComposer';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
+
+/**
+ * Stored content a pipeline run belongs to. Its warehouse SQL nodes run
+ * under the content's view permission, the way a saved SQL chart did: the
+ * author needed SQL access to save it, a viewer does not.
+ */
+export type ViewedContentSource =
+    | { savedChartUuid: string }
+    | { documentReference: DocumentQueryReference };
 
 export type CommonAsyncQueryArgs = {
     querySurface?: QuerySurface;
@@ -207,6 +217,8 @@ export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
      * the caller may view, so the SQL runner permission is not required.
      */
     savedChartUuid?: string;
+    /** As `savedChartUuid`, for a SQL chart a Document owns: viewing the Document authorizes the run. */
+    documentReference?: DocumentQueryReference;
 };
 
 export type EstimateAsyncMetricQueryArgs = Pick<
@@ -242,6 +254,8 @@ export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
      * the caller may view, so the authoring flag and ability do not apply.
      */
     savedChartUuid?: string;
+    /** As `savedChartUuid`, for a SQL chart a Document owns: viewing the Document authorizes the run. */
+    documentReference?: DocumentQueryReference;
 };
 
 export type ExecuteAsyncPythonQueryArgs = CommonAsyncQueryArgs & {
@@ -252,6 +266,8 @@ export type ExecuteAsyncPythonQueryArgs = CommonAsyncQueryArgs & {
     references: Record<string, UUID>;
     /** As on compose SQL: a saved chart's node skips the authoring gates. */
     savedChartUuid?: string;
+    /** As `savedChartUuid`, for a SQL chart a Document owns: viewing the Document authorizes the run. */
+    documentReference?: DocumentQueryReference;
 };
 
 export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {

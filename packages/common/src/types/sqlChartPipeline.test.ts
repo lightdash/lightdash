@@ -9,7 +9,9 @@ import { DimensionType, FieldType } from './field';
 import { QuerySourceType } from './querySources';
 import { ChartKind, ChartType } from './savedCharts';
 import {
+    buildSqlChartPipeline,
     convertSqlChartToPipelineChart,
+    getPipelineSqlChartSource,
     SQL_CHART_AGGREGATE_NODE_ID,
     SQL_CHART_NODE_ID,
 } from './sqlChartPipeline';
@@ -228,5 +230,79 @@ describe('convertSqlChartToPipelineChart', () => {
                 isDonut: true,
             },
         });
+    });
+});
+
+describe('buildSqlChartPipeline / getPipelineSqlChartSource', () => {
+    const columns = {
+        status: { reference: 'status', type: DimensionType.STRING },
+    };
+
+    it('saves a SQL runner chart as a one-node pipeline the SQL runner can reopen', () => {
+        const pipeline = buildSqlChartPipeline({
+            sql: 'select status from orders',
+            limit: 50,
+            columns,
+            warehouseConnectionUuid: 'finance-uuid',
+        });
+        expect(pipeline.queries).toHaveLength(1);
+        expect(pipeline.terminalNodeId).toBe(SQL_CHART_NODE_ID);
+        expect(getPipelineSqlChartSource(pipeline)).toEqual({
+            sql: 'select status from orders',
+            limit: 50,
+            warehouseConnectionUuid: 'finance-uuid',
+        });
+    });
+
+    it('omits the connection for the original warehouse and reads it back as null', () => {
+        const pipeline = buildSqlChartPipeline({
+            sql: 'select 1',
+            limit: 10,
+            columns,
+            warehouseConnectionUuid: null,
+        });
+        expect(pipeline.queries[0]).not.toHaveProperty(
+            'warehouseConnectionUuid',
+        );
+        expect(
+            getPipelineSqlChartSource(pipeline)?.warehouseConnectionUuid,
+        ).toBe(null);
+    });
+
+    it('does not reopen a folded chart that aggregates at draw time, nor a composer pipeline', () => {
+        const aggregated = convertSqlChartToPipelineChart({
+            sql: 'select status, amount from orders',
+            limit: 500,
+            config: {
+                metadata: { version: 1 },
+                type: ChartKind.VERTICAL_BAR,
+                fieldConfig: {
+                    x: { reference: 'status', type: VizIndexType.CATEGORY },
+                    y: [
+                        {
+                            reference: 'amount',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupBy: undefined,
+                },
+                display: undefined,
+            },
+        });
+        expect(getPipelineSqlChartSource(aggregated.pipeline)).toBeNull();
+        expect(
+            getPipelineSqlChartSource({
+                queries: [
+                    {
+                        sourceType: QuerySourceType.SEMANTIC_LAYER,
+                        nodeId: 'orders',
+                        exploreName: 'orders',
+                        dimensions: [],
+                        metrics: [],
+                    },
+                ],
+                terminalNodeId: 'orders',
+            }),
+        ).toBeNull();
     });
 });

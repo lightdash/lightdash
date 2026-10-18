@@ -20,7 +20,7 @@ const state = {
     sqlRunner: {
         projectUuid: 'project',
         sql: 'select 1 as amount',
-        sqlColumns: [{ name: 'amount', type: 'number' }],
+        sqlColumns: { amount: { reference: 'amount', type: 'number' } },
     },
 };
 vi.mock('../store/hooks', () => ({
@@ -105,7 +105,7 @@ describe('SQL writeback modal', () => {
             body: JSON.stringify({
                 name: 'revenue',
                 sql: state.sqlRunner.sql,
-                columns: state.sqlRunner.sqlColumns,
+                columns: [{ reference: 'amount', type: 'number' }],
             }),
         });
         expect(open).toHaveBeenCalledWith(

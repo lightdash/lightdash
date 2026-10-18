@@ -1,8 +1,11 @@
 import { subject } from '@casl/ability';
 import {
-    ChartKind,
-    type AllVizChartConfig,
-    type ApiCreateSqlChart,
+    ChartType,
+    type ChartConfig,
+    type CreateSavedChartVersion,
+    type ResultColumnItems,
+    type ResultColumns,
+    type SavedChart,
 } from '@lightdash/common';
 import { Button, Stack, Textarea, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -16,14 +19,13 @@ import MantineModal, {
 } from '../../../components/common/MantineModal';
 import SaveToSpaceForm from '../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
 import { saveToSpaceSchema } from '../../../components/common/modal/ChartCreateModal/types';
-import { selectCompleteConfigByKind } from '../../../components/DataViz/store/selectors';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useModalSteps } from '../../../hooks/useModalSteps';
+import { useCreateMutation } from '../../../hooks/useSavedQuery';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import { DEFAULT_SQL_LIMIT } from '../constants';
-import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     EditorTabs,
@@ -31,6 +33,8 @@ import {
     updateName,
     type SqlRunnerConnectionRequest,
 } from '../store/sqlRunnerSlice';
+import { buildSqlRunnerSavedChartVersion } from '../viz/sqlRunnerSavedChart';
+import { useSqlRunnerPivotConfiguration } from '../viz/useSqlRunnerPivotConfiguration';
 
 enum ModalStep {
     InitialInfo = 'initialInfo',
@@ -50,19 +54,24 @@ type Props = Pick<MantineModalProps, 'opened' | 'onClose'>;
 
 const SAVE_CHART_FORM_ID = 'save-sql-chart-form';
 
+/** What the SQL runner saves: the statement and the chart as drawn over the last run's columns. */
+export type SqlRunnerChartToSave = {
+    sql: string;
+    limit: number;
+    columns: ResultColumns;
+    items: ResultColumnItems;
+    chartConfig: ChartConfig;
+    pivotDimensions: string[] | undefined;
+};
+
 type SaveSqlChartModalContentProps = Props & {
     projectUuid: string;
     name: string;
     description: string | null;
-    sql: string;
-    limit: number;
-    currentVizConfig: AllVizChartConfig;
+    chart: SqlRunnerChartToSave;
     connectionRequest: SqlRunnerConnectionRequest;
     redirectOnSuccess?: boolean;
-    onSaved?: (
-        data: ApiCreateSqlChart['results'],
-        name: string,
-    ) => void | Promise<void>;
+    onSaved?: (chart: SavedChart, name: string) => void | Promise<void>;
 };
 
 /**
@@ -89,11 +98,9 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
     projectUuid,
     name,
     description,
-    sql,
-    limit,
-    currentVizConfig,
+    chart,
     connectionRequest,
-    redirectOnSuccess,
+    redirectOnSuccess = true,
     onSaved,
 }) => {
     const { user } = useApp();
@@ -158,13 +165,30 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [name, description, spaces, isSuccessSpace]);
 
-    const {
-        mutateAsync: createSavedSqlChart,
-        isLoading: isCreatingSavedSqlChart,
-    } = useCreateSqlChartMutation(projectUuid, {
-        redirectOnSuccess,
-        onSuccess: (data) => onSaved?.(data, form.values.name),
-    });
+    const { mutateAsync: createSavedChart, isLoading: isCreatingSavedChart } =
+        useCreateMutation({
+            projectUuid,
+            redirectOnSuccess,
+            showViewChartAction: !redirectOnSuccess,
+        });
+
+    const savedVersion = useMemo(
+        (): CreateSavedChartVersion | null =>
+            connectionRequest.ready
+                ? buildSqlRunnerSavedChartVersion({
+                      sql: chart.sql,
+                      limit: chart.limit,
+                      columns: chart.columns,
+                      items: chart.items,
+                      chartConfig: chart.chartConfig,
+                      pivotDimensions: chart.pivotDimensions,
+                      warehouseConnectionUuid:
+                          connectionRequest.field.warehouseConnectionUuid ??
+                          null,
+                  })
+                : null,
+        [chart, connectionRequest],
+    );
 
     const handleOnSubmit = useCallback(async () => {
         if (spaces.length === 0) {
@@ -178,28 +202,28 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
         const spaceUuid =
             newSpace?.uuid || form.values.spaceUuid || spaces[0].uuid;
 
-        if (!connectionRequest.ready) {
+        if (!savedVersion) {
             showToastError({
                 title: 'Choose a connection before you save this chart',
             });
             return;
         }
-        if (currentVizConfig && sql) {
-            try {
-                await createSavedSqlChart({
-                    name: form.values.name,
-                    description: form.values.description || '',
-                    sql,
-                    limit: limit ?? DEFAULT_SQL_LIMIT,
-                    config: currentVizConfig,
-                    spaceUuid: spaceUuid,
-                    ...connectionRequest.field,
-                });
-
-                onClose();
-            } catch (_) {
-                // Error is handled in useCreateSqlChartMutation
-            }
+        try {
+            const created = await createSavedChart({
+                name: form.values.name,
+                description: form.values.description || '',
+                spaceUuid,
+                tableName: savedVersion.tableName,
+                metricQuery: savedVersion.metricQuery,
+                chartConfig: savedVersion.chartConfig,
+                tableConfig: savedVersion.tableConfig,
+                pivotConfig: savedVersion.pivotConfig,
+                pipeline: savedVersion.pipeline,
+            });
+            await onSaved?.(created, form.values.name);
+            onClose();
+        } catch (_) {
+            // Error is handled in useCreateMutation
         }
     }, [
         spaces,
@@ -208,12 +232,10 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
         form.values.name,
         form.values.description,
         handleCreateNewSpace,
-        currentVizConfig,
-        sql,
-        createSavedSqlChart,
-        limit,
+        savedVersion,
+        createSavedChart,
+        onSaved,
         onClose,
-        connectionRequest,
         showToastError,
     ]);
 
@@ -237,19 +259,19 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
             modalSteps.currentStep === ModalStep.SelectDestination &&
             form.values.name &&
             (form.values.newSpaceName || form.values.spaceUuid) &&
-            sql,
+            chart.sql,
         [
             modalSteps.currentStep,
             form.values.name,
             form.values.newSpaceName,
             form.values.spaceUuid,
-            sql,
+            chart.sql,
         ],
     );
 
     const isLoading =
         isLoadingSpace ||
-        isCreatingSavedSqlChart ||
+        isCreatingSavedChart ||
         spaceManagement.createSpaceMutation.isLoading;
 
     const renderActions = () => {
@@ -343,9 +365,7 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
                             form={form}
                             spaces={spaces}
                             projectUuid={projectUuid}
-                            isLoading={
-                                isLoadingSpace || isCreatingSavedSqlChart
-                            }
+                            isLoading={isLoadingSpace || isCreatingSavedChart}
                             spaceManagement={spaceManagement}
                             selectedSpaceName={
                                 spaces.find(
@@ -368,23 +388,42 @@ export const SaveSqlChartModal: FC<Props> = (props) => {
     const description = useAppSelector((state) => state.sqlRunner.description);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const limit = useAppSelector((state) => state.sqlRunner.limit);
+    const columns = useAppSelector((state) => state.sqlRunner.sqlColumns);
     const connectionRequest = useAppSelector(selectConnectionRequest);
-    const selectedChartType = useAppSelector(
-        (state) => state.sqlRunner.selectedChartType,
+    const chartConfig = useAppSelector((state) => state.sqlRunner.chartConfig);
+    const pivotDimensions = useAppSelector(
+        (state) => state.sqlRunner.pivotDimensions,
     );
     const activeEditorTab = useAppSelector(
         (state) => state.sqlRunner.activeEditorTab,
     );
-    const currentVizConfig = useAppSelector((state) =>
-        selectCompleteConfigByKind(
-            state,
-            activeEditorTab === EditorTabs.SQL
-                ? ChartKind.TABLE
-                : selectedChartType,
-        ),
-    );
+    const { items } = useSqlRunnerPivotConfiguration();
 
-    if (!currentVizConfig) return null;
+    // Saving from the SQL tab saves the results as a table
+    const chart = useMemo((): SqlRunnerChartToSave | null => {
+        if (!columns || !items) return null;
+        const isSqlTab = activeEditorTab === EditorTabs.SQL;
+        return {
+            sql,
+            limit: limit ?? DEFAULT_SQL_LIMIT,
+            columns,
+            items,
+            chartConfig: isSqlTab
+                ? { type: ChartType.TABLE, config: undefined }
+                : chartConfig,
+            pivotDimensions: isSqlTab ? undefined : pivotDimensions,
+        };
+    }, [
+        columns,
+        items,
+        activeEditorTab,
+        sql,
+        limit,
+        chartConfig,
+        pivotDimensions,
+    ]);
+
+    if (!chart) return null;
 
     return (
         <SaveSqlChartModalContent
@@ -392,9 +431,7 @@ export const SaveSqlChartModal: FC<Props> = (props) => {
             projectUuid={projectUuid}
             name={name}
             description={description}
-            sql={sql}
-            limit={limit ?? DEFAULT_SQL_LIMIT}
-            currentVizConfig={currentVizConfig}
+            chart={chart}
             connectionRequest={connectionRequest}
             onSaved={(_, savedName) => {
                 dispatch(updateName(savedName));

@@ -1,10 +1,9 @@
-import { WarehouseTypes } from '@lightdash/common';
+import { ChartType, WarehouseTypes } from '@lightdash/common';
 import { act, renderHook } from '@testing-library/react';
 import { type FC, type PropsWithChildren } from 'react';
 import { Provider } from 'react-redux';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCreateShareMutation, useGetShare } from '../../../hooks/useShare';
-import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { store } from '../store';
 import {
     resetState,
@@ -12,6 +11,7 @@ import {
     setState,
 } from '../store/sqlRunnerSlice';
 import { runSqlQuery } from '../store/thunks';
+import { executeSqlQuery } from '../utils/executeSqlQuery';
 import {
     useCreateSqlRunnerShareUrl,
     useSqlRunnerShareUrl,
@@ -24,12 +24,8 @@ vi.mock('../../../hooks/useShare', () => ({
     useGetShare: vi.fn(),
 }));
 
-vi.mock('../../queryRunner/executeQuery', () => ({
+vi.mock('../utils/executeSqlQuery', () => ({
     executeSqlQuery: vi.fn(),
-}));
-
-vi.mock('../../../components/DataViz/store/selectors', () => ({
-    selectCompleteConfigByKind: () => undefined,
 }));
 
 const wrapper: FC<PropsWithChildren> = ({ children }) => (
@@ -167,5 +163,37 @@ describe('SQL runner share links and the active connection', () => {
         expect(result.current.sqlRunnerState?.connectionRoute).toEqual({
             route: 'pending',
         });
+    });
+
+    it('converts the chart config of a link shared before the classic chart stack', () => {
+        vi.mocked(useGetShare).mockReturnValue({
+            data: {
+                params: JSON.stringify({
+                    sqlRunnerState: {
+                        sql: 'select a, b from t',
+                        limit: 10,
+                        selectedChartType: 'vertical_bar',
+                    },
+                    chartConfig: {
+                        metadata: { version: 1 },
+                        type: 'vertical_bar',
+                        fieldConfig: {
+                            x: { reference: 'a', type: 'category' },
+                            y: [{ reference: 'b', aggregation: 'sum' }],
+                            groupBy: [],
+                        },
+                    },
+                }),
+            },
+            error: null,
+        } as never);
+        const { result } = renderHook(() => useSqlRunnerShareUrl('share-id'), {
+            wrapper,
+        });
+
+        expect(result.current.chartConfig?.type).toBe(ChartType.CARTESIAN);
+        expect(result.current.sqlRunnerState).not.toHaveProperty(
+            'selectedChartType',
+        );
     });
 });

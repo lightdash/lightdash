@@ -1,4 +1,7 @@
-import { type SqlRunnerWarehouseConnection } from '@lightdash/common';
+import {
+    getPipelineSqlChartSource,
+    type SqlRunnerWarehouseConnection,
+} from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
 import {
     useEffect,
@@ -42,34 +45,36 @@ const ActiveConnectionStoreSync: FC<{ isEditingSavedChart: boolean }> = ({
 }) => {
     const { connections, activeConnection, switchConnection } =
         useActiveConnection();
-    const savedSqlChart = useAppSelector(
-        (state) => state.sqlRunner.savedSqlChart,
-    );
+    const savedChart = useAppSelector((state) => state.sqlRunner.savedChart);
     const [appliedChartUuid, setAppliedChartUuid] = useState<
         string | undefined
     >(undefined);
-    const chartBinding = savedSqlChart
+    // The chart's statement runs on the connection its SQL node names
+    const savedConnectionUuid = savedChart?.pipeline
+        ? getPipelineSqlChartSource(savedChart.pipeline)
+              ?.warehouseConnectionUuid
+        : undefined;
+    const chartBinding = savedChart
         ? connections.find((connection) =>
-              savedSqlChart.warehouseConnectionUuid === null
+              savedConnectionUuid === null || savedConnectionUuid === undefined
                   ? connection.isOriginal
-                  : connection.warehouseConnectionUuid ===
-                    savedSqlChart.warehouseConnectionUuid,
+                  : connection.warehouseConnectionUuid === savedConnectionUuid,
           )
         : undefined;
 
     useEffect(() => {
-        if (!savedSqlChart || appliedChartUuid === savedSqlChart.savedSqlUuid) {
+        if (!savedChart || appliedChartUuid === savedChart.uuid) {
             return;
         }
         if (chartBinding) {
             switchConnection(chartBinding.warehouseConnectionUuid);
         }
-        setAppliedChartUuid(savedSqlChart.savedSqlUuid);
-    }, [savedSqlChart, chartBinding, switchConnection, appliedChartUuid]);
+        setAppliedChartUuid(savedChart.uuid);
+    }, [savedChart, chartBinding, switchConnection, appliedChartUuid]);
 
     const isWaitingForChart =
         isEditingSavedChart &&
-        (!savedSqlChart || appliedChartUuid !== savedSqlChart.savedSqlUuid);
+        (!savedChart || appliedChartUuid !== savedChart.uuid);
 
     const desired = useMemo<SqlRunnerConnectionRoute>(
         () => ({

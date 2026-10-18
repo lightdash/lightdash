@@ -1,4 +1,9 @@
-import { ChartKind, WarehouseTypes, type SqlChart } from '@lightdash/common';
+import {
+    ChartType,
+    QuerySourceType,
+    WarehouseTypes,
+    type SavedChart,
+} from '@lightdash/common';
 import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
@@ -13,27 +18,19 @@ import {
 } from '../../store/sqlRunnerSlice';
 import { HeaderEdit } from './HeaderEdit';
 
-const updateSqlChart = vi.fn();
+const addVersion = vi.fn();
 
 vi.mock('react-router', () => ({
     useNavigate: () => vi.fn(),
     useLocation: () => ({ search: '', pathname: '/' }),
 }));
 
-vi.mock('../../hooks/useSavedSqlCharts', () => ({
-    useUpdateSqlChartMutation: () => ({
-        mutate: updateSqlChart,
+vi.mock('../../../../hooks/useSavedQuery', () => ({
+    useAddVersionMutation: () => ({
+        mutate: addVersion,
         isLoading: false,
     }),
 }));
-
-vi.mock('../../../../components/DataViz/store/selectors', () => {
-    const config = { type: 'table', metadata: { version: 1 }, columns: {} };
-    return {
-        selectCompleteConfigByKind: () => config,
-        cartesianChartSelectors: { getErrors: () => undefined },
-    };
-});
 
 vi.mock(
     '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs',
@@ -46,7 +43,6 @@ vi.mock(
     '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup',
     () => ({ ResourceInfoPopup: () => null }),
 );
-vi.mock('../ChartErrorsAlert', () => ({ ChartErrorsAlert: () => null }));
 vi.mock('../DeleteSqlChartModal', () => ({ DeleteSqlChartModal: () => null }));
 vi.mock('../SaveSqlChartModal', () => ({ SaveSqlChartModal: () => null }));
 vi.mock('../UpdateSqlChartModal', () => ({ UpdateSqlChartModal: () => null }));
@@ -55,17 +51,40 @@ vi.mock('../SqlQueryBeforeSaveAlert', () => ({
 }));
 
 const savedChart = {
-    savedSqlUuid: 'chart-uuid',
+    uuid: 'chart-uuid',
     name: 'Ledger',
-    description: null,
+    description: undefined,
     slug: 'ledger',
-    sql: 'select 1',
-    limit: 10,
-    config: { type: ChartKind.TABLE },
-    project: { projectUuid: 'project-uuid' },
-    space: { uuid: 'space-uuid', name: 'Space' },
-    warehouseConnectionUuid: 'finance-uuid',
-} as unknown as SqlChart;
+    projectUuid: 'project-uuid',
+    spaceUuid: 'space-uuid',
+    spaceName: 'Space',
+    tableName: 'sql',
+    metricQuery: {
+        exploreName: 'sql',
+        dimensions: [],
+        metrics: [],
+        filters: {},
+        sorts: [],
+        limit: 10,
+        tableCalculations: [],
+    },
+    chartConfig: { type: ChartType.TABLE, config: undefined },
+    tableConfig: { columnOrder: [] },
+    pipeline: {
+        queries: [
+            {
+                sourceType: QuerySourceType.SQL,
+                nodeId: 'sql',
+                title: 'SQL',
+                sql: 'select 1',
+                limit: 10,
+                warehouseConnectionUuid: 'finance-uuid',
+            },
+        ],
+        terminalNodeId: 'sql',
+        columns: {},
+    },
+} as unknown as SavedChart;
 
 describe('HeaderEdit and the connection of a saved SQL chart', () => {
     beforeEach(() => {
@@ -111,11 +130,12 @@ describe('HeaderEdit and the connection of a saved SQL chart', () => {
             .setup()
             .click(screen.getByRole('button', { name: 'Save' }));
 
-        expect(updateSqlChart).toHaveBeenCalledWith({
-            versionedData: expect.objectContaining({
-                warehouseConnectionUuid: null,
-            }),
-        });
+        expect(addVersion).toHaveBeenCalledTimes(1);
+        const { uuid, payload } = addVersion.mock.calls[0][0];
+        expect(uuid).toBe('chart-uuid');
+        expect(payload.pipeline.queries[0]).not.toHaveProperty(
+            'warehouseConnectionUuid',
+        );
     });
 
     it("sends main's versioned data with no connection field in a single project", async () => {
@@ -133,16 +153,22 @@ describe('HeaderEdit and the connection of a saved SQL chart', () => {
             .setup()
             .click(screen.getByRole('button', { name: 'Save' }));
 
-        expect(updateSqlChart).toHaveBeenCalledWith({
-            versionedData: {
-                config: {
-                    type: 'table',
-                    metadata: { version: 1 },
-                    columns: {},
-                },
-                sql: 'select 2',
-                limit: 10,
-            },
+        expect(addVersion).toHaveBeenCalledWith({
+            uuid: 'chart-uuid',
+            payload: expect.objectContaining({
+                chartConfig: { type: ChartType.TABLE, config: undefined },
+                pipeline: expect.objectContaining({
+                    queries: [
+                        {
+                            sourceType: QuerySourceType.SQL,
+                            nodeId: 'sql',
+                            title: 'SQL',
+                            sql: 'select 2',
+                            limit: 10,
+                        },
+                    ],
+                }),
+            }),
         });
     });
 
@@ -163,6 +189,6 @@ describe('HeaderEdit and the connection of a saved SQL chart', () => {
             .setup()
             .click(screen.getByRole('button', { name: 'Save' }));
 
-        expect(updateSqlChart).not.toHaveBeenCalled();
+        expect(addVersion).not.toHaveBeenCalled();
     });
 });

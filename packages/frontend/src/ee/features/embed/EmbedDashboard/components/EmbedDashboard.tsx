@@ -1,10 +1,11 @@
 import {
-    ChartType,
-    DashboardTileTypes,
-    QueryExecutionContext,
     assertUnreachable,
     canAddDashboardFiltersInEmbed,
+    ChartType,
+    DashboardTileTypes,
     getDefaultChartTileSize,
+    QueryExecutionContext,
+    type DashboardSqlChartTile,
     type DashboardTile,
     type EmbedDashboard as EmbedDashboardType,
     type SavedChart,
@@ -20,7 +21,7 @@ import SuboptimalState from '../../../../../components/common/SuboptimalState/Su
 import AddTileButton from '../../../../../components/DashboardTiles/AddTileButton';
 import DashboardChartTile from '../../../../../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../../../../../components/DashboardTiles/DashboardLoomTile';
-import SqlChartTile from '../../../../../components/DashboardTiles/DashboardSqlChartTile';
+import { asSavedChartTile } from '../../../../../components/DashboardTiles/sqlChartTile';
 import TileBase from '../../../../../components/DashboardTiles/TileBase';
 import UnmetRequirementsPlaceholder from '../../../../../components/DashboardTiles/UnmetRequirementsPlaceholder';
 import GuidedFilterSetupOverlay from '../../../../../features/dashboardFilters/FilterRequirements/GuidedFilterSetupOverlay';
@@ -91,7 +92,8 @@ const EmbedTileLoadTracker: FC<{
 };
 
 const EmbedDashboardGrid: FC<{
-    filteredTiles: DashboardTile[];
+    /** Tiles as rendered: a SQL chart tile already read as the chart tile it is. */
+    filteredTiles: Exclude<DashboardTile, DashboardSqlChartTile>[];
     layouts: DashboardLayouts;
     dashboard: any;
     projectUuid: string;
@@ -162,8 +164,7 @@ const EmbedDashboardGrid: FC<{
                 >
                     {filteredTiles.map((tile, index) => (
                         <div key={tile.uuid} data-tile-uuid={tile.uuid}>
-                            {(tile.type === DashboardTileTypes.SAVED_CHART ||
-                                tile.type === DashboardTileTypes.SQL_CHART) &&
+                            {tile.type === DashboardTileTypes.SAVED_CHART &&
                             hasUnmetFilterRequirements ? (
                                 // Placeholder instead of the tile so its
                                 // query hooks never mount while locked
@@ -261,17 +262,6 @@ const EmbedDashboardGrid: FC<{
                                     isEditMode={isEditMode}
                                     onDelete={() => onDeleteTile(tile)}
                                     onEdit={onEditTile}
-                                />
-                            ) : tile.type === DashboardTileTypes.SQL_CHART ? (
-                                <SqlChartTile
-                                    key={tile.uuid}
-                                    tile={tile}
-                                    isEditMode={isEditMode}
-                                    onDelete={() => onDeleteTile(tile)}
-                                    onEdit={onEditTile}
-                                    isEmbed={!useDashboardEditorTileQueries}
-                                    projectUuidOverride={projectUuid}
-                                    dashboardUuidOverride={dashboard.uuid}
                                 />
                             ) : tile.type === DashboardTileTypes.HEADING ? (
                                 <EmbedHeadingTile
@@ -560,6 +550,17 @@ const EmbedDashboard: FC<{
 
         return [];
     }, [currentDashboardTiles, dashboardTabs, visibleTabs, activeTab]);
+
+    // A SQL chart tile is a chart tile under the same uuid
+    const renderableTiles = useMemo(
+        (): Exclude<DashboardTile, DashboardSqlChartTile>[] =>
+            filteredTiles.map((tile) =>
+                tile.type === DashboardTileTypes.SQL_CHART
+                    ? asSavedChartTile(tile)
+                    : tile,
+            ),
+        [filteredTiles],
+    );
 
     // Check if tabs should be enabled (more than one visible tab)
     const tabsEnabled = visibleTabs.length > 1;
@@ -946,7 +947,7 @@ const EmbedDashboard: FC<{
                 />
             )}
             <EmbedDashboardGrid
-                filteredTiles={filteredTiles}
+                filteredTiles={renderableTiles}
                 layouts={layouts}
                 dashboard={dashboard}
                 projectUuid={projectUuid}

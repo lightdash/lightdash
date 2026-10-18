@@ -1,23 +1,32 @@
-import { ChartKind, type AllVizChartConfig } from '@lightdash/common';
+import {
+    ChartType,
+    DimensionType,
+    QuerySourceType,
+    type ResultColumns,
+} from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { useCreateMutation } from '../../../hooks/useSavedQuery';
 import { renderWithProviders } from '../../../testing/testUtils';
-import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { store } from '../store';
 import { type SqlRunnerConnectionRequest } from '../store/sqlRunnerSlice';
-import { SaveSqlChartModalContent } from './SaveSqlChartModal';
+import { buildSqlRunnerItems } from '../viz/sqlRunnerChart';
+import {
+    SaveSqlChartModalContent,
+    type SqlRunnerChartToSave,
+} from './SaveSqlChartModal';
 
-const createSqlChart = vi.fn(async () => ({
-    savedSqlUuid: 'chart-uuid',
+const createChart = vi.fn(async () => ({
+    uuid: 'chart-uuid',
     slug: 'chart',
 }));
 const showToastError = vi.fn();
 
-vi.mock('../hooks/useSavedSqlCharts', () => ({
-    useCreateSqlChartMutation: vi.fn(() => ({
-        mutateAsync: createSqlChart,
+vi.mock('../../../hooks/useSavedQuery', () => ({
+    useCreateMutation: vi.fn(() => ({
+        mutateAsync: createChart,
         isLoading: false,
     })),
 }));
@@ -56,11 +65,17 @@ vi.mock(
     () => ({ default: () => null }),
 );
 
-const config = {
-    type: ChartKind.TABLE,
-    metadata: { version: 1 },
-    columns: {},
-} as unknown as AllVizChartConfig;
+const columns: ResultColumns = {
+    id: { reference: 'id', type: DimensionType.NUMBER },
+};
+const chart: SqlRunnerChartToSave = {
+    sql: 'select 1',
+    limit: 10,
+    columns,
+    items: buildSqlRunnerItems(columns),
+    chartConfig: { type: ChartType.TABLE, config: undefined },
+    pivotDimensions: undefined,
+};
 
 const saveWith = async (connectionRequest: SqlRunnerConnectionRequest) => {
     renderWithProviders(
@@ -71,9 +86,7 @@ const saveWith = async (connectionRequest: SqlRunnerConnectionRequest) => {
                 projectUuid="project-uuid"
                 name=""
                 description={null}
-                sql="select 1"
-                limit={10}
-                currentVizConfig={config}
+                chart={chart}
                 connectionRequest={connectionRequest}
             />
         </Provider>,
@@ -83,6 +96,13 @@ const saveWith = async (connectionRequest: SqlRunnerConnectionRequest) => {
     await user.click(screen.getByRole('button', { name: 'Next' }));
     await user.click(await screen.findByRole('button', { name: 'Save' }));
 };
+
+const savedSqlNode = () =>
+    (
+        createChart.mock.calls[0] as unknown as [
+            { pipeline: { queries: unknown[] } },
+        ]
+    )[0].pipeline.queries[0];
 
 describe('SaveSqlChartModalContent and the active connection', () => {
     afterEach(() => {
@@ -95,40 +115,53 @@ describe('SaveSqlChartModalContent and the active connection', () => {
             field: { warehouseConnectionUuid: 'finance-uuid' },
         });
 
-        await waitFor(() =>
-            expect(createSqlChart).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    warehouseConnectionUuid: 'finance-uuid',
-                }),
-            ),
+        await waitFor(() => expect(createChart).toHaveBeenCalled());
+        expect(savedSqlNode()).toEqual(
+            expect.objectContaining({
+                sourceType: QuerySourceType.SQL,
+                sql: 'select 1',
+                warehouseConnectionUuid: 'finance-uuid',
+            }),
         );
     });
 
-    it('saves the chart on the original with null', async () => {
+    it('saves the chart on the original without a connection', async () => {
         await saveWith({
             ready: true,
             field: { warehouseConnectionUuid: null },
         });
 
-        await waitFor(() =>
-            expect(createSqlChart).toHaveBeenCalledWith(
-                expect.objectContaining({ warehouseConnectionUuid: null }),
-            ),
-        );
+        await waitFor(() => expect(createChart).toHaveBeenCalled());
+        expect(savedSqlNode()).not.toHaveProperty('warehouseConnectionUuid');
     });
 
-    it("sends main's body with no connection field in a single project", async () => {
+    it('saves the statement as a one-node pipeline chart over its columns', async () => {
         await saveWith({ ready: true, field: {} });
 
         await waitFor(() =>
-            expect(createSqlChart).toHaveBeenCalledWith({
-                name: 'Ledger',
-                description: '',
-                sql: 'select 1',
-                limit: 10,
-                config,
-                spaceUuid: 'space-uuid',
-            }),
+            expect(createChart).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: 'Ledger',
+                    description: '',
+                    spaceUuid: 'space-uuid',
+                    tableName: 'sql',
+                    chartConfig: { type: ChartType.TABLE, config: undefined },
+                    tableConfig: { columnOrder: ['sql_id'] },
+                    pipeline: {
+                        queries: [
+                            {
+                                sourceType: QuerySourceType.SQL,
+                                nodeId: 'sql',
+                                title: 'SQL',
+                                sql: 'select 1',
+                                limit: 10,
+                            },
+                        ],
+                        terminalNodeId: 'sql',
+                        columns,
+                    },
+                }),
+            ),
         );
     });
 
@@ -140,7 +173,7 @@ describe('SaveSqlChartModalContent and the active connection', () => {
                 title: 'Choose a connection before you save this chart',
             }),
         );
-        expect(createSqlChart).not.toHaveBeenCalled();
-        expect(useCreateSqlChartMutation).toHaveBeenCalled();
+        expect(createChart).not.toHaveBeenCalled();
+        expect(useCreateMutation).toHaveBeenCalled();
     });
 });

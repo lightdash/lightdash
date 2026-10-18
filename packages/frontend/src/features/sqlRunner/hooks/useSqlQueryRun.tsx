@@ -1,25 +1,18 @@
 import {
     type ApiError,
     type ParametersValuesMap,
-    type RawResultRow,
     type SqlRunnerBody,
-    type VizColumn,
 } from '@lightdash/common';
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { SHARED_SIGN_IN_RECONNECTED } from '../../../hooks/useReconnectSharedSignIn';
 import { reportSharedSignInQueryFailure } from '../../../hooks/useReconnectSharedSignIn';
-import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { useAppSelector } from '../store/hooks';
 import { selectConnectionUuid } from '../store/sqlRunnerSlice';
-
-export type ResultsAndColumns = {
-    queryUuid: string;
-    fileUrl: string | undefined;
-    results: RawResultRow[];
-    columns: VizColumn[];
-    durationMs: number | null;
-};
+import {
+    executeSqlQuery,
+    type ResultsAndColumns,
+} from '../utils/executeSqlQuery';
 
 type UseSqlQueryRunParams = {
     sql: SqlRunnerBody['sql'];

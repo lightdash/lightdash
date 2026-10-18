@@ -11,6 +11,7 @@ import DataAppTile from '../../components/DashboardTiles/DashboardDataAppTile';
 import HeadingTile from '../../components/DashboardTiles/DashboardHeadingTile';
 import LoomTile from '../../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../../components/DashboardTiles/DashboardMarkdownTile';
+import { asSavedChartTile } from '../../components/DashboardTiles/sqlChartTile';
 import TileBase from '../../components/DashboardTiles/TileBase';
 import UnmetRequirementsPlaceholder from '../../components/DashboardTiles/UnmetRequirementsPlaceholder';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
@@ -64,24 +65,7 @@ const GridTileInner: FC<GridTileProps> = memo((props) => {
         case DashboardTileTypes.LOOM:
             return <LoomTile {...props} tile={tile} />;
         case DashboardTileTypes.SQL_CHART:
-            // A SQL chart is a saved chart under the same uuid; the server
-            // reads these tiles as chart tiles, this covers a stale tile
-            return (
-                <ChartTile
-                    {...props}
-                    tile={{
-                        ...tile,
-                        type: DashboardTileTypes.SAVED_CHART,
-                        properties: {
-                            title: tile.properties.title,
-                            hideTitle: tile.properties.hideTitle,
-                            savedChartUuid: tile.properties.savedSqlUuid,
-                            chartName: tile.properties.chartName,
-                            chartSlug: tile.properties.chartSlug,
-                        },
-                    }}
-                />
-            );
+            return <ChartTile {...props} tile={asSavedChartTile(tile)} />;
         case DashboardTileTypes.HEADING:
             return <HeadingTile {...props} tile={tile} />;
         case DashboardTileTypes.DATA_APP:

@@ -6,14 +6,14 @@ import {
 } from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../../api';
-import { pollForResults } from '../../queryRunner/executeQuery';
+import { pollForResults } from '../../../api/asyncQuery';
 import {
     SAVED_CHART_PREVIEW_ROW_LIMIT,
     executeSavedChartPreviewQuery,
 } from './savedChartPreviewQuery';
 
 vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
-vi.mock('../../queryRunner/executeQuery', () => ({ pollForResults: vi.fn() }));
+vi.mock('../../../api/asyncQuery', () => ({ pollForResults: vi.fn() }));
 
 const executedMetricQuery = {
     exploreName: 'orders',

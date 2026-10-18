@@ -12,7 +12,7 @@ import {
     type ResultRow,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
-import { pollForResults } from '../../queryRunner/executeQuery';
+import { pollForResults } from '../../../api/asyncQuery';
 
 /** One page of rows is all a preview needs, and the cap the picker reports. */
 export const SAVED_CHART_PREVIEW_ROW_LIMIT = 500;

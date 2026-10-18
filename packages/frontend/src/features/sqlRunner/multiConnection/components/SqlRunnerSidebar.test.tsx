@@ -51,8 +51,8 @@ vi.mock('@tanstack/react-virtual', () => ({
     }),
 }));
 
-vi.mock('../../../../components/DataViz/VisualizationConfigPanel', () => ({
-    VisualizationConfigPanel: () => null,
+vi.mock('../../viz/SqlRunnerVizConfigPanel', () => ({
+    SqlRunnerVizConfigPanel: () => null,
 }));
 
 const mockApi = lightdashApi as unknown as Mock;

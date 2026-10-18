@@ -1,4 +1,4 @@
-import { WarehouseTypes } from '@lightdash/common';
+import { DimensionType, WarehouseTypes } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
@@ -52,7 +52,9 @@ const withResults = (connectionRoute: SqlRunnerConnectionRoute) => {
                 queryUuid: 'query-uuid',
                 fileUrl: '/results',
                 results: [{ id: 1 }],
-                columns: [{ reference: 'id' }],
+                columns: {
+                    id: { reference: 'id', type: DimensionType.NUMBER },
+                },
                 durationMs: null,
                 warehouseConnectionUuid: connection,
             },

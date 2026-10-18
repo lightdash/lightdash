@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { type ChartConfig, type SavedChart } from '@lightdash/common';
+import {
+    getPipelineSqlChartSource,
+    type ChartConfig,
+    type SavedChart,
+} from '@lightdash/common';
 import { Box, Button, Group, ScrollArea, Stack, Text } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
@@ -27,6 +31,21 @@ const NO_NODE_STATUSES = {};
  * and pivot and saves a new version; the pipeline itself is edited where it
  * was made, in the agent thread.
  */
+/**
+ * Walkthrough marker for manage:SqlRunner: the chart page a saved SQL chart
+ * opens on, which saving from the SQL runner lands on.
+ */
+const savedChartTourProps = {
+    'data-tour-scope': 'manage:SqlRunner',
+    'data-tour-step': '1',
+    'data-tour-route': '/projects/:projectUuid/saved/:savedQueryUuid/view',
+    'data-tour-label': 'The chart is saved in its space',
+    'data-tour-docs': 'explore/sql-runner.mdx#intro:p2:1',
+    'data-tour-return': 'none',
+    'data-tour-resultdocs':
+        'explore/sql-runner.mdx#saved-charts-in-the-sql-runner:1',
+};
+
 export const SavedPipelineChartPage: FC<Props> = ({ chart, isEditMode }) => {
     const navigate = useNavigate();
     const { user } = useApp();
@@ -72,9 +91,20 @@ export const SavedPipelineChartPage: FC<Props> = ({ chart, isEditMode }) => {
         });
     };
 
+    // A chart whose pipeline is one SQL node edits its statement in the SQL runner
+    const sqlRunnerEditPath =
+        chart.pipeline && getPipelineSqlChartSource(chart.pipeline)
+            ? `/projects/${chart.projectUuid}/sql-runner/${chart.slug}`
+            : null;
+
     const header = (
         <PageHeader>
-            <Group justify="space-between" w="100%" wrap="nowrap">
+            <Group
+                justify="space-between"
+                w="100%"
+                wrap="nowrap"
+                {...savedChartTourProps}
+            >
                 <Stack gap={0} miw={0}>
                     <Text fz="lg" fw={600} truncate>
                         {chart.name}
@@ -109,7 +139,9 @@ export const SavedPipelineChartPage: FC<Props> = ({ chart, isEditMode }) => {
                                 variant="default"
                                 size="xs"
                                 onClick={() =>
-                                    void navigate(`${viewPath}/edit`)
+                                    void navigate(
+                                        sqlRunnerEditPath ?? `${viewPath}/edit`,
+                                    )
                                 }
                             >
                                 Edit chart

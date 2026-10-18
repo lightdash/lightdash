@@ -213,7 +213,10 @@ describe('buildComposeMergeOriginalColumns', () => {
             reference: 'orders_month',
             type: DimensionType.DATE,
             label: 'Orders Month',
-            provenance: { fieldId: 'orders_month' },
+            provenance: {
+                fieldId: 'orders_month',
+                fieldType: FieldType.DIMENSION,
+            },
         });
     });
 
@@ -234,6 +237,7 @@ describe('buildComposeMergeOriginalColumns', () => {
         });
         expect(withoutLeg.orders_count.provenance).toEqual({
             fieldId: 'orders_count',
+            fieldType: FieldType.METRIC,
         });
     });
 });

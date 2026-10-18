@@ -1,10 +1,10 @@
-import { type SqlChart } from '@lightdash/common';
+import { type SqlChartSource } from '@lightdash/common';
 import { useCallback, useState } from 'react';
 import { useAppSelector } from '../store/hooks';
 import { selectConnectionRequest } from '../store/sqlRunnerSlice';
 
 export const useSavedChartConnection = (
-    savedSqlChart: Pick<SqlChart, 'warehouseConnectionUuid'> | undefined,
+    savedSqlChart: Pick<SqlChartSource, 'warehouseConnectionUuid'> | undefined,
 ) => {
     const connectionRequest = useAppSelector(selectConnectionRequest);
     const [savedConnectionUuid, setSavedConnectionUuid] = useState<

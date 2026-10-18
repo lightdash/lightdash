@@ -1,0 +1,3 @@
+.icon[data-rotated='true'] {
+    transform: rotate(90deg);
+}

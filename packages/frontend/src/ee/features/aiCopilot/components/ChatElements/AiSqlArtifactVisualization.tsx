@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { type ResultColumn } from '@lightdash/common';
+import { ChartType, type ResultColumn } from '@lightdash/common';
 import { ActionIcon, Menu } from '@mantine/core';
 import {
     IconDeviceFloppy,
@@ -7,11 +7,12 @@ import {
     IconDownload,
     IconTerminal2,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SaveSqlChartModalContent } from '../../../../../features/sqlRunner/components/SaveSqlChartModal';
 import { type SqlRunnerConnectionRequest } from '../../../../../features/sqlRunner/store/sqlRunnerSlice';
+import { buildSqlRunnerItems } from '../../../../../features/sqlRunner/viz/sqlRunnerChart';
 
 const NO_CONNECTION_FIELD: SqlRunnerConnectionRequest = {
     ready: true,
@@ -20,7 +21,6 @@ const NO_CONNECTION_FIELD: SqlRunnerConnectionRequest = {
 import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import useApp from '../../../../../providers/App/useApp';
 import { useUpdateArtifactVersionSavedSql } from '../../hooks/useProjectAiAgents';
-import { getAiArtifactTableConfig } from './AiArtifactTableVisualization.utils';
 import { AiSqlArtifactDownloadModal } from './AiSqlArtifactDownloadModal';
 
 type ActionsProps = {
@@ -55,6 +55,20 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
     const { user } = useApp();
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+    // The result saves as a table over the statement's columns
+    const chartToSave = useMemo(() => {
+        const resultColumns = Object.fromEntries(
+            columns.map((column) => [column.reference, column]),
+        );
+        return {
+            sql,
+            limit,
+            columns: resultColumns,
+            items: buildSqlRunnerItems(resultColumns),
+            chartConfig: { type: ChartType.TABLE, config: undefined } as const,
+            pivotDimensions: undefined,
+        };
+    }, [columns, sql, limit]);
     const { mutateAsync: linkSavedSql } = useUpdateArtifactVersionSavedSql(
         projectUuid,
         agentUuid,
@@ -130,13 +144,11 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
                 projectUuid={projectUuid}
                 name={title}
                 description={description}
-                sql={sql}
-                limit={limit}
-                currentVizConfig={getAiArtifactTableConfig(columns)}
+                chart={chartToSave}
                 connectionRequest={NO_CONNECTION_FIELD}
                 redirectOnSuccess={false}
-                onSaved={async ({ savedSqlUuid: newSavedSqlUuid }) => {
-                    await linkSavedSql({ savedSqlUuid: newSavedSqlUuid });
+                onSaved={async (created) => {
+                    await linkSavedSql({ savedSqlUuid: created.uuid });
                 }}
             />
         </>

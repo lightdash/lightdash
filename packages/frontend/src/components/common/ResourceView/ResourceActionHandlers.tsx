@@ -293,7 +293,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         return (
                             <DeleteSqlChartModal
                                 opened
-                                savedSqlUuid={action.item.data.uuid}
+                                chartUuid={action.item.data.uuid}
                                 onClose={handleReset}
                                 onSuccess={handleReset}
                                 projectUuid={projectUuid}

@@ -1,12 +1,12 @@
-import { type SqlChart } from '@lightdash/common';
+import { getPipelineSqlChartSource } from '@lightdash/common';
 import {
-    Group,
-    Stack,
-    Title,
-    Button,
     ActionIcon,
+    Button,
+    Group,
     HoverCard,
     Menu,
+    Stack,
+    Title,
     Tooltip,
 } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
@@ -16,7 +16,6 @@ import {
     IconPencil,
     IconTrash,
 } from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
 import isEqual from 'lodash/isEqual';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
@@ -24,95 +23,122 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import PageHeader from '../../../../components/common/Page/PageHeader';
 import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
 import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup';
-import {
-    cartesianChartSelectors,
-    selectCompleteConfigByKind,
-} from '../../../../components/DataViz/store/selectors';
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
+import { useAddVersionMutation } from '../../../../hooks/useSavedQuery';
 import { DEFAULT_SQL_LIMIT } from '../../constants';
 import { useSavedChartConnection } from '../../hooks/useSavedChartConnection';
-import { useUpdateSqlChartMutation } from '../../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import {
-    EditorTabs,
-    setActiveEditorTab,
-    toggleModal,
-} from '../../store/sqlRunnerSlice';
-import { ChartErrorsAlert } from '../ChartErrorsAlert';
+import { toggleModal } from '../../store/sqlRunnerSlice';
+import { buildSqlRunnerItems } from '../../viz/sqlRunnerChart';
+import { buildSqlRunnerSavedChartVersion } from '../../viz/sqlRunnerSavedChart';
 import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 import { SqlQueryBeforeSaveAlert } from '../SqlQueryBeforeSaveAlert';
 import { UpdateSqlChartModal } from '../UpdateSqlChartModal';
 
 export const HeaderEdit: FC = () => {
-    const queryClient = useQueryClient();
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const savedSqlChart = useAppSelector(
-        (state) => state.sqlRunner.savedSqlChart,
+    const savedChart = useAppSelector((state) => state.sqlRunner.savedChart);
+    const chartConfig = useAppSelector((state) => state.sqlRunner.chartConfig);
+    const pivotDimensions = useAppSelector(
+        (state) => state.sqlRunner.pivotDimensions,
     );
-    const selectedChartType = useAppSelector(
-        (state) => state.sqlRunner.selectedChartType,
-    );
+    const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const limit = useAppSelector((state) => state.sqlRunner.limit);
     const hasUnrunChanges = useAppSelector(
         (state) => state.sqlRunner.hasUnrunChanges,
     );
-
-    const config = useAppSelector((state) =>
-        selectCompleteConfigByKind(state, selectedChartType),
+    // Saving without a re-run keeps the columns the chart was saved with
+    const columns = sqlColumns ?? savedChart?.pipeline?.columns;
+    const items = useMemo(
+        () => (columns ? buildSqlRunnerItems(columns) : null),
+        [columns],
     );
 
-    const { mutate, isLoading } = useUpdateSqlChartMutation(
-        savedSqlChart?.project.projectUuid || '',
-        savedSqlChart?.savedSqlUuid || '',
-        savedSqlChart?.slug || '',
+    const { mutate, isLoading } = useAddVersionMutation({
+        redirectOnSuccess: false,
+    });
+    const savedSource = useMemo(
+        () =>
+            savedChart?.pipeline
+                ? getPipelineSqlChartSource(savedChart.pipeline)
+                : null,
+        [savedChart],
     );
-    // Store initial chart config to detect if there are any changes later on
-    const [initialSavedSqlChart, setInitialSavedSqlChart] = useState<
-        Pick<SqlChart, 'sql' | 'limit'> | undefined
-    >(savedSqlChart);
-    const [initialChartConfig, setInitialChartConfig] = useState(config);
+    // The chart as last saved, to tell edits from the stored version
+    const [initialSource, setInitialSource] = useState(savedSource);
+    const [initialChart, setInitialChart] = useState({
+        chartConfig: savedChart?.chartConfig,
+        pivotDimensions: savedChart?.pivotConfig?.columns,
+    });
 
     const { connectionRequest, hasConnectionChange, markSaved } =
-        useSavedChartConnection(savedSqlChart);
+        useSavedChartConnection(savedSource ?? undefined);
 
     const hasChanges = useMemo(() => {
-        if (!initialSavedSqlChart) return false;
-        const changedSql = sql !== initialSavedSqlChart.sql;
-        const changedLimit = limit !== initialSavedSqlChart.limit;
-        const changedConfig = !isEqual(config, initialChartConfig);
-
+        if (!initialSource) return false;
+        const changedSql = sql !== initialSource.sql;
+        const changedLimit = limit !== initialSource.limit;
+        const changedConfig =
+            !isEqual(chartConfig, initialChart.chartConfig) ||
+            !isEqual(pivotDimensions, initialChart.pivotDimensions);
         return (
             changedSql || changedLimit || changedConfig || hasConnectionChange
         );
     }, [
-        initialSavedSqlChart,
-        initialChartConfig,
+        initialSource,
+        initialChart,
         sql,
         limit,
-        config,
+        chartConfig,
+        pivotDimensions,
         hasConnectionChange,
     ]);
 
+    // Saving captures the query as it last ran, so the columns must be known
+    const canSave = !!savedChart && !!sql && !!columns && !!items;
+
     const onSave = useCallback(() => {
-        if (!connectionRequest.ready) return;
-        if (config && sql) {
-            mutate({
-                versionedData: {
-                    config,
-                    sql,
-                    limit: limit ?? DEFAULT_SQL_LIMIT,
-                    ...connectionRequest.field,
-                },
-            });
-            setInitialChartConfig(config);
-            setInitialSavedSqlChart({ sql, limit: limit ?? DEFAULT_SQL_LIMIT });
-            markSaved();
-        }
-    }, [config, sql, mutate, limit, connectionRequest, markSaved]);
+        if (!connectionRequest.ready || !savedChart || !columns || !items)
+            return;
+        const savedLimit = limit ?? DEFAULT_SQL_LIMIT;
+        mutate({
+            uuid: savedChart.uuid,
+            payload: buildSqlRunnerSavedChartVersion({
+                sql,
+                limit: savedLimit,
+                columns,
+                items,
+                chartConfig,
+                pivotDimensions,
+                warehouseConnectionUuid:
+                    connectionRequest.field.warehouseConnectionUuid ?? null,
+                parameters: savedChart.parameters,
+            }),
+        });
+        setInitialChart({ chartConfig, pivotDimensions });
+        setInitialSource({
+            sql,
+            limit: savedLimit,
+            warehouseConnectionUuid:
+                connectionRequest.field.warehouseConnectionUuid ?? null,
+        });
+        markSaved();
+    }, [
+        connectionRequest,
+        savedChart,
+        columns,
+        items,
+        limit,
+        mutate,
+        sql,
+        chartConfig,
+        pivotDimensions,
+        markSaved,
+    ]);
 
     const isSaveModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,
@@ -132,34 +158,9 @@ export const HeaderEdit: FC = () => {
     const onCloseUpdateModal = useCallback(() => {
         dispatch(toggleModal('updateChartModal'));
     }, [dispatch]);
-    const isChartErrorsAlertOpen = useAppSelector(
-        (state) => state.sqlRunner.modals.chartErrorsAlert.isOpen,
-    );
-    const onCloseChartErrorsAlert = useCallback(() => {
-        dispatch(toggleModal('chartErrorsAlert'));
-    }, [dispatch]);
-    const onFixButtonClick = useCallback(() => {
-        dispatch(toggleModal('chartErrorsAlert'));
-        dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
-    }, [dispatch]);
-
-    const hasErrors = useAppSelector(
-        (state) =>
-            !!cartesianChartSelectors.getErrors(state, selectedChartType),
-    );
-    const onSaveClick = useCallback(() => {
-        if (hasErrors) {
-            dispatch(toggleModal('chartErrorsAlert'));
-        } else if (config && sql) {
-            onSave();
-        }
-    }, [hasErrors, config, sql, dispatch, onSave]);
 
     const isAnyModalOpen =
-        isSaveModalOpen ||
-        isUpdateModalOpen ||
-        isDeleteModalOpen ||
-        isChartErrorsAlertOpen;
+        isSaveModalOpen || isUpdateModalOpen || isDeleteModalOpen;
 
     // Save on cmd/ctrl + s, including while the SQL editor is focused
     useHotkeys(
@@ -168,13 +169,12 @@ export const HeaderEdit: FC = () => {
                 'mod+s',
                 () => {
                     if (
-                        config &&
-                        sql &&
+                        canSave &&
                         hasChanges &&
                         !isLoading &&
                         !isAnyModalOpen
                     ) {
-                        onSaveClick();
+                        onSave();
                     }
                 },
             ],
@@ -182,21 +182,11 @@ export const HeaderEdit: FC = () => {
         [],
     );
 
-    const handleGoBackToViewPage = useCallback(async () => {
-        await queryClient.resetQueries({
-            queryKey: [
-                'sqlRunner',
-                'savedSqlChart',
-                projectUuid,
-                savedSqlChart?.slug,
-            ],
-        });
-        void navigate(
-            `/projects/${projectUuid}/sql-runner/${savedSqlChart?.slug}`,
-        );
-    }, [queryClient, navigate, savedSqlChart, projectUuid]);
+    const handleGoBackToViewPage = useCallback(() => {
+        void navigate(`/projects/${projectUuid}/saved/${savedChart?.slug}`);
+    }, [navigate, savedChart, projectUuid]);
 
-    if (!savedSqlChart) {
+    if (!savedChart) {
         return null;
     }
 
@@ -207,12 +197,12 @@ export const HeaderEdit: FC = () => {
                     <Stack gap={0} miw={0}>
                         <Group gap={4} wrap="nowrap">
                             <TitleBreadCrumbs
-                                projectUuid={savedSqlChart.project.projectUuid}
-                                spaceUuid={savedSqlChart.space.uuid}
-                                spaceName={savedSqlChart.space.name}
+                                projectUuid={savedChart.projectUuid}
+                                spaceUuid={savedChart.spaceUuid}
+                                spaceName={savedChart.spaceName}
                             />
                             <Title order={5} maw={500} lineClamp={1}>
-                                {savedSqlChart.name}
+                                {savedChart.name}
                             </Title>
                             <ActionIcon
                                 size="xs"
@@ -225,18 +215,14 @@ export const HeaderEdit: FC = () => {
                         </Group>
                         <Group gap="xs">
                             <UpdatedInfo
-                                updatedAt={savedSqlChart.lastUpdatedAt}
-                                user={savedSqlChart.lastUpdatedBy}
+                                updatedAt={savedChart.updatedAt}
+                                user={savedChart.updatedByUser}
                                 partiallyBold={false}
                             />
                             <ResourceInfoPopup
-                                resourceUuid={savedSqlChart.savedSqlUuid}
-                                projectUuid={savedSqlChart.project.projectUuid}
-                                description={
-                                    savedSqlChart.description ?? undefined
-                                }
-                                viewStats={savedSqlChart.views}
-                                firstViewedAt={savedSqlChart.firstViewedAt}
+                                resourceUuid={savedChart.uuid}
+                                projectUuid={savedChart.projectUuid}
+                                description={savedChart.description}
                                 withChartData={false}
                             />
                         </Group>
@@ -248,9 +234,9 @@ export const HeaderEdit: FC = () => {
                                 <Button
                                     size="xs"
                                     color={'green.7'}
-                                    disabled={!config || !sql || !hasChanges}
+                                    disabled={!canSave || !hasChanges}
                                     loading={isLoading}
-                                    onClick={onSaveClick}
+                                    onClick={onSave}
                                 >
                                     Save
                                 </Button>
@@ -292,7 +278,6 @@ export const HeaderEdit: FC = () => {
                             <Menu.Dropdown>
                                 <Menu.Label>Manage</Menu.Label>
                                 <Menu.Item
-                                    disabled={!config || !sql}
                                     leftSection={
                                         <MantineIcon icon={IconTrash} />
                                     }
@@ -318,30 +303,21 @@ export const HeaderEdit: FC = () => {
 
             <UpdateSqlChartModal
                 opened={isUpdateModalOpen}
-                projectUuid={savedSqlChart.project.projectUuid}
-                savedSqlUuid={savedSqlChart.savedSqlUuid}
-                slug={savedSqlChart.slug}
+                projectUuid={savedChart.projectUuid}
+                chart={savedChart}
                 onClose={() => onCloseUpdateModal()}
                 onSuccess={() => onCloseUpdateModal()}
             />
 
             <DeleteSqlChartModal
-                projectUuid={savedSqlChart.project.projectUuid}
-                savedSqlUuid={savedSqlChart.savedSqlUuid}
-                name={savedSqlChart.name}
+                projectUuid={savedChart.projectUuid}
+                chartUuid={savedChart.uuid}
+                name={savedChart.name}
                 opened={isDeleteModalOpen}
                 onClose={onCloseDeleteModal}
                 onSuccess={() =>
-                    navigate(
-                        `/projects/${savedSqlChart.project.projectUuid}/home`,
-                    )
+                    navigate(`/projects/${savedChart.projectUuid}/home`)
                 }
-            />
-
-            <ChartErrorsAlert
-                opened={isChartErrorsAlertOpen}
-                onClose={onCloseChartErrorsAlert}
-                onFixButtonClick={onFixButtonClick}
             />
         </>
     );

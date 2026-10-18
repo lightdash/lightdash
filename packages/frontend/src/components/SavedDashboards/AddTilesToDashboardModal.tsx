@@ -21,7 +21,6 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
-import { useSavedSqlChart } from '../../features/sqlRunner/hooks/useSavedSqlCharts';
 import {
     appendNewTilesToBottom,
     useCreateMutation,
@@ -58,17 +57,16 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         useState<boolean>(false);
     const [isLoading, setIsLoading] = useState(false);
 
+    // A SQL chart is a saved chart under the same uuid
     const exploreChartQuery = useSavedQuery({
         uuidOrSlug: uuid,
         projectUuid,
         useQueryOptions: {
-            enabled: dashboardTileType === DashboardTileTypes.SAVED_CHART,
+            enabled:
+                dashboardTileType === DashboardTileTypes.SAVED_CHART ||
+                dashboardTileType === DashboardTileTypes.SQL_CHART,
         },
     });
-    const sqlChartQuery = useSavedSqlChart(
-        { projectUuid, uuid: uuid },
-        { enabled: dashboardTileType === DashboardTileTypes.SQL_CHART },
-    );
 
     const tile = useMemo<
         | {
@@ -79,6 +77,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     >(() => {
         switch (dashboardTileType) {
             case DashboardTileTypes.SAVED_CHART:
+            case DashboardTileTypes.SQL_CHART:
                 if (!exploreChartQuery.isSuccess) return;
 
                 return {
@@ -99,28 +98,6 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                     },
                 };
 
-            case DashboardTileTypes.SQL_CHART:
-                if (!sqlChartQuery.isSuccess) return;
-
-                return {
-                    props: {
-                        uuid: sqlChartQuery.data.savedSqlUuid,
-                        spaceUuid: sqlChartQuery.data.space.uuid,
-                    },
-                    payload: {
-                        uuid: uuid4(),
-                        type: DashboardTileTypes.SQL_CHART,
-                        properties: {
-                            savedSqlUuid: sqlChartQuery.data.savedSqlUuid,
-                            chartName: sqlChartQuery.data.name,
-                        },
-                        tabUuid: undefined,
-                        ...getDefaultChartTileSize(
-                            sqlChartQuery.data.config?.type,
-                        ),
-                    },
-                };
-
             case DashboardTileTypes.LOOM:
             case DashboardTileTypes.MARKDOWN:
             case DashboardTileTypes.HEADING:
@@ -134,7 +111,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                     `Unsupported chart tile type: ${dashboardTileType}`,
                 );
         }
-    }, [dashboardTileType, exploreChartQuery, sqlChartQuery]);
+    }, [dashboardTileType, exploreChartQuery]);
 
     const { data: dashboards, isInitialLoading: isLoadingDashboards } =
         useDashboards(

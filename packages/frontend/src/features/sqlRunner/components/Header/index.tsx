@@ -2,22 +2,16 @@ import { Paper, Skeleton, Stack } from '@mantine/core';
 import { type FC } from 'react';
 import { useAppSelector } from '../../store/hooks';
 import { HeaderEdit } from './HeaderEdit';
-import { HeaderView } from './HeaderView';
 
 export const Header: FC<{
-    mode: 'view' | 'edit';
-}> = ({ mode }) => {
+    mode: 'edit';
+}> = () => {
     const isChartLoaded = useAppSelector(
-        (state) => !!state.sqlRunner.savedSqlChart?.savedSqlUuid,
+        (state) => !!state.sqlRunner.savedChart,
     );
 
     if (isChartLoaded) {
-        if (mode === 'view') {
-            return <HeaderView />;
-        }
-        if (mode === 'edit') {
-            return <HeaderEdit />;
-        }
+        return <HeaderEdit />;
     }
 
     return (

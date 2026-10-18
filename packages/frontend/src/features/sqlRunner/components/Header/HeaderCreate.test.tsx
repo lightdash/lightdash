@@ -24,13 +24,11 @@ const state = {
         name: 'SQL query',
         sql: 'select 1',
         hasUnrunChanges: false,
-        sqlColumns: [],
-        selectedChartType: null,
+        sqlColumns: {},
         modals: {
             saveChartModal: { isOpen: false },
             createVirtualViewModal: { isOpen: false },
             writeBackToDbtModal: { isOpen: false },
-            chartErrorsAlert: { isOpen: false },
         },
     },
 };
@@ -80,9 +78,6 @@ vi.mock('../../../../hooks/toaster/useToaster', () => ({
 vi.mock('../../hooks/useSqlRunnerShareUrl', () => ({
     useCreateSqlRunnerShareUrl: () => vi.fn(),
 }));
-vi.mock('../../../../components/DataViz/store/selectors', () => ({
-    cartesianChartSelectors: { getErrors: () => null },
-}));
 vi.mock(
     '../../../../components/VisualizationConfigs/common/EditableText',
     () => ({ EditableText: () => null }),
@@ -90,7 +85,6 @@ vi.mock(
 vi.mock('../../../virtualView', () => ({ CreateVirtualViewModal: () => null }));
 vi.mock('../SaveSqlChartModal', () => ({ SaveSqlChartModal: () => null }));
 vi.mock('../WriteBackToDbtModal', () => ({ WriteBackToDbtModal: () => null }));
-vi.mock('../ChartErrorsAlert', () => ({ ChartErrorsAlert: () => null }));
 
 beforeEach(() => {
     mocks.project.dbtConnection.type = DbtProjectType.BITBUCKET;

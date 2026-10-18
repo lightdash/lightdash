@@ -2,20 +2,20 @@ import { useEffect, type FC } from 'react';
 import MantineModal, {
     type MantineModalProps,
 } from '../../../components/common/MantineModal';
+import { useSavedQueryDeleteMutation } from '../../../hooks/useSavedQuery';
 import useApp from '../../../providers/App/useApp';
 import DocumentsLinkingChartCallout from '../../documents/DocumentsLinkingChartCallout';
-import { useDeleteSqlChartMutation } from '../hooks/useSavedSqlCharts';
 
 type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     projectUuid: string;
-    savedSqlUuid: string;
+    chartUuid: string;
     name: string;
     onSuccess: () => void;
 };
 
 export const DeleteSqlChartModal: FC<Props> = ({
     projectUuid,
-    savedSqlUuid,
+    chartUuid,
     name,
     opened,
     onClose,
@@ -25,10 +25,8 @@ export const DeleteSqlChartModal: FC<Props> = ({
     const softDeleteEnabled = health.data?.softDelete.enabled;
     const retentionDays = health.data?.softDelete.retentionDays;
 
-    const { mutate, isLoading, isSuccess } = useDeleteSqlChartMutation(
-        projectUuid,
-        savedSqlUuid,
-    );
+    const { mutate, isLoading, isSuccess } =
+        useSavedQueryDeleteMutation(projectUuid);
 
     useEffect(() => {
         if (isSuccess) {
@@ -49,14 +47,14 @@ export const DeleteSqlChartModal: FC<Props> = ({
             resourceType="chart"
             resourceLabel={name}
             description={description}
-            onConfirm={mutate}
+            onConfirm={() => mutate(chartUuid)}
             confirmLoading={isLoading}
             cancelDisabled={isLoading}
         >
             <DocumentsLinkingChartCallout
                 projectUuid={projectUuid}
-                kind="sqlChart"
-                chartUuid={savedSqlUuid}
+                kind="chart"
+                chartUuid={chartUuid}
                 softDeleteEnabled={!!softDeleteEnabled}
             />
         </MantineModal>

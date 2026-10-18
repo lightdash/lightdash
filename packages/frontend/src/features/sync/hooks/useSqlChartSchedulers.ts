@@ -3,29 +3,9 @@ import {
     type CreateSchedulerAndTargetsWithoutIds,
     type SchedulerAndTargets,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
-
-const getSqlChartSchedulers = async (
-    projectUuid: string,
-    savedSqlUuid: string,
-) =>
-    lightdashApi<SchedulerAndTargets[]>({
-        url: `/projects/${projectUuid}/sqlRunner/saved/${savedSqlUuid}/schedulers`,
-        method: 'GET',
-        body: undefined,
-    });
-
-export const useSqlChartSchedulers = (
-    projectUuid: string,
-    savedSqlUuid: string,
-) =>
-    useQuery<SchedulerAndTargets[], ApiError>({
-        queryKey: ['sql_chart_schedulers', savedSqlUuid],
-        queryFn: () => getSqlChartSchedulers(projectUuid, savedSqlUuid),
-        enabled: !!savedSqlUuid && !!projectUuid,
-    });
 
 const createSqlChartScheduler = async (
     projectUuid: string,

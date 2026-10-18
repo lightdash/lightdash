@@ -29,7 +29,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { lightdashApi } from '../api';
-import { pollForResults } from '../features/queryRunner/executeQuery';
+import { pollForResults } from '../api/asyncQuery';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
 

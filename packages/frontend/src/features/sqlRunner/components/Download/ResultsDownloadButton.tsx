@@ -1,11 +1,6 @@
-import {
-    getCustomLabelsFromVizTableConfig,
-    getHiddenFieldsFromVizTableConfig,
-    type VizTableConfig,
-} from '@lightdash/common';
 import { ActionIcon, Popover, Tooltip } from '@mantine/core';
 import { IconDownload } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import ExportResults from '../../../../components/ExportResults';
 import { type Limit } from '../../../../components/ExportResults/types';
@@ -13,7 +8,6 @@ import { type Limit } from '../../../../components/ExportResults/types';
 type Props = {
     projectUuid: string;
     disabled: boolean;
-    vizTableConfig?: VizTableConfig;
     columnOrder: string[];
     totalResults: number;
     chartName: string | undefined;
@@ -27,43 +21,29 @@ type Props = {
 const ResultsDownloadButton: FC<Props> = ({
     disabled,
     projectUuid,
-    vizTableConfig,
     columnOrder,
     totalResults,
     getDownloadQueryUuid,
     chartName,
-}) => {
-    const [downloadCustomLabels, downloadHiddenColumns] = useMemo(() => {
-        const customLabels = getCustomLabelsFromVizTableConfig(vizTableConfig);
-        const hiddenColumns = getHiddenFieldsFromVizTableConfig(vizTableConfig);
-        return [customLabels, hiddenColumns];
-    }, [vizTableConfig]);
-
-    return (
-        <Popover withArrow disabled={disabled}>
-            <Popover.Target>
-                <Tooltip label="Download results" position="bottom">
-                    <ActionIcon
-                        aria-label="Download results"
-                        disabled={disabled}
-                    >
-                        <MantineIcon icon={IconDownload} />
-                    </ActionIcon>
-                </Tooltip>
-            </Popover.Target>
-            <Popover.Dropdown>
-                <ExportResults
-                    projectUuid={projectUuid}
-                    totalResults={totalResults}
-                    getDownloadQueryUuid={getDownloadQueryUuid}
-                    hiddenFields={downloadHiddenColumns}
-                    chartName={chartName}
-                    customLabels={downloadCustomLabels}
-                    columnOrder={columnOrder}
-                />
-            </Popover.Dropdown>
-        </Popover>
-    );
-};
+}) => (
+    <Popover withArrow disabled={disabled}>
+        <Popover.Target>
+            <Tooltip label="Download results" position="bottom">
+                <ActionIcon aria-label="Download results" disabled={disabled}>
+                    <MantineIcon icon={IconDownload} />
+                </ActionIcon>
+            </Tooltip>
+        </Popover.Target>
+        <Popover.Dropdown>
+            <ExportResults
+                projectUuid={projectUuid}
+                totalResults={totalResults}
+                getDownloadQueryUuid={getDownloadQueryUuid}
+                chartName={chartName}
+                columnOrder={columnOrder}
+            />
+        </Popover.Dropdown>
+    </Popover>
+);
 
 export default ResultsDownloadButton;

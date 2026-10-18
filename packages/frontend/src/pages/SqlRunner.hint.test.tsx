@@ -6,13 +6,13 @@ import { useContext } from 'react';
 import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { lightdashApi } from '../api';
-import { executeSqlQuery } from '../features/queryRunner/executeQuery';
 import { ConnectionPicker } from '../features/sqlRunner/multiConnection/components/ConnectionPicker';
 import { ActiveConnectionContext } from '../features/sqlRunner/multiConnection/hooks/activeConnectionContext';
 import { sqlRunnerConnectionsQueryKey } from '../features/sqlRunner/multiConnection/hooks/useConnectionCatalog';
 import { store } from '../features/sqlRunner/store';
 import { resetState } from '../features/sqlRunner/store/sqlRunnerSlice';
 import { runSqlQuery } from '../features/sqlRunner/store/thunks';
+import { executeSqlQuery } from '../features/sqlRunner/utils/executeSqlQuery';
 import { createQueryClient } from '../providers/ReactQuery/createQueryClient';
 import { renderWithProviders } from '../testing/testUtils';
 import SqlRunnerNewPage from './SqlRunner';
@@ -34,7 +34,7 @@ vi.mock('../hooks/useProjectUuid', () => ({
 vi.mock('../hooks/toaster/useToaster', () => ({
     default: () => toaster,
 }));
-vi.mock('../features/queryRunner/executeQuery', () => ({
+vi.mock('../features/sqlRunner/utils/executeSqlQuery', () => ({
     executeSqlQuery: vi.fn(async () => ({
         queryUuid: 'query-uuid',
         fileUrl: '/results',
@@ -61,6 +61,13 @@ vi.mock('../features/sqlRunner/components/Header', () => ({
 }));
 vi.mock('../features/virtualView', () => ({
     HeaderVirtualView: () => null,
+}));
+vi.mock('../features/sqlRunner/viz/SqlRunnerVisualizationProvider', () => ({
+    SqlRunnerVisualizationProvider: ({
+        children,
+    }: {
+        children: React.ReactNode;
+    }) => <>{children}</>,
 }));
 vi.mock('../features/sqlRunner/components/ContentPanel', () => ({
     ContentPanel: () => (

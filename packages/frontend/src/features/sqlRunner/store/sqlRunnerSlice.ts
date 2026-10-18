@@ -1,26 +1,28 @@
 import {
-    ChartKind,
+    formatSql,
+    getFieldQuoteChar,
+    getPipelineSqlChartSource,
     type ApiErrorDetail,
+    type ChartConfig,
+    type ChartType,
     type ParametersValuesMap,
     type ParameterValue,
     type RawResultRow,
-    type SqlChart,
-    type VizColumn,
-    type VizSortBy,
-    type VizTableColumnsConfig,
-    type VizTableConfig,
+    type ResultColumns,
+    type SavedChart,
     type WarehouseTypes,
-    formatSql,
-    getFieldQuoteChar,
 } from '@lightdash/common';
 import type { PayloadAction, SerializedError } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { createSelector } from 'reselect';
 import { type MonacoHighlightChar } from '../components/SqlEditor';
-import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { resolveSqlErrorPosition } from '../utils/sqlErrorPosition';
+import {
+    DEFAULT_SQL_RUNNER_CHART_CONFIG,
+    toVizColumns,
+} from '../viz/sqlRunnerChart';
 import { createHistoryReducer, withHistory, type WithHistory } from './history';
-import { prepareAndFetchChartData, runSqlQuery } from './thunks';
+import { runSqlQuery } from './thunks';
 
 export enum EditorTabs {
     SQL = 'SQL',
@@ -59,7 +61,8 @@ export interface SqlRunnerState {
     activeTable: string | undefined;
     activeSchema: string | undefined;
     activeDatabase: string | undefined;
-    savedSqlChart: SqlChart | undefined;
+    /** The pipeline chart being edited; its single SQL node is the editor's statement. */
+    savedChart: SavedChart | undefined;
     queryUuid: string | undefined;
     fileUrl: string | undefined;
     name: string;
@@ -70,8 +73,10 @@ export interface SqlRunnerState {
     limit: number | undefined;
     activeSidebarTab: SidebarTabs;
     activeEditorTab: EditorTabs;
-    selectedChartType: ChartKind | undefined;
-    resultsTableConfig: VizTableColumnsConfig | undefined;
+    /** The explorer chart config the result is drawn with, as a saved chart stores it. */
+    chartConfig: ChartConfig;
+    /** Field ids the chart groups by; a grouped chart re-pivots the result. */
+    pivotDimensions: string[] | undefined;
     modals: {
         saveChartModal: {
             isOpen: boolean;
@@ -91,16 +96,12 @@ export interface SqlRunnerState {
         writeBackToDbtModal: {
             isOpen: boolean;
         };
-        chartErrorsAlert: {
-            isOpen: boolean;
-        };
     };
     quoteChar: string;
     warehouseConnectionType: WarehouseTypes | undefined;
-    sqlColumns: VizColumn[] | undefined;
+    sqlColumns: ResultColumns | undefined;
     sqlRows: RawResultRow[] | undefined;
     sqlDurationMs: number | null;
-    activeConfigs: ChartKind[];
     fetchResultsOnLoad: boolean;
     mode: 'default' | 'virtualView';
     queryIsLoading: boolean;
@@ -121,7 +122,7 @@ export const initialState: SqlRunnerState = {
     activeTable: undefined,
     activeSchema: undefined,
     activeDatabase: undefined,
-    savedSqlChart: undefined,
+    savedChart: undefined,
     queryUuid: undefined,
     fileUrl: undefined,
     name: '',
@@ -132,8 +133,8 @@ export const initialState: SqlRunnerState = {
     limit: undefined,
     activeSidebarTab: SidebarTabs.TABLES,
     activeEditorTab: EditorTabs.SQL,
-    selectedChartType: ChartKind.VERTICAL_BAR,
-    resultsTableConfig: undefined,
+    chartConfig: DEFAULT_SQL_RUNNER_CHART_CONFIG,
+    pivotDimensions: undefined,
     modals: {
         saveChartModal: {
             isOpen: false,
@@ -153,16 +154,12 @@ export const initialState: SqlRunnerState = {
         writeBackToDbtModal: {
             isOpen: false,
         },
-        chartErrorsAlert: {
-            isOpen: false,
-        },
     },
     quoteChar: '"',
     warehouseConnectionType: undefined,
     sqlColumns: undefined,
     sqlRows: undefined,
     sqlDurationMs: null,
-    activeConfigs: [ChartKind.TABLE, ChartKind.VERTICAL_BAR],
     fetchResultsOnLoad: false,
     queryIsLoading: false,
     queryError: undefined,
@@ -192,11 +189,11 @@ export const sqlRunnerSlice = createSlice({
         selectProjectUuid: (state) => state.projectUuid,
         selectSql: (state) => state.sql,
         selectQueryUuid: (state) => state.queryUuid,
-        selectActiveChartType: (state) => state.selectedChartType,
+        selectChartConfig: (state) => state.chartConfig,
+        selectPivotDimensions: (state) => state.pivotDimensions,
         selectActiveEditorTab: (state) => state.activeEditorTab,
         selectLimit: (state) => state.limit,
-        selectResultsTableConfig: (state) => state.resultsTableConfig,
-        selectSavedSqlChart: (state) => state.savedSqlChart,
+        selectSavedChart: (state) => state.savedChart,
         selectColumns: (state) => state.sqlColumns,
         selectRows: (state) => state.sqlRows,
         selectParameterValues: (state) => state.parameterValues,
@@ -298,31 +295,46 @@ export const sqlRunnerSlice = createSlice({
             }
             if (action.payload === EditorTabs.VISUALIZATION) {
                 state.activeSidebarTab = SidebarTabs.VISUALIZATION;
-                if (!state.selectedChartType) {
-                    state.selectedChartType = ChartKind.VERTICAL_BAR;
-                }
             }
             if (action.payload === EditorTabs.SQL) {
                 state.activeSidebarTab = SidebarTabs.TABLES;
             }
         },
-        setSavedChartData: (state, action: PayloadAction<SqlChart>) => {
-            state.savedSqlChart = action.payload;
-            state.name = action.payload.name;
-            state.description = action.payload.description || '';
-            state.sql = action.payload.sql;
-            state.limit = action.payload.limit || 500;
-            state.selectedChartType =
-                action.payload.config.type || ChartKind.VERTICAL_BAR;
-            if (!state.activeConfigs.includes(action.payload.config.type)) {
-                state.activeConfigs.push(action.payload.config.type);
+        /** Loads a pipeline chart whose single SQL node the editor edits. */
+        setSavedChartData: (state, action: PayloadAction<SavedChart>) => {
+            const chart = action.payload;
+            const source = chart.pipeline
+                ? getPipelineSqlChartSource(chart.pipeline)
+                : null;
+            state.savedChart = chart;
+            state.name = chart.name;
+            state.description = chart.description || '';
+            if (source) {
+                state.sql = source.sql;
+                state.limit = source.limit;
             }
+            state.chartConfig = chart.chartConfig;
+            state.pivotDimensions = chart.pivotConfig?.columns;
         },
-        setSelectedChartType: (state, action: PayloadAction<ChartKind>) => {
-            state.selectedChartType = action.payload;
-            if (!state.activeConfigs.includes(action.payload)) {
-                state.activeConfigs.push(action.payload);
-            }
+        setChartConfig: (state, action: PayloadAction<ChartConfig>) => {
+            state.chartConfig = action.payload;
+        },
+        /** Switches the chart type; the explorer config fills the type's defaults from the result. */
+        setChartType: (state, action: PayloadAction<ChartType>) => {
+            if (state.chartConfig.type === action.payload) return;
+            state.chartConfig = {
+                type: action.payload,
+                config: undefined,
+            } as ChartConfig;
+        },
+        setPivotDimensions: (
+            state,
+            action: PayloadAction<string[] | undefined>,
+        ) => {
+            state.pivotDimensions =
+                action.payload && action.payload.length > 0
+                    ? action.payload
+                    : undefined;
         },
         toggleActiveTable: (
             state,
@@ -410,36 +422,12 @@ export const sqlRunnerSlice = createSlice({
                 state.fileUrl = action.payload.fileUrl;
                 state.editorHighlightError = undefined;
 
-                // setSqlRunnerResults reducer logic moved here
                 if (
                     action.payload.results.length === 0 ||
-                    action.payload.columns.length === 0
+                    Object.keys(action.payload.columns).length === 0
                 ) {
                     return;
                 }
-
-                state.sqlColumns = action.payload.columns;
-                // Set the initial results table config
-                const columns = Object.keys(action.payload.results[0]).reduce<
-                    VizTableConfig['columns']
-                >(
-                    (acc, key) => ({
-                        ...acc,
-                        [key]: {
-                            visible: true,
-                            reference: key,
-                            label: key,
-                            frozen: true,
-                            order: undefined,
-                        },
-                    }),
-                    {},
-                );
-                // Set static results table
-                // TODO: should this be in a separate slice?
-                state.resultsTableConfig = {
-                    columns,
-                };
 
                 if (!!state.sql) {
                     sqlHistoryReducer.addToHistory(state.successfulSqlQueries, {
@@ -459,8 +447,6 @@ export const sqlRunnerSlice = createSlice({
                     });
                     state.hasUnrunChanges = false;
                 }
-                state.sqlRows = action.payload.results;
-                state.fileUrl = action.payload.fileUrl;
             })
             .addCase(runSqlQuery.rejected, (state, action) => {
                 state.queryIsLoading = false;
@@ -484,15 +470,6 @@ export const sqlRunnerSlice = createSlice({
                               ),
                           })
                         : undefined;
-            })
-            .addCase(prepareAndFetchChartData.pending, (state) => {
-                state.queryIsLoading = true;
-            })
-            .addCase(prepareAndFetchChartData.fulfilled, (state) => {
-                state.queryIsLoading = false;
-            })
-            .addCase(prepareAndFetchChartData.rejected, (state) => {
-                state.queryIsLoading = false;
             });
     },
 });
@@ -506,7 +483,9 @@ export const {
     setSqlLimit,
     setActiveEditorTab,
     setSavedChartData,
-    setSelectedChartType,
+    setChartConfig,
+    setChartType,
+    setPivotDimensions,
     toggleModal,
     resetState,
     setQuoteChar,
@@ -526,11 +505,11 @@ export const {
     selectSql,
     selectQueryUuid,
     selectProjectUuid,
-    selectActiveChartType,
+    selectChartConfig,
+    selectPivotDimensions,
     selectLimit,
-    selectResultsTableConfig,
     selectActiveEditorTab,
-    selectSavedSqlChart,
+    selectSavedChart,
     selectSqlQueryResults,
     selectParameterValues,
     selectConnectionRoute,
@@ -571,36 +550,8 @@ export const selectConnectionRequest = createSelector(
     },
 );
 
-export const selectSqlRunnerResultsRunner = createSelector(
-    [
-        sqlRunnerSlice.selectors.selectColumns,
-        sqlRunnerSlice.selectors.selectRows,
-        selectProjectUuid,
-        selectLimit,
-        selectSql,
-        (_state, sortBy?: VizSortBy[]) => sortBy,
-        selectParameterValues,
-        sqlRunnerSlice.selectors.selectConnectionRoute,
-    ],
-    (
-        columns,
-        rows,
-        projectUuid,
-        limit,
-        sql,
-        sortBy,
-        parameterValues,
-        connectionRoute,
-    ) => {
-        return new SqlRunnerResultsRunnerFrontend({
-            columns: columns || [],
-            rows: rows || [],
-            projectUuid,
-            limit,
-            sql,
-            sortBy,
-            parameters: parameterValues,
-            warehouseConnectionUuid: connectionUuidOf(connectionRoute),
-        });
-    },
+/** The result's columns in the shape virtual views and dbt write-back send. */
+export const selectSqlVizColumns = createSelector(
+    [sqlRunnerSlice.selectors.selectColumns],
+    (columns) => (columns ? toVizColumns(columns) : undefined),
 );

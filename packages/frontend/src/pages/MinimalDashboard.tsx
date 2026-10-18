@@ -37,7 +37,7 @@ import DataAppTile from '../components/DashboardTiles/DashboardDataAppTile';
 import HeadingTile from '../components/DashboardTiles/DashboardHeadingTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
-import SqlChartTile from '../components/DashboardTiles/DashboardSqlChartTile';
+import { asSavedChartTile } from '../components/DashboardTiles/sqlChartTile';
 import MinimalDashboardTabs from '../components/MinimalDashboardTabs';
 import {
     getReactGridLayoutConfig,
@@ -124,9 +124,10 @@ const renderDashboardTile = (tile: Dashboard['tiles'][number]) => {
             );
         case DashboardTileTypes.SQL_CHART:
             return (
-                <SqlChartTile
+                <ChartTile
                     key={tile.uuid}
-                    tile={tile}
+                    minimal
+                    tile={asSavedChartTile(tile)}
                     isEditMode={false}
                     onDelete={() => {}}
                     onEdit={() => {}}

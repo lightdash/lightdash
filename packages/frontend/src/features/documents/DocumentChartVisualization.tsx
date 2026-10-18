@@ -1,10 +1,10 @@
 import {
     ChartType,
     ECHARTS_DEFAULT_COLORS,
-    getDocumentRuntimeChartConfig,
     isWarehouseResourceLimitError,
     type ApiError,
     type ApiExecuteAsyncMetricQueryResults,
+    type ChartConfig,
     type DocumentQueryReference,
     type SemanticChartAsCode,
 } from '@lightdash/common';
@@ -23,10 +23,16 @@ import { DocumentRenderTargetContext } from '../chartTypes/documentRenderTarget/
 import { useDocumentExportStatus } from './documentExportStatus';
 import ReportChartFrame from './presentation/ReportChartFrame';
 
+/** A Document chart as drawn: its runtime chart config over the result the query produced. */
+export type DocumentVisualizedChart = Pick<
+    SemanticChartAsCode,
+    'name' | 'description' | 'pivotConfig' | 'tableConfig' | 'tableName'
+> & { chartConfig: ChartConfig };
+
 type Props = {
     projectUuid: string;
     spaceUuid: string | null;
-    chart: SemanticChartAsCode;
+    chart: DocumentVisualizedChart;
     query: Pick<
         UseQueryResult<ApiExecuteAsyncMetricQueryResults, ApiError>,
         'data' | 'error' | 'isFetching' | 'refetch'
@@ -46,10 +52,6 @@ const DocumentChartVisualization = ({
     showTitle = false,
     renderTarget,
 }: Props) => {
-    const chartConfig = useMemo(
-        () => getDocumentRuntimeChartConfig(chart.chartConfig),
-        [chart.chartConfig],
-    );
     const palette = useProjectColorPalette(projectUuid, {
         spaceUuid: spaceUuid ?? undefined,
     });
@@ -145,7 +147,7 @@ const DocumentChartVisualization = ({
                 >
                     <VisualizationProvider
                         minimal
-                        chartConfig={chartConfig}
+                        chartConfig={chart.chartConfig}
                         initialPivotDimensions={chart.pivotConfig?.columns}
                         initialPivotRows={chart.pivotConfig?.rows}
                         resultsData={{

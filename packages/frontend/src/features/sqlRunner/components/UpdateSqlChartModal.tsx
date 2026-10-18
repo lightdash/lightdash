@@ -1,24 +1,28 @@
-import type { Space, SpaceSummary, SqlChart } from '@lightdash/common';
+import {
+    type ApiError,
+    type SavedChart,
+    type UpdateSavedChart,
+} from '@lightdash/common';
 import { Button, Stack, Textarea, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
-import { useEffect, useMemo, type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { z } from 'zod';
+import { lightdashApi } from '../../../api';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal, {
     type MantineModalProps,
 } from '../../../components/common/MantineModal';
 import SaveToSpaceForm from '../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
 import { saveToSpaceSchema } from '../../../components/common/modal/ChartCreateModal/types';
+import useToaster from '../../../hooks/toaster/useToaster';
+import { invalidateContent } from '../../../hooks/useContent';
 import { useModalSteps } from '../../../hooks/useModalSteps';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
-import {
-    useSavedSqlChart,
-    useUpdateSqlChartMutation,
-} from '../hooks/useSavedSqlCharts';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { useAppDispatch } from '../store/hooks';
 import { setSavedChartData } from '../store/sqlRunnerSlice';
 
 enum ModalStep {
@@ -37,33 +41,30 @@ type FormValues = z.infer<typeof updateSqlChartSchema>;
 
 type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     projectUuid: string;
-    savedSqlUuid: string;
-    slug: string;
+    chart: SavedChart;
     onSuccess: () => void;
 };
 
 const UPDATE_CHART_FORM_ID = 'update-sql-chart-form';
 
+const updateSavedChart = (uuid: string, data: UpdateSavedChart) =>
+    lightdashApi<SavedChart>({
+        url: `/saved/${uuid}`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+
+/** Renames, describes or moves the chart being edited; the chart's version is untouched. */
 export const UpdateSqlChartModal: FC<Props> = ({
     projectUuid,
-    savedSqlUuid,
-    slug,
+    chart,
     opened,
     onClose,
     onSuccess,
 }) => {
     const dispatch = useAppDispatch();
-    const savedSqlChart = useAppSelector(
-        (state) => state.sqlRunner.savedSqlChart,
-    );
-    const {
-        data,
-        isLoading: isChartLoading,
-        isSuccess: isChartSuccess,
-    } = useSavedSqlChart({
-        projectUuid,
-        uuid: savedSqlUuid,
-    });
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
 
     const { data: spaces = [], isLoading: isSpacesLoading } = useSpaceSummaries(
         projectUuid,
@@ -72,16 +73,16 @@ export const UpdateSqlChartModal: FC<Props> = ({
 
     const spaceManagement = useSpaceManagement({
         projectUuid,
-        defaultSpaceUuid: data?.space.uuid,
+        defaultSpaceUuid: chart.spaceUuid,
     });
 
     const { isCreatingNewSpace, openCreateSpaceForm } = spaceManagement;
 
     const form = useForm<FormValues>({
         initialValues: {
-            name: '',
-            description: null,
-            spaceUuid: null,
+            name: chart.name,
+            description: chart.description ?? null,
+            spaceUuid: chart.spaceUuid,
             newSpaceName: null,
         },
         validate: zodResolver(updateSqlChartSchema),
@@ -93,24 +94,34 @@ export const UpdateSqlChartModal: FC<Props> = ({
         },
     });
 
-    const { mutateAsync: updateChart, isLoading: isSavingChart } =
-        useUpdateSqlChartMutation(projectUuid, savedSqlUuid, slug);
-
-    useEffect(() => {
-        if (isChartSuccess && data) {
-            const values = {
-                name: data.name,
-                description: data.description,
-                spaceUuid: data.space.uuid,
-                newSpaceName: null,
-            };
-
-            form.setValues(values);
-            form.resetDirty(values);
-        }
-        // form can't be a dependency because it will cause infinite loop
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data, isChartSuccess]);
+    const { mutateAsync: updateChart, isLoading: isSavingChart } = useMutation<
+        SavedChart,
+        ApiError,
+        UpdateSavedChart
+    >((data) => updateSavedChart(chart.uuid, data), {
+        mutationKey: ['sqlRunner', 'updateChart', chart.uuid],
+        onSuccess: async (updated) => {
+            dispatch(setSavedChartData(updated));
+            queryClient.setQueryData(
+                ['saved_query', updated.slug, projectUuid, false],
+                updated,
+            );
+            await invalidateContent(queryClient, projectUuid);
+            await queryClient.invalidateQueries(['spaces']);
+            await queryClient.invalidateQueries(['space']);
+            await queryClient.invalidateQueries(['pinned_items']);
+            await queryClient.invalidateQueries([
+                'most-popular-and-recently-updated',
+            ]);
+            showToastSuccess({ title: 'Success! Chart updated' });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update chart',
+                apiError: error,
+            });
+        },
+    });
 
     const handleOnSubmit = form.onSubmit(
         async ({ name, description, spaceUuid, newSpaceName }) => {
@@ -121,35 +132,10 @@ export const UpdateSqlChartModal: FC<Props> = ({
                 : undefined;
 
             await updateChart({
-                unversionedData: {
-                    name,
-                    description: description ?? null,
-                    spaceUuid: newSpace?.uuid || spaceUuid || spaces[0]?.uuid,
-                },
+                name,
+                description: description ?? undefined,
+                spaceUuid: newSpace?.uuid || spaceUuid || spaces[0]?.uuid,
             });
-            const newSavedSqlChart = { ...savedSqlChart };
-            newSavedSqlChart.name = name;
-            newSavedSqlChart.description = description;
-            if (newSpace?.uuid || spaceUuid !== savedSqlChart?.space.uuid) {
-                // only when space is updated
-                let updatedSpace: Space | SpaceSummary;
-                if (newSpace?.uuid) {
-                    updatedSpace = newSpace;
-                } else {
-                    updatedSpace = spaces.find(
-                        (space) => space.uuid === spaceUuid,
-                    )!;
-                }
-                newSavedSqlChart.space = {
-                    name: updatedSpace.name,
-                    userAccess:
-                        'userAccess' in updatedSpace
-                            ? updatedSpace.userAccess
-                            : savedSqlChart?.space.userAccess, // keep the userAccess same as before if newSpace is created
-                    uuid: updatedSpace.uuid,
-                };
-            }
-            dispatch(setSavedChartData(newSavedSqlChart as SqlChart));
             modalSteps.goToStep(ModalStep.InitialInfo);
             onSuccess();
         },
@@ -185,7 +171,6 @@ export const UpdateSqlChartModal: FC<Props> = ({
 
     const isLoading =
         isSavingChart ||
-        isChartLoading ||
         isSpacesLoading ||
         spaceManagement.createSpaceMutation.isLoading;
 
@@ -252,6 +237,7 @@ export const UpdateSqlChartModal: FC<Props> = ({
                         <Textarea
                             label="Description"
                             {...form.getInputProps('description')}
+                            value={form.values.description ?? ''}
                         />
                     </Stack>
                 )}

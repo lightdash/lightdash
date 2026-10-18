@@ -13,7 +13,10 @@ import { useGitIntegration } from '../../../hooks/gitIntegration/useGitIntegrati
 import useHealth from '../../../hooks/health/useHealth';
 import { useProject } from '../../../hooks/useProject';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
-import { selectConnectionRequest } from '../../sqlRunner/store/sqlRunnerSlice';
+import {
+    selectConnectionRequest,
+    selectSqlVizColumns,
+} from '../../sqlRunner/store/sqlRunnerSlice';
 import { useCreateVirtualView } from '../hooks/useVirtualView';
 
 const validationSchema = z.object({
@@ -50,7 +53,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
     const health = useHealth();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
-    const columns = useAppSelector((state) => state.sqlRunner.sqlColumns);
+    const columns = useAppSelector(selectSqlVizColumns);
     const parameterValues = useAppSelector(
         (state) => state.sqlRunner.parameterValues,
     );

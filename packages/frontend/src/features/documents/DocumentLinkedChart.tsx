@@ -1,4 +1,5 @@
 import {
+    getDocumentRuntimeChartConfig,
     QueryExecutionContext,
     type ApiError,
     type ApiExecuteAsyncMetricQueryResults,
@@ -135,7 +136,10 @@ const LinkedSavedChart = ({
         <DocumentChartVisualization
             projectUuid={projectUuid}
             spaceUuid={spaceUuid}
-            chart={asCode}
+            chart={{
+                ...asCode,
+                chartConfig: getDocumentRuntimeChartConfig(asCode.chartConfig),
+            }}
             query={query}
             showTitle
             actions={

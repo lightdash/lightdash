@@ -1,21 +1,19 @@
-import { getFieldQuoteChar } from '@lightdash/common';
-import { Stack } from '@mantine/core';
+import {
+    getFieldQuoteChar,
+    getPipelineSqlChartSource,
+} from '@lightdash/common';
+import { Button, Stack } from '@mantine/core';
 import { useEffect, useRef, useState } from 'react';
 import { Provider } from 'react-redux';
-import { useLocation, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { useMount, useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
-import {
-    resetChartState,
-    setChartConfig,
-} from '../components/DataViz/store/actions/commonChartActions';
 import { SqlRunnerSidebar } from '../features/sqlRunner';
 import { ContentPanel } from '../features/sqlRunner/components/ContentPanel';
 import { Header } from '../features/sqlRunner/components/Header';
 import { HeaderCreate } from '../features/sqlRunner/components/Header/HeaderCreate';
-import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useSqlRunnerShareUrl } from '../features/sqlRunner/hooks/useSqlRunnerShareUrl';
 import { SqlRunnerConnectionScope } from '../features/sqlRunner/multiConnection/components/SqlRunnerConnectionScope';
 import { useSqlRunnerConnections } from '../features/sqlRunner/multiConnection/hooks/useConnectionCatalog';
@@ -31,9 +29,11 @@ import {
 } from '../features/sqlRunner/store/hooks';
 import {
     resetState,
+    setChartConfig,
     setFetchResultsOnLoad,
     setMode,
     setParameterValues,
+    setPivotDimensions,
     setProjectUuid,
     setQuoteChar,
     setSavedChartData,
@@ -42,11 +42,13 @@ import {
     setState,
     setWarehouseConnectionType,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
+import { SqlRunnerVisualizationProvider } from '../features/sqlRunner/viz/SqlRunnerVisualizationProvider';
 import { HeaderVirtualView } from '../features/virtualView';
 import { type VirtualViewState } from '../features/virtualView/components/HeaderVirtualView';
 import useToaster from '../hooks/toaster/useToaster';
 import { useProject } from '../hooks/useProject';
 import { useProjectUuid } from '../hooks/useProjectUuid';
+import { useSavedQuery } from '../hooks/useSavedQuery';
 import useSearchParams from '../hooks/useSearchParams';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
@@ -157,6 +159,7 @@ const SqlRunner = ({
             );
             if (shareState.chartConfig) {
                 dispatch(setChartConfig(shareState.chartConfig));
+                dispatch(setPivotDimensions(shareState.pivotDimensions));
             }
         }
     }, [
@@ -174,7 +177,6 @@ const SqlRunner = ({
     ]);
     useUnmount(() => {
         dispatch(resetState());
-        dispatch(resetChartState());
     });
 
     useMount(() => {
@@ -222,17 +224,20 @@ const SqlRunner = ({
         }
     }, [dispatch, location, navigate]);
 
-    const { data, error: chartError } = useSavedSqlChart({
-        projectUuid,
-        slug: params.slug,
+    // A chart edits here when its pipeline is one SQL node; any other
+    // pipeline chart is configured on its own page
+    const { data, error: chartError } = useSavedQuery({
+        uuidOrSlug: params.slug,
+        projectUuid: projectUuid || undefined,
     });
+    const isSqlRunnerChart =
+        !!data?.pipeline && getPipelineSqlChartSource(data.pipeline) !== null;
 
     useEffect(() => {
-        if (data) {
+        if (data && isSqlRunnerChart) {
             dispatch(setSavedChartData(data));
-            dispatch(setChartConfig(data.config));
         }
-    }, [dispatch, data]);
+    }, [dispatch, data, isSqlRunnerChart]);
 
     // Share links replace the whole slice via `setState`, dropping this
     // project-derived field; re-restore it whenever the store value is missing.
@@ -247,6 +252,24 @@ const SqlRunner = ({
     if (chartError) {
         return <ErrorState error={chartError.error} />;
     }
+    if (data && !isSqlRunnerChart) {
+        return (
+            <SuboptimalState
+                title="This chart is not a SQL runner chart"
+                description="Its query is a pipeline the SQL runner cannot edit. Open the chart to change how it is drawn."
+                action={
+                    <Button
+                        component={Link}
+                        to={`/projects/${data.projectUuid}/saved/${data.slug}/edit`}
+                        variant="default"
+                        size="xs"
+                    >
+                        Open chart
+                    </Button>
+                }
+            />
+        );
+    }
 
     return (
         <SqlRunnerConnectionScope
@@ -255,31 +278,35 @@ const SqlRunner = ({
             isSharedLink={!!share}
             sharedConnectionUuid={shareState.warehouseConnectionUuid}
         >
-            <Page
-                title="SQL Runner"
-                noContentPadding
-                flexContent
-                sidebar={<SqlRunnerSidebar />}
-                sidebarTitle="Tables"
-            >
-                <Stack gap={0} flex={1} miw={0}>
-                    {mode === 'virtualView' && virtualViewState ? (
-                        <HeaderVirtualView
-                            virtualViewState={virtualViewState}
+            <SqlRunnerVisualizationProvider>
+                <Page
+                    title="SQL Runner"
+                    noContentPadding
+                    flexContent
+                    sidebar={<SqlRunnerSidebar />}
+                    sidebarTitle="Tables"
+                >
+                    <Stack gap={0} flex={1} miw={0}>
+                        {mode === 'virtualView' && virtualViewState ? (
+                            <HeaderVirtualView
+                                virtualViewState={virtualViewState}
+                            />
+                        ) : (
+                            params.slug && <Header mode="edit" />
+                        )}
+                        <ContentPanel
+                            toolbarActions={
+                                !params.slug &&
+                                !(
+                                    mode === 'virtualView' && virtualViewState
+                                ) ? (
+                                    <HeaderCreate />
+                                ) : undefined
+                            }
                         />
-                    ) : (
-                        params.slug && <Header mode="edit" />
-                    )}
-                    <ContentPanel
-                        toolbarActions={
-                            !params.slug &&
-                            !(mode === 'virtualView' && virtualViewState) ? (
-                                <HeaderCreate />
-                            ) : undefined
-                        }
-                    />
-                </Stack>
-            </Page>
+                    </Stack>
+                </Page>
+            </SqlRunnerVisualizationProvider>
         </SqlRunnerConnectionScope>
     );
 };

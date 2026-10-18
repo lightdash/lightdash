@@ -53,14 +53,20 @@ describe('getUnpivotedColumns', () => {
             reference: 'orders_status',
             type: DimensionType.STRING,
             label: 'Orders Status',
-            provenance: { fieldId: 'orders_status' },
+            provenance: {
+                fieldId: 'orders_status',
+                fieldType: FieldType.DIMENSION,
+            },
         });
         expect(columns.orders_revenue).toEqual({
             reference: 'orders_revenue',
             type: DimensionType.NUMBER,
             label: 'Orders Revenue',
             format: '#,##0.###',
-            provenance: { fieldId: 'orders_revenue' },
+            provenance: {
+                fieldId: 'orders_revenue',
+                fieldType: FieldType.METRIC,
+            },
         });
     });
 
@@ -153,14 +159,20 @@ describe('getColumnsFromItemsMap', () => {
                 reference: 'orders_status',
                 type: DimensionType.STRING,
                 label: 'Orders Status',
-                provenance: { fieldId: 'orders_status' },
+                provenance: {
+                    fieldId: 'orders_status',
+                    fieldType: FieldType.DIMENSION,
+                },
             },
             orders_revenue: {
                 reference: 'orders_revenue',
                 type: DimensionType.NUMBER,
                 label: 'Orders Revenue',
                 format: '#,##0.###',
-                provenance: { fieldId: 'orders_revenue' },
+                provenance: {
+                    fieldId: 'orders_revenue',
+                    fieldType: FieldType.METRIC,
+                },
             },
         });
     });

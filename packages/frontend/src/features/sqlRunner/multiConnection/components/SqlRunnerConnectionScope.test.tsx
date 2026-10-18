@@ -1,7 +1,7 @@
 import {
     WarehouseTableType,
     WarehouseTypes,
-    type SqlChart,
+    type SavedChart,
     type SqlRunnerWarehouseConnection,
 } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
@@ -18,7 +18,6 @@ import {
 } from 'vitest';
 import { lightdashApi } from '../../../../api';
 import { renderWithProviders } from '../../../../testing/testUtils';
-import { executeSqlQuery } from '../../../queryRunner/executeQuery';
 import { SqlEditor, SqlEditorView } from '../../components/SqlEditor';
 import { SqlRunnerEditor } from '../../components/SqlRunnerEditor';
 import { useRunQueryOnLoad } from '../../hooks/useRunQueryOnLoad';
@@ -33,6 +32,7 @@ import {
     setState,
 } from '../../store/sqlRunnerSlice';
 import { runSqlQuery } from '../../store/thunks';
+import { executeSqlQuery } from '../../utils/executeSqlQuery';
 import { SqlRunnerConnectionScope } from './SqlRunnerConnectionScope';
 import { SqlRunnerSidebar } from './SqlRunnerSidebar';
 
@@ -40,7 +40,7 @@ vi.mock('../../../../api', () => ({
     lightdashApi: vi.fn(),
 }));
 
-vi.mock('../../../queryRunner/executeQuery', () => ({
+vi.mock('../../utils/executeSqlQuery', () => ({
     executeSqlQuery: vi.fn(async () => ({
         queryUuid: 'query-uuid',
         fileUrl: '/results',
@@ -78,8 +78,8 @@ vi.mock('@tanstack/react-virtual', () => ({
     }),
 }));
 
-vi.mock('../../../../components/DataViz/VisualizationConfigPanel', () => ({
-    VisualizationConfigPanel: () => null,
+vi.mock('../../viz/SqlRunnerVizConfigPanel', () => ({
+    SqlRunnerVizConfigPanel: () => null,
 }));
 
 const mockApi = lightdashApi as unknown as Mock;
@@ -456,14 +456,25 @@ describe('SqlRunnerConnectionScope', () => {
 
         store.dispatch(
             setSavedChartData({
-                savedSqlUuid: 'chart-uuid',
+                uuid: 'chart-uuid',
                 name: 'Ledger',
-                description: null,
-                sql: 'select 1',
-                limit: 10,
-                config: { type: 'table' },
-                warehouseConnectionUuid: 'finance-uuid',
-            } as unknown as SqlChart),
+                slug: 'ledger',
+                chartConfig: { type: 'table' },
+                tableConfig: { columnOrder: [] },
+                pipeline: {
+                    queries: [
+                        {
+                            sourceType: 'sql',
+                            nodeId: 'sql',
+                            sql: 'select 1',
+                            limit: 10,
+                            warehouseConnectionUuid: 'finance-uuid',
+                        },
+                    ],
+                    terminalNodeId: 'sql',
+                    columns: {},
+                },
+            } as unknown as SavedChart),
         );
 
         await waitFor(() =>

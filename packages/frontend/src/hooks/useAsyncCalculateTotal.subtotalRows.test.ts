@@ -1,13 +1,13 @@
 import { QueryHistoryStatus } from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { lightdashApi } from '../api';
-import { pollForResults } from '../features/queryRunner/executeQuery';
+import { pollForResults } from '../api/asyncQuery';
 import { fetchColumnSubtotalRows } from './useAsyncCalculateTotal';
 
 vi.mock('../api', () => ({
     lightdashApi: vi.fn(),
 }));
-vi.mock('../features/queryRunner/executeQuery', () => ({
+vi.mock('../api/asyncQuery', () => ({
     pollForResults: vi.fn(),
 }));
 vi.mock('../ee/providers/Embed/useEmbed', () => ({

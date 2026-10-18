@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { executeSqlDownloadQuery } from './executeSqlDownloadQuery';
+import { executeSqlQuery } from './executeSqlQuery';
 
-vi.mock('../../queryRunner/executeQuery', () => ({
+vi.mock('./executeSqlQuery', () => ({
     executeSqlQuery: vi.fn(async () => ({ queryUuid: 'download-query' })),
 }));
 

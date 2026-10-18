@@ -3,6 +3,7 @@ import {
     DimensionType,
     TableCalculationType,
     type CompactOrAlias,
+    type Format,
 } from '../../types/field';
 import { type FilterOperator } from '../../types/filter';
 import { type PivotSortAnchor } from '../../types/metricQuery';
@@ -10,11 +11,11 @@ import { type PivotConfiguration } from '../../types/pivot';
 import { type RawResultRow } from '../../types/results';
 import {
     ChartKind,
+    type CartesianSeriesType,
     type ComparisonFormatTypes,
     type PivotReference,
     type Series,
 } from '../../types/savedCharts';
-import { type CartesianChartDisplay } from '../CartesianChartDataModel';
 import { type EChartsLabelPosition } from '../helpers/styles/valueLabelStyles';
 
 export enum VizAggregationOptions {
@@ -510,4 +511,52 @@ export type SqlRunnerEChartsSeries = Omit<
         formatter?: (params: AnyType) => string;
     };
     barCategoryGap?: string;
+};
+
+export enum ValueLabelPositionOptions {
+    HIDDEN = 'hidden',
+    TOP = 'top',
+    BOTTOM = 'bottom',
+    LEFT = 'left',
+    RIGHT = 'right',
+    INSIDE = 'inside',
+}
+
+/** The SQL runner chart's display options, as saved SQL charts stored them. */
+export type CartesianChartDisplay = {
+    // Pivot column names in back-to-front draw order.
+    seriesOrder?: string[];
+    xAxis?: {
+        label?: string;
+        type?: VizIndexType;
+        dateFormat?: string;
+    };
+    yAxis?: {
+        label?: string;
+        position?: string;
+        format?: Format;
+    }[];
+    series?: {
+        [key: string]: {
+            // 'label' maps to 'name' in ECharts
+            label?: string;
+            format?: Format;
+            // NOTE: this is the yAxisIndex in the display object, NOT the
+            // eCharts yAxisIndex. It shouldn't be used to refer to a y-axis, but
+            // the series index in the yAxis array.
+            yAxisIndex?: number;
+            color?: string;
+            type?: CartesianSeriesType.LINE | CartesianSeriesType.BAR;
+            // Value labels maps to 'label' in ECharts
+            valueLabelPosition?: ValueLabelPositionOptions;
+            valueLabelColor?: string;
+            // whichAxis maps to the yAxis index in Echarts.
+            whichYAxis?: AxisSide;
+        };
+    };
+    legend?: {
+        position: 'top' | 'bottom' | 'left' | 'right';
+        align: 'start' | 'center' | 'end';
+    };
+    stack?: boolean | StackType; // Support both old boolean and new StackType for backward compatibility
 };

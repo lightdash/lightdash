@@ -1,14 +1,12 @@
-import { WarehouseTypes } from '@lightdash/common';
+import { DimensionType, WarehouseTypes } from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { store } from '.';
 import { SHARED_SIGN_IN_QUERY_FAILED } from '../../../hooks/useReconnectSharedSignIn';
-import { executeSqlQuery } from '../../queryRunner/executeQuery';
-import { getPivotQueryFunctionForSqlQuery } from '../../queryRunner/sqlRunnerPivotQueries';
+import { executeSqlQuery } from '../utils/executeSqlQuery';
 import {
     initialState,
     resetState,
     selectConnectionRequest,
-    selectSqlRunnerResultsRunner,
     setConnectionRoute,
     setState,
     sqlRunnerSlice,
@@ -16,12 +14,8 @@ import {
 } from './sqlRunnerSlice';
 import { runSqlQuery } from './thunks';
 
-vi.mock('../../queryRunner/executeQuery', () => ({
+vi.mock('../utils/executeSqlQuery', () => ({
     executeSqlQuery: vi.fn(),
-}));
-
-vi.mock('../../queryRunner/sqlRunnerPivotQueries', () => ({
-    getPivotQueryFunctionForSqlQuery: vi.fn(() => async () => ({})),
 }));
 
 const finance: SqlRunnerConnection = {
@@ -39,7 +33,7 @@ const results = (rows: number) => ({
     queryUuid: `query-${rows}`,
     fileUrl: `/results-${rows}`,
     results: Array.from({ length: rows }, (_, index) => ({ id: index })),
-    columns: [{ reference: 'id' }],
+    columns: { id: { reference: 'id', type: DimensionType.NUMBER } },
     durationMs: null,
 });
 
@@ -192,31 +186,6 @@ describe('SQL runner runs on the active connection', () => {
         expect(store.getState().sqlRunner.sqlRows).toBeUndefined();
         expect(store.getState().sqlRunner.queryIsLoading).toBe(false);
     });
-
-    it.each([
-        {
-            route: { route: 'multi', connection: finance } as const,
-            expected: 'finance-uuid',
-        },
-        {
-            route: { route: 'multi', connection: original } as const,
-            expected: null,
-        },
-        { route: { route: 'single' } as const, expected: undefined },
-    ])(
-        'builds the pivot query with the connection of the $route.route route',
-        ({ route, expected }) => {
-            store.dispatch(setConnectionRoute(route));
-
-            selectSqlRunnerResultsRunner(store.getState());
-
-            expect(
-                vi.mocked(getPivotQueryFunctionForSqlQuery),
-            ).toHaveBeenLastCalledWith(
-                expect.objectContaining({ warehouseConnectionUuid: expected }),
-            );
-        },
-    );
 
     it.each([
         {

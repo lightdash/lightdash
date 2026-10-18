@@ -15,7 +15,7 @@ import {
     type SortField,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
-import { pollForResults } from '../../queryRunner/executeQuery';
+import { pollForResults } from '../../../api/asyncQuery';
 import { type SavedChartPreviewQueryResult } from './savedChartPreviewQuery';
 
 /** Same page of rows the saved-chart preview runs. */

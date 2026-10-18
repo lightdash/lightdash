@@ -1,16 +1,15 @@
-import { type AllVizChartConfig } from '@lightdash/common';
+import { type ChartConfig } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
-import { selectCompleteConfigByKind } from '../../../components/DataViz/store/selectors';
 import { useCreateShareMutation, useGetShare } from '../../../hooks/useShare';
 import { useAppSelector } from '../store/hooks';
+import { initialState, type SqlRunnerState } from '../store/sqlRunnerSlice';
 import {
-    initialState,
-    selectActiveChartType,
-    type SqlRunnerState,
-} from '../store/sqlRunnerSlice';
+    convertLegacyVizChartConfig,
+    isLegacyVizChartConfig,
+} from '../viz/sqlRunnerChart';
 
 const EXCLUDED_KEYS_FROM_SHARE_STATE = [
-    'savedSqlChart',
+    'savedChart',
     'fileUrl',
     'successfulSqlQueries',
     'hasUnrunChanges',
@@ -21,6 +20,8 @@ const EXCLUDED_KEYS_FROM_SHARE_STATE = [
     'editorHighlightError',
     'fetchResultsOnLoad',
     'connectionRoute',
+    'chartConfig',
+    'pivotDimensions',
 ] as const;
 
 type ExcludedKeysFromShareState =
@@ -31,9 +32,19 @@ type SqlRunnerStateWithoutExcludedKeys = Omit<
     ExcludedKeysFromShareState
 >;
 
+/** Keys share links carried before the SQL runner drew through the classic chart stack. */
+const LEGACY_STATE_KEYS = [
+    'savedSqlChart',
+    'selectedChartType',
+    'activeConfigs',
+    'resultsTableConfig',
+];
+
 type SqlRunnerShareParams = {
     sqlRunnerState: SqlRunnerStateWithoutExcludedKeys;
-    chartConfig: AllVizChartConfig | undefined;
+    /** The explorer config; older links carry the SQL runner's own config, converted on load. */
+    chartConfig: ChartConfig | undefined;
+    pivotDimensions?: string[];
     warehouseConnectionUuid?: string | null;
 };
 
@@ -46,12 +57,17 @@ function isSqlRunnerShareParams(value: unknown): value is SqlRunnerShareParams {
     );
 }
 
+const stripLegacyKeys = (
+    state: Record<string, unknown>,
+): Record<string, unknown> =>
+    Object.fromEntries(
+        Object.entries(state).filter(
+            ([key]) => !LEGACY_STATE_KEYS.includes(key),
+        ),
+    );
+
 export const useCreateSqlRunnerShareUrl = () => {
     const sqlRunnerState = useAppSelector((state) => state.sqlRunner);
-    const selectedChartType = useAppSelector(selectActiveChartType);
-    const config = useAppSelector((state) =>
-        selectCompleteConfigByKind(state, selectedChartType),
-    );
     const { mutateAsync: createShareUrl } = useCreateShareMutation();
     return useCallback(async () => {
         const path = window.location.pathname;
@@ -67,7 +83,10 @@ export const useCreateSqlRunnerShareUrl = () => {
 
         const shareStateParams: SqlRunnerShareParams = {
             sqlRunnerState: sqlRunnerStateWithoutExcludedKeys,
-            chartConfig: config,
+            chartConfig: sqlRunnerState.chartConfig,
+            ...(sqlRunnerState.pivotDimensions
+                ? { pivotDimensions: sqlRunnerState.pivotDimensions }
+                : {}),
             ...(sqlRunnerState.connectionRoute.route === 'multi' &&
             sqlRunnerState.connectionRoute.connection
                 ? {
@@ -83,12 +102,13 @@ export const useCreateSqlRunnerShareUrl = () => {
             params: JSON.stringify(shareStateParams),
         });
         return `${window.location.origin}${path}?share=${shareUrl.nanoid}`;
-    }, [createShareUrl, sqlRunnerState, config]);
+    }, [createShareUrl, sqlRunnerState]);
 };
 
 type SqlRunnerShare = {
     sqlRunnerState: SqlRunnerState | undefined;
-    chartConfig: AllVizChartConfig | undefined;
+    chartConfig: ChartConfig | undefined;
+    pivotDimensions: string[] | undefined;
     error: Error | null;
     errorReason: 'share_fetch_failed' | 'share_parse_failed' | null;
     warehouseConnectionUuid: string | null | undefined;
@@ -107,7 +127,8 @@ export const useSqlRunnerShareUrl = (
             ? 'share_fetch_failed'
             : null;
         let sqlRunnerState: SqlRunnerState | undefined;
-        let chartConfig: AllVizChartConfig | undefined;
+        let chartConfig: ChartConfig | undefined;
+        let pivotDimensions: string[] | undefined;
         let warehouseConnectionUuid: string | null | undefined;
         if (data?.params) {
             try {
@@ -115,10 +136,26 @@ export const useSqlRunnerShareUrl = (
                 if (isSqlRunnerShareParams(sqlRunnerParams)) {
                     sqlRunnerState = {
                         ...initialState,
-                        ...sqlRunnerParams.sqlRunnerState,
+                        ...stripLegacyKeys(sqlRunnerParams.sqlRunnerState),
                         connectionRoute: initialState.connectionRoute,
                     };
-                    chartConfig = sqlRunnerParams.chartConfig;
+                    const shared: unknown = sqlRunnerParams.chartConfig;
+                    if (isLegacyVizChartConfig(shared)) {
+                        const converted = convertLegacyVizChartConfig({
+                            sql: sqlRunnerState.sql,
+                            limit: sqlRunnerState.limit ?? 500,
+                            config: shared,
+                        });
+                        chartConfig = converted.chartConfig;
+                        pivotDimensions = converted.pivotDimensions;
+                    } else {
+                        chartConfig = sqlRunnerParams.chartConfig;
+                        pivotDimensions = Array.isArray(
+                            sqlRunnerParams.pivotDimensions,
+                        )
+                            ? sqlRunnerParams.pivotDimensions
+                            : undefined;
+                    }
                     if (
                         typeof sqlRunnerParams.warehouseConnectionUuid ===
                             'string' ||
@@ -131,7 +168,7 @@ export const useSqlRunnerShareUrl = (
                     // handle legacy share links where params are just the sql runner state
                     sqlRunnerState = {
                         ...initialState,
-                        ...sqlRunnerParams,
+                        ...stripLegacyKeys(sqlRunnerParams),
                         connectionRoute: initialState.connectionRoute,
                     };
                 }
@@ -143,6 +180,7 @@ export const useSqlRunnerShareUrl = (
         return {
             sqlRunnerState,
             chartConfig,
+            pivotDimensions,
             error,
             errorReason,
             warehouseConnectionUuid,

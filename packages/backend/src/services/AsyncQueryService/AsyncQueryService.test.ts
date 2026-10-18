@@ -24479,7 +24479,12 @@ describe('fresh execution producer to result reader', () => {
                 service.queryHistoryModel.recordResultProducer,
             ).toHaveBeenCalled();
             let producerKind = 'shared_connection';
-            if (entry === 'compose' || entry.includes('merge'))
+            // A document SQL chart runs as a pipeline: its result is the chart node's
+            if (
+                entry === 'compose' ||
+                entry.includes('merge') ||
+                entry === 'document SQL'
+            )
                 producerKind = 'derived';
             else if (
                 [

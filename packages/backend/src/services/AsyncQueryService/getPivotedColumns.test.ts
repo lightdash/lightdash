@@ -106,7 +106,10 @@ describe('getPivotedColumns', () => {
             type: DimensionType.NUMBER,
             label: 'Orders Revenue - Completed',
             format: '#,##0.###',
-            provenance: { fieldId: 'orders_revenue' },
+            provenance: {
+                fieldId: 'orders_revenue',
+                fieldType: FieldType.METRIC,
+            },
         });
     });
 

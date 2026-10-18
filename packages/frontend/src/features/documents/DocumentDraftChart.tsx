@@ -1,4 +1,7 @@
-import { type SemanticChartAsCode } from '@lightdash/common';
+import {
+    getDocumentRuntimeChartConfig,
+    type SemanticChartAsCode,
+} from '@lightdash/common';
 import { useMemo, type ReactNode } from 'react';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import { buildQueryArgs } from '../../hooks/explorer/buildQueryArgs';
@@ -81,7 +84,10 @@ const DocumentDraftChart = ({
             showTitle
             projectUuid={projectUuid}
             spaceUuid={spaceUuid}
-            chart={chart}
+            chart={{
+                ...chart,
+                chartConfig: getDocumentRuntimeChartConfig(chart.chartConfig),
+            }}
             actions={actions}
             query={{
                 ...query,

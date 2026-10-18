@@ -107,13 +107,10 @@ const useInvalidateAfterDirectAccessMutation = (
                                 queryKey[2] === projectUuid
                             );
                         case DirectAccessResourceType.SQL_CHART:
+                            // A SQL chart is a saved chart under the same uuid
                             return (
-                                (queryKey[0] === 'sqlRunner' &&
-                                    queryKey[1] === 'savedSqlChart' &&
-                                    queryKey[2] === projectUuid) ||
-                                (queryKey[0] === 'savedSqlChart' &&
-                                    queryKey[2] === 'registered' &&
-                                    queryKey[4] === projectUuid)
+                                queryKey[0] === 'saved_query' &&
+                                queryKey[2] === projectUuid
                             );
                         case DirectAccessResourceType.APP:
                             return (

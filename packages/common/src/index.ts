@@ -103,6 +103,7 @@ export * from './pivot/pivotQueryResults';
 export * from './pivot/utils';
 export * from './schemas/chartAsCodeSchema';
 export * from './types/document';
+export * from './utils/comparisonValue';
 export * from './utils/document';
 export * from './utils/documentMarkdown';
 export { default as dashboardAsCodeSchema } from './schemas/json/dashboard-as-code-1.0.json';
@@ -471,8 +472,6 @@ export * from './utils/warehouseLocation';
 export * from './utils/queryCostEstimate';
 export * from './utils/warehouseResourceLimits';
 export * from './utils/zodJsonSchema';
-export * from './visualizations/BigNumberDataModel';
-export * from './visualizations/CartesianChartDataModel';
 export * from './visualizations/helpers/getCartesianAxisFormatterConfig';
 export * from './visualizations/helpers/seriesZOrder';
 export * from './visualizations/helpers/styles/axisStyles';
@@ -486,10 +485,7 @@ export * from './visualizations/helpers/styles/tooltipStyles';
 export * from './visualizations/helpers/styles/valueLabelStyles';
 export * from './visualizations/helpers/tooltipFormatter';
 export * from './visualizations/helpers/valueFormatter';
-export * from './visualizations/PieChartDataModel';
-export * from './visualizations/TableDataModel';
 export * from './visualizations/types';
-export * from './visualizations/types/IResultsRunner';
 
 export const validateEmail = (email: string): boolean => {
     if (/\s/.test(email)) {

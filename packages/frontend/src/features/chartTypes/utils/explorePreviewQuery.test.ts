@@ -11,11 +11,11 @@ import {
 } from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../../api';
-import { pollForResults } from '../../queryRunner/executeQuery';
+import { pollForResults } from '../../../api/asyncQuery';
 import { executeExplorePreviewQuery } from './explorePreviewQuery';
 
 vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
-vi.mock('../../queryRunner/executeQuery', () => ({ pollForResults: vi.fn() }));
+vi.mock('../../../api/asyncQuery', () => ({ pollForResults: vi.fn() }));
 
 const query: Omit<MetricQueryRequest, 'csvLimit'> = {
     exploreName: 'orders',

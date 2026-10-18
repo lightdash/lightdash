@@ -1,5 +1,9 @@
-import { MAX_SAFE_INTEGER, type ParametersValuesMap } from '@lightdash/common';
-import { executeSqlQuery } from '../../queryRunner/executeQuery';
+import {
+    MAX_SAFE_INTEGER,
+    type ParametersValuesMap,
+    type PivotConfiguration,
+} from '@lightdash/common';
+import { executeSqlQuery } from './executeSqlQuery';
 
 type ExecuteSqlDownloadQueryArgs = {
     projectUuid: string;
@@ -7,6 +11,8 @@ type ExecuteSqlDownloadQueryArgs = {
     limit: number | null;
     parameterValues?: ParametersValuesMap;
     warehouseConnectionUuid: string | null | undefined;
+    /** Set to export the rows as the chart pivots them. */
+    pivotConfiguration?: PivotConfiguration;
 };
 
 export const executeSqlDownloadQuery = async ({
@@ -15,6 +21,7 @@ export const executeSqlDownloadQuery = async ({
     limit,
     parameterValues,
     warehouseConnectionUuid,
+    pivotConfiguration,
 }: ExecuteSqlDownloadQueryArgs): Promise<string> => {
     const result = await executeSqlQuery(
         projectUuid,
@@ -23,6 +30,7 @@ export const executeSqlDownloadQuery = async ({
         parameterValues,
         true,
         warehouseConnectionUuid,
+        ...(pivotConfiguration ? [{ pivotConfiguration }] : []),
     );
 
     return result.queryUuid;

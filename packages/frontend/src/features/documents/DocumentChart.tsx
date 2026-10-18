@@ -50,11 +50,18 @@ const DocumentExploreChart = ({
         versionUuid,
         chartId,
     );
+    const visualizedChart = useMemo(
+        () => ({
+            ...chart,
+            chartConfig: getDocumentRuntimeChartConfig(chart.chartConfig),
+        }),
+        [chart],
+    );
     return (
         <DocumentChartVisualization
             projectUuid={projectUuid}
             spaceUuid={spaceUuid}
-            chart={chart}
+            chart={visualizedChart}
             showTitle={showTitle}
             query={query}
             renderTarget={renderTarget}

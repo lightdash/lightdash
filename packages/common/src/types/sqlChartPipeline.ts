@@ -470,6 +470,59 @@ export const convertSqlChartToPipelineChart = ({
     };
 };
 
+export type SqlChartSource = {
+    sql: string;
+    limit: number;
+    warehouseConnectionUuid: string | null;
+};
+
+/**
+ * The pipeline a SQL runner chart saves: one SQL node that is the terminal,
+ * with the statement's result columns as the chart's fields.
+ */
+export const buildSqlChartPipeline = ({
+    sql,
+    limit,
+    columns,
+    warehouseConnectionUuid,
+}: SqlChartSource & { columns: ResultColumns }): SavedPipelineDefinition => ({
+    queries: [
+        {
+            sourceType: QuerySourceType.SQL,
+            nodeId: SQL_CHART_NODE_ID,
+            title: 'SQL',
+            sql,
+            limit,
+            ...(warehouseConnectionUuid ? { warehouseConnectionUuid } : {}),
+        },
+    ],
+    terminalNodeId: SQL_CHART_NODE_ID,
+    columns,
+});
+
+/**
+ * The statement a pipeline chart edits in the SQL runner: a pipeline of one
+ * SQL node that is the terminal. Null for every other pipeline, whose nodes
+ * the SQL runner cannot edit (a composer pipeline, or a folded SQL chart
+ * that aggregated at draw time and so carries an aggregating node).
+ */
+export const getPipelineSqlChartSource = (
+    pipeline: Pick<SavedPipelineDefinition, 'queries' | 'terminalNodeId'>,
+): SqlChartSource | null => {
+    if (pipeline.queries.length !== 1) return null;
+    const [node] = pipeline.queries;
+    if (
+        node.sourceType !== QuerySourceType.SQL ||
+        node.nodeId !== pipeline.terminalNodeId
+    )
+        return null;
+    return {
+        sql: node.sql,
+        limit: node.limit ?? 500,
+        warehouseConnectionUuid: node.warehouseConnectionUuid ?? null,
+    };
+};
+
 /** Pipeline rows at this schema version hold a SQL runner chart as it was saved, converted when read. */
 export const SAVED_PIPELINE_LEGACY_SQL_SCHEMA_VERSION = 0;
 

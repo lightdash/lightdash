@@ -33,6 +33,7 @@ import { useProject } from '../../../hooks/useProject';
 import { useGithubDbtWriteBack } from '../hooks/useGithubDbtWriteBack';
 import { useGithubDbtWritePreview } from '../hooks/useGithubDbtWritePreview';
 import { useAppSelector } from '../store/hooks';
+import { selectSqlVizColumns } from '../store/sqlRunnerSlice';
 import { isBitbucketCloudConnection } from '../utils/isBitbucketCloudConnection';
 import classes from './WriteBackToDbtModal.module.css';
 
@@ -47,7 +48,7 @@ type Props = Pick<MantineModalProps, 'opened' | 'onClose'>;
 export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
-    const columns = useAppSelector((state) => state.sqlRunner.sqlColumns);
+    const columns = useAppSelector(selectSqlVizColumns);
 
     const { mutateAsync: createPullRequest, isLoading: isLoadingPullRequest } =
         useGithubDbtWriteBack();

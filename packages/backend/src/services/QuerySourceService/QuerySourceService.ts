@@ -466,6 +466,7 @@ export class QuerySourceService extends BaseService {
         plans,
         documentQueryContext,
         savedChartUuid,
+        documentReference,
     }: SourceQueryExecutionContext & {
         documentQueryContext?: DocumentQueryContext;
         account: Account;
@@ -505,6 +506,7 @@ export class QuerySourceService extends BaseService {
             const { queryUuid, cacheHit } = await entry.source.submitQuery({
                 ...(documentQueryContext ? { documentQueryContext } : {}),
                 ...(savedChartUuid ? { savedChartUuid } : {}),
+                ...(documentReference ? { documentReference } : {}),
                 account,
                 projectUuid,
                 context,

@@ -1,5 +1,6 @@
 import type {
     Account,
+    DocumentQueryReference,
     FeatureFlags,
     ParametersValuesMap,
     PivotConfiguration,
@@ -38,6 +39,8 @@ export type SourceQueryExecutionContext = {
      * does: the author needed SQL access to save it, a viewer does not.
      */
     savedChartUuid?: string;
+    /** As `savedChartUuid`, for a SQL chart a Document owns. */
+    documentReference?: DocumentQueryReference;
 };
 
 export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {

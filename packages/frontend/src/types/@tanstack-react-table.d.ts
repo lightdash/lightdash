@@ -5,7 +5,9 @@ import {
 } from '@lightdash/common';
 import { type MouseEventHandler } from 'react';
 import { type Sort } from '../components/common/Table/types';
-import { type ColumnStatsMap } from '../components/DataViz/utils/columnStats';
+
+/** Min and max of a numeric column, for bar cells drawn to a shared scale. */
+type ColumnStatsMap = Record<string, { min: number; max: number }>;
 
 declare module '@tanstack/react-table' {
     interface ColumnMeta {

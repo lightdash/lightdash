@@ -1,18 +1,16 @@
-import { ChartKind } from '@lightdash/common';
 import { ScrollArea, Stack, Title } from '@mantine/core';
 import { type FC } from 'react';
-import { VisualizationConfigPanel } from '../../../components/DataViz/VisualizationConfigPanel';
 import { useProject } from '../../../hooks/useProject';
 import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
 import { useRefreshTables } from '../hooks/useTables';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { setSelectedChartType, SidebarTabs } from '../store/sqlRunnerSlice';
+import { useAppSelector } from '../store/hooks';
+import { SidebarTabs } from '../store/sqlRunnerSlice';
+import { SqlRunnerVizConfigPanel } from '../viz/SqlRunnerVizConfigPanel';
 import { ConnectionHeader } from './ConnectionHeader';
 import classes from './Sidebar.module.css';
 import { TablesPanel } from './TablesPanel';
 
 export const Sidebar: FC = () => {
-    const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const { data: project } = useProject(projectUuid);
 
@@ -22,13 +20,9 @@ export const Sidebar: FC = () => {
         error,
     } = useRefreshTables({ projectUuid });
 
-    const selectedChartType = useAppSelector(
-        (state) => state.sqlRunner.selectedChartType,
-    );
     const activeSidebarTab = useAppSelector(
         (state) => state.sqlRunner.activeSidebarTab,
     );
-    const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
     const isTablesTab = activeSidebarTab === SidebarTabs.TABLES;
 
     return (
@@ -60,13 +54,7 @@ export const Sidebar: FC = () => {
                 data-active={!isTablesTab}
             >
                 <Stack className={classes.panel}>
-                    <VisualizationConfigPanel
-                        selectedChartType={selectedChartType || ChartKind.TABLE}
-                        setSelectedChartType={(value) =>
-                            dispatch(setSelectedChartType(value))
-                        }
-                        columns={sqlColumns || []}
-                    />
+                    {!isTablesTab && <SqlRunnerVizConfigPanel />}
                 </Stack>
             </ScrollArea>
         </Stack>

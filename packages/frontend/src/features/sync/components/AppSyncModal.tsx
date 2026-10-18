@@ -22,8 +22,7 @@ const AppSyncModalContent: FC<Props> = ({
 }) => {
     const { action } = useSyncModal();
     // The app schedulers endpoint returns every format unfiltered (small,
-    // unpaginated list) — filter to gsheets here the same way
-    // SqlChartSyncModal filters its own unfiltered schedulers list.
+    // unpaginated list), so filter to gsheets here.
     const { data } = useAppSchedulers({ projectUuid, appUuid });
 
     const gsheetsSchedulers = useMemo(

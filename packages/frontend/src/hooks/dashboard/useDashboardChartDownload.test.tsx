@@ -5,13 +5,13 @@ import {
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../api';
+import { pollForResults } from '../../api/asyncQuery';
 import { Limit } from '../../components/ExportResults/types';
-import { pollForResults } from '../../features/queryRunner/executeQuery';
 import { useDashboardChartDownload } from './useDashboardChartDownload';
 import { useEmbedDashboardChartDownload } from './useEmbedDashboardChartDownload';
 
 vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
-vi.mock('../../features/queryRunner/executeQuery', () => ({
+vi.mock('../../api/asyncQuery', () => ({
     pollForResults: vi.fn(),
 }));
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({

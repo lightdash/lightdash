@@ -8,17 +8,17 @@ import {
     SHARED_SIGN_IN_QUERY_FAILED,
     SHARED_SIGN_IN_RECONNECTED,
 } from '../../../hooks/useReconnectSharedSignIn';
-import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { store } from '../store';
 import {
     resetState,
     setConnectionRoute,
     type SqlRunnerConnectionRoute,
 } from '../store/sqlRunnerSlice';
+import { executeSqlQuery } from '../utils/executeSqlQuery';
 import { useSqlQueryRun } from './useSqlQueryRun';
 
-vi.mock('../../queryRunner/executeQuery', () => ({
-    executeSqlQuery: vi.fn(async () => ({ columns: [] })),
+vi.mock('../utils/executeSqlQuery', () => ({
+    executeSqlQuery: vi.fn(async () => ({ columns: {} })),
 }));
 
 const wrapper: FC<PropsWithChildren> = ({ children }) => (

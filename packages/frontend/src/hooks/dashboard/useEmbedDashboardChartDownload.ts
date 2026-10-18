@@ -5,8 +5,8 @@ import {
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { lightdashApi } from '../../api';
+import { pollForResults } from '../../api/asyncQuery';
 import { Limit } from '../../components/ExportResults/types';
-import { pollForResults } from '../../features/queryRunner/executeQuery';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 

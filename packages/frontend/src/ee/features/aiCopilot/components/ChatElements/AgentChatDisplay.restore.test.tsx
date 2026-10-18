@@ -15,6 +15,11 @@ import { clearPreview } from '../../store/aiArtifactSlice';
 import { AiAgentThreadStreamAbortControllerContextProvider } from '../../streaming/AiAgentThreadStreamAbortControllerContextProvider';
 import { AgentChatDisplay } from './AgentChatDisplay';
 
+vi.mock('../../../../../components/MonacoEditor', () => ({
+    default: () => null,
+    MonacoEditor: () => null,
+}));
+
 vi.mock('../../../../../api', () => ({ lightdashApi: vi.fn() }));
 const mockedLightdashApi = vi.mocked(lightdashApi);
 

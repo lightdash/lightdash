@@ -57,7 +57,6 @@ import {
     columnHelper,
     type TableColumn,
 } from '../components/common/Table/types';
-import { formatRowValueFromWarehouse } from '../components/DataViz/formatters/formatRowValueFromWarehouse';
 import {
     selectAdditionalMetrics,
     selectCustomDimensions,
@@ -80,6 +79,14 @@ import {
 } from './useAsyncCalculateTotal';
 import { useExplore } from './useExplore';
 import { useExplorerQuery } from './useExplorerQuery';
+
+/** A warehouse value as the UI shows it: null and undefined marked, dates as ISO strings. */
+const formatRowValueFromWarehouse = (value: RawResultRow[string]) => {
+    if (value === null) return '∅';
+    if (value === undefined) return '-';
+    if (value instanceof Date) return value.toISOString();
+    return `${value}`;
+};
 
 export { getJsonCellValue, getJsonLikeString };
 

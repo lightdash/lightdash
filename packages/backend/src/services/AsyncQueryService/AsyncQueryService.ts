@@ -24,6 +24,7 @@ import {
     CalculateTotalFromQuery,
     ChartType,
     CompiledDimension,
+    convertSqlChartToPipelineChart,
     CreateWarehouseCredentials,
     CustomSqlQueryForbiddenError,
     DashboardFilters,
@@ -466,6 +467,7 @@ import {
     type RunDuckdbQueryArgs,
     type ScheduleDownloadAsyncQueryResultsArgs,
     type UnboundedRerunFromQueryHistoryResult,
+    type ViewedContentSource,
 } from './types';
 
 /** A compiled merge that can run: no errors, the join core and full metadata. */
@@ -7209,9 +7211,11 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
-     * Runs a SQL chart stored in a Document. Viewing the Document authorizes
-     * it, as viewing a saved SQL chart does: only the stored SQL runs, so no
-     * SQL Runner access is needed.
+     * Runs a SQL chart stored in a Document as the pipeline chart it
+     * converts to: the statement as a SQL node, an aggregating node when the
+     * chart aggregated at draw time, and the chart node over the result.
+     * Viewing the Document authorizes it, as viewing a saved SQL chart does:
+     * only the stored SQL runs, so no SQL Runner access is needed.
      */
     private async executeAsyncDocumentSqlChartQuery({
         account,
@@ -7223,67 +7227,50 @@ export class AsyncQueryService extends ProjectService {
         projectUuid: string;
         reference: DocumentQueryReference;
         chart: DocumentSqlChart;
-    }): Promise<ApiExecuteAsyncSqlQueryResults> {
+    }): Promise<ApiExecuteAsyncMetricQueryResults> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const context = QueryExecutionContext.CHART;
-        const {
-            warehouseCredentials,
-            warehouseConnectionUuid,
-            connectionRoute,
-            aiPlan,
-            queryTags,
-            metricQuery,
-            queryComposer,
-            originalColumns,
-            parameterReferences,
-            usedParameters,
-        } = await this.prepareSqlChartAsyncQueryArgs({
-            account,
-            context,
-            projectUuid,
-            organizationUuid,
+        const converted = convertSqlChartToPipelineChart({
             sql: chart.sql,
-            config: chart.config,
             limit: chart.limit,
-            parameters: await this.combineParameters(projectUuid),
-            requestedConnectionUuid: chart.warehouseConnectionUuid ?? null,
+            config: chart.config,
+            warehouseConnectionUuid: chart.warehouseConnectionUuid ?? null,
         });
-        const { queryUuid, cacheMetadata } =
-            await this.executeAsyncQueryWithoutPermissionCheck(
-                {
-                    account,
-                    projectUuid,
-                    organizationUuid,
-                    queryTags,
+        const { appliedDashboardFilters, ...started } =
+            await this.submitSavedPipelineRun({
+                account,
+                projectUuid,
+                chart: {
+                    metricQuery: converted.metricQuery,
+                    chartConfig: converted.chartConfig,
+                    pivotConfig: converted.pivotConfig,
+                    tableConfig: converted.tableConfig,
+                    parameters: undefined,
+                },
+                organizationUuid,
+                content: { documentReference: reference },
+                pipeline: converted.pipeline,
+                context,
+                querySurface: undefined,
+                invalidateCache: false,
+                limit: undefined,
+                parameters: await this.combineParameters(projectUuid),
+                pivotResults: true,
+                pivotConfiguration: undefined,
+                dashboardSorts: undefined,
+                dashboardFilters: undefined,
+                tileUuid: undefined,
+                userAttributeOverrides: {},
+                requestParameters: {
                     context,
-                    queryComposer,
-                    originalColumns,
-                    warehouseCredentials,
-                    inheritedFromProjectUuid:
-                        aiPlan?.identity === 'ai_service_account'
-                            ? aiPlan.inheritedFromProjectUuid
-                            : null,
-                    aiPrincipalUuid:
-                        aiPlan?.identity === 'connected_person'
-                            ? aiPlan.identityUuid
-                            : null,
-                    warehouseConnectionUuid,
-                    connectionRoute,
-                },
-                {
                     sql: chart.sql,
-                    invalidateCache: false,
-                    documentSource: reference,
+                    limit: chart.limit,
+                    warehouseConnectionUuid:
+                        chart.warehouseConnectionUuid ?? null,
                 },
-            );
-        return {
-            queryUuid,
-            cacheMetadata,
-            parameterReferences,
-            usedParametersValues: usedParameters,
-            resolvedTimezone: null,
-        };
+            });
+        return started;
     }
 
     async executeAsyncMetricQuery(
@@ -8619,7 +8606,9 @@ export class AsyncQueryService extends ProjectService {
             return this.submitSavedPipelineRun({
                 account,
                 projectUuid,
-                savedChart,
+                chart: savedChart,
+                organizationUuid: savedChart.organizationUuid,
+                content: { savedChartUuid: savedChart.uuid },
                 pipeline: savedChart.pipeline,
                 context,
                 querySurface,
@@ -9316,7 +9305,9 @@ export class AsyncQueryService extends ProjectService {
     private async submitSavedPipelineRun({
         account,
         projectUuid,
-        savedChart,
+        chart,
+        organizationUuid,
+        content,
         pipeline: storedPipeline,
         context,
         querySurface,
@@ -9343,7 +9334,16 @@ export class AsyncQueryService extends ProjectService {
         | 'pivotConfiguration'
         | 'userAttributeOverrides'
     > & {
-        savedChart: SavedChartDAO;
+        chart: Pick<
+            SavedChartDAO,
+            | 'metricQuery'
+            | 'chartConfig'
+            | 'pivotConfig'
+            | 'tableConfig'
+            | 'parameters'
+        >;
+        organizationUuid: string;
+        content: ViewedContentSource;
         pipeline: SavedPipelineDefinition;
         dashboardSorts: SortField[] | undefined;
         /** Applied to the chart node over the terminal columns they name; others are dropped. */
@@ -9356,7 +9356,7 @@ export class AsyncQueryService extends ProjectService {
         }
     > {
         assertIsAccountWithOrg(account);
-        const combinedParameters = { ...savedChart.parameters, ...parameters };
+        const combinedParameters = { ...chart.parameters, ...parameters };
         // A SQL chart folded without its columns learns them from the
         // statement, the way the SQL runner did on every run
         const pipeline =
@@ -9367,7 +9367,7 @@ export class AsyncQueryService extends ProjectService {
                       columns: await this.discoverPipelineTerminalColumns({
                           account,
                           projectUuid,
-                          organizationUuid: savedChart.organizationUuid,
+                          organizationUuid,
                           context,
                           querySurface,
                           pipeline: storedPipeline,
@@ -9397,13 +9397,13 @@ export class AsyncQueryService extends ProjectService {
             await resolveOrganizationExportLimits(
                 this.organizationSettingsModel,
                 this.lightdashConfig.query,
-                savedChart.organizationUuid,
+                organizationUuid,
             );
         // The chart's own limit on view; an export's limit, capped by the
         // organization's cell limit over the result's columns
         const { limit: effectiveLimit } = applyMetricQueryLimit(
             {
-                ...savedChart.metricQuery,
+                ...chart.metricQuery,
                 dimensions: Object.keys(pipeline.columns),
                 metrics: [],
                 tableCalculations: [],
@@ -9413,7 +9413,7 @@ export class AsyncQueryService extends ProjectService {
             maxLimit,
         );
         const plan = planSavedPipelineRun({
-            savedChart,
+            savedChart: chart,
             pipeline,
             pivotResults,
             pivotConfiguration,
@@ -9532,7 +9532,12 @@ export class AsyncQueryService extends ProjectService {
                 attributes: {
                     'lightdash.projectUuid': projectUuid,
                     'lightdash.queryContext': context,
-                    'lightdash.chartUuid': savedChart.uuid,
+                    ...('savedChartUuid' in content
+                        ? { 'lightdash.chartUuid': content.savedChartUuid }
+                        : {
+                              'lightdash.documentUuid':
+                                  content.documentReference.documentUuid,
+                          }),
                     'lightdash.nodeCount': plan.queries.length,
                 },
             },
@@ -9547,7 +9552,7 @@ export class AsyncQueryService extends ProjectService {
                     userAttributeOverrides: userAttributeOverrides ?? {},
                     invalidateCache: invalidateCache ?? false,
                     plans: { [plan.vizNodeId]: duckdbPlan },
-                    savedChartUuid: savedChart.uuid,
+                    ...content,
                 }),
         );
         const viz = queries.find((query) => query.nodeId === plan.vizNodeId);
@@ -9770,7 +9775,9 @@ export class AsyncQueryService extends ProjectService {
             const started = await this.submitSavedPipelineRun({
                 account,
                 projectUuid,
-                savedChart,
+                chart: savedChart,
+                organizationUuid: savedChart.organizationUuid,
+                content: { savedChartUuid: savedChart.uuid },
                 pipeline: savedChart.pipeline,
                 context,
                 querySurface,
@@ -10446,6 +10453,7 @@ export class AsyncQueryService extends ProjectService {
         userAttributeOverrides,
         warehouseConnectionUuid: requestedConnectionUuid,
         savedChartUuid,
+        documentReference,
     }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         const { organizationUuid, provisioningSource } =
             await this.projectModel.getSummary(projectUuid);
@@ -10455,6 +10463,7 @@ export class AsyncQueryService extends ProjectService {
         // permission, checked by the chart run; like a saved SQL chart.
         if (
             !savedChartUuid &&
+            !documentReference &&
             auditedAbility.cannot(
                 'manage',
                 subject('SqlRunner', {
@@ -11136,12 +11145,13 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         pivotConfiguration,
         savedChartUuid,
+        documentReference,
     }: ExecuteAsyncComposeSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         assertIsAccountWithOrg(account);
 
         // A saved pipeline chart's node runs on the chart's view permission,
         // checked by the chart run; the flag and ability gate authoring
-        if (!savedChartUuid) {
+        if (!savedChartUuid && !documentReference) {
             const { enabled: isEndpointEnabled } =
                 await this.featureFlagModel.get({
                     user: {
@@ -11163,6 +11173,7 @@ export class AsyncQueryService extends ProjectService {
         const auditedAbility = this.createAuditedAbility(account);
         if (
             !savedChartUuid &&
+            !documentReference &&
             auditedAbility.cannot(
                 'manage',
                 subject('Explore', {
@@ -11244,12 +11255,13 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         invalidateCache,
         savedChartUuid,
+        documentReference,
     }: ExecuteAsyncPythonQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         assertIsAccountWithOrg(account);
 
         // A saved pipeline chart's node runs on the chart's view permission,
         // checked by the chart run; the flags and ability gate authoring
-        if (!savedChartUuid) {
+        if (!savedChartUuid && !documentReference) {
             const user = {
                 userUuid: account.user.id,
                 organizationUuid: account.organization.organizationUuid,
@@ -11278,6 +11290,7 @@ export class AsyncQueryService extends ProjectService {
         const auditedAbility = this.createAuditedAbility(account);
         if (
             !savedChartUuid &&
+            !documentReference &&
             auditedAbility.cannot(
                 'manage',
                 subject('Explore', {

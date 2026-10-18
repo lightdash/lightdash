@@ -43,7 +43,11 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useValidationWithResults } from '../../../hooks/validation/useValidation';
 import { useSqlQueryRun } from '../../sqlRunner/hooks/useSqlQueryRun';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
-import { compareSqlQueries } from '../../sqlRunner/store/sqlRunnerSlice';
+import {
+    compareSqlQueries,
+    selectSqlVizColumns,
+} from '../../sqlRunner/store/sqlRunnerSlice';
+import { toVizColumns } from '../../sqlRunner/viz/sqlRunnerChart';
 import { useUpdateVirtualView } from '../hooks/useVirtualView';
 import { compareColumns, type ColumnDiff } from '../utils/compareColumns';
 
@@ -288,7 +292,7 @@ export const HeaderVirtualView: FC<{
     const [initialColumns, setInitialColumns] = useState<
         VizColumn[] | undefined
     >(undefined);
-    const columns = useAppSelector((state) => state.sqlRunner.sqlColumns);
+    const columns = useAppSelector(selectSqlVizColumns);
     const [columnDiffs, setColumnDiffs] = useState<ColumnDiff[]>([]);
     const [chartValidationErrors, setChartValidationErrors] = useState<
         ValidationResponse[] | undefined
@@ -358,7 +362,7 @@ export const HeaderVirtualView: FC<{
             });
 
             if (results) {
-                columnsFromQuery = results.columns;
+                columnsFromQuery = toVizColumns(results.columns);
             } else {
                 showToastError({
                     title: 'Error running query',

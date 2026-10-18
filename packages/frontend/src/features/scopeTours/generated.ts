@@ -5765,13 +5765,13 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
         title: 'Run SQL and save a chart',
         sources: [
             'packages/frontend/src/features/sqlRunner/components/SqlEditor.tsx',
-            'packages/frontend/src/features/sqlRunner/components/Header/HeaderView.tsx',
+            'packages/frontend/src/features/savedPipeline/SavedPipelineChartPage.tsx',
             'packages/frontend/src/features/sqlRunner/components/SaveSqlChartModal.tsx',
         ],
         steps: [
             {
                 target: '[data-tour-scope="manage:SqlRunner"][data-tour-step="1"]',
-                route: '/projects/:projectUuid/sql-runner/:slug',
+                route: '/projects/:projectUuid/saved/:savedQueryUuid/view',
                 title: 'SQL runner',
                 body: 'Only users with [developer or admin access](https://docs.lightdash.com/workspace-admin/roles) can use the SQL runner.',
                 interactive: false,
@@ -5925,7 +5925,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             },
             {
                 target: '[data-tour-scope="manage:SqlRunner"][data-tour-step="1"]',
-                route: '/projects/:projectUuid/sql-runner/:slug',
+                route: '/projects/:projectUuid/saved/:savedQueryUuid/view',
                 title: 'See the result',
                 body: "Once you've run your query, you can build a chart by clicking on the **chart** tab in the SQL Runner.",
                 interactive: false,
@@ -6206,13 +6206,13 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
         title: 'Run SQL and save a chart',
         sources: [
             'packages/frontend/src/features/sqlRunner/components/SqlEditor.tsx',
-            'packages/frontend/src/features/sqlRunner/components/Header/HeaderView.tsx',
+            'packages/frontend/src/features/savedPipeline/SavedPipelineChartPage.tsx',
             'packages/frontend/src/features/sqlRunner/components/SaveSqlChartModal.tsx',
         ],
         steps: [
             {
                 target: '[data-tour-scope="manage:SqlRunner"][data-tour-step="1"]',
-                route: '/projects/:projectUuid/sql-runner/:slug',
+                route: '/projects/:projectUuid/saved/:savedQueryUuid/view',
                 title: 'SQL runner',
                 body: 'Only users with [developer or admin access](https://docs.lightdash.com/workspace-admin/roles) can use the SQL runner.',
                 interactive: false,
@@ -6366,7 +6366,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             },
             {
                 target: '[data-tour-scope="manage:SqlRunner"][data-tour-step="1"]',
-                route: '/projects/:projectUuid/sql-runner/:slug',
+                route: '/projects/:projectUuid/saved/:savedQueryUuid/view',
                 title: 'See the result',
                 body: "Once you've run your query, you can build a chart by clicking on the **chart** tab in the SQL Runner.",
                 interactive: false,

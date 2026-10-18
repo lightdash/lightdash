@@ -19,7 +19,6 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { cartesianChartSelectors } from '../../../../components/DataViz/store/selectors';
 import { useGitIntegration } from '../../../../hooks/gitIntegration/useGitIntegration';
 import useHealth from '../../../../hooks/health/useHealth';
 import useToaster from '../../../../hooks/toaster/useToaster';
@@ -29,13 +28,8 @@ import useApp from '../../../../providers/App/useApp';
 import { CreateVirtualViewModal } from '../../../virtualView';
 import { useCreateSqlRunnerShareUrl } from '../../hooks/useSqlRunnerShareUrl';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import {
-    EditorTabs,
-    setActiveEditorTab,
-    toggleModal,
-} from '../../store/sqlRunnerSlice';
+import { toggleModal } from '../../store/sqlRunnerSlice';
 import { isBitbucketCloudConnection } from '../../utils/isBitbucketCloudConnection';
-import { ChartErrorsAlert } from '../ChartErrorsAlert';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 import { WriteBackToDbtModal } from '../WriteBackToDbtModal';
 import classes from './HeaderCreate.module.css';
@@ -171,9 +165,6 @@ export const HeaderCreate: FC = () => {
     const isWriteBackToDbtModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.writeBackToDbtModal.isOpen,
     );
-    const isChartErrorsAlertOpen = useAppSelector(
-        (state) => state.sqlRunner.modals.chartErrorsAlert.isOpen,
-    );
     const onCloseSaveModal = useCallback(() => {
         dispatch(toggleModal('saveChartModal'));
     }, [dispatch]);
@@ -183,14 +174,6 @@ export const HeaderCreate: FC = () => {
     const onCloseWriteBackToDbtModal = useCallback(() => {
         dispatch(toggleModal('writeBackToDbtModal'));
     }, [dispatch]);
-
-    const selectedChartType = useAppSelector(
-        (state) => state.sqlRunner.selectedChartType,
-    );
-    const hasErrors = useAppSelector(
-        (state) =>
-            !!cartesianChartSelectors.getErrors(state, selectedChartType),
-    );
 
     // The default depends on permissions that resolve asynchronously
     // (canSaveChart waits on the spaces query), so derive it during render and
@@ -218,11 +201,7 @@ export const HeaderCreate: FC = () => {
     const handleCtaClick = useCallback(() => {
         switch (ctaAction) {
             case 'save':
-                if (hasErrors) {
-                    dispatch(toggleModal('chartErrorsAlert'));
-                } else {
-                    dispatch(toggleModal('saveChartModal'));
-                }
+                dispatch(toggleModal('saveChartModal'));
                 break;
             case 'createVirtualView':
                 dispatch(toggleModal('createVirtualViewModal'));
@@ -231,7 +210,7 @@ export const HeaderCreate: FC = () => {
                 dispatch(toggleModal('writeBackToDbtModal'));
                 break;
         }
-    }, [ctaAction, dispatch, hasErrors]);
+    }, [ctaAction, dispatch]);
 
     const getCtaLabels = useCallback((action: CtaAction) => {
         switch (action) {
@@ -287,8 +266,7 @@ export const HeaderCreate: FC = () => {
     const isAnyModalOpen =
         isSaveModalOpen ||
         isCreateVirtualViewModalOpen ||
-        isWriteBackToDbtModalOpen ||
-        isChartErrorsAlertOpen;
+        isWriteBackToDbtModalOpen;
 
     // Save on cmd/ctrl + s, including while the SQL editor is focused
     useHotkeys(
@@ -530,16 +508,6 @@ export const HeaderCreate: FC = () => {
                 key={`${isWriteBackToDbtModalOpen}-writeBackToDbtModal`}
                 opened={isWriteBackToDbtModalOpen}
                 onClose={onCloseWriteBackToDbtModal}
-            />
-            <ChartErrorsAlert
-                opened={isChartErrorsAlertOpen}
-                onClose={() => {
-                    dispatch(toggleModal('chartErrorsAlert'));
-                }}
-                onFixButtonClick={() => {
-                    dispatch(toggleModal('chartErrorsAlert'));
-                    dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
-                }}
             />
         </>
     );

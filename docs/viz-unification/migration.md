@@ -274,9 +274,12 @@ through the uuid and keep working.
 
 A SQL chart tile ran one warehouse query. A pipeline chart tile runs its
 nodes in sequence on the compose engine, each waiting on the one before it,
-so it costs more than one query (measured below). Phase 3 shortens the wait
-between nodes (the reference poll starts at 100 ms instead of 500 ms). The
-measured numbers are in the Performance section.
+so it costs more than one query. Phase 3 shortens the wait between nodes
+(the reference poll starts at 100 ms instead of 500 ms): a folded aggregated
+bar chart (SQL node, aggregating node, chart node) is ready in about 1.1 s
+on the development environment, a folded table (SQL node, chart node) in
+about 0.6 s, against about 0.3 s for a classic chart tile. Dashboards of
+classic charts are unchanged. Numbers are in the Performance section.
 
 ### Backwards compatibility
 
@@ -296,7 +299,90 @@ measured numbers are in the Performance section.
 
 ## Phase 4: the SQL runner chart stack is deleted
 
-Not started.
+Shipped on the branch `claude/friendly-heisenberg-atf1t3`.
+
+### The model
+
+The SQL runner draws through the classic chart stack. The result of the last
+run is the chart's table (`sql`): its columns become dimensions and metrics
+under `sql_<column>` field ids, exactly as a saved SQL chart's fields are,
+and the chart config the page holds is an explorer `ChartConfig`. The
+sidebar's Chart tab is the explorer's own config panel for the chosen type,
+and the chart type picker lists every built-in type. A grouped chart
+re-runs the statement pivoted on the warehouse, the way a saved chart's run
+pivots. Saving writes a saved chart whose pipeline is the statement as one
+SQL node (`buildSqlChartPipeline`); editing a saved chart loads that node
+back into the editor. Nothing is converted in between: the config the
+editor shows is the config the dashboard draws.
+
+Documents' inline SQL charts run through the same path: the server converts
+the stored SQL runner config to a pipeline chart and runs it as a pipeline,
+and the page draws it with the classic stack like every other document
+chart.
+
+Deleted: `packages/frontend/src/components/DataViz`,
+`features/queryRunner`, `features/sqlRunner/runners`, the SQL chart tile,
+the document SQL chart view, the saved SQL chart hooks, and the chart data
+models in `packages/common/src/visualizations` (`BigNumberDataModel`,
+`CartesianChartDataModel`, `PieChartDataModel`, `TableDataModel`,
+`IResultsRunner`). The stored shapes in `visualizations/types` stay, so
+charts saved before the fold and old share links still convert.
+
+### What changes for a user
+
+- **The SQL runner's Chart tab is the explorer's.** Chart types, the config
+  panel (axes, series, legend, formats, conditional formatting, pivots,
+  reference lines) and the chart itself are the ones the explorer and
+  dashboards use. The SQL runner's own config panel is gone.
+- **Aggregation is in the SQL.** The SQL runner no longer offers an
+  aggregation (sum, count, average, min, max) per y-axis value: the chart
+  draws the rows the statement returns. Write the `GROUP BY` in the
+  statement. Charts saved before this phase keep aggregating through the
+  aggregating node the fold gave them (phase 3), and still draw and run
+  everywhere; their statement cannot be edited in the SQL runner (the
+  runner cannot represent the aggregating node), only their chart config on
+  the chart page. To change such a chart's SQL, add the aggregation to the
+  statement and save it as a new chart.
+- **Saving a chart creates a saved chart** (`POST /api/v1/projects/:p/saved`)
+  and opens it on the chart page. Saving from the SQL tab saves the results
+  as a table. Chart name, description and space are edited from the SQL
+  runner's header as before; delete goes through the saved chart delete.
+- **The results pane always shows the statement's rows** as the warehouse
+  returned them. The pivoted rows a grouped chart draws are visible in the
+  chart, not as a second table under it.
+- **Downloads**: the chart tab's download menu is the explorer's (image and
+  results, pivoted results when the chart groups); the SQL tab's download is
+  the results export.
+- **Share links** made before this phase carry the SQL runner config; it is
+  converted to the explorer config when the link opens. New links carry the
+  explorer config. The URL format is unchanged.
+- **Dashboards and embeds** render a SQL chart tile a client still holds in
+  its old shape as the chart tile it is.
+
+### Backwards compatibility
+
+- **API**: no endpoint changes beyond phase 3. The saved SQL chart endpoints
+  stay as adapters for one release and are deprecated next; first party no
+  longer calls them. Content as code, promotion and the agent tools are
+  unchanged.
+- **Rolling update**: the old UI pod's SQL runner saves through the adapter
+  endpoints and the new pod reads the saved charts; both shapes are read by
+  both pods. Nothing here needs a declaration beyond phase 3's.
+- **Documents**: the stored inline SQL chart shape is unchanged (`source:
+  'sql'` with the SQL runner config); the run and the drawing changed.
+  Document exports (PDF) draw inline SQL charts through the same renderer
+  as every other chart.
+
+### Not in phase 4
+
+- Slack and MCP chart images still render through their own ECharts path
+  (`renderEcharts`, the MCP chart app); unifying them on the headless
+  `renderChart` of `@lightdash/visualization` is the next step.
+- `saved_sql*` tables and the `saved_sql_uuid` columns (tiles, schedulers,
+  documents, agent artifacts) are dropped in a later release once no pod
+  reads them.
+- The saved SQL chart endpoints are deprecated once no first party caller
+  remains in a shipped release.
 
 ## Performance
 
@@ -366,6 +452,44 @@ The pipeline tile runs three queries in sequence, and each DuckDB node waited
 for the one before it with a poll that started at 500 ms. Phase 3 lowers the
 first poll to 100 ms; the re-measurement is below once it lands.
 
+### Phase 3 build (`6285a84`) against the baseline
+
+Same harness, after a warm-up pass; three runs per dashboard. "Legacy SQL
+charts" holds two SQL charts saved through the old saved SQL chart API before
+the fold migration ran: a bar chart that summed an amount per status (folded
+to a SQL node, an aggregating node and a chart node) and a table over the raw
+rows (a SQL node and a chart node, columns discovered on the first run).
+
+| Dashboard | Chart tiles | Cold wall ms (base → p3) | Warm wall ms (base → p3) | Warm tile p95 ms (base → p3) |
+|---|---|---|---|---|
+| Jaffle dashboard | 5 | 752 → 644 | 770 → 826 | 769 → 824 |
+| Pivot Table Dashboard | 10 | 953 → 1013 | 1204 → 1196 | 1203 → 1195 |
+| Cartesian Charts (time dimensions) | 15 | 1064 → 1199 | 1268 → 1252 | 1268 → 1251 |
+| Filter Tests Dashboard | 19 | 1378 → 1281 | 1389 → 1344 | 1388 → 1344 |
+| POP Tests Dashboard | 5 | 764 → 663 | 523 → 520 | 523 → 520 |
+| Table Calculations Tests Dashboard | 8 | 771 → 754 | 728 → 833 | 727 → 832 |
+| Fanout Tests Dashboard | 8 | 1115 → 1071 | 1070 → 1071 | 1070 → 1070 |
+| [CF Coverage] Dashboard | 11 | 988 → 973 | 1109 → 1112 | 1108 → 1111 |
+| Weekly revenue review | 6 | 541 → 768 | 663 → 663 | 662 → 663 |
+| Perf pipeline vs classic | 2 | 1113 | 1119 | 1119 |
+| Legacy SQL charts | 2 | 1150 | 1141 | 1141 |
+
+Reading: classic dashboards are still unchanged within noise. The pipeline
+tile that took 1911 ms in phase 2 is ready in 1119 ms with the shorter
+reference poll; the folded SQL charts cost the same order:
+
+| Tile | Ready ms (median of 3 warm runs) |
+|---|---|
+| Classic bar chart | 301 |
+| Pipeline bar chart (semantic → DuckDB → chart node), phase 2 | 1911 |
+| Pipeline bar chart (semantic → DuckDB → chart node), phase 3 | 1119 |
+| Folded SQL bar chart (SQL → aggregating node → chart node) | 1141 |
+| Folded SQL table (SQL → chart node) | 598 |
+
+Each node after the first still costs one compose engine round trip (submit,
+wait for the reference, read). The remaining gap to a classic tile is that
+sequence; a run that submits a pipeline as one compose job would close it.
+
 Methodology and raw reports: `docs/viz-unification/perf/`
 (`dashboard-api-bench.mjs`, `baseline-main-a7333cf.json`,
-`p2-a070e57.json`, `compare.mjs`).
+`p2-a070e57.json`, `p3-6285a84.json`, `compare.mjs`).

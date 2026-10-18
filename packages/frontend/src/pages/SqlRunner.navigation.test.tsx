@@ -35,9 +35,17 @@ vi.mock(
         ),
     }),
 );
-vi.mock('../features/sqlRunner/hooks/useSavedSqlCharts', () => ({
-    useSavedSqlChart: () => ({ data: undefined, error: null }),
+vi.mock('../hooks/useSavedQuery', () => ({
+    useSavedQuery: () => ({ data: undefined, error: null }),
 }));
+vi.mock('../features/sqlRunner/viz/SqlRunnerVisualizationProvider', () => ({
+    SqlRunnerVisualizationProvider: ({
+        children,
+    }: {
+        children: React.ReactNode;
+    }) => <>{children}</>,
+}));
+
 vi.mock('../features/sqlRunner/hooks/useSqlRunnerShareUrl', () => ({
     useSqlRunnerShareUrl: () => ({ error: null, sqlRunnerState: null }),
 }));

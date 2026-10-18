@@ -21,9 +21,6 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
 vi.mock('../../components/DashboardTiles/DashboardChartTile', () => ({
     default: () => null,
 }));
-vi.mock('../../components/DashboardTiles/DashboardSqlChartTile', () => ({
-    default: () => null,
-}));
 vi.mock('../../components/DashboardTiles/DashboardDataAppTile', () => ({
     default: () => null,
 }));

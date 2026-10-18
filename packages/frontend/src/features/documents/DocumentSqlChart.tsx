@@ -1,10 +1,13 @@
 import {
+    convertSqlChartToPipelineChart,
     type DocumentQueryReference,
     type DocumentSqlChart as DocumentSqlChartDefinition,
 } from '@lightdash/common';
-import { type ReactNode } from 'react';
-import DocumentSqlChartView from './DocumentSqlChartView';
-import { useDocumentSqlChartResults } from './useDocumentSqlChartResults';
+import { useMemo, type ReactNode } from 'react';
+import DocumentChartVisualization, {
+    type DocumentVisualizedChart,
+} from './DocumentChartVisualization';
+import { useDocumentChartQuery } from './useDocument';
 
 type Props = {
     projectUuid: string;
@@ -15,7 +18,11 @@ type Props = {
     actions?: ReactNode;
 };
 
-/** A SQL chart the Document owns. */
+/**
+ * A SQL chart the Document owns, drawn like every other chart: the server
+ * runs it as the pipeline chart it converts to, and the stored SQL runner
+ * config becomes the explorer config over that run's fields.
+ */
 const DocumentSqlChart = ({
     projectUuid,
     spaceUuid,
@@ -24,24 +31,36 @@ const DocumentSqlChart = ({
     showTitle = false,
     actions,
 }: Props) => {
-    const query = useDocumentSqlChartResults({
+    const query = useDocumentChartQuery(
         projectUuid,
-        spaceUuid,
-        reference,
-        chart,
-    });
+        reference.documentUuid,
+        reference.versionUuid,
+        reference.chartId,
+    );
+    const visualizedChart = useMemo((): DocumentVisualizedChart => {
+        const converted = convertSqlChartToPipelineChart({
+            sql: chart.sql,
+            limit: chart.limit,
+            config: chart.config,
+            warehouseConnectionUuid: chart.warehouseConnectionUuid ?? null,
+        });
+        return {
+            name: chart.name,
+            description: chart.description,
+            tableName: converted.tableName,
+            chartConfig: converted.chartConfig,
+            pivotConfig: converted.pivotConfig,
+            tableConfig: converted.tableConfig,
+        };
+    }, [chart]);
     return (
-        <DocumentSqlChartView
-            name={chart.name}
-            description={chart.description}
-            config={chart.config}
-            results={{
-                data: query.data,
-                errorMessage: query.error?.error.message,
-                retry: () => void query.refetch(),
-            }}
-            exportChartId={reference.chartId}
+        <DocumentChartVisualization
+            projectUuid={projectUuid}
+            spaceUuid={spaceUuid}
+            chart={visualizedChart}
+            query={query}
             showTitle={showTitle}
+            renderTarget={reference}
             actions={actions}
         />
     );

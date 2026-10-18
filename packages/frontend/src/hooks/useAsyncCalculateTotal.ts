@@ -15,8 +15,8 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
+import { pollForResults } from '../api/asyncQuery';
 import useEmbed from '../ee/providers/Embed/useEmbed';
-import { pollForResults } from '../features/queryRunner/executeQuery';
 import { useProject } from './useProject';
 
 // Reads every page of a ready query from the paginated results endpoint.

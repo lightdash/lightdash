@@ -1,7 +1,8 @@
 import {
-    ChartKind,
+    ChartType,
+    QuerySourceType,
     WarehouseTypes,
-    type SqlChart,
+    type SavedChart,
     type SqlRunnerWarehouseConnection,
 } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
@@ -29,7 +30,7 @@ import {
 import { SqlRunnerConnectionScope } from './SqlRunnerConnectionScope';
 import { SqlRunnerSidebar } from './SqlRunnerSidebar';
 
-const updateSqlChart = vi.fn();
+const addVersion = vi.fn();
 
 vi.mock('../../../../api', () => ({
     lightdashApi: vi.fn(),
@@ -41,20 +42,12 @@ vi.mock('react-router', () => ({
     useLocation: () => ({ search: '', pathname: '/' }),
 }));
 
-vi.mock('../../hooks/useSavedSqlCharts', () => ({
-    useUpdateSqlChartMutation: () => ({
-        mutate: updateSqlChart,
+vi.mock('../../../../hooks/useSavedQuery', () => ({
+    useAddVersionMutation: () => ({
+        mutate: addVersion,
         isLoading: false,
     }),
 }));
-
-vi.mock('../../../../components/DataViz/store/selectors', () => {
-    const config = { type: 'table', metadata: { version: 1 }, columns: {} };
-    return {
-        selectCompleteConfigByKind: () => config,
-        cartesianChartSelectors: { getErrors: () => undefined },
-    };
-});
 
 vi.mock(
     '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs',
@@ -67,9 +60,6 @@ vi.mock(
     '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup',
     () => ({ ResourceInfoPopup: () => null }),
 );
-vi.mock('../../components/ChartErrorsAlert', () => ({
-    ChartErrorsAlert: () => null,
-}));
 vi.mock('../../components/DeleteSqlChartModal', () => ({
     DeleteSqlChartModal: () => null,
 }));
@@ -103,8 +93,8 @@ vi.mock('@tanstack/react-virtual', () => ({
     }),
 }));
 
-vi.mock('../../../../components/DataViz/VisualizationConfigPanel', () => ({
-    VisualizationConfigPanel: () => null,
+vi.mock('../../viz/SqlRunnerVizConfigPanel', () => ({
+    SqlRunnerVizConfigPanel: () => null,
 }));
 
 const mockApi = lightdashApi as unknown as Mock;
@@ -127,17 +117,40 @@ const connections: SqlRunnerWarehouseConnection[] = [
 ];
 
 const chartOnFinance = {
-    savedSqlUuid: 'chart-uuid',
+    uuid: 'chart-uuid',
     name: 'Ledger',
-    description: null,
+    description: undefined,
     slug: 'ledger',
-    sql: 'select 1',
-    limit: 10,
-    config: { type: ChartKind.TABLE },
-    project: { projectUuid },
-    space: { uuid: 'space-uuid', name: 'Space' },
-    warehouseConnectionUuid: 'finance-uuid',
-} as unknown as SqlChart;
+    projectUuid: projectUuid,
+    spaceUuid: 'space-uuid',
+    spaceName: 'Space',
+    tableName: 'sql',
+    metricQuery: {
+        exploreName: 'sql',
+        dimensions: [],
+        metrics: [],
+        filters: {},
+        sorts: [],
+        limit: 10,
+        tableCalculations: [],
+    },
+    chartConfig: { type: ChartType.TABLE, config: undefined },
+    tableConfig: { columnOrder: [] },
+    pipeline: {
+        queries: [
+            {
+                sourceType: QuerySourceType.SQL,
+                nodeId: 'sql',
+                title: 'SQL',
+                sql: 'select 1',
+                limit: 10,
+                warehouseConnectionUuid: 'finance-uuid',
+            },
+        ],
+        terminalNodeId: 'sql',
+        columns: {},
+    },
+} as unknown as SavedChart;
 
 describe('Editing a saved SQL chart on another connection', () => {
     beforeEach(() => {
@@ -199,10 +212,9 @@ describe('Editing a saved SQL chart on another connection', () => {
         await waitFor(() => expect(save).toBeEnabled());
         await user.click(save);
 
-        expect(updateSqlChart).toHaveBeenCalledWith({
-            versionedData: expect.objectContaining({
-                warehouseConnectionUuid: null,
-            }),
-        });
+        expect(addVersion).toHaveBeenCalledTimes(1);
+        expect(
+            addVersion.mock.calls[0][0].payload.pipeline.queries[0],
+        ).not.toHaveProperty('warehouseConnectionUuid');
     });
 });
