@@ -2,6 +2,7 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
 import type * as rtk from '@reduxjs/toolkit';
 import { configureStore } from '@reduxjs/toolkit';
+import { explorerReducer } from '../../explorer/store/explorerSlice';
 import {
     funnelBuilderListenerMiddleware,
     funnelBuilderSlice,
@@ -14,6 +15,9 @@ export const store = configureStore({
     reducer: {
         // TODO: important because selectors assume that
         [sqlRunnerSlice.name]: sqlRunnerSlice.reducer,
+        // The explorer's config panels read the explorer slice; the SQL
+        // runner gives them an empty one so they render over its own chart
+        explorer: explorerReducer,
         [metricsCatalogSlice.name]: metricsCatalogSlice.reducer,
         [funnelBuilderSlice.name]: funnelBuilderSlice.reducer,
     },
