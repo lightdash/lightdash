@@ -115,8 +115,93 @@ Shipped on the branch `claude/friendly-heisenberg-atf1t3`.
 
 ## Phase 2: composer charts are saved content
 
-Not started. Design in
-[`03-saved-composer-charts.md`](../composer-viz-plan/03-saved-composer-charts.md).
+Shipped on the branch `claude/friendly-heisenberg-atf1t3`. Design in
+[`03-saved-composer-charts.md`](../composer-viz-plan/03-saved-composer-charts.md),
+with one change: the saved chart stores the pipeline beside the chart config
+instead of a new content type, so every consumer of saved charts works without
+knowing about pipelines.
+
+### The model
+
+A **pipeline chart** is a saved chart whose query is a composer pipeline. It is
+a row in `saved_queries` like any chart, with one extra row per version in
+`saved_queries_version_pipelines`: the nodes, the terminal node, and the
+terminal result's columns as they were when the chart was saved. This mirrors
+the merge table (`saved_queries_version_merges`): almost no version has one, so
+the per-version table stays narrow.
+
+- `tableName` and `metricQuery.exploreName` are the terminal node id. The
+  chart's dimensions and metrics are the terminal columns under
+  `<terminalNodeId>_<column>` field ids, dimensions or metrics by column role.
+- The chart config, pivot config, table config, sorts and limit are the
+  explorer's, addressed by those field ids. Everything that reads a saved
+  chart (dashboards, deliveries, exports, content as code, promotion, drafts,
+  history, preview projects) carries the pipeline without changes to its own
+  shape.
+- On every run the stored nodes are submitted as the viewer, then a chart node
+  (`viz`) reads the terminal result under the chart's field ids with the
+  chart's sort, limit and pivot composed over it, the way a merge's join node
+  is. The chart node's query history row carries the chart's fields, so the
+  result page reads like any saved chart result.
+
+### What changes for a user
+
+- **Save as chart** on a composer result in the agent thread. The saved chart
+  draws exactly what the thread drew: the same chart config, the same pivot,
+  over the same pipeline. It lands in a space or on a dashboard like any chart.
+- **Pipeline charts on dashboards** load through the ordinary chart tile. Tile
+  menus, downloads, duplicate, move and delete work. "Explore from here" and
+  the in-dashboard chart editor are not offered: a pipeline is not a query the
+  Explorer can open.
+- **A pipeline chart's own page** shows the chart with the pipeline underneath,
+  node by node, with the SQL or code of each node. Edit mode changes the chart
+  type, config and pivot and saves a new version. The pipeline itself is edited
+  where it was made, in the agent thread.
+- **Deliveries and exports**: scheduled deliveries, CSV and Excel exports and
+  image exports of pipeline charts run the pipeline the same way, with the
+  export limit applied to the chart node.
+- **Permissions**: semantic layer nodes run under the viewer's own explore
+  access and user attributes. Warehouse SQL nodes run under the chart's view
+  permission, the way a saved SQL chart's SQL does today; the author needed SQL
+  runner access to save the chart (and content as code upload checks the same).
+- **Content as code** exports a `pipeline:` block on pipeline charts and
+  accepts one on upload; promotion carries it between projects.
+
+### Not applied to pipeline charts (phase 2)
+
+These are the same gaps a merged chart has; they are listed so a user knows
+what to expect rather than guess.
+
+- **Dashboard filters** are not pushed into a pipeline. The tile shows no
+  applied filters and the dashboard filter list offers none of its fields.
+- **Date zoom** is not applied.
+- **Column totals** in tables are not computed; the totals request is refused
+  with a message.
+- **Drill into underlying data**, "view SQL" and field URLs are off, as the
+  fields have no explore behind them.
+- **Validation** skips pipeline charts; a pipeline that stops working is found
+  when it is run, not by the validator.
+- **Custom chart types and Vega** are available in the config panel but not
+  yet checked against pipeline fields.
+
+### Backwards compatibility
+
+- **Database**: one new table, `saved_queries_version_pipelines`, created
+  empty, cascading from chart versions. No backfill, no change to existing
+  rows. Old backend pods ignore the table, so a rolling update is safe; a
+  chart saved with a pipeline during the rollout is drawn by an old pod as a
+  chart over an unknown explore until the pod is replaced.
+- **API**: `SavedChart`, `CreateSavedChart`, `CreateSavedChartVersion` and
+  `ChartAsCode` gain an optional `pipeline`. Additive; omitted on every
+  existing chart. The chart as code JSON schema is regenerated accordingly.
+- **Query sources**: an internal submission carries the saved chart it runs
+  for, which lets its SQL nodes skip the SQL runner permission. The public
+  query sources endpoint cannot set it.
+- **Composer artifact to saved chart**: the saved pipeline stores the terminal
+  columns at save time. If the pipeline later returns different columns (a
+  node is edited in the thread and re-saved, or an upstream explore changes),
+  the chart's fields keep the saved shape and missing columns read as empty.
+  Re-save the chart from the thread to pick up the new columns.
 
 ## Phase 3: SQL charts fold into saved charts
 
