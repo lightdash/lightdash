@@ -808,6 +808,10 @@ class Runner:
             self.rec.step('CLI-deployed Snowflake explore is bound to the Snowflake extra', bound.get('warehouseConnectionUuid') == snowflake_uuid, json.dumps(bound))
         if env and trino_uuid:
             self.add_manifest_source(project, 'trino_cli', 'trino', trino_uuid)
+            response, seconds = timed(self.api.call, 'PATCH', f'/api/v1/projects/{project}/warehouse-connections/{trino_uuid}', {
+                'warehouseConnection': {**self.w.credentials('trino'), 'startOfWeek': 2},
+            })
+            self.rec.step('set a Wednesday week start on the upstream Trino extra', ok(response), message(response), seconds)
             before = (self.api.call('GET', f'/api/v1/projects/{project}').get('results') or {}).get('warehouseConnection')
             name = f'CLI preview [{self.run_id}]'
             profiles = Path(tempfile.mkdtemp(prefix='mixed-cli-profiles-'))
@@ -828,6 +832,25 @@ class Runner:
                 self.rec.step("the preview's primary connection is unchanged", same, json.dumps({k: (after or {}).get(k) for k in ('type', 'schema')}))
                 conns = self.connections(preview)
                 self.rec.step('the preview keeps its Trino extra', 'Trino extra' in conns, f'{sorted(conns)}')
+                preview_trino = (conns.get('Trino extra') or {}).get('warehouseConnectionUuid')
+
+                def preview_week_start():
+                    details = self.api.call('GET', f'/api/v1/projects/{preview}/warehouse-connections/{preview_trino}').get('results') or {}
+                    return (details.get('warehouseConnection') or {}).get('startOfWeek')
+
+                week_start = preview_week_start()
+                self.rec.step('refreshing the Trino extra keeps its week start', week_start == 2, f'startOfWeek={week_start}')
+                updated_before = {n: c.get('updatedAt') for n, c in self.connections(preview).items()}
+                time.sleep(1)
+                start = time.time()
+                code, out = self.run_cli(env, ['start-preview', '--name', name, '--source', 'trino_cli', '--project-dir', str(TRINO_FIXTURE), '--profiles-dir', str(profiles), '--skip-warehouse-catalog'])
+                updated_after = {n: c.get('updatedAt') for n, c in self.connections(preview).items()}
+                refreshed = updated_after.get('Trino extra') != updated_before.get('Trino extra')
+                primary_untouched = updated_after.get('Postgres (original)') == updated_before.get('Postgres (original)')
+                week_start = preview_week_start()
+                self.rec.step('rerunning start-preview refreshes only the Trino extra and keeps its week start', code == 0 and refreshed and primary_untouched and week_start == 2, f'extra refreshed={refreshed} primary untouched={primary_untouched} startOfWeek={week_start}', time.time() - start)
+                after = (self.api.call('GET', f'/api/v1/projects/{preview}').get('results') or {}).get('warehouseConnection')
+                self.rec.step("the preview's primary is still unchanged after the rerun", before is not None and after is not None and all(before.get(k) == after.get(k) for k in keys), json.dumps({k: (after or {}).get(k) for k in ('type', 'schema')}))
                 self.run_cli(env, ['stop-preview', '--name', name], timeout=300)
             else:
                 self.rec.step('CLI preview project found', False)
