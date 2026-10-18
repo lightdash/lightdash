@@ -822,7 +822,7 @@ export class AiAgentController extends BaseController {
             );
             return {
                 status: 'ok',
-                results: { chips: [], source: 'default' },
+                results: { chips: [], source: 'none' },
             };
         }
 

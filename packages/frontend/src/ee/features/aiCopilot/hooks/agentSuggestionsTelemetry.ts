@@ -1,7 +1,7 @@
 import {
     isApiError,
     type ApiAgentSuggestionsResponse,
-    type AgentSuggestionsSource,
+    type AgentSuggestionsResponseSource,
 } from '@lightdash/common';
 
 export type AgentSuggestionsSurface =
@@ -17,7 +17,7 @@ export type AgentSuggestionsDisplayedProperties = {
     appVersion: string;
     surface: AgentSuggestionsSurface;
     outcome: 'shown' | 'defaults' | 'empty' | 'error' | 'timeout';
-    source: AgentSuggestionsSource | 'none';
+    source: AgentSuggestionsResponseSource;
     httpStatus: number | null;
     durationMs: number;
     attempt: number;
@@ -63,7 +63,7 @@ export function buildAgentSuggestionsDisplayedProperties({
                     : source === 'default'
                       ? 'defaults'
                       : 'shown',
-            source,
+            source: chips.length === 0 ? 'none' : source,
             chipCount: chips.length,
             httpStatus: 200,
         };

@@ -109,7 +109,10 @@ export type AgentSuggestionsModelObject = z.infer<
 
 export type AgentSuggestionsSource = 'generated' | 'cached' | 'default';
 
+// 'none' means the response carries no chips.
+export type AgentSuggestionsResponseSource = AgentSuggestionsSource | 'none';
+
 export type ApiAgentSuggestionsResponse = ApiSuccess<{
     chips: AgentSuggestion[];
-    source: AgentSuggestionsSource;
+    source: AgentSuggestionsResponseSource;
 }>;

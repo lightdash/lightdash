@@ -17,7 +17,7 @@ import { AiAgentController } from './aiAgentController';
 
 describe('AiAgentController getAgentSuggestions', () => {
     const getAgentSuggestions = vi.fn<AiAgentService['getAgentSuggestions']>(
-        async () => ({ chips: [], source: 'default' }),
+        async () => ({ chips: [], source: 'none' }),
     );
     const controller = new AiAgentController({
         getAiAgentService: () => ({ getAgentSuggestions }),

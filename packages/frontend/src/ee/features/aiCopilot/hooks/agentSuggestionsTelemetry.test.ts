@@ -52,9 +52,22 @@ describe('buildAgentSuggestionsDisplayedProperties', () => {
         expect(
             buildAgentSuggestionsDisplayedProperties({
                 ...common,
+                result: { chips: [], source: 'none' },
+            }),
+        ).toMatchObject({
+            outcome: 'empty',
+            source: 'none',
+            chipCount: 0,
+            httpStatus: 200,
+        });
+    });
+    it('reports source none whenever no chips are shown', () => {
+        expect(
+            buildAgentSuggestionsDisplayedProperties({
+                ...common,
                 result: { chips: [], source: 'default' },
             }),
-        ).toMatchObject({ outcome: 'empty', chipCount: 0, httpStatus: 200 });
+        ).toMatchObject({ outcome: 'empty', source: 'none' });
     });
     it.each([408, 504])('reports HTTP %s as timeout', (status) => {
         expect(

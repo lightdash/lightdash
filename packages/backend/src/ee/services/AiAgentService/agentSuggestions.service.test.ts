@@ -158,7 +158,7 @@ describe('AiAgentService getAgentSuggestions', () => {
             expect.objectContaining({
                 properties: expect.objectContaining({
                     outcome: 'error',
-                    source: null,
+                    source: 'none',
                     fallbackReason: null,
                     chipCount: 0,
                     usingFallback: true,
@@ -441,7 +441,7 @@ describe('AiAgentService suggestion fallback and telemetry', () => {
                 ...input,
                 threadUuid: 'thread',
             }),
-        ).toEqual({ chips: [], source: 'default' });
+        ).toEqual({ chips: [], source: 'none' });
         expect(track).not.toHaveBeenCalled();
         expect(metrics.incrementAiAgentSuggestions).not.toHaveBeenCalled();
         expect(generateAgentSuggestions).not.toHaveBeenCalled();
@@ -459,7 +459,7 @@ describe('AiAgentService suggestion fallback and telemetry', () => {
             expect.objectContaining({
                 properties: expect.objectContaining({
                     outcome: 'error',
-                    source: null,
+                    source: 'none',
                     fallbackReason: null,
                 }),
             }),

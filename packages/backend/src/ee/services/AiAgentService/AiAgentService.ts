@@ -180,6 +180,7 @@ import {
     validateAgentSuggestion,
     validateAiAgentSkill,
     type AgentIdentityClaim,
+    type AgentSuggestionsResponseSource,
     type AgentSuggestionsSource,
     type AgentSuggestionTool,
     type AgentToolName,
@@ -3102,7 +3103,10 @@ export class AiAgentService extends BaseService {
             context?: AiAgentSuggestionContext;
             client: SuggestionClientInfo;
         },
-    ): Promise<{ chips: AgentSuggestion[]; source: AgentSuggestionsSource }> {
+    ): Promise<{
+        chips: AgentSuggestion[];
+        source: AgentSuggestionsResponseSource;
+    }> {
         const startedAt = Date.now();
         const { organizationUuid } = user;
         if (!organizationUuid)
@@ -3125,7 +3129,7 @@ export class AiAgentService extends BaseService {
                     usingFallback: true,
                     documentChipShown: false,
                     outcome: 'error',
-                    source: null,
+                    source: 'none',
                     fallbackReason: null,
                     droppedChipCount: 0,
                     ...input.client,
@@ -3156,7 +3160,10 @@ export class AiAgentService extends BaseService {
             context?: AiAgentSuggestionContext;
         },
         startedAt: number,
-    ): Promise<{ chips: AgentSuggestion[]; source: AgentSuggestionsSource }> {
+    ): Promise<{
+        chips: AgentSuggestion[];
+        source: AgentSuggestionsResponseSource;
+    }> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
@@ -3176,7 +3183,7 @@ export class AiAgentService extends BaseService {
             }
 
             if (!canGeneratePostResponseSuggestions(user.userUuid, thread)) {
-                return { chips: [], source: 'default' };
+                return { chips: [], source: 'none' };
             }
         }
 
@@ -3535,6 +3542,9 @@ export class AiAgentService extends BaseService {
             chips = withDocumentSuggestion(chips);
         }
 
+        const responseSource: AgentSuggestionsResponseSource =
+            chips.length === 0 ? 'none' : source;
+
         this.analytics.track<AiAgentSuggestionsGeneratedEvent>({
             event: 'ai_agent.suggestions_generated',
             userId: user.userUuid,
@@ -3549,7 +3559,7 @@ export class AiAgentService extends BaseService {
                 modelId,
                 usingFallback: source !== 'generated',
                 outcome: source,
-                source,
+                source: responseSource,
                 fallbackReason,
                 droppedChipCount,
                 ...client,
@@ -3564,7 +3574,7 @@ export class AiAgentService extends BaseService {
         this.prometheusMetrics?.incrementAiAgentSuggestionChipsDropped(
             droppedChipCount,
         );
-        return { chips, source };
+        return { chips, source: responseSource };
     }
 
     /**

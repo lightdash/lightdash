@@ -42,6 +42,7 @@ import {
     ValidateProjectPayload,
     WarehouseTypes,
     type AgentActorSurface,
+    type AgentSuggestionsResponseSource,
     type AgentSuggestionsSource,
     type AiAgentMemoryConsolidationTrigger,
     type AiAgentMemoryScope,
@@ -3995,7 +3996,7 @@ export type AiAgentSuggestionsGeneratedEvent = BaseTrack & {
         modelId: string;
         usingFallback: boolean;
         outcome: AgentSuggestionsSource | 'error';
-        source: AgentSuggestionsSource | null;
+        source: AgentSuggestionsResponseSource;
         fallbackReason: SuggestionFallbackReason | null;
         droppedChipCount: number;
         client: string;
