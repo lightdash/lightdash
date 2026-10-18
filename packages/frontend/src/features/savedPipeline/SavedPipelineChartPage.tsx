@@ -14,6 +14,7 @@ import VisualizationConfig from '../../components/Explorer/VisualizationCard/Vis
 import { AiComposerPipelinePanel } from '../../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerPipelinePanel';
 import { useAddVersionMutation } from '../../hooks/useSavedQuery';
 import useApp from '../../providers/App/useApp';
+import { SavedPipelineChartActions } from './SavedPipelineChartActions';
 import { SavedPipelineVisualization } from './SavedPipelineVisualization';
 import { useSavedPipelineChartResults } from './useSavedPipelineChartResults';
 
@@ -94,7 +95,7 @@ export const SavedPipelineChartPage: FC<Props> = ({ chart, isEditMode }) => {
     // A chart whose pipeline is one SQL node edits its statement in the SQL runner
     const sqlRunnerEditPath =
         chart.pipeline && getPipelineSqlChartSource(chart.pipeline)
-            ? `/projects/${chart.projectUuid}/sql-runner/${chart.slug}`
+            ? `/projects/${chart.projectUuid}/sql-runner/${chart.slug}/edit`
             : null;
 
     const header = (
@@ -134,19 +135,23 @@ export const SavedPipelineChartPage: FC<Props> = ({ chart, isEditMode }) => {
                             </Button>
                         </>
                     ) : (
-                        canManage && (
-                            <Button
-                                variant="default"
-                                size="xs"
-                                onClick={() =>
-                                    void navigate(
-                                        sqlRunnerEditPath ?? `${viewPath}/edit`,
-                                    )
-                                }
-                            >
-                                Edit chart
-                            </Button>
-                        )
+                        <>
+                            {canManage && (
+                                <Button
+                                    variant="default"
+                                    size="xs"
+                                    onClick={() =>
+                                        void navigate(
+                                            sqlRunnerEditPath ??
+                                                `${viewPath}/edit`,
+                                        )
+                                    }
+                                >
+                                    Edit chart
+                                </Button>
+                            )}
+                            <SavedPipelineChartActions chart={chart} />
+                        </>
                     )}
                 </Group>
             </Group>

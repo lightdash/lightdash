@@ -347,6 +347,13 @@ charts saved before the fold and old share links still convert.
   and opens it on the chart page. Saving from the SQL tab saves the results
   as a table. Chart name, description and space are edited from the SQL
   runner's header as before; delete goes through the saved chart delete.
+- **The saved SQL chart's page is the saved chart page**, with the actions
+  every saved chart has in its menu: add to dashboard, duplicate, pin,
+  scheduled deliveries, Google Sheets sync, request review, promote, share
+  and delete. "Edit chart" opens the statement in the SQL runner
+  (`/sql-runner/:slug/edit`). The old chart address (`/sql-runner/:slug`)
+  redirects to the chart page and keeps a scheduler link's query string, so
+  links from the schedulers list still open the delivery or sync.
 - **The results pane always shows the statement's rows** as the warehouse
   returned them. The pivoted rows a grouped chart draws are visible in the
   chart, not as a second table under it.
