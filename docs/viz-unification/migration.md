@@ -544,6 +544,45 @@ Each node after the first still costs one compose engine round trip (submit,
 wait for the reference, read). The remaining gap to a classic tile is that
 sequence; a run that submits a pipeline as one compose job would close it.
 
+### Phase 4 build (`5fae217`) against phase 3, A/B on one environment
+
+Phase 4 changes nothing on the dashboard chart path (its backend changes are
+the document SQL chart run and the chart page's available filters), so the
+expected result is no change. A single run against the baseline showed
+several dashboards 100 to 270 ms slower, which the method below shows to be
+noise: the phase 3 image and the phase 4 image were deployed to the same
+environment one after the other, idle, and benchmarked with five runs each
+(phase 4, then phase 3, then phase 4 again).
+
+| Dashboard | Chart tiles | Warm wall ms (p4 run 1 → p3 → p4 run 2) | Warm tile p95 ms (p4 run 1 → p3 → p4 run 2) |
+|---|---|---|---|
+| Jaffle dashboard | 5 | 828 → 837 → 835 | 827 → 836 → 835 |
+| Dashboard with dashboard charts | 1 | 580 → 286 → 293 | 580 → 286 → 293 |
+| Pivot Table Dashboard | 10 | 1349 → 1184 → 1153 | 1348 → 1182 → 1152 |
+| Cartesian Charts (time dimensions) | 15 | 1239 → 1230 → 1233 | 1239 → 1229 → 1232 |
+| Filter Tests Dashboard | 19 | 1341 → 1341 → 1312 | 1340 → 1341 → 1309 |
+| POP Tests Dashboard | 5 | 658 → 495 → 658 | 658 → 495 → 657 |
+| Table Calculations Tests Dashboard | 8 | 836 → 823 → 848 | 835 → 822 → 847 |
+| Fanout Tests Dashboard | 8 | 1072 → 1056 → 1136 | 1072 → 1056 → 1136 |
+| [CF Coverage] Dashboard | 11 | 1112 → 1069 → 1076 | 1112 → 1068 → 1075 |
+| Weekly revenue review | 6 | 798 → 559 → 763 | 797 → 558 → 763 |
+| Perf pipeline vs classic | 2 | 1140 → 1107 → 1155 | 1139 → 1107 → 1154 |
+| Legacy SQL charts | 2 | 1139 → 1121 → 1136 | 1139 → 1121 → 1136 |
+
+Reading: the spread between two runs of the same phase 4 image (580 against
+293 ms on the one-tile dashboard, 1349 against 1153 on the pivot dashboard)
+is as wide as any phase 3 to phase 4 difference, so the dashboard level
+numbers cannot show a regression smaller than about 250 ms on this
+environment. Per tile, the median submit time is identical across the three
+runs (within 10 ms), and the median ready time of every tile is identical on
+POP Tests. On Weekly revenue review three tiles are ready one poll later
+(the harness polls every 150 ms) in both phase 4 runs: those tiles finish
+within a few tens of milliseconds of the poll boundary, so the dashboard
+number moves by a whole poll interval. A re-run with a 50 ms poll is
+recorded below once it completes; the compose engine queries a pipeline chart
+submits are unchanged between the two images.
+
 Methodology and raw reports: `docs/viz-unification/perf/`
 (`dashboard-api-bench.mjs`, `baseline-main-a7333cf.json`,
-`p2-a070e57.json`, `p3-6285a84.json`, `compare.mjs`).
+`p2-a070e57.json`, `p3-6285a84.json`, `p3-6285a84-ab.json`,
+`p4-5fae217-run1.json`, `p4-5fae217-run2.json`, `compare.mjs`).

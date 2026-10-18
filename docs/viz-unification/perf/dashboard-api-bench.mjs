@@ -21,7 +21,7 @@ const RUNS = Number(args.runs ?? 3);
 const COLD_FIRST = Boolean(args.cold);
 const ONLY = args.dashboards ? String(args.dashboards).split(',') : null;
 const PAGE_SIZE = 500;
-const POLL_MS = 150;
+const POLL_MS = Number(args.poll ?? 150);
 
 let cookie = '';
 const api = async (method, path, body, version = 'v1') => {
