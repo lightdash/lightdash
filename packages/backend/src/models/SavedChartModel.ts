@@ -12,6 +12,7 @@ import {
     ConflictError,
     ContentReviewContentType,
     ContentType,
+    convertSqlChartToPipelineChart,
     CreateSavedChart,
     CreateSavedChartVersion,
     CustomBinDimension,
@@ -44,16 +45,20 @@ import {
     NotFoundError,
     Organization,
     ParameterError,
+    parseLegacySqlChartPipeline,
     parseSavedPipelineDefinition,
     parseStoredMergeDefinition,
     Project,
     ResolvedProjectColorPalette,
     SAVED_MERGE_QUERY_SCHEMA_VERSION,
+    SAVED_PIPELINE_LEGACY_SQL_SCHEMA_VERSION,
     SAVED_PIPELINE_SCHEMA_VERSION,
     SavedChartDAO,
+    SavedPipelineDefinition,
     SessionUser,
     SortField,
     Space,
+    SqlChartAsPipelineChart,
     TableCalculation,
     TimeFrames,
     TimezoneSetting,
@@ -619,6 +624,32 @@ const resolveForcedChartSlug = async (
         );
     }
     return existing.saved_query_uuid;
+};
+
+/**
+ * A stored pipeline row: schema version 1 as saved; schema version 0 holds a
+ * SQL runner chart as it was, converted to a pipeline and an explorer chart
+ * on read. An unknown shape leaves the chart without its pipeline rather than
+ * failing the whole chart.
+ */
+const resolveStoredPipeline = (
+    row: { schema_version: number; pipeline: unknown } | undefined,
+): {
+    pipeline: SavedPipelineDefinition | null;
+    legacySqlChart: SqlChartAsPipelineChart | null;
+} => {
+    if (!row) return { pipeline: null, legacySqlChart: null };
+    if (row.schema_version === SAVED_PIPELINE_LEGACY_SQL_SCHEMA_VERSION) {
+        const stored = parseLegacySqlChartPipeline(row.pipeline);
+        const legacySqlChart = stored
+            ? convertSqlChartToPipelineChart(stored)
+            : null;
+        return { pipeline: legacySqlChart?.pipeline ?? null, legacySqlChart };
+    }
+    return {
+        pipeline: parseSavedPipelineDefinition(row.pipeline),
+        legacySqlChart: null,
+    };
 };
 
 const isProjectSlugUniqueViolation = (error: unknown): boolean =>
@@ -2573,11 +2604,8 @@ export class SavedChartModel {
                           chartMetricQuery: metricQuery,
                       })
                     : null;
-                // An unknown future shape leaves the chart without its pipeline
-                // rather than failing the whole chart.
-                const pipeline = pipelineRow
-                    ? parseSavedPipelineDefinition(pipelineRow.pipeline)
-                    : null;
+                const { pipeline, legacySqlChart } =
+                    resolveStoredPipeline(pipelineRow);
 
                 const columnOrder: string[] = [
                     ...fields,
@@ -2604,7 +2632,8 @@ export class SavedChartModel {
                     projectUuid: savedQuery.project_uuid,
                     name: savedQuery.name,
                     description: savedQuery.description,
-                    tableName: savedQuery.explore_name,
+                    tableName:
+                        legacySqlChart?.tableName ?? savedQuery.explore_name,
                     merge,
                     pipeline,
                     createdAt: savedQuery.content_created_at,
@@ -2616,17 +2645,19 @@ export class SavedChartModel {
                         firstName: savedQuery.first_name,
                         lastName: savedQuery.last_name,
                     },
-                    metricQuery,
+                    metricQuery: legacySqlChart?.metricQuery ?? metricQuery,
                     parameters: savedQuery.parameters || undefined,
-                    chartConfig,
-                    tableConfig: {
+                    chartConfig: legacySqlChart?.chartConfig ?? chartConfig,
+                    tableConfig: legacySqlChart?.tableConfig ?? {
                         columnOrder,
                     },
                     organizationUuid: savedQuery.organization_uuid,
-                    pivotConfig: getSavedChartPivotConfig(
-                        savedQuery.pivot_dimensions,
-                        savedQuery.pivot_rows,
-                    ),
+                    pivotConfig: legacySqlChart
+                        ? legacySqlChart.pivotConfig
+                        : getSavedChartPivotConfig(
+                              savedQuery.pivot_dimensions,
+                              savedQuery.pivot_rows,
+                          ),
                     spaceUuid: savedQuery.space_uuid,
                     spaceName: savedQuery.spaceName,
                     pinnedListUuid: savedQuery.pinned_list_uuid,
@@ -2815,6 +2846,7 @@ export class SavedChartModel {
             const versionId = chart.saved_queries_version_id;
             const mergeRow = mergeByVersion.get(versionId)?.[0];
             const pipelineRow = pipelineByVersion.get(versionId)?.[0];
+            const storedPipeline = resolveStoredPipeline(pipelineRow);
             const metricQuery = SavedChartModel.buildMetricQuery(chart, {
                 fields: fieldsByVersion.get(versionId) ?? [],
                 sorts: sortsByVersion.get(versionId) ?? [],
@@ -2831,7 +2863,8 @@ export class SavedChartModel {
                 uuid: chart.saved_query_uuid,
                 name: chart.name,
                 spaceUuid: chart.space_uuid,
-                metricQuery,
+                metricQuery:
+                    storedPipeline.legacySqlChart?.metricQuery ?? metricQuery,
                 parameters: chart.parameters || undefined,
                 // An unknown future shape leaves the chart working without its
                 // merge rather than failing the whole chart.
@@ -2842,9 +2875,7 @@ export class SavedChartModel {
                           chartMetricQuery: metricQuery,
                       })
                     : null,
-                pipeline: pipelineRow
-                    ? parseSavedPipelineDefinition(pipelineRow.pipeline)
-                    : null,
+                pipeline: storedPipeline.pipeline,
             };
         });
     }

@@ -209,7 +209,90 @@ what to expect rather than guess.
 
 ## Phase 3: SQL charts fold into saved charts
 
-Not started.
+Shipped on the branch `claude/friendly-heisenberg-atf1t3`.
+
+### The model
+
+A saved SQL chart is a pipeline chart: the statement is a SQL node, and when
+the SQL runner aggregated at draw time (a bar, line, pie or big number over
+raw rows) an aggregating DuckDB node follows it, so aggregation lives in the
+query. The chart config is the explorer's, over the terminal columns under
+`<node>_<column>` field ids. The converter is
+`convertSqlChartToPipelineChart` in `packages/common/src/types/sqlChartPipeline.ts`;
+its inverse rebuilds the SQL runner shape for the SQL runner page and the
+agent tools that still speak it.
+
+### What the migration does
+
+`20261018150000_fold_saved_sql_into_saved_queries` copies every `saved_sql`
+row into `saved_queries` **under the same uuid**, with one version per chart
+holding the latest statement, limit, connection and SQL runner config in a
+`saved_queries_version_pipelines` row at schema version 0. The backend
+converts schema version 0 when it reads the chart; the next save writes the
+converted shape. Direct grants are copied to the saved chart grant tables.
+
+Nothing else moves: `saved_sql*` tables stay for the previous release,
+dashboard tiles keep their `sql_chart` rows, schedulers, documents and agent
+artifacts keep their `saved_sql_uuid` columns. The backend reads those uuids
+as saved chart uuids. Phase 4 drops the tables and the columns.
+
+Slugs: a SQL chart whose slug a saved chart already holds in the project gets
+`<slug>-sql-<8 chars of its uuid>`. Links by slug to such a chart redirect
+through the uuid and keep working.
+
+### What changes for a user
+
+- **SQL charts open on the chart page** (`/projects/:p/saved/:uuid`) with the
+  classic chart stack and config panel. The old address
+  (`/projects/:p/sql-runner/:slug`) redirects there. The SQL runner still
+  edits the statement (`.../sql-runner/:slug/edit`) and saves a version.
+- **SQL chart tiles are chart tiles.** Dashboard filters are applied to the
+  chart node over the columns they name, like before; sorts apply; date zoom
+  does not (as before). Tile menus, exports, duplicate, move and delete are
+  the chart tile's.
+- **Aggregated SQL charts keep their numbers.** A bar chart that summed an
+  amount per status still sums per status: the aggregation runs in the
+  aggregating node of the pipeline. Series split (group by) becomes a pivot.
+- **Charts over the statement's raw rows** (tables, and a chart saved
+  without columns) learn their columns when they run, with one probe query
+  (`LIMIT 1`) on the warehouse, the way the SQL runner did on every run.
+  Column types for such tables are strings until the chart is saved again,
+  so numbers in those tables are shown unformatted until then.
+- **Search, spaces, content lists and the home page** list SQL charts once,
+  as charts. They open on the chart page.
+- **Documents** that link a SQL chart show it as a linked saved chart. Inline
+  SQL charts in documents are unchanged (phase 4).
+- **Deliveries and Google Sheets syncs** of SQL charts run the pipeline.
+- **Promotion and content as code** export SQL charts as charts with a
+  `pipeline:` block; the `sqlCharts` code directory is empty on download, and
+  an upload of a `sqlCharts` file creates a pipeline chart.
+- **Chart version attribution** for SQL charts (which agent saved a version)
+  is on the chart's history page; the legacy SQL chart response no longer
+  carries it.
+
+### Performance
+
+A SQL chart tile ran one warehouse query. A pipeline chart tile runs its
+nodes in sequence on the compose engine, each waiting on the one before it,
+so it costs more than one query (measured below). Phase 3 shortens the wait
+between nodes (the reference poll starts at 100 ms instead of 500 ms). The
+measured numbers are in the Performance section.
+
+### Backwards compatibility
+
+- **Rolling update**: the previous release's pods keep reading and writing
+  `saved_sql`; the new pods read the copies in `saved_queries`. A SQL chart
+  saved or edited by an old pod during the rollout is not in the copy; after
+  the rollout, save it again from the SQL runner. Declared as
+  `viz-unification-p3-sql-charts-fold-into-saved-charts`.
+- **API**: the saved SQL chart endpoints keep their paths and shapes and
+  operate on saved charts (see the declaration). `GET .../sqlRunner/saved/*`
+  returns a SQL runner config rebuilt from the explorer config, which is
+  lossy for styling the SQL runner could not express.
+- **Permissions**: a SQL chart's direct grants are the saved chart's; the
+  `sqlChart` access target resolves as a chart.
+- **Views and favourites**: SQL charts had none; they now count views like
+  charts.
 
 ## Phase 4: the SQL runner chart stack is deleted
 
@@ -251,7 +334,38 @@ time. The warehouse here is the instance's own Postgres, so these are
 near-floor numbers for the API path; a real warehouse adds its own latency on
 top but not to the Lightdash side.
 
+### Phase 2 build (`a070e57`) against the baseline
+
+Same harness, after a warm-up pass; three runs per dashboard. The "Perf
+pipeline vs classic" dashboard holds one classic bar chart and one pipeline
+chart (a semantic node, a DuckDB node, drawn as a bar) over the same explore.
+
+| Dashboard | Chart tiles | Cold wall ms (base → p2) | Warm wall ms (base → p2) | Warm tile p95 ms (base → p2) |
+|---|---|---|---|---|
+| Jaffle dashboard | 5 | 752 → 548 | 770 → 523 | 769 → 523 |
+| Pivot Table Dashboard | 10 | 953 → 889 | 1204 → 1165 | 1203 → 1160 |
+| Cartesian Charts (time dimensions) | 15 | 1064 → 1118 | 1268 → 1209 | 1268 → 1208 |
+| Filter Tests Dashboard | 19 | 1378 → 1235 | 1389 → 1433 | 1388 → 1431 |
+| POP Tests Dashboard | 5 | 764 → 505 | 523 → 495 | 523 → 495 |
+| Table Calculations Tests Dashboard | 8 | 771 → 756 | 728 → 731 | 727 → 731 |
+| Fanout Tests Dashboard | 8 | 1115 → 1035 | 1070 → 980 | 1070 → 979 |
+| [CF Coverage] Dashboard | 11 | 988 → 953 | 1109 → 1088 | 1108 → 1087 |
+| Weekly revenue review | 6 | 541 → 543 | 663 → 788 | 662 → 787 |
+| Perf pipeline vs classic | 2 | 2025 | 1911 | 1911 |
+
+Reading: classic dashboards are unchanged within run to run noise (the
+dashboard path is untouched; the differences above are within the spread of
+repeated runs of the same build). A pipeline chart tile is the exception:
+
+| Tile | Ready ms (median of 3 warm runs) |
+|---|---|
+| Classic bar chart | 301 |
+| Pipeline bar chart (semantic → DuckDB → chart node) | 1911 |
+
+The pipeline tile runs three queries in sequence, and each DuckDB node waited
+for the one before it with a poll that started at 500 ms. Phase 3 lowers the
+first poll to 100 ms; the re-measurement is below once it lands.
+
 Methodology and raw reports: `docs/viz-unification/perf/`
-(`dashboard-api-bench.mjs`, `baseline-main-a7333cf.json`). The browser level
-measurement (time to every tile drawn) is added with phase 2, when the first
-composer chart tile exists to compare against a classic tile.
+(`dashboard-api-bench.mjs`, `baseline-main-a7333cf.json`,
+`p2-a070e57.json`, `compare.mjs`).

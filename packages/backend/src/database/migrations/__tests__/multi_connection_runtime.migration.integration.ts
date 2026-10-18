@@ -38,6 +38,7 @@ import { OrganizationWarehouseCredentialsModel } from '../../../models/Organizat
 import { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
+import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SavedSqlModel } from '../../../models/SavedSqlModel';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseConnectionCompileModel } from '../../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
@@ -206,6 +207,10 @@ describe('Multi runtime identity wiring on the real schema', () => {
         savedSqlModel = new SavedSqlModel({
             database,
             lightdashConfig: lightdashConfigMock,
+            savedChartModel: new SavedChartModel({
+                database,
+                lightdashConfig: lightdashConfigMock,
+            }),
         });
         queryHistoryModel = new QueryHistoryModel({ database });
         userWarehouseCredentialsModel = new UserWarehouseCredentialsModel({

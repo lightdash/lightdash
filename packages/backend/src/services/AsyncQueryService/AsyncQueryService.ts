@@ -55,6 +55,7 @@ import {
     getAiExecutionCredentialUuid,
     getColumnTimezone,
     getDashboardFilterRulesForTables,
+    getDashboardFiltersForTile,
     getDateZoomFromRequestParameters,
     getDimensionMapFromTables,
     getDimensions,
@@ -70,8 +71,11 @@ import {
     getMetricOverridesWithPopInheritance,
     getMetrics,
     getMetricsWithValidParameters,
+    getPipelineTerminalNode,
     getPivotValueColumnName,
     getQueryCostEstimateSettings,
+    getResultColumnFieldId,
+    getSavedPipelineFieldIds,
     getUserAttributeQueryTags,
     hasReservedParameterReference,
     isAiAccessQueryContext,
@@ -280,6 +284,7 @@ import {
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
+import { SqlQueryBuilder } from '../../utils/QueryBuilder/SqlQueryBuilder';
 import {
     SQL_QUERY_MOCK_EXPLORER_NAME,
     SqlQueryComposer,
@@ -8624,6 +8629,8 @@ export class AsyncQueryService extends ProjectService {
                 pivotResults,
                 pivotConfiguration: requestedPivotConfiguration,
                 dashboardSorts: undefined,
+                dashboardFilters,
+                tileUuid: undefined,
                 userAttributeOverrides,
                 requestParameters,
             });
@@ -9310,7 +9317,7 @@ export class AsyncQueryService extends ProjectService {
         account,
         projectUuid,
         savedChart,
-        pipeline,
+        pipeline: storedPipeline,
         context,
         querySurface,
         invalidateCache,
@@ -9319,6 +9326,8 @@ export class AsyncQueryService extends ProjectService {
         pivotResults,
         pivotConfiguration,
         dashboardSorts,
+        dashboardFilters,
+        tileUuid,
         userAttributeOverrides,
         requestParameters,
     }: Pick<
@@ -9337,9 +9346,53 @@ export class AsyncQueryService extends ProjectService {
         savedChart: SavedChartDAO;
         pipeline: SavedPipelineDefinition;
         dashboardSorts: SortField[] | undefined;
+        /** Applied to the chart node over the terminal columns they name; others are dropped. */
+        dashboardFilters: DashboardFilters | undefined;
+        tileUuid: string | undefined;
         requestParameters: ExecuteAsyncQueryRequestParams;
-    }): Promise<ApiExecuteAsyncMetricQueryResults> {
+    }): Promise<
+        ApiExecuteAsyncMetricQueryResults & {
+            appliedDashboardFilters: DashboardFilters;
+        }
+    > {
         assertIsAccountWithOrg(account);
+        const combinedParameters = { ...savedChart.parameters, ...parameters };
+        // A SQL chart folded without its columns learns them from the
+        // statement, the way the SQL runner did on every run
+        const pipeline =
+            Object.keys(storedPipeline.columns).length > 0
+                ? storedPipeline
+                : {
+                      ...storedPipeline,
+                      columns: await this.discoverPipelineTerminalColumns({
+                          account,
+                          projectUuid,
+                          organizationUuid: savedChart.organizationUuid,
+                          context,
+                          querySurface,
+                          pipeline: storedPipeline,
+                          parameters: combinedParameters,
+                          userAttributeOverrides,
+                      }),
+                  };
+        const fieldIds = new Set(getSavedPipelineFieldIds(pipeline));
+        const tileFilters =
+            dashboardFilters && tileUuid
+                ? getDashboardFiltersForTile(tileUuid, dashboardFilters)
+                : dashboardFilters;
+        const appliedDashboardFilters: DashboardFilters = {
+            dimensions: (tileFilters?.dimensions ?? []).filter((rule) =>
+                fieldIds.has(rule.target.fieldId),
+            ),
+            metrics: (tileFilters?.metrics ?? []).filter((rule) =>
+                fieldIds.has(rule.target.fieldId),
+            ),
+            tableCalculations: [],
+        };
+        const filterRules = [
+            ...appliedDashboardFilters.dimensions,
+            ...appliedDashboardFilters.metrics,
+        ];
         const { maxLimit, csvCellsLimit } =
             await resolveOrganizationExportLimits(
                 this.organizationSettingsModel,
@@ -9380,8 +9433,51 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration: pivot,
         }) => {
             const quote = warehouseClient.getFieldQuoteChar();
+            // Dashboard filters are a WHERE over the chart node's columns
+            const coreSql =
+                filterRules.length > 0
+                    ? new SqlQueryBuilder(
+                          {
+                              referenceMap: Object.fromEntries(
+                                  Object.values(pipeline.columns).map(
+                                      (column) => {
+                                          const fieldId =
+                                              getResultColumnFieldId(
+                                                  pipeline.terminalNodeId,
+                                                  column.reference,
+                                              );
+                                          return [
+                                              fieldId,
+                                              {
+                                                  type: column.type,
+                                                  sql: `${quote}${fieldId}${quote}`,
+                                              },
+                                          ];
+                                      },
+                                  ),
+                              ),
+                              select: [...fieldIds],
+                              from: { name: 'chart_rows', sql: vizNode.sql },
+                              filters: { id: randomUUID(), and: filterRules },
+                              limit: undefined,
+                          },
+                          {
+                              fieldQuoteChar: quote,
+                              stringQuoteChar:
+                                  warehouseClient.getStringQuoteChar(),
+                              escapeStringQuoteChar:
+                                  warehouseClient.getEscapeStringQuoteChar(),
+                              escapeString:
+                                  warehouseClient.escapeString.bind(
+                                      warehouseClient,
+                                  ),
+                              startOfWeek: warehouseClient.getStartOfWeek(),
+                              adapterType: warehouseClient.getAdapterType(),
+                          },
+                      ).toSql()
+                    : vizNode.sql;
             return new MergeQueryComposer({
-                coreSql: vizNode.sql,
+                coreSql,
                 terminalWrapper: {
                     orderBy: plan.sorts.map(
                         (sort) =>
@@ -9447,7 +9543,7 @@ export class AsyncQueryService extends ProjectService {
                     context,
                     querySurface,
                     queries: plan.queries,
-                    parameters: { ...savedChart.parameters, ...parameters },
+                    parameters: combinedParameters,
                     userAttributeOverrides: userAttributeOverrides ?? {},
                     invalidateCache: invalidateCache ?? false,
                     plans: { [plan.vizNodeId]: duckdbPlan },
@@ -9469,7 +9565,107 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences: [],
             usedParametersValues: {},
             resolvedTimezone: null,
+            appliedDashboardFilters,
         };
+    }
+
+    /**
+     * The columns of a pipeline's terminal SQL node, from one row of the
+     * statement on its connection. Only a SQL node can be probed this way;
+     * any other terminal has its columns stored with the chart.
+     */
+    private async discoverPipelineTerminalColumns({
+        account,
+        projectUuid,
+        organizationUuid,
+        context,
+        querySurface,
+        pipeline,
+        parameters,
+        userAttributeOverrides,
+    }: {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        context: QueryExecutionContext;
+        querySurface: QuerySurface | undefined;
+        pipeline: SavedPipelineDefinition;
+        parameters: ParametersValuesMap;
+        userAttributeOverrides: UserAttributeValueMap | undefined;
+    }): Promise<ResultColumns> {
+        const terminal = getPipelineTerminalNode(pipeline);
+        if (!terminal || terminal.sourceType !== QuerySourceType.SQL) {
+            throw new ParameterError(
+                'This chart has no columns; save it again from the chart page',
+            );
+        }
+        const { userAttributes: baseUserAttributes, intrinsicUserAttributes } =
+            await this.getUserAttributes({ account });
+        const userAttributes = userAttributeOverrides
+            ? { ...baseUserAttributes, ...userAttributeOverrides }
+            : baseUserAttributes;
+        return this.warehouseClientFactory.withWarehouseClient(
+            {
+                kind: 'binding',
+                projectUuid,
+                binding: {
+                    kind: 'connection',
+                    warehouseConnectionUuid:
+                        terminal.warehouseConnectionUuid ?? null,
+                },
+            },
+            connectionContextFromAccount(account, {
+                organizationUuid,
+                queryContext: context,
+                surface:
+                    querySurface === undefined
+                        ? undefined
+                        : connectionSurfaceFromQuerySurface(
+                              querySurface,
+                              context,
+                          ),
+            }),
+            async ({ warehouseClient, warehouseCredentials }) => {
+                const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+                    warehouseCredentials.type,
+                    warehouseCredentials.startOfWeek,
+                );
+                const { replacedSql, missingReferences } =
+                    safeReplaceParametersWithSqlBuilder(
+                        replaceUserAttributesAsStrings(
+                            terminal.sql,
+                            intrinsicUserAttributes,
+                            userAttributes,
+                            warehouseSqlBuilder,
+                            { noWrap: true },
+                        ),
+                        parameters,
+                        warehouseSqlBuilder,
+                    );
+                if (missingReferences.size > 0) {
+                    throw new ParameterError(
+                        `Missing values for SQL parameter(s): ${[...missingReferences].join(', ')}`,
+                    );
+                }
+                const columns: ResultColumns = {};
+                await warehouseClient.streamQuery(
+                    applyLimitToSqlQuery({ sqlQuery: replacedSql, limit: 1 }),
+                    (chunk) => {
+                        if (Object.keys(columns).length > 0) return;
+                        Object.entries(chunk.fields).forEach(
+                            ([reference, field]) => {
+                                columns[reference] = {
+                                    reference,
+                                    type: field.type,
+                                };
+                            },
+                        );
+                    },
+                    { tags: { query_context: context } },
+                );
+                return columns;
+            },
+        );
     }
 
     async executeAsyncDashboardChartQuery({
@@ -9585,6 +9781,8 @@ export class AsyncQueryService extends ProjectService {
                 pivotConfiguration: undefined,
                 dashboardSorts:
                     dashboardSorts.length > 0 ? dashboardSorts : undefined,
+                dashboardFilters,
+                tileUuid,
                 userAttributeOverrides,
                 requestParameters: {
                     tileUuid,
@@ -9598,15 +9796,7 @@ export class AsyncQueryService extends ProjectService {
                     parameters,
                 },
             });
-            return {
-                ...started,
-                appliedDashboardFilters: {
-                    dimensions: [],
-                    metrics: [],
-                    tableCalculations: [],
-                },
-                dateZoomApplied: false,
-            };
+            return { ...started, dateZoomApplied: false };
         }
         if (!exploreAccess) {
             throw new UnexpectedServerError('The chart explore was not loaded');
@@ -10808,11 +10998,15 @@ export class AsyncQueryService extends ProjectService {
                 try {
                     let pending = queries.get(queryUuid);
                     if (!pending) {
+                        // Legs of one submission finish within a second of
+                        // each other, so the wait polls quickly at first
                         pending = this.queryHistoryModel.pollForQueryCompletion(
                             {
                                 queryUuid,
                                 account: null,
                                 projectUuid,
+                                initialBackoffMs: 100,
+                                maxBackoffMs: 1000,
                                 timeoutMs:
                                     AsyncQueryService.REFERENCE_WAIT_TIMEOUT_MS,
                             },
@@ -14297,278 +14491,72 @@ export class AsyncQueryService extends ProjectService {
         return result;
     }
 
+    /**
+     * A saved SQL chart is a saved chart whose pipeline runs the statement,
+     * so its query is the saved chart's run. Kept for the SQL chart endpoints
+     * and the deliveries that still address charts by `savedSqlUuid`.
+     */
     async executeAsyncSqlChartQuery(
         args: ExecuteAsyncSqlChartArgs,
     ): Promise<ApiExecuteAsyncSqlQueryResults> {
-        const sqlChart = isExecuteAsyncSqlChartByUuid(args)
-            ? await this.savedSqlModel.getByUuid(args.savedSqlUuid, {
-                  projectUuid: args.projectUuid,
-              })
-            : await this.savedSqlModel.getBySlug(args.projectUuid, args.slug);
-
-        if (!sqlChart) {
-            throw new Error('Either chartUuid or slug must be provided');
-        }
-
-        const {
-            account,
-            projectUuid,
-            context,
-            querySurface,
-            invalidateCache,
-            limit,
-        } = args;
-
-        await this.assertSavedChartAccess(account, 'view', sqlChart);
-
-        // Combine default parameter values with request parameters first
-        const combinedParameters = await this.combineParameters(
-            projectUuid,
+        const chart = await this.savedChartModel.get(
+            isExecuteAsyncSqlChartByUuid(args) ? args.savedSqlUuid : args.slug,
             undefined,
-            args.parameters,
+            { projectUuid: args.projectUuid },
         );
-
-        const {
-            warehouseCredentials,
-            warehouseConnectionUuid,
-            connectionRoute,
-            aiPlan,
-            queryTags,
-            metricQuery,
-            queryComposer,
-            originalColumns,
-            parameterReferences,
-            usedParameters,
-        } = await this.prepareSqlChartAsyncQueryArgs({
-            account,
-            context,
-            querySurface,
-            projectUuid: sqlChart.project.projectUuid,
-            organizationUuid: sqlChart.organization.organizationUuid,
-            sql: sqlChart.sql,
-            config: sqlChart.config,
-            limit: limit ?? sqlChart.limit,
-            parameters: combinedParameters,
-            chartUuid: sqlChart.savedSqlUuid,
+        return this.executeAsyncSavedChartQuery({
+            account: args.account,
+            projectUuid: args.projectUuid,
+            chartUuid: chart.uuid,
+            context: args.context,
+            querySurface: args.querySurface,
+            invalidateCache: args.invalidateCache,
+            limit: args.limit,
+            parameters: args.parameters,
+            userAttributeOverrides: args.userAttributeOverrides,
+            pivotResults: true,
         });
-
-        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
-            {
-                account,
-                projectUuid,
-                organizationUuid: sqlChart.organization.organizationUuid,
-                chart: { uuid: sqlChart.savedSqlUuid },
-                resultSource: {
-                    savedSqlUuid: sqlChart.savedSqlUuid,
-                    dashboardUuid: null,
-                    tileUuid: null,
-                },
-                queryTags,
-                context,
-                querySurface,
-                queryComposer,
-                originalColumns,
-                warehouseCredentials,
-                agentIdentity: aiPlan?.agentIdentity ?? null,
-                inheritedFromProjectUuid:
-                    aiPlan?.identity === 'ai_service_account'
-                        ? aiPlan.inheritedFromProjectUuid
-                        : null,
-                aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
-                warehouseConnectionUuid,
-                connectionRoute,
-            },
-            {
-                sql: sqlChart.sql,
-                query: metricQuery,
-                parameters: combinedParameters,
-                invalidateCache,
-            },
-        );
-
-        return {
-            queryUuid,
-            cacheMetadata,
-            parameterReferences,
-            usedParametersValues: usedParameters,
-            resolvedTimezone: null,
-        };
     }
 
+    /** A SQL chart tile is a chart tile: see `executeAsyncSqlChartQuery`. */
     async executeAsyncDashboardSqlChartQuery(
         args: ExecuteAsyncDashboardSqlChartArgs,
     ): Promise<ApiExecuteAsyncDashboardSqlChartQueryResults> {
-        const savedChart = isExecuteAsyncDashboardSqlChartByUuid(args)
-            ? await this.savedSqlModel.getByUuid(args.savedSqlUuid, {
-                  projectUuid: args.projectUuid,
-              })
-            : await this.savedSqlModel.getBySlug(args.projectUuid, args.slug);
-
-        if (!savedChart) {
-            throw new Error('Either chartUuid or slug must be provided');
-        }
-
-        const {
-            account,
-            projectUuid,
-            tileUuid,
-            dashboardUuid: requestDashboardUuid,
-            context,
-            querySurface,
-            invalidateCache,
-            dashboardFilters,
-            dashboardSorts,
-            limit,
-        } = args;
-
-        let dashboardUuid: string | undefined = requestDashboardUuid;
-
-        // For JWT users without write actions, the dashboard scope is bound to
-        // the token. Write-action embeds may use a dashboard from their write
-        // space so newly added draft tiles can preview with dashboard context.
-        if (isJwtUser(account)) {
-            const jwtDashboardContext = await this.getJwtDashboardQueryContext(
-                account,
-                projectUuid,
-                requestDashboardUuid,
-            );
-            dashboardUuid = jwtDashboardContext.dashboardUuid;
-        }
-
-        if (!dashboardUuid) {
+        const chart = await this.savedChartModel.get(
+            isExecuteAsyncDashboardSqlChartByUuid(args)
+                ? args.savedSqlUuid
+                : args.slug,
+            undefined,
+            { projectUuid: args.projectUuid },
+        );
+        if (!args.dashboardUuid && !isJwtUser(args.account)) {
             throw new ForbiddenError(
                 'JWT does not grant access to a dashboard',
             );
         }
-        const resolvedDashboardUuid = dashboardUuid;
-
-        if (isJwtUser(account)) {
-            const { embedWriteUser } = account;
-            const embedWriteActions = account.authentication.data.writeActions;
-            const canUseWriteDashboard =
-                embedWriteUser &&
-                embedWriteActions?.spaceUuid === savedChart.space.uuid;
-
-            if (canUseWriteDashboard) {
-                await this.assertSavedChartViewAccessForUser(embedWriteUser, {
-                    organizationUuid: savedChart.organization.organizationUuid,
-                    projectUuid: savedChart.project.projectUuid,
-                    spaceUuid: savedChart.space.uuid,
-                    savedSqlUuid: savedChart.savedSqlUuid,
-                });
-            } else {
-                await this.permissionsService.checkEmbedSqlChartPermissions(
-                    account,
-                    savedChart.savedSqlUuid,
-                );
-            }
-        } else {
-            await this.assertSavedChartAccess(account, 'view', savedChart);
-        }
-
-        const [rawDashboardParameters, projectParameters] = await Promise.all([
-            this.dashboardModel.getDashboardParametersByIdOrSlug(
-                resolvedDashboardUuid,
-                projectUuid,
-            ),
-            this.projectParametersModel.find(projectUuid),
-        ]);
-
-        const dashboardParameters = convertDashboardParametersToValuesMap(
-            rawDashboardParameters,
-        );
-
-        // Combine default parameter values, dashboard parameters, and request parameters first
-        const combinedParameters = await this.combineParameters(
-            projectUuid,
-            undefined,
-            args.parameters,
-            dashboardParameters,
-            projectParameters,
-        );
-
-        const {
-            warehouseCredentials,
-            warehouseConnectionUuid,
-            connectionRoute,
-            aiPlan,
-            queryTags,
-            metricQuery,
-            queryComposer,
-            appliedDashboardFilters,
-            originalColumns,
-            parameterReferences,
-            usedParameters,
-        } = await this.prepareSqlChartAsyncQueryArgs({
-            account,
-            context,
-            querySurface,
-            projectUuid: savedChart.project.projectUuid,
-            organizationUuid: savedChart.organization.organizationUuid,
-            sql: savedChart.sql,
-            config: savedChart.config,
-            tileUuid,
-            dashboardFilters: await resolveDashboardDateFilters({
-                tileUuid,
-                dashboardFilters,
-                findExploreContainingTable: (tableName) =>
-                    this.projectModel.findExploreContainingTable(
-                        projectUuid,
-                        tableName,
-                    ),
-            }),
-            dashboardSorts,
-            limit: limit ?? savedChart.limit,
-            parameters: combinedParameters,
-            chartUuid: savedChart.savedSqlUuid,
-            dashboardUuid,
+        const result = await this.executeAsyncDashboardChartQuery({
+            account: args.account,
+            projectUuid: args.projectUuid,
+            chartUuid: chart.uuid,
+            tileUuid: args.tileUuid,
+            dashboardUuid: args.dashboardUuid ?? '',
+            dashboardFilters: args.dashboardFilters,
+            dashboardSorts: args.dashboardSorts,
+            context: args.context,
+            querySurface: args.querySurface,
+            invalidateCache: args.invalidateCache,
+            limit: args.limit,
+            parameters: args.parameters,
+            userAttributeOverrides: args.userAttributeOverrides,
+            pivotResults: true,
         });
-
-        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
-            {
-                account,
-                projectUuid,
-                organizationUuid: savedChart.organization.organizationUuid,
-                chart: { uuid: savedChart.savedSqlUuid },
-                resultSource: {
-                    savedSqlUuid: savedChart.savedSqlUuid,
-                    dashboardUuid: resolvedDashboardUuid,
-                    tileUuid,
-                },
-                queryTags,
-                context,
-                querySurface,
-                queryComposer,
-                originalColumns,
-                warehouseCredentials,
-                agentIdentity: aiPlan?.agentIdentity ?? null,
-                inheritedFromProjectUuid:
-                    aiPlan?.identity === 'ai_service_account'
-                        ? aiPlan.inheritedFromProjectUuid
-                        : null,
-                aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
-                warehouseConnectionUuid,
-                connectionRoute,
-            },
-            {
-                sql: savedChart.sql,
-                query: metricQuery,
-                parameters: combinedParameters,
-                invalidateCache,
-            },
-        );
-
         return {
-            queryUuid,
-            cacheMetadata,
-            appliedDashboardFilters: appliedDashboardFilters || {
-                metrics: [],
-                dimensions: [],
-                tableCalculations: [],
-            },
-            parameterReferences,
-            usedParametersValues: usedParameters,
-            resolvedTimezone: null,
+            queryUuid: result.queryUuid,
+            cacheMetadata: result.cacheMetadata,
+            appliedDashboardFilters: result.appliedDashboardFilters,
+            parameterReferences: result.parameterReferences,
+            usedParametersValues: result.usedParametersValues,
+            resolvedTimezone: result.resolvedTimezone,
         };
     }
 

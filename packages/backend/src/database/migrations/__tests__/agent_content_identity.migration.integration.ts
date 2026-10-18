@@ -229,6 +229,7 @@ describe('content version agent identity migration', () => {
             const sqlModel = new SavedSqlModel({
                 database,
                 lightdashConfig: lightdashConfigMock,
+                savedChartModel: chartModel,
             });
             const appModel = new AppModel({ database });
             const documentModel = new DocumentModel({ database });

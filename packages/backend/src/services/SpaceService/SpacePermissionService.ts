@@ -433,9 +433,11 @@ export class SpacePermissionService extends BaseService {
                         userUuid,
                         opts,
                     );
+            // A SQL chart is a saved chart under the same uuid; its grants
+            // are the saved chart's
             case 'sql_chart':
                 return (resourceUuids, opts) =>
-                    this.savedSqlAccessModel.getUserAccess(
+                    this.savedChartAccessModel.getUserAccess(
                         resourceUuids,
                         userUuid,
                         opts,

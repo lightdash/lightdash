@@ -105,7 +105,7 @@ export const useCreateSqlChartMutation = (
 
                 if (options.redirectOnSuccess ?? true) {
                     void navigate(
-                        `/projects/${projectUuid}/sql-runner/${data.slug}`,
+                        `/projects/${projectUuid}/saved/${data.savedSqlUuid}`,
                     );
                 }
 

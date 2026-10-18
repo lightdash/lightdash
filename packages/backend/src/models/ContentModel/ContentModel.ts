@@ -20,7 +20,6 @@ import { dataAppContentConfiguration } from './ContentConfigurations/DataAppCont
 import { dbtExploreChartContentConfiguration } from './ContentConfigurations/DbtExploreChartContentConfiguration';
 import { documentContentConfiguration } from './ContentConfigurations/DocumentContentConfiguration';
 import { spaceContentConfiguration } from './ContentConfigurations/SpaceContentConfiguration';
-import { sqlChartContentConfiguration } from './ContentConfigurations/SqlChartContentConfiguration';
 import {
     ContentArgs,
     ContentFilters,
@@ -37,8 +36,8 @@ import {
 export class ContentModel {
     private database: Knex;
 
+    // SQL charts are saved charts, listed by the saved chart configuration
     private contentConfigurations = [
-        sqlChartContentConfiguration,
         dbtExploreChartContentConfiguration,
         dashboardContentConfiguration,
         spaceContentConfiguration,

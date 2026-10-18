@@ -469,3 +469,287 @@ export const convertSqlChartToPipelineChart = ({
         },
     };
 };
+
+/** Pipeline rows at this schema version hold a SQL runner chart as it was saved, converted when read. */
+export const SAVED_PIPELINE_LEGACY_SQL_SCHEMA_VERSION = 0;
+
+export type LegacySqlChartPipeline = {
+    sql: string;
+    limit: number;
+    config: AllVizChartConfig;
+    warehouseConnectionUuid: string | null;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** A stored schema version 0 pipeline row, or null when its shape is not one. */
+export const parseLegacySqlChartPipeline = (
+    value: unknown,
+): LegacySqlChartPipeline | null => {
+    if (!isRecord(value)) return null;
+    const { sql, limit, config, warehouseConnectionUuid } = value;
+    if (typeof sql !== 'string') return null;
+    if (!isRecord(config) || typeof config.type !== 'string') return null;
+    return {
+        sql,
+        limit: typeof limit === 'number' ? limit : 500,
+        config: config as AllVizChartConfig,
+        warehouseConnectionUuid:
+            typeof warehouseConnectionUuid === 'string'
+                ? warehouseConnectionUuid
+                : null,
+    };
+};
+
+const stripFieldPrefix = (nodeId: string, fieldId: string): string =>
+    fieldId.startsWith(`${nodeId}_`)
+        ? fieldId.slice(nodeId.length + 1)
+        : fieldId;
+
+const splitAggregatedReference = (
+    reference: string,
+): { reference: string; aggregation: VizAggregationOptions } => {
+    const aggregations = Object.values(VizAggregationOptions);
+    const match = aggregations.find((aggregation) =>
+        reference.endsWith(`_${aggregation}`),
+    );
+    return match
+        ? {
+              reference: reference.slice(0, -(match.length + 1)),
+              aggregation: match,
+          }
+        : { reference, aggregation: VizAggregationOptions.ANY };
+};
+
+/**
+ * The SQL runner shape of a pipeline chart whose pipeline is a SQL node, with
+ * or without the aggregating node the SQL runner implied: the statement, the
+ * limit, the connection and a `AllVizChartConfig` rebuilt from the explorer
+ * config. Null when the pipeline is not that shape. Lossy where the explorer
+ * config says more than the SQL runner could (series styling beyond color,
+ * label and axis).
+ */
+export const convertPipelineChartToSqlChart = (chart: {
+    pipeline: SavedPipelineDefinition;
+    chartConfig: ChartConfig;
+    pivotConfig?: { columns: string[] } | null;
+    tableConfig: { columnOrder: string[] };
+    metricQuery: Pick<MetricQuery, 'sorts' | 'limit'>;
+}): {
+    sql: string;
+    limit: number;
+    warehouseConnectionUuid: string | null;
+    config: AllVizChartConfig;
+} | null => {
+    const { pipeline } = chart;
+    const sqlNode = pipeline.queries.find(
+        (node) =>
+            node.nodeId === SQL_CHART_NODE_ID &&
+            node.sourceType === QuerySourceType.SQL,
+    );
+    if (!sqlNode || sqlNode.sourceType !== QuerySourceType.SQL) return null;
+    const aggregateNode = pipeline.queries.find(
+        (node) => node.nodeId === SQL_CHART_AGGREGATE_NODE_ID,
+    );
+    const terminalIsKnown =
+        pipeline.terminalNodeId === SQL_CHART_NODE_ID ||
+        (aggregateNode !== undefined &&
+            pipeline.terminalNodeId === SQL_CHART_AGGREGATE_NODE_ID);
+    if (!terminalIsKnown) return null;
+    const nodeId = pipeline.terminalNodeId;
+    const limit = sqlNode.limit ?? chart.metricQuery.limit ?? 500;
+    const base = {
+        sql: sqlNode.sql,
+        limit,
+        warehouseConnectionUuid: sqlNode.warehouseConnectionUuid ?? null,
+    };
+    const metadata = { version: 1 };
+    const column = (fieldId: string) => stripFieldPrefix(nodeId, fieldId);
+    const sortBy = chart.metricQuery.sorts.map((sort) => ({
+        reference: splitAggregatedReference(column(sort.fieldId)).reference,
+        direction: sort.descending ? SortByDirection.DESC : SortByDirection.ASC,
+        ...(sort.nullsFirst !== undefined
+            ? { nullsFirst: sort.nullsFirst }
+            : {}),
+    }));
+    const groupBy = chart.pivotConfig?.columns.map((fieldId) => ({
+        reference: column(fieldId),
+    }));
+    const value = (fieldId: string) =>
+        splitAggregatedReference(column(fieldId));
+
+    switch (chart.chartConfig.type) {
+        case ChartType.TABLE: {
+            const columns = chart.chartConfig.config?.columns ?? {};
+            return {
+                ...base,
+                config: {
+                    metadata,
+                    type: ChartKind.TABLE,
+                    columns: Object.fromEntries(
+                        chart.tableConfig.columnOrder.map((fieldId, order) => {
+                            const reference = column(fieldId);
+                            const properties = columns[fieldId];
+                            return [
+                                reference,
+                                {
+                                    visible: properties?.visible ?? true,
+                                    reference,
+                                    label:
+                                        properties?.name ??
+                                        friendlyName(reference),
+                                    frozen: properties?.frozen ?? false,
+                                    order,
+                                    ...(properties?.displayStyle
+                                        ? {
+                                              displayStyle:
+                                                  properties.displayStyle,
+                                          }
+                                        : {}),
+                                },
+                            ];
+                        }),
+                    ),
+                    display: undefined,
+                },
+            };
+        }
+        case ChartType.BIG_NUMBER: {
+            const config = chart.chartConfig.config ?? {};
+            const selected = config.selectedField
+                ? [value(config.selectedField)]
+                : [];
+            return {
+                ...base,
+                config: {
+                    metadata,
+                    type: ChartKind.BIG_NUMBER,
+                    fieldConfig: {
+                        x: undefined,
+                        y: selected,
+                        groupBy: undefined,
+                        sortBy,
+                    },
+                    display: {
+                        label: config.label,
+                        style: config.style,
+                        showLabel: config.showBigNumberLabel,
+                        showComparison: config.showComparison,
+                        comparisonFormat: config.comparisonFormat,
+                        comparisonLabel: config.comparisonLabel,
+                        flipColors: config.flipColors,
+                    },
+                },
+            };
+        }
+        case ChartType.PIE: {
+            const config = chart.chartConfig.config ?? {};
+            const [x, ...rest] = config.groupFieldIds ?? [];
+            return {
+                ...base,
+                config: {
+                    metadata,
+                    type: ChartKind.PIE,
+                    fieldConfig: {
+                        x: x
+                            ? {
+                                  reference: column(x),
+                                  type: VizIndexType.CATEGORY,
+                              }
+                            : undefined,
+                        y: config.metricId ? [value(config.metricId)] : [],
+                        groupBy:
+                            rest.length > 0
+                                ? rest.map((fieldId) => ({
+                                      reference: column(fieldId),
+                                  }))
+                                : groupBy,
+                        sortBy,
+                    },
+                    display: { isDonut: config.isDonut },
+                },
+            };
+        }
+        case ChartType.CARTESIAN: {
+            const { config } = chart.chartConfig;
+            const layout = config?.layout;
+            const series = config?.eChartsConfig.series ?? [];
+            const xField = layout?.xField;
+            const xColumn = xField
+                ? pipeline.columns[column(xField)]
+                : undefined;
+            const isLine = series.every(
+                (entry) => entry.type === CartesianSeriesType.LINE,
+            );
+            const yFields = layout?.yField ?? [];
+            return {
+                ...base,
+                config: {
+                    metadata,
+                    type: isLine ? ChartKind.LINE : ChartKind.VERTICAL_BAR,
+                    fieldConfig: {
+                        x: xField
+                            ? {
+                                  reference: column(xField),
+                                  type:
+                                      xColumn?.type === DimensionType.DATE ||
+                                      xColumn?.type === DimensionType.TIMESTAMP
+                                          ? VizIndexType.TIME
+                                          : VizIndexType.CATEGORY,
+                              }
+                            : undefined,
+                        y: yFields.map(value),
+                        groupBy,
+                        sortBy,
+                        stack: series.some(
+                            (entry) => entry.stack !== undefined,
+                        ),
+                    },
+                    display: {
+                        xAxis: {
+                            label: config?.eChartsConfig.xAxis?.[0]?.name,
+                        },
+                        yAxis: (config?.eChartsConfig.yAxis ?? []).map(
+                            (axis) => ({
+                                label: axis.name,
+                            }),
+                        ),
+                        series: Object.fromEntries(
+                            series.flatMap((entry) => {
+                                const key = column(entry.encode.yRef.field);
+                                if (
+                                    !entry.color &&
+                                    !entry.name &&
+                                    entry.yAxisIndex !== 1
+                                )
+                                    return [];
+                                return [
+                                    [
+                                        key,
+                                        {
+                                            ...(entry.color
+                                                ? { color: entry.color }
+                                                : {}),
+                                            ...(entry.name
+                                                ? { label: entry.name }
+                                                : {}),
+                                            ...(entry.yAxisIndex === 1
+                                                ? { whichYAxis: AxisSide.RIGHT }
+                                                : {}),
+                                        },
+                                    ],
+                                ];
+                            }),
+                        ),
+                        stack: series.some(
+                            (entry) => entry.stack !== undefined,
+                        ),
+                    },
+                },
+            };
+        }
+        default:
+            return null;
+    }
+};

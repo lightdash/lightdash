@@ -1,43 +1,33 @@
 import { type AgentIdentityClaim } from '@lightdash/common';
 import {
     AllVizChartConfig,
-    ConflictError,
     ContentReviewContentType,
+    convertPipelineChartToSqlChart,
+    convertSqlChartToPipelineChart,
+    CreateSavedChartVersion,
     CreateSqlChart,
     generateSlug,
     normalizeAgentIdentityClaim,
     NotFoundError,
-    ParameterError,
+    ProjectType,
     ResolvedProjectColorPalette,
+    SavedChartDAO,
+    SessionUser,
     SpaceSummary,
     SqlChart,
     UpdateSqlChart,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { DatabaseError } from 'pg';
 import { LightdashConfig } from '../config/parseConfig';
-import { DashboardsTableName } from '../database/entities/dashboards';
 import { resolveColorPalette } from '../database/entities/organizationColorPalettes';
-import {
-    DbOrganization,
-    OrganizationTableName,
-} from '../database/entities/organizations';
-import { DbProject, ProjectTableName } from '../database/entities/projects';
-import {
-    DbSavedSql,
-    DbSavedSqlVersion,
-    SavedSqlTableName,
-    SavedSqlVersionsTableName,
-} from '../database/entities/savedSql';
-import { DbSpace, SpaceTableName } from '../database/entities/spaces';
-import { UserTableName } from '../database/entities/users';
-import {
-    acquireProjectSlugLock,
-    generateUniqueSlugScopedToProject,
-} from '../utils/SlugUtils';
+import { DbOrganization } from '../database/entities/organizations';
+import { DbProject } from '../database/entities/projects';
+import { DbSavedSql, DbSavedSqlVersion } from '../database/entities/savedSql';
+import { DbSpace } from '../database/entities/spaces';
 import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel';
 import { storedVersionAgentIdentity } from './ContentVersionIdentity';
 import { type OnContentVersionCreated } from './OnContentVersionCreated';
+import { type SavedChartModel } from './SavedChartModel';
 
 export type SqlChartConnectionBinding = {
     kind: 'connection';
@@ -47,11 +37,6 @@ export type SqlChartConnectionBinding = {
 export type SqlChartVersionBinding =
     | SqlChartConnectionBinding
     | { kind: 'latest' };
-
-const isProjectSlugUniqueViolation = (error: unknown): boolean =>
-    error instanceof DatabaseError &&
-    error.code === '23505' &&
-    error.constraint === 'saved_sql_project_uuid_slug_unique';
 
 type SelectSavedSql = Pick<
     DbSavedSql,
@@ -93,14 +78,29 @@ type SelectSavedSql = Pick<
         last_version_updated_by_user_last_name: string | null;
     };
 
+/**
+ * Saved SQL charts are saved charts whose version carries a one-node pipeline
+ * (the statement), so this model is an adapter over `SavedChartModel`: reads
+ * rebuild the SQL runner shape from the pipeline chart, writes convert the
+ * SQL runner shape to a pipeline chart. The `saved_sql` tables are only read
+ * by `find`, for the promotion path that still compares upstream rows; the
+ * previous release reads and writes them during a rolling update.
+ */
 export class SavedSqlModel {
     private database: Knex;
 
     private lightdashConfig: LightdashConfig;
 
-    constructor(args: { database: Knex; lightdashConfig: LightdashConfig }) {
+    private savedChartModel: SavedChartModel;
+
+    constructor(args: {
+        database: Knex;
+        lightdashConfig: LightdashConfig;
+        savedChartModel: SavedChartModel;
+    }) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
+        this.savedChartModel = args.savedChartModel;
     }
 
     /**
@@ -118,6 +118,68 @@ export class SavedSqlModel {
             database: this.database,
             lightdashConfig: this.lightdashConfig,
         });
+    }
+
+    /** The SQL runner shape of a pipeline chart, or a NotFoundError when the chart is not a SQL chart. */
+    static toSqlChart(chart: SavedChartDAO): Omit<
+        SqlChart,
+        'space' | 'resolvedColorPalette' | 'agentIdentity'
+    > & {
+        [storedVersionAgentIdentity]: AgentIdentityClaim | null;
+        space: Pick<SpaceSummary, 'uuid' | 'name'>;
+    } {
+        if (!chart.pipeline) {
+            throw new NotFoundError('Saved sql not found');
+        }
+        const sqlChart = convertPipelineChartToSqlChart({
+            pipeline: chart.pipeline,
+            chartConfig: chart.chartConfig,
+            pivotConfig: chart.pivotConfig,
+            tableConfig: chart.tableConfig,
+            metricQuery: chart.metricQuery,
+        });
+        if (!sqlChart) {
+            throw new NotFoundError('Saved sql not found');
+        }
+        const updatedBy = chart.updatedByUser
+            ? {
+                  userUuid: chart.updatedByUser.userUuid,
+                  firstName: chart.updatedByUser.firstName,
+                  lastName: chart.updatedByUser.lastName,
+              }
+            : null;
+        return {
+            savedSqlUuid: chart.uuid,
+            [storedVersionAgentIdentity]: null,
+            name: chart.name,
+            description: chart.description ?? null,
+            slug: chart.slug,
+            createdAt: chart.createdAt ?? chart.updatedAt,
+            createdBy: updatedBy,
+            lastUpdatedAt: chart.updatedAt,
+            lastUpdatedBy: updatedBy,
+            sql: sqlChart.sql,
+            limit: sqlChart.limit,
+            config: sqlChart.config,
+            chartKind: sqlChart.config.type,
+            warehouseConnectionUuid: sqlChart.warehouseConnectionUuid,
+            space: { uuid: chart.spaceUuid, name: chart.spaceName },
+            project: {
+                projectUuid: chart.projectUuid,
+                name: chart.projectName,
+                type: chart.projectType,
+            },
+            dashboard: chart.dashboardUuid
+                ? {
+                      uuid: chart.dashboardUuid,
+                      name: chart.dashboardName ?? '',
+                  }
+                : null,
+            organization: { organizationUuid: chart.organizationUuid },
+            views: 0,
+            firstViewedAt: chart.updatedAt,
+            lastViewedAt: chart.updatedAt,
+        };
     }
 
     static convertSelectSavedSql(row: SelectSavedSql): Omit<
@@ -182,137 +244,100 @@ export class SavedSqlModel {
         };
     }
 
+    /**
+     * Rows for the content as code and promotion paths that still read SQL
+     * charts by slug or uuid. A listing (no slug, no uuid) is empty: SQL
+     * charts are charts and come back with them.
+     */
+    private async findUuids(options: {
+        uuid?: string;
+        slugs?: string[];
+        projectUuid?: string;
+    }): Promise<string[]> {
+        if (options.uuid) return [options.uuid];
+        if (!options.slugs || options.slugs.length === 0) return [];
+        const summaries = await this.savedChartModel.find({
+            projectUuid: options.projectUuid,
+            slugs: options.slugs,
+            excludeChartsSavedInDashboard: false,
+            includeOrphanChartsWithinDashboard: true,
+        });
+        return summaries.map((summary) => summary.uuid);
+    }
+
     async find(options: {
         uuid?: string;
         slugs?: string[];
         projectUuid?: string;
         deleted?: boolean;
-    }) {
-        return this.database
-            .from(SavedSqlTableName)
-            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
-                this.on(
-                    `${DashboardsTableName}.dashboard_uuid`,
-                    '=',
-                    `${SavedSqlTableName}.dashboard_uuid`,
-                ).andOnNull(`${DashboardsTableName}.deleted_at`);
-            })
-            .innerJoin(SpaceTableName, function spaceJoin() {
-                this.on(
-                    `${SpaceTableName}.space_id`,
-                    '=',
-                    `${DashboardsTableName}.space_id`,
-                ).orOn(
-                    `${SpaceTableName}.space_uuid`,
-                    '=',
-                    `${SavedSqlTableName}.space_uuid`,
-                );
-            })
-            .innerJoin(
-                ProjectTableName,
-                `${SpaceTableName}.project_id`,
-                `${ProjectTableName}.project_id`,
-            )
-            .innerJoin(
-                OrganizationTableName,
-                `${OrganizationTableName}.organization_id`,
-                `${ProjectTableName}.organization_id`,
-            )
-            .innerJoin(
-                SavedSqlVersionsTableName,
-                `${SavedSqlTableName}.saved_sql_uuid`,
-                `${SavedSqlVersionsTableName}.saved_sql_uuid`,
-            )
-            .leftJoin(
-                `${UserTableName} as createdByUser`,
-                `${SavedSqlTableName}.created_by_user_uuid`,
-                `createdByUser.user_uuid`,
-            )
-            .leftJoin(
-                `${UserTableName} as updatedByUser`,
-                `${SavedSqlTableName}.last_version_updated_by_user_uuid`,
-                `updatedByUser.user_uuid`,
-            )
-            .select<SelectSavedSql[]>([
-                `${ProjectTableName}.project_uuid`,
-                `${ProjectTableName}.name as project_name`,
-                `${ProjectTableName}.project_type`,
-                `${SavedSqlTableName}.saved_sql_uuid`,
-                `${SavedSqlTableName}.name`,
-                `${SavedSqlTableName}.description`,
-                `${SavedSqlTableName}.dashboard_uuid`,
-                `${SavedSqlTableName}.created_at`,
-                `${SavedSqlTableName}.slug`,
-                `${SavedSqlTableName}.last_version_updated_at`,
-                `${SavedSqlTableName}.views_count`,
-                `${SavedSqlTableName}.first_viewed_at`,
-                `${SavedSqlTableName}.last_viewed_at`,
-                `${DashboardsTableName}.name as dashboardName`,
-                `${SavedSqlVersionsTableName}.saved_sql_version_uuid`,
-                `${SavedSqlVersionsTableName}.agent_identity`,
-                `${SavedSqlVersionsTableName}.sql`,
-                `${SavedSqlVersionsTableName}.limit`,
-                `${SavedSqlVersionsTableName}.config`,
-                `${SavedSqlVersionsTableName}.chart_kind`,
-                `${SavedSqlVersionsTableName}.warehouse_connection_uuid`,
-                `${OrganizationTableName}.organization_uuid`,
-                `createdByUser.user_uuid as created_by_user_uuid`,
-                `createdByUser.first_name as created_by_user_first_name`,
-                `createdByUser.last_name as created_by_user_last_name`,
-                `updatedByUser.user_uuid as last_version_updated_by_user_uuid`,
-                `updatedByUser.first_name as last_version_updated_by_user_first_name`,
-                `updatedByUser.last_name as last_version_updated_by_user_last_name`,
-                `${SpaceTableName}.space_uuid`,
-                `${SpaceTableName}.name as spaceName`,
-                `${SpaceTableName}.inherit_parent_permissions as space_inherit_parent_permissions`,
-                `${SpaceTableName}.path`,
-            ])
-            .where((builder) => {
-                if (options.deleted) {
-                    void builder.whereNotNull(
-                        `${SavedSqlTableName}.deleted_at`,
-                    );
-                } else {
-                    void builder.whereNull(`${SavedSqlTableName}.deleted_at`);
-                }
-
-                if (options.uuid) {
-                    void builder.where(
-                        `${SavedSqlTableName}.saved_sql_uuid`,
-                        options.uuid,
-                    );
-                }
-
-                if (options.slugs && options.slugs.length > 0) {
-                    void builder.whereIn(
-                        `${SavedSqlTableName}.slug`,
-                        options.slugs,
-                    );
-                }
-
-                if (options.projectUuid) {
-                    void builder.where(
-                        `${ProjectTableName}.project_uuid`,
-                        options.projectUuid,
-                    );
-                }
-
-                // Required filter to join only the latest version
-                void builder.where(
-                    `${SavedSqlVersionsTableName}.created_at`,
-                    '=',
-                    this.database
-                        .from(SavedSqlVersionsTableName)
-                        .max('created_at')
-                        .where(
-                            `${SavedSqlVersionsTableName}.saved_sql_uuid`,
-                            this.database.ref(
-                                `${SavedSqlTableName}.saved_sql_uuid`,
-                            ),
-                        ),
-                );
-            })
-            .orderBy(`${SavedSqlVersionsTableName}.created_at`, 'desc');
+    }): Promise<SelectSavedSql[]> {
+        const uuids = await this.findUuids(options);
+        const charts = await Promise.all(
+            uuids.map((uuid) =>
+                this.savedChartModel
+                    .get(uuid, undefined, {
+                        projectUuid: options.projectUuid,
+                        deleted: options.deleted,
+                    })
+                    .catch((error: unknown) => {
+                        if (error instanceof NotFoundError) return null;
+                        throw error;
+                    }),
+            ),
+        );
+        return charts.flatMap((chart) => {
+            if (!chart?.pipeline) return [];
+            const sqlChart = convertPipelineChartToSqlChart({
+                pipeline: chart.pipeline,
+                chartConfig: chart.chartConfig,
+                pivotConfig: chart.pivotConfig,
+                tableConfig: chart.tableConfig,
+                metricQuery: chart.metricQuery,
+            });
+            if (!sqlChart) return [];
+            return [
+                {
+                    saved_sql_uuid: chart.uuid,
+                    name: chart.name,
+                    description: chart.description ?? null,
+                    slug: chart.slug,
+                    dashboard_uuid: chart.dashboardUuid,
+                    created_at: chart.createdAt ?? chart.updatedAt,
+                    last_version_updated_at: chart.updatedAt,
+                    views_count: 0,
+                    first_viewed_at: null,
+                    last_viewed_at: null,
+                    saved_sql_version_uuid: '',
+                    sql: sqlChart.sql,
+                    limit: sqlChart.limit,
+                    config: sqlChart.config,
+                    chart_kind: sqlChart.config.type,
+                    agent_identity: null,
+                    warehouse_connection_uuid: sqlChart.warehouseConnectionUuid,
+                    space_uuid: chart.spaceUuid,
+                    path: '',
+                    project_uuid: chart.projectUuid,
+                    project_name: chart.projectName ?? '',
+                    project_type: chart.projectType ?? ProjectType.DEFAULT,
+                    organization_uuid: chart.organizationUuid,
+                    updated_at: chart.updatedAt,
+                    spaceName: chart.spaceName,
+                    space_inherit_parent_permissions: true,
+                    dashboardName: chart.dashboardName ?? null,
+                    created_by_user_uuid: chart.updatedByUser?.userUuid ?? null,
+                    created_by_user_first_name:
+                        chart.updatedByUser?.firstName ?? null,
+                    created_by_user_last_name:
+                        chart.updatedByUser?.lastName ?? null,
+                    last_version_updated_by_user_uuid:
+                        chart.updatedByUser?.userUuid ?? null,
+                    last_version_updated_by_user_first_name:
+                        chart.updatedByUser?.firstName ?? null,
+                    last_version_updated_by_user_last_name:
+                        chart.updatedByUser?.lastName ?? null,
+                },
+            ];
+        });
     }
 
     async getBySlug(
@@ -320,109 +345,58 @@ export class SavedSqlModel {
         slug: string,
         options?: { deleted?: boolean },
     ) {
-        const results = await this.find({
-            slugs: [slug],
+        const chart = await this.savedChartModel.get(slug, undefined, {
             projectUuid,
             deleted: options?.deleted,
         });
-        const [result] = results;
-        if (!result) {
-            throw new NotFoundError('Saved sql not found');
-        }
-        return SavedSqlModel.convertSelectSavedSql(result);
+        return SavedSqlModel.toSqlChart(chart);
     }
 
     async getByUuid(
         uuid: string,
         options?: { projectUuid?: string; deleted?: boolean },
     ) {
-        const results = await this.find({ uuid, ...options });
-        const [result] = results;
-        if (!result) {
-            throw new NotFoundError('Saved sql not found');
-        }
-        return SavedSqlModel.convertSelectSavedSql(result);
+        const chart = await this.savedChartModel.get(uuid, undefined, options);
+        return SavedSqlModel.toSqlChart(chart);
     }
 
-    private static async getLatestVersionWarehouseConnectionUuid(
-        trx: Knex,
-        savedSqlUuid: string,
-    ): Promise<string | null> {
-        const latestVersion = await trx(SavedSqlVersionsTableName)
-            .where('saved_sql_uuid', savedSqlUuid)
-            .orderBy([
-                { column: 'created_at', order: 'desc' },
-                { column: 'saved_sql_version_uuid', order: 'desc' },
-            ])
-            .first<{ warehouse_connection_uuid: string | null } | undefined>(
-                'warehouse_connection_uuid',
-            );
-        return latestVersion?.warehouse_connection_uuid ?? null;
-    }
-
-    static async createVersion(
-        trx: Knex,
+    /** The version a SQL runner chart creates: the pipeline chart its config converts to. */
+    private static toChartVersion(
         data: {
-            savedSqlUuid: string;
-            userUuid: string;
             config: AllVizChartConfig;
             sql: string;
             limit: number;
-            binding?: SqlChartVersionBinding;
-            agentIdentity: AgentIdentityClaim | null;
         },
-    ): Promise<string> {
-        const warehouseConnectionUuid =
-            data.binding?.kind === 'latest'
-                ? await SavedSqlModel.getLatestVersionWarehouseConnectionUuid(
-                      trx,
-                      data.savedSqlUuid,
-                  )
-                : data.binding?.warehouseConnectionUuid;
-        if (warehouseConnectionUuid) {
-            const connection = await trx('warehouse_connections')
-                .innerJoin(
-                    SavedSqlTableName,
-                    `${SavedSqlTableName}.project_uuid`,
-                    'warehouse_connections.project_uuid',
-                )
-                .where(`${SavedSqlTableName}.saved_sql_uuid`, data.savedSqlUuid)
-                .where(
-                    'warehouse_connections.warehouse_connection_uuid',
-                    warehouseConnectionUuid,
-                )
-                .first('warehouse_connections.warehouse_connection_uuid');
-            if (!connection) {
-                throw new ParameterError(
-                    `Connection not found in this project: ${warehouseConnectionUuid}`,
-                );
-            }
+        warehouseConnectionUuid: string | null,
+    ): CreateSavedChartVersion {
+        const converted = convertSqlChartToPipelineChart({
+            sql: data.sql,
+            limit: data.limit,
+            config: data.config,
+            warehouseConnectionUuid,
+        });
+        return {
+            tableName: converted.tableName,
+            metricQuery: converted.metricQuery,
+            chartConfig: converted.chartConfig,
+            pivotConfig: converted.pivotConfig,
+            tableConfig: converted.tableConfig,
+            pipeline: converted.pipeline,
+        };
+    }
+
+    private async resolveConnection(
+        savedSqlUuid: string | null,
+        binding: SqlChartVersionBinding | undefined,
+    ): Promise<string | null> {
+        if (binding?.kind === 'connection') {
+            return binding.warehouseConnectionUuid;
         }
-        const [{ saved_sql_version_uuid: savedSqlVersionUuid }] = await trx(
-            SavedSqlVersionsTableName,
-        ).insert(
-            {
-                agent_identity: data.agentIdentity,
-                saved_sql_uuid: data.savedSqlUuid,
-                sql: data.sql,
-                limit: data.limit,
-                config: data.config,
-                chart_kind: data.config.type,
-                created_by_user_uuid: data.userUuid,
-                ...(warehouseConnectionUuid === undefined
-                    ? {}
-                    : { warehouse_connection_uuid: warehouseConnectionUuid }),
-            },
-            ['saved_sql_version_uuid'],
-        );
-        await trx(SavedSqlTableName)
-            .update({
-                last_version_chart_kind: data.config.type,
-                last_version_updated_at: new Date(),
-                last_version_updated_by_user_uuid: data.userUuid,
-            })
-            .where('saved_sql_uuid', data.savedSqlUuid);
-        return savedSqlVersionUuid;
+        if (binding?.kind === 'latest' && savedSqlUuid) {
+            const current = await this.getByUuid(savedSqlUuid);
+            return current.warehouseConnectionUuid;
+        }
+        return null;
     }
 
     async create(
@@ -439,63 +413,34 @@ export class SavedSqlModel {
         slug: string;
         savedSqlVersionUuid: string;
     }> {
-        return this.database
-            .transaction(async (trx) => {
-                let finalSlug = data.slug;
-                const baseSlug = finalSlug ?? generateSlug(data.name);
-                await acquireProjectSlugLock(
-                    trx,
-                    projectUuid,
-                    `saved-sql:${baseSlug}`,
-                );
-                if (finalSlug === undefined || slugMode === 'unique') {
-                    finalSlug = await generateUniqueSlugScopedToProject(
-                        trx,
-                        projectUuid,
-                        SavedSqlTableName,
-                        baseSlug,
-                    );
-                }
-
-                const [{ saved_sql_uuid: savedSqlUuid, slug }] = await trx(
-                    SavedSqlTableName,
-                ).insert(
-                    {
-                        slug: finalSlug,
-                        name: data.name,
-                        description: data.description,
-                        created_by_user_uuid: userUuid,
-                        project_uuid: projectUuid,
-                        space_uuid: data.spaceUuid,
-                        dashboard_uuid: null, // TODO: if we start using dashboard_uuid, implement cascade soft delete in DashboardModel (like saved_queries)
-                    },
-                    ['saved_sql_uuid', 'slug'],
-                );
-                const savedSqlVersionUuid = await SavedSqlModel.createVersion(
-                    trx,
-                    {
-                        savedSqlUuid,
-                        userUuid,
-                        config: data.config,
-                        sql: data.sql,
-                        limit: data.limit,
-                        binding,
-                        agentIdentity,
-                    },
-                );
-                await onVersionCreated?.(
-                    trx,
-                    savedSqlVersionUuid,
-                    savedSqlUuid,
-                );
-                return { savedSqlUuid, slug, savedSqlVersionUuid };
-            })
-            .catch((error: unknown) => {
-                if (!isProjectSlugUniqueViolation(error)) throw error;
-                throw new ConflictError(
-                    `SQL chart slug "${data.slug ?? generateSlug(data.name)}" is already in use in this project`,
-                );
-            });
+        const version = SavedSqlModel.toChartVersion(
+            data,
+            binding?.warehouseConnectionUuid ?? null,
+        );
+        const chart = await this.savedChartModel.create(
+            projectUuid,
+            userUuid,
+            {
+                ...version,
+                name: data.name,
+                description: data.description ?? undefined,
+                spaceUuid: data.spaceUuid,
+                dashboardUuid: null,
+                slug: data.slug ?? generateSlug(data.name),
+                forceSlug: data.slug !== undefined && slugMode === 'exact',
+                updatedByUser: { userUuid, firstName: '', lastName: '' },
+            },
+            agentIdentity,
+            onVersionCreated,
+        );
+        const latest = await this.savedChartModel.getLatestVersionSummary(
+            chart.uuid,
+        );
+        return {
+            savedSqlUuid: chart.uuid,
+            slug: chart.slug,
+            savedSqlVersionUuid: latest?.versionUuid ?? '',
+        };
     }
 
     async update(
@@ -508,56 +453,52 @@ export class SavedSqlModel {
         agentIdentity: AgentIdentityClaim | null = null,
         onVersionCreated?: OnContentVersionCreated,
     ): Promise<{ savedSqlUuid: string; savedSqlVersionUuid: string | null }> {
-        return this.database.transaction(async (trx) => {
-            if (data.sqlChart.unversionedData) {
-                await trx(SavedSqlTableName)
-                    .update({
-                        name: data.sqlChart.unversionedData.name,
-                        description: data.sqlChart.unversionedData.description,
-                        space_uuid: data.sqlChart.unversionedData.spaceUuid,
-                    })
-                    .where('saved_sql_uuid', data.savedSqlUuid);
-            }
-
-            let savedSqlVersionUuid: string | null = null;
-            if (data.sqlChart.versionedData) {
-                savedSqlVersionUuid = await SavedSqlModel.createVersion(trx, {
-                    savedSqlUuid: data.savedSqlUuid,
-                    userUuid: data.userUuid,
-                    config: data.sqlChart.versionedData.config,
-                    sql: data.sqlChart.versionedData.sql,
-                    limit: data.sqlChart.versionedData.limit,
-                    binding,
-                    agentIdentity,
-                });
-            }
-
-            await onVersionCreated?.(
-                trx,
-                savedSqlVersionUuid,
+        if (data.sqlChart.unversionedData) {
+            await this.savedChartModel.update(data.savedSqlUuid, {
+                name: data.sqlChart.unversionedData.name,
+                description:
+                    data.sqlChart.unversionedData.description ?? undefined,
+                spaceUuid: data.sqlChart.unversionedData.spaceUuid,
+            });
+        }
+        let savedSqlVersionUuid: string | null = null;
+        if (data.sqlChart.versionedData) {
+            const connection = await this.resolveConnection(
+                data.savedSqlUuid,
+                binding,
+            );
+            await this.savedChartModel.createVersion(
+                data.savedSqlUuid,
+                SavedSqlModel.toChartVersion(
+                    data.sqlChart.versionedData,
+                    connection,
+                ),
+                { userUuid: data.userUuid } as SessionUser,
+                undefined,
+                undefined,
+                agentIdentity,
+                onVersionCreated,
+            );
+            const latest = await this.savedChartModel.getLatestVersionSummary(
                 data.savedSqlUuid,
             );
-            return { savedSqlUuid: data.savedSqlUuid, savedSqlVersionUuid };
-        });
+            savedSqlVersionUuid = latest?.versionUuid ?? null;
+        } else {
+            await onVersionCreated?.(
+                this.database as Knex.Transaction,
+                null,
+                data.savedSqlUuid,
+            );
+        }
+        return { savedSqlUuid: data.savedSqlUuid, savedSqlVersionUuid };
     }
 
     async delete(uuid: string) {
-        await this.database(SavedSqlTableName)
-            .where('saved_sql_uuid', uuid)
-            .delete();
+        await this.savedChartModel.permanentDelete(uuid);
     }
 
     async softDelete(savedSqlUuid: string, userUuid: string): Promise<void> {
-        const updateCount = await this.database(SavedSqlTableName)
-            .update({
-                deleted_at: new Date(),
-                deleted_by_user_uuid: userUuid,
-            })
-            .where('saved_sql_uuid', savedSqlUuid)
-            .whereNull('deleted_at');
-        if (updateCount !== 1) {
-            throw new NotFoundError('Saved sql not found');
-        }
+        await this.savedChartModel.softDelete(savedSqlUuid, userUuid);
         await cancelPendingContentReviewRequests(
             this.database,
             ContentReviewContentType.SQL_CHART,
@@ -566,47 +507,21 @@ export class SavedSqlModel {
     }
 
     async restore(savedSqlUuid: string): Promise<void> {
-        const updateCount = await this.database(SavedSqlTableName)
-            .update({
-                deleted_at: null,
-                deleted_by_user_uuid: null,
-            })
-            .where('saved_sql_uuid', savedSqlUuid)
-            .whereNotNull('deleted_at');
-        if (updateCount !== 1) {
-            throw new NotFoundError('Saved sql not found');
-        }
+        await this.savedChartModel.restore(savedSqlUuid);
     }
 
     async permanentDelete(savedSqlUuid: string): Promise<void> {
-        await this.database(SavedSqlTableName)
-            .where('saved_sql_uuid', savedSqlUuid)
-            .delete();
+        await this.savedChartModel.permanentDelete(savedSqlUuid);
     }
 
     async moveToSpace(
-        {
-            projectUuid,
-            itemUuid: savedSqlUuid,
-            targetSpaceUuid,
-        }: {
+        args: {
             projectUuid: string;
             itemUuid: string;
             targetSpaceUuid: string | null;
         },
-        { tx = this.database }: { tx?: Knex } = {},
+        options: { tx?: Knex } = {},
     ): Promise<void> {
-        if (targetSpaceUuid === null) {
-            throw new Error('Cannot move saved sql chart out of a space');
-        }
-
-        const updateCount = await tx(SavedSqlTableName)
-            .update({ space_uuid: targetSpaceUuid })
-            .where('saved_sql_uuid', savedSqlUuid)
-            .where('project_uuid', projectUuid);
-
-        if (updateCount !== 1) {
-            throw new Error('Failed to move saved sql to space');
-        }
+        await this.savedChartModel.moveToSpace(args, options);
     }
 }

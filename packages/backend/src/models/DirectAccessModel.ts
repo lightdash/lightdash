@@ -82,10 +82,11 @@ const TABLE_CONFIG: Record<DirectAccessResourceType, DirectAccessTableConfig> =
             groupTable: SavedChartGroupAccessTableName,
             resourceColumn: 'saved_chart_uuid',
         },
+        // A SQL chart is a saved chart under the same uuid
         [DirectAccessResourceType.SQL_CHART]: {
-            userTable: SavedSqlUserAccessTableName,
-            groupTable: SavedSqlGroupAccessTableName,
-            resourceColumn: 'saved_sql_uuid',
+            userTable: SavedChartUserAccessTableName,
+            groupTable: SavedChartGroupAccessTableName,
+            resourceColumn: 'saved_chart_uuid',
         },
         [DirectAccessResourceType.APP]: {
             userTable: AppUserAccessTableName,
@@ -772,7 +773,7 @@ export class DirectAccessModel {
                     expectedOrganizationUuid,
                 );
             case DirectAccessResourceType.SQL_CHART:
-                return DirectAccessModel.getSqlChartMutationTarget(
+                return DirectAccessModel.getChartMutationTarget(
                     trx,
                     resourceUuid,
                     expectedOrganizationUuid,

@@ -2905,6 +2905,7 @@ describe('resolveAccess saved SQL chart target', () => {
         enabled: boolean;
         grants?: Record<string, unknown>;
     }) => {
+        // A SQL chart's grants are the saved chart's, under the same uuid
         const savedSqlAccessModel = {
             getUserAccess: vi.fn(async () => grants),
         };
@@ -2923,10 +2924,10 @@ describe('resolveAccess saved SQL chart target', () => {
             dashboardAccessModel: {
                 getUserAccess: vi.fn(async () => ({})),
             } as never,
-            savedChartAccessModel: {
+            savedChartAccessModel: savedSqlAccessModel as never,
+            savedSqlAccessModel: {
                 getUserAccess: vi.fn(async () => ({})),
             } as never,
-            savedSqlAccessModel: savedSqlAccessModel as never,
             directAccessFeatureGate: {
                 isEnabledForUser: vi.fn(async () => enabled),
             } as unknown as DirectAccessFeatureGate,

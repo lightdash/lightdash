@@ -13,9 +13,7 @@ import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import MantineIcon from '../../components/common/MantineIcon';
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
-import { useSavedSqlChartResults } from '../sqlRunner/hooks/useSavedSqlChartResults';
 import DocumentChartVisualization from './DocumentChartVisualization';
-import DocumentSqlChartView from './DocumentSqlChartView';
 import ReportChartFrame from './presentation/ReportChartFrame';
 import { toSemanticChartAsCode } from './savedChartContent';
 
@@ -32,12 +30,7 @@ type Props = {
  * A saved chart or saved SQL chart the Document links to. It runs as the
  * reader, so the Document grants no access to it.
  */
-const DocumentLinkedChart = (props: Props) =>
-    props.kind === 'chart' ? (
-        <LinkedSavedChart {...props} />
-    ) : (
-        <LinkedSqlChart {...props} />
-    );
+const DocumentLinkedChart = (props: Props) => <LinkedSavedChart {...props} />;
 
 /** Marks the chart as linked, opens it, then the editor's own actions. */
 const LinkedChartActions = ({
@@ -148,48 +141,6 @@ const LinkedSavedChart = ({
             actions={
                 <LinkedChartActions
                     href={`/projects/${projectUuid}/saved/${savedChart.data.uuid}`}
-                    actions={actions}
-                />
-            }
-        />
-    );
-};
-
-const LinkedSqlChart = ({ projectUuid, attributes, actions }: Props) => {
-    const { chartQuery, chartResultsQuery } = useSavedSqlChartResults({
-        savedSqlUuid: attributes.uuid,
-        slug: attributes.uuid ? undefined : attributes.slug,
-        projectUuid,
-    });
-    if (!chartQuery.data) {
-        return (
-            <LinkedChartMessage
-                title={attributes.title}
-                error={chartQuery.error ? (chartQuery.error as ApiError) : null}
-                actions={<LinkedChartActions href={null} actions={actions} />}
-            />
-        );
-    }
-    const chart = chartQuery.data;
-    return (
-        <DocumentSqlChartView
-            name={attributes.title ?? chart.name}
-            description={
-                attributes.description ?? chart.description ?? undefined
-            }
-            config={chart.config}
-            results={{
-                data: chartResultsQuery.data && {
-                    resultsRunner: chartResultsQuery.data.resultsRunner,
-                    spec: chartResultsQuery.data.chartSpec,
-                },
-                errorMessage: chartResultsQuery.error?.error?.message,
-                retry: () => void chartResultsQuery.refetch(),
-            }}
-            showTitle
-            actions={
-                <LinkedChartActions
-                    href={`/projects/${projectUuid}/sql-runner/${chart.slug}`}
                     actions={actions}
                 />
             }

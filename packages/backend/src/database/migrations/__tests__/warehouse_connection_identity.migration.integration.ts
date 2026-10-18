@@ -21,6 +21,7 @@ import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigWithGoogleOAuthMock } from '../../../config/lightdashConfig.mock';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
+import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SavedSqlModel } from '../../../models/SavedSqlModel';
 import {
     WarehouseConnectionIdentityModel,
@@ -67,6 +68,10 @@ describe('Multi runtime identity on the real schema', () => {
         savedSqlModel = new SavedSqlModel({
             database,
             lightdashConfig: lightdashConfigWithGoogleOAuthMock,
+            savedChartModel: new SavedChartModel({
+                database,
+                lightdashConfig: lightdashConfigWithGoogleOAuthMock,
+            }),
         });
         queryHistoryModel = new QueryHistoryModel({ database });
         projectModel = new ProjectModel({

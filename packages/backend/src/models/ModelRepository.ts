@@ -1149,6 +1149,7 @@ export class ModelRepository
                 new SavedSqlModel({
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
+                    savedChartModel: this.getSavedChartModel(),
                 }),
         );
     }

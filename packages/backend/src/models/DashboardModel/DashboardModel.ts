@@ -286,7 +286,21 @@ export class DashboardModel {
             | (CreateDashboardHeadingTile & { uuid: string })
             | (CreateDashboardDataAppTile & { uuid: string })
         > = version.tiles.map((tile) => ({
-            ...tile,
+            // A SQL chart is a saved chart under the same uuid, so a SQL
+            // tile from an older client is stored as a chart tile
+            ...(tile.type === DashboardTileTypes.SQL_CHART
+                ? ({
+                      ...tile,
+                      type: DashboardTileTypes.SAVED_CHART,
+                      properties: {
+                          title: tile.properties.title,
+                          hideTitle: tile.properties.hideTitle,
+                          savedChartUuid: tile.properties.savedSqlUuid,
+                          chartName: tile.properties.chartName,
+                          chartSlug: tile.properties.chartSlug,
+                      },
+                  } satisfies CreateDashboardChartTile)
+                : tile),
             uuid: tile.uuid || uuidv4(),
         }));
 
@@ -1561,14 +1575,18 @@ export class DashboardModel {
                                 },
                             };
                         case DashboardTileTypes.SQL_CHART:
-                            return <DashboardSqlChartTile>{
+                            // A SQL chart is a saved chart under the same
+                            // uuid; the tile reads as a chart tile
+                            return <DashboardChartTile>{
                                 ...base,
-                                type: DashboardTileTypes.SQL_CHART,
+                                type: DashboardTileTypes.SAVED_CHART,
                                 properties: {
                                     ...commonProperties,
+                                    savedChartUuid: saved_sql_uuid,
+                                    belongsToDashboard: false,
                                     chartName: name,
-                                    savedSqlUuid: saved_sql_uuid,
                                     chartSlug: chart_slug,
+                                    lastVersionChartKind: null,
                                 },
                             };
                         case DashboardTileTypes.HEADING:
@@ -3070,14 +3088,18 @@ export class DashboardModel {
                                 },
                             };
                         case DashboardTileTypes.SQL_CHART:
-                            return <DashboardSqlChartTile>{
+                            // A SQL chart is a saved chart under the same
+                            // uuid; the tile reads as a chart tile
+                            return <DashboardChartTile>{
                                 ...base,
-                                type: DashboardTileTypes.SQL_CHART,
+                                type: DashboardTileTypes.SAVED_CHART,
                                 properties: {
                                     ...commonProperties,
+                                    savedChartUuid: saved_sql_uuid,
+                                    belongsToDashboard: false,
                                     chartName: name,
-                                    savedSqlUuid: saved_sql_uuid,
                                     chartSlug: chart_slug,
+                                    lastVersionChartKind: null,
                                 },
                             };
                         case DashboardTileTypes.HEADING:

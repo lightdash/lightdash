@@ -120,6 +120,28 @@
                     "mcp": []
                 }
             }
+        },
+        "viz-unification-p3-sql-charts-fold-into-saved-charts": {
+            "reason": "Saved SQL charts become saved charts under the same uuid: a pipeline chart whose pipeline runs the statement. The saved SQL chart endpoints under /api/v1/projects/{projectUuid}/sqlRunner/saved keep their paths and shapes but read and write saved charts: GET returns a SQL runner config rebuilt from the explorer chart config, POST and PATCH create saved chart versions, and the v2 sql-chart and dashboard-sql-chart query endpoints run the saved chart pipeline and return the saved chart result shape, a superset of the SQL result shape keyed by field ids instead of column names. Dashboards return SQL chart tiles as chart tiles. Only the web app, the CLI content-as-code commands and the AI agent SQL chart tools call these operations. During a rolling update an old web tab that opens a SQL chart tile draws it through the retired SQL chart component until it refreshes; the stored chart is unchanged.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "The SQL runner pages, dashboard SQL chart tiles, the CLI content-as-code commands and the AI agent SQL chart tools are the only clients of the saved SQL chart operations. An old web tab shows a SQL chart tile through the retired SQL chart component until it refreshes; the saved chart it reads is unchanged.",
+                "covers": {
+                    "rest": [
+                        "GET /api/v1/projects/{projectUuid}/sqlRunner/saved/{uuid}",
+                        "GET /api/v1/projects/{projectUuid}/sqlRunner/saved/slug/{slug}",
+                        "POST /api/v1/projects/{projectUuid}/sqlRunner/saved",
+                        "PATCH /api/v1/projects/{projectUuid}/sqlRunner/saved/{uuid}",
+                        "DELETE /api/v1/projects/{projectUuid}/sqlRunner/saved/{uuid}",
+                        "POST /api/v2/projects/{projectUuid}/query/sql-chart",
+                        "POST /api/v2/projects/{projectUuid}/query/dashboard-sql-chart",
+                        "GET /api/v1/embed/{projectUuid}/sql-chart-tile/{tileUuid}",
+                        "POST /api/v1/embed/{projectUuid}/query/dashboard-sql-chart"
+                    ],
+                    "mcp": []
+                }
+            }
         }
     }
 }

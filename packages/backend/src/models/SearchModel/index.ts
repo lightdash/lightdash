@@ -85,6 +85,12 @@ export type SearchContentOptions = {
 };
 
 export class SearchModel {
+    /**
+     * SQL charts are saved charts under the same uuid, found by the chart
+     * search; the `saved_sql` tables are only kept for the previous release.
+     */
+    static readonly SQL_CHARTS_FOLDED_INTO_CHARTS = true;
+
     private database: Knex;
 
     private contentVerificationModel: ContentVerificationModel;
@@ -1025,7 +1031,11 @@ export class SearchModel {
             verifiedOnly = false,
         }: SearchContentOptions = {},
     ): Promise<SqlChartSearchResult[]> {
-        if (!shouldSearchForType(SearchItemType.SQL_CHART, filters?.type)) {
+        // SQL charts are saved charts and come back as charts
+        if (
+            !shouldSearchForType(SearchItemType.SQL_CHART, filters?.type) ||
+            SearchModel.SQL_CHARTS_FOLDED_INTO_CHARTS
+        ) {
             return [];
         }
 
@@ -1649,11 +1659,14 @@ export class SearchModel {
                 chart_source: 'saved' | 'sql';
             }>()
             .from(savedChartsSubquery.as('saved_charts'))
-            .unionAll(
-                this.database
-                    .select()
-                    .from(savedSqlSubquery.as(SavedSqlTableName)),
-            );
+            .modify((builder) => {
+                if (SearchModel.SQL_CHARTS_FOLDED_INTO_CHARTS) return;
+                void builder.unionAll(
+                    this.database
+                        .select()
+                        .from(savedSqlSubquery.as(SavedSqlTableName)),
+                );
+            });
 
         const results = await this.database
             .select<
