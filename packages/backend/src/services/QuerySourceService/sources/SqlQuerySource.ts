@@ -120,6 +120,7 @@ export class SqlQuerySource implements QuerySourceClient {
             projectUuid,
             sql: sourceQuery.sql,
             limit: sourceQuery.limit,
+            warehouseConnectionUuid: sourceQuery.warehouseConnectionUuid,
             context,
             querySurface,
             parameters,

@@ -134,6 +134,7 @@ export class DuckdbQuerySource implements QuerySourceClient {
         invalidateCache,
         pivotConfiguration,
         plan,
+        savedChartUuid,
     }: SubmitSourceQueryArgs): Promise<SourceQuerySubmissionResult> {
         const sourceQuery = DuckdbQuerySource.assertSourceQuery(query);
 
@@ -150,6 +151,7 @@ export class DuckdbQuerySource implements QuerySourceClient {
             : undefined;
 
         const args = {
+            ...(savedChartUuid ? { savedChartUuid } : {}),
             account,
             projectUuid,
             sql: sourceQuery.sql,

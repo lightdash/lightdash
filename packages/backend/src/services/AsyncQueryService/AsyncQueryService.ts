@@ -10941,18 +10941,24 @@ export class AsyncQueryService extends ProjectService {
         references,
         parameters,
         pivotConfiguration,
+        savedChartUuid,
     }: ExecuteAsyncComposeSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const { enabled: isEndpointEnabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.ComposeSqlRunner,
-        });
-        if (!isEndpointEnabled) {
-            throw new ForbiddenError('Compose SQL queries are not enabled');
+        // A saved pipeline chart's node runs on the chart's view permission,
+        // checked by the chart run; the flag and ability gate authoring
+        if (!savedChartUuid) {
+            const { enabled: isEndpointEnabled } =
+                await this.featureFlagModel.get({
+                    user: {
+                        userUuid: account.user.id,
+                        organizationUuid: account.organization.organizationUuid,
+                    },
+                    featureFlagId: FeatureFlags.ComposeSqlRunner,
+                });
+            if (!isEndpointEnabled) {
+                throw new ForbiddenError('Compose SQL queries are not enabled');
+            }
         }
 
         const projectSummary = await this.projectModel.getSummary(projectUuid);
@@ -10962,6 +10968,7 @@ export class AsyncQueryService extends ProjectService {
         // interactive viewers and up, but not plain viewers.
         const auditedAbility = this.createAuditedAbility(account);
         if (
+            !savedChartUuid &&
             auditedAbility.cannot(
                 'manage',
                 subject('Explore', {
@@ -11042,25 +11049,33 @@ export class AsyncQueryService extends ProjectService {
         references,
         parameters,
         invalidateCache,
+        savedChartUuid,
     }: ExecuteAsyncPythonQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const { enabled: isEndpointEnabled } = await this.featureFlagModel.get({
-            user: {
+        // A saved pipeline chart's node runs on the chart's view permission,
+        // checked by the chart run; the flags and ability gate authoring
+        if (!savedChartUuid) {
+            const user = {
                 userUuid: account.user.id,
                 organizationUuid: account.organization.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.ComposeSqlRunner,
-        });
-        const { enabled: isPythonEnabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.PythonQueryRunner,
-        });
-        if (!isEndpointEnabled || !isPythonEnabled) {
-            throw new ForbiddenError('Python queries are not enabled');
+            };
+            const [
+                { enabled: isEndpointEnabled },
+                { enabled: isPythonEnabled },
+            ] = await Promise.all([
+                this.featureFlagModel.get({
+                    user,
+                    featureFlagId: FeatureFlags.ComposeSqlRunner,
+                }),
+                this.featureFlagModel.get({
+                    user,
+                    featureFlagId: FeatureFlags.PythonQueryRunner,
+                }),
+            ]);
+            if (!isEndpointEnabled || !isPythonEnabled) {
+                throw new ForbiddenError('Python queries are not enabled');
+            }
         }
 
         const projectSummary = await this.projectModel.getSummary(projectUuid);
@@ -11068,6 +11083,7 @@ export class AsyncQueryService extends ProjectService {
 
         const auditedAbility = this.createAuditedAbility(account);
         if (
+            !savedChartUuid &&
             auditedAbility.cannot(
                 'manage',
                 subject('Explore', {

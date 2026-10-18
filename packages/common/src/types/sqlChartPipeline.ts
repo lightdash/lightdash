@@ -224,11 +224,13 @@ export const convertSqlChartToPipelineChart = ({
     limit,
     config,
     columns: discovered,
+    warehouseConnectionUuid,
 }: {
     sql: string;
     limit: number;
     config: AllVizChartConfig;
     columns?: ResultColumns;
+    warehouseConnectionUuid?: string | null;
 }): SqlChartAsPipelineChart => {
     const sqlNode: SqlSourceQuery = {
         sourceType: QuerySourceType.SQL,
@@ -236,6 +238,7 @@ export const convertSqlChartToPipelineChart = ({
         title: 'SQL',
         sql,
         limit,
+        ...(warehouseConnectionUuid ? { warehouseConnectionUuid } : {}),
     };
     const layout =
         'fieldConfig' in config && config.fieldConfig

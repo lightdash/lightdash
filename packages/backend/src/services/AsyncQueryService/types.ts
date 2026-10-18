@@ -237,6 +237,11 @@ export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
     references?: Record<string, UUID>;
     /** Pivots the result over the columns discovered from the SQL. */
     pivotConfiguration?: PivotConfiguration;
+    /**
+     * Set by the saved pipeline chart run only: the node is part of a chart
+     * the caller may view, so the authoring flag and ability do not apply.
+     */
+    savedChartUuid?: string;
 };
 
 export type ExecuteAsyncPythonQueryArgs = CommonAsyncQueryArgs & {
@@ -245,6 +250,8 @@ export type ExecuteAsyncPythonQueryArgs = CommonAsyncQueryArgs & {
     limit?: number;
     /** Input name -> queryUuid of a previous async query exposed as that DataFrame. */
     references: Record<string, UUID>;
+    /** As on compose SQL: a saved chart's node skips the authoring gates. */
+    savedChartUuid?: string;
 };
 
 export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {

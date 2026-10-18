@@ -137,6 +137,8 @@ export type SqlSourceQuery = {
     description?: string;
     sql: string;
     limit?: number;
+    /** The project connection the statement runs on; the default connection when omitted. */
+    warehouseConnectionUuid?: string | null;
     /**
      * Pivots this node's result the way a pivoted chart does. Honoured by
      * semanticLayer, sql and duckdb nodes; external nodes refuse it.

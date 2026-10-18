@@ -85,6 +85,7 @@ export class PythonQuerySource implements QuerySourceClient {
         resolvedReferences,
         parameters,
         invalidateCache,
+        savedChartUuid,
     }: SubmitSourceQueryArgs): Promise<SourceQuerySubmissionResult> {
         const sourceQuery = PythonQuerySource.assertSourceQuery(query);
         const references = Object.fromEntries(
@@ -97,6 +98,7 @@ export class PythonQuerySource implements QuerySourceClient {
         );
         const { queryUuid } =
             await this.asyncQueryService.executeAsyncPythonQuery({
+                ...(savedChartUuid ? { savedChartUuid } : {}),
                 account,
                 projectUuid,
                 code: sourceQuery.code,
