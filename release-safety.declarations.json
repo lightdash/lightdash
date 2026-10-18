@@ -104,6 +104,22 @@
                     "mcp": []
                 }
             }
+        },
+        "viz-unification-p1-composer-artifact-viz-contract": {
+            "reason": "The composer artifact viz endpoint changes shape: PATCH .../versions/{versionUuid}/viz-config (body vizConfig, the SQL runner column config) becomes PATCH .../versions/{versionUuid}/viz (body viz, the agent chart intent plus an explorer chart config), and POST .../versions/{versionUuid}/pivot-query is added. Only the web app's AI agent thread panel calls these operations, for composer artifacts, which are behind the multi-source-query feature flag. The flag is off by default on Cloud and on self-hosted instances. During a rolling update an old browser tab that edits a composer chart gets a 404 on the old path until it refreshes; the stored artifact is unchanged.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "featureFlag": "multi-source-query",
+                "covers": {
+                    "rest": [
+                        "PATCH /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/viz-config",
+                        "PATCH /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/viz",
+                        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/pivot-query"
+                    ],
+                    "mcp": []
+                }
+            }
         }
     }
 }

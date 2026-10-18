@@ -1,10 +1,6 @@
-import {
-    type AiAgentChartTypeOption,
-    type ComposerVizKind,
-} from '@lightdash/common';
+import { type AiAgentChartTypeOption } from '@lightdash/common';
 import { SegmentedControl } from '@mantine/core';
 import {
-    Icon123,
     IconChartBar,
     IconChartLine,
     IconChartPie,
@@ -15,7 +11,7 @@ import {
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import classes from './AgentVisualizationChartTypeSwitcher.module.css';
 
-type SwitcherKind = AiAgentChartTypeOption | ComposerVizKind;
+type SwitcherKind = AiAgentChartTypeOption;
 
 type Props<T extends SwitcherKind> = {
     /** Kinds this result supports; the switcher hides itself with fewer than two. */
@@ -33,7 +29,6 @@ const CHART_TYPE_ICONS: Record<SwitcherKind, typeof IconTable> = {
     scatter: IconChartScatter,
     pie: IconChartPie,
     funnel: IconFilter,
-    big_number: Icon123,
 };
 
 export const AgentVisualizationChartTypeSwitcher = <T extends SwitcherKind>({

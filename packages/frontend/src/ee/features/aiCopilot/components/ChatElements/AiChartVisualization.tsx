@@ -3,6 +3,8 @@ import {
     isAiAgentSemanticArtifactVizQuery,
     isAiAgentSqlArtifactVizQuery,
     isAiSqlChartArtifactConfig,
+    SQL_ARTIFACT_NODE_ID,
+    sqlArtifactAsComposerConfig,
     parseVizConfig,
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
@@ -36,10 +38,8 @@ import { clearPreview } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AiAccessCallout } from './AiAccessCallout';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
-import {
-    AiSqlArtifactActions,
-    AiSqlArtifactVisualization,
-} from './AiSqlArtifactVisualization';
+import { AiComposerArtifactPanel } from './AiComposerArtifactPanel';
+import { AiSqlArtifactActions } from './AiSqlArtifactVisualization';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 import { ViewSqlButton } from './ViewSqlButton';
 
@@ -182,16 +182,38 @@ export const AiChartVisualization: FC<Props> = ({
         );
     }
 
-    if (sqlVizQueryData) {
-        const sqlHeaderContent = (
-            <Group gap="md" align="start">
-                <Stack gap={0} flex={1}>
-                    <Title order={5}>{sqlVizQueryData.metadata.title}</Title>
-                    <Text c="dimmed" size="xs">
-                        {sqlVizQueryData.metadata.description}
-                    </Text>
-                </Stack>
-                <Group gap="sm" display={isMobile ? 'none' : 'flex'}>
+    if (
+        sqlVizQueryData &&
+        isAiSqlChartArtifactConfig(artifactData.chartConfig)
+    ) {
+        const sqlTitle = sqlVizQueryData.metadata.title ?? 'SQL results';
+        return (
+            <AiComposerArtifactPanel
+                key={versionUuid}
+                projectUuid={projectUuid}
+                agentUuid={agentUuid}
+                artifactUuid={artifactUuid}
+                versionUuid={versionUuid}
+                canEdit={false}
+                title={sqlTitle}
+                description={sqlVizQueryData.metadata.description}
+                config={sqlArtifactAsComposerConfig({
+                    sql: artifactData.chartConfig.sql,
+                    limit: artifactData.chartConfig.limit,
+                    title: sqlTitle,
+                })}
+                run={{
+                    source: 'composer',
+                    terminalNodeId: SQL_ARTIFACT_NODE_ID,
+                    nodeQueryUuids: {
+                        [SQL_ARTIFACT_NODE_ID]: sqlVizQueryData.query.queryUuid,
+                    },
+                    metadata: sqlVizQueryData.metadata,
+                }}
+                runError={queryExecutionHandle.error ?? null}
+                onRerun={() => void queryExecutionHandle.refetch()}
+                showPipeline={false}
+                headerActions={
                     <AiSqlArtifactActions
                         projectUuid={projectUuid}
                         agentUuid={agentUuid}
@@ -205,28 +227,14 @@ export const AiChartVisualization: FC<Props> = ({
                             queryResults.totalResults ??
                             queryResults.rows.length
                         }
-                        title={sqlVizQueryData.metadata.title ?? 'SQL results'}
+                        title={sqlTitle}
                         description={sqlVizQueryData.metadata.description}
                         columns={Object.values(queryResults.columns ?? {})}
                     />
-                    {showCloseButton && (
-                        <ActionIcon
-                            size="sm"
-                            color="ldGray.4"
-                            onClick={() => dispatch(clearPreview())}
-                        >
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    )}
-                </Group>
-            </Group>
-        );
-
-        return (
-            <AiSqlArtifactVisualization
-                projectUuid={projectUuid}
-                results={queryResults}
-                headerContent={sqlHeaderContent}
+                }
+                onClose={
+                    showCloseButton ? () => dispatch(clearPreview()) : null
+                }
             />
         );
     }

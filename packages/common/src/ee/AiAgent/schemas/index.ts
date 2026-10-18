@@ -29,6 +29,7 @@ import {
 } from './tools';
 
 export * from './agentInputSchema';
+export * from './composerViz';
 export * from './customMetrics';
 export * from './defineTool';
 export * from './filterExpressions';

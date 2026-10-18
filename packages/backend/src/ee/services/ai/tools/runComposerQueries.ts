@@ -1,7 +1,7 @@
 import {
     buildComposerArtifactPipeline,
+    COMPOSER_TABLE_VIZ,
     createToolComposerQueriesArgsSchema,
-    getComposerVizPlan,
     getSourceQueryResultReferences,
     getToolComposerQueriesDescription,
     isSlackPrompt,
@@ -9,6 +9,7 @@ import {
     runComposerQueriesToolDefinition,
     toolComposerQueryNodeToSourceQuery,
     type AiComposerChartArtifactConfig,
+    type AiComposerChartViz,
     type AnyType,
     type SourceQuery,
     type ToolComposerQueriesArgs,
@@ -17,11 +18,7 @@ import {
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import { type QueryReviewer } from '../decisions/queryReview';
-import {
-    getDefaultVizNote,
-    getVizConfigNote,
-    type PlanComposerViz,
-} from '../decisions/vizPlanner';
+import { getVizNote, type PlanComposerViz } from '../decisions/vizPlanner';
 import type {
     CreateOrUpdateArtifactFn,
     GetPromptFn,
@@ -314,10 +311,9 @@ export const getRunComposerQueries = ({
                     (query) => query.nodeId === resolvedTerminalNodeId,
                 );
                 let vizNote: string | null = null;
-                let vizConfig: AiComposerChartArtifactConfig['vizConfig'] =
-                    null;
+                let viz: AiComposerChartViz = COMPOSER_TABLE_VIZ;
                 if (!isSlack) {
-                    vizConfig =
+                    viz =
                         (await planViz?.({
                             title: title ?? null,
                             description: description ?? null,
@@ -325,23 +321,14 @@ export const getRunComposerQueries = ({
                                 title: terminalNode?.title ?? null,
                                 description: terminalNode?.description ?? null,
                             },
+                            terminalNodeId: resolvedTerminalNodeId,
                             columns: terminal.columns,
                             rows: terminal.rows,
                             rowCount: terminal.rowCount,
                             enableDataAccess,
-                            previousVizConfig:
-                                earlierPipelines.at(-1)?.vizConfig ?? null,
-                        })) ?? null;
-                    vizNote = vizConfig
-                        ? getVizConfigNote(vizConfig)
-                        : getDefaultVizNote(
-                              getComposerVizPlan({
-                                  columns: Object.values(terminal.columns),
-                                  rows: terminal.rows,
-                                  node: terminalNode ?? null,
-                                  vizConfig: null,
-                              }),
-                          );
+                            previousViz: earlierPipelines.at(-1)?.viz ?? null,
+                        })) ?? COMPOSER_TABLE_VIZ;
+                    vizNote = getVizNote(viz, resolvedTerminalNodeId);
                 }
                 const artifact = await createOrUpdateArtifact({
                     threadUuid: prompt.threadUuid,
@@ -351,10 +338,10 @@ export const getRunComposerQueries = ({
                     ...(description ? { description } : {}),
                     vizConfig: {
                         source: 'composer',
-                        schemaVersion: 1,
+                        schemaVersion: 2,
                         queries,
                         terminalNodeId: resolvedTerminalNodeId,
-                        vizConfig,
+                        viz,
                     } satisfies AiComposerChartArtifactConfig,
                 });
                 if (isSlack && enableDataAccess) {

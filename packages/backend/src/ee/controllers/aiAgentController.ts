@@ -11,6 +11,8 @@ import {
     ApiAiAgentArtifactResponseTSOACompat,
     ApiAiAgentArtifactVizQueryResponse,
     ApiAiAgentAvatarUploadResponse,
+    ApiAiAgentComposerPivotRequest,
+    ApiAiAgentComposerPivotResponse,
     ApiAiAgentEvaluationResponse,
     ApiAiAgentEvaluationRunResponse,
     ApiAiAgentEvaluationRunResultsResponse,
@@ -72,7 +74,7 @@ import {
     ApiUpdateAiAgent,
     ApiUpdateAiAgentMcpServerToolsRequest,
     ApiUpdateAiMcpServerCredentialBody,
-    ApiUpdateComposerVizConfigRequest,
+    ApiUpdateComposerVizRequest,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     ApiUpdateUserAgentPreferencesResponse,
@@ -1597,7 +1599,12 @@ export class AiAgentController extends BaseController {
     ): Promise<ApiAiAgentThreadMessageInterruptResponse> {
         await this.getAiAgentService().interruptAgentThreadMessage(
             req.account!,
-            { projectUuid, agentUuid, threadUuid, messageUuid },
+            {
+                projectUuid,
+                agentUuid,
+                threadUuid,
+                messageUuid,
+            },
         );
         this.setStatus(200);
         return {
@@ -2290,15 +2297,51 @@ export class AiAgentController extends BaseController {
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.runArtifactVersionPivotQuery',
+        ),
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post(
+        '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/pivot-query',
+    )
+    @OperationId('runArtifactVersionPivotQuery')
+    async runArtifactVersionPivotQuery(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() artifactUuid: UUID,
+        @Path() versionUuid: UUID,
+        @Body() body: ApiAiAgentComposerPivotRequest,
+    ): Promise<ApiAiAgentComposerPivotResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().runComposerArtifactPivot(
+                toSessionUser(req.account),
+                {
+                    projectUuid,
+                    agentUuid,
+                    artifactUuid,
+                    versionUuid,
+                    sourceQueryUuid: body.sourceQueryUuid,
+                    pivotConfiguration: body.pivotConfiguration,
+                },
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
         unauthorisedInDemo,
         requireOAuthScopeOperation(
             'AiAgentController.updateArtifactVersionVizConfig',
         ),
     ])
     @SuccessResponse('200', 'Success')
-    @Patch(
-        '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/viz-config',
-    )
+    @Patch('/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/viz')
     @OperationId('updateArtifactVersionVizConfig')
     async updateArtifactVersionVizConfig(
         @Request() req: express.Request,
@@ -2306,19 +2349,19 @@ export class AiAgentController extends BaseController {
         @Path() agentUuid: UUID,
         @Path() artifactUuid: UUID,
         @Path() versionUuid: UUID,
-        @Body() body: ApiUpdateComposerVizConfigRequest,
+        @Body() body: ApiUpdateComposerVizRequest,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
 
-        await this.getAiAgentService().updateComposerArtifactVizConfig(
+        await this.getAiAgentService().updateComposerArtifactViz(
             toSessionUser(req.account),
             {
                 projectUuid,
                 agentUuid,
                 artifactUuid,
                 versionUuid,
-                vizConfig: body.vizConfig,
+                viz: body.viz,
             },
         );
 

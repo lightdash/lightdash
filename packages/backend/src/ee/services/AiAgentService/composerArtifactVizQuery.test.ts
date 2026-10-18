@@ -1,4 +1,5 @@
 import {
+    COMPOSER_TABLE_VIZ,
     ForbiddenError,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -103,10 +104,10 @@ const createNodeRuns = () => {
 const setup = ({ queries }: { queries: SourceQuery[] }) => {
     const chartConfig = {
         source: 'composer',
-        schemaVersion: 1,
+        schemaVersion: 2,
         queries,
         terminalNodeId: 'orders_vs_target',
-        vizConfig: null,
+        viz: COMPOSER_TABLE_VIZ,
     } as const;
     const artifact: AiArtifact = {
         artifactUuid: 'artifact-uuid',

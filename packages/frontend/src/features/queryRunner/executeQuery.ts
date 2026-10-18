@@ -122,17 +122,8 @@ export const executeSqlQuery = async (
     };
 };
 
-export const getPivotQueryResults = async (
-    projectUuid: string,
-    queryUuid: string,
-) =>
-    readPivotQueryResults(
-        projectUuid,
-        await pollForResults(projectUuid, queryUuid),
-    );
-
 /** Reads a polled pivot query's results; throws when it did not finish ready. */
-export const readPivotQueryResults = async (
+const readPivotQueryResults = async (
     projectUuid: string,
     query: ApiGetAsyncQueryResults,
 ) => {
@@ -165,6 +156,15 @@ export const readPivotQueryResults = async (
         queryUuid: query.queryUuid,
     };
 };
+
+export const getPivotQueryResults = async (
+    projectUuid: string,
+    queryUuid: string,
+) =>
+    readPivotQueryResults(
+        projectUuid,
+        await pollForResults(projectUuid, queryUuid),
+    );
 
 export const executeSqlPivotQuery = async (
     projectUuid: string,

@@ -1,4 +1,8 @@
-import { parseAiArtifactChartConfig, type AiArtifact } from '@lightdash/common';
+import {
+    COMPOSER_TABLE_VIZ,
+    parseAiArtifactChartConfig,
+    type AiArtifact,
+} from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { getSlackSelectedCardArtifacts } from './slackChartSelection';
 
@@ -195,10 +199,10 @@ describe('getSlackSelectedCardArtifacts', () => {
         const composer = artifact('composer', {
             chartConfig: {
                 source: 'composer',
-                schemaVersion: 1,
+                schemaVersion: 2,
                 queries: [],
                 terminalNodeId: 'final',
-                vizConfig: null,
+                viz: COMPOSER_TABLE_VIZ,
             },
         });
         const unconfigured = artifact('unconfigured', { chartConfig: null });

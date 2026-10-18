@@ -18,12 +18,15 @@ import {
     MAX_RETENTION_WINDOW_HOURS,
     MIN_RETENTION_WINDOW_HOURS,
 } from '../../types/dataRetention';
+import { type PivotConfiguration } from '../../types/pivot';
 import { type QueryNodeId } from '../../types/querySources';
 import assertUnreachable from '../../utils/assertUnreachable';
-import { type AllVizChartConfig } from '../../visualizations/types';
 import { type AiAgentReviewItemStatus } from './aiAgentReviewClassifierTypes';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
-import { type AiComposerChartArtifactConfig } from './composerArtifact';
+import {
+    type AiComposerChartArtifactConfig,
+    type AiComposerChartViz,
+} from './composerArtifact';
 import { type AiProjectContextTypedObjectRef } from './projectContext';
 import {
     type AiAgentBattleProfile,
@@ -50,8 +53,6 @@ export * from './chartConfig/web';
 export * from './constants';
 export * from './coder';
 export * from './composerArtifact';
-export * from './composerViz';
-export * from './composerVizPanel';
 export * from './dashboardContext';
 export * from './dashboardLayout';
 export * from './aiAgentReviewClassifierTypes';
@@ -1269,9 +1270,24 @@ export type ApiAiAgentArtifactResponseTSOACompat =
     ApiSuccess<AiArtifactTSOACompat>;
 
 /** Body of the composer artifact version viz config update; the terminal node's config. */
-export type ApiUpdateComposerVizConfigRequest = {
-    vizConfig: AllVizChartConfig;
+export type ApiUpdateComposerVizRequest = {
+    viz: AiComposerChartViz;
 };
+
+/** The node id of the pivot a composer artifact's result is re-shaped by for a chart. */
+export const COMPOSER_PIVOT_NODE_ID = 'viz_pivot';
+
+/** Pivot a node result of a composer artifact run on the compose engine, for a chart that groups it. */
+export type ApiAiAgentComposerPivotRequest = {
+    /** The node result of the run to pivot; a query of this artifact's run. */
+    sourceQueryUuid: string;
+    /** Addressed by result column, as the engine runs it. */
+    pivotConfiguration: PivotConfiguration;
+};
+
+export type ApiAiAgentComposerPivotResponse = ApiSuccess<{
+    queryUuid: string;
+}>;
 
 export type AiAgentVerifiedArtifact = {
     artifactUuid: string;

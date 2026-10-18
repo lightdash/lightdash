@@ -1,9 +1,9 @@
 import type {
     AiArtifact,
-    AllVizChartConfig,
+    AiComposerChartViz,
     ApiError,
     ApiSuccessEmpty,
-    ApiUpdateComposerVizConfigRequest,
+    ApiUpdateComposerVizRequest,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import {
@@ -260,8 +260,8 @@ type ArtifactVersionRef = {
     versionUuid: string;
 };
 
-/** Writes the terminal node's viz config onto a composer artifact version. */
-export const useUpdateComposerVizConfig = ({
+/** Writes the terminal node's viz onto a composer artifact version. */
+export const useUpdateComposerViz = ({
     projectUuid,
     agentUuid,
     artifactUuid,
@@ -270,20 +270,15 @@ export const useUpdateComposerVizConfig = ({
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
 
-    return useMutation<ApiSuccessEmpty, ApiError, AllVizChartConfig>({
-        mutationKey: [
-            AI_AGENT_ARTIFACT_KEY,
-            'vizConfig',
-            artifactUuid,
-            versionUuid,
-        ],
-        mutationFn: (vizConfig) =>
+    return useMutation<ApiSuccessEmpty, ApiError, AiComposerChartViz>({
+        mutationKey: [AI_AGENT_ARTIFACT_KEY, 'viz', artifactUuid, versionUuid],
+        mutationFn: (viz) =>
             lightdashApi<ApiSuccessEmpty>({
-                url: `${getAiAgentApiBase(projectUuid)}/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}/viz-config`,
+                url: `${getAiAgentApiBase(projectUuid)}/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}/viz`,
                 method: 'PATCH',
                 body: JSON.stringify({
-                    vizConfig,
-                } satisfies ApiUpdateComposerVizConfigRequest),
+                    viz,
+                } satisfies ApiUpdateComposerVizRequest),
             }),
         onSuccess: () => {
             void queryClient.invalidateQueries({

@@ -1,6 +1,7 @@
 import { QuerySourceType, type SourceQuery } from '../../types/querySources';
 import {
     buildComposerArtifactPipeline,
+    COMPOSER_TABLE_VIZ,
     type AiComposerChartArtifactConfig,
 } from './composerArtifact';
 
@@ -33,10 +34,10 @@ const enriched: SourceQuery = {
 
 const version1: AiComposerChartArtifactConfig = {
     source: 'composer',
-    schemaVersion: 1,
+    schemaVersion: 2,
     queries: [orders, customers, enriched],
     terminalNodeId: 'enriched',
-    vizConfig: null,
+    viz: COMPOSER_TABLE_VIZ,
 };
 
 const summary = (
@@ -116,10 +117,10 @@ describe('buildComposerArtifactPipeline', () => {
     it('takes a node from whichever earlier version defined it', () => {
         const version2: AiComposerChartArtifactConfig = {
             source: 'composer',
-            schemaVersion: 1,
+            schemaVersion: 2,
             queries: [orders, customers, enriched, summary(['enriched'])],
             terminalNodeId: 'summary',
-            vizConfig: null,
+            viz: COMPOSER_TABLE_VIZ,
         };
         const ranked: SourceQuery = {
             sourceType: QuerySourceType.PYTHON,

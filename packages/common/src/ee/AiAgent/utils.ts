@@ -1,5 +1,8 @@
 import { type DataAppVizChart } from '../../types/savedCharts';
-import { isAiComposerChartArtifactConfig } from './composerArtifact';
+import {
+    isStoredAiComposerChartArtifactConfig,
+    upgradeComposerArtifactConfig,
+} from './composerArtifact';
 import { AI_DEFAULT_MAX_QUERY_LIMIT } from './constants';
 import type {
     AiChartArtifactConfig,
@@ -126,8 +129,8 @@ export const parseAiArtifactChartConfig = (
             ? { contentAsCode: config.contentAsCode }
             : {};
 
-    if (isAiComposerChartArtifactConfig(config)) {
-        return { ...config, vizConfig: config.vizConfig ?? null };
+    if (isStoredAiComposerChartArtifactConfig(config)) {
+        return upgradeComposerArtifactConfig(config);
     }
 
     if (

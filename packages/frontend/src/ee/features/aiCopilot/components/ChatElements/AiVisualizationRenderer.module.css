@@ -1,3 +1,9 @@
+.root {
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+}
+
 /* Flush body: the shared table sets its padding via Mantine style props
  * (inline), so this needs !important to win. */
 .flushViz [data-testid='ai-visualization'] > div {

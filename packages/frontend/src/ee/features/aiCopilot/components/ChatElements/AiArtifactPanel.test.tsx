@@ -1,13 +1,11 @@
 import {
+    COMPOSER_TABLE_VIZ,
     AiAccessRefusedError,
     AiAccessRefusalReason,
     AiResultType,
     FeatureFlags,
     QuerySourceType,
     QueryHistoryStatus,
-    ChartKind,
-    VizAggregationOptions,
-    VizIndexType,
     type AiComposerChartArtifactConfig,
     type ToolRunQueryArgs,
     type ReadyQueryResultsPage,
@@ -15,14 +13,23 @@ import {
 import { Box } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { type ComponentProps, type ReactNode } from 'react';
+import {
+    type ComponentProps,
+    type FC,
+    type ReactElement,
+    type ReactNode,
+} from 'react';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../../../../api';
+import ChartColorMappingContextProvider from '../../../../../hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import type * as QueryResultsHooks from '../../../../../hooks/useQueryResults';
-import { renderWithProviders } from '../../../../../testing/testUtils';
+import {
+    getMockedProviders,
+    renderWithProviders,
+} from '../../../../../testing/testUtils';
 import { AiArtifactPanel } from './AiArtifactPanel';
 import { AiChartVisualization } from './AiChartVisualization';
-import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualization';
 import { AiDashboardVisualizationItem } from './AiDashboardVisualizationItem';
 
 const mocks = vi.hoisted(() => ({
@@ -36,6 +43,10 @@ const mocks = vi.hoisted(() => ({
     saveVizConfig: vi.fn(),
 }));
 vi.mock('../../../../../api', () => ({ lightdashApi: vi.fn() }));
+// The explorer config panel lazy-loads the Vega editor, which pulls Monaco.
+vi.mock('../../../../../components/MonacoEditor', () => ({
+    default: () => null,
+}));
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: mocks.fastDecisions,
 }));
@@ -44,7 +55,7 @@ vi.mock('../../../../providers/Embed/useIsEmbedded', () => ({
 }));
 vi.mock('../../hooks/useAiAgentArtifacts', () => ({
     useAiAgentArtifact: mocks.artifact,
-    useUpdateComposerVizConfig: () => ({ mutate: mocks.saveVizConfig }),
+    useUpdateComposerViz: () => ({ mutate: mocks.saveVizConfig }),
 }));
 vi.mock('../../hooks/useProjectAiAgents', () => ({
     useAiAgentThread: mocks.thread,
@@ -89,17 +100,6 @@ vi.mock('../../hooks/useAiArtifactChart', async (original) => ({
     useAiArtifactCompiledSql: () => undefined,
 }));
 vi.mock('./AiChartQuickOptions', () => ({ AiChartQuickOptions: () => null }));
-vi.mock('../../../../../components/DataViz/visualizations/ChartView', () => ({
-    default: ({ config }: { config: { type: string } }) => (
-        <Box data-testid={`chart-view-${config.type}`} />
-    ),
-}));
-vi.mock(
-    '../../../../../components/DataViz/visualizations/BigNumberView',
-    () => ({
-        default: () => <Box data-testid="chart-view-big_number" />,
-    }),
-);
 vi.mock('../../../../../hooks/appearance/useProjectColorPalette', () => ({
     useProjectColorPalette: () => ({ data: undefined }),
 }));
@@ -110,6 +110,20 @@ vi.mock('./AiVisualizationRenderer', () => ({
         headerContent: ReactNode;
     }) => <Box data-testid="chart">{headerContent}</Box>,
 }));
+
+// The classic chart stack reads the app-wide colour mapping provider.
+const MockedProviders = getMockedProviders();
+const PanelProviders: FC<{ children: ReactNode }> = ({ children }) => (
+    <MockedProviders>
+        <MemoryRouter>
+            <ChartColorMappingContextProvider>
+                {children}
+            </ChartColorMappingContextProvider>
+        </MemoryRouter>
+    </MockedProviders>
+);
+const renderPanel = (ui: ReactElement) =>
+    renderWithProviders(ui, undefined, { wrapper: PanelProviders });
 
 // The mocked session user.
 const THREAD_OWNER_UUID = 'b264d83a-9000-426a-85ec-3f9c20f368ce';
@@ -239,7 +253,7 @@ describe('artifact panel recovery and navigation', () => {
                 ...mocks.rows(),
                 isFetchingRows: true,
             });
-            renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+            renderPanel(<AiArtifactPanel artifact={artifact} />);
             expect(screen.queryByTestId('chart')).not.toBeInTheDocument();
             expect(
                 screen.queryByRole('button', { name: 'Retry' }),
@@ -257,7 +271,7 @@ describe('artifact panel recovery and navigation', () => {
                 isLoading: false,
                 isFetchingRows: true,
             });
-            renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+            renderPanel(<AiArtifactPanel artifact={artifact} />);
             fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
             expect(mocks.retry).toHaveBeenCalledTimes(1);
             expect(screen.queryByTestId('chart')).not.toBeInTheDocument();
@@ -266,7 +280,7 @@ describe('artifact panel recovery and navigation', () => {
 
     it('keeps existing rows visible while another page loads', () => {
         mocks.rows.mockReturnValue({ ...mocks.rows(), isFetchingRows: true });
-        renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+        renderPanel(<AiArtifactPanel artifact={artifact} />);
         expect(screen.getByTestId('chart')).toBeInTheDocument();
     });
 
@@ -276,7 +290,7 @@ describe('artifact panel recovery and navigation', () => {
             isLoading: false,
             error: null,
         });
-        renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+        renderPanel(<AiArtifactPanel artifact={artifact} />);
         expect(
             screen.getByText('This artifact is unavailable.'),
         ).toBeInTheDocument();
@@ -285,9 +299,9 @@ describe('artifact panel recovery and navigation', () => {
 
 const composerConfig: AiComposerChartArtifactConfig = {
     source: 'composer',
-    schemaVersion: 1,
+    schemaVersion: 2,
     terminalNodeId: 'joined',
-    vizConfig: null,
+    viz: COMPOSER_TABLE_VIZ,
     queries: [
         {
             sourceType: QuerySourceType.SQL,
@@ -389,31 +403,23 @@ const checkedViz = () =>
         .find((radio) => (radio as HTMLInputElement).checked)
         ?.getAttribute('value');
 
-const kindButtons = () =>
-    screen
-        .queryAllByRole('group', { name: 'Chart kind' })
-        .flatMap((group) => within(group).getAllByRole('button'));
+// The viz switcher is a SegmentedControl of chart kinds, like the floating pill.
+const kindRadios = () => vizRadioElements();
 const offeredKinds = () =>
-    kindButtons()
-        .filter((button) => !(button as HTMLButtonElement).disabled)
-        .map((button) => button.getAttribute('data-kind'));
-const selectedKind = () =>
-    kindButtons()
-        .find((button) => button.getAttribute('aria-pressed') === 'true')
-        ?.getAttribute('data-kind');
+    kindRadios().map((radio) => radio.getAttribute('value'));
+const selectedKind = () => checkedViz();
 const chooseKind = (kind: string) =>
     fireEvent.click(
-        kindButtons().find(
-            (button) => button.getAttribute('data-kind') === kind,
-        )!,
+        kindRadios().find((radio) => radio.getAttribute('value') === kind)!,
     );
 const chartBar = () => screen.getByRole('button', { name: /^chart/i });
-// The section animates open, so wait for its kind switcher.
+// Edit rights resolve once the thread and session user have loaded.
+const waitForEditable = () =>
+    waitFor(() => expect(chartBar()).toHaveAttribute('data-editable', 'true'));
 const openChart = async () => {
     fireEvent.click(chartBar());
-    await screen.findByRole('group', { name: 'Chart kind' });
+    await screen.findByRole('button', { name: /^chart/i, expanded: true });
 };
-const xAxisSelect = () => screen.getByRole('combobox', { name: 'X axis' });
 
 describe('composer artifact', () => {
     const renderComposer = (
@@ -432,13 +438,15 @@ describe('composer artifact', () => {
         });
         mocks.query.mockReturnValue(composerRun);
         mocks.rows.mockReturnValue(results);
-        return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+        return renderPanel(<AiArtifactPanel artifact={artifact} />);
     };
 
     it('renders the results with a collapsed pipeline bar', () => {
         renderComposer(composerConfig);
         expect(screen.getByText('Orders vs amounts')).toBeInTheDocument();
-        expect(screen.getByRole('columnheader')).toHaveTextContent('status');
+        expect(
+            screen.getByRole('columnheader', { name: 'Status' }),
+        ).toBeInTheDocument();
         expect(screen.getByText('3 steps')).toBeInTheDocument();
         expect(screen.queryByText('Sources')).not.toBeInTheDocument();
     });
@@ -467,7 +475,7 @@ describe('composer artifact', () => {
     });
 });
 
-describe('composer viz config panel', () => {
+describe('composer viz', () => {
     const renderComposer = (
         results: ReturnType<typeof resultsOf>,
         chartConfig: AiComposerChartArtifactConfig = composerConfig,
@@ -484,7 +492,7 @@ describe('composer viz config panel', () => {
         });
         mocks.query.mockReturnValue(composerRun);
         mocks.rows.mockReturnValue(results);
-        return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+        return renderPanel(<AiArtifactPanel artifact={artifact} />);
     };
     const statusCounts = resultsOf(
         {
@@ -497,125 +505,35 @@ describe('composer viz config panel', () => {
         ],
     );
 
-    it('opens a string + number result as a bar chart offering table, bar, line and pie', async () => {
+    it('opens a stored table viz as a table of the result columns', () => {
         renderComposer(statusCounts);
-        expect(chartBar()).toHaveTextContent('Bar · status × n');
-        await openChart();
-        expect(offeredKinds()).toEqual(['table', 'bar', 'line', 'pie']);
-        expect(selectedKind()).toBe('bar');
         expect(
-            screen.getByTestId('chart-view-vertical_bar'),
+            screen.getByRole('columnheader', { name: 'Status' }),
         ).toBeInTheDocument();
-        expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('columnheader', { name: 'N' }),
+        ).toBeInTheDocument();
+        expect(chartBar()).toBeInTheDocument();
     });
 
-    it('opens a date + number result as a line chart', async () => {
-        renderComposer(
-            resultsOf(
-                {
-                    day: { reference: 'day', type: 'date' },
-                    n: { reference: 'n', type: 'number' },
-                },
-                [
-                    { day: '2024-01-01', n: 3 },
-                    { day: '2024-01-02', n: 1 },
-                ],
-            ),
-        );
-        await openChart();
-        expect(selectedKind()).toBe('line');
-        expect(screen.getByTestId('chart-view-line')).toBeInTheDocument();
-    });
-
-    it('switches to the table from the same fetched rows', async () => {
+    it('offers the chart kinds of a string + number result', () => {
         renderComposer(statusCounts);
-        await openChart();
-        chooseKind('table');
-        expect(
-            screen.getByRole('columnheader', { name: 'status' }),
-        ).toBeInTheDocument();
-        // Only the terminal node of the run is read: kinds are built from its rows.
-        const readQueryUuids = mocks.rows.mock.calls
-            .map(([, queryUuid]) => queryUuid)
-            .filter((queryUuid) => queryUuid !== undefined);
-        expect(readQueryUuids.length).toBeGreaterThan(0);
-        expect(new Set(readQueryUuids)).toEqual(new Set(['query']));
-        expect(mocks.query).toHaveBeenLastCalledWith(
-            expect.objectContaining({ versionUuid: 'version' }),
-            expect.objectContaining({ enabled: true }),
+        expect(offeredKinds()).toEqual(
+            expect.arrayContaining(['table', 'bar', 'line', 'pie']),
         );
     });
 
-    it('opens a duplicate-x result as a table but keeps bar and line selectable', async () => {
-        renderComposer(
-            resultsOf(
-                {
-                    status: { reference: 'status', type: 'string' },
-                    n: { reference: 'n', type: 'number' },
-                },
-                [
-                    { status: 'completed', n: 3 },
-                    { status: 'completed', n: 1 },
-                ],
-            ),
-        );
-        expect(chartBar()).toHaveTextContent('Table');
-        await openChart();
-        expect(selectedKind()).toBe('table');
-        expect(offeredKinds()).toEqual(['table', 'bar', 'line', 'pie']);
-    });
-
-    it('opens a one-row, one-number result as a big number', async () => {
-        renderComposer(
-            resultsOf(
-                {
-                    status: { reference: 'status', type: 'string' },
-                    n: { reference: 'n', type: 'number' },
-                },
-                [{ status: 'completed', n: 3 }],
-            ),
-        );
-        await openChart();
-        expect(selectedKind()).toBe('big_number');
-        expect(screen.getByTestId('chart-view-big_number')).toBeInTheDocument();
-    });
-
-    it('shows a static bar when only the table fits', async () => {
-        renderComposer(statusResults);
-        expect(
-            screen.queryByRole('button', { name: /^chart/i }),
-        ).not.toBeInTheDocument();
-        expect(kindButtons()).toHaveLength(0);
-        expect(screen.getByRole('columnheader')).toHaveTextContent('status');
-    });
-
-    it('opens on the stored viz config and writes an edit back', async () => {
-        const { unmount } = renderComposer(statusCounts, {
-            ...composerConfig,
-            vizConfig: {
-                type: ChartKind.LINE,
-                metadata: { version: 1 },
-                fieldConfig: {
-                    x: { reference: 'status', type: VizIndexType.CATEGORY },
-                    y: [
-                        {
-                            reference: 'n',
-                            aggregation: VizAggregationOptions.ANY,
-                        },
-                    ],
-                    groupBy: [],
-                },
-                display: undefined,
-            },
-        });
-        expect(chartBar()).toHaveTextContent('Line · status × n');
-        await openChart();
-        await waitFor(() => expect(xAxisSelect()).toBeEnabled());
+    it('writes a switcher pick back as the stored intent', async () => {
+        const { unmount } = renderComposer(statusCounts);
+        await waitForEditable();
         chooseKind('bar');
-        expect(chartBar()).toHaveTextContent('Bar · status × n');
+        expect(selectedKind()).toBe('bar');
         unmount();
         expect(mocks.saveVizConfig).toHaveBeenCalledWith(
-            expect.objectContaining({ type: ChartKind.VERTICAL_BAR }),
+            expect.objectContaining({
+                intent: expect.objectContaining({ defaultVizType: 'bar' }),
+                chartConfig: null,
+            }),
         );
     });
 
@@ -630,10 +548,7 @@ describe('composer viz config panel', () => {
             refetch: mocks.retry,
         });
         const { unmount } = renderComposer(statusCounts);
-        await openChart();
-        expect(xAxisSelect()).toBeDisabled();
         chooseKind('line');
-        expect(chartBar()).toHaveTextContent('Line · status × n');
         unmount();
         expect(mocks.saveVizConfig).not.toHaveBeenCalled();
     });
@@ -700,7 +615,7 @@ describe('composer displayed node', () => {
                     ? { ...statusResults, rows: [], columns: undefined }
                     : resultsByQuery[queryUuid],
         );
-        return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+        return renderPanel(<AiArtifactPanel artifact={artifact} />);
     };
 
     const expandPipeline = () =>
@@ -712,8 +627,10 @@ describe('composer displayed node', () => {
         fireEvent.click(
             screen.getByRole('button', { name: 'Display Average amount' }),
         );
-        // A one-row, one-number node result opens as a big number.
-        expect(screen.getByTestId('chart-view-big_number')).toBeInTheDocument();
+        // Other nodes open as a table of their own columns.
+        expect(
+            screen.getByRole('columnheader', { name: 'Avg amount' }),
+        ).toBeInTheDocument();
         // Header and pipeline row both name the node.
         expect(screen.getAllByText('Average amount')).toHaveLength(2);
         expect(screen.queryByText('Orders vs amounts')).not.toBeInTheDocument();
@@ -724,7 +641,7 @@ describe('composer displayed node', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Back to result' }));
         expect(screen.getByText('Orders vs amounts')).toBeInTheDocument();
         expect(
-            screen.getByRole('columnheader', { name: 'status' }),
+            screen.getByRole('columnheader', { name: 'Status' }),
         ).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Back to result' }),
@@ -736,8 +653,9 @@ describe('composer displayed node', () => {
         expandPipeline();
         fireEvent.click(screen.getByRole('radio', { name: 'Graph' }));
         fireEvent.click(screen.getByLabelText('Display Orders by status'));
-        // A one-row node result charts on its own merits.
-        expect(screen.getByTestId('chart-view-big_number')).toBeInTheDocument();
+        expect(
+            screen.getByRole('columnheader', { name: 'Status' }),
+        ).toBeInTheDocument();
         expect(
             screen.getByLabelText('Display Orders by status'),
         ).toHaveAttribute('data-displayed', 'true');
@@ -903,37 +821,36 @@ describe('composer per-node viz switcher', () => {
                     ? { ...statusResults, rows: [], columns: undefined }
                     : resultsByQuery[queryUuid],
         );
-        return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+        return renderPanel(<AiArtifactPanel artifact={artifact} />);
     };
     const display = (title: string) =>
         fireEvent.click(
             screen.getByRole('button', { name: `Display ${title}` }),
         );
-    it('gives a displayed node its own default and remembers each choice', async () => {
+    it('opens other nodes as tables and keeps their switch on screen only', async () => {
         renderComposer();
-        await openChart();
-        expect(selectedKind()).toBe('line');
-        chooseKind('table');
+        chooseKind('bar');
         fireEvent.click(screen.getByRole('button', { name: /queries/i }));
 
-        // Other nodes get the switcher alone in the bar, no expand.
         display('Orders by status');
         expect(
-            screen.queryByRole('button', { name: /^chart/i }),
-        ).not.toBeInTheDocument();
-        expect(selectedKind()).toBe('bar');
+            screen.getByRole('columnheader', { name: 'Status' }),
+        ).toBeInTheDocument();
         chooseKind('line');
         expect(selectedKind()).toBe('line');
 
+        // A single number column has nothing to chart against.
         display('Average amount');
-        expect(kindButtons()).toHaveLength(0);
+        expect(kindRadios()).toHaveLength(0);
 
         display('Orders by status');
         expect(selectedKind()).toBe('line');
         fireEvent.click(screen.getByRole('button', { name: 'Back to result' }));
-        expect(chartBar()).toHaveTextContent('Table');
+        expect(selectedKind()).toBe('bar');
         expect(mocks.saveVizConfig).not.toHaveBeenCalledWith(
-            expect.objectContaining({ type: ChartKind.LINE }),
+            expect.objectContaining({
+                intent: expect.objectContaining({ defaultVizType: 'line' }),
+            }),
         );
     });
 });
@@ -964,7 +881,7 @@ describe('sql artifact viz switcher', () => {
             refetch: mocks.retry,
         });
         mocks.rows.mockReturnValue(results);
-        return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+        return renderPanel(<AiArtifactPanel artifact={artifact} />);
     };
 
     const chooseSqlViz = (kind: string) =>
@@ -988,13 +905,12 @@ describe('sql artifact viz switcher', () => {
             ),
         );
         expect(checkedViz()).toBe('table');
-        expect(vizRadios()).toEqual(['table', 'bar', 'line']);
+        expect(vizRadios()).toEqual(expect.arrayContaining(['table', 'line']));
         expect(
-            screen.getByRole('columnheader', { name: 'day' }),
+            screen.getByRole('columnheader', { name: 'Day' }),
         ).toBeInTheDocument();
         chooseSqlViz('line');
         expect(checkedViz()).toBe('line');
-        expect(screen.getByTestId('chart-view-line')).toBeInTheDocument();
         expect(screen.getByText('Orders per day')).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'SQL artifact actions' }),
@@ -1004,7 +920,9 @@ describe('sql artifact viz switcher', () => {
     it('keeps a table-only answer as a table without a switcher', () => {
         renderSql(statusResults);
         expect(vizRadios()).toHaveLength(0);
-        expect(screen.getByRole('columnheader')).toHaveTextContent('status');
+        expect(
+            screen.getByRole('columnheader', { name: 'Status' }),
+        ).toBeInTheDocument();
     });
 });
 
@@ -1020,7 +938,7 @@ describe('artifact panel agent identity recovery', () => {
                 ...original,
                 error: { status: 'error', error: refusal },
             });
-            renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+            renderPanel(<AiArtifactPanel artifact={artifact} />);
             expect(
                 screen.getByText(
                     'Connect your agent to your warehouse to run this.',
@@ -1082,21 +1000,19 @@ describe('alternate artifact visualization identity recovery', () => {
     });
 
     it('shows the connection prompt for composer results instead of an error', () => {
-        renderWithProviders(
-            <AiComposerArtifactVisualization
-                projectUuid="project"
-                queryUuid="query"
-                runError={null}
-                onRerun={vi.fn()}
-                results={{ ...mocks.rows(), error }}
-                vizConfig={
-                    { type: ChartKind.TABLE } as ComponentProps<
-                        typeof AiComposerArtifactVisualization
-                    >['vizConfig']
-                }
-                headerContent={null}
-            />,
-        );
+        mocks.artifact.mockReturnValue({
+            data: {
+                artifactType: 'chart',
+                title: 'Orders vs amounts',
+                chartConfig: composerConfig,
+            },
+            isLoading: false,
+            error: null,
+            refetch: mocks.retry,
+        });
+        mocks.query.mockReturnValue(composerRun);
+        mocks.rows.mockReturnValue({ ...statusResults, error });
+        renderPanel(<AiArtifactPanel artifact={artifact} />);
         expect(
             screen.getByRole('button', { name: 'Connect agent' }),
         ).toBeVisible();

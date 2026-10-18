@@ -1,10 +1,14 @@
 import { isValidFormat } from 'numfmt';
 import {
+    FieldType,
     friendlyName,
+    isCustomDimension,
     isDimension,
+    isMetric,
     isTableCalculation,
     type Item,
 } from '../types/field';
+import { isAdditionalMetric } from '../types/metricQuery';
 import { type ParametersValuesMap } from '../types/parameters';
 import { type ResultColumn } from '../types/results';
 import { TimeFrames } from '../types/timeFrames';
@@ -45,7 +49,13 @@ export function getResultColumnMetadataFromItem(
     // Table calcs, computed and raw SQL columns have no semantic field behind
     // them — absence of provenance gates interaction capabilities off.
     if (!isTableCalculation(item)) {
-        metadata.provenance = { fieldId };
+        let fieldType: FieldType | undefined;
+        if (isDimension(item) || isCustomDimension(item)) {
+            fieldType = FieldType.DIMENSION;
+        } else if (isMetric(item) || isAdditionalMetric(item)) {
+            fieldType = FieldType.METRIC;
+        }
+        metadata.provenance = fieldType ? { fieldId, fieldType } : { fieldId };
     }
 
     if (shouldShiftItemTimezone(item)) {

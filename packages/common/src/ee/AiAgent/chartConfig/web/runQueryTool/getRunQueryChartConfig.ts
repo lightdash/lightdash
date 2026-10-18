@@ -3,7 +3,7 @@ import { type MetricQuery } from '../../../../../types/metricQuery';
 import { type ChartConfig } from '../../../../../types/savedCharts';
 import {
     isCustomChartTypeSlugChartConfig,
-    type ToolRunQueryArgsTransformed,
+    type ChartBuilderInput,
 } from '../../../schemas';
 import { canRenderAsChart } from '../shared/canRenderAsChart';
 import { getTableChartConfig } from '../shared/getTableChartConfig';
@@ -25,7 +25,7 @@ export const getRunQueryChartConfig = ({
     fieldsMap,
     overrideChartType,
 }: {
-    queryTool: ToolRunQueryArgsTransformed;
+    queryTool: ChartBuilderInput;
     metricQuery: MetricQuery;
     fieldsMap: ItemsMap;
     overrideChartType?: AiAgentChartTypeOption;
@@ -47,7 +47,7 @@ export const getRunQueryChartConfig = ({
         return getTableChartConfig();
     }
 
-    const builtinQueryTool = { ...queryTool, chartConfig };
+    const builtinQueryTool = { ...queryTool, chartConfig: chartConfig ?? null };
     const metadata = {
         title: queryTool.title,
         description: queryTool.description,

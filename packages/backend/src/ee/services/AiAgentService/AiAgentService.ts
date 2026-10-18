@@ -80,6 +80,7 @@ import {
     buildAgentIdentityClaim,
     CatalogType,
     CommercialFeatureFlags,
+    COMPOSER_PIVOT_NODE_ID,
     ConflictError,
     ContentType,
     DATA_APP_VIZ_TEMPLATE,
@@ -154,7 +155,7 @@ import {
     OpenIdIdentityIssuerType,
     ParameterError,
     ParametersValuesMap,
-    parseComposerVizConfig,
+    parseComposerViz,
     parsePersistedRunQueryPayload,
     parseVizConfig,
     PersistentDownloadFileAccessMode,
@@ -3149,7 +3150,10 @@ export class AiAgentService extends BaseService {
             );
         const canCreateDashboards = await this.canCreateDashboardsInProject(
             user,
-            { organizationUuid, projectUuid },
+            {
+                organizationUuid,
+                projectUuid,
+            },
         );
         const canManageContent =
             agent.enableContentTools &&
@@ -3627,7 +3631,9 @@ export class AiAgentService extends BaseService {
                                     this.savedChartService.get(
                                         chartUuid,
                                         fromSession(user),
-                                        { projectUuid },
+                                        {
+                                            projectUuid,
+                                        },
                                     ),
                                 ),
                             );
@@ -7297,7 +7303,9 @@ export class AiAgentService extends BaseService {
         ) {
             throw new ForbiddenError(
                 this.getExplicitSlackChannelLinkingMessage(),
-                { reason: EXPLICIT_SLACK_CHANNEL_LINKING_REQUIRED_REASON },
+                {
+                    reason: EXPLICIT_SLACK_CHANNEL_LINKING_REQUIRED_REASON,
+                },
             );
         }
 
@@ -10432,21 +10440,21 @@ export class AiAgentService extends BaseService {
         await this.aiAgentModel.updateArtifactVersion(versionUuid, update);
     }
 
-    /** Writes the terminal node's viz config on a composer artifact version. */
-    async updateComposerArtifactVizConfig(
+    /** Writes the terminal node's viz on a composer artifact version. */
+    async updateComposerArtifactViz(
         user: SessionUser,
         {
             projectUuid,
             agentUuid,
             artifactUuid,
             versionUuid,
-            vizConfig,
+            viz,
         }: {
             projectUuid: string;
             agentUuid: string;
             artifactUuid: string;
             versionUuid: string;
-            vizConfig: unknown;
+            viz: unknown;
         },
     ): Promise<void> {
         const { organizationUuid } = user;
@@ -10503,19 +10511,114 @@ export class AiAgentService extends BaseService {
 
         if (!isAiComposerChartArtifactConfig(artifact.chartConfig)) {
             throw new ParameterError(
-                'Viz config can only be updated on composer artifacts',
+                'The visualization can only be updated on composer artifacts',
             );
         }
 
-        const parsed = parseComposerVizConfig(vizConfig);
+        const parsed = parseComposerViz(viz);
         if (!parsed.ok) {
-            throw new ParameterError(`Invalid viz config: ${parsed.error}`);
+            throw new ParameterError(`Invalid visualization: ${parsed.error}`);
         }
 
         await this.aiAgentModel.updateArtifactVersionChartConfig(versionUuid, {
             ...artifact.chartConfig,
-            vizConfig: parsed.vizConfig,
+            viz: parsed.viz,
         });
+    }
+
+    /**
+     * Pivots a node result of a composer artifact run on the compose engine,
+     * for a chart that groups it: one DuckDB node reading the result by query
+     * id, no warehouse query. Runs as the artifact owner, like the run itself.
+     */
+    async runComposerArtifactPivot(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            sourceQueryUuid,
+            pivotConfiguration,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+            sourceQueryUuid: string;
+            pivotConfiguration: PivotConfiguration;
+        },
+    ): Promise<{ queryUuid: string }> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+        await this.getAgent(user, agentUuid, projectUuid);
+        const artifact = await this.getArtifact(
+            user,
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+        );
+        if (
+            !isAiComposerChartArtifactConfig(artifact.chartConfig) &&
+            !isAiSqlChartArtifactConfig(artifact.chartConfig)
+        ) {
+            throw new ParameterError(
+                'Only composer and SQL artifact results can be pivoted',
+            );
+        }
+        return this.executeArtifactQueriesAsOwner(
+            user,
+            { projectUuid, agentUuid, artifactUuid, versionUuid },
+            async () => {
+                const account = fromSession(user);
+                // Refuses a result the viewer cannot read before anything runs.
+                await this.asyncQueryService.getAsyncQueryResults({
+                    account,
+                    projectUuid,
+                    queryUuid: sourceQueryUuid,
+                    page: 1,
+                    pageSize: 1,
+                });
+                const { queries } = await this.querySourceService.submitQueries(
+                    {
+                        account,
+                        projectUuid,
+                        queries: [
+                            {
+                                sourceType: QuerySourceType.DUCKDB,
+                                nodeId: COMPOSER_PIVOT_NODE_ID,
+                                sql: 'SELECT * FROM src',
+                                references: { src: sourceQueryUuid },
+                                pivotConfiguration,
+                            },
+                        ],
+                        context: QueryExecutionContext.AI,
+                        querySurface: await this.getArtifactQuerySurface(
+                            artifact.promptUuid,
+                        ),
+                        parameters: {},
+                        userAttributeOverrides: {},
+                        invalidateCache: false,
+                        plans: {},
+                    },
+                );
+                const submission = queries[0];
+                if (!submission) {
+                    throw new UnexpectedServerError(
+                        'The pivot query was not submitted',
+                    );
+                }
+                return { queryUuid: submission.queryUuid };
+            },
+            (result) => [result.queryUuid],
+        );
     }
 
     async getVerifiedSavedArtifactContent(
@@ -15578,7 +15681,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             );
                         else
                             await this.agentPermissionService.assertOperationWithRequest(
-                                { request: slackRequest, operation },
+                                {
+                                    request: slackRequest,
+                                    operation,
+                                },
                             );
                     } catch (error) {
                         if (error instanceof AiAccessRefusedError) {

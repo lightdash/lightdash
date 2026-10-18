@@ -3,6 +3,7 @@ import {
     AGENT_CLIENT_IDS,
     AgentActorSurface,
     buildAgentIdentityClaim,
+    COMPOSER_TABLE_VIZ,
     ForbiddenError,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -484,7 +485,7 @@ describe('artifact result identity boundaries', () => {
         } = setup();
         artifact.chartConfig = {
             source: 'composer',
-            schemaVersion: 1,
+            schemaVersion: 2,
             queries: [
                 {
                     sourceType: QuerySourceType.SQL,
@@ -499,7 +500,7 @@ describe('artifact result identity boundaries', () => {
                 },
             ],
             terminalNodeId: 'joined',
-            vizConfig: null,
+            viz: COMPOSER_TABLE_VIZ,
         } as typeof artifact.chartConfig;
         delete (prompt as Partial<SlackPrompt>).slackUserId;
         const terminal = {
@@ -603,7 +604,7 @@ describe('artifact result identity boundaries', () => {
         } = setup();
         artifact.chartConfig = {
             source: 'composer',
-            schemaVersion: 1,
+            schemaVersion: 2,
             queries: [
                 {
                     sourceType: QuerySourceType.SQL,
@@ -612,7 +613,7 @@ describe('artifact result identity boundaries', () => {
                 },
             ],
             terminalNodeId: 'source',
-            vizConfig: null,
+            viz: COMPOSER_TABLE_VIZ,
         } as typeof artifact.chartConfig;
         thread.user.uuid = 'another-owner';
         querySourceService.submitQueries.mockImplementation(async () => {
@@ -650,10 +651,10 @@ describe('artifact result identity boundaries', () => {
             setup();
         artifact.chartConfig = {
             source: 'composer',
-            schemaVersion: 1,
+            schemaVersion: 2,
             queries: [],
             terminalNodeId: 'source',
-            vizConfig: null,
+            viz: COMPOSER_TABLE_VIZ,
         } as typeof artifact.chartConfig;
         thread.user.uuid = 'another-user';
         await expect(

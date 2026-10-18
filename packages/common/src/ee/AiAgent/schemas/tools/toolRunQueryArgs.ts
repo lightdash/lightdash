@@ -511,6 +511,26 @@ export type ToolRunQueryArgsTransformedBuiltinChart = Omit<
     'chartConfig'
 > & { chartConfig: ToolRunQueryBuiltinChartConfig | null };
 
+/**
+ * What the chart config builders read of a tool call: a title and
+ * description for the chart, the selected dimensions and metrics, and the
+ * chart config. A runQuery tool call satisfies it; so does a composer
+ * artifact's intent over the items of its result.
+ */
+export type ChartBuilderInput = {
+    title: string;
+    description: string;
+    queryConfig: { dimensions: string[]; metrics: string[] };
+    chartConfig: ToolRunQueryChartConfig | null | undefined;
+};
+
+export type BuiltinChartBuilderInput = Omit<
+    ChartBuilderInput,
+    'chartConfig'
+> & {
+    chartConfig: ToolRunQueryBuiltinChartConfig | null;
+};
+
 // --- Backward compatibility -------------------------------------------------
 // Only for parsing tool args persisted before V2. V1 put filters,
 // customMetrics and tableCalculations at the top level; V2 forbids them and

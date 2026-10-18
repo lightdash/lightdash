@@ -5,6 +5,7 @@ import {
     MetricType,
     TableCalculationType,
     type CustomFormat,
+    type FieldType,
     type Item,
     type NumberSeparator,
 } from './field';
@@ -83,6 +84,8 @@ export type ResultColumnProvenance = {
      * field name, so a bare fieldId is ambiguous across sources.
      */
     sourceQueryUuid?: string;
+    /** Whether the field behind the column is a dimension or a metric. */
+    fieldType?: FieldType;
 };
 
 /** How a NUMBER column is represented at the source, so a typed read binds it without loss. */

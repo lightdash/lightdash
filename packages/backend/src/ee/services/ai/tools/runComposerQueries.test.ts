@@ -1,11 +1,11 @@
 import {
-    ChartKind,
+    COMPOSER_TABLE_INTENT,
+    COMPOSER_TABLE_VIZ,
     parseAiArtifactChartConfig,
     QuerySourceType,
-    VizAggregationOptions,
-    VizIndexType,
     type AiArtifact,
     type AiComposerChartArtifactConfig,
+    type AiComposerChartViz,
     type AiWebAppPrompt,
     type SemanticLayerSourceQuery,
     type SlackPrompt,
@@ -324,11 +324,11 @@ describe('getRunComposerQueries', () => {
             'schemaVersion',
             'queries',
             'terminalNodeId',
-            'vizConfig',
+            'viz',
         ]);
         expect(vizConfig).toEqual({
             source: 'composer',
-            schemaVersion: 1,
+            schemaVersion: 2,
             queries: [
                 expect.objectContaining({
                     nodeId: 'revenue',
@@ -345,7 +345,7 @@ describe('getRunComposerQueries', () => {
                 }),
             ],
             terminalNodeId: 'joined',
-            vizConfig: null,
+            viz: COMPOSER_TABLE_VIZ,
         });
         expect(output.metadata?.status).toBe('success');
         expect(output.result).toContain(
@@ -732,18 +732,18 @@ const rankedNode: SourceQuery = {
 
 const version1: AiComposerChartArtifactConfig = {
     source: 'composer',
-    schemaVersion: 1,
+    schemaVersion: 2,
     queries: [ordersNode, customersNode, enrichedNode],
     terminalNodeId: 'enriched',
-    vizConfig: null,
+    viz: COMPOSER_TABLE_VIZ,
 };
 
 const version2: AiComposerChartArtifactConfig = {
     source: 'composer',
-    schemaVersion: 1,
+    schemaVersion: 2,
     queries: [ordersNode, customersNode, enrichedNode, rankedNode],
     terminalNodeId: 'ranked',
-    vizConfig: null,
+    viz: COMPOSER_TABLE_VIZ,
 };
 
 const readerNode = (references: Record<string, string>): ComposerNode => ({
@@ -836,10 +836,10 @@ describe('composer artifact with reused nodes', () => {
         ]);
         expect(stored).toEqual({
             source: 'composer',
-            schemaVersion: 1,
+            schemaVersion: 2,
             queries: executed?.queries,
             terminalNodeId: 'summary',
-            vizConfig: null,
+            viz: COMPOSER_TABLE_VIZ,
         });
         expect(JSON.stringify(stored)).not.toContain('run-query');
         expect(output.result).toContain(
@@ -1022,32 +1022,30 @@ describe('composer query review', () => {
     });
 });
 
-describe('composer viz config', () => {
-    it('stores the planned viz config on the artifact and names it in the result', async () => {
-        const vizConfig = {
-            type: ChartKind.VERTICAL_BAR,
-            metadata: { version: 1 },
-            fieldConfig: {
-                x: { reference: 'month', type: VizIndexType.CATEGORY },
-                y: [
-                    {
-                        reference: 'signups',
-                        aggregation: VizAggregationOptions.ANY,
-                    },
-                ],
-                groupBy: [],
+describe('composer viz', () => {
+    it('stores the planned viz on the artifact and names it in the result', async () => {
+        const viz: AiComposerChartViz = {
+            intent: {
+                ...COMPOSER_TABLE_INTENT,
+                defaultVizType: 'bar',
+                xAxisDimension: 'joined_month',
+                yAxisMetrics: ['joined_signups'],
+                xAxisType: 'category',
             },
-            display: undefined,
-        } as const;
-        const planViz = vi.fn().mockResolvedValue(vizConfig);
+            chartConfig: null,
+            pivotConfig: null,
+        };
+        const planViz = vi.fn().mockResolvedValue(viz);
         const { tool, dependencies } = makeTool({ planViz });
 
         const output = await executeTool(tool, makeArgs());
 
         expect(
-            dependencies.createOrUpdateArtifact.mock.calls[0][0].vizConfig
-                .vizConfig,
-        ).toEqual(vizConfig);
+            dependencies.createOrUpdateArtifact.mock.calls[0][0].vizConfig.viz,
+        ).toEqual(viz);
+        expect(planViz).toHaveBeenCalledWith(
+            expect.objectContaining({ terminalNodeId: 'joined' }),
+        );
         expect(
             output.result.endsWith(
                 'Visualization: bar chart, x = month, y = signups.',

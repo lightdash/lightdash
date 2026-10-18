@@ -1,10 +1,11 @@
 import {
-    ChartKind,
+    ChartType,
+    COMPOSER_TABLE_INTENT,
+    COMPOSER_TABLE_VIZ,
     ForbiddenError,
     NotFoundError,
     ParameterError,
-    VizAggregationOptions,
-    VizIndexType,
+    type AiComposerChartViz,
     type SessionUser,
 } from '@lightdash/common';
 import { AiAgentService } from './AiAgentService';
@@ -30,10 +31,10 @@ const agent = {
 
 const composerChartConfig = {
     source: 'composer',
-    schemaVersion: 1,
+    schemaVersion: 2,
     queries: [],
     terminalNodeId: 'n1',
-    vizConfig: null,
+    viz: COMPOSER_TABLE_VIZ,
 };
 
 const artifact = {
@@ -49,13 +50,16 @@ const artifactThread = {
     agentUuid: 'agent-uuid',
 };
 
-const barConfig = {
-    type: ChartKind.VERTICAL_BAR,
-    metadata: { version: 1 },
-    fieldConfig: {
-        x: { reference: 'month', type: VizIndexType.TIME },
-        y: [{ reference: 'revenue', aggregation: VizAggregationOptions.SUM }],
+const barViz: AiComposerChartViz = {
+    intent: {
+        ...COMPOSER_TABLE_INTENT,
+        defaultVizType: 'bar',
+        xAxisDimension: 'n1_month',
+        yAxisMetrics: ['n1_revenue'],
+        xAxisType: 'time',
     },
+    chartConfig: null,
+    pivotConfig: null,
 };
 
 const args = {
@@ -63,7 +67,7 @@ const args = {
     agentUuid: 'agent-uuid',
     artifactUuid: 'artifact-uuid',
     versionUuid: 'version-uuid',
-    vizConfig: barConfig,
+    viz: barViz,
 };
 
 /** Fake session user: `manage` on AiAgent only when `canManage`, `view` always. */
@@ -125,65 +129,43 @@ const buildService = (
     return { service, aiAgentModel };
 };
 
-describe('AiAgentService.updateComposerArtifactVizConfig', () => {
-    it('thread owner writes the merged chart config', async () => {
+describe('AiAgentService.updateComposerArtifactViz', () => {
+    it('thread owner writes the viz onto the version', async () => {
         const { service, aiAgentModel } = buildService();
 
-        await service.updateComposerArtifactVizConfig(owner, args);
+        await service.updateComposerArtifactViz(owner, args);
 
         expect(
             aiAgentModel.updateArtifactVersionChartConfig,
         ).toHaveBeenCalledWith('version-uuid', {
             ...composerChartConfig,
-            vizConfig: {
-                type: ChartKind.VERTICAL_BAR,
-                metadata: { version: 1 },
-                fieldConfig: { ...barConfig.fieldConfig, groupBy: [] },
-                display: undefined,
-            },
+            viz: barViz,
         });
     });
 
-    it('normalises the config before writing it', async () => {
+    it('writes an edited explorer chart config as given', async () => {
         const { service, aiAgentModel } = buildService();
-
-        await service.updateComposerArtifactVizConfig(owner, {
-            ...args,
-            vizConfig: {
-                type: ChartKind.BIG_NUMBER,
-                metadata: { version: 1 },
-                fieldConfig: {
-                    x: undefined,
-                    y: [
-                        {
-                            reference: 'revenue',
-                            aggregation: VizAggregationOptions.ANY,
-                        },
-                    ],
-                    groupBy: undefined,
-                },
+        const viz: AiComposerChartViz = {
+            intent: null,
+            chartConfig: {
+                type: ChartType.BIG_NUMBER,
+                config: { selectedField: 'n1_revenue' },
             },
-        });
+            pivotConfig: { columns: ['n1_month'] },
+        };
+
+        await service.updateComposerArtifactViz(owner, { ...args, viz });
 
         const written = aiAgentModel.updateArtifactVersionChartConfig.mock
-            .calls[0][1] as { vizConfig: { fieldConfig: unknown } };
-        expect(written.vizConfig.fieldConfig).toEqual({
-            x: undefined,
-            y: [
-                {
-                    reference: 'revenue',
-                    aggregation: VizAggregationOptions.ANY,
-                },
-            ],
-            groupBy: [],
-        });
+            .calls[0][1] as { viz: AiComposerChartViz };
+        expect(written.viz).toEqual(viz);
     });
 
     it('forbids another user in the org without manage on the agent', async () => {
         const { service, aiAgentModel } = buildService();
 
         await expect(
-            service.updateComposerArtifactVizConfig(
+            service.updateComposerArtifactViz(
                 makeUser('other-uuid', false),
                 args,
             ),
@@ -196,7 +178,7 @@ describe('AiAgentService.updateComposerArtifactVizConfig', () => {
     it('lets a user who manages the agent update another user thread', async () => {
         const { service, aiAgentModel } = buildService();
 
-        await service.updateComposerArtifactVizConfig(
+        await service.updateComposerArtifactViz(
             makeUser('admin-uuid', true),
             args,
         );
@@ -212,7 +194,7 @@ describe('AiAgentService.updateComposerArtifactVizConfig', () => {
         });
 
         await expect(
-            service.updateComposerArtifactVizConfig(owner, args),
+            service.updateComposerArtifactViz(owner, args),
         ).rejects.toThrow(ForbiddenError);
         expect(
             aiAgentModel.updateArtifactVersionChartConfig,
@@ -225,7 +207,7 @@ describe('AiAgentService.updateComposerArtifactVizConfig', () => {
         });
 
         await expect(
-            service.updateComposerArtifactVizConfig(owner, args),
+            service.updateComposerArtifactViz(owner, args),
         ).rejects.toThrow(ForbiddenError);
     });
 
@@ -235,7 +217,7 @@ describe('AiAgentService.updateComposerArtifactVizConfig', () => {
         });
 
         await expect(
-            service.updateComposerArtifactVizConfig(owner, args),
+            service.updateComposerArtifactViz(owner, args),
         ).rejects.toThrow(NotFoundError);
         expect(
             aiAgentModel.updateArtifactVersionChartConfig,
@@ -246,11 +228,12 @@ describe('AiAgentService.updateComposerArtifactVizConfig', () => {
         const { service, aiAgentModel } = buildService();
 
         await expect(
-            service.updateComposerArtifactVizConfig(owner, {
+            service.updateComposerArtifactViz(owner, {
                 ...args,
-                vizConfig: {
-                    type: ChartKind.SCATTER,
-                    metadata: { version: 1 },
+                viz: {
+                    intent: { defaultVizType: 'treemap' },
+                    chartConfig: null,
+                    pivotConfig: null,
                 },
             }),
         ).rejects.toThrow(ParameterError);
@@ -268,7 +251,7 @@ describe('AiAgentService.updateComposerArtifactVizConfig', () => {
         });
 
         await expect(
-            service.updateComposerArtifactVizConfig(owner, args),
+            service.updateComposerArtifactViz(owner, args),
         ).rejects.toThrow(ParameterError);
         expect(
             aiAgentModel.updateArtifactVersionChartConfig,

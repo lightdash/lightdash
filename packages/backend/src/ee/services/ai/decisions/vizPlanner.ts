@@ -1,17 +1,13 @@
 import {
-    buildComposerVizConfig,
-    ChartKind,
+    ChartType,
+    COMPOSER_TABLE_INTENT,
+    COMPOSER_TABLE_VIZ,
     DimensionType,
-    getComposerFieldConfig,
-    getComposerVizKind,
-    isComposerNumericColumn,
-    isVizTableConfig,
-    VizAggregationOptions,
-    type AllVizChartConfig,
+    getResultColumnFieldId,
+    type AiChartIntent,
+    type AiComposerChartViz,
     type AnyType,
-    type ComposerChartKind,
-    type ComposerVizKind,
-    type ComposerVizPlan,
+    type QueryNodeId,
     type ResultColumn,
     type ResultColumns,
 } from '@lightdash/common';
@@ -46,6 +42,10 @@ const MAX_SAMPLE_LENGTH = 40;
 const MAX_SERIES = 12;
 const ID_LIKE_SUFFIX = /(^|[_\s.])(id|uuid|key)$/i;
 const ID_LIKE_CAMEL_SUFFIX = /[a-z](Id|Uuid|Key)$/;
+
+/** The kinds the planner chooses among; the agent vocabulary plus the big number it lacks. */
+export type ComposerVizKind = 'table' | 'bar' | 'line' | 'pie' | 'big_number';
+
 const COMPOSER_VIZ_KINDS: ComposerVizKind[] = [
     'table',
     'bar',
@@ -58,12 +58,13 @@ export type PlanComposerViz = (args: {
     title: string | null;
     description: string | null;
     terminalNode: { title: string | null; description: string | null };
+    terminalNodeId: QueryNodeId;
     columns: ResultColumns;
     rows: Record<string, AnyType>[];
     rowCount: number;
     enableDataAccess: boolean;
-    previousVizConfig: AllVizChartConfig | null;
-}) => Promise<AllVizChartConfig | null>;
+    previousViz: AiComposerChartViz | null;
+}) => Promise<AiComposerChartViz | null>;
 
 /** Code-gated candidates the planner may pick from; Jev only chooses among them. */
 export type VizPlannerShape = {
@@ -77,7 +78,12 @@ export type VizPlannerShape = {
     groupByCandidates: string[];
 };
 
-const isNumeric = isComposerNumericColumn;
+const isNumeric = (column: ResultColumn) =>
+    column.type === DimensionType.NUMBER;
+
+const isTemporal = (column: ResultColumn) =>
+    column.type === DimensionType.DATE ||
+    column.type === DimensionType.TIMESTAMP;
 
 const numericValue = (value: unknown): number | null => {
     if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -247,18 +253,63 @@ const getVizPlannerShape = ({
 };
 
 type PreviousAxes = {
+    kind: ComposerVizKind | null;
     x: string | null;
     y: string | null;
     groupBy: string | null;
 };
 
-const previousAxes = (previous: AllVizChartConfig | null): PreviousAxes => {
-    if (!previous || isVizTableConfig(previous))
-        return { x: null, y: null, groupBy: null };
+/** The kind a viz opens on, in the planner's vocabulary; null for kinds the planner never picks. */
+export const getComposerVizKind = (
+    viz: AiComposerChartViz,
+): ComposerVizKind | null => {
+    if (viz.chartConfig) {
+        switch (viz.chartConfig.type) {
+            case ChartType.BIG_NUMBER:
+                return 'big_number';
+            case ChartType.TABLE:
+                return 'table';
+            case ChartType.PIE:
+                return 'pie';
+            case ChartType.CARTESIAN:
+                return null;
+            default:
+                return null;
+        }
+    }
+    switch (viz.intent?.defaultVizType) {
+        case 'bar':
+        case 'horizontal':
+            return 'bar';
+        case 'line':
+        case 'scatter':
+            return 'line';
+        case 'pie':
+            return 'pie';
+        case 'table':
+        case undefined:
+            return 'table';
+        default:
+            return null;
+    }
+};
+
+// Intent fields are field ids (`<node>_<column>`); the planner thinks in columns.
+const columnOf = (fieldId: string | null | undefined, terminalNodeId: string) =>
+    fieldId && fieldId.startsWith(`${terminalNodeId}_`)
+        ? fieldId.slice(terminalNodeId.length + 1)
+        : (fieldId ?? null);
+
+const previousAxes = (
+    previous: AiComposerChartViz | null,
+    terminalNodeId: string,
+): PreviousAxes => {
+    if (!previous) return { kind: null, x: null, y: null, groupBy: null };
     return {
-        x: previous.fieldConfig?.x?.reference ?? null,
-        y: previous.fieldConfig?.y[0]?.reference ?? null,
-        groupBy: previous.fieldConfig?.groupBy?.[0]?.reference ?? null,
+        kind: getComposerVizKind(previous),
+        x: columnOf(previous.intent?.xAxisDimension, terminalNodeId),
+        y: columnOf(previous.intent?.yAxisMetrics?.[0], terminalNodeId),
+        groupBy: columnOf(previous.intent?.groupBy?.[0], terminalNodeId),
     };
 };
 
@@ -370,29 +421,6 @@ const getQuestions = (
     return questions;
 };
 
-// A series split sums numeric values per x and series.
-const fieldConfig = (
-    kind: ComposerChartKind,
-    x: ResultColumn | null,
-    y: ResultColumn,
-    groupBy: ResultColumn | null = null,
-) =>
-    getComposerFieldConfig(
-        {
-            x,
-            y,
-            seriesSplit: groupBy
-                ? {
-                      groupBy,
-                      aggregation: isNumeric(y)
-                          ? VizAggregationOptions.SUM
-                          : VizAggregationOptions.ANY,
-                  }
-                : null,
-        },
-        kind,
-    );
-
 const resolveGroupBy = (
     answer: DecisionAnswers[string] | undefined,
     shape: VizPlannerShape,
@@ -411,35 +439,74 @@ const resolveGroupBy = (
     return columns[reference] ?? null;
 };
 
-const tableConfig = (columns: ResultColumn[]): AllVizChartConfig => ({
-    type: ChartKind.TABLE,
-    metadata: { version: 1 },
-    columns: Object.fromEntries(
-        columns.map((column) => [
-            column.reference,
-            {
-                visible: true,
-                reference: column.reference,
-                label: column.label ?? column.reference,
-                frozen: false,
-            },
-        ]),
-    ),
-    display: undefined,
-});
+const getIntentAxisType = (
+    kind: ComposerVizKind,
+    x: ResultColumn | null,
+): AiChartIntent['xAxisType'] => {
+    if (kind === 'pie' || !x) return null;
+    return isTemporal(x) ? 'time' : 'category';
+};
+
+/** The viz for a kind and its axes, in the agent vocabulary (a big number is an explorer config, the vocabulary has none). */
+export const buildComposerViz = ({
+    kind,
+    terminalNodeId,
+    x,
+    y,
+    groupBy = null,
+}: {
+    kind: ComposerVizKind;
+    terminalNodeId: QueryNodeId;
+    x: ResultColumn | null;
+    y: ResultColumn | null;
+    groupBy?: ResultColumn | null;
+}): AiComposerChartViz => {
+    const fieldId = (column: ResultColumn) =>
+        getResultColumnFieldId(terminalNodeId, column.reference);
+    switch (kind) {
+        case 'table':
+            return COMPOSER_TABLE_VIZ;
+        case 'big_number':
+            return {
+                intent: null,
+                chartConfig: {
+                    type: ChartType.BIG_NUMBER,
+                    config: y ? { selectedField: fieldId(y) } : {},
+                },
+                pivotConfig: null,
+            };
+        case 'bar':
+        case 'line':
+        case 'pie': {
+            const intent: AiChartIntent = {
+                ...COMPOSER_TABLE_INTENT,
+                defaultVizType: kind,
+                xAxisDimension: x ? fieldId(x) : null,
+                yAxisMetrics: y ? [fieldId(y)] : null,
+                groupBy: groupBy && kind !== 'pie' ? [fieldId(groupBy)] : null,
+                xAxisType: getIntentAxisType(kind, x),
+            };
+            return { intent, chartConfig: null, pivotConfig: null };
+        }
+        default:
+            return COMPOSER_TABLE_VIZ;
+    }
+};
 
 /** Applies the planner policy to Jev's answers; null when any pick is unsure or unsupported. */
-export const getVizConfigFromAnswers = ({
+export const getVizFromAnswers = ({
     answers,
     shape,
     columns,
-    previousVizConfig,
+    terminalNodeId,
+    previousViz,
 }: {
     answers: DecisionAnswers;
     shape: VizPlannerShape;
     columns: ResultColumns;
-    previousVizConfig: AllVizChartConfig | null;
-}): AllVizChartConfig | null => {
+    terminalNodeId: QueryNodeId;
+    previousViz: AiComposerChartViz | null;
+}): AiComposerChartViz | null => {
     const answeredKind =
         answers.kind?.type === 'choice' ? answers.kind.choice : null;
     const kind = shape.supportedKinds.find(
@@ -455,9 +522,9 @@ export const getVizConfigFromAnswers = ({
         confidentChoice(answers.kind, VIZ_PLANNER_THRESHOLDS.kind) !== kind
     )
         return null;
-    if (kind === 'table') return tableConfig(Object.values(columns));
+    if (kind === 'table') return COMPOSER_TABLE_VIZ;
 
-    const previous = previousAxes(previousVizConfig);
+    const previous = previousAxes(previousViz, terminalNodeId);
     const yReference = resolveColumn(
         answers.y,
         shape.yCandidates,
@@ -467,10 +534,7 @@ export const getVizConfigFromAnswers = ({
     const y = yReference === null ? undefined : columns[yReference];
     if (!y) return null;
     if (kind === 'big_number') {
-        return buildComposerVizConfig({
-            kind,
-            fieldConfig: fieldConfig(kind, null, y),
-        });
+        return buildComposerViz({ kind, terminalNodeId, x: null, y });
     }
 
     const xReference = resolveColumn(
@@ -492,10 +556,7 @@ export const getVizConfigFromAnswers = ({
                   columns,
                   [x.reference, y.reference],
               );
-    return buildComposerVizConfig({
-        kind,
-        fieldConfig: fieldConfig(kind, x, y, groupBy),
-    });
+    return buildComposerViz({ kind, terminalNodeId, x, y, groupBy });
 };
 
 const KIND_NAMES: Record<ComposerVizKind, string> = {
@@ -506,29 +567,25 @@ const KIND_NAMES: Record<ComposerVizKind, string> = {
     big_number: 'big number',
 };
 
-const axesNote = (x: string | undefined, y: string | undefined) =>
-    [...(x ? [`x = ${x}`] : []), ...(y ? [`y = ${y}`] : [])].join(', ');
-
-/** The composer tool result line for the column-type default, when nothing was planned. */
-export const getDefaultVizNote = ({ defaultKind, axes }: ComposerVizPlan) => {
-    if (defaultKind === 'table') return 'Visualization: default table.';
-    const defaultAxes = axes[defaultKind];
-    const parts = axesNote(defaultAxes?.x?.reference, defaultAxes?.y.reference);
-    return `Visualization: default ${KIND_NAMES[defaultKind]}${parts ? `, ${parts}` : ''}.`;
-};
-
 /** The composer tool result line telling the agent what the artifact opens on. */
-export const getVizConfigNote = (vizConfig: AllVizChartConfig) => {
-    if (isVizTableConfig(vizConfig)) return 'Visualization: table.';
-    const x = vizConfig.fieldConfig?.x?.reference;
-    const y = vizConfig.fieldConfig?.y[0]?.reference;
-    const groupBy = vizConfig.fieldConfig?.groupBy?.[0]?.reference;
+export const getVizNote = (
+    viz: AiComposerChartViz,
+    terminalNodeId: QueryNodeId,
+) => {
+    const kind = getComposerVizKind(viz);
+    if (kind === 'table') return 'Visualization: table.';
+    const name = kind
+        ? KIND_NAMES[kind]
+        : `${viz.chartConfig?.type ?? 'custom'} chart`;
+    const x = columnOf(viz.intent?.xAxisDimension, terminalNodeId);
+    const y = columnOf(viz.intent?.yAxisMetrics?.[0], terminalNodeId);
+    const groupBy = columnOf(viz.intent?.groupBy?.[0], terminalNodeId);
     const parts = [
         ...(x ? [`x = ${x}`] : []),
         ...(y ? [`y = ${y}`] : []),
         ...(groupBy ? [`split by ${groupBy}`] : []),
     ].join(', ');
-    return `Visualization: ${KIND_NAMES[getComposerVizKind(vizConfig)]}${parts ? `, ${parts}` : ''}.`;
+    return `Visualization: ${name}${parts ? `, ${parts}` : ''}.`;
 };
 
 export const createVizPlanner =
@@ -550,16 +607,17 @@ export const createVizPlanner =
         title,
         description,
         terminalNode,
+        terminalNodeId,
         columns,
         rows,
         rowCount,
         enableDataAccess,
-        previousVizConfig,
+        previousViz,
     }) => {
         const startedAt = performance.now();
         const serviceMsBefore = usage?.serviceMs ?? null;
         let answers: DecisionAnswers | null = null;
-        let vizConfig: AllVizChartConfig | null = null;
+        let viz: AiComposerChartViz | null = null;
         let outcome: DbAiPromptComposerVizDecision['outcome'] = 'unavailable';
         try {
             const { shape, state } = getVizPlannerShape({
@@ -570,10 +628,10 @@ export const createVizPlanner =
             });
             if (shape.supportedKinds.length === 1) {
                 // Only the table fits: nothing for Jev to decide.
-                vizConfig = tableConfig(Object.values(columns));
+                viz = COMPOSER_TABLE_VIZ;
                 outcome = 'planned';
             } else if (question.trim()) {
-                const previous = previousAxes(previousVizConfig);
+                const previous = previousAxes(previousViz, terminalNodeId);
                 answers = await decisions.evaluate({
                     operation: VIZ_PLANNER_OPERATION,
                     state: {
@@ -581,39 +639,35 @@ export const createVizPlanner =
                         conversation,
                         artifact: { title, description },
                         terminalNode,
-                        previousVizConfig: previousVizConfig
-                            ? {
-                                  kind: getComposerVizKind(previousVizConfig),
-                                  ...previous,
-                              }
-                            : null,
+                        previousVizConfig: previousViz ? previous : null,
                         supportedKinds: shape.supportedKinds,
                         rowCount,
                         columns: state,
                     },
                     questions: getQuestions(shape, previous),
                 });
-                vizConfig = answers
-                    ? getVizConfigFromAnswers({
+                viz = answers
+                    ? getVizFromAnswers({
                           answers,
                           shape,
                           columns,
-                          previousVizConfig,
+                          terminalNodeId,
+                          previousViz,
                       })
                     : null;
-                if (answers) outcome = vizConfig ? 'planned' : 'unresolved';
+                if (answers) outcome = viz ? 'planned' : 'unresolved';
             }
         } catch (error) {
             Logger.warn(`Composer viz planner failed: ${String(error)}`);
-            vizConfig = null;
+            viz = null;
             outcome = 'unavailable';
         }
         const serviceMsAfter = usage?.serviceMs ?? null;
         await recordDecision?.({
             operation: VIZ_PLANNER_OPERATION,
             outcome,
-            intent: vizConfig ? { vizConfig } : null,
-            applied: vizConfig !== null,
+            intent: viz ? { viz } : null,
+            applied: viz !== null,
             answers,
             thresholds: VIZ_PLANNER_THRESHOLDS,
             latency_ms: Math.round(performance.now() - startedAt),
@@ -622,5 +676,5 @@ export const createVizPlanner =
                     ? null
                     : Math.round(serviceMsAfter - (serviceMsBefore ?? 0)),
         });
-        return vizConfig;
+        return viz;
     };

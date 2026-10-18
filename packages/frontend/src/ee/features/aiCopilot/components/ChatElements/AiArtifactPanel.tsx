@@ -10,6 +10,8 @@ import {
     isAiSqlChartArtifactConfig,
     isCustomChartTypeSlugChartConfig,
     parseVizConfig,
+    SQL_ARTIFACT_NODE_ID,
+    sqlArtifactAsComposerConfig,
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
 } from '@lightdash/common';
@@ -57,10 +59,7 @@ import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiChartVisualization } from './AiChartVisualization';
 import { AiComposerArtifactPanel } from './AiComposerArtifactPanel';
 import { AiDashboardVisualization } from './AiDashboardVisualization';
-import {
-    AiSqlArtifactActions,
-    AiSqlArtifactVisualization,
-} from './AiSqlArtifactVisualization';
+import { AiSqlArtifactActions } from './AiSqlArtifactVisualization';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 import { ChatElementsUtils } from './utils';
 
@@ -404,6 +403,79 @@ const AiArtifactPanelContent: FC<
             );
         }
 
+        // A SQL answer is the one-node pipeline it is: same panel, same chart
+        // stack, without a pipeline to list. Its viz is not stored yet, so
+        // edits stay on screen.
+        if (isSqlArtifact && isAiSqlChartArtifactConfig(artifactChartConfig)) {
+            const sqlTitle =
+                artifactData.title ??
+                sqlVizQueryData?.metadata.title ??
+                'SQL query results';
+            const sqlDescription =
+                artifactData.description ??
+                sqlVizQueryData?.metadata.description ??
+                null;
+            return (
+                <AiComposerArtifactPanel
+                    key={artifact.versionUuid}
+                    projectUuid={artifact.projectUuid}
+                    agentUuid={artifact.agentUuid}
+                    artifactUuid={artifact.artifactUuid}
+                    versionUuid={artifact.versionUuid}
+                    canEdit={false}
+                    title={sqlTitle}
+                    description={sqlDescription}
+                    config={sqlArtifactAsComposerConfig({
+                        sql: artifactChartConfig.sql,
+                        limit: artifactChartConfig.limit,
+                        title: sqlTitle,
+                    })}
+                    run={
+                        sqlVizQueryData
+                            ? {
+                                  source: 'composer',
+                                  terminalNodeId: SQL_ARTIFACT_NODE_ID,
+                                  nodeQueryUuids: {
+                                      [SQL_ARTIFACT_NODE_ID]:
+                                          sqlVizQueryData.query.queryUuid,
+                                  },
+                                  metadata: sqlVizQueryData.metadata,
+                              }
+                            : null
+                    }
+                    runError={queryExecutionHandle.error ?? null}
+                    onRerun={() => void queryExecutionHandle.refetch()}
+                    showPipeline={false}
+                    headerActions={
+                        sqlVizQueryData ? (
+                            <AiSqlArtifactActions
+                                projectUuid={artifact.projectUuid}
+                                agentUuid={artifact.agentUuid}
+                                artifactUuid={artifact.artifactUuid}
+                                versionUuid={artifact.versionUuid}
+                                savedSqlUuid={artifactData.savedSqlUuid}
+                                sql={sqlVizQueryData.sql}
+                                limit={sqlVizQueryData.limit}
+                                queryUuid={sqlVizQueryData.query.queryUuid}
+                                totalResults={
+                                    queryResults.totalResults ??
+                                    queryResults.rows.length
+                                }
+                                title={sqlTitle}
+                                description={sqlDescription}
+                                columns={Object.values(
+                                    queryResults.columns ?? {},
+                                )}
+                            />
+                        ) : null
+                    }
+                    onClose={
+                        showCloseButton ? () => dispatch(clearPreview()) : null
+                    }
+                />
+            );
+        }
+
         // Inline variant (admin verified-content view): no floating chrome,
         // no pill — legacy chrome owned by AiChartVisualization.
         if (variant === 'inline' && !isSqlArtifact) {
@@ -488,25 +560,7 @@ const AiArtifactPanelContent: FC<
                     )}
                 </Stack>
                 <Group gap={2} className={styles.headRight}>
-                    {sqlVizQueryData ? (
-                        <AiSqlArtifactActions
-                            projectUuid={artifact.projectUuid}
-                            agentUuid={artifact.agentUuid}
-                            artifactUuid={artifact.artifactUuid}
-                            versionUuid={artifact.versionUuid}
-                            savedSqlUuid={artifactData.savedSqlUuid}
-                            sql={sqlVizQueryData.sql}
-                            limit={sqlVizQueryData.limit}
-                            queryUuid={sqlVizQueryData.query.queryUuid}
-                            totalResults={
-                                queryResults.totalResults ??
-                                queryResults.rows.length
-                            }
-                            title={title}
-                            description={description}
-                            columns={Object.values(queryResults.columns ?? {})}
-                        />
-                    ) : (
+                    {
                         <AiChartQuickOptions
                             message={message}
                             projectUuid={artifact.projectUuid}
@@ -532,7 +586,7 @@ const AiArtifactPanelContent: FC<
                                     : null
                             }
                         />
-                    )}
+                    }
                     {showCloseButton && (
                         <>
                             <Divider
@@ -553,26 +607,6 @@ const AiArtifactPanelContent: FC<
                 </Group>
             </Box>
         );
-
-        if (sqlVizQueryData) {
-            return (
-                <Box className={styles.floatingPanel}>
-                    <Box
-                        className={clsx(
-                            styles.floatingContent,
-                            styles.flushContent,
-                        )}
-                    >
-                        <AiSqlArtifactVisualization
-                            projectUuid={artifact.projectUuid}
-                            results={queryResults}
-                            headerContent={floatingHead}
-                            flush
-                        />
-                    </Box>
-                </Box>
-            );
-        }
 
         if (!semanticVizQueryData || !semanticChartConfig) {
             return null;

@@ -49,7 +49,11 @@
     border-style: dashed;
 }
 
-/* Field rows stay readable instead of stretching across a wide panel. */
 .fieldRows {
-    max-width: 34rem;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+}
+
+.readOnly {
+    pointer-events: none;
+    opacity: 0.7;
 }

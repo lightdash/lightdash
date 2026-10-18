@@ -376,6 +376,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiAgentController.updateArtifactVersionVizConfig': [
         AgentCapability.ContentWrite,
     ],
+    'AiAgentController.runArtifactVersionPivotQuery': [AgentCapability.Query],
     'AiAgentController.updateEvaluation': [AgentCapability.Administration],
     'AiAgentController.updateMcpServerBearerCredential': [
         AgentCapability.Administration,

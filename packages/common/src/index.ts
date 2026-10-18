@@ -435,6 +435,7 @@ export * from './utils/item';
 export * from './utils/mergeQueryItems';
 export * from './utils/mergeTotals';
 export * from './utils/queryHistoryList';
+export * from './utils/resultColumnItems';
 export * from './utils/resultColumns';
 export * from './utils/learnSandbox';
 export * from './utils/learnYamlKeyTypos';

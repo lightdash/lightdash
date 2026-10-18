@@ -15,6 +15,7 @@ import type {
     ApiAiAgentAdminPromptActivityResponse,
     ApiAiAgentArtifactResponse,
     ApiAiAgentArtifactVizQueryResponse,
+    ApiAiAgentComposerPivotResponse,
     ApiAiAgentEvaluationResponse,
     ApiAiAgentEvaluationRunResponse,
     ApiAiAgentEvaluationRunResultsResponse,
@@ -1643,6 +1644,7 @@ type ApiResults =
     | ApiExecuteAsyncFieldValueSearchResults
     | ApiExecuteAsyncSqlQueryResults
     | ApiExecuteSourceQueriesResults
+    | ApiAiAgentComposerPivotResponse['results']
     | ApiGetSourceQueryStatusResults
     | ApiListQuerySourcesResults
     | ApiScanQuerySourceSchemaResults
