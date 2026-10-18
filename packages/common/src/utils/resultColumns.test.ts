@@ -83,7 +83,7 @@ describe('getResultColumnMetadataFromItem', () => {
             ),
         ).toEqual({
             label: 'Orders Status',
-            provenance: { fieldId: 'orders_status' },
+            provenance: { fieldId: 'orders_status', fieldType: 'dimension' },
         });
     });
 
@@ -92,7 +92,7 @@ describe('getResultColumnMetadataFromItem', () => {
             getResultColumnMetadataFromItem(dimension, 'orders_status'),
         ).toEqual({
             label: 'Orders Status',
-            provenance: { fieldId: 'orders_status' },
+            provenance: { fieldId: 'orders_status', fieldType: 'dimension' },
         });
     });
 
@@ -101,7 +101,7 @@ describe('getResultColumnMetadataFromItem', () => {
             getResultColumnMetadataFromItem(metric, 'orders_revenue'),
         ).toEqual({
             label: 'Orders Revenue',
-            provenance: { fieldId: 'orders_revenue' },
+            provenance: { fieldId: 'orders_revenue', fieldType: 'metric' },
             format: '#,##0.###',
         });
     });
@@ -116,7 +116,7 @@ describe('getResultColumnMetadataFromItem', () => {
             getResultColumnMetadataFromItem(percentMetric, 'orders_revenue'),
         ).toEqual({
             label: 'Orders Revenue',
-            provenance: { fieldId: 'orders_revenue' },
+            provenance: { fieldId: 'orders_revenue', fieldType: 'metric' },
             format: '#,##0.###%',
             separator: NumberSeparator.PERIOD_COMMA,
         });
@@ -140,7 +140,7 @@ describe('getResultColumnMetadataFromItem', () => {
             }),
         ).toEqual({
             label: 'Orders Revenue',
-            provenance: { fieldId: 'orders_revenue' },
+            provenance: { fieldId: 'orders_revenue', fieldType: 'metric' },
             format: '$0.00',
         });
         expect(
@@ -160,7 +160,7 @@ describe('getResultColumnMetadataFromItem', () => {
             getResultColumnMetadataFromItem(parameterised, 'orders_revenue'),
         ).toEqual({
             label: 'Orders Revenue',
-            provenance: { fieldId: 'orders_revenue' },
+            provenance: { fieldId: 'orders_revenue', fieldType: 'metric' },
         });
         // Values that leave the placeholder unresolved.
         expect(
@@ -184,7 +184,7 @@ describe('getResultColumnMetadataFromItem', () => {
             getResultColumnMetadataFromItem(autoCompact, 'orders_revenue'),
         ).toEqual({
             label: 'Orders Revenue',
-            provenance: { fieldId: 'orders_revenue' },
+            provenance: { fieldId: 'orders_revenue', fieldType: 'metric' },
             formatOptions: {
                 type: CustomFormatType.NUMBER,
                 compact: Compact.AUTO,
@@ -206,7 +206,10 @@ describe('getResultColumnMetadataFromItem', () => {
             ),
         ).toEqual({
             label: 'Orders Status',
-            provenance: { fieldId: 'orders_created_at' },
+            provenance: {
+                fieldId: 'orders_created_at',
+                fieldType: 'dimension',
+            },
             timeInterval: TimeFrames.SECOND,
             shiftsTimezone: true,
         });
@@ -241,7 +244,10 @@ describe('getResultColumnMetadataFromItem', () => {
             ),
         ).toEqual({
             label: 'Orders Status',
-            provenance: { fieldId: 'orders_created_year_num' },
+            provenance: {
+                fieldId: 'orders_created_year_num',
+                fieldType: 'dimension',
+            },
             timeInterval: TimeFrames.YEAR_NUM,
         });
     });

@@ -234,7 +234,8 @@ converted shape. Direct grants are copied to the saved chart grant tables.
 Nothing else moves: `saved_sql*` tables stay for the previous release,
 dashboard tiles keep their `sql_chart` rows, schedulers, documents and agent
 artifacts keep their `saved_sql_uuid` columns. The backend reads those uuids
-as saved chart uuids. Phase 4 drops the tables and the columns.
+as saved chart uuids. The tables and the columns are dropped in a later
+release, once no pod of the previous release can read them (see phase 4).
 
 Slugs: a SQL chart whose slug a saved chart already holds in the project gets
 `<slug>-sql-<8 chars of its uuid>`. Links by slug to such a chart redirect
