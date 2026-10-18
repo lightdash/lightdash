@@ -1,3 +1,11 @@
+## [2.603.1](https://github.com/lightdash/lightdash/compare/2.603.0...2.603.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* refresh source connection credentials in lightdash start-preview --source ([#31119](https://github.com/lightdash/lightdash/issues/31119)) ([1408762](https://github.com/lightdash/lightdash/commit/14087626d962258350fafb3b764a82cadeea8018)), closes [#28702](https://github.com/lightdash/lightdash/issues/28702) [#28702](https://github.com/lightdash/lightdash/issues/28702)
+* use source connection timestamp setting in lightdash deploy --source ([#31118](https://github.com/lightdash/lightdash/issues/31118)) ([fc2de50](https://github.com/lightdash/lightdash/commit/fc2de50bb756c5f379f21a2f60f94f3bf0f54fe8)), closes [#28702](https://github.com/lightdash/lightdash/issues/28702) [#28702](https://github.com/lightdash/lightdash/issues/28702)
+
 # [2.603.0](https://github.com/lightdash/lightdash/compare/2.602.1...2.603.0) (2026-10-17)
 
 
