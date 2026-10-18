@@ -92,6 +92,7 @@ export const ProjectForm: FC<Props> = ({
 
                 <div>
                     <WarehouseSettingsForm
+                        allowMixedWarehouseTypes={false}
                         disabled={disabled}
                         isProjectUpdate={isProjectUpdate}
                     >

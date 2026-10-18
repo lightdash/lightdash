@@ -5025,6 +5025,10 @@ export class AiAgentToolsService extends BaseService {
                     dbtConnectionType: dbtConnection.type,
                     dbtVersion: project.dbtVersion,
                     warehouseType: project.warehouseConnection?.type ?? null,
+                    connections:
+                        await this.projectModel.getWarehouseConnectionsMetadata(
+                            context.projectUuid,
+                        ),
                     git: isGitProjectType(dbtConnection)
                         ? {
                               repository: dbtConnection.repository,

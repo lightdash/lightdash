@@ -127,6 +127,7 @@ import type { ApiAiThreadFileResponse } from '../ee/AiAgent/threadFileTypes';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { ApiQueryCostEstimateResponse } from '../utils/queryCostEstimate';
+import { type WeekDay } from '../utils/timeFrames';
 import type { PivotValuesColumn } from '../visualizations/types';
 import {
     type AgentCapabilityPolicy,
@@ -391,6 +392,7 @@ import {
     type EnsurePlaygroundProjectResults,
     type Project,
     type WarehouseCredentials,
+    type WarehouseTypes,
 } from './projects';
 import { type ApiPromotionChangesResponse } from './promotion';
 import {
@@ -575,6 +577,11 @@ export type ApiExploresResults = SummaryExplore[];
 
 export interface ApiExploreResults extends Omit<Explore, 'unfilteredTables'> {
     warehouseConnectionUuid: string | null;
+    warehouseConnection: {
+        warehouseConnectionUuid: string | null;
+        warehouseType: WarehouseTypes;
+        startOfWeek: WeekDay | null;
+    };
 }
 
 export type ApiTableGroupsResults = Record<string, GroupType>;

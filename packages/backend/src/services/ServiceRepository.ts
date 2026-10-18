@@ -2370,6 +2370,7 @@ export class ServiceRepository
                         this.models.getProjectDbtSourcesModel(),
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
+                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }

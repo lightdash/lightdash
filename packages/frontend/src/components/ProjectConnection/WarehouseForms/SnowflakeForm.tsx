@@ -113,9 +113,12 @@ const SnowflakeSSOInput: FC<{
 const RequireUserCredentialsField: FC<{ disabled: boolean }> = ({
     disabled,
 }) => {
-    const { isProjectExtraConnection } = useProjectFormContext();
+    const {
+        isProjectExtraConnection,
+        inheritsPrimaryCredentialRequirement = true,
+    } = useProjectFormContext();
     const form = useFormContext();
-    if (isProjectExtraConnection) {
+    if (isProjectExtraConnection && inheritsPrimaryCredentialRequirement) {
         return (
             <Text size="sm" c="dimmed">
                 Require users to provide their own credentials follows the
@@ -146,6 +149,7 @@ const SnowflakeForm: FC<{
         warehouseConnectionUuid,
         isProjectExtraConnection,
         primaryRequiresUserCredentials,
+        inheritsPrimaryCredentialRequirement = true,
         isDbtSource,
     } = useProjectFormContext();
     const { track } = useTracking();
@@ -286,9 +290,11 @@ const SnowflakeForm: FC<{
             : []),
         ...((
             isProjectExtraConnection
-                ? (primaryRequiresUserCredentials ??
-                      savedProject?.warehouseConnection
-                          ?.requireUserCredentials) === true
+                ? (inheritsPrimaryCredentialRequirement
+                      ? (primaryRequiresUserCredentials ??
+                        savedProject?.warehouseConnection
+                            ?.requireUserCredentials)
+                      : form.values.warehouse.requireUserCredentials) === true
                 : showSaveCredentials && isEditMode
         )
             ? [

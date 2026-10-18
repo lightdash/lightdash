@@ -21262,3 +21262,63 @@ describe('strict personal overlay (agent-identity on)', () => {
         },
     );
 });
+
+describe('ProjectService.getDeployStartOfWeekByExplore', () => {
+    const explores = [
+        { name: 'orders', preAggregates: [{ name: 'daily' }] },
+        { name: 'customers' },
+    ] as never;
+
+    const serviceWith = (mixedWarehouseConnectionsEnabled: boolean) => {
+        const getDeployStartOfWeek = vi.fn(async () => ({
+            kind: 'extra' as const,
+            startOfWeek: WeekDay.MONDAY,
+        }));
+        const service = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                projectModel: {
+                    getDeployStartOfWeek,
+                } as unknown as ProjectModel,
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId ===
+                                FeatureFlags.MixedWarehouseConnections &&
+                            mixedWarehouseConnectionsEnabled,
+                    })),
+                } as unknown as FeatureFlagModel,
+            },
+        );
+        return { service, getDeployStartOfWeek };
+    };
+
+    const args = {
+        userUuid: 'user-uuid',
+        organizationUuid: 'org-uuid',
+        projectUuid: 'project-uuid',
+        explores,
+        sourceUuid: 'source-uuid',
+    };
+
+    test('keeps the project week start with the mixed flag off', async () => {
+        const { service, getDeployStartOfWeek } = serviceWith(false);
+        await expect(
+            service.getDeployStartOfWeekByExplore(args),
+        ).resolves.toEqual(new Map());
+        expect(getDeployStartOfWeek).not.toHaveBeenCalled();
+    });
+
+    test('uses the extra connection week start with the mixed flag on', async () => {
+        const { service, getDeployStartOfWeek } = serviceWith(true);
+        await expect(
+            service.getDeployStartOfWeekByExplore(args),
+        ).resolves.toEqual(new Map([['orders', WeekDay.MONDAY]]));
+        expect(getDeployStartOfWeek).toHaveBeenCalledExactlyOnceWith(
+            'project-uuid',
+            'orders',
+            'source-uuid',
+        );
+    });
+});

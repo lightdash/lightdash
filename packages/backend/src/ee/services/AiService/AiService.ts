@@ -720,7 +720,9 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
     async generateTableCalculation(
         user: SessionUser,
         projectUuid: string,
-        payload: GenerateTableCalculationRequest,
+        payload: Omit<GenerateTableCalculationRequest, 'exploreName'> & {
+            exploreName?: string;
+        },
     ): Promise<GeneratedTableCalculation> {
         const project = await this.projectService.getProject(
             projectUuid,
@@ -741,11 +743,13 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
         const modelOptions = await this.getAmbientAiModel(user, {
             projectUuid,
         });
-        const warehouseType = project.warehouseConnection?.type;
-
-        if (!warehouseType) {
-            throw new ForbiddenError('Warehouse type is not available');
-        }
+        const { type: warehouseType } =
+            await this.projectService.getWarehouseSqlBuilderSettings(
+                projectUuid,
+                payload.exploreName
+                    ? { kind: 'explore', exploreName: payload.exploreName }
+                    : { kind: 'original' },
+            );
 
         const result = await generateTableCalculationFromContext(modelOptions, {
             prompt: payload.prompt,
@@ -777,7 +781,9 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
     async generateCustomDimension(
         user: SessionUser,
         projectUuid: string,
-        payload: GenerateCustomDimensionRequest,
+        payload: Omit<GenerateCustomDimensionRequest, 'exploreName'> & {
+            exploreName?: string;
+        },
     ): Promise<GeneratedCustomDimension> {
         const project = await this.projectService.getProject(
             projectUuid,
@@ -798,11 +804,13 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
         const modelOptions = await this.getAmbientAiModel(user, {
             projectUuid,
         });
-        const warehouseType = project.warehouseConnection?.type;
-
-        if (!warehouseType) {
-            throw new ForbiddenError('Warehouse type is not available');
-        }
+        const { type: warehouseType } =
+            await this.projectService.getWarehouseSqlBuilderSettings(
+                projectUuid,
+                payload.exploreName
+                    ? { kind: 'explore', exploreName: payload.exploreName }
+                    : { kind: 'original' },
+            );
 
         const result = await generateCustomDimensionFromContext(modelOptions, {
             ...payload,

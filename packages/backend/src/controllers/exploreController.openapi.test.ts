@@ -49,8 +49,17 @@ describe('explore OpenAPI contract', () => {
                 'baseTable',
                 'tables',
                 'warehouseConnectionUuid',
+                'warehouseConnection',
             ]),
         );
+        expect(explore.properties?.warehouseConnection).toMatchObject({
+            type: 'object',
+            properties: {
+                warehouseConnectionUuid: { type: 'string', nullable: true },
+                warehouseType: { $ref: '#/components/schemas/WarehouseTypes' },
+                startOfWeek: { nullable: true },
+            },
+        });
         expect(explore.properties?.warehouseConnectionUuid).toMatchObject({
             type: 'string',
             nullable: true,

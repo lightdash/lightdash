@@ -1,0 +1,6 @@
+name: clickhouse_dev
+version: '1.0.0'
+config-version: 2
+profile: clickhouse_dev
+model-paths: ['models']
+target-path: target
