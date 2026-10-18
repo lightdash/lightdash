@@ -366,6 +366,7 @@ export * from './types/roadmap';
 export * from './types/roles';
 export * from './types/savedCharts';
 export * from './types/savedPipeline';
+export * from './types/sqlChartPipeline';
 export * from './types/scheduler';
 export * from './types/schedulerLog';
 export * from './types/schedulerTaskList';
