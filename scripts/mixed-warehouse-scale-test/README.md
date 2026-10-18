@@ -25,6 +25,12 @@ pass/fail matrix with per-scenario timings.
 - A preview project copies every connection, and `lightdash deploy --source`
   deploys into an extra connection.
 - Additional dbt sources are manifest sources, which the flag allows.
+- With an AI provider key and `AI_COPILOT_ENABLED=true`, the `ai` group asks
+  the AI table calculation and custom dimension generators for date formatting
+  on a Trino extra under a Postgres primary, checks for Trino SQL, runs both on
+  the extra, and asks once on the primary as a control (three AI calls).
+  Without a key or with AI Copilot off, the group is skipped and listed under
+  "Skipped" in the summary.
 
 `--mode flag-off` (restart the API without `mixed-warehouse-connections`):
 

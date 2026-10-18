@@ -242,6 +242,8 @@ class Warehouses:
 
 
 class Recorder:
+    notes = []
+
     def __init__(self, out_dir):
         self.out_dir = Path(out_dir)
         self.out_dir.mkdir(parents=True, exist_ok=True)
@@ -902,6 +904,58 @@ class Runner:
             self.rec.step('the primary asks for personal credentials', 'credential' in text.lower(), clip(text, 300), time.time() - start)
         self.rec.finish()
 
+    def ai_generate(self, project, kind, explore, field, prompt):
+        start = time.time()
+        context = [{'name': field, 'label': field.replace('_', ' '), 'description': '', 'type': 'date', 'table': explore}]
+        if kind == 'table-calculation':
+            body = {'prompt': prompt, 'tableName': explore, 'exploreName': explore, 'fieldsContext': [{**c, 'fieldType': 'dimension'} for c in context]}
+        else:
+            body = {'prompt': prompt, 'tableName': explore, 'exploreName': explore, 'fieldsContext': [{**c, 'id': f'{explore}_{field}'} for c in context]}
+        response = self.api.call('POST', f'/api/v1/ai/{project}/{kind}/generate', body)
+        return (response.get('results') or {}).get('sql') if ok(response) else None, message(response), time.time() - start
+
+    def ai_generators(self):
+        env = self.w.env
+        has_key = bool(env.get('OPENAI_API_KEY') or env.get('ANTHROPIC_API_KEY'))
+        if not has_key or env.get('AI_COPILOT_ENABLED') != 'true':
+            note = 'AI generators on an extra connection: no AI provider key or AI Copilot is off on this instance.'
+            self.rec.notes.append(note)
+            print(f'\n=== SKIPPED: {note}', flush=True)
+            return
+        self.rec.start('AI generators on an extra of another type', 'ai')
+        project = self.create_project('AI generators Postgres', 'postgres')
+        if not project:
+            return self.rec.finish()
+        self.refresh(project, 'initial compile of the original')
+        if not self.switch(project, 'Postgres (original)', 'Trino extra', 'trino'):
+            return self.rec.finish()
+        trino_uuid = self.connections(project).get('Trino extra', {}).get('warehouseConnectionUuid')
+        self.add_manifest_source(project, 'trino_models', 'trino', trino_uuid)
+        self.refresh(project)
+        postgres_only = ('to_char',)
+        trino_markers = ('date_format', 'format_datetime', 'varchar', 'year(', 'month(', 'lpad(')
+        cases = [
+            ('table-calculation', 'Week start of the order date as text in YYYY-MM-DD format', 'order_date_week'),
+            ('custom-dimension', 'Order year and month as text in YYYY-MM format', 'order_date'),
+        ]
+        for kind, prompt, field in cases:
+            sql, detail, seconds = self.ai_generate(project, kind, 'trino_orders', field, prompt)
+            lowered = (sql or '').lower()
+            trino_dialect = bool(sql) and not any(m in lowered for m in postgres_only) and any(m in lowered for m in trino_markers)
+            self.rec.step(f'AI {kind} on the Trino extra uses Trino SQL', trino_dialect, clip(sql or detail, 300), seconds)
+            if not sql:
+                continue
+            probe = Warehouses.PROBES['trino']
+            base = {'exploreName': 'trino_orders', 'metrics': [probe['metric']], 'filters': {}, 'sorts': [], 'limit': 10, 'additionalMetrics': []}
+            if kind == 'table-calculation':
+                query = {**base, 'dimensions': ['trino_orders_order_date_week'], 'tableCalculations': [{'name': 'ai_calc', 'displayName': 'AI calc', 'sql': sql}]}
+            else:
+                query = {**base, 'dimensions': ['ai_dim'], 'tableCalculations': [], 'customDimensions': [{'id': 'ai_dim', 'name': 'ai_dim', 'table': 'trino_orders', 'type': 'sql', 'sql': sql, 'dimensionType': 'string'}]}
+            self.run_query(project, query, f'the AI {kind} runs on the Trino extra')
+        sql, detail, seconds = self.ai_generate(project, 'custom-dimension', 'pg_orders', 'order_date', 'Order year and month as text in YYYY-MM format')
+        self.rec.step('control: the same custom dimension prompt on the Postgres primary uses Postgres SQL', bool(sql) and 'date_format' not in (sql or '').lower(), clip(sql or detail, 300), seconds)
+        self.rec.finish()
+
     def flag_off_cross_source(self, branch):
         self.rec.start('flag off: same-type ref across connections keeps the existing message', 'flag-off')
         project = self.create_project('Flag off cross-source', 'postgres')
@@ -1010,6 +1064,8 @@ def write_summary(recorder):
         lines.append(f"| {s['name']} | {(s.get('projectUuid') or '-')[:8]} | {passed}/{len(s['steps'])} | {s.get('seconds', '-')} | {'pass' if s.get('passed') else 'FAIL'} |")
     failures = [f"- **{s['name']}**: {step['step']}: {step['detail']}" for s in recorder.scenarios for step in s['steps'] if not step['passed']]
     text = '\n'.join(lines) + '\n\n' + ('### Failures\n\n' + '\n'.join(failures) if failures else 'No failures.') + '\n'
+    if recorder.notes:
+        text += '\n### Skipped\n\n' + '\n'.join(f'- {note}' for note in recorder.notes) + '\n'
     (recorder.out_dir / 'summary.md').write_text(text)
     print('\n' + text)
 
@@ -1067,6 +1123,8 @@ def main():
             runner.preview_and_cli(mixed[0][0], TRINO_FIXTURE)
         if wanted('new-cases'):
             runner.new_cases()
+        if wanted('ai'):
+            runner.ai_generators()
         state['mixedProjects'] = (state.get('mixedProjects') or []) + mixed[:3]
         state_file.write_text(json.dumps(state, indent=2))
     else:
