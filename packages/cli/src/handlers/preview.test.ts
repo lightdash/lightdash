@@ -8,13 +8,17 @@ import {
     type CreateWarehouseCredentials,
     type DbtSourceBindings,
     type Project,
+    type WarehouseConnectionWithCredentials,
 } from '@lightdash/common';
 import ora from 'ora';
 import { getConfig } from '../config';
 import GlobalState from '../globalState';
 import { CliProjectType, detectProjectType } from '../lightdash/projectType';
 import { compileProject } from './compile';
-import { loadWarehouseCredentialsFromProfiles } from './createProject';
+import {
+    createProject,
+    loadWarehouseCredentialsFromProfiles,
+} from './createProject';
 import { lightdashApi } from './dbt/apiClient';
 import { getFinalJobState } from './dbt/refresh';
 import { deploy } from './deploy';
@@ -39,6 +43,7 @@ vi.mock('../lightdash/projectType', async (original) => ({
 vi.mock('./compile', () => ({ compileProject: vi.fn() }));
 vi.mock('./createProject', () => ({
     loadWarehouseCredentialsFromProfiles: vi.fn(),
+    createProject: vi.fn(),
 }));
 vi.mock('./dbt/apiClient', () => ({
     lightdashApi: vi.fn(),
@@ -96,6 +101,8 @@ const options: Parameters<typeof startPreviewHandler>[0] = {
 let project: Project;
 let bindings: DbtSourceBindings;
 let bindingsError: Error | undefined;
+let extraConnection: WarehouseConnectionWithCredentials;
+let existingPreview: boolean;
 let writeError: Error | undefined;
 let spinner: ReturnType<typeof ora>;
 const credentialWrites = () =>
@@ -129,6 +136,15 @@ beforeEach(() => {
     vi.clearAllMocks();
     bindingsError = undefined;
     writeError = undefined;
+    existingPreview = true;
+    extraConnection = {
+        warehouseConnectionUuid: 'extra',
+        name: 'Finance warehouse',
+        warehouseConnection: {
+            type: WarehouseTypes.SNOWFLAKE,
+            disableTimestampConversion: true,
+        },
+    } as WarehouseConnectionWithCredentials;
     project = {
         projectUuid: 'preview',
         organizationUuid: 'org',
@@ -195,8 +211,21 @@ beforeEach(() => {
     vi.spyOn(GlobalState, 'startSpinner').mockReturnValue(spinner);
     vi.mocked(lightdashApi).mockImplementation(async ({ method, url }) => {
         if (method === 'GET' && url === '/api/v1/org/projects/')
-            return [project];
+            return existingPreview ? [project] : [];
         if (method === 'GET' && url === projectUrl) return project;
+        if (method === 'GET' && url === '/api/v1/projects/upstream')
+            return { ...project, projectUuid: 'upstream' };
+        if (
+            method === 'GET' &&
+            url ===
+                '/api/v1/projects/upstream/warehouse-connections/dbt-sources/bindings'
+        )
+            return bindings;
+        if (method === 'GET' && url === '/api/v1/projects/upstream/dbt-sources')
+            return [
+                { name: 'finance', projectDbtSourceUuid: 'finance-source' },
+            ];
+        if (method === 'GET' && url === extraUrl) return extraConnection;
         if (method === 'GET' && url === `${projectUrl}/dbt-sources`)
             return [
                 { name: 'finance', projectDbtSourceUuid: 'finance-source' },
@@ -361,4 +390,50 @@ describe('startPreviewHandler credential refresh', () => {
             expect(spinner.fail).toHaveBeenCalledOnce();
         },
     );
+
+    it('uses the timestamp setting of the source connection when updating a preview', async () => {
+        await startPreviewHandler(options);
+        expect(compileProject).toHaveBeenCalledWith(
+            expect.objectContaining({ disableTimestampConversion: true }),
+        );
+    });
+
+    it('keeps the upstream primary and refreshes the source connection when creating a preview', async () => {
+        existingPreview = false;
+        vi.mocked(createProject).mockResolvedValue({
+            project,
+            hasContentCopy: true,
+        } as never);
+        await startPreviewHandler(options);
+        expect(createProject).toHaveBeenCalledWith(
+            expect.objectContaining({
+                upstreamProjectUuid: 'upstream',
+                warehouseCredentials: false,
+            }),
+        );
+        expect(credentialWrites()).toEqual([
+            {
+                method: 'PATCH',
+                url: extraUrl,
+                body: JSON.stringify({ warehouseConnection: credentials }),
+            },
+        ]);
+        expect(compileProject).toHaveBeenCalledWith(
+            expect.objectContaining({ disableTimestampConversion: true }),
+        );
+    });
+
+    it('creates a preview with the local credentials for a source on the primary', async () => {
+        existingPreview = false;
+        bindings.sources = [];
+        vi.mocked(createProject).mockResolvedValue({
+            project,
+            hasContentCopy: true,
+        } as never);
+        await startPreviewHandler(options);
+        expect(createProject).toHaveBeenCalledWith(
+            expect.objectContaining({ warehouseCredentials: true }),
+        );
+        expect(credentialWrites()).toEqual([]);
+    });
 });

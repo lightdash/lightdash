@@ -780,16 +780,16 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ['ProjectController.getProject'],
         ),
         refused(
-            'handlers/preview.ts:565',
+            'handlers/preview.ts:538',
             'GET',
-            '`/api/v1/projects/${projectUuid}/warehouse-connections/dbt-sources/bindings`',
+            '`/api/v1/projects/${project.projectUuid}/warehouse-connections/dbt-sources/bindings`',
             [
                 'WarehouseConnectionBindingController.getDbtSourceWarehouseConnectionBindings',
             ],
             'Project lifecycle and warehouse configuration changes are refused in v1.',
         ),
         refused(
-            'handlers/preview.ts:603',
+            'handlers/preview.ts:632',
             'PATCH',
             '`/api/v1/projects/${projectUuid}/warehouse-connections/${connection.warehouseConnectionUuid}`',
             ['WarehouseConnectionController.updateWarehouseConnection'],

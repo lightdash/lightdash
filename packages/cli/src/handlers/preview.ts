@@ -508,6 +508,62 @@ export const previewHandler = async (
     await cleanupProject(executionId, project.projectUuid, previewStartTime);
 };
 
+type SourceConnection =
+    | { kind: 'primary' }
+    | {
+          kind: 'extra';
+          connection: DbtSourceBindings['connections'][number];
+      }
+    | { kind: 'unknown'; sourceUuid: string };
+
+const resolveSourceConnection = async (
+    project: Pick<Project, 'projectUuid' | 'connectionRoute'>,
+    sourceOption: string | undefined,
+    upstreamProjectUuid: string | undefined,
+): Promise<{
+    sourceUuid: string | undefined;
+    connection: SourceConnection;
+}> => {
+    if (project.connectionRoute !== 'multi') {
+        return { sourceUuid: undefined, connection: { kind: 'primary' } };
+    }
+    const sourceUuid = await resolveProjectSourceUuid(
+        project.projectUuid,
+        sourceOption,
+        upstreamProjectUuid,
+    );
+    if (!sourceUuid) return { sourceUuid, connection: { kind: 'primary' } };
+    let bindings: DbtSourceBindings;
+    try {
+        bindings = await lightdashApi<DbtSourceBindings>({
+            method: 'GET',
+            url: `/api/v1/projects/${project.projectUuid}/warehouse-connections/dbt-sources/bindings`,
+            body: undefined,
+        });
+    } catch {
+        return { sourceUuid, connection: { kind: 'unknown', sourceUuid } };
+    }
+    const boundConnectionUuid =
+        bindings.sources.find(
+            (item) => item.projectDbtSourceUuid === sourceUuid,
+        )?.warehouseConnectionUuid ?? null;
+    if (boundConnectionUuid === null) {
+        return { sourceUuid, connection: { kind: 'primary' } };
+    }
+    const boundConnection = bindings.connections.find(
+        (item) => item.warehouseConnectionUuid === boundConnectionUuid,
+    );
+    if (!boundConnection) {
+        return { sourceUuid, connection: { kind: 'unknown', sourceUuid } };
+    }
+    return {
+        sourceUuid,
+        connection: boundConnection.isOriginal
+            ? { kind: 'primary' }
+            : { kind: 'extra', connection: boundConnection },
+    };
+};
+
 // Credentials resolved locally (AWS SSO, Snowflake SSO) expire, so a re-run
 // with the same name pushes freshly resolved ones into the existing preview.
 const refreshPreviewWarehouseCredentials = async (
@@ -546,50 +602,23 @@ const refreshPreviewWarehouseCredentials = async (
         return;
     }
     const project = await getProject(projectUuid);
-    let connection: DbtSourceBindings['connections'][number] | undefined;
-    if (project.connectionRoute === 'multi') {
-        const sourceUuid = await resolveProjectSourceUuid(
-            projectUuid,
-            options.source,
-            upstreamProjectUuid,
+    const { connection: sourceConnection } = await resolveSourceConnection(
+        project,
+        options.source,
+        upstreamProjectUuid,
+    );
+    if (sourceConnection.kind === 'unknown') {
+        console.error(
+            styles.warning(
+                `Could not read which connection source ${options.source ?? sourceConnection.sourceUuid} uses; keeping the warehouse credentials already stored on the preview.`,
+            ),
         );
-        if (sourceUuid) {
-            const keepStoredCredentials = () =>
-                console.error(
-                    styles.warning(
-                        `Could not read which connection source ${options.source ?? sourceUuid} uses; keeping the warehouse credentials already stored on the preview.`,
-                    ),
-                );
-            let bindings: DbtSourceBindings;
-            try {
-                bindings = await lightdashApi<DbtSourceBindings>({
-                    method: 'GET',
-                    url: `/api/v1/projects/${projectUuid}/warehouse-connections/dbt-sources/bindings`,
-                    body: undefined,
-                });
-            } catch {
-                keepStoredCredentials();
-                return;
-            }
-            const boundConnectionUuid =
-                bindings.sources.find(
-                    (item) => item.projectDbtSourceUuid === sourceUuid,
-                )?.warehouseConnectionUuid ?? null;
-            if (boundConnectionUuid !== null) {
-                const boundConnection = bindings.connections.find(
-                    (item) =>
-                        item.warehouseConnectionUuid === boundConnectionUuid,
-                );
-                if (!boundConnection) {
-                    keepStoredCredentials();
-                    return;
-                }
-                connection = boundConnection.isOriginal
-                    ? undefined
-                    : boundConnection;
-            }
-        }
+        return;
     }
+    const connection =
+        sourceConnection.kind === 'extra'
+            ? sourceConnection.connection
+            : undefined;
     const spinner = GlobalState.startSpinner(
         connection
             ? `  Refreshing warehouse credentials for "${connection.name}"...`
@@ -688,10 +717,17 @@ export const startPreviewHandler = async (
         );
 
         // Update
+        const previewSource = await resolveSourceConnection(
+            await getProject(previewProject.projectUuid),
+            options.source,
+            config.context?.project,
+        );
         const previewSettings = await getProjectDeploySettings(
             options.disableTimestampConversion,
             previewProject.projectUuid,
-            undefined,
+            previewSource.connection.kind === 'unknown'
+                ? undefined
+                : previewSource.sourceUuid,
         );
         options.disableTimestampConversion =
             previewSettings.disableTimestampConversion;
@@ -743,14 +779,35 @@ export const startPreviewHandler = async (
             );
         }
 
+        const upstreamProjectUuid = config.context?.project;
+        const upstreamSourceConnection =
+            upstreamProjectUuid &&
+            projectTypeConfig.warehouseCredentials !== false &&
+            getWarehouseCredentialsSource({
+                ...options,
+                warehouseCredentials: projectTypeConfig.warehouseCredentials,
+            }).source === 'profiles'
+                ? (
+                      await resolveSourceConnection(
+                          await getProject(upstreamProjectUuid),
+                          options.source,
+                          upstreamProjectUuid,
+                      )
+                  ).connection
+                : ({ kind: 'primary' } as const);
+        const keepsUpstreamPrimary =
+            upstreamSourceConnection.kind !== 'primary';
+
         // Create
         const results = await createProject({
             ...options,
             name: projectName,
             type: ProjectType.PREVIEW,
-            upstreamProjectUuid: config.context?.project,
+            upstreamProjectUuid,
             copyContent: !options.skipCopyContent,
-            warehouseCredentials: projectTypeConfig.warehouseCredentials,
+            warehouseCredentials: keepsUpstreamPrimary
+                ? false
+                : projectTypeConfig.warehouseCredentials,
             expiresIn: options.expiresIn
                 ? parseInt(options.expiresIn, 10)
                 : undefined,
@@ -785,7 +842,37 @@ export const startPreviewHandler = async (
             },
         });
 
-        if (options.disableTimestampConversion === undefined) {
+        if (keepsUpstreamPrimary) {
+            await refreshPreviewWarehouseCredentials(
+                project.projectUuid,
+                {
+                    ...options,
+                    warehouseCredentials:
+                        projectTypeConfig.warehouseCredentials,
+                },
+                upstreamProjectUuid,
+            );
+        }
+
+        const previewSource = keepsUpstreamPrimary
+            ? await resolveSourceConnection(
+                  await getProject(project.projectUuid),
+                  options.source,
+                  upstreamProjectUuid,
+              )
+            : undefined;
+        if (
+            options.disableTimestampConversion === undefined &&
+            previewSource?.connection.kind === 'extra'
+        ) {
+            options.disableTimestampConversion = (
+                await getProjectDeploySettings(
+                    undefined,
+                    project.projectUuid,
+                    previewSource.sourceUuid,
+                )
+            ).disableTimestampConversion;
+        } else if (options.disableTimestampConversion === undefined) {
             options.disableTimestampConversion =
                 getDisableTimestampConversionFromProject(
                     project.warehouseConnection,
