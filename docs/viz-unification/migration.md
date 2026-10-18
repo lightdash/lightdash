@@ -1,10 +1,27 @@
 # One viz stack over every query: migration from the old world to the new
 
-Status: in progress. This is the single reference for what changes for users
-and operators as Lightdash moves every query type onto one chart stack and one
-saved-content model. Each phase below says what ships, what a user sees
-differently, and what breaks or needs care on upgrade. Measured performance is
-in the last section and is updated as phases land.
+Status: phases 1 to 4 are implemented on the branch
+`claude/friendly-heisenberg-atf1t3`; what is left is the table drop of a
+later release (see "Not in phase 4"). This is the single reference for what
+changes for users and operators as Lightdash moves every query type onto one
+chart stack and one saved-content model. Each phase below says what ships,
+what a user sees differently, and what breaks or needs care on upgrade.
+Measured performance is in the last section.
+
+Summary of what a user notices, across all phases:
+
+- Composer, SQL and agent answers draw with the same chart stack as saved
+  charts and dashboards, with the explorer's config panel (phase 1).
+- A composer result can be saved as a chart; it lands in spaces, dashboards,
+  deliveries, exports, content as code and promotion like any chart (phase 2).
+- Saved SQL charts are saved charts: one list, one page, one tile type, one
+  set of chart actions. Old SQL chart links redirect (phase 3).
+- The SQL runner's Chart tab is the explorer's; aggregation moves into the
+  statement; its own config panel and the viz aggregation are gone (phase 4).
+- Slack images and the MCP chart app draw what the web draws (phase 4).
+- Pipeline chart tiles (composer charts, folded SQL charts) cost about one
+  second where a classic tile costs a third of one; classic dashboards are
+  unchanged (Performance).
 
 The plan this executes is in `docs/composer-viz-plan/` (query and result
 interface) with the viz target changed: the chart stack is the explorer's
@@ -436,7 +453,19 @@ What changes for a user:
 
 - `saved_sql*` tables and the `saved_sql_uuid` columns (tiles, schedulers,
   documents, agent artifacts) are dropped in a later release once no pod
-  reads them.
+  reads them. Until then the backend keeps the read paths that interpret a
+  `saved_sql_uuid` as a saved chart uuid (`SavedSqlModel` reads
+  `saved_queries`; the scheduler task's SQL chart branch, the unfurl
+  service's SQL chart page, the document and artifact links). That release
+  needs, in order: the deprecated `sqlRunner/saved*` endpoints removed after
+  their sunset (2027-01-18); a migration that rewrites the remaining
+  `saved_sql_uuid` references to `saved_chart_uuid` (schedulers, dashboard
+  tiles still stored as `sql_chart`, document chart links, agent artifacts)
+  and then drops the columns and the `saved_sql*` tables; the backend
+  branches above deleted with their types (`ChartSourceType.SQL`,
+  `DashboardTileTypes.SQL_CHART`, `SavedSqlModel`, `SavedSqlService`); and a
+  `breaking` release-safety declaration, since a pod of the previous release
+  cannot run against the dropped tables.
 
 ## Performance
 
