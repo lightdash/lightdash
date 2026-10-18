@@ -1,7 +1,22 @@
-import type { ApiAgentSuggestionsResponse, ApiError } from '@lightdash/common';
+import {
+    LightdashClientHeader,
+    type ApiAgentSuggestionsResponse,
+    type ApiError,
+} from '@lightdash/common';
+import { addBreadcrumb, captureMessage } from '@sentry/react';
 import { useQuery } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
 import { lightdashApi } from '../../../../api';
+import useTracking from '../../../../providers/Tracking/useTracking';
+import { EventName } from '../../../../types/Events';
+import {
+    buildAgentSuggestionsDisplayedProperties,
+    type AgentSuggestionsSurface,
+    type AgentSuggestionsDisplayedProperties,
+} from './agentSuggestionsTelemetry';
 import { getAiAgentApiBase } from './aiAgentRouting';
+
+export type { AgentSuggestionsSurface } from './agentSuggestionsTelemetry';
 
 const AGENT_SUGGESTIONS_KEY = 'agentSuggestions';
 
@@ -23,6 +38,7 @@ const getAgentSuggestions = (
             qs ? `?${qs}` : ''
         }`,
         method: 'GET',
+        headers: { [LightdashClientHeader]: `web/${__APP_VERSION__}` },
         body: undefined,
     });
 };
@@ -34,6 +50,7 @@ export const useAgentSuggestions = ({
     threadUuid,
     afterMessageUuid,
     enabled,
+    surface,
 }: {
     projectUuid: string | undefined;
     agentUuid: string | undefined;
@@ -41,8 +58,43 @@ export const useAgentSuggestions = ({
     threadUuid?: string;
     afterMessageUuid?: string;
     enabled: boolean;
-}) =>
-    useQuery<ApiAgentSuggestionsResponse['results'], ApiError>({
+    surface: AgentSuggestionsSurface;
+}) => {
+    const { track } = useTracking();
+    const trackRef = useRef(track);
+    useEffect(() => {
+        trackRef.current = track;
+    }, [track]);
+    const record = (properties: AgentSuggestionsDisplayedProperties) => {
+        trackRef.current({
+            name: EventName.AI_AGENT_SUGGESTIONS_DISPLAYED,
+            properties,
+        });
+        const { outcome, source, httpStatus, attempt } = properties;
+        const failed = outcome === 'error' || outcome === 'timeout';
+        addBreadcrumb({
+            category: 'ai_agent.suggestions',
+            level: failed ? 'warning' : 'info',
+            message: 'suggestions.outcome',
+            data: {
+                'suggestions.outcome': outcome,
+                surface,
+                source,
+                httpStatus,
+                attempt,
+            },
+        });
+        if (failed)
+            captureMessage('AI agent suggestions hidden', {
+                level: 'warning',
+                tags: {
+                    'suggestions.outcome': outcome,
+                    surface,
+                    client: 'web',
+                },
+            });
+    };
+    return useQuery<ApiAgentSuggestionsResponse['results'], ApiError>({
         queryKey: [
             AGENT_SUGGESTIONS_KEY,
             projectUuid,
@@ -51,16 +103,56 @@ export const useAgentSuggestions = ({
             threadUuid ?? null,
             afterMessageUuid ?? null,
         ],
-        queryFn: () =>
-            getAgentSuggestions(
-                projectUuid!,
-                agentUuid!,
-                enableSqlMode,
-                threadUuid,
-                afterMessageUuid,
-            ),
+        queryFn: async () => {
+            const startedAt = Date.now();
+            const common = {
+                projectId: projectUuid!,
+                agentId: agentUuid!,
+                appVersion: __APP_VERSION__,
+                surface,
+            };
+            for (let attempt = 1; attempt <= 2; attempt += 1) {
+                let result: ApiAgentSuggestionsResponse['results'];
+                try {
+                    result = await getAgentSuggestions(
+                        projectUuid!,
+                        agentUuid!,
+                        enableSqlMode,
+                        threadUuid,
+                        afterMessageUuid,
+                    );
+                } catch (error) {
+                    if (attempt < 2) {
+                        await new Promise<void>((resolve) => {
+                            setTimeout(resolve, 1000);
+                        });
+                        continue;
+                    }
+                    record(
+                        buildAgentSuggestionsDisplayedProperties({
+                            ...common,
+                            error,
+                            durationMs: Date.now() - startedAt,
+                            attempt,
+                        }),
+                    );
+                    throw error;
+                }
+                record(
+                    buildAgentSuggestionsDisplayedProperties({
+                        ...common,
+                        result,
+                        durationMs: Date.now() - startedAt,
+                        attempt,
+                    }),
+                );
+                return result;
+            }
+            throw new Error('Suggestion attempts exhausted');
+        },
         enabled: enabled && !!projectUuid && !!agentUuid,
         staleTime: Infinity,
         cacheTime: 1000 * 60 * 60,
-        retry: 1,
+        retry: false,
     });
+};

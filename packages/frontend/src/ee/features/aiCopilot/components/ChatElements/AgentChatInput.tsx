@@ -621,6 +621,7 @@ export const AgentChatInput = ({
     });
 
     const suggestionsQuery = useAgentSuggestions({
+        surface: postResponseMode ? 'followup' : 'ask',
         projectUuid,
         agentUuid,
         enableSqlMode: sqlMode,
