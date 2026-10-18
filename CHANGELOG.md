@@ -1,3 +1,10 @@
+# [2.604.0](https://github.com/lightdash/lightdash/compare/2.603.4...2.604.0) (2026-10-18)
+
+
+### Features
+
+* **connections:** mix warehouse types in one project behind a flag ([#31096](https://github.com/lightdash/lightdash/issues/31096)) ([f69a637](https://github.com/lightdash/lightdash/commit/f69a6378d4b50b4c6bfc5acdad9ef68430ac4b2c))
+
 ## [2.603.4](https://github.com/lightdash/lightdash/compare/2.603.3...2.603.4) (2026-10-18)
 
 

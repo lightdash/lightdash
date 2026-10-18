@@ -23614,27 +23614,48 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    GenerateTableCalculationRequest: {
+    'Pick_GenerateTableCalculationRequest.Exclude_keyofGenerateTableCalculationRequest.exploreName__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    tableName: { dataType: 'string', required: true },
+                    prompt: { dataType: 'string', required: true },
+                    fieldsContext: {
+                        dataType: 'array',
+                        array: {
+                            dataType: 'refAlias',
+                            ref: 'TableCalculationFieldContext',
+                        },
+                        required: true,
+                    },
+                    existingTableCalculations: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'array',
+                                array: { dataType: 'string' },
+                            },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    currentSql: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_GenerateTableCalculationRequest.exploreName_': {
         dataType: 'refAlias',
         type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                currentSql: { dataType: 'string' },
-                existingTableCalculations: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                },
-                fieldsContext: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'TableCalculationFieldContext',
-                    },
-                    required: true,
-                },
-                tableName: { dataType: 'string', required: true },
-                prompt: { dataType: 'string', required: true },
-            },
+            ref: 'Pick_GenerateTableCalculationRequest.Exclude_keyofGenerateTableCalculationRequest.exploreName__',
             validators: {},
         },
     },
@@ -23683,23 +23704,38 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    GenerateCustomDimensionRequest: {
+    'Pick_GenerateCustomDimensionRequest.Exclude_keyofGenerateCustomDimensionRequest.exploreName__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    tableName: { dataType: 'string', required: true },
+                    prompt: { dataType: 'string', required: true },
+                    fieldsContext: {
+                        dataType: 'array',
+                        array: {
+                            dataType: 'refAlias',
+                            ref: 'CustomDimensionFieldContext',
+                        },
+                        required: true,
+                    },
+                    currentSql: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_GenerateCustomDimensionRequest.exploreName_': {
         dataType: 'refAlias',
         type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                currentSql: { dataType: 'string' },
-                fieldsContext: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'CustomDimensionFieldContext',
-                    },
-                    required: true,
-                },
-                tableName: { dataType: 'string', required: true },
-                prompt: { dataType: 'string', required: true },
-            },
+            ref: 'Pick_GenerateCustomDimensionRequest.Exclude_keyofGenerateCustomDimensionRequest.exploreName__',
             validators: {},
         },
     },
@@ -69947,6 +69983,29 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
+            warehouseConnection: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    startOfWeek: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'WeekDay' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    warehouseType: { ref: 'WarehouseTypes', required: true },
+                    warehouseConnectionUuid: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                },
+                required: true,
+            },
         },
         additionalProperties: true,
     },
@@ -94355,7 +94414,14 @@ export function RegisterRoutes(app: Router) {
             in: 'body',
             name: 'body',
             required: true,
-            ref: 'GenerateTableCalculationRequest',
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Omit_GenerateTableCalculationRequest.exploreName_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: { exploreName: { dataType: 'string' } },
+                },
+            ],
         },
     };
     app.post(
@@ -94420,7 +94486,14 @@ export function RegisterRoutes(app: Router) {
             in: 'body',
             name: 'body',
             required: true,
-            ref: 'GenerateCustomDimensionRequest',
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Omit_GenerateCustomDimensionRequest.exploreName_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: { exploreName: { dataType: 'string' } },
+                },
+            ],
         },
     };
     app.post(
