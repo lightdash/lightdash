@@ -16,6 +16,7 @@ import { useUpdateComposerViz } from '../../hooks/useAiAgentArtifacts';
 import { AiAccessCallout } from './AiAccessCallout';
 import styles from './AiArtifactPanel.module.css';
 import { AiComposerResultError } from './AiComposerResultError';
+import { AiComposerSaveChartButton } from './AiComposerSaveChartButton';
 import {
     AiComposerVisualization,
     type ComposerVizState,
@@ -163,8 +164,17 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                     </TruncatedText>
                 )}
             </Stack>
-            {(headerActions || onClose) && (
+            {(headerActions || onClose || isTerminalDisplayed) && (
                 <Group gap={2} className={styles.headRight}>
+                    {isTerminalDisplayed && !runError && (
+                        <AiComposerSaveChartButton
+                            projectUuid={projectUuid}
+                            config={config}
+                            state={state}
+                            results={results}
+                            metadata={{ title, description }}
+                        />
+                    )}
                     {isTerminalDisplayed ? headerActions : null}
                     {onClose && (
                         <ActionIcon

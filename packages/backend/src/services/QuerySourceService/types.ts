@@ -32,6 +32,12 @@ export type SourceQueryExecutionContext = {
      */
     userAttributeOverrides: UserAttributeValueMap;
     invalidateCache: boolean;
+    /**
+     * The saved chart whose pipeline this submission runs. Its warehouse SQL
+     * nodes run under the chart's view permission, the way a saved SQL chart
+     * does: the author needed SQL access to save it, a viewer does not.
+     */
+    savedChartUuid?: string;
 };
 
 export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {

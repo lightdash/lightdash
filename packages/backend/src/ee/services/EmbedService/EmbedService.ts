@@ -7,6 +7,7 @@ import {
     ApiExecuteAsyncDashboardSqlChartQueryResults,
     ApiSqlChart,
     assertUnreachable,
+    buildSavedPipelineExplore,
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
     ChartType,
@@ -1441,10 +1442,13 @@ export class EmbedService extends BaseService {
                     chart.uuid,
                     dashboardUuid,
                 ),
-                this.projectModel.getExploreFromCache(
-                    projectUuid,
-                    chart.tableName,
-                ),
+                // A pipeline chart's fields come from its own definition
+                chart.pipeline
+                    ? buildSavedPipelineExplore(chart.pipeline)
+                    : this.projectModel.getExploreFromCache(
+                          projectUuid,
+                          chart.tableName,
+                      ),
                 this.projectService.isTimezoneSupportEnabled({
                     userUuid,
                     organizationUuid,

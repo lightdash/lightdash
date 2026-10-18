@@ -44,10 +44,12 @@ import {
     NotFoundError,
     Organization,
     ParameterError,
+    parseSavedPipelineDefinition,
     parseStoredMergeDefinition,
     Project,
     ResolvedProjectColorPalette,
     SAVED_MERGE_QUERY_SCHEMA_VERSION,
+    SAVED_PIPELINE_SCHEMA_VERSION,
     SavedChartDAO,
     SessionUser,
     SortField,
@@ -337,6 +339,7 @@ const createSavedChartVersion = async (
         parameters,
         updatedByUser,
         merge,
+        pipeline,
     }: CreateSavedChartVersion,
     agentIdentity: AgentIdentityClaim | null,
 ): Promise<string> =>
@@ -401,6 +404,20 @@ const createSavedChartVersion = async (
                 saved_queries_version_id: version.saved_queries_version_id,
                 schema_version: SAVED_MERGE_QUERY_SCHEMA_VERSION,
                 merge: JSON.stringify(storedMerge),
+            });
+        }
+        // Only pipeline charts get a row; the shape is checked before it is stored.
+        const storedPipeline = pipeline
+            ? parseSavedPipelineDefinition(pipeline)
+            : null;
+        if (pipeline && !storedPipeline) {
+            throw new ParameterError('Invalid saved pipeline definition.');
+        }
+        if (storedPipeline) {
+            await trx('saved_queries_version_pipelines').insert({
+                saved_queries_version_id: version.saved_queries_version_id,
+                schema_version: SAVED_PIPELINE_SCHEMA_VERSION,
+                pipeline: JSON.stringify(storedPipeline),
             });
         }
 
@@ -629,6 +646,7 @@ export const createSavedChart = async (
         slug,
         forceSlug,
         merge,
+        pipeline,
     }: CreateSavedChart & {
         updatedByUser: UpdatedByUser;
         slug: string;
@@ -760,6 +778,7 @@ export const createSavedChart = async (
                         parameters,
                         updatedByUser,
                         merge,
+                        pipeline,
                     },
                     agentIdentity,
                 );
@@ -2496,6 +2515,13 @@ export class SavedChartModel {
                     .select(['schema_version', 'merge'])
                     .where('saved_queries_version_id', savedQueriesVersionId)
                     .first();
+                const pipelineQuery = database<{
+                    schema_version: number;
+                    pipeline: unknown;
+                }>('saved_queries_version_pipelines')
+                    .select(['schema_version', 'pipeline'])
+                    .where('saved_queries_version_id', savedQueriesVersionId)
+                    .first();
 
                 const [
                     fields,
@@ -2506,6 +2532,7 @@ export class SavedChartModel {
                     customSqlDimensionsRows,
                     resolvedPalette,
                     mergeRow,
+                    pipelineRow,
                 ] = await Promise.all([
                     fieldsQuery,
                     sortsQuery,
@@ -2523,6 +2550,7 @@ export class SavedChartModel {
                         trx,
                     ),
                     mergeQuery,
+                    pipelineQuery,
                 ]);
 
                 const metricQuery = SavedChartModel.buildMetricQuery(
@@ -2544,6 +2572,11 @@ export class SavedChartModel {
                           value: mergeRow.merge,
                           chartMetricQuery: metricQuery,
                       })
+                    : null;
+                // An unknown future shape leaves the chart without its pipeline
+                // rather than failing the whole chart.
+                const pipeline = pipelineRow
+                    ? parseSavedPipelineDefinition(pipelineRow.pipeline)
                     : null;
 
                 const columnOrder: string[] = [
@@ -2573,6 +2606,7 @@ export class SavedChartModel {
                     description: savedQuery.description,
                     tableName: savedQuery.explore_name,
                     merge,
+                    pipeline,
                     createdAt: savedQuery.content_created_at,
                     projectName: savedQuery.project_name,
                     projectType: savedQuery.project_type,
@@ -2692,6 +2726,7 @@ export class SavedChartModel {
             customBinDimensionsRows,
             customSqlDimensionsRows,
             mergeRows,
+            pipelineRows,
         ] = await Promise.all([
             this.database(SavedChartVersionFieldsTableName)
                 .select([
@@ -2749,6 +2784,15 @@ export class SavedChartModel {
                     }[]
                 >(['saved_queries_version_id', 'schema_version', 'merge'])
                 .whereIn('saved_queries_version_id', versionIds),
+            this.database('saved_queries_version_pipelines')
+                .select<
+                    {
+                        saved_queries_version_id: number;
+                        schema_version: number;
+                        pipeline: unknown;
+                    }[]
+                >(['saved_queries_version_id', 'schema_version', 'pipeline'])
+                .whereIn('saved_queries_version_id', versionIds),
         ]);
         const byVersion = <T extends { saved_queries_version_id: number }>(
             rows: T[],
@@ -2766,9 +2810,11 @@ export class SavedChartModel {
         const customBinDimensionsByVersion = byVersion(customBinDimensionsRows);
         const customSqlDimensionsByVersion = byVersion(customSqlDimensionsRows);
         const mergeByVersion = byVersion(mergeRows);
+        const pipelineByVersion = byVersion(pipelineRows);
         return charts.map((chart) => {
             const versionId = chart.saved_queries_version_id;
             const mergeRow = mergeByVersion.get(versionId)?.[0];
+            const pipelineRow = pipelineByVersion.get(versionId)?.[0];
             const metricQuery = SavedChartModel.buildMetricQuery(chart, {
                 fields: fieldsByVersion.get(versionId) ?? [],
                 sorts: sortsByVersion.get(versionId) ?? [],
@@ -2795,6 +2841,9 @@ export class SavedChartModel {
                           value: mergeRow.merge,
                           chartMetricQuery: metricQuery,
                       })
+                    : null,
+                pipeline: pipelineRow
+                    ? parseSavedPipelineDefinition(pipelineRow.pipeline)
                     : null,
             };
         });
@@ -2995,6 +3044,12 @@ export class SavedChartModel {
                 SavedChartVersionsTableName,
                 `${cteName}.saved_queries_version_id`,
                 'saved_queries_versions.saved_queries_version_id',
+            )
+            // A pipeline chart's fields are its result columns, not an explore's
+            .whereNotExists(
+                this.database('saved_queries_version_pipelines').whereRaw(
+                    'saved_queries_version_pipelines.saved_queries_version_id = saved_queries_versions.saved_queries_version_id',
+                ),
             );
 
         // Filter by specific chart UUID if provided

@@ -803,6 +803,21 @@
                     "$ref": "#/$defs/ParametersValuesMap",
                     "description": "Parameter values for the chart query"
                 },
+                "pipeline": {
+                    "anyOf": [
+                        {
+                            "allOf": [
+                                {
+                                    "$ref": "#/$defs/SavedPipelineDefinition"
+                                }
+                            ],
+                            "description": "The composer pipeline the chart draws, when it is a pipeline chart."
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "pivotConfig": {
                     "description": "Pivot table configuration",
                     "properties": {
@@ -1855,6 +1870,53 @@
             "enum": ["string", "number", "timestamp", "date", "boolean"],
             "type": "string"
         },
+        "DuckdbSourceQuery": {
+            "description": "A DuckDB compose query as a source query. References expose other queries'\nresults as named tables the SQL can select from; a referenced result's\ncolumn names are those of the upstream query's result (field ids for\nsemanticLayer queries, SELECT output names for sql queries).\n\nReferences that name queries still running are waited on: this query\nexecutes once every referenced result is ready, and fails if any\nreferenced query fails.",
+            "properties": {
+                "description": {
+                    "description": "One-line note on what this query does, shown under the title.",
+                    "type": "string"
+                },
+                "limit": {
+                    "format": "double",
+                    "type": "number"
+                },
+                "nodeId": {
+                    "$ref": "#/$defs/QueryNodeId",
+                    "description": "Names this query so other queries in the same submission can reference its results."
+                },
+                "pivotConfiguration": {
+                    "$ref": "#/$defs/PivotConfiguration",
+                    "description": "Pivots this node's result over the columns its SQL returns; checked at\nsubmission. Results carry pivotDetails. Omit for an unpivoted result."
+                },
+                "references": {
+                    "anyOf": [
+                        {
+                            "items": {
+                                "$ref": "#/$defs/QueryNodeId"
+                            },
+                            "type": "array"
+                        },
+                        {
+                            "$ref": "#/$defs/Record_QuerySourceTableName.QueryResultReference_"
+                        }
+                    ],
+                    "description": "Which query results the SQL reads, in one of two forms. Shorthand\narray: node ids of queries in the same submission, each exposed as a\ntable named by its node id — [\"orders\", \"revenue\"] lets the SQL run\nSELECT * FROM orders JOIN revenue. Map form for aliasing or existing\nresults: {tableName: nodeIdOrQueryUuid}, e.g. {\"o\": \"orders\", \"prev\":\n\"<queryUuid>\"}. Required at execution: the query runs on a session\nthat can reach only these results, so one that references nothing is\nrefused."
+                },
+                "sourceType": {
+                    "$ref": "#/$defs/QuerySourceType.DUCKDB"
+                },
+                "sql": {
+                    "type": "string"
+                },
+                "title": {
+                    "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it.",
+                    "type": "string"
+                }
+            },
+            "required": ["sql", "sourceType"],
+            "type": "object"
+        },
         "EChartsConfig": {
             "$ref": "#/$defs/Partial_CompleteEChartsConfig_"
         },
@@ -1961,6 +2023,57 @@
             },
             "type": "object"
         },
+        "ExternalSourceQuery": {
+            "description": "DuckDB SQL over named durable external tables.",
+            "properties": {
+                "description": {
+                    "description": "One-line note on what this query does, shown under the title.",
+                    "type": "string"
+                },
+                "limit": {
+                    "format": "double",
+                    "type": "number"
+                },
+                "nodeId": {
+                    "$ref": "#/$defs/QueryNodeId",
+                    "description": "Names this query so other queries in the same submission can reference its results."
+                },
+                "pivotConfiguration": {
+                    "$ref": "#/$defs/PivotConfiguration",
+                    "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer, sql and duckdb nodes; external nodes refuse it."
+                },
+                "sourceType": {
+                    "$ref": "#/$defs/QuerySourceType.EXTERNAL"
+                },
+                "sql": {
+                    "type": "string"
+                },
+                "tables": {
+                    "anyOf": [
+                        {
+                            "items": {
+                                "$ref": "#/$defs/ExternalSourceTableReference"
+                            },
+                            "type": "array"
+                        },
+                        {
+                            "$ref": "#/$defs/Record_QuerySourceTableName.ExternalSourceTableReference_"
+                        }
+                    ]
+                },
+                "title": {
+                    "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it.",
+                    "type": "string"
+                }
+            },
+            "required": ["tables", "sql", "sourceType"],
+            "type": "object"
+        },
+        "ExternalSourceTableReference": {
+            "description": "External table SQL name or UUID.",
+            "pattern": "^[a-zA-Z0-9_][a-zA-Z0-9_-]{0,63}$",
+            "type": "string"
+        },
         "FieldId": {
             "type": "string"
         },
@@ -1973,6 +2086,10 @@
             },
             "required": ["fieldId"],
             "type": "object"
+        },
+        "FieldType": {
+            "enum": ["metric", "dimension"],
+            "type": "string"
         },
         "FilterGroup": {
             "anyOf": [
@@ -2482,6 +2599,15 @@
                 }
             },
             "required": ["color", "max", "min"],
+            "type": "object"
+        },
+        "GroupByColumn": {
+            "properties": {
+                "reference": {
+                    "type": "string"
+                }
+            },
+            "required": ["reference"],
             "type": "object"
         },
         "GroupValueMatchType": {
@@ -3626,6 +3752,84 @@
             "required": ["y"],
             "type": "object"
         },
+        "PivotConfiguration": {
+            "properties": {
+                "groupByColumns": {
+                    "items": {
+                        "$ref": "#/$defs/GroupByColumn"
+                    },
+                    "type": "array"
+                },
+                "indexColumn": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/PivotIndexColum"
+                        },
+                        {
+                            "items": {
+                                "$ref": "#/$defs/PivotIndexColum"
+                            },
+                            "type": "array"
+                        }
+                    ]
+                },
+                "metricsAsRows": {
+                    "description": "When true, metrics are displayed as rows instead of columns.\nThis affects column limit calculation - when metrics are rows,\nwe don't need to divide the column limit by the number of metrics.\nDefaults to false for backward compatibility (SQL runner behavior).",
+                    "type": "boolean"
+                },
+                "passthroughDimensions": {
+                    "description": "Hidden pivot-column dimensions that are NOT sort targets but still need\ntheir values carried through the SQL pipeline so that other fields'\n`richText` / `image:` templates can reference them via\n`row.<table>.<field>.raw`. They participate in `group_by_query` SELECT\nand GROUP BY (same as sortOnlyDimensions) but do NOT affect\n`column_ranking` ORDER BY (they don't drive sort). Without this bucket\nthe dim would be dropped entirely from the query and `row.*.raw`\nreferences would silently resolve to undefined.",
+                    "items": {
+                        "$ref": "#/$defs/GroupByColumn"
+                    },
+                    "type": "array"
+                },
+                "pivotColumnsOrder": {
+                    "description": "Declared order of the pivot-column dimensions (visible `groupByColumns`\nplus hidden `sortOnlyDimensions`) as they appear in the chart's\n`pivotConfig.columns`. `column_ranking` orders columns by this sequence so\na hidden sort-only dim sorts at its DECLARED position — hiding a dim then\nleaves column order identical to when it was visible, instead of hoisting\nthe hidden dim to the front of the ORDER BY. Passthrough (hidden, non-sort)\ndims are excluded since they don't drive sort. When omitted, ordering falls\nback to hoisting sort-only sort targets to the front (legacy behavior).",
+                    "items": {
+                        "$ref": "#/$defs/GroupByColumn"
+                    },
+                    "type": "array"
+                },
+                "sortBy": {
+                    "$ref": "#/$defs/SortBy"
+                },
+                "sortOnlyColumns": {
+                    "description": "Metrics/table calculations needed for sort anchor CTEs but not for display.\nThese are merged into valuesColumns for SQL generation in PivotQueryBuilder,\nbut excluded from pivotDetails so they don't appear as chart series.",
+                    "items": {
+                        "$ref": "#/$defs/ValuesColumn"
+                    },
+                    "type": "array"
+                },
+                "sortOnlyDimensions": {
+                    "description": "Dimensions referenced by ORDER BY but NOT spread into pivot columns.\nUsed when a user hides a dim that's part of `pivotConfig.columns` and has\na sort entry on it: the dim still ranks column order via the GROUP BY /\nORDER BY pipeline, but it doesn't become a pivot column header level.\nMirrors `sortOnlyColumns` (which serves the same purpose for metrics).",
+                    "items": {
+                        "$ref": "#/$defs/GroupByColumn"
+                    },
+                    "type": "array"
+                },
+                "valuesColumns": {
+                    "items": {
+                        "$ref": "#/$defs/ValuesColumn"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": ["valuesColumns"],
+            "type": "object"
+        },
+        "PivotIndexColum": {
+            "properties": {
+                "reference": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/$defs/VizIndexType"
+                }
+            },
+            "required": ["type", "reference"],
+            "type": "object"
+        },
         "PivotReference": {
             "properties": {
                 "field": {
@@ -3687,6 +3891,95 @@
             "required": ["value", "field"],
             "type": "object"
         },
+        "PythonSourceQuery": {
+            "description": "A python query as a source query: code defining\n`run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame`.\nReferences expose other queries' results as DataFrames in `inputs`, keyed\nlike DuckDB references expose tables. Referenced queries still running are\nwaited on; the query fails if any referenced query fails.",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "description": {
+                    "description": "One-line note on what this query does, shown under the title.",
+                    "type": "string"
+                },
+                "limit": {
+                    "description": "Maximum rows kept from the returned DataFrame.",
+                    "format": "double",
+                    "type": "number"
+                },
+                "nodeId": {
+                    "$ref": "#/$defs/QueryNodeId",
+                    "description": "Names this query so other queries in the same submission can reference its results."
+                },
+                "pivotConfiguration": {
+                    "$ref": "#/$defs/PivotConfiguration",
+                    "description": "Python queries refuse a pivot; pivot in a referencing duckdb query."
+                },
+                "references": {
+                    "anyOf": [
+                        {
+                            "items": {
+                                "$ref": "#/$defs/QueryNodeId"
+                            },
+                            "type": "array"
+                        },
+                        {
+                            "$ref": "#/$defs/Record_QuerySourceTableName.QueryResultReference_"
+                        }
+                    ],
+                    "description": "Which query results the code reads, in the same two forms as duckdb\nreferences. Shorthand array: node ids of queries in the same\nsubmission, each exposed as inputs[nodeId]. Map form for aliasing or\nexisting results: {inputName: nodeIdOrQueryUuid}. At least one is\nrequired."
+                },
+                "sourceType": {
+                    "$ref": "#/$defs/QuerySourceType.PYTHON"
+                },
+                "title": {
+                    "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it.",
+                    "type": "string"
+                }
+            },
+            "required": ["references", "code", "sourceType"],
+            "type": "object"
+        },
+        "QueryNodeId": {
+            "description": "A name identifying one query within a multi-query submission. Other queries\nreference this query's results by this name, and by default the results are\nexposed to referencing DuckDB SQL as a table of the same name — so node ids\nshare the table-name grammar.",
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
+            "type": "string"
+        },
+        "QuerySourceType.DUCKDB": {
+            "enum": ["duckdb"],
+            "type": "string"
+        },
+        "QuerySourceType.EXTERNAL": {
+            "enum": ["external"],
+            "type": "string"
+        },
+        "QuerySourceType.PYTHON": {
+            "enum": ["python"],
+            "type": "string"
+        },
+        "QuerySourceType.SEMANTIC_LAYER": {
+            "enum": ["semanticLayer"],
+            "type": "string"
+        },
+        "QuerySourceType.SQL": {
+            "enum": ["sql"],
+            "type": "string"
+        },
+        "Record_QuerySourceTableName.ExternalSourceTableReference_": {
+            "additionalProperties": {
+                "type": "string"
+            },
+            "description": "Construct a type with a set of properties K of type T",
+            "properties": {},
+            "type": "object"
+        },
+        "Record_QuerySourceTableName.QueryResultReference_": {
+            "additionalProperties": {
+                "type": "string"
+            },
+            "description": "Construct a type with a set of properties K of type T",
+            "properties": {},
+            "type": "object"
+        },
         "Record_string.boolean_": {
             "additionalProperties": {
                 "type": "boolean"
@@ -3743,6 +4036,14 @@
             "properties": {},
             "type": "object"
         },
+        "Record_string.ResultColumn_": {
+            "additionalProperties": {
+                "$ref": "#/$defs/ResultColumn"
+            },
+            "description": "Construct a type with a set of properties K of type T",
+            "properties": {},
+            "type": "object"
+        },
         "Record_string.SeriesMetadata_": {
             "additionalProperties": {
                 "$ref": "#/$defs/SeriesMetadata"
@@ -3779,6 +4080,110 @@
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},
             "type": "object"
+        },
+        "ResultColumn": {
+            "properties": {
+                "format": {
+                    "description": "Lightdash format expression: ECMA-376 with in-repo extensions (IEC\nbytes, tz-shift for date expressions). MUST be rendered with\nformatValueWithExpression, never raw numfmt.",
+                    "type": "string"
+                },
+                "formatOptions": {
+                    "$ref": "#/$defs/CustomFormat",
+                    "description": "Escape hatch for the non-expressible formats: Compact.AUTO and\nnegative round (magnitude rounding). Mirrors getFieldFormatOverrideProps."
+                },
+                "label": {
+                    "description": "Display label. Absent ⇒ consumers fall back to the reference.",
+                    "type": "string"
+                },
+                "numericKind": {
+                    "$ref": "#/$defs/ResultNumericKind",
+                    "description": "NUMBER columns only, when the driver reports it. Absent ⇒ unknown, read as DOUBLE."
+                },
+                "provenance": {
+                    "$ref": "#/$defs/ResultColumnProvenance",
+                    "description": "Absent ⇒ no semantic field behind this column (computed DuckDB column,\nraw SQL column, table calc, join key). Absence gates interaction\ncapabilities (drill, underlying data, URLs) off — by design."
+                },
+                "reference": {
+                    "type": "string"
+                },
+                "separator": {
+                    "$ref": "#/$defs/NumberSeparator",
+                    "description": "The expression cannot encode locale — carried beside it, mirroring\nField.separator / getFieldFormatOverrideProps."
+                },
+                "shiftsTimezone": {
+                    "description": "Resolved output of getFormatterTimezone: whether values shift into the\ndisplay timezone. Saves consumers from needing skipTimezoneConversion /\nbaseDimensionType.",
+                    "type": "boolean"
+                },
+                "timeInterval": {
+                    "$ref": "#/$defs/TimeFrames",
+                    "description": "Temporal grain. Required for QUARTER (no ECMA-376 token) and for\nexport paths (GSheets) that branch on grain."
+                },
+                "type": {
+                    "$ref": "#/$defs/DimensionType"
+                }
+            },
+            "required": ["type", "reference"],
+            "type": "object"
+        },
+        "ResultColumnProvenance": {
+            "properties": {
+                "fieldId": {
+                    "description": "Key into the query's fields map (query_history.fields).",
+                    "type": "string"
+                },
+                "fieldType": {
+                    "$ref": "#/$defs/FieldType",
+                    "description": "Whether the field behind the column is a dimension or a metric."
+                },
+                "sourceQueryUuid": {
+                    "description": "Which query in a multi-source pipeline the field belongs to. Omitted\nfor single-query results. Two composer nodes can both expose the same\nfield name, so a bare fieldId is ambiguous across sources.",
+                    "type": "string"
+                }
+            },
+            "required": ["fieldId"],
+            "type": "object"
+        },
+        "ResultColumns": {
+            "$ref": "#/$defs/Record_string.ResultColumn_"
+        },
+        "ResultNumericKind": {
+            "anyOf": [
+                {
+                    "properties": {
+                        "kind": {
+                            "enum": ["integer"],
+                            "type": "string"
+                        }
+                    },
+                    "required": ["kind"],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "kind": {
+                            "enum": ["decimal"],
+                            "type": "string"
+                        },
+                        "scale": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    "required": ["scale", "kind"],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "kind": {
+                            "enum": ["float"],
+                            "type": "string"
+                        }
+                    },
+                    "required": ["kind"],
+                    "type": "object"
+                }
+            ],
+            "description": "How a NUMBER column is represented at the source, so a typed read binds it without loss."
         },
         "RowLimit": {
             "properties": {
@@ -4063,6 +4468,129 @@
             ],
             "description": "A persisted merge source.\n\nThe chart source is a reference: its metric query already lives on the chart\nversion. Every additional source owns its query. This keeps one source of\ntruth while allowing more sources without adding `thirdQuery`, `fourthQuery`,\nand so on."
         },
+        "SavedPipelineDefinition": {
+            "description": "A saved chart whose query is a composer pipeline instead of a metric\nquery: the nodes, the terminal node whose result the chart draws, and the\nterminal result's columns as they were when the chart was saved. The\ncolumns make the chart's fields known before the pipeline runs, so the\nchart config, the explorer-style field metadata and the dashboard filter\ncatalogue need no run. Field ids are `<terminalNodeId>_<column>`.",
+            "properties": {
+                "columns": {
+                    "$ref": "#/$defs/ResultColumns"
+                },
+                "queries": {
+                    "description": "Self-contained: every node has a node id and reads only nodes of this pipeline.",
+                    "items": {
+                        "$ref": "#/$defs/SourceQuery"
+                    },
+                    "type": "array"
+                },
+                "terminalNodeId": {
+                    "$ref": "#/$defs/QueryNodeId"
+                }
+            },
+            "required": ["columns", "terminalNodeId", "queries"],
+            "type": "object"
+        },
+        "SemanticLayerSourceQuery": {
+            "description": "A semantic layer (metric) query as a source query. Only exploreName,\ndimensions and metrics are required; everything else defaults to empty\n(no filters, no sorts, no table calculations) and a default row limit.\n\nResult columns are named by field id — exactly the dimensions and metrics\nrequested (e.g. requesting metric \"payments_total_revenue\" yields a column\n\"payments_total_revenue\"), so referencing DuckDB SQL selects those names.",
+            "properties": {
+                "additionalMetrics": {
+                    "description": "Ad-hoc metrics not defined in the explore.",
+                    "items": {
+                        "$ref": "#/$defs/AdditionalMetric"
+                    },
+                    "type": "array"
+                },
+                "customDimensions": {
+                    "description": "Ad-hoc dimensions not defined in the explore.",
+                    "items": {
+                        "$ref": "#/$defs/CustomDimension"
+                    },
+                    "type": "array"
+                },
+                "description": {
+                    "description": "One-line note on what this query does, shown under the title.",
+                    "type": "string"
+                },
+                "dimensionOverrides": {
+                    "$ref": "#/$defs/DimensionOverrides",
+                    "description": "Formatting overrides for dimensions in this query, keyed by field id."
+                },
+                "dimensions": {
+                    "description": "Dimension field ids to group by, from the explore's schema.",
+                    "items": {
+                        "$ref": "#/$defs/FieldId"
+                    },
+                    "type": "array"
+                },
+                "exploreName": {
+                    "type": "string"
+                },
+                "filters": {
+                    "description": "Filters to apply, in the metric query filters shape: an optional filter\ngroup per field kind, e.g. {\"dimensions\": {\"id\": \"...\", \"and\": [{\"id\":\n\"...\", \"target\": {\"fieldId\": \"orders_status\"}, \"operator\": \"equals\",\n\"values\": [\"completed\"]}]}}. Defaults to no filters.",
+                    "properties": {
+                        "dimensions": {
+                            "$ref": "#/$defs/AnyType"
+                        },
+                        "metrics": {
+                            "$ref": "#/$defs/AnyType"
+                        },
+                        "tableCalculations": {
+                            "$ref": "#/$defs/AnyType"
+                        }
+                    },
+                    "type": "object"
+                },
+                "limit": {
+                    "description": "Max rows to return. Defaults to the standard query row limit.",
+                    "format": "double",
+                    "type": "number"
+                },
+                "metricOverrides": {
+                    "$ref": "#/$defs/MetricOverrides",
+                    "description": "Formatting overrides for metrics in this query, keyed by field id."
+                },
+                "metrics": {
+                    "description": "Metric field ids to compute, from the explore's schema.",
+                    "items": {
+                        "$ref": "#/$defs/FieldId"
+                    },
+                    "type": "array"
+                },
+                "nodeId": {
+                    "$ref": "#/$defs/QueryNodeId",
+                    "description": "Names this query so other queries in the same submission can reference its results."
+                },
+                "pivotConfiguration": {
+                    "$ref": "#/$defs/PivotConfiguration",
+                    "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer, sql and duckdb nodes; external nodes refuse it."
+                },
+                "sorts": {
+                    "description": "Sorts to apply, e.g. [{\"fieldId\": \"orders_order_date\", \"descending\": true}]. Defaults to none.",
+                    "items": {
+                        "$ref": "#/$defs/SortField"
+                    },
+                    "type": "array"
+                },
+                "sourceType": {
+                    "$ref": "#/$defs/QuerySourceType.SEMANTIC_LAYER"
+                },
+                "tableCalculations": {
+                    "description": "Table calculations appended to the results. Defaults to none.",
+                    "items": {
+                        "$ref": "#/$defs/TableCalculation"
+                    },
+                    "type": "array"
+                },
+                "timezone": {
+                    "description": "IANA timezone for time dimension bucketing, e.g. \"America/New_York\".",
+                    "type": "string"
+                },
+                "title": {
+                    "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it.",
+                    "type": "string"
+                }
+            },
+            "required": ["metrics", "dimensions", "exploreName", "sourceType"],
+            "type": "object"
+        },
         "Series": {
             "properties": {
                 "areaStyle": {
@@ -4198,6 +4726,12 @@
             "required": ["color"],
             "type": "object"
         },
+        "SortBy": {
+            "items": {
+                "$ref": "#/$defs/VizSortBy"
+            },
+            "type": "array"
+        },
         "SortByDirection": {
             "enum": ["ASC", "DESC"],
             "type": "string"
@@ -4226,6 +4760,26 @@
             },
             "required": ["descending", "fieldId"],
             "type": "object"
+        },
+        "SourceQuery": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/SemanticLayerSourceQuery"
+                },
+                {
+                    "$ref": "#/$defs/SqlSourceQuery"
+                },
+                {
+                    "$ref": "#/$defs/DuckdbSourceQuery"
+                },
+                {
+                    "$ref": "#/$defs/ExternalSourceQuery"
+                },
+                {
+                    "$ref": "#/$defs/PythonSourceQuery"
+                }
+            ],
+            "description": "The tagged union every submit endpoint takes: one shape per source,\ndiscriminated by sourceType. New sources add a member here — this union is\nthe extension point, not new WarehouseTypes values."
         },
         "SpaceMemberRole": {
             "enum": ["viewer", "editor", "admin"],
@@ -4295,6 +4849,39 @@
                 "spaceSlug",
                 "version"
             ],
+            "type": "object"
+        },
+        "SqlSourceQuery": {
+            "description": "A raw warehouse SQL query as a source query.",
+            "properties": {
+                "description": {
+                    "description": "One-line note on what this query does, shown under the title.",
+                    "type": "string"
+                },
+                "limit": {
+                    "format": "double",
+                    "type": "number"
+                },
+                "nodeId": {
+                    "$ref": "#/$defs/QueryNodeId",
+                    "description": "Names this query so other queries in the same submission can reference its results."
+                },
+                "pivotConfiguration": {
+                    "$ref": "#/$defs/PivotConfiguration",
+                    "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer, sql and duckdb nodes; external nodes refuse it."
+                },
+                "sourceType": {
+                    "$ref": "#/$defs/QuerySourceType.SQL"
+                },
+                "sql": {
+                    "type": "string"
+                },
+                "title": {
+                    "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it.",
+                    "type": "string"
+                }
+            },
+            "required": ["sql", "sourceType"],
             "type": "object"
         },
         "SqlTableCalculation": {
@@ -4823,6 +5410,18 @@
         "ValueLabelPositionOptions": {
             "enum": ["hidden", "top", "bottom", "left", "right", "inside"],
             "type": "string"
+        },
+        "ValuesColumn": {
+            "properties": {
+                "aggregation": {
+                    "$ref": "#/$defs/VizAggregationOptions"
+                },
+                "reference": {
+                    "type": "string"
+                }
+            },
+            "required": ["aggregation", "reference"],
+            "type": "object"
         },
         "VizAggregationOptions": {
             "enum": ["sum", "count", "avg", "min", "max", "any"],

@@ -1,4 +1,4 @@
-import { subject } from '@casl/ability';
+import { subject, type Ability } from '@casl/ability';
 import {
     AbilityAction,
     Account,
@@ -54,9 +54,12 @@ import {
     normalizeSavedMergeDefinition,
     NotFoundError,
     ParameterError,
+    parseSavedPipelineDefinition,
+    pipelineHasWarehouseSql,
     ProjectType,
     SavedChart,
     SavedChartDAO,
+    SavedPipelineDefinition,
     SchedulerAndTargets,
     SchedulerFormat,
     SchedulerRun,
@@ -93,6 +96,7 @@ import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
+import { type CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import Logger from '../../logging/logger';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
@@ -996,6 +1000,42 @@ export class SavedChartService
         });
     }
 
+    /**
+     * A pipeline chart's pipeline, checked and authorized: the shape must
+     * parse, and warehouse SQL in it needs the SQL runner permission, as it
+     * bypasses user attributes the way a saved SQL chart does.
+     */
+    private resolveSavedPipeline(
+        pipeline: SavedPipelineDefinition | null | undefined,
+        {
+            auditedAbility,
+            organizationUuid,
+            projectUuid,
+        }: {
+            auditedAbility: CaslAuditWrapper<Ability>;
+            organizationUuid: string;
+            projectUuid: string;
+        },
+    ): SavedPipelineDefinition | null | undefined {
+        if (!pipeline) return pipeline;
+        const parsed = parseSavedPipelineDefinition(pipeline);
+        if (!parsed) {
+            throw new ParameterError('Invalid saved pipeline definition.');
+        }
+        if (
+            pipelineHasWarehouseSql(parsed) &&
+            auditedAbility.cannot(
+                'manage',
+                subject('SqlRunner', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot save charts that run warehouse SQL',
+            );
+        }
+        return parsed;
+    }
+
     private async validateMetricReferences(
         projectUuid: string,
         metricQuery: MetricQuery,
@@ -1166,6 +1206,11 @@ export class SavedChartService
         if (chartVersion.merge && !merge) {
             throw new ParameterError('Invalid saved merge definition.');
         }
+        const pipeline = this.resolveSavedPipeline(chartVersion.pipeline, {
+            auditedAbility,
+            organizationUuid,
+            projectUuid,
+        });
 
         await this.validateMetricReferences(
             projectUuid,
@@ -1193,6 +1238,7 @@ export class SavedChartService
                     pivotConfig: chartVersion.pivotConfig,
                     parameters: chartVersion.parameters,
                     merge,
+                    pipeline,
                     verified: verificationAfterUpdate !== null,
                 },
                 verificationAfterUpdate,
@@ -1267,21 +1313,23 @@ export class SavedChartService
 
         let cachedExplore: Explore | ExploreError | undefined;
         try {
-            cachedExplore = await this.projectModel.getExploreFromCache(
-                projectUuid,
-                savedChart.tableName,
-            );
-
-            await this.updateChartFieldUsage(projectUuid, cachedExplore, {
-                oldChartFields: {
-                    metrics: oldChartMetrics,
-                    dimensions: oldChartDimensions,
-                },
-                newChartFields: {
-                    metrics: chartVersion.metricQuery.metrics,
-                    dimensions: chartVersion.metricQuery.dimensions,
-                },
-            });
+            // A pipeline chart's table is its terminal node, not an explore
+            if (!savedChart.pipeline) {
+                cachedExplore = await this.projectModel.getExploreFromCache(
+                    projectUuid,
+                    savedChart.tableName,
+                );
+                await this.updateChartFieldUsage(projectUuid, cachedExplore, {
+                    oldChartFields: {
+                        metrics: oldChartMetrics,
+                        dimensions: oldChartDimensions,
+                    },
+                    newChartFields: {
+                        metrics: chartVersion.metricQuery.metrics,
+                        dimensions: chartVersion.metricQuery.dimensions,
+                    },
+                });
+            }
         } catch (error) {
             this.logger.error(
                 `Error updating chart field usage for chart ${savedChartUuid}`,
@@ -1446,10 +1494,12 @@ export class SavedChartService
             );
         }
 
-        const cachedExplore = await this.projectModel.getExploreFromCache(
-            projectUuid,
-            savedChart.tableName,
-        );
+        const cachedExplore = savedChart.pipeline
+            ? undefined
+            : await this.projectModel.getExploreFromCache(
+                  projectUuid,
+                  savedChart.tableName,
+              );
         this.analytics.track({
             event: 'saved_chart.updated',
             userId: user.userUuid,
@@ -2380,6 +2430,12 @@ export class SavedChartService
             );
         }
 
+        const pipeline = this.resolveSavedPipeline(chartToSave.pipeline, {
+            auditedAbility,
+            organizationUuid,
+            projectUuid,
+        });
+
         await this.validateMetricReferences(
             projectUuid,
             chartToSave.metricQuery,
@@ -2388,6 +2444,7 @@ export class SavedChartService
         const chartToCreate = resolvedSpaceUuid
             ? {
                   ...chartToSave,
+                  pipeline,
                   spaceUuid: resolvedSpaceUuid,
                   dashboardUuid: null as null,
                   slug: generateSlug(chartToSave.name),
@@ -2395,6 +2452,7 @@ export class SavedChartService
               }
             : {
                   ...chartToSave,
+                  pipeline,
                   slug: generateSlug(chartToSave.name),
                   updatedByUser: user,
               };
@@ -2404,10 +2462,13 @@ export class SavedChartService
             chartToCreate,
         );
 
-        const cachedExplore = await this.projectModel.getExploreFromCache(
-            projectUuid,
-            chartToSave.tableName,
-        );
+        // A pipeline chart's table is its terminal node, not an explore
+        const cachedExplore = pipeline
+            ? undefined
+            : await this.projectModel.getExploreFromCache(
+                  projectUuid,
+                  chartToSave.tableName,
+              );
 
         this.analytics.track({
             event: 'saved_chart.created',
@@ -2480,6 +2541,8 @@ export class SavedChartService
         });
 
         try {
+            // A pipeline chart has no explore to record field usage against
+            if (!cachedExplore) throw new Error('Chart has no explore');
             await this.updateChartFieldUsage(projectUuid, cachedExplore, {
                 oldChartFields: {
                     metrics: [],
@@ -2574,10 +2637,12 @@ export class SavedChartService
             user.userUuid,
             duplicatedChart,
         );
-        const cachedExplore = await this.projectModel.getExploreFromCache(
-            projectUuid,
-            newSavedChart.tableName,
-        );
+        const cachedExplore = newSavedChart.pipeline
+            ? undefined
+            : await this.projectModel.getExploreFromCache(
+                  projectUuid,
+                  newSavedChart.tableName,
+              );
 
         const newSavedChartProperties =
             SavedChartService.getCreateEventProperties(
@@ -2654,6 +2719,8 @@ export class SavedChartService
         }
 
         try {
+            // A pipeline chart has no explore to record field usage against
+            if (!cachedExplore) throw new Error('Chart has no explore');
             await this.updateChartFieldUsage(projectUuid, cachedExplore, {
                 oldChartFields: {
                     metrics: [],

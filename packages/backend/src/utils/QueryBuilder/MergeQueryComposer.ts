@@ -23,7 +23,9 @@ export type MergeQueryComposerArguments = {
     /** Every merged column as an ordinary field, keyed by field id. */
     itemsMap: ItemsMap;
     /** The compile's typed field list — the virtual view's column types. */
-    typedColumns: MergeTypedColumn[];
+    typedColumns: Pick<MergeTypedColumn, 'reference' | 'type'>[];
+    /** The sentinel the metadata metric query names; the merge table by default. */
+    exploreName?: string;
     /** Field ids the merged result carries, in the order it returns them. */
     columnOrder: string[];
     /** Sort of the merged result, by merged field id. */
@@ -48,11 +50,13 @@ export const buildMergeResultMetricQuery = ({
     columnOrder,
     sorts,
     limit,
+    exploreName = MERGE_TABLE_NAME,
 }: {
     itemsMap: ItemsMap;
     columnOrder: string[];
     sorts: SortField[];
     limit: number;
+    exploreName?: string;
 }): MetricQuery => {
     const dimensions = columnOrder.filter((fieldId) => {
         const item = itemsMap[fieldId];
@@ -60,7 +64,7 @@ export const buildMergeResultMetricQuery = ({
     });
 
     return {
-        exploreName: MERGE_TABLE_NAME,
+        exploreName,
         dimensions,
         metrics: columnOrder.filter((fieldId) => !dimensions.includes(fieldId)),
         filters: {},
@@ -111,6 +115,7 @@ export class MergeQueryComposer extends QueryComposer {
             usedParametersValues,
             warehouseClient,
             pivotConfiguration,
+            exploreName = MERGE_TABLE_NAME,
         } = args;
 
         super(
@@ -120,11 +125,13 @@ export class MergeQueryComposer extends QueryComposer {
                     columnOrder,
                     sorts,
                     limit,
+                    exploreName,
                 }),
                 pivotConfiguration,
             },
             {
                 explore: MergeQueryComposer.buildVirtualView(
+                    exploreName,
                     coreSql,
                     typedColumns,
                     warehouseClient,
@@ -171,12 +178,13 @@ export class MergeQueryComposer extends QueryComposer {
      * list, which resolved each merged column from the field it came from.
      */
     private static buildVirtualView(
+        name: string,
         sql: string,
-        typedColumns: MergeTypedColumn[],
+        typedColumns: Pick<MergeTypedColumn, 'reference' | 'type'>[],
         warehouseClient: WarehouseClient,
     ): Explore {
         return createVirtualView(
-            MERGE_TABLE_NAME,
+            name,
             sql,
             typedColumns.map(({ reference, type }) => ({ reference, type })),
             warehouseClient,

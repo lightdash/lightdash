@@ -14,6 +14,7 @@ import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
 import { type ResolvedProjectColorPalette } from './organization';
 import { type ParametersValuesMap } from './parameters';
 import { type ProjectType } from './projects';
+import { type SavedPipelineDefinition } from './savedPipeline';
 import type { SchedulerAndTargets } from './scheduler';
 // eslint-disable-next-line import/no-cycle
 import { type SpaceAccess } from './space';
@@ -957,6 +958,12 @@ export type SavedChart = {
     };
     /** Named source queries, join keys, and ordering of the merged result. */
     merge?: SavedMergeDefinition | null;
+    /**
+     * A composer pipeline the chart draws instead of a metric query: its
+     * nodes, terminal node and the terminal result's columns. The metric
+     * query then only names the terminal columns as the chart's fields.
+     */
+    pipeline?: SavedPipelineDefinition | null;
     /** Visualization configuration for the chart */
     chartConfig: ChartConfig;
     /** Table view configuration */
@@ -1033,6 +1040,7 @@ type CreateChartBase = {
     parameters?: SavedChart['parameters'];
     /** Accepts schema v2 uploads; saved charts return the named schema v3 shape. */
     merge?: SavedMergeDefinition | SavedMergeQuery | null;
+    pipeline?: SavedPipelineDefinition | null;
 };
 
 // colorPaletteUuid is on each member to avoid an allOf in the OpenAPI schema.

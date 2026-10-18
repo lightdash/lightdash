@@ -1,9 +1,11 @@
 import {
     normalizeSavedMergeDefinition,
     ParameterError,
+    parseSavedPipelineDefinition,
     type SavedChartDAO,
     type SavedMergeDefinition,
     type SavedMergeQuery,
+    type SavedPipelineDefinition,
 } from '@lightdash/common';
 
 export type ChartDraftOverlay = Partial<
@@ -21,6 +23,7 @@ export type ChartDraftOverlay = Partial<
     >
 > & {
     merge?: SavedMergeDefinition | SavedMergeQuery | null;
+    pipeline?: SavedPipelineDefinition | null;
     verified?: boolean;
 };
 
@@ -44,6 +47,7 @@ export const assertChartDraftOverlay: (
         pivotConfig: isRecord,
         parameters: isRecord,
         merge: (value) => value === null || isRecord(value),
+        pipeline: (value) => value === null || isRecord(value),
         spaceUuid: (value) => typeof value === 'string',
         verified: (value) => typeof value === 'boolean',
     };
@@ -72,6 +76,12 @@ export const mergeDraftIntoChart = <T extends SavedChartDAO>(
     if (draft.merge && !merge) {
         throw new ParameterError('Invalid saved merge definition.');
     }
+    const pipeline = draft.pipeline
+        ? parseSavedPipelineDefinition(draft.pipeline)
+        : draft.pipeline;
+    if (draft.pipeline && !pipeline) {
+        throw new ParameterError('Invalid saved pipeline definition.');
+    }
     return {
         ...chart,
         ...(draft.name !== undefined && { name: draft.name }),
@@ -97,6 +107,7 @@ export const mergeDraftIntoChart = <T extends SavedChartDAO>(
             parameters: draft.parameters,
         }),
         ...(merge !== undefined && { merge }),
+        ...(pipeline !== undefined && { pipeline }),
         ...(draft.spaceUuid !== undefined && {
             spaceUuid: draft.spaceUuid,
         }),

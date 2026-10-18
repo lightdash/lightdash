@@ -465,6 +465,7 @@ export class QuerySourceService extends BaseService {
         invalidateCache,
         plans,
         documentQueryContext,
+        savedChartUuid,
     }: SourceQueryExecutionContext & {
         documentQueryContext?: DocumentQueryContext;
         account: Account;
@@ -503,6 +504,7 @@ export class QuerySourceService extends BaseService {
             // eslint-disable-next-line no-await-in-loop -- dependency order: later submits need earlier queryUuids
             const { queryUuid, cacheHit } = await entry.source.submitQuery({
                 ...(documentQueryContext ? { documentQueryContext } : {}),
+                ...(savedChartUuid ? { savedChartUuid } : {}),
                 account,
                 projectUuid,
                 context,

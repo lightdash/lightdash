@@ -182,7 +182,9 @@ import {
     type RunQueryTags,
     type SavedChartDAO,
     type SavedMergeDefinition,
+    type SavedPipelineDefinition,
     type SessionUser,
+    type SortField,
     type SpaceSummaryBase,
     type UserAttributeValueMap,
     type WarehouseExecuteAsyncQuery,
@@ -421,6 +423,7 @@ import {
 } from './queryCostEstimate';
 import { canReuseQueryResult } from './queryResultReuse';
 import { queryUsageProperties } from './queryUsage';
+import { planSavedPipelineRun } from './savedPipelineExecution';
 import {
     EstimateAsyncMetricQueryArgs,
     EstimateAsyncSqlQueryArgs,
@@ -7817,6 +7820,17 @@ export class AsyncQueryService extends ProjectService {
             source,
         );
 
+        // A pipeline chart's result is a compose node over a terminal result
+        // with no metric query to collapse: totals are not computed for it yet
+        if (
+            !('mergeQuery' in source.requestParameters) &&
+            (await this.queryHistoryModel.getDuckdbExecution(queryUuid))
+        ) {
+            throw new ParameterError(
+                'Totals are not available for pipeline charts',
+            );
+        }
+
         // A merged result has no single metric query to collapse: its totals
         // are aggregated over the merged rows on the compose engine
         if ('mergeQuery' in source.requestParameters) {
@@ -8552,19 +8566,22 @@ export class AsyncQueryService extends ProjectService {
                     },
                 }),
             ) ||
-            auditedAbility.cannot(
-                'view',
-                subject('Project', {
-                    organizationUuid: savedChartOrganizationUuid,
-                    projectUuid,
-                    exploreNames: [savedChartTableName],
-                    metadata: {
-                        savedChartUuid,
-                        savedChartName: savedChart.name,
-                        exploreName: savedChartTableName,
-                    },
-                }),
-            )
+            // A pipeline chart's table is its terminal node, not an explore;
+            // its nodes carry their own explore checks when they run
+            (!savedChart.pipeline &&
+                auditedAbility.cannot(
+                    'view',
+                    subject('Project', {
+                        organizationUuid: savedChartOrganizationUuid,
+                        projectUuid,
+                        exploreNames: [savedChartTableName],
+                        metadata: {
+                            savedChartUuid,
+                            savedChartName: savedChart.name,
+                            exploreName: savedChartTableName,
+                        },
+                    }),
+                ))
         ) {
             throw new ForbiddenError();
         }
@@ -8592,6 +8609,25 @@ export class AsyncQueryService extends ProjectService {
             filters: filterOverrides,
             dashboardFilters,
         };
+
+        if (savedChart.pipeline) {
+            return this.submitSavedPipelineRun({
+                account,
+                projectUuid,
+                savedChart,
+                pipeline: savedChart.pipeline,
+                context,
+                querySurface,
+                invalidateCache,
+                limit,
+                parameters,
+                pivotResults,
+                pivotConfiguration: requestedPivotConfiguration,
+                dashboardSorts: undefined,
+                userAttributeOverrides,
+                requestParameters,
+            });
+        }
 
         if (savedChart.merge) {
             return this.executeAsyncSavedMergeQuery({
@@ -9262,6 +9298,180 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    /**
+     * A saved pipeline chart's run: the stored nodes are submitted as the
+     * viewer (semantic nodes under their explore access, warehouse SQL under
+     * the chart's view permission, like a saved SQL chart), then the chart
+     * node reads the terminal result under the chart's field ids with the
+     * chart's sort, limit and pivot composed over it. The chart node's row
+     * is what the chart reads: its fields are the terminal columns as items.
+     */
+    private async submitSavedPipelineRun({
+        account,
+        projectUuid,
+        savedChart,
+        pipeline,
+        context,
+        querySurface,
+        invalidateCache,
+        limit,
+        parameters,
+        pivotResults,
+        pivotConfiguration,
+        dashboardSorts,
+        userAttributeOverrides,
+        requestParameters,
+    }: Pick<
+        ExecuteAsyncSavedChartQueryArgs,
+        | 'account'
+        | 'projectUuid'
+        | 'context'
+        | 'querySurface'
+        | 'invalidateCache'
+        | 'limit'
+        | 'parameters'
+        | 'pivotResults'
+        | 'pivotConfiguration'
+        | 'userAttributeOverrides'
+    > & {
+        savedChart: SavedChartDAO;
+        pipeline: SavedPipelineDefinition;
+        dashboardSorts: SortField[] | undefined;
+        requestParameters: ExecuteAsyncQueryRequestParams;
+    }): Promise<ApiExecuteAsyncMetricQueryResults> {
+        assertIsAccountWithOrg(account);
+        const { maxLimit, csvCellsLimit } =
+            await resolveOrganizationExportLimits(
+                this.organizationSettingsModel,
+                this.lightdashConfig.query,
+                savedChart.organizationUuid,
+            );
+        // The chart's own limit on view; an export's limit, capped by the
+        // organization's cell limit over the result's columns
+        const { limit: effectiveLimit } = applyMetricQueryLimit(
+            {
+                ...savedChart.metricQuery,
+                dimensions: Object.keys(pipeline.columns),
+                metrics: [],
+                tableCalculations: [],
+            },
+            limit,
+            csvCellsLimit,
+            maxLimit,
+        );
+        const plan = planSavedPipelineRun({
+            savedChart,
+            pipeline,
+            pivotResults,
+            pivotConfiguration,
+            dashboardSorts,
+            limit: effectiveLimit,
+        });
+        const vizNode = plan.queries.find(
+            (query) => query.nodeId === plan.vizNodeId,
+        );
+        if (!vizNode || vizNode.sourceType !== QuerySourceType.DUCKDB) {
+            throw new UnexpectedServerError(
+                'The pipeline chart node was not planned',
+            );
+        }
+        const compose: DuckdbQueryPlanComposer = ({
+            warehouseClient,
+            pivotConfiguration: pivot,
+        }) => {
+            const quote = warehouseClient.getFieldQuoteChar();
+            return new MergeQueryComposer({
+                coreSql: vizNode.sql,
+                terminalWrapper: {
+                    orderBy: plan.sorts.map(
+                        (sort) =>
+                            `${quote}${sort.fieldId}${quote} ${
+                                sort.descending ? 'DESC' : 'ASC'
+                            }`,
+                    ),
+                    limit: plan.limit,
+                },
+                itemsMap: plan.itemsMap,
+                typedColumns: plan.typedColumns,
+                columnOrder: plan.columnOrder,
+                sorts: plan.sorts,
+                limit: plan.limit,
+                parameterReferences: [],
+                usedParametersValues: {},
+                warehouseClient,
+                pivotConfiguration: pivot,
+                exploreName: pipeline.terminalNodeId,
+            });
+        };
+        // A pivot the composer refuses fails here, before any node runs
+        compose({
+            warehouseClient:
+                this.composeEngineClient.createExecutionWarehouseClient({
+                    storage: 'results',
+                    scope: null,
+                }),
+            pivotConfiguration: plan.pivotConfiguration,
+        }).getSql({
+            columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+        });
+        const duckdbPlan: DuckdbQueryPlan = {
+            columns: {
+                mode: 'supplied',
+                compose,
+                originalColumns: plan.originalColumns,
+                requestParameters,
+            },
+            engine: 'scopedToReferencedResults',
+            // The terminal result's row count is its own node's concern
+            guard: {
+                legLabelByReferenceTable: {},
+                sourceRowCap: this.lightdashConfig.query.maxLimit,
+            },
+            referenceLabels: plan.referenceLabels,
+        };
+        const { queries } = await traceSpan(
+            {
+                op: 'saved_pipeline.execute',
+                name: 'saved_pipeline.execute',
+                attributes: {
+                    'lightdash.projectUuid': projectUuid,
+                    'lightdash.queryContext': context,
+                    'lightdash.chartUuid': savedChart.uuid,
+                    'lightdash.nodeCount': plan.queries.length,
+                },
+            },
+            () =>
+                this.getQuerySourceService().submitQueries({
+                    account,
+                    projectUuid,
+                    context,
+                    querySurface,
+                    queries: plan.queries,
+                    parameters: { ...savedChart.parameters, ...parameters },
+                    userAttributeOverrides: userAttributeOverrides ?? {},
+                    invalidateCache: invalidateCache ?? false,
+                    plans: { [plan.vizNodeId]: duckdbPlan },
+                    savedChartUuid: savedChart.uuid,
+                }),
+        );
+        const viz = queries.find((query) => query.nodeId === plan.vizNodeId);
+        if (!viz) {
+            throw new UnexpectedServerError(
+                'The pipeline chart node was not submitted',
+            );
+        }
+        return {
+            queryUuid: viz.queryUuid,
+            cacheMetadata: { cacheHit: false },
+            metricQuery: plan.metricQuery,
+            fields: plan.itemsMap,
+            warnings: [],
+            parameterReferences: [],
+            usedParametersValues: {},
+            resolvedTimezone: null,
+        };
+    }
+
     async executeAsyncDashboardChartQuery({
         account,
         projectUuid,
@@ -9300,14 +9510,17 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError('Chart does not belong to project');
         }
 
-        const [space, { explore, userAccessControls }] = await Promise.all([
+        const [space, exploreAccess] = await Promise.all([
             this.spaceModel.getSpaceSummary(savedChart.spaceUuid),
-            this.getExploreWithUserAccessControls(
-                account,
-                projectUuid,
-                savedChart.tableName,
-                organizationUuid,
-            ),
+            // A pipeline chart's table is its terminal node, not an explore
+            savedChart.pipeline
+                ? null
+                : this.getExploreWithUserAccessControls(
+                      account,
+                      projectUuid,
+                      savedChart.tableName,
+                      organizationUuid,
+                  ),
         ]);
 
         let effectiveDashboardUuid: string | undefined = dashboardUuid;
@@ -9353,6 +9566,52 @@ export class AsyncQueryService extends ProjectService {
                     error: e,
                 }),
             );
+
+        // A pipeline tile runs its stored nodes and the chart node. Dashboard
+        // filters and date zoom have no pipeline input yet, so they are left
+        // unapplied rather than applied to one node only.
+        if (savedChart.pipeline) {
+            const started = await this.submitSavedPipelineRun({
+                account,
+                projectUuid,
+                savedChart,
+                pipeline: savedChart.pipeline,
+                context,
+                querySurface,
+                invalidateCache,
+                limit,
+                parameters,
+                pivotResults,
+                pivotConfiguration: undefined,
+                dashboardSorts:
+                    dashboardSorts.length > 0 ? dashboardSorts : undefined,
+                userAttributeOverrides,
+                requestParameters: {
+                    tileUuid,
+                    chartUuid,
+                    context,
+                    dashboardUuid: resolvedDashboardUuid,
+                    dashboardFilters,
+                    dashboardSorts,
+                    dateZoom,
+                    limit,
+                    parameters,
+                },
+            });
+            return {
+                ...started,
+                appliedDashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dateZoomApplied: false,
+            };
+        }
+        if (!exploreAccess) {
+            throw new UnexpectedServerError('The chart explore was not loaded');
+        }
+        const { explore, userAccessControls } = exploreAccess;
 
         const resolvedDashboardFilters = await resolveDashboardDateFilters({
             tileUuid,
@@ -9996,12 +10255,16 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         userAttributeOverrides,
         warehouseConnectionUuid: requestedConnectionUuid,
+        savedChartUuid,
     }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         const { organizationUuid, provisioningSource } =
             await this.projectModel.getSummary(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(account);
+        // A saved pipeline chart's SQL node runs on the chart's view
+        // permission, checked by the chart run; like a saved SQL chart.
         if (
+            !savedChartUuid &&
             auditedAbility.cannot(
                 'manage',
                 subject('SqlRunner', {

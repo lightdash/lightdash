@@ -107,6 +107,7 @@ export class SqlQuerySource implements QuerySourceClient {
         userAttributeOverrides,
         invalidateCache,
         pivotConfiguration,
+        savedChartUuid,
     }: SubmitSourceQueryArgs): Promise<{
         queryUuid: string;
         cacheHit: boolean;
@@ -114,6 +115,7 @@ export class SqlQuerySource implements QuerySourceClient {
         const sourceQuery = SqlQuerySource.assertSourceQuery(query);
 
         const results = await this.asyncQueryService.executeAsyncSqlQuery({
+            ...(savedChartUuid ? { savedChartUuid } : {}),
             account,
             projectUuid,
             sql: sourceQuery.sql,

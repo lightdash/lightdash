@@ -1,4 +1,5 @@
 import {
+    buildSavedPipelineExplore,
     getAvailableParametersFromTables,
     getChartZoomableFields,
     getDateZoomCapabilities,
@@ -148,9 +149,23 @@ export const useDashboardChartReadyQuery = (
         tileUuid,
     ]);
 
-    const { data: explore, error: exploreError } = useExplore(
-        chartQuery.data?.metricQuery?.exploreName,
+    // A pipeline chart's fields are its own: its explore is built from the
+    // pipeline, and nothing is fetched
+    const pipeline = chartQuery.data?.pipeline ?? null;
+    const pipelineExplore = useMemo(
+        (): ApiExploreResults | undefined =>
+            pipeline
+                ? {
+                      ...buildSavedPipelineExplore(pipeline),
+                      warehouseConnectionUuid: null,
+                  }
+                : undefined,
+        [pipeline],
     );
+    const { data: fetchedExplore, error: exploreError } = useExplore(
+        pipeline ? undefined : chartQuery.data?.metricQuery?.exploreName,
+    );
+    const explore = pipelineExplore ?? fetchedExplore;
 
     const addAvailableCustomGranularities = useDashboardTileStatusContext(
         (c) => c.addAvailableCustomGranularities,

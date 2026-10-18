@@ -775,13 +775,14 @@ describe('getSimilarityContexts', () => {
             .select('saved_queries_version_custom_dimensions')
             .responseOnce([]);
         tracker.on.select('saved_queries_version_merges').responseOnce([]);
+        tracker.on.select('saved_queries_version_pipelines').responseOnce([]);
 
         const contexts = await model.getSimilarityContexts({
             projectUuid: 'project-1',
             uuids: ['chart-1', 'chart-2'],
         });
 
-        expect(tracker.history.select).toHaveLength(8);
+        expect(tracker.history.select).toHaveLength(9);
         expect(tracker.history.select[0].bindings).toEqual(
             expect.arrayContaining(['chart-1', 'chart-2', 'project-1']),
         );
@@ -792,6 +793,7 @@ describe('getSimilarityContexts', () => {
                 spaceUuid: 'space-1',
                 parameters: undefined,
                 merge: null,
+                pipeline: null,
                 metricQuery: expect.objectContaining({
                     exploreName: 'orders',
                     metrics: ['orders_revenue'],
@@ -805,6 +807,7 @@ describe('getSimilarityContexts', () => {
                 spaceUuid: 'space-2',
                 parameters: { period: 'last_year' },
                 merge: null,
+                pipeline: null,
                 metricQuery: expect.objectContaining({
                     metrics: ['orders_count'],
                     dimensions: [],

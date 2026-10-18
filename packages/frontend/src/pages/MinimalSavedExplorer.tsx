@@ -36,6 +36,7 @@ import {
     selectSavedChart,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { MinimalSavedPipelineChart } from '../features/savedPipeline/MinimalSavedPipelineChart';
 import { useScheduler } from '../features/scheduler/hooks/useScheduler';
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
@@ -366,9 +367,13 @@ const MinimalSavedExplorer: FC<Props> = ({
 
     return (
         <ProjectRouteContext.Provider value={projectRouteContext}>
-            <Provider store={store} key={`minimal-${savedQueryUuid}`}>
-                <MinimalExplorerContent />
-            </Provider>
+            {data.pipeline ? (
+                <MinimalSavedPipelineChart key={data.uuid} chart={data} />
+            ) : (
+                <Provider store={store} key={`minimal-${savedQueryUuid}`}>
+                    <MinimalExplorerContent />
+                </Provider>
+            )}
         </ProjectRouteContext.Provider>
     );
 };

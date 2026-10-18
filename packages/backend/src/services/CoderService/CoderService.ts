@@ -76,6 +76,8 @@ import {
     NotImplementedError,
     OrganizationMemberRole,
     ParameterError,
+    parseSavedPipelineDefinition,
+    pipelineHasWarehouseSql,
     Project,
     ProjectType,
     PromotionAction,
@@ -1862,6 +1864,7 @@ export class CoderService extends BaseService {
             chartConfig: chart.chartConfig,
             pivotConfig: chart.pivotConfig,
             ...(chart.merge ? { merge: chart.merge } : {}),
+            ...(chart.pipeline ? { pipeline: chart.pipeline } : {}),
             dashboardSlug: chart.dashboardUuid
                 ? dashboardSlugs[chart.dashboardUuid]
                 : undefined,
@@ -4041,6 +4044,29 @@ export class CoderService extends BaseService {
         if (chartAsCode.merge && !merge) {
             throw new ParameterError('Invalid saved merge definition.');
         }
+        const pipeline = chartAsCode.pipeline
+            ? parseSavedPipelineDefinition(chartAsCode.pipeline)
+            : chartAsCode.pipeline;
+        if (chartAsCode.pipeline && !pipeline) {
+            throw new ParameterError('Invalid saved pipeline definition.');
+        }
+        // Warehouse SQL in a pipeline bypasses user attributes, so saving
+        // it takes the SQL runner permission, as it does in the app
+        if (
+            pipeline &&
+            pipelineHasWarehouseSql(pipeline) &&
+            auditedAbility.cannot(
+                'manage',
+                subject('SqlRunner', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `Chart ${slug} runs warehouse SQL, which needs SQL runner access to save`,
+            );
+        }
 
         // Default optional fields when missing (e.g. user-authored YAML)
         const chartWithDefaults = {
@@ -4054,6 +4080,7 @@ export class CoderService extends BaseService {
             ),
             metricQuery,
             merge,
+            pipeline,
         };
 
         // Access block preflight runs before any write; dashboard-owned

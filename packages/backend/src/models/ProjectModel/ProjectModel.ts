@@ -7117,6 +7117,16 @@ export class ProjectModel {
                         value == null ? null : JSON.stringify(value),
                 },
             );
+            // A version's merge and pipeline live in their own tables, keyed
+            // by the version id alone
+            await copyChartVersionContent('saved_queries_version_merges', [], {
+                merge: (value: AnyType) => JSON.stringify(value),
+            });
+            await copyChartVersionContent(
+                'saved_queries_version_pipelines',
+                [],
+                { pipeline: (value: AnyType) => JSON.stringify(value) },
+            );
 
             // Get last version of a dashboard
             const lastDashboardVersionsIds = await trx('dashboard_versions')

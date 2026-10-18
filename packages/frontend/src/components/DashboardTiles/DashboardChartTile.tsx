@@ -695,6 +695,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             explore,
         } = dashboardChartReadyQuery;
         const savedMerge = chart.merge ?? null;
+        // A pipeline chart is not a query the Explorer can open
+        const isPipelineChart = chart.pipeline != null;
         // A merged tile's filters echo per source; the other source's explore
         // is needed to label them.
         const additionalExploreName = (
@@ -1746,6 +1748,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                 >
                                     <Box>
                                         {userCanViewExplore &&
+                                            !isPipelineChart &&
                                             chartPathname && (
                                                 <Tooltip
                                                     label={
@@ -2142,9 +2145,11 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
         explore,
         executeQueryResponse: { metricQuery },
     } = dashboardChartReadyQuery;
+    // A pipeline chart is edited on its own page, not in the explorer
     const showEditChart =
         onEditChart !== undefined &&
         props.isEditMode &&
+        chart.pipeline == null &&
         (canEditChart?.(chart) ?? true);
     const projectUuid = useProjectUuid();
     const { canViewExplore } = useContextMenuPermissions({
@@ -2163,7 +2168,8 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
         onExplore({ chart: chart.merge ? chart : { ...chart, metricQuery } });
     }, [onExplore, chart, metricQuery]);
 
-    const canExplore = canViewExploreOverride ?? canViewExplore;
+    const canExplore =
+        (canViewExploreOverride ?? canViewExplore) && chart.pipeline == null;
 
     const tilesWithDateZoomApplied = useDashboardContext(
         (c) => c.tilesWithDateZoomApplied,

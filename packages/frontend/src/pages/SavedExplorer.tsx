@@ -26,6 +26,7 @@ import {
     explorerActions,
 } from '../features/explorer/store';
 import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
+import { SavedPipelineChartPage } from '../features/savedPipeline/SavedPipelineChartPage';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import { tryParseCreateSavedChartVersionParam } from '../hooks/useExplorerRoute';
@@ -264,6 +265,17 @@ const SavedExplorer = () => {
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState title="Loading..." loading />
             </div>
+        );
+    }
+
+    // A pipeline chart has no explore; it has its own page
+    if (data.pipeline) {
+        return (
+            <SavedPipelineChartPage
+                key={data.uuid}
+                chart={data}
+                isEditMode={isEditMode}
+            />
         );
     }
 

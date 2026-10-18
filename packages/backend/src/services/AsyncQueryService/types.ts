@@ -202,6 +202,11 @@ export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
     limit?: number;
     pivotConfiguration?: PivotConfiguration;
     warehouseConnectionUuid?: string | null;
+    /**
+     * Set by the saved pipeline chart run only: the SQL is a node of a chart
+     * the caller may view, so the SQL runner permission is not required.
+     */
+    savedChartUuid?: string;
 };
 
 export type EstimateAsyncMetricQueryArgs = Pick<

@@ -19,6 +19,7 @@ import type {
     TableChartConfig,
     TreemapChartConfig,
 } from '../savedCharts';
+import type { SavedPipelineDefinition } from '../savedPipeline';
 import type { SqlChart } from '../sqlRunner';
 import type { ContentAsCodeType, FiltersInput } from './core';
 import type { ContentAsCodeDirectAccess } from './directAccess';
@@ -88,6 +89,8 @@ export type ChartAsCode = Omit<
     'metricQuery' | 'chartConfig'
 > & {
     merge?: SavedMergeDefinition | SavedMergeQuery | null;
+    /** The composer pipeline the chart draws, when it is a pipeline chart. */
+    pipeline?: SavedPipelineDefinition | null;
     metricQuery: Omit<MetricQuery, 'filters'> & { filters: FiltersInput };
     chartConfig: ChartAsCodeConfig;
     /** Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted. */
