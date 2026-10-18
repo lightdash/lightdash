@@ -198,318 +198,6 @@ const getPreviewProject = async (name: string) => {
             project.type === ProjectType.PREVIEW && project.name === name,
     );
 };
-export const previewHandler = async (
-    originalOptions: PreviewHandlerOptions,
-): Promise<void> => {
-    refuseAgentConnection();
-    const options = { ...originalOptions };
-    GlobalState.setVerbose(options.verbose);
-    const executionId = uuidv4();
-    await checkLightdashVersion();
-
-    // Detect project type
-    const absoluteProjectPath = path.resolve(options.projectDir);
-    const projectTypeConfig = await detectProjectType({
-        projectDir: options.projectDir,
-        userOptions: {
-            warehouseCredentials: options.warehouseCredentials,
-            skipDbtCompile: options.skipDbtCompile,
-            skipWarehouseCatalog: options.skipWarehouseCatalog,
-        },
-    });
-
-    let name = options?.name;
-    if (name === undefined) {
-        name = uniqueNamesGenerator({
-            length: 2,
-            separator: ' ',
-            dictionaries: [colors, animals],
-        });
-    }
-
-    console.error('');
-    const spinner = GlobalState.startSpinner(
-        `  Setting up preview environment`,
-    );
-
-    const previewProject = await getPreviewProject(name);
-    if (previewProject) {
-        GlobalState.debug(`> Preview with the same name already running`);
-        spinner.fail();
-        throw new Error('Preview with the same name already running.');
-    }
-
-    let project: Project | undefined;
-    let hasContentCopy = false;
-    let contentCopyError: string | undefined;
-    let contentCopySkipReason: string | undefined;
-
-    const config = await getConfig();
-    options.combineManifestProjectUuid = config.context?.project;
-
-    // Validate upstream project before attempting to copy permissions or content
-    let upstreamProjectValid = false;
-    if (config.context?.project) {
-        try {
-            GlobalState.debug(
-                `> Validating upstream project: ${config.context.project}`,
-            );
-            const upstreamProject = await lightdashApi<Project>({
-                method: 'GET',
-                url: `/api/v1/projects/${config.context.project}`,
-                body: undefined,
-            });
-            upstreamProjectValid =
-                upstreamProject.projectUuid === config.context.project;
-            if (!upstreamProjectValid) {
-                contentCopySkipReason = `Project UUID mismatch. Expected ${config.context.project} but got ${upstreamProject.projectUuid}`;
-                console.error(
-                    styles.warning(
-                        `\n\nWarning: Cannot access upstream project "${
-                            config.context.projectName || config.context.project
-                        }"\n` +
-                            `Content will not be copied. Please run 'lightdash config set-project' to set a valid project.\n`,
-                    ),
-                );
-            }
-        } catch (e) {
-            const errorMessage = e instanceof Error ? e.message : String(e);
-            contentCopySkipReason = `Failed to validate upstream project: ${errorMessage}`;
-            GlobalState.debug(
-                `> Upstream project validation failed: ${errorMessage}`,
-            );
-            console.error(
-                styles.warning(
-                    `\n\nWarning: Cannot access upstream project "${
-                        config.context.projectName || config.context.project
-                    }"\n` +
-                        `Content will not be copied. Please run 'lightdash config set-project' to set a valid project.\n`,
-                ),
-            );
-        }
-    }
-
-    if (!config.context?.project) {
-        contentCopySkipReason = 'No upstream project configured';
-        console.error(
-            styles.warning(
-                `\n\nDeveloper preview will be deployed without any copied content!\nPlease set a project to copy content from by running 'lightdash config set-project'.\n`,
-            ),
-        );
-    } else if (options.skipCopyContent) {
-        contentCopySkipReason = '--skip-copy-content flag was used';
-        console.error(
-            styles.warning(
-                `\n\nDeveloper preview will be deployed without any copied content!\n`,
-            ),
-        );
-    } else if (upstreamProjectValid) {
-        console.error(
-            `\n${styles.success('✔')}   Copying charts and dashboards from "${
-                config.context?.projectName || 'source project'
-            }"`,
-        );
-    }
-
-    try {
-        const results = await createProject({
-            ...options,
-            name,
-            type: ProjectType.PREVIEW,
-            upstreamProjectUuid:
-                config.context?.project && upstreamProjectValid
-                    ? config.context.project
-                    : undefined,
-            copyContent: !options.skipCopyContent && upstreamProjectValid,
-            warehouseCredentials: projectTypeConfig.warehouseCredentials,
-            expiresIn: options.expiresIn
-                ? parseInt(options.expiresIn, 10)
-                : undefined,
-        });
-
-        project = results?.project;
-        hasContentCopy = Boolean(results?.hasContentCopy);
-        contentCopyError = results?.contentCopyError;
-    } catch (e) {
-        GlobalState.debug(`> Unable to create project: ${e}`);
-        spinner.fail();
-        throw e;
-    }
-
-    if (!project) {
-        spinner.fail('Cancel preview environment');
-        console.error(
-            "To create your project, you'll need to manually enter your warehouse connection details.",
-        );
-        const createProjectUrl =
-            config.context?.serverUrl &&
-            new URL('/createProject', config.context.serverUrl);
-        if (createProjectUrl) {
-            console.error(
-                `Fill out the project connection form here: ${createProjectUrl}`,
-            );
-        }
-        return;
-    }
-
-    if (options.disableTimestampConversion === undefined) {
-        options.disableTimestampConversion =
-            getDisableTimestampConversionFromProject(
-                project.warehouseConnection,
-            );
-        GlobalState.debug(
-            `> Using disable-timestamp-conversion=${String(
-                options.disableTimestampConversion ?? false,
-            )} from preview project settings`,
-        );
-    }
-
-    const previewStartTime = Date.now();
-    await LightdashAnalytics.track({
-        event: 'preview.started',
-        properties: {
-            executionId,
-            projectId: project.projectUuid,
-        },
-    });
-    try {
-        const { explores, isProjectComplete } = await compileProject(options);
-        await deploy(explores, {
-            ...options,
-            projectUuid: project.projectUuid,
-            ...(await previewDeployDestination(
-                project,
-                options,
-                projectTypeConfig.type,
-                config.context?.project,
-            )),
-            complete: isProjectComplete,
-        });
-
-        await setPreviewProject(project.projectUuid, name);
-
-        process.on('SIGINT', async () => {
-            await cleanupProject(
-                executionId,
-                project!.projectUuid,
-                previewStartTime,
-            );
-
-            process.exit(0);
-        });
-
-        if (!hasContentCopy) {
-            let errorMessage = `\n\nDeveloper preview deployed without any copied content!`;
-            if (contentCopyError) {
-                errorMessage += `\nError: ${contentCopyError}`;
-            } else if (contentCopySkipReason) {
-                errorMessage += `\nReason: ${contentCopySkipReason}`;
-            }
-            errorMessage += '\n';
-            console.error(styles.warning(errorMessage));
-        }
-
-        spinner.succeed(
-            `  Developer preview "${name}" ready at: ${await projectUrl(
-                project,
-            )}\n`,
-        );
-        await LightdashAnalytics.track({
-            event: 'preview.completed',
-            properties: {
-                executionId,
-                projectId: project.projectUuid,
-                durationMs: Date.now() - previewStartTime,
-            },
-        });
-
-        const pressToShutdown = GlobalState.startSpinner(
-            `  Press [ENTER] to shutdown preview...`,
-        );
-
-        // Only set up dbt manifest file watching for dbt projects
-        // YAML-only projects don't have a manifest.json to watch
-        let watcher: chokidar.FSWatcher | undefined;
-        if (projectTypeConfig.type === CliProjectType.Dbt) {
-            const context = await getDbtContext({
-                projectDir: absoluteProjectPath,
-                targetPath: options.targetPath,
-            });
-            const manifestFilePath = path.join(
-                context.targetDir,
-                'manifest.json',
-            );
-
-            watcher = chokidar
-                .watch(manifestFilePath)
-                .on('change', async () => {
-                    pressToShutdown.stop();
-
-                    console.error(
-                        `${styles.title(
-                            '↻',
-                        )}   Detected changes on dbt project. Updating preview`,
-                    );
-                    watcher!.unwatch(manifestFilePath);
-                    // Deploying will change manifest.json too, so we need to stop watching the file until it is deployed
-                    if (project) {
-                        const compileResult = await compileProject(options);
-                        await deploy(compileResult.explores, {
-                            ...options,
-                            projectUuid: project.projectUuid,
-                            ...(await previewDeployDestination(
-                                project,
-                                options,
-                                projectTypeConfig.type,
-                                config.context?.project,
-                            )),
-                            complete: compileResult.isProjectComplete,
-                        });
-                    }
-
-                    console.error(
-                        `${styles.success('✔')}   Preview updated \n`,
-                    );
-                    pressToShutdown.start();
-
-                    watcher!.add(manifestFilePath);
-                });
-        }
-
-        await inquirer.prompt([
-            {
-                type: 'input',
-                name: 'press-enter',
-                prefix: styles.success('✔'),
-                message: `  Press [ENTER] to shutdown preview...`,
-            },
-        ]);
-        pressToShutdown.clear();
-
-        // Clean up watcher if it was created
-        if (watcher) {
-            await watcher.close();
-        }
-    } catch (e) {
-        spinner.fail(`Error creating developer preview: ${getErrorMessage(e)}`);
-
-        await deletePreviewProject(project.projectUuid);
-        await unsetPreviewProject();
-
-        await LightdashAnalytics.track({
-            event: 'preview.error',
-            properties: {
-                executionId,
-                projectId: project.projectUuid,
-                error: `Error creating developer preview ${e}`,
-            },
-        });
-        throw e;
-    }
-
-    await cleanupProject(executionId, project.projectUuid, previewStartTime);
-};
-
 const withCurrentSettings = (
     credentials: CreateWarehouseCredentials,
     current: WarehouseConnectionWithCredentials['warehouseConnection'],
@@ -668,6 +356,370 @@ const refreshPreviewWarehouseCredentials = async (
         spinner.fail();
         throw e;
     }
+};
+
+export const previewHandler = async (
+    originalOptions: PreviewHandlerOptions,
+): Promise<void> => {
+    refuseAgentConnection();
+    const options = { ...originalOptions };
+    GlobalState.setVerbose(options.verbose);
+    const executionId = uuidv4();
+    await checkLightdashVersion();
+
+    // Detect project type
+    const absoluteProjectPath = path.resolve(options.projectDir);
+    const projectTypeConfig = await detectProjectType({
+        projectDir: options.projectDir,
+        userOptions: {
+            warehouseCredentials: options.warehouseCredentials,
+            skipDbtCompile: options.skipDbtCompile,
+            skipWarehouseCatalog: options.skipWarehouseCatalog,
+        },
+    });
+
+    let name = options?.name;
+    if (name === undefined) {
+        name = uniqueNamesGenerator({
+            length: 2,
+            separator: ' ',
+            dictionaries: [colors, animals],
+        });
+    }
+
+    console.error('');
+    const spinner = GlobalState.startSpinner(
+        `  Setting up preview environment`,
+    );
+
+    const previewProject = await getPreviewProject(name);
+    if (previewProject) {
+        GlobalState.debug(`> Preview with the same name already running`);
+        spinner.fail();
+        throw new Error('Preview with the same name already running.');
+    }
+
+    let project: Project | undefined;
+    let hasContentCopy = false;
+    let contentCopyError: string | undefined;
+    let contentCopySkipReason: string | undefined;
+
+    const config = await getConfig();
+    options.combineManifestProjectUuid = config.context?.project;
+
+    // Validate upstream project before attempting to copy permissions or content
+    let upstreamProjectValid = false;
+    let upstreamProject: Project | undefined;
+    if (config.context?.project) {
+        try {
+            GlobalState.debug(
+                `> Validating upstream project: ${config.context.project}`,
+            );
+            upstreamProject = await lightdashApi<Project>({
+                method: 'GET',
+                url: `/api/v1/projects/${config.context.project}`,
+                body: undefined,
+            });
+            upstreamProjectValid =
+                upstreamProject.projectUuid === config.context.project;
+            if (!upstreamProjectValid) {
+                contentCopySkipReason = `Project UUID mismatch. Expected ${config.context.project} but got ${upstreamProject.projectUuid}`;
+                console.error(
+                    styles.warning(
+                        `\n\nWarning: Cannot access upstream project "${
+                            config.context.projectName || config.context.project
+                        }"\n` +
+                            `Content will not be copied. Please run 'lightdash config set-project' to set a valid project.\n`,
+                    ),
+                );
+            }
+        } catch (e) {
+            const errorMessage = e instanceof Error ? e.message : String(e);
+            contentCopySkipReason = `Failed to validate upstream project: ${errorMessage}`;
+            GlobalState.debug(
+                `> Upstream project validation failed: ${errorMessage}`,
+            );
+            console.error(
+                styles.warning(
+                    `\n\nWarning: Cannot access upstream project "${
+                        config.context.projectName || config.context.project
+                    }"\n` +
+                        `Content will not be copied. Please run 'lightdash config set-project' to set a valid project.\n`,
+                ),
+            );
+        }
+    }
+
+    if (!config.context?.project) {
+        contentCopySkipReason = 'No upstream project configured';
+        console.error(
+            styles.warning(
+                `\n\nDeveloper preview will be deployed without any copied content!\nPlease set a project to copy content from by running 'lightdash config set-project'.\n`,
+            ),
+        );
+    } else if (options.skipCopyContent) {
+        contentCopySkipReason = '--skip-copy-content flag was used';
+        console.error(
+            styles.warning(
+                `\n\nDeveloper preview will be deployed without any copied content!\n`,
+            ),
+        );
+    } else if (upstreamProjectValid) {
+        console.error(
+            `\n${styles.success('✔')}   Copying charts and dashboards from "${
+                config.context?.projectName || 'source project'
+            }"`,
+        );
+    }
+
+    const upstreamProjectUuid =
+        config.context?.project && upstreamProjectValid
+            ? config.context.project
+            : undefined;
+    const upstreamSourceConnection =
+        upstreamProject &&
+        upstreamProjectUuid &&
+        projectTypeConfig.warehouseCredentials !== false &&
+        getWarehouseCredentialsSource({
+            ...options,
+            warehouseCredentials: projectTypeConfig.warehouseCredentials,
+        }).source === 'profiles'
+            ? (
+                  await resolveSourceConnection(
+                      upstreamProject,
+                      options.source,
+                      upstreamProjectUuid,
+                  )
+              ).connection
+            : ({ kind: 'primary' } as const);
+    const keepsUpstreamPrimary = upstreamSourceConnection.kind !== 'primary';
+
+    try {
+        const results = await createProject({
+            ...options,
+            name,
+            type: ProjectType.PREVIEW,
+            upstreamProjectUuid,
+            copyContent: !options.skipCopyContent && upstreamProjectValid,
+            warehouseCredentials: keepsUpstreamPrimary
+                ? false
+                : projectTypeConfig.warehouseCredentials,
+            expiresIn: options.expiresIn
+                ? parseInt(options.expiresIn, 10)
+                : undefined,
+        });
+
+        project = results?.project;
+        hasContentCopy = Boolean(results?.hasContentCopy);
+        contentCopyError = results?.contentCopyError;
+    } catch (e) {
+        GlobalState.debug(`> Unable to create project: ${e}`);
+        spinner.fail();
+        throw e;
+    }
+
+    if (!project) {
+        spinner.fail('Cancel preview environment');
+        console.error(
+            "To create your project, you'll need to manually enter your warehouse connection details.",
+        );
+        const createProjectUrl =
+            config.context?.serverUrl &&
+            new URL('/createProject', config.context.serverUrl);
+        if (createProjectUrl) {
+            console.error(
+                `Fill out the project connection form here: ${createProjectUrl}`,
+            );
+        }
+        return;
+    }
+
+    const previewStartTime = Date.now();
+    await LightdashAnalytics.track({
+        event: 'preview.started',
+        properties: {
+            executionId,
+            projectId: project.projectUuid,
+        },
+    });
+    try {
+        if (keepsUpstreamPrimary) {
+            await refreshPreviewWarehouseCredentials(
+                project.projectUuid,
+                {
+                    ...options,
+                    warehouseCredentials:
+                        projectTypeConfig.warehouseCredentials,
+                },
+                upstreamProjectUuid,
+            );
+        }
+
+        const previewSource = upstreamProjectUuid
+            ? await resolveSourceConnection(
+                  await getProject(project.projectUuid),
+                  options.source,
+                  upstreamProjectUuid,
+              )
+            : undefined;
+        if (
+            options.disableTimestampConversion === undefined &&
+            previewSource?.connection.kind === 'extra'
+        ) {
+            options.disableTimestampConversion = (
+                await getProjectDeploySettings(
+                    undefined,
+                    project.projectUuid,
+                    previewSource.sourceUuid,
+                )
+            ).disableTimestampConversion;
+        } else if (options.disableTimestampConversion === undefined) {
+            options.disableTimestampConversion =
+                getDisableTimestampConversionFromProject(
+                    project.warehouseConnection,
+                );
+            GlobalState.debug(
+                `> Using disable-timestamp-conversion=${String(
+                    options.disableTimestampConversion ?? false,
+                )} from preview project settings`,
+            );
+        }
+
+        const { explores, isProjectComplete } = await compileProject(options);
+        await deploy(explores, {
+            ...options,
+            projectUuid: project.projectUuid,
+            ...(await previewDeployDestination(
+                project,
+                options,
+                projectTypeConfig.type,
+                config.context?.project,
+            )),
+            complete: isProjectComplete,
+        });
+
+        await setPreviewProject(project.projectUuid, name);
+
+        process.on('SIGINT', async () => {
+            await cleanupProject(
+                executionId,
+                project!.projectUuid,
+                previewStartTime,
+            );
+
+            process.exit(0);
+        });
+
+        if (!hasContentCopy) {
+            let errorMessage = `\n\nDeveloper preview deployed without any copied content!`;
+            if (contentCopyError) {
+                errorMessage += `\nError: ${contentCopyError}`;
+            } else if (contentCopySkipReason) {
+                errorMessage += `\nReason: ${contentCopySkipReason}`;
+            }
+            errorMessage += '\n';
+            console.error(styles.warning(errorMessage));
+        }
+
+        spinner.succeed(
+            `  Developer preview "${name}" ready at: ${await projectUrl(
+                project,
+            )}\n`,
+        );
+        await LightdashAnalytics.track({
+            event: 'preview.completed',
+            properties: {
+                executionId,
+                projectId: project.projectUuid,
+                durationMs: Date.now() - previewStartTime,
+            },
+        });
+
+        const pressToShutdown = GlobalState.startSpinner(
+            `  Press [ENTER] to shutdown preview...`,
+        );
+
+        // Only set up dbt manifest file watching for dbt projects
+        // YAML-only projects don't have a manifest.json to watch
+        let watcher: chokidar.FSWatcher | undefined;
+        if (projectTypeConfig.type === CliProjectType.Dbt) {
+            const context = await getDbtContext({
+                projectDir: absoluteProjectPath,
+                targetPath: options.targetPath,
+            });
+            const manifestFilePath = path.join(
+                context.targetDir,
+                'manifest.json',
+            );
+
+            watcher = chokidar
+                .watch(manifestFilePath)
+                .on('change', async () => {
+                    pressToShutdown.stop();
+
+                    console.error(
+                        `${styles.title(
+                            '↻',
+                        )}   Detected changes on dbt project. Updating preview`,
+                    );
+                    watcher!.unwatch(manifestFilePath);
+                    // Deploying will change manifest.json too, so we need to stop watching the file until it is deployed
+                    if (project) {
+                        const compileResult = await compileProject(options);
+                        await deploy(compileResult.explores, {
+                            ...options,
+                            projectUuid: project.projectUuid,
+                            ...(await previewDeployDestination(
+                                project,
+                                options,
+                                projectTypeConfig.type,
+                                config.context?.project,
+                            )),
+                            complete: compileResult.isProjectComplete,
+                        });
+                    }
+
+                    console.error(
+                        `${styles.success('✔')}   Preview updated \n`,
+                    );
+                    pressToShutdown.start();
+
+                    watcher!.add(manifestFilePath);
+                });
+        }
+
+        await inquirer.prompt([
+            {
+                type: 'input',
+                name: 'press-enter',
+                prefix: styles.success('✔'),
+                message: `  Press [ENTER] to shutdown preview...`,
+            },
+        ]);
+        pressToShutdown.clear();
+
+        // Clean up watcher if it was created
+        if (watcher) {
+            await watcher.close();
+        }
+    } catch (e) {
+        spinner.fail(`Error creating developer preview: ${getErrorMessage(e)}`);
+
+        await deletePreviewProject(project.projectUuid);
+        await unsetPreviewProject();
+
+        await LightdashAnalytics.track({
+            event: 'preview.error',
+            properties: {
+                executionId,
+                projectId: project.projectUuid,
+                error: `Error creating developer preview ${e}`,
+            },
+        });
+        throw e;
+    }
+
+    await cleanupProject(executionId, project.projectUuid, previewStartTime);
 };
 
 export const startPreviewHandler = async (

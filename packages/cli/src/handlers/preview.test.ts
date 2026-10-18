@@ -10,6 +10,7 @@ import {
     type Project,
     type WarehouseConnectionWithCredentials,
 } from '@lightdash/common';
+import inquirer from 'inquirer';
 import ora from 'ora';
 import { getConfig } from '../config';
 import GlobalState from '../globalState';
@@ -22,7 +23,7 @@ import {
 import { lightdashApi } from './dbt/apiClient';
 import { getFinalJobState } from './dbt/refresh';
 import { deploy } from './deploy';
-import { startPreviewHandler } from './preview';
+import { previewHandler, startPreviewHandler } from './preview';
 
 vi.mock('../analytics/analytics', () => ({
     LightdashAnalytics: { track: vi.fn() },
@@ -30,6 +31,20 @@ vi.mock('../analytics/analytics', () => ({
 vi.mock('../config', () => ({
     getConfig: vi.fn(),
     setPreviewProject: vi.fn(),
+    unsetPreviewProject: vi.fn(),
+}));
+vi.mock('inquirer', () => ({ default: { prompt: vi.fn() } }));
+vi.mock('chokidar', () => {
+    const watcher = {
+        on: () => watcher,
+        unwatch: vi.fn(),
+        add: vi.fn(),
+        close: vi.fn(),
+    };
+    return { default: { watch: () => watcher } };
+});
+vi.mock('../dbt/context', () => ({
+    getDbtContext: vi.fn().mockResolvedValue({ targetDir: 'target' }),
 }));
 vi.mock('../credentials', async (original) => ({
     ...(await original<typeof import('../credentials')>()),
@@ -243,6 +258,8 @@ beforeEach(() => {
             if (writeError) throw writeError;
             return { jobUuid: 'refresh-job' };
         }
+        if (method === 'DELETE' && url === '/api/v1/org/projects/preview')
+            return undefined;
         throw new Error(`Unexpected request: ${method} ${url}`);
     });
 });
@@ -481,5 +498,79 @@ describe('startPreviewHandler credential refresh', () => {
         expect(compileProject).toHaveBeenCalledWith(
             expect.objectContaining({ disableTimestampConversion: true }),
         );
+    });
+});
+
+describe('previewHandler source connection', () => {
+    beforeEach(() => {
+        existingPreview = false;
+        vi.mocked(detectProjectType).mockResolvedValue({
+            type: CliProjectType.Dbt,
+            warehouseCredentials: true,
+            skipDbtCompile: undefined,
+            skipWarehouseCatalog: undefined,
+        });
+        vi.mocked(createProject).mockResolvedValue({
+            project,
+            hasContentCopy: true,
+        } as never);
+        vi.mocked(inquirer.prompt).mockResolvedValue({} as never);
+    });
+
+    it('keeps the upstream primary and refreshes the source connection when creating a temporary preview', async () => {
+        await previewHandler(options);
+        expect(createProject).toHaveBeenCalledWith(
+            expect.objectContaining({
+                upstreamProjectUuid: 'upstream',
+                warehouseCredentials: false,
+            }),
+        );
+        expect(credentialWrites()).toEqual([
+            {
+                method: 'PATCH',
+                url: extraUrl,
+                body: JSON.stringify({ warehouseConnection: credentials }),
+            },
+        ]);
+        expect(compileProject).toHaveBeenCalledWith(
+            expect.objectContaining({ disableTimestampConversion: true }),
+        );
+    });
+
+    it('reads the source connection timestamp setting for a temporary preview without warehouse credentials', async () => {
+        vi.mocked(detectProjectType).mockResolvedValue({
+            type: CliProjectType.Dbt,
+            warehouseCredentials: false,
+            skipDbtCompile: undefined,
+            skipWarehouseCatalog: undefined,
+        });
+        await previewHandler(options);
+        expect(createProject).toHaveBeenCalledWith(
+            expect.objectContaining({ warehouseCredentials: false }),
+        );
+        expect(credentialWrites()).toEqual([]);
+        expect(compileProject).toHaveBeenCalledWith(
+            expect.objectContaining({ disableTimestampConversion: true }),
+        );
+    });
+
+    it('creates a temporary preview with the local credentials for a source on the primary', async () => {
+        bindings.sources = [];
+        await previewHandler(options);
+        expect(createProject).toHaveBeenCalledWith(
+            expect.objectContaining({ warehouseCredentials: true }),
+        );
+        expect(credentialWrites()).toEqual([]);
+    });
+
+    it('deletes the temporary preview when the source connection refresh fails', async () => {
+        writeError = new Error('Connection rejected');
+        await expect(previewHandler(options)).rejects.toThrow(writeError);
+        expect(lightdashApi).toHaveBeenCalledWith({
+            method: 'DELETE',
+            url: '/api/v1/org/projects/preview',
+            body: undefined,
+        });
+        expect(deploy).not.toHaveBeenCalled();
     });
 });
