@@ -3224,6 +3224,9 @@ chartConfig:
                     : chart.tableConfig,
                 pivotConfig: chart.pivotConfig,
                 parameters: chart.parameters,
+                // A fix changes the config, never what the chart queries
+                merge: chart.merge,
+                pipeline: chart.pipeline,
             },
             actor,
         );

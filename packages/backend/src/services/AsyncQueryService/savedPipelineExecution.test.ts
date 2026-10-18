@@ -4,6 +4,8 @@ import {
     FieldType,
     PIPELINE_VIZ_NODE_ID,
     QuerySourceType,
+    type ChartConfig,
+    type SavedChartDAO,
     type SavedPipelineDefinition,
 } from '@lightdash/common';
 import { planSavedPipelineRun } from './savedPipelineExecution';
@@ -39,7 +41,10 @@ const pipeline: SavedPipelineDefinition = {
     },
 };
 
-const savedChart = {
+const savedChart: Pick<
+    SavedChartDAO,
+    'metricQuery' | 'chartConfig' | 'pivotConfig' | 'tableConfig'
+> = {
     metricQuery: {
         exploreName: 'ranked',
         dimensions: ['ranked_status'],
@@ -126,7 +131,7 @@ describe('planSavedPipelineRun', () => {
                         },
                         eChartsConfig: { series: [] },
                     },
-                },
+                } as ChartConfig,
                 pivotConfig: { columns: ['ranked_status'] },
             },
             pipeline,

@@ -183,6 +183,10 @@ what to expect rather than guess.
   when it is run, not by the validator.
 - **Custom chart types and Vega** are available in the config panel but not
   yet checked against pipeline fields.
+- **Documents** can link a pipeline chart (the linked chart runs through the
+  chart endpoint) but cannot copy one into the document as an inline chart;
+  inline document charts know explore, merge and SQL sources. Phase 3 adds
+  the pipeline source when SQL charts fold in.
 
 ### Backwards compatibility
 
