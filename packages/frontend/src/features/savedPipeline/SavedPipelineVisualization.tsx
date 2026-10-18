@@ -1,5 +1,5 @@
 import { type ChartConfig, type SavedChart } from '@lightdash/common';
-import { Box } from '@mantine/core';
+import { Box, Stack } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import LightdashVisualization from '../../components/LightdashVisualization';
 import VisualizationProvider, {
@@ -54,14 +54,16 @@ export const SavedPipelineVisualization: FC<Props> = ({
         onChartConfigChange={onChartConfigChange}
         onPivotDimensionsChange={onPivotDimensionsChange}
     >
-        <Box flex={1} mih={0} h="100%">
-            <LightdashVisualization
-                className="sentry-block ph-no-capture"
-                data-testid="saved-pipeline-visualization"
-                onScreenshotReady={onScreenshotReady}
-                onScreenshotError={onScreenshotError}
-            />
-        </Box>
-        {children}
+        <Stack h="100%" mih={0} gap={0}>
+            <Box flex={1} mih={0}>
+                <LightdashVisualization
+                    className="sentry-block ph-no-capture"
+                    data-testid="saved-pipeline-visualization"
+                    onScreenshotReady={onScreenshotReady}
+                    onScreenshotError={onScreenshotError}
+                />
+            </Box>
+            {children}
+        </Stack>
     </VisualizationProvider>
 );

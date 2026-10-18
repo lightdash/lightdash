@@ -11,6 +11,7 @@ import { useCallback, useMemo } from 'react';
 import {
     explorerActions,
     selectMetricQuery,
+    selectSavedChart,
     selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
@@ -28,7 +29,12 @@ export const useAddFieldsToQuery = () => {
     const dispatch = useExplorerDispatch();
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
-    const { data: explore } = useExplore(tableName, { refetchOnMount: false });
+    const savedChart = useExplorerSelector(selectSavedChart);
+    // A pipeline chart's table is its terminal node, not an explore
+    const hasExplore = !savedChart?.pipeline;
+    const { data: explore } = useExplore(hasExplore ? tableName : undefined, {
+        refetchOnMount: false,
+    });
 
     const addableItems = useMemo(() => {
         if (!explore) return [];
