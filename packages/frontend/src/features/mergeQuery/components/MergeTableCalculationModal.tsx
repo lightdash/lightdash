@@ -4,6 +4,7 @@ import {
     MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
     MERGE_TABLE_NAME,
     MetricType,
+    NumberSeparator,
     snakeCaseName,
     type CustomFormat,
     type MergeTableCalculation,
@@ -29,7 +30,11 @@ import { getMergeTableCalculationSuggestions } from '../utils/getMergeTableCalcu
 
 const useCalculationFormatForm = (format: CustomFormat | undefined) =>
     useForm<CustomFormat>({
-        initialValues: { type: CustomFormatType.DEFAULT, ...format },
+        initialValues: {
+            type: CustomFormatType.DEFAULT,
+            separator: NumberSeparator.DEFAULT,
+            ...format,
+        },
     });
 
 // Merge calculations compile to numeric merged fields.

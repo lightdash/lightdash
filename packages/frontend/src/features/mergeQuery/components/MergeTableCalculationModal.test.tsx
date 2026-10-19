@@ -1,6 +1,7 @@
 import {
     CustomFormatType,
     MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
+    NumberSeparator,
 } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -186,6 +187,7 @@ describe('MergeTableCalculationModal', () => {
                 name: 'share',
                 format: expect.objectContaining({
                     type: CustomFormatType.PERCENT,
+                    separator: NumberSeparator.DEFAULT,
                 }),
             }),
         );
@@ -216,6 +218,10 @@ describe('MergeTableCalculationModal', () => {
         expect(state.updateTableCalculation).toHaveBeenCalledWith('share', {
             ...tableCalculation,
             formula: '=2',
+            format: {
+                ...tableCalculation.format,
+                separator: NumberSeparator.DEFAULT,
+            },
         });
     });
 
