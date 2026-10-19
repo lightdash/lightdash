@@ -9,7 +9,7 @@
 .panel {
     flex: 1;
     min-height: 0;
-    overflow: clip visible;
+    overflow: visible clip;
 }
 
 .panel[data-active='false'] {
