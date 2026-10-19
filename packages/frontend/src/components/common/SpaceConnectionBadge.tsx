@@ -10,12 +10,11 @@ type Props = {
     effectiveWarehouseConnection: SpaceWarehouseConnection | null;
 };
 
-const SpaceConnectionBadge: FC<Props> = ({
-    projectUuid,
-    effectiveWarehouseConnection,
-}) => {
+const BoundSpaceConnectionBadge: FC<
+    Props & { effectiveWarehouseConnection: SpaceWarehouseConnection }
+> = ({ projectUuid, effectiveWarehouseConnection }) => {
     const connections = useConnectionBadges(projectUuid);
-    if (!effectiveWarehouseConnection || !connections) return null;
+    if (!connections) return null;
     const name = getConnectionName(
         connections,
         effectiveWarehouseConnection.warehouseConnectionUuid,
@@ -35,5 +34,13 @@ const SpaceConnectionBadge: FC<Props> = ({
         </Tooltip>
     );
 };
+
+const SpaceConnectionBadge: FC<Props> = (props) =>
+    props.effectiveWarehouseConnection ? (
+        <BoundSpaceConnectionBadge
+            {...props}
+            effectiveWarehouseConnection={props.effectiveWarehouseConnection}
+        />
+    ) : null;
 
 export default SpaceConnectionBadge;

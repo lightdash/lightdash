@@ -32,19 +32,20 @@ Nothing gives space-level behaviour today.
 
 ### Permission model
 
-| Action                                                                                                         | Who                                                                                                                                                                                            |
-| -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Set or clear a space's connection                                                                              | project admin (`manage:Project`); the connection must belong to the same project and have the same warehouse type as the project's original connection                                         |
-| See which connection a space uses                                                                              | anyone who can view the space: `GET` space returns `effectiveWarehouseConnection` (uuid, name, warehouse type, and the ancestor space it is inherited from), never credentials or host details |
-| View content in the space                                                                                      | the person's existing space role; the query runs as the space connection                                                                                                                       |
-| Run SQL on a space-bound connection (SQL runner run and estimate, catalogue, saving a SQL chart that names it) | `manage:SqlRunner` **and** editor or above on at least one space bound to that connection                                                                                                      |
-| Run SQL on an unbound connection                                                                               | unchanged: `manage:SqlRunner`                                                                                                                                                                  |
+| Action                                                                                        | Who                                                                                                                                                                                            |
+| --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Set or clear a space's connection                                                             | project admin (`manage:Project`); the connection must belong to the same project and have the same warehouse type as the project's original connection                                         |
+| See which connection a space uses                                                             | anyone who can view the space: `GET` space returns `effectiveWarehouseConnection` (uuid, name, warehouse type, and the ancestor space it is inherited from), never credentials or host details |
+| View content in the space                                                                     | the person's existing space role; the query runs as the space connection                                                                                                                       |
+| Run SQL on a space-bound connection (SQL runner run and estimate, catalogue, SQL chart saves) | `manage:SqlRunner` **and** edit access on at least one space that uses that connection, including an inheriting sub-space                                                                      |
+| Create or move a space inside a space whose chain sets a connection                           | the same access: `manage:SqlRunner` and edit on a space that uses the reserved connection; unreserved connections keep their existing rule                                                     |
+| Run SQL on an unbound connection                                                              | unchanged: `manage:SqlRunner`                                                                                                                                                                  |
 
-Editors of a sub-space that inherits the connection can also use it in the SQL runner.
+Editors of a sub-space that inherits the connection can also use it in the SQL runner when they have `manage:SqlRunner`. Creating or moving a space below a bound parent needs the same access before the space acquires its new connection. Trusted users can still appoint editors on an inheriting sub-space.
 
 A space-bound connection is therefore reachable from the SQL runner only by people the space admin already trusts to edit that space. A viewer never gets a SQL path to it.
 
-One rule decides this: `SpaceConnectionReservation` (`packages/backend/src/services/SpaceService/SpaceConnectionReservation.ts`). The SQL runner connection list reports it per connection as `canRunSql`, and the same helper refuses SQL runs, estimates, the catalogue (databases, tables, fields, refresh) and SQL chart saves that name a reserved connection. The project's original connection is never reserved, even when a space points at it, so a sub-space can point back at the project default without taking the SQL runner away from everyone else. Agent and MCP SQL tools query the original connection, so the reservation does not reach them.
+One rule decides this: `SpaceConnectionReservation` (`packages/backend/src/services/SpaceService/SpaceConnectionReservation.ts`). The SQL runner connection list reports it per connection as `canRunSql`, and the same helper refuses SQL runs, estimates, the catalogue (databases, tables, fields, refresh) and SQL chart saves, uploads, promotion and moves. SQL chart saves check the connection the chart will actually run on: the destination space chain first, then the named or stored connection. A null or omitted connection does not bypass the space check. The project's original connection is never reserved, even when a space points at it, so a sub-space can point back at the project default without taking the SQL runner away from everyone else. Agent and MCP SQL tools query the original connection, so the reservation does not reach them.
 
 ### Resolution order at query time
 
@@ -63,7 +64,7 @@ Within the chosen connection, the existing per-connection rule applies: shared c
 - Explore (ad hoc, outside any space): project rule. A space connection never applies to a query that has no space.
 - SQL runner: the connection picker lists every connection; a reserved one is disabled with "Reserved for a space you cannot edit", the header switcher hides it, and the runner never selects it by default. The server refuses it whatever the client sends.
 - Saving a chart into a space does not copy credentials. The next run resolves through the space.
-- Moving content between spaces changes which connection it runs on. The move needs edit access on both spaces already.
+- Moving content between spaces changes which connection it runs on. The move needs edit access on both spaces already. A SQL chart move also checks access to its effective destination connection.
 
 ### Space page and settings
 

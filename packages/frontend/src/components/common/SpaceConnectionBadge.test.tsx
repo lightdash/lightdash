@@ -8,11 +8,20 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { sharedLightdashApi } from '../../api';
+import type * as ConnectionBadgesModule from '../../hooks/useConnectionBadges';
+import { useConnectionBadges } from '../../hooks/useConnectionBadges';
 import type * as WarehouseConnectionsModule from '../../hooks/useWarehouseConnections';
 import { useWarehouseConnections } from '../../hooks/useWarehouseConnections';
 import SpaceConnectionBadge from './SpaceConnectionBadge';
 
 vi.mock('../../api');
+vi.mock('../../hooks/useConnectionBadges', async (importOriginal) => {
+    const original = await importOriginal<typeof ConnectionBadgesModule>();
+    return {
+        ...original,
+        useConnectionBadges: vi.fn(original.useConnectionBadges),
+    };
+});
 vi.mock('../../hooks/useQueryError', () => ({ default: () => vi.fn() }));
 vi.mock('../../ee/providers/Embed/useEmbed', () => ({
     default: () => ({ embedToken: undefined }),
@@ -125,5 +134,7 @@ describe('SpaceConnectionBadge', () => {
         const { client } = renderBadge(null);
         await waitFor(() => expect(client.isFetching()).toBe(0));
         expect(screen.getByTestId('badge-container')).toBeEmptyDOMElement();
+        expect(useConnectionBadges).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
     });
 });
