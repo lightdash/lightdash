@@ -26,6 +26,7 @@ vi.mock('../../hooks/useProjectUuid', () => ({
 }));
 vi.mock('../../hooks/useExplore', () => ({
     useExplore: () => ({ data: explore }),
+    useExploreQueries: () => sourceExplores,
 }));
 vi.mock('../../providers/LightdashApi/useLightdashApi', () => ({
     useLightdashApi: () => lightdashApi,
@@ -86,6 +87,7 @@ const explore: Explore = {
         },
     },
 };
+const sourceExplores = [explore, explore];
 const metricQuery: MetricQuery = {
     exploreName: 'orders',
     dimensions: ['orders_status'],
