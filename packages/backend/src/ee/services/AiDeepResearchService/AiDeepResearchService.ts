@@ -31,8 +31,8 @@ import {
     QueryHistoryStatus,
     QuerySurface,
     sleep,
-    toolRunQueryArgsSchemaPersisted,
-    toolRunQueryArgsSchemaTransformed,
+    toolRunQueryExpressionResolvedArgsSchema,
+    toolRunQueryExpressionResolvedArgsSchemaTransformed,
     UnexpectedServerError,
     type Account,
     type AiAgentToolResult,
@@ -151,9 +151,10 @@ const toDocumentChart = (
     entry: AiDeepResearchChartData,
     candidate: { description: string; toolArgs: unknown },
 ): DocumentChartContent | null => {
-    const queryTool = toolRunQueryArgsSchemaTransformed.safeParse(
-        candidate.toolArgs,
-    );
+    const queryTool =
+        toolRunQueryExpressionResolvedArgsSchemaTransformed.safeParse(
+            candidate.toolArgs,
+        );
     if (!queryTool.success || queryTool.data.mergeConfig) {
         return null;
     }
@@ -288,6 +289,28 @@ const getQueryUuidFromMetadata = (metadata: unknown): string | null =>
     typeof metadata.queryUuid === 'string'
         ? metadata.queryUuid
         : null;
+const getArtifactVersionUuidFromMetadata = (metadata: unknown): string | null =>
+    metadata !== null &&
+    typeof metadata === 'object' &&
+    'artifactVersionUuid' in metadata &&
+    typeof metadata.artifactVersionUuid === 'string'
+        ? metadata.artifactVersionUuid
+        : null;
+/** The call's resolved args when its artifact holds them, else its raw args. */
+const getRunQueryToolArgs = (
+    resolvedArgsByVersion: ReadonlyMap<string, unknown>,
+    toolCall: { toolArgs: unknown },
+    toolResult: AiAgentToolResult | null,
+): unknown => {
+    const versionUuid = toolResult
+        ? getArtifactVersionUuidFromMetadata(toolResult.metadata)
+        : null;
+    const resolvedArgs =
+        versionUuid === null
+            ? undefined
+            : resolvedArgsByVersion.get(versionUuid);
+    return resolvedArgs ?? toolCall.toolArgs;
+};
 const isChartConfigCompatible = (
     chart: AiDeepResearchWarehouseChart,
     metricQuery: {
@@ -386,6 +409,7 @@ type Dependencies = {
         | 'findThreadOwnership'
         | 'findToolResultsByToolCallIds'
         | 'findWebAppPrompt'
+        | 'getArtifactVersionsByUuids'
         | 'getToolCallsAndResultsForPrompt'
     >;
     aiAgentService: Pick<
@@ -1924,35 +1948,70 @@ export class AiDeepResearchService extends BaseService {
                 run.prompt_uuid,
                 { includeSubagentToolCalls: true },
             );
+        const chartCalls = provenance.filter(
+            ({ toolCall, toolResult }) =>
+                toolCall.toolName === 'generateVisualization' &&
+                toolResult !== null &&
+                getQueryUuidFromMetadata(toolResult.metadata) !== null &&
+                (toolCall.parentToolCallId === null ||
+                    toolCall.parentToolCallId.startsWith(
+                        `deep-research:${run.ai_deep_research_run_uuid}:`,
+                    )),
+        );
+        const resolvedArgsByVersion =
+            await this.getResolvedArgsByArtifactVersion(chartCalls);
 
         return new Map(
-            provenance.flatMap(({ toolCall, toolResult }) => {
+            chartCalls.flatMap(({ toolCall, toolResult }) => {
                 const queryUuid = toolResult
                     ? getQueryUuidFromMetadata(toolResult.metadata)
                     : null;
-                if (
-                    toolCall.toolName !== 'generateVisualization' ||
-                    queryUuid === null ||
-                    (toolCall.parentToolCallId !== null &&
-                        !toolCall.parentToolCallId.startsWith(
-                            `deep-research:${run.ai_deep_research_run_uuid}:`,
-                        ))
-                ) {
+                if (queryUuid === null) {
                     return [];
                 }
+                const toolArgs = getRunQueryToolArgs(
+                    resolvedArgsByVersion,
+                    toolCall,
+                    toolResult,
+                );
                 const resolved = resolveDeepResearchWarehouseChart(
-                    toolCall.toolArgs,
+                    toolArgs,
                     queryUuid,
                 );
                 return resolved
-                    ? [
-                          [
-                              queryUuid,
-                              { ...resolved, toolArgs: toolCall.toolArgs },
-                          ] as const,
-                      ]
+                    ? [[queryUuid, { ...resolved, toolArgs }] as const]
                     : [];
             }),
+        );
+    }
+
+    /**
+     * With filter expressions on, a call stores the model's expression DSL;
+     * its artifact version holds the resolved args the chart parsers accept.
+     */
+    private async getResolvedArgsByArtifactVersion(
+        calls: Array<{ toolResult: AiAgentToolResult | null }>,
+    ): Promise<Map<string, unknown>> {
+        const versionUuids = [
+            ...new Set(
+                calls.flatMap(({ toolResult }) => {
+                    const versionUuid = toolResult
+                        ? getArtifactVersionUuidFromMetadata(
+                              toolResult.metadata,
+                          )
+                        : null;
+                    return versionUuid ? [versionUuid] : [];
+                }),
+            ),
+        ];
+        const versions =
+            await this.aiAgentModel.getArtifactVersionsByUuids(versionUuids);
+        return new Map(
+            versions.flatMap(({ artifactVersionUuid, chartConfig }) =>
+                'config' in chartConfig
+                    ? [[artifactVersionUuid, chartConfig.config] as const]
+                    : [],
+            ),
         );
     }
 
@@ -2061,6 +2120,8 @@ export class AiDeepResearchService extends BaseService {
         const evidenceQueryCalls = runProvenance.filter(({ toolCall }) =>
             isDeepResearchEvidenceQueryTool(toolCall.toolName),
         );
+        const resolvedArgsByVersion =
+            await this.getResolvedArgsByArtifactVersion(evidenceQueryCalls);
         const executions = evidenceQueryCalls.flatMap(
             ({ toolCall, toolResult }) => {
                 const queryUuid = toolResult
@@ -2071,7 +2132,11 @@ export class AiDeepResearchService extends BaseService {
                           {
                               queryUuid,
                               toolName: toolCall.toolName,
-                              toolArgs: toolCall.toolArgs,
+                              toolArgs: getRunQueryToolArgs(
+                                  resolvedArgsByVersion,
+                                  toolCall,
+                                  toolResult,
+                              ),
                           },
                       ]
                     : [];
@@ -2277,7 +2342,7 @@ export class AiDeepResearchService extends BaseService {
 
             // Persisted args may predate the current advertised contract.
             const parsedArgs =
-                toolRunQueryArgsSchemaPersisted.safeParse(toolArgs);
+                toolRunQueryExpressionResolvedArgsSchema.safeParse(toolArgs);
             const resolvedChart = resolveDeepResearchWarehouseChart(
                 toolArgs,
                 queryUuid,
