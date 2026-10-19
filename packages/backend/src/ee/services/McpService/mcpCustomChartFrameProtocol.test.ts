@@ -4,6 +4,9 @@ import {
     getCustomChartFrameHandshake,
     getCustomChartFrameUrl,
     handleCustomChartFrameMessage,
+    INITIAL_CUSTOM_CHART_RENDER_READINESS,
+    shouldShowTableOnRenderTimeout,
+    updateCustomChartRenderReadiness,
 } from './mcpCustomChartFrameProtocol';
 
 const vizContext: DataAppVizContext = {
@@ -111,4 +114,71 @@ describe('mcp custom chart frame protocol', () => {
             kind: 'ignore',
         });
     });
+});
+
+describe('mcp custom chart render deadline', () => {
+    const afterMessages = (messages: unknown[]) =>
+        shouldShowTableOnRenderTimeout(
+            messages.reduce(
+                updateCustomChartRenderReadiness,
+                INITIAL_CUSTOM_CHART_RENDER_READINESS,
+            ),
+        );
+    const manifest = (features: unknown) => ({
+        type: 'lightdash:sdk:manifest',
+        sdkVersion: '0.1.0',
+        features,
+    });
+
+    it('shows the table when the frame never speaks the SDK', () => {
+        expect(afterMessages([])).toBe(true);
+        expect(afterMessages([{ type: 'something-else' }, null])).toBe(true);
+    });
+
+    it('keeps a legacy bundle that requested the context up', () => {
+        expect(
+            afterMessages([{ type: 'lightdash:sdk:viz-context-request' }]),
+        ).toBe(false);
+    });
+
+    it('keeps a bundle whose manifest lacks viz-rendered up', () => {
+        expect(
+            afterMessages([
+                manifest(['theme']),
+                { type: 'lightdash:sdk:viz-context-request' },
+            ]),
+        ).toBe(false);
+    });
+
+    it('shows the table when a signalling bundle never acknowledges', () => {
+        expect(
+            afterMessages([
+                manifest(['viz-rendered']),
+                { type: 'lightdash:sdk:viz-context-request' },
+            ]),
+        ).toBe(true);
+        expect(
+            afterMessages([
+                { type: 'lightdash:sdk:viz-context-request' },
+                manifest(['viz-rendered']),
+            ]),
+        ).toBe(true);
+    });
+
+    it('keeps a signalling bundle that acknowledged its paint up', () => {
+        expect(
+            afterMessages([
+                manifest(['viz-rendered']),
+                { type: 'lightdash:sdk:viz-context-request' },
+                { type: 'lightdash:sdk:viz-rendered', renderId: 'r1' },
+            ]),
+        ).toBe(false);
+    });
+
+    it.each([undefined, 'viz-rendered', [1]])(
+        'ignores a manifest with features %j',
+        (features) => {
+            expect(afterMessages([manifest(features)])).toBe(true);
+        },
+    );
 });

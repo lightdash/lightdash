@@ -17,6 +17,9 @@ import {
     getCustomChartFrameUrl,
     getCustomChartThemeMessage,
     handleCustomChartFrameMessage,
+    INITIAL_CUSTOM_CHART_RENDER_READINESS,
+    shouldShowTableOnRenderTimeout,
+    updateCustomChartRenderReadiness,
     type CustomChartColorScheme,
     type CustomChartHostMessage,
 } from '../../mcpCustomChartFrameProtocol';
@@ -281,7 +284,9 @@ function renderCustomChart(
 
     const post = (message: CustomChartHostMessage) =>
         iframe.contentWindow?.postMessage(message, '*');
+    let readiness = INITIAL_CUSTOM_CHART_RENDER_READINESS;
     const timeout = setTimeout(() => {
+        if (!shouldShowTableOnRenderTimeout(readiness)) return;
         clearCustomChart();
         onFailure();
     }, CUSTOM_CHART_RENDER_TIMEOUT_MS);
@@ -289,6 +294,7 @@ function renderCustomChart(
         getCustomChartFrameHandshake(getHostColorScheme()).forEach(post);
     const onMessage = (event: MessageEvent) => {
         if (event.source !== iframe.contentWindow) return;
+        readiness = updateCustomChartRenderReadiness(readiness, event.data);
         const action = handleCustomChartFrameMessage(event.data, {
             vizContext: customChartType.vizContext,
             colorScheme: getHostColorScheme(),

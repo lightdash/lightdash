@@ -1,14 +1,31 @@
 import type { DataAppVizContext } from '@lightdash/common';
+// Only the chart view bundles this module; the server never loads it, and the barrel breaks that bundle.
+// eslint-disable-next-line no-restricted-imports
+import {
+    APP_SDK_COLOR_SCHEME_MESSAGE,
+    APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
+    APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
+    APP_SDK_MANIFEST_MESSAGE,
+    APP_SDK_READY_MESSAGE,
+    APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
+    APP_SDK_VIZ_RENDERED_MESSAGE,
+    type AppColorScheme,
+} from '@lightdash/common/src/ee/apps/sdkMessages';
 
 // Host side of the chart type SDK bridge, bundled into the MCP chart view.
 // Mirrors the subset of the web app's useAppSdkBridge a chart type needs.
 
-export type CustomChartColorScheme = 'light' | 'dark';
+export type CustomChartColorScheme = AppColorScheme;
 
 export type CustomChartHostMessage =
-    | { type: 'lightdash:sdk:ready' }
-    | { type: 'lightdash:sdk:theme'; colorScheme: CustomChartColorScheme }
-    | ({ type: 'lightdash:sdk:data-app-viz-context' } & DataAppVizContext)
+    | { type: typeof APP_SDK_READY_MESSAGE }
+    | {
+          type: typeof APP_SDK_COLOR_SCHEME_MESSAGE;
+          colorScheme: CustomChartColorScheme;
+      }
+    | ({
+          type: typeof APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE;
+      } & DataAppVizContext)
     | { type: 'lightdash:sdk:fetch-response'; id: string; error: string }
     | {
           type: 'lightdash:sdk:external-fetch-response';
@@ -42,13 +59,16 @@ export const getCustomChartFrameUrl = ({
 
 export const getCustomChartThemeMessage = (
     colorScheme: CustomChartColorScheme,
-): CustomChartHostMessage => ({ type: 'lightdash:sdk:theme', colorScheme });
+): CustomChartHostMessage => ({
+    type: APP_SDK_COLOR_SCHEME_MESSAGE,
+    colorScheme,
+});
 
 /** Sent on every frame load: releases the SDK's transports and sets the theme. */
 export const getCustomChartFrameHandshake = (
     colorScheme: CustomChartColorScheme,
 ): CustomChartHostMessage[] => [
-    { type: 'lightdash:sdk:ready' },
+    { type: APP_SDK_READY_MESSAGE },
     getCustomChartThemeMessage(colorScheme),
 ];
 
@@ -69,20 +89,20 @@ export const handleCustomChartFrameMessage = (
         return { kind: 'ignore' };
     }
     switch (data.type) {
-        case 'lightdash:sdk:viz-context-request':
+        case APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE:
             return {
                 kind: 'reply',
                 message: {
-                    type: 'lightdash:sdk:data-app-viz-context',
+                    type: APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
                     ...vizContext,
                 },
             };
-        case 'lightdash:sdk:theme-request':
+        case APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE:
             return {
                 kind: 'reply',
                 message: getCustomChartThemeMessage(colorScheme),
             };
-        case 'lightdash:sdk:viz-rendered':
+        case APP_SDK_VIZ_RENDERED_MESSAGE:
             return { kind: 'rendered' };
         case 'lightdash:sdk:fetch':
         case 'lightdash:sdk:external-fetch': {
@@ -104,3 +124,62 @@ export const handleCustomChartFrameMessage = (
             return { kind: 'ignore' };
     }
 };
+
+/**
+ * What the frame has said about painting. Bundles built before the SDK's
+ * `viz-rendered` feature never acknowledge a paint, so only a bundle that
+ * declares the feature, or one that never spoke at all, is held to it.
+ */
+export type CustomChartRenderReadiness = {
+    sdkSeen: boolean;
+    supportsRenderSignal: boolean;
+    rendered: boolean;
+};
+
+export const INITIAL_CUSTOM_CHART_RENDER_READINESS: CustomChartRenderReadiness =
+    {
+        sdkSeen: false,
+        supportsRenderSignal: false,
+        rendered: false,
+    };
+
+const getManifestFeatures = (data: object): string[] | null =>
+    'features' in data &&
+    Array.isArray(data.features) &&
+    data.features.every((feature: unknown) => typeof feature === 'string')
+        ? data.features
+        : null;
+
+export const updateCustomChartRenderReadiness = (
+    readiness: CustomChartRenderReadiness,
+    data: unknown,
+): CustomChartRenderReadiness => {
+    if (typeof data !== 'object' || data === null || !('type' in data)) {
+        return readiness;
+    }
+    switch (data.type) {
+        case APP_SDK_MANIFEST_MESSAGE: {
+            const features = getManifestFeatures(data);
+            if (features === null) return readiness;
+            return {
+                ...readiness,
+                sdkSeen: true,
+                supportsRenderSignal: features.includes('viz-rendered'),
+            };
+        }
+        case APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE:
+            return { ...readiness, sdkSeen: true };
+        case APP_SDK_VIZ_RENDERED_MESSAGE:
+            return { ...readiness, sdkSeen: true, rendered: true };
+        default:
+            return readiness;
+    }
+};
+
+/** At the render deadline: fall back to the table, or leave the chart up. */
+export const shouldShowTableOnRenderTimeout = ({
+    sdkSeen,
+    supportsRenderSignal,
+    rendered,
+}: CustomChartRenderReadiness): boolean =>
+    !rendered && (!sdkSeen || supportsRenderSignal);
