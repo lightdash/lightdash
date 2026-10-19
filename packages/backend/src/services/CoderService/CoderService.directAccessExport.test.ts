@@ -1,6 +1,7 @@
 import {
     DirectAccessPrincipalType,
     DirectAccessResourceType,
+    FeatureFlags,
     SpaceMemberRole,
     type DirectAccessAssignment,
     type SessionUser,
@@ -59,6 +60,12 @@ type Setup = {
 
 const buildService = ({ policies, members, groups }: Setup) =>
     new CoderService({
+        featureFlagModel: {
+            get: vi.fn(async () => ({
+                id: FeatureFlags.SpaceWarehouseConnections,
+                enabled: false,
+            })),
+        },
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,

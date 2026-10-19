@@ -234,6 +234,9 @@ describe('content version agent identity migration', () => {
             const documentModel = new DocumentModel({ database });
             const ledger = new AgentActionLogModel({ database });
             const service = new PromoteService({
+                featureFlagModel: {
+                    get: vi.fn(async () => ({ enabled: false })),
+                },
                 lightdashConfig: lightdashConfigMock,
                 savedChartModel: chartModel,
                 dashboardModel,

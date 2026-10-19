@@ -2021,26 +2021,34 @@ export class SpaceModel {
     }: {
         projectUuid: string;
     }): Promise<{ spaceUuid: string; warehouseConnectionUuid: string }[]> {
-        return this.database(SpaceTableName)
-            .join(ProjectTableName, 'projects.project_id', 'spaces.project_id')
-            .join('warehouse_connections', function joinConnection() {
-                this.on(
-                    'warehouse_connections.warehouse_connection_uuid',
-                    'spaces.warehouse_connection_uuid',
-                ).andOn(
-                    'warehouse_connections.project_uuid',
-                    'projects.project_uuid',
-                );
-            })
-            .where('projects.project_uuid', projectUuid)
-            .where('warehouse_connections.is_original', false)
-            .whereNotNull('spaces.warehouse_connection_uuid')
-            .whereNull('spaces.deleted_at')
-            .select({
-                spaceUuid: 'spaces.space_uuid',
-                warehouseConnectionUuid:
-                    'warehouse_connections.warehouse_connection_uuid',
-            });
+        const result = await this.database.raw<{
+            rows: { spaceUuid: string; warehouseConnectionUuid: string }[];
+        }>(
+            `WITH RECURSIVE bound_spaces AS (
+                SELECT s.space_uuid, s.project_id, s.warehouse_connection_uuid,
+                    0 AS depth, ARRAY[s.space_uuid] AS visited
+                FROM spaces s
+                JOIN projects p ON p.project_id = s.project_id
+                WHERE p.project_uuid = ? AND s.deleted_at IS NULL
+                    AND s.warehouse_connection_uuid IS NOT NULL
+                UNION ALL
+                SELECT s.space_uuid, s.project_id, b.warehouse_connection_uuid,
+                    b.depth + 1, b.visited || s.space_uuid
+                FROM spaces s
+                JOIN bound_spaces b ON s.parent_space_uuid = b.space_uuid
+                    AND s.project_id = b.project_id
+                WHERE s.deleted_at IS NULL AND s.warehouse_connection_uuid IS NULL
+                    AND NOT s.space_uuid = ANY(b.visited)
+            )
+            SELECT b.space_uuid AS "spaceUuid",
+                b.warehouse_connection_uuid AS "warehouseConnectionUuid"
+            FROM bound_spaces b
+            JOIN warehouse_connections w
+                ON w.warehouse_connection_uuid = b.warehouse_connection_uuid
+            WHERE w.project_uuid = ? AND NOT w.is_original`,
+            [projectUuid, projectUuid],
+        );
+        return result.rows;
     }
 
     async getSpaceSummary(

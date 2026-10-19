@@ -1,6 +1,7 @@
 import {
     ChartType,
     ConflictError,
+    FeatureFlags,
     ForbiddenError,
     getUserAbilityBuilder,
     NotFoundError,
@@ -204,6 +205,12 @@ const setup = ({
         ),
     };
     const service = new PromoteService({
+        featureFlagModel: {
+            get: vi.fn(async () => ({
+                id: FeatureFlags.SpaceWarehouseConnections,
+                enabled: false,
+            })),
+        },
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: {

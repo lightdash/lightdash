@@ -661,17 +661,23 @@ export class SavedSqlService
             },
         );
 
+        const requestedConnectionUuid =
+            sqlChart.versionedData?.warehouseConnectionUuid;
+        const resultingConnectionUuid =
+            requestedConnectionUuid === undefined
+                ? savedChart.warehouseConnectionUuid
+                : requestedConnectionUuid;
         if (
-            sqlChart.versionedData?.warehouseConnectionUuid !== undefined &&
-            sqlChart.versionedData?.warehouseConnectionUuid !== null
+            sqlChart.versionedData &&
+            resultingConnectionUuid !== undefined &&
+            resultingConnectionUuid !== null
         ) {
             await this.spaceConnectionReservation.assertCanUseConnection({
                 userUuid: user.userUuid,
                 ability: auditedAbility,
                 organizationUuid,
                 projectUuid,
-                warehouseConnectionUuid:
-                    sqlChart.versionedData?.warehouseConnectionUuid,
+                warehouseConnectionUuid: resultingConnectionUuid,
             });
         }
 

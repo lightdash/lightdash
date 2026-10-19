@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     DirectAccessPrincipalType,
     DirectAccessResourceType,
+    FeatureFlags,
     ForbiddenError,
     OrganizationMemberRole,
     SpaceMemberRole,
@@ -53,6 +54,12 @@ const buildService = ({ members = [], groups = [], gateError }: Setup = {}) => {
     });
     const replacePolicy = vi.fn(async () => {});
     const service = new CoderService({
+        featureFlagModel: {
+            get: vi.fn(async () => ({
+                id: FeatureFlags.SpaceWarehouseConnections,
+                enabled: false,
+            })),
+        },
         agentActionLogModel,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,

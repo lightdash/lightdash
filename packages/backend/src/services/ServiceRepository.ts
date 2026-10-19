@@ -1788,6 +1788,7 @@ export class ServiceRepository
             'coderService',
             () =>
                 new CoderService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
@@ -1858,6 +1859,7 @@ export class ServiceRepository
             'promoteService',
             () =>
                 new PromoteService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,

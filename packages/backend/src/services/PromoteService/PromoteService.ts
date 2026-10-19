@@ -49,6 +49,7 @@ import Logger from '../../logging/logger';
 import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import type { AppModel } from '../../models/AppModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import {
@@ -65,6 +66,7 @@ import {
     type ContentConnectionModels,
 } from '../CoderService/handlers/contentConnections';
 import type { DocumentService } from '../DocumentService/DocumentService';
+import { SpaceConnectionReservation } from '../SpaceService/SpaceConnectionReservation';
 import type {
     SpaceAccessContextForCasl,
     SpacePermissionService,
@@ -131,6 +133,7 @@ type PromotedSqlChartChange = {
 };
 
 type PromoteServiceArguments = {
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -238,8 +241,11 @@ export class PromoteService extends BaseService {
 
     private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
 
+    private readonly spaceConnectionReservation: SpaceConnectionReservation;
+
     constructor(args: PromoteServiceArguments) {
         super();
+        this.spaceConnectionReservation = new SpaceConnectionReservation(args);
         this.agentActionLogModel = args.agentActionLogModel;
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -1215,6 +1221,35 @@ export class PromoteService extends BaseService {
         if (promotedSqlCharts.length === 0) {
             return promotionChanges;
         }
+
+        const auditedAbility = this.createAuditedAbility(user);
+        await Promise.all(
+            promotedSqlCharts
+                .filter(
+                    ({ action }) =>
+                        action === PromotionAction.CREATE ||
+                        action === PromotionAction.UPDATE,
+                )
+                .map(async (change) => {
+                    const binding = bindings.get(change.data.oldUuid);
+                    if (binding?.warehouseConnectionUuid) {
+                        const { organizationUuid } =
+                            await this.projectModel.getSummary(
+                                change.data.projectUuid,
+                            );
+                        await this.spaceConnectionReservation.assertCanUseConnection(
+                            {
+                                userUuid: user.userUuid,
+                                ability: auditedAbility,
+                                organizationUuid,
+                                projectUuid: change.data.projectUuid,
+                                warehouseConnectionUuid:
+                                    binding.warehouseConnectionUuid,
+                            },
+                        );
+                    }
+                }),
+        );
 
         const sqlChangesWithResolvedSpaces = promotedSqlCharts.map(
             (sqlChartChange) => {

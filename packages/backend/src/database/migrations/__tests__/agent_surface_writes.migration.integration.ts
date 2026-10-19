@@ -226,6 +226,12 @@ describe('trusted surface to persisted chart identity', () => {
             ]),
         };
         const coderService = new CoderService({
+            featureFlagModel: {
+                get: vi.fn(async () => ({
+                    id: FeatureFlags.SpaceWarehouseConnections,
+                    enabled: false,
+                })),
+            },
             lightdashConfig: config,
             savedChartModel,
             dashboardModel,

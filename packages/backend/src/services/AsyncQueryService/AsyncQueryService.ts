@@ -7404,6 +7404,15 @@ export class AsyncQueryService extends ProjectService {
         const projectTimezone =
             queryTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
 
+        const preserveSourceConnection = sourceQueryHistory
+            ? (
+                  await this.featureFlagModel.get({
+                      user: { organizationUuid },
+                      featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+                  })
+              ).enabled
+            : false;
+
         // Run independent data loads in parallel to minimize Postgres round-trips
         const [
             { explore, userAccessControls: preloadedUserAccessControls },
@@ -7431,10 +7440,16 @@ export class AsyncQueryService extends ProjectService {
                 querySurface,
                 context,
                 projectUuid,
-                binding: {
-                    kind: 'explore',
-                    exploreName: inputMetricQuery.exploreName,
-                },
+                binding:
+                    preserveSourceConnection && sourceQueryHistory
+                        ? {
+                              kind: 'query',
+                              queryUuid: sourceQueryHistory.queryUuid,
+                          }
+                        : {
+                              kind: 'explore',
+                              exploreName: inputMetricQuery.exploreName,
+                          },
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
@@ -7562,6 +7577,23 @@ export class AsyncQueryService extends ProjectService {
             dateZoom,
         };
 
+        const exploreTarget = preserveSourceConnection
+            ? await this.projectModel.resolveWarehouseCredentialRead(
+                  projectUuid,
+                  {
+                      kind: 'explore',
+                      exploreName: inputMetricQuery.exploreName,
+                  },
+              )
+            : null;
+        const exploreConnectionUuid =
+            exploreTarget?.kind === 'extra'
+                ? exploreTarget.warehouseConnectionUuid
+                : null;
+        const sourceConnectionOverridesExplore =
+            preserveSourceConnection &&
+            warehouseConnectionUuid !== exploreConnectionUuid;
+
         const identityEnabled = await this.isResultIdentityEnabled(account);
         const routingDecision = await this.getPreAggregationRoutingDecision({
             identityEnabled,
@@ -7571,7 +7603,9 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: effectiveMetricQuery,
             explore,
             context,
-            forceWarehouse: usePreAggregateCache === false,
+            forceWarehouse:
+                usePreAggregateCache === false ||
+                sourceConnectionOverridesExplore,
         });
 
         this.logger.info(
@@ -8429,22 +8463,27 @@ export class AsyncQueryService extends ProjectService {
 
     private async withSpaceBinding({
         projectUuid,
+        organizationUuid,
         spaceUuid,
         binding,
     }: {
-        account: Account;
         projectUuid: string;
+        organizationUuid: string;
         spaceUuid: string | null;
         binding: ConnectionBinding;
     }): Promise<ConnectionBinding> {
         if (spaceUuid === null) return binding;
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
         const { enabled } = await this.featureFlagModel.get({
             user: { organizationUuid },
             featureFlagId: FeatureFlags.SpaceWarehouseConnections,
         });
-        return enabled
+        if (!enabled) return binding;
+        const connectionUuid =
+            await this.spaceModel.getEffectiveWarehouseConnectionUuid({
+                projectUuid,
+                spaceUuid,
+            });
+        return connectionUuid !== null
             ? { kind: 'space', spaceUuid, fallback: binding }
             : binding;
     }
@@ -8695,6 +8734,13 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
+        const connectionBinding = await this.withSpaceBinding({
+            projectUuid,
+            organizationUuid: savedChartOrganizationUuid,
+            spaceUuid: savedChartSpaceUuid,
+            binding: { kind: 'explore', exploreName: explore.name },
+        });
+
         const {
             warehouseCredentials,
             warehouseConnectionUuid,
@@ -8704,12 +8750,7 @@ export class AsyncQueryService extends ProjectService {
             querySurface,
             context,
             projectUuid,
-            binding: await this.withSpaceBinding({
-                account,
-                projectUuid,
-                spaceUuid: savedChartSpaceUuid,
-                binding: { kind: 'explore', exploreName: explore.name },
-            }),
+            binding: connectionBinding,
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
@@ -8770,8 +8811,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: metricQueryWithLimit,
             explore,
             context,
-            // TODO: allow per-chart preference to bypass pre-aggregate cache
-            forceWarehouse: false,
+            forceWarehouse: connectionBinding.kind === 'space',
         });
 
         if (routingDecision.preAggregateMetadata) {
@@ -9495,6 +9535,13 @@ export class AsyncQueryService extends ProjectService {
         const projectTimezone =
             queryTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
 
+        const connectionBinding = await this.withSpaceBinding({
+            projectUuid,
+            organizationUuid,
+            spaceUuid: savedChart.spaceUuid,
+            binding: { kind: 'explore', exploreName: explore.name },
+        });
+
         // Run independent data loads in parallel to minimize Postgres round-trips
         const [
             {
@@ -9510,12 +9557,7 @@ export class AsyncQueryService extends ProjectService {
                 querySurface,
                 context,
                 projectUuid,
-                binding: await this.withSpaceBinding({
-                    account,
-                    projectUuid,
-                    spaceUuid: savedChart.spaceUuid,
-                    binding: { kind: 'explore', exploreName: explore.name },
-                }),
+                binding: connectionBinding,
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
@@ -9608,8 +9650,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: metricQueryWithLimit,
             explore,
             context,
-            // TODO: allow dashboard-level option to bypass pre-aggregate cache
-            forceWarehouse: false,
+            forceWarehouse: connectionBinding.kind === 'space',
         });
 
         if (routingDecision.preAggregateMetadata) {
@@ -14147,7 +14188,7 @@ export class AsyncQueryService extends ProjectService {
             limit: limit ?? sqlChart.limit,
             parameters: combinedParameters,
             binding: await this.withSpaceBinding({
-                account,
+                organizationUuid: sqlChart.organization.organizationUuid,
                 projectUuid,
                 spaceUuid: sqlChart.space.uuid,
                 binding: {
@@ -14327,7 +14368,7 @@ export class AsyncQueryService extends ProjectService {
             limit: limit ?? savedChart.limit,
             parameters: combinedParameters,
             binding: await this.withSpaceBinding({
-                account,
+                organizationUuid: savedChart.organization.organizationUuid,
                 projectUuid,
                 spaceUuid: savedChart.space.uuid,
                 binding: {

@@ -4,6 +4,7 @@ import {
     AgentActorSurface,
     AnyType,
     ContentAsCodeType,
+    FeatureFlags,
     ForbiddenError,
     OrganizationMemberRole,
     ParameterError,
@@ -203,6 +204,12 @@ const buildService = ({
         findSessionUserAndOrgByUuid: vi.fn(async () => refreshedUser),
     };
     const service = new CoderService({
+        featureFlagModel: {
+            get: vi.fn(async () => ({
+                id: FeatureFlags.SpaceWarehouseConnections,
+                enabled: false,
+            })),
+        },
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,

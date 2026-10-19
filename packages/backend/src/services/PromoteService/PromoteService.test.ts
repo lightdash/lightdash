@@ -3,6 +3,7 @@ import {
     AgentActorSurface,
     ChartType,
     DashboardTileTypes,
+    FeatureFlags,
     OrganizationMemberRole,
     ParameterError,
     PossibleAbilities,
@@ -283,6 +284,12 @@ const agentActionLogModel = { insert: vi.fn().mockResolvedValue(undefined) };
 
 describe('PromoteService chart changes', () => {
     const service = new PromoteService({
+        featureFlagModel: {
+            get: vi.fn(async () => ({
+                id: FeatureFlags.SpaceWarehouseConnections,
+                enabled: false,
+            })),
+        },
         agentActionLogModel,
         lightdashConfig: lightdashConfigMock,
 
@@ -553,6 +560,12 @@ describe('PromoteService chart changes', () => {
 
 describe('PromoteService dashboard changes', () => {
     const service = new PromoteService({
+        featureFlagModel: {
+            get: vi.fn(async () => ({
+                id: FeatureFlags.SpaceWarehouseConnections,
+                enabled: false,
+            })),
+        },
         agentActionLogModel,
         lightdashConfig: lightdashConfigMock,
 
@@ -1040,6 +1053,12 @@ describe('PromoteService dashboard changes', () => {
 
 describe('PromoteService promoting and mutating changes', () => {
     const service = new PromoteService({
+        featureFlagModel: {
+            get: vi.fn(async () => ({
+                id: FeatureFlags.SpaceWarehouseConnections,
+                enabled: false,
+            })),
+        },
         agentActionLogModel,
         lightdashConfig: lightdashConfigMock,
 
@@ -2352,12 +2371,26 @@ describe('PromoteService data app promotion', () => {
     };
 
     const serviceWithApps = new PromoteService({
+        featureFlagModel: {
+            get: vi.fn(async () => ({
+                id: FeatureFlags.SpaceWarehouseConnections,
+                enabled: false,
+            })),
+        },
         ...baseArgs,
         getAppGenerateService: () =>
             appGenerateService as unknown as AppGenerateService,
     });
 
-    const serviceWithoutApps = new PromoteService(baseArgs);
+    const serviceWithoutApps = new PromoteService({
+        ...baseArgs,
+        featureFlagModel: {
+            get: vi.fn(async () => ({
+                id: FeatureFlags.SpaceWarehouseConnections,
+                enabled: false,
+            })),
+        },
+    });
 
     const dataAppChanges = (): PromotionChanges => ({
         spaces: [],
@@ -2538,6 +2571,12 @@ describe('PromoteService data app promotion', () => {
 
 describe('agent content writes', () => {
     const service = new PromoteService({
+        featureFlagModel: {
+            get: vi.fn(async () => ({
+                id: FeatureFlags.SpaceWarehouseConnections,
+                enabled: false,
+            })),
+        },
         agentActionLogModel,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
@@ -2926,4 +2965,67 @@ describe('agent content writes', () => {
         ).rejects.toThrow('commit failed');
         expect(log).not.toHaveBeenCalled();
     });
+});
+
+describe('SQL chart promotion connection reservations', () => {
+    test.each([PromotionAction.CREATE, PromotionAction.UPDATE])(
+        'refuses %s on a reserved named connection',
+        async (action) => {
+            const create = vi.fn();
+            const update = vi.fn();
+            const service = new PromoteService({
+                featureFlagModel: {
+                    get: vi.fn(async () => ({
+                        id: FeatureFlags.SpaceWarehouseConnections,
+                        enabled: true,
+                    })),
+                },
+                projectModel: {
+                    getSummary: vi.fn(async () => ({
+                        organizationUuid: 'org',
+                    })),
+                },
+                savedSqlModel: { create, update },
+                spaceModel: {
+                    getConnectionBoundSpaces: vi.fn(async () => [
+                        {
+                            spaceUuid: 'restricted',
+                            warehouseConnectionUuid: 'reserved',
+                        },
+                    ]),
+                },
+                spacePermissionService: {
+                    resolveAccessBatch: vi.fn(async () => []),
+                },
+            } as never);
+            await expect(
+                service.upsertSqlCharts(
+                    user,
+                    { charts: [], spaces: [], dashboards: [] },
+                    [
+                        {
+                            action,
+                            data: {
+                                oldUuid: 'source-chart',
+                                projectUuid: 'target-project',
+                            },
+                        },
+                    ] as never,
+                    new Map([
+                        [
+                            'source-chart',
+                            {
+                                kind: 'connection',
+                                warehouseConnectionUuid: 'reserved',
+                            },
+                        ],
+                    ]),
+                ),
+            ).rejects.toThrow(
+                'This connection is reserved for a space you cannot edit.',
+            );
+            expect(create).not.toHaveBeenCalled();
+            expect(update).not.toHaveBeenCalled();
+        },
+    );
 });

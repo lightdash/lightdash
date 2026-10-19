@@ -1,6 +1,7 @@
 import { Ability, type RawRuleOf } from '@casl/ability';
 import {
     AnyType,
+    FeatureFlags,
     ForbiddenError,
     OrganizationMemberRole,
     ParameterError,
@@ -76,6 +77,19 @@ const accessContext = (projectUuid: string = PROJECT_UUID) => ({
     admins: [],
 });
 
+const reservationFlag = {
+    get: vi.fn(async () => ({
+        id: FeatureFlags.SpaceWarehouseConnections,
+        enabled: false,
+    })),
+};
+const reservedSpaces = {
+    getConnectionBoundSpaces: vi.fn(
+        async () =>
+            [] as { spaceUuid: string; warehouseConnectionUuid: string }[],
+    ),
+};
+
 const connectionState = vi.hoisted(() => ({
     route: 'single' as 'single' | 'multi',
 }));
@@ -112,6 +126,7 @@ const buildService = (
     ),
 ) =>
     new CoderService({
+        featureFlagModel: reservationFlag,
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,
@@ -128,6 +143,7 @@ const buildService = (
         appModel: {} as unknown as AppModel,
         dashboardModel: {} as unknown as DashboardModel,
         spaceModel: {
+            ...reservedSpaces,
             find: vi.fn(async () => [{ uuid: SPACE_UUID }]),
             findClosestAncestorByPath: vi.fn(async () => null),
             createSpace: vi.fn(),
@@ -486,6 +502,35 @@ describe('CoderService.upsertSqlChart - connections', () => {
             );
         return { savedSqlModel, service, error: result };
     };
+
+    it.each([false, true])(
+        'rejects a reserved connection upload, existing=%s',
+        async (existing) => {
+            connectionState.route = 'multi';
+            reservationFlag.get.mockResolvedValueOnce({
+                id: FeatureFlags.SpaceWarehouseConnections,
+                enabled: true,
+            });
+            reservedSpaces.getConnectionBoundSpaces.mockResolvedValueOnce([
+                {
+                    spaceUuid: OTHER_SPACE_UUID,
+                    warehouseConnectionUuid: 'finance-uuid',
+                },
+            ]);
+            const { savedSqlModel, service, error } = await uploadWith(
+                existing ? [existingRow(SPACE_UUID, 'finance-uuid')] : [],
+                'Finance',
+            );
+            expect(error).toEqual(
+                new ForbiddenError(
+                    'This connection is reserved for a space you cannot edit.',
+                ),
+            );
+            expect(savedSqlModel.create).not.toHaveBeenCalled();
+            expect(savedSqlModel.update).not.toHaveBeenCalled();
+            expect(service.getOrCreateSpace).not.toHaveBeenCalled();
+        },
+    );
 
     it.each([
         ['Finance', 'finance-uuid'],

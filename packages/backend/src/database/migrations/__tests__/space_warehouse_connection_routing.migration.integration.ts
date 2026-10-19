@@ -643,6 +643,51 @@ describe('Space warehouse routing on the real schema', () => {
         }
     });
 
+    test('an editor of an inheriting child may use the parent connection', async () => {
+        await database('space_user_access').insert({
+            user_uuid: userUuid,
+            space_uuid: child,
+            space_role: SpaceMemberRole.EDITOR,
+        });
+        expect(
+            (await service.getSqlRunnerConnections(account, projectUuid)).find(
+                (c) => c.warehouseConnectionUuid === extraConnectionUuid,
+            )?.canRunSql,
+        ).toBe(true);
+    });
+
+    test('an editor of a child with an override cannot use the parent connection', async () => {
+        const [original] = await database('warehouse_connections')
+            .where({ project_uuid: projectUuid, is_original: true })
+            .select('warehouse_connection_uuid');
+        await spaceModel.update(child, {
+            warehouseConnectionUuid: original.warehouse_connection_uuid,
+        });
+        await database('space_user_access').insert({
+            user_uuid: userUuid,
+            space_uuid: child,
+            space_role: SpaceMemberRole.EDITOR,
+        });
+        try {
+            expect(
+                (
+                    await service.getSqlRunnerConnections(account, projectUuid)
+                ).find((c) => c.warehouseConnectionUuid === extraConnectionUuid)
+                    ?.canRunSql,
+            ).toBe(false);
+            expect(
+                await spaceModel.getConnectionBoundSpaces({ projectUuid }),
+            ).toEqual([
+                {
+                    spaceUuid: spaceA,
+                    warehouseConnectionUuid: extraConnectionUuid,
+                },
+            ]);
+        } finally {
+            await spaceModel.update(child, { warehouseConnectionUuid: null });
+        }
+    });
+
     test('a space binding never reserves the original connection', async () => {
         const [original] = await database('warehouse_connections')
             .where({ project_uuid: projectUuid, is_original: true })
@@ -656,6 +701,10 @@ describe('Space warehouse routing on the real schema', () => {
             ).toEqual([
                 {
                     spaceUuid: spaceA,
+                    warehouseConnectionUuid: extraConnectionUuid,
+                },
+                {
+                    spaceUuid: child,
                     warehouseConnectionUuid: extraConnectionUuid,
                 },
             ]);

@@ -902,6 +902,21 @@ describe('SavedSqlService space connection reservations', () => {
         },
     );
 
+    it('refuses SQL changes that omit the current reserved connection', async () => {
+        savedSqlModel.getByUuid.mockResolvedValueOnce({
+            ...sqlChart,
+            warehouseConnectionUuid: 'reserved',
+        } as never);
+        await expect(
+            service.updateSqlChart(user, projectUuid, savedSqlUuid, {
+                versionedData: { sql: 'SELECT 2', limit: 10, config: {} },
+            } as never),
+        ).rejects.toThrow(
+            'This connection is reserved for a space you cannot edit.',
+        );
+        expect(savedSqlModel.update).not.toHaveBeenCalled();
+    });
+
     it.each(['create', 'update'] as const)(
         'allows %s with an unreserved connection',
         async (operation) => {

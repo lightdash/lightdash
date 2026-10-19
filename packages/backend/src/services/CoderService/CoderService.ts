@@ -165,6 +165,7 @@ import { PromoteService } from '../PromoteService/PromoteService';
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SchedulerService } from '../SchedulerService/SchedulerService';
+import { SpaceConnectionReservation } from '../SpaceService/SpaceConnectionReservation';
 import {
     spaceContextsByUuid,
     type SpacePermissionService,
@@ -220,6 +221,7 @@ type ContentAsCodeSpaceContentMetadata = {
 
 type CoderServiceArguments = {
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
@@ -322,6 +324,8 @@ export class CoderService extends BaseService {
         'getProject' | 'list'
     >;
 
+    private readonly spaceConnectionReservation: SpaceConnectionReservation;
+
     private readonly virtualViewCoder: VirtualViewCoder;
 
     private readonly scheduledContentCoder: ScheduledContentCoder;
@@ -338,6 +342,7 @@ export class CoderService extends BaseService {
     private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
 
     constructor({
+        featureFlagModel,
         agentActionLogModel,
         lightdashConfig,
         analytics,
@@ -365,6 +370,11 @@ export class CoderService extends BaseService {
         warehouseConnectionModel,
     }: CoderServiceArguments) {
         super();
+        this.spaceConnectionReservation = new SpaceConnectionReservation({
+            featureFlagModel,
+            spaceModel,
+            spacePermissionService,
+        });
         this.agentActionLogModel = agentActionLogModel;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
@@ -4804,6 +4814,15 @@ export class CoderService extends BaseService {
             connections,
             sqlChartAsCode.connection,
         );
+        if (warehouseConnectionUuid !== null) {
+            await this.spaceConnectionReservation.assertCanUseConnection({
+                userUuid: user.userUuid,
+                ability: auditedAbility,
+                organizationUuid: project.organizationUuid,
+                projectUuid,
+                warehouseConnectionUuid,
+            });
+        }
         if (
             existingSqlChart?.warehouse_connection_uuid &&
             existingSqlChart.warehouse_connection_uuid !==

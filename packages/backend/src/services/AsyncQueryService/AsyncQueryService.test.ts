@@ -13172,6 +13172,211 @@ describe('AsyncQueryService', () => {
             return { service, execute };
         };
 
+        test.each(
+            (['saved', 'dashboard'] as const).flatMap((entry) =>
+                [true, false].flatMap((enabled) =>
+                    [null, 'space-connection'].map((effectiveConnection) => ({
+                        entry,
+                        enabled,
+                        effectiveConnection,
+                    })),
+                ),
+            ),
+        )(
+            'space routing preserves warehouse execution for $entry enabled=$enabled effective=$effectiveConnection',
+            async ({ entry, enabled, effectiveConnection }) => {
+                const { service, execute } = buildService();
+                vi.mocked(service.featureFlagModel.get).mockImplementation(
+                    async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            enabled &&
+                            featureFlagId ===
+                                FeatureFlags.SpaceWarehouseConnections,
+                    }),
+                );
+                const effectiveBinding = vi.fn(async () => effectiveConnection);
+                service.spaceModel.getEffectiveWarehouseConnectionUuid =
+                    effectiveBinding;
+                const routing = vi.spyOn(
+                    service as AnyType,
+                    'getPreAggregationRoutingDecision',
+                );
+                const summary = vi.spyOn(service.projectModel, 'getSummary');
+                summary.mockClear();
+                if (entry === 'saved') {
+                    await service.executeAsyncSavedChartQuery({
+                        account: viewer,
+                        projectUuid,
+                        chartUuid: savedChart.uuid,
+                        context: QueryExecutionContext.CHART,
+                    });
+                    expect(summary).not.toHaveBeenCalled();
+                } else {
+                    await service.executeAsyncDashboardChartQuery({
+                        account: viewer,
+                        projectUuid,
+                        chartUuid: savedChart.uuid,
+                        dashboardUuid: 'dashboard-uuid',
+                        tileUuid: 'tile-1',
+                        dashboardFilters: {
+                            dimensions: [],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                        dashboardSorts: [],
+                        context: QueryExecutionContext.DASHBOARD,
+                    });
+                    expect(summary).not.toHaveBeenCalled();
+                }
+                const usesSpace = enabled && effectiveConnection !== null;
+                expect(
+                    (service as AnyType).getWarehouseCredentialsWithConnection,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        binding: usesSpace
+                            ? {
+                                  kind: 'space',
+                                  spaceUuid: savedChart.spaceUuid,
+                                  fallback: {
+                                      kind: 'explore',
+                                      exploreName: validExplore.name,
+                                  },
+                              }
+                            : {
+                                  kind: 'explore',
+                                  exploreName: validExplore.name,
+                              },
+                    }),
+                );
+                expect(routing).toHaveBeenCalledWith(
+                    expect.objectContaining({ forceWarehouse: usesSpace }),
+                );
+                expect(execute).toHaveBeenCalledWith(
+                    expect.objectContaining({ routingTarget: 'warehouse' }),
+                    expect.anything(),
+                );
+                expect(effectiveBinding).toHaveBeenCalledTimes(enabled ? 1 : 0);
+            },
+        );
+
+        test.each(
+            (['totals', 'unbounded'] as const).flatMap((entry) =>
+                [true, false].flatMap((enabled) =>
+                    ['explore-connection', 'space-connection', null].map(
+                        (sourceConnection) => ({
+                            entry,
+                            enabled,
+                            sourceConnection,
+                        }),
+                    ),
+                ),
+            ),
+        )(
+            '$entry retains the stored connection with enabled=$enabled source=$sourceConnection',
+            async ({ entry, enabled, sourceConnection }) => {
+                const { service, execute } = buildService();
+                vi.mocked(service.featureFlagModel.get).mockImplementation(
+                    async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            enabled &&
+                            featureFlagId ===
+                                FeatureFlags.SpaceWarehouseConnections,
+                    }),
+                );
+                const source = {
+                    queryUuid: 'source-query',
+                    metricQuery: { ...metricQueryMock, limit: 1 },
+                    requestParameters: { context: QueryExecutionContext.CHART },
+                    warehouseConnectionUuid: sourceConnection,
+                } as QueryHistory;
+                vi.mocked(service.queryHistoryModel.get).mockResolvedValueOnce(
+                    source,
+                );
+                const resolve = vi
+                    .spyOn(
+                        service.projectModel,
+                        'resolveWarehouseCredentialRead',
+                    )
+                    .mockImplementation(async (_projectUuid, binding) => {
+                        if (binding.kind !== 'query') {
+                            return {
+                                kind: 'extra',
+                                warehouseConnectionUuid: 'explore-connection',
+                            };
+                        }
+                        return sourceConnection === null
+                            ? { kind: 'original' }
+                            : {
+                                  kind: 'extra',
+                                  warehouseConnectionUuid: sourceConnection,
+                              };
+                    });
+                (service as AnyType).assertCanReadStoredResults = vi.fn();
+                (service as AnyType).assertSavedChartQuerySourceAccess =
+                    vi.fn();
+                (
+                    service as AnyType
+                ).getWarehouseCredentialsWithConnection.mockImplementation(
+                    async ({ binding }: { binding: { kind: string } }) => ({
+                        ...resolvedCredentials,
+                        warehouseConnectionUuid:
+                            binding.kind === 'query'
+                                ? sourceConnection
+                                : 'explore-connection',
+                    }),
+                );
+                const routing = vi.spyOn(
+                    service as AnyType,
+                    'getPreAggregationRoutingDecision',
+                );
+                if (entry === 'totals') {
+                    await service.executeAsyncCalculateTotalFromQueryHistory({
+                        account: viewer,
+                        projectUuid,
+                        queryUuid: source.queryUuid,
+                        kind: 'columnTotal',
+                    });
+                } else {
+                    await service.executeAsyncUnboundedRerunFromQueryHistory({
+                        account: viewer,
+                        projectUuid,
+                        queryUuid: source.queryUuid,
+                        context: QueryExecutionContext.CSV,
+                    });
+                }
+                expect(
+                    (service as AnyType).getWarehouseCredentialsWithConnection,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        binding: enabled
+                            ? { kind: 'query', queryUuid: source.queryUuid }
+                            : {
+                                  kind: 'explore',
+                                  exploreName: metricQueryMock.exploreName,
+                              },
+                    }),
+                );
+                expect(routing).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        forceWarehouse:
+                            enabled &&
+                            sourceConnection !== 'explore-connection',
+                    }),
+                );
+                expect(execute).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        warehouseConnectionUuid: enabled
+                            ? sourceConnection
+                            : 'explore-connection',
+                    }),
+                    expect.anything(),
+                );
+                resolve.mockRestore();
+            },
+        );
+
         test.each([
             {
                 producer: 'metric query',

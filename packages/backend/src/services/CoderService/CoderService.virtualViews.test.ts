@@ -3,6 +3,7 @@ import {
     ContentAsCodeType,
     DimensionType,
     ExploreType,
+    FeatureFlags,
     OrganizationMemberRole,
     PossibleAbilities,
     PromotionAction,
@@ -128,6 +129,12 @@ const buildService = (
         updateVirtualView: vi.fn(async () => ({ name: asCode.slug })),
     };
     const service = new CoderService({
+        featureFlagModel: {
+            get: vi.fn(async () => ({
+                id: FeatureFlags.SpaceWarehouseConnections,
+                enabled: false,
+            })),
+        },
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
