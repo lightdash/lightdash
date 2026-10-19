@@ -76,7 +76,7 @@ _Avoid_: output node, final node, sink (in user-facing copy)
 The agent's act of making an artifact from a node: naming a terminal node of
 the current turn in its final answer so its result is shown to the user.
 Results the agent does not present stay exploration, visible only in the
-pipeline card.
+pipeline card. Web marks it `<show node>`, Slack `<slack-table queryUuid>`.
 _Avoid_: select (the Slack vocabulary), show, publish, render
 
 **Presented node**:
