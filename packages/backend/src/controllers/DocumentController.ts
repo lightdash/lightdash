@@ -41,6 +41,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import type { DocumentChangeContext } from '../services/DocumentService/DocumentService';
 import {
     allowApiKeyAuthentication,
@@ -64,7 +65,11 @@ const getDocumentChange = (req: express.Request): DocumentChangeContext => ({
 export class DocumentController extends BaseController {
     @Post('{documentUuid}/charts/{chartId}/query')
     @OperationId('ExecuteDocumentChartQuery')
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('DocumentController.executeChartQuery'),
+    ])
     async executeChartQuery(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
@@ -129,6 +134,7 @@ export class DocumentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('DocumentController.verify'),
     ])
     async verify(
         @Request() req: express.Request,
@@ -154,6 +160,7 @@ export class DocumentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('DocumentController.unverify'),
     ])
     async unverify(
         @Request() req: express.Request,
@@ -194,6 +201,7 @@ export class DocumentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('DocumentController.duplicate'),
     ])
     async duplicate(
         @Request() req: express.Request,
@@ -218,7 +226,11 @@ export class DocumentController extends BaseController {
      */
     @Post('{documentUuidOrSlug}/exports/pdf')
     @OperationId('ExportDocumentPdf')
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('DocumentController.exportPdf'),
+    ])
     async exportPdf(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
@@ -269,6 +281,7 @@ export class DocumentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('DocumentController.promote'),
     ])
     async promote(
         @Request() req: express.Request,
@@ -291,6 +304,7 @@ export class DocumentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('DocumentController.updateMetadata'),
     ])
     async updateMetadata(
         @Request() req: express.Request,
@@ -315,6 +329,7 @@ export class DocumentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('DocumentController.updateContent'),
     ])
     async updateContent(
         @Request() req: express.Request,
@@ -381,7 +396,11 @@ export class DocumentController extends BaseController {
 
     @Get()
     @OperationId('ListDocuments')
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('DocumentController.list'),
+    ])
     async list(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,

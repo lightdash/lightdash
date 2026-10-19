@@ -10,6 +10,7 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 import { parseDocument } from 'yaml';
 import { getConfig } from '../config';
+import { refuseAgentConnection } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { getDownloadFolder } from './contentAsCodePaths';
@@ -507,6 +508,7 @@ export const executeSlugUpdate = async (
 export const slugUpdateHandler = async (
     options: SlugUpdateOptions,
 ): Promise<void> => {
+    refuseAgentConnection();
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 

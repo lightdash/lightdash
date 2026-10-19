@@ -100,6 +100,66 @@ describe('DatabricksWarehouseClient', () => {
         vi.restoreAllMocks();
     });
 
+    it.each([true, false, undefined])(
+        'sets session result caching for agent job controls %s',
+        async (agentJobControls) => {
+            const warehouse = new DatabricksWarehouseClient(credentials, {
+                agentJobControls,
+            });
+            await warehouse.runQuery('SELECT 1');
+            mocks.openSession.mockResolvedValueOnce(
+                createSession({
+                    executeStatement: vi.fn(async () =>
+                        createOperation({
+                            fetchAll: vi.fn(async () => [
+                                {
+                                    json_metadata: JSON.stringify({
+                                        columns: [
+                                            {
+                                                name: 'id',
+                                                type: { name: 'int' },
+                                                nullable: false,
+                                            },
+                                        ],
+                                    }),
+                                },
+                            ]),
+                        }),
+                    ),
+                }),
+            );
+            await warehouse.getCatalog([tableRequest('orders')]);
+            expect(mocks.openSession).toHaveBeenCalledTimes(2);
+            for (const [options] of mocks.openSession.mock.calls) {
+                expect(options).toEqual({
+                    initialCatalog: credentials.catalog,
+                    initialSchema: credentials.database,
+                    ...(agentJobControls
+                        ? { configuration: { use_cached_result: 'false' } }
+                        : {}),
+                });
+            }
+        },
+    );
+
+    it('preserves cache controls when opening a replacement session', async () => {
+        mocks.openSession.mockRejectedValueOnce(
+            statusError(
+                'SQL warehouse xyz is not ready to accept connections (current state: STARTING)',
+            ),
+        );
+        const warehouse = new DatabricksWarehouseClient(credentials, {
+            agentJobControls: true,
+        });
+        await withTimers(() => warehouse.runQuery('SELECT 1'));
+        expect(mocks.openSession).toHaveBeenCalledTimes(2);
+        for (const [options] of mocks.openSession.mock.calls) {
+            expect(options.configuration).toEqual({
+                use_cached_result: 'false',
+            });
+        }
+    });
+
     it('surfaces Databricks status messages when opening a session fails', async () => {
         const message =
             'PERMISSION_DENIED: User does not have USE CATALOG on Catalog';

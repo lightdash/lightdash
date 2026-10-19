@@ -1,7 +1,11 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    AgentActorSurface,
     applyEmbedScopeAbilities,
     buildAbilityFromScopes,
+    buildAgentIdentityClaim,
+    DashboardTileTypes,
+    FeatureFlags,
     FilterInteractivityValues,
     FilterOperator,
     ForbiddenError,
@@ -19,6 +23,8 @@ import {
     type SavedChartDAO,
     type SessionUser,
 } from '@lightdash/common';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { SavedSqlModel } from '../../../models/SavedSqlModel';
 import { validExplore } from '../../../services/ProjectService/ProjectService.mock';
 import {
     connectionContextFromUser,
@@ -1919,4 +1925,89 @@ describe('EmbedService', () => {
             },
         );
     });
+});
+
+describe('embedded SQL version identity', () => {
+    test.each(
+        [true, false].flatMap((enabled) =>
+            [true, false].map((hasClaim) => ({ enabled, hasClaim })),
+        ),
+    )(
+        'enabled=$enabled storedClaim=$hasClaim',
+        async ({ enabled, hasClaim }) => {
+            const claim = hasClaim
+                ? buildAgentIdentityClaim({
+                      subject: { type: 'user', uuid: mockUserUuid },
+                      surface: AgentActorSurface.MCP,
+                      clientId: 'oauth-client',
+                  })
+                : null;
+            const model = new SavedSqlModel({
+                database: {} as never,
+                lightdashConfig: lightdashConfigMock,
+            });
+            vi.spyOn(model, 'find').mockResolvedValue([
+                {
+                    saved_sql_uuid: 'sql-chart',
+                    name: 'SQL chart',
+                    project_uuid: mockProjectUuid,
+                    organization_uuid: mockOrganizationUuid,
+                    space_uuid: 'space',
+                    agent_identity: claim,
+                } as Parameters<typeof SavedSqlModel.convertSelectSavedSql>[0],
+            ]);
+            vi.spyOn(model, 'resolveColorPalette').mockResolvedValue(
+                undefined as never,
+            );
+            const flags = vi.fn(async ({ featureFlagId, user }) => {
+                if (featureFlagId !== FeatureFlags.AgentIdentity)
+                    return { enabled: true };
+                return {
+                    enabled:
+                        user.userUuid === 'embed-viewer' ? enabled : !enabled,
+                };
+            });
+            const service = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                savedSqlModel: model,
+                featureFlagModel: { get: flags },
+                embedModel: {
+                    get: vi.fn().mockResolvedValue({
+                        user: { userUuid: 'embed-owner' },
+                    }),
+                },
+                dashboardModel: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue({
+                        uuid: 'dashboard',
+                        organizationUuid: mockOrganizationUuid,
+                        tiles: [
+                            {
+                                uuid: 'tile',
+                                type: DashboardTileTypes.SQL_CHART,
+                                properties: { savedSqlUuid: 'sql-chart' },
+                            },
+                        ],
+                    }),
+                },
+                permissionsService: { checkEmbedSqlChartPermissions: vi.fn() },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            const result = await service.getDashboardSqlChartTile({
+                account: {
+                    user: { id: 'embed-viewer' },
+                    access: { content: { dashboardUuid: 'dashboard' } },
+                } as AnonymousAccount,
+                projectUuid: mockProjectUuid,
+                tileUuid: 'tile',
+            });
+            if (enabled) expect(result).toHaveProperty('agentIdentity', claim);
+            else expect(result).not.toHaveProperty('agentIdentity');
+            expect(flags).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: {
+                    userUuid: 'embed-viewer',
+                    organizationUuid: mockOrganizationUuid,
+                },
+            });
+        },
+    );
 });

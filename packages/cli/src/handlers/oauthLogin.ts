@@ -7,6 +7,7 @@ import * as http from 'http';
 import fetch from 'node-fetch';
 import { generators, Issuer } from 'openid-client';
 import { URL } from 'url';
+import { refuseAgentConnection } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { openBrowser } from './login/oauth';
@@ -16,6 +17,7 @@ export const loginWithOauth = async (
     url: string,
     oauthPort?: number,
 ): Promise<{ userUuid: string; organizationUuid: string; token: string }> => {
+    refuseAgentConnection(true);
     // Create a promise that will be resolved when we get the authorization code
     let resolveAuth: (value: { code: string; state: string }) => void;
     let rejectAuth: (reason: Error) => void;
@@ -179,9 +181,7 @@ export const loginWithOauth = async (
         // Wait for the authorization code
         const { code } = await authPromise;
 
-        GlobalState.debug(
-            `> Got authorization code ${code.substring(0, 10)}...`,
-        );
+        GlobalState.debug(`> Got authorization code`);
 
         GlobalState.debug(`> Getting token for authorization code`);
 
@@ -216,9 +216,7 @@ export const loginWithOauth = async (
             );
         }
 
-        GlobalState.debug(
-            `> OAuth access token: ${accessToken.substring(0, 10)}...`,
-        );
+        GlobalState.debug(`> Got OAuth access token`);
         GlobalState.debug(`> Creating PAT for user`);
 
         // Generate a new PAT from this access token
@@ -229,7 +227,7 @@ export const loginWithOauth = async (
             url,
             8,
         );
-        GlobalState.debug(`> PAT: ${pat.substring(0, 10)}...`);
+        GlobalState.debug(`> Got PAT`);
 
         // Get user information using the PAT
         const userInfoUrl = new URL('/api/v1/user', url);

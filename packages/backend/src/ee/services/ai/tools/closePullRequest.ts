@@ -45,7 +45,7 @@ export const getClosePullRequest = ({ closePullRequest }: Dependencies) =>
                     return {
                         result,
                         metadata: { status: 'error' },
-                        structuredContent: { error: result, refusal: null },
+                        structuredContent: { error: result },
                     };
                 }
                 return toolErrorOutput(

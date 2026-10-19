@@ -61,6 +61,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../auth/account';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     getDeprecatedRouteMiddleware,
@@ -78,7 +79,11 @@ export class OrganizationController extends BaseController {
      * @summary Get current organization
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('OrganizationController.getOrganization'),
+    ])
     @Get()
     @OperationId('GetMyOrganization')
     async getOrganization(
@@ -100,7 +105,11 @@ export class OrganizationController extends BaseController {
      * @param req express request
      * @param body the new organization settings
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('OrganizationController.createOrganization'),
+    ])
     @Put()
     @OperationId('CreateOrganization')
     async createOrganization(
@@ -269,7 +278,11 @@ export class OrganizationController extends BaseController {
      * @summary List organization projects
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('OrganizationController.getProjects'),
+    ])
     @Get('/projects')
     @OperationId('ListOrganizationProjects')
     async getProjects(
@@ -289,6 +302,8 @@ export class OrganizationController extends BaseController {
      * @summary List organization members
      * @param req express request
      * @param projectUuid filter users who can view this project
+     * @param sortBy column to sort by (name sorts by full name, falling back to email)
+     * @param sortDirection sort direction (asc or desc)
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/users')
@@ -301,6 +316,8 @@ export class OrganizationController extends BaseController {
         @Query() searchQuery?: string,
         @Query() projectUuid?: string,
         @Query() googleOidcOnly?: boolean,
+        @Query() sortBy?: 'name',
+        @Query() sortDirection?: 'asc' | 'desc',
     ): Promise<ApiOrganizationMemberProfiles> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -324,6 +341,9 @@ export class OrganizationController extends BaseController {
                     searchQuery,
                     projectUuid,
                     googleOidcOnly,
+                    sortBy && sortDirection
+                        ? { sortBy, sortDirection }
+                        : undefined,
                 ),
         };
     }
@@ -464,7 +484,13 @@ export class OrganizationController extends BaseController {
      * @param req express request
      * @param userUuid the uuid of the user
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'OrganizationController.getUserSchedulersSummary',
+        ),
+    ])
     @Get('/user/{userUuid}/schedulers-summary')
     @OperationId('GetUserSchedulersSummary')
     async getUserSchedulersSummary(
@@ -520,7 +546,13 @@ export class OrganizationController extends BaseController {
      * @param req express request
      * @param userUuid the uuid of the user
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'OrganizationController.getUserDashboardsSummary',
+        ),
+    ])
     @Get('/user/{userUuid}/dashboards-summary')
     @OperationId('GetUserDashboardsSummary')
     async getUserDashboardsSummary(
@@ -548,6 +580,9 @@ export class OrganizationController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation(
+            'OrganizationController.reassignUserDashboards',
+        ),
     ])
     @Patch('/user/{userUuid}/reassign-dashboards')
     @OperationId('ReassignUserDashboards')
@@ -647,8 +682,16 @@ export class OrganizationController extends BaseController {
      * @summary List organization groups
      * @param req
      * @param includeMembers number of members to include
+     * @param sortBy column to sort by
+     * @param sortDirection sort direction (asc or desc)
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'OrganizationController.listGroupsInOrganization',
+        ),
+    ])
     @Get('/groups')
     @OperationId('ListGroupsInOrganization')
     async listGroupsInOrganization(
@@ -657,6 +700,8 @@ export class OrganizationController extends BaseController {
         @Query() pageSize?: number,
         @Query() includeMembers?: number,
         @Query() searchQuery?: string,
+        @Query() sortBy?: 'name',
+        @Query() sortDirection?: 'asc' | 'desc',
     ): Promise<ApiGroupListResponse> {
         assertRegisteredAccount(req.account);
         let paginateArgs: KnexPaginateArgs | undefined;
@@ -675,6 +720,7 @@ export class OrganizationController extends BaseController {
                 includeMembers,
                 paginateArgs,
                 searchQuery,
+                sortBy && sortDirection ? { sortBy, sortDirection } : undefined,
             );
 
         this.setStatus(200);
@@ -714,7 +760,11 @@ export class OrganizationController extends BaseController {
      * List all color palettes in the organization
      * @summary List color palettes
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('OrganizationController.getColorPalettes'),
+    ])
     @Get('/color-palettes')
     @OperationId('ListColorPalettes')
     async getColorPalettes(
@@ -821,6 +871,7 @@ export class OrganizationController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('OrganizationController.createProject'),
     ])
     @Post('/projects')
     @OperationId('CreateProject')
@@ -906,7 +957,11 @@ export class OrganizationController extends BaseController {
      * @summary Get Learn access
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('OrganizationController.getLearnAccess'),
+    ])
     @Get('/training-project/access')
     @OperationId('GetLearnAccess')
     async getLearnAccess(
@@ -926,7 +981,13 @@ export class OrganizationController extends BaseController {
      * @summary Get impersonation settings
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'OrganizationController.getImpersonationSettings',
+        ),
+    ])
     @Get('/impersonation')
     @OperationId('GetImpersonationSettings')
     async getImpersonationSettings(

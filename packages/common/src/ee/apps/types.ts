@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { type AgentIdentityClaim } from '../../types/agentIdentity';
 import { type ReadyQueryResultsPage } from '../../types/api';
 import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
 import { type ContentVerificationInfo } from '../../types/contentVerification';
@@ -531,6 +532,7 @@ export type AppThread = {
 };
 
 export type ApiAppVersionSummary = {
+    agentIdentity?: AgentIdentityClaim | null;
     version: number;
     // Thread the version's prompt was made in. Versions predating threads
     // read back under thread 1.
@@ -1519,6 +1521,11 @@ export type DataAppVizDrillDownIntent = {
 // host renders its native context menu over the iframe. Never forwarded to
 // the API — `useAppSdkBridge` answers it before allowlist matching.
 export const APP_SDK_VIZ_POINT_MENU_PATH = '/__sdk/viz/point-menu';
+
+// Host-answered virtual route: the SDK asks for an explore's base table to
+// qualify short field names. The bridge and the CLI preview proxy reply with
+// only the base table; never forwarded to the API.
+export const APP_SDK_EXPLORE_BASE_TABLE_PATH = '/__sdk/explore-base-table';
 
 // Data-point menu intent a viz sends to the virtual route: the untransformed
 // source row and metric slot (as for drill-down), plus the click position in

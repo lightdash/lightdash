@@ -24,12 +24,14 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
+import { type ApiGetAsyncQueryResultsResponse } from '../../controllers/v2/QueryController';
 import { AiDeepResearchService } from '../services/AiDeepResearchService/AiDeepResearchService';
 
 @Route('/api/v1/ee/projects/{projectUuid}/ai-deep-research')
@@ -43,6 +45,7 @@ export class AiDeepResearchController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('AiDeepResearchController.createRun'),
     ])
     @Response<ApiErrorPayload>('409', 'Deep Research run already active')
     @SuccessResponse('202', 'Accepted')
@@ -127,7 +130,11 @@ export class AiDeepResearchController extends BaseController {
      * load its live results.
      * @summary Refresh Deep Research chart
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiDeepResearchController.refreshChart'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{aiDeepResearchRunUuid}/charts/{chartKey}/refresh')
     @OperationId('refreshAiDeepResearchChart')
@@ -148,6 +155,36 @@ export class AiDeepResearchController extends BaseController {
                 aiDeepResearchRunUuid,
                 chartKey,
             }),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{aiDeepResearchRunUuid}/queries/{queryUuid}/results')
+    @OperationId('getDeepResearchChartQueryResults')
+    async getChartQueryResults(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() aiDeepResearchRunUuid: UUID,
+        @Path() queryUuid: UUID,
+        @Query() page?: number,
+        @Query() pageSize?: number,
+    ): Promise<ApiGetAsyncQueryResultsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiDeepResearchService().getChartQueryResults(
+                {
+                    account: req.account,
+                    user: toSessionUser(req.account),
+                    projectUuid,
+                    aiDeepResearchRunUuid,
+                    queryUuid,
+                    page,
+                    pageSize,
+                },
+            ),
         };
     }
 
@@ -213,7 +250,11 @@ export class AiDeepResearchController extends BaseController {
      * Cancel a queued run immediately or request cancellation for a running run.
      * @summary Cancel Deep Research run
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiDeepResearchController.cancelRun'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{aiDeepResearchRunUuid}/cancel')
     @OperationId('cancelAiDeepResearchRun')

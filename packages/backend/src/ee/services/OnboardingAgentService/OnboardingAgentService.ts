@@ -17,6 +17,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { fromSession } from '../../../auth/account';
+import { assertOAuthCredentialOperationAllowed } from '../../../auth/oauthScopes/credentials';
 import { type LightdashConfig } from '../../../config/parseConfig';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
@@ -202,6 +203,7 @@ export class OnboardingAgentService extends BaseService {
         user: SessionUser;
         projectUuid: string;
     }): Promise<AgentOnboardingRun> {
+        assertOAuthCredentialOperationAllowed(args.user, 'startOnboardingRun');
         if (!isUserWithOrg(args.user)) {
             throw new ForbiddenError('User is not part of an organization');
         }

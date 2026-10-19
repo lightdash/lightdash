@@ -33,7 +33,7 @@ import {
     type TimestampDomain,
     type WarehouseNestedColumnShape,
 } from '@lightdash/common';
-import fetch from 'node-fetch';
+import fetch, { type RequestInit } from 'node-fetch';
 import { WarehouseCatalog } from '../types';
 import { DEFAULT_BATCH_SIZE } from '../utils/processPromisesInBatches';
 import { normalizeUnicode } from '../utils/sql';
@@ -485,9 +485,11 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
     private readonly enableTimeouts: boolean;
 
+    private readonly agentJobControls: boolean;
+
     constructor(
         credentials: CreateDatabricksCredentials,
-        options?: { agentSession?: boolean },
+        options?: { agentSession?: boolean; agentJobControls?: boolean },
     ) {
         super(
             credentials,
@@ -495,6 +497,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             options,
         );
         this.schema = credentials.database;
+        this.agentJobControls = options?.agentJobControls ?? false;
         this.catalog = credentials.catalog;
         this.enableTimeouts = process.env.DATABRICKS_ENABLE_TIMEOUTS === 'true';
 
@@ -558,6 +561,9 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             session = await connection.openSession({
                 initialCatalog: this.catalog,
                 initialSchema: this.schema,
+                ...(this.agentJobControls
+                    ? { configuration: { use_cached_result: 'false' } }
+                    : {}),
             });
         } catch (e: unknown) {
             try {
@@ -951,11 +957,13 @@ export const exchangeDatabricksOAuthCredentials = async (
     host: string,
     clientId: string,
     clientSecret: string,
+    transport?: Pick<RequestInit, 'agent'>,
 ): Promise<{ accessToken: string; refreshToken?: string }> => {
     const tokenUrl = `https://${host}/oidc/v1/token`;
 
     const response = await fetch(tokenUrl, {
         method: 'POST',
+        agent: transport?.agent,
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -992,6 +1000,7 @@ export const refreshDatabricksOAuthToken = async (
     clientId: string,
     refreshToken: string,
     clientSecret?: string,
+    transport?: Pick<RequestInit, 'agent'>,
 ): Promise<{
     accessToken: string;
     refreshToken: string;
@@ -1010,6 +1019,7 @@ export const refreshDatabricksOAuthToken = async (
 
     const response = await fetch(tokenUrl, {
         method: 'POST',
+        agent: transport?.agent,
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },

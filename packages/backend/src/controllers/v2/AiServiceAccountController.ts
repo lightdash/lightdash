@@ -1,8 +1,7 @@
 import {
-    AgentAccessTestRequest,
     AiServiceAccountCredentialInput,
     AiServiceAccountTestRequest,
-    ApiAgentAccessReportResponse,
+    ApiAiServiceAccountSaveResponse,
     ApiAiServiceAccountSlotResponse,
     ApiAiServiceAccountStatusResponse,
     ApiAiServiceAccountTestResponse,
@@ -26,6 +25,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -37,7 +37,11 @@ import { BaseController } from '../baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'Projects')
 export class AiServiceAccountController extends BaseController {
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiServiceAccountController.get'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get()
     @OperationId('getAiServiceAccount')
@@ -67,12 +71,12 @@ export class AiServiceAccountController extends BaseController {
         @Request() req: express.Request,
         @Body() body: AiServiceAccountCredentialInput,
         @Query() connection?: UUID,
-    ): Promise<ApiAiServiceAccountSlotResponse> {
+    ): Promise<ApiAiServiceAccountSaveResponse> {
         return {
             status: 'ok',
-            results: await this.services
+            ...(await this.services
                 .getAiServiceAccountService()
-                .upsert(req.account!, projectUuid, connection ?? null, body),
+                .upsert(req.account!, projectUuid, connection ?? null, body)),
         };
     }
 
@@ -114,29 +118,6 @@ export class AiServiceAccountController extends BaseController {
                     projectUuid,
                     connection ?? null,
                     body.credentials,
-                ),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Post('/test-access')
-    @OperationId('testAiServiceAccountAccess')
-    async testAccess(
-        @Path() projectUuid: UUID,
-        @Request() req: express.Request,
-        @Body() body: AgentAccessTestRequest,
-        @Query() connection?: UUID,
-    ): Promise<ApiAgentAccessReportResponse> {
-        return {
-            status: 'ok',
-            results: await this.services
-                .getAiServiceAccountService()
-                .testAccess(
-                    req.account!,
-                    projectUuid,
-                    connection ?? null,
-                    body,
                 ),
         };
     }

@@ -21,16 +21,6 @@ vi.mock('../../../config/lightdashConfig', async () => {
             ...lightdashConfigMock,
             siteUrl: 'http://lightdash.example',
             license: { licenseKey: 'test-license' },
-            auth: {
-                snowflakeAi: {
-                    account: 'stub',
-                    clientId: 'stub-client',
-                    clientSecret: 'stub-secret',
-                    authorizationEndpoint: `${settings.url}/oauth/authorize`,
-                    tokenEndpoint: `${settings.url}/oauth/token-request`,
-                    callbackPath: '/oauth/redirect/snowflake-ai',
-                },
-            },
         },
     };
 });
@@ -141,6 +131,9 @@ describe('Snowflake AI strategy against the real OAuth and SDK stub', () => {
                 await import('../../../services/AiAccessService/AiAccessService');
             const analytics = { track: vi.fn() };
             const service = new AiAccessService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
                 analytics,
                 featureFlagModel: {
                     get: vi.fn(async () => ({ enabled: true })),
@@ -247,6 +240,9 @@ describe('Snowflake AI strategy against the real OAuth and SDK stub', () => {
             await import('../../../services/AiAccessService/AiAccessService');
         const analytics = { track: vi.fn() };
         const service = new AiAccessService({
+            agentActionLogModel: {
+                insert: vi.fn().mockResolvedValue(undefined),
+            },
             analytics,
             featureFlagModel: { get: vi.fn(async () => ({ enabled: true })) },
         } as unknown as ConstructorParameters<typeof AiAccessService>[0]);

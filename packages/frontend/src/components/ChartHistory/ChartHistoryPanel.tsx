@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    FeatureFlags,
     formatTimestamp,
     TimeFrames,
     type SavedChart,
@@ -34,11 +35,13 @@ import {
     useChartVersion,
     useChartVersionRollbackMutation,
 } from '../../hooks/useSavedQuery';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
 import { ExplorerSection } from '../../providers/Explorer/types';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import NoTableIcon from '../../svgs/emptystate-no-table.svg?react';
+import AgentAttribution from '../common/AgentAttribution/AgentAttribution';
 import Callout from '../common/Callout';
 import { EmptyState } from '../common/EmptyState';
 import ErrorState from '../common/ErrorState';
@@ -156,6 +159,8 @@ const ChartHistoryPanel: FC<Props> = ({
     withSidebarFooter,
 }) => {
     const lightdashApi = useLightdashApi();
+    const agentIdentityEnabled =
+        useServerFeatureFlag(FeatureFlags.AgentIdentity).data?.enabled === true;
     const authoringEnabled = useContentAuthoringEnabled();
     const [userSelectedVersionUuid, selectVersionUuid] = useState<string>();
     const [isRollbackModalOpen, setIsRollbackModalOpen] = useState(false);
@@ -228,11 +233,29 @@ const ChartHistoryPanel: FC<Props> = ({
                                         }
                                         label={formattedTimestamp}
                                         description={
-                                            <Text component="span">
-                                                Updated by:{' '}
-                                                {version.createdBy?.firstName}{' '}
-                                                {version.createdBy?.lastName}
-                                            </Text>
+                                            agentIdentityEnabled &&
+                                            version.agentIdentity ? (
+                                                <AgentAttribution
+                                                    claim={
+                                                        version.agentIdentity
+                                                    }
+                                                    createdBy={
+                                                        version.createdBy
+                                                    }
+                                                />
+                                            ) : (
+                                                <Text component="span">
+                                                    Updated by:{' '}
+                                                    {
+                                                        version.createdBy
+                                                            ?.firstName
+                                                    }{' '}
+                                                    {
+                                                        version.createdBy
+                                                            ?.lastName
+                                                    }
+                                                </Text>
+                                            )
                                         }
                                         rightSection={
                                             index === 0 ? (

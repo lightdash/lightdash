@@ -20,6 +20,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import fetch from 'node-fetch';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
@@ -43,7 +44,11 @@ export class MapTileController extends BaseController {
      * Session and verified embed accounts are both supported.
      * @summary Get map tile
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('MapTileController.getTile'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{style}/{z}/{x}/{y}.png')
     @OperationId('getMapTile')

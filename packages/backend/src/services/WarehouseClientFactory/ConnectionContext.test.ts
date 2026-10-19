@@ -4,6 +4,12 @@ import {
     QuerySurface,
     type Account,
 } from '@lightdash/common';
+import { fromSession } from '../../auth/account';
+import { defaultSessionUser } from '../../auth/account/account.mock';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../AiAccessService/agentExecutionContext';
 import {
     aiClientFromQueryContext,
     connectionContextFromAccount,
@@ -52,6 +58,8 @@ const expectedSurfaces = {
     [QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION]:
         ConnectionSurface.APP,
     [QueryExecutionContext.COMPOSE_SQL_RUNNER]: ConnectionSurface.APP,
+
+    [QueryExecutionContext.PYTHON_RUNNER]: ConnectionSurface.APP,
     [QueryExecutionContext.MULTI_SOURCE_QUERY]: ConnectionSurface.APP,
     [QueryExecutionContext.DATA_APP_SAMPLE]: ConnectionSurface.DATA_APP,
     [QueryExecutionContext.DESKTOP]: ConnectionSurface.APP,
@@ -104,6 +112,7 @@ describe('ConnectionContext', () => {
             ),
         ).toEqual({
             organizationUuid: 'org-uuid',
+            agentIdentity: null,
             actor: {
                 surface: ConnectionSurface.APP,
                 person: {
@@ -311,4 +320,39 @@ describe('account agent identity facts', () => {
             getAccountAgentIdentityFacts({ authentication } as Account),
         ).toEqual(expected);
     });
+});
+
+test('connection builders preserve a trusted connection and ignore caller surface outside the scope', () => {
+    const account = fromSession(defaultSessionUser);
+    const scope = createAgentExecutionContext({
+        account,
+        surface: AgentActorSurface.CLI,
+        clientId: 'lightdash-cli',
+        agentUuid: null,
+        agentConnectionGrant: { grantUuid: 'grant', revision: 3 },
+        agentIdentityEnabled: true,
+    });
+    const options = {
+        organizationUuid: account.organization.organizationUuid!,
+        queryContext: QueryExecutionContext.CLI,
+        surface: ConnectionSurface.CLI,
+    };
+    agentExecutionContext.run(scope, () => {
+        for (const context of [
+            connectionContextFromAccount(account, options),
+            connectionContextFromUser(defaultSessionUser, options),
+        ]) {
+            expect(context.agentIdentity?.act.agent_connection_grant).toEqual({
+                grantUuid: 'grant',
+                revision: 3,
+            });
+            expect(context.agentIdentity).toBe(scope.claim);
+        }
+    });
+    expect(
+        connectionContextFromAccount(account, options).agentIdentity,
+    ).toBeNull();
+    expect(
+        connectionContextFromUser(defaultSessionUser, options).agentIdentity,
+    ).toBeNull();
 });

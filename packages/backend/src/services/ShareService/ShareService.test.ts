@@ -1,6 +1,10 @@
 import { ForbiddenError, ParameterError } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { ShareModel } from '../../models/ShareModel';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../AiAccessService/agentActionTestUtils.mock';
 import { ShareService } from './ShareService';
 import {
     Account,
@@ -13,6 +17,7 @@ import {
     User,
 } from './ShareService.mock';
 
+const agentActionLogModel = { insert: vi.fn().mockResolvedValue(undefined) };
 const shareModel = {
     createSharedUrl: vi.fn(async () => SampleShareUrl),
     getSharedUrl: vi.fn(async () => SampleShareUrl),
@@ -21,6 +26,7 @@ const unsafeJavascriptUrl = ['javascript', 'alert(1)'].join(':');
 
 describe('share', () => {
     const shareService = new ShareService({
+        agentActionLogModel,
         analytics: analyticsMock,
         shareModel: shareModel as unknown as ShareModel,
         lightdashConfig: Config,
@@ -121,3 +127,37 @@ describe('share', () => {
         ).rejects.toThrowError(ForbiddenError);
     });
 });
+
+test.each(agentActionTestCases)(
+    'agent share creation: %s',
+    async (_, surface, enabled, count) => {
+        agentActionLogModel.insert.mockClear();
+        const service = new ShareService({
+            agentActionLogModel,
+            analytics: analyticsMock,
+            shareModel: shareModel as unknown as ShareModel,
+            lightdashConfig: Config,
+        });
+        await withAgentActionScope(User, surface, enabled, () =>
+            service.createShareUrl(
+                User,
+                SampleShareUrl.path,
+                SampleShareUrl.params,
+            ),
+        );
+        expect(agentActionLogModel.insert).toHaveBeenCalledTimes(count);
+        if (count)
+            expect(agentActionLogModel.insert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    object_type: 'share',
+                    object_uuid: null,
+                    object_id: SampleShareUrl.nanoid,
+                    action: 'create',
+                    outcome: 'allowed',
+                }),
+            );
+        expect(
+            JSON.stringify(agentActionLogModel.insert.mock.calls),
+        ).not.toContain(SampleShareUrl.path);
+    },
+);

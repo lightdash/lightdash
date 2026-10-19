@@ -77,6 +77,12 @@ export type CapabilitySectionArgs = {
     enableComposerQueries?: boolean;
     warehouseType?: WarehouseTypes | null;
     warehouseSchema?: string | null;
+    warehouseConnections?: {
+        name: string;
+        warehouseConnectionUuid: string | null;
+        warehouseType: WarehouseTypes;
+        isOriginal: boolean;
+    }[];
     sqlScope?: AgentSqlScope | null;
     runSqlMaxLimit?: number;
 };
@@ -88,6 +94,7 @@ const getCapabilitySections = (
         ? getRunSqlSection({
               warehouseType: args.warehouseType ?? null,
               warehouseSchema: args.warehouseSchema ?? null,
+              warehouseConnections: args.warehouseConnections ?? [],
               sqlScope: args.sqlScope ?? null,
               runSqlMaxLimit: args.runSqlMaxLimit,
               viaComposerQueries: args.enableComposerQueries ?? false,
@@ -170,9 +177,17 @@ export const getSystemPromptV2 = (args: {
     // When composer queries are on, the standalone runSql tool is withheld
     // and raw SQL runs as `sql` nodes inside runComposerQueries instead.
     enableComposerQueries?: boolean;
+    // Python nodes in runComposerQueries; only meaningful with composer on.
+    enableComposerPythonNodes?: boolean;
     enableMergeQueries?: boolean;
     warehouseType?: WarehouseTypes | null;
     warehouseSchema?: string | null;
+    warehouseConnections?: {
+        name: string;
+        warehouseConnectionUuid: string | null;
+        warehouseType: WarehouseTypes;
+        isOriginal: boolean;
+    }[];
     sqlScope?: AgentSqlScope | null;
     // runSql's own max, quoted in its prompt section.
     runSqlMaxLimit?: number;
@@ -199,6 +214,7 @@ export const getSystemPromptV2 = (args: {
         slackLinksOnly = false,
         canRunSql = false,
         enableComposerQueries = false,
+        enableComposerPythonNodes = false,
         enableMergeQueries = false,
         unauthenticatedMcpServerNames = [],
         deferredSections = new Set<DeferredPromptSection>(),
@@ -216,6 +232,9 @@ export const getSystemPromptV2 = (args: {
     } else if (enableComposerQueries) {
         crossExploreJoinRule =
             '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use runComposerQueries: one semanticLayer node per explore plus a duckdb node that joins their results.';
+    } else if (canRunSql && (args.warehouseConnections?.length ?? 0) > 1) {
+        crossExploreJoinRule =
+            '  - You cannot mix fields from different explores in a single generateVisualization call. Raw SQL can combine tables only on the original connection. Do not join tables across connections; explain this limit if merge queries are unavailable.';
     } else if (canRunSql) {
         crossExploreJoinRule =
             '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.';
@@ -223,6 +242,17 @@ export const getSystemPromptV2 = (args: {
         crossExploreJoinRule =
             '  - You can not mix fields from different explores.';
     }
+
+    // Multi-step analysis is one pipeline, not a chain of separate queries.
+    const composerPipelineRule = enableComposerQueries
+        ? `\n  - An answer that takes several queries or a computation over their results (period-over-period change, ranking across explores, cohorts, running totals${
+              enableComposerPythonNodes ? ', forecasts, statistics' : ''
+          }) is one runComposerQueries pipeline: source nodes fetch, duckdb nodes join and reshape${
+              enableComposerPythonNodes
+                  ? ', python nodes run the algorithm'
+                  : ''
+          }, and the terminal node is the table the user sees. Build the pipeline instead of running the queries one by one and combining them in prose.`
+        : '';
 
     const customSqlLimitation = canRunSql
         ? ''
@@ -408,7 +438,10 @@ export const getSystemPromptV2 = (args: {
             '{{memories_section}}',
             enableAiAgentMemory ? MEMORIES_SECTION : '',
         )
-        .replace('{{cross_explore_join_rule}}', crossExploreJoinRule)
+        .replace(
+            '{{cross_explore_join_rule}}',
+            crossExploreJoinRule + composerPipelineRule,
+        )
         .replace('{{custom_sql_limitation}}', customSqlLimitation)
         .replace('{{agent_name}}', agentName)
         .replace(
@@ -494,10 +527,10 @@ export const getSystemPromptV2 = (args: {
             ? 'Lead short answers with the result, not a generated title or a restatement of the request. Do not repeat the artifact title as a heading: the UI already labels the artifact. Summarize the key finding without duplicating the entire chart as both a table and a list. Include material scope and uncertainty, but avoid speculative diagnoses and unsolicited offers at the end of every answer.'
             : '',
         slackChannelId
-            ? 'For Slack answers, choose zero or one generated chart by default. When the user requests a chart, select the best successful chart that answers the request. Show multiple charts only when the user requests them or distinct useful views improve the answer. Omit redundant, diagnostic and superseded charts. To select a chart, add the internal marker <slack-chart versionUuid="<versionUuid>" /> on its own line in your final response, replacing <versionUuid> with the exact saved versionUuid copied from a successful chart execution in the current turn. The marker is hidden from visible text and selects that saved chart card for your answer. Select at most 10 charts. Never invent versionUuid values, reference charts from earlier turns or automatically display every generated chart.'
+            ? 'For Slack answers, choose zero or one generated chart by default. When the user requests a chart, select the best successful chart that answers the request. Show multiple charts only when the user requests them or distinct useful views improve the answer. Omit redundant, diagnostic and superseded charts. To select a chart, add the internal marker <slack-chart versionUuid="<versionUuid>" /> on its own line in your final response, replacing <versionUuid> with the exact saved versionUuid copied from a successful chart execution in the current turn. The marker is hidden from visible text and selects that saved chart card for your answer. Every selected chart card carries an "Explore in Lightdash" button that opens that chart with its fields and filters, so selecting the chart is how you deliver a link or report the user asked for: say the report is attached below and never claim you cannot provide a link. The row cap on the preview rows returned to you does not limit the chart the user opens from the card, so do not call the report incomplete or capped because of it. Select at most 10 charts. Never invent versionUuid values, reference charts from earlier turns or automatically display every generated chart.'
             : '',
         allowSlackTableSelection
-            ? 'For Slack answers, a summary is the default when it answers the question. Include a table only when the user requests one or its rows materially help explain the answer. To select a table, add the internal marker <slack-table queryUuid="<queryUuid>" /> on its own line in your final response, replacing <queryUuid> with the exact queryUuid copied from a successful semantic table execution in the current turn. The marker is hidden from visible text and renders that execution as a native Slack table in your answer; it does not send a CSV. Select at most 10 requested or useful final tables. Omit diagnostic and intermediate tables, and supporting evidence that does not improve the answer. Never automatically include every table you queried. Do not invent queryUuid values or reuse executions from earlier turns.'
+            ? 'For Slack answers, a summary is the default when it answers the question. Include a table only when the user requests one or its rows materially help explain the answer. To select a table, add the internal marker <slack-table queryUuid="<queryUuid>" /> on its own line in your final response, replacing <queryUuid> with the exact queryUuid copied from a successful semantic table or composer query execution in the current turn. The marker is hidden from visible text and renders that execution as a native Slack table in your answer; it does not send a CSV. Select at most 10 requested or useful final tables. Omit diagnostic and intermediate tables, and supporting evidence that does not improve the answer. Never automatically include every table you queried. Do not invent queryUuid values or reuse executions from earlier turns.'
             : '',
         deepResearchContent,
         grepFieldsSection,

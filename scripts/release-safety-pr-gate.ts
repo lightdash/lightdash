@@ -7,6 +7,10 @@ import {
     isSubstantiveBreakingReason,
 } from './breaking-change-gate-policy';
 import {
+    uncoveredFindings,
+    unmatchedCoverEntries,
+} from './release-safety-advisories';
+import {
     collectBreakingChangeDeclarationsBetweenRefs,
     DEFAULT_DECLARATIONS_PATH,
 } from './release-safety-declarations';
@@ -24,6 +28,7 @@ interface ApiSurface {
     checked: boolean;
     breaking: boolean | 'unknown';
     changes: string[];
+    breakingCount?: number;
 }
 
 export interface ReleaseSafetyGateMarker {
@@ -156,6 +161,20 @@ export function evaluateReleaseSafetyGate(
             : null,
     ].filter((surface): surface is string => surface !== null);
 
+    for (const kind of ['rest', 'mcp'] as const) {
+        for (const { id, entry } of unmatchedCoverEntries(
+            input.marker.api[kind],
+            input.declarationChanges.advisories,
+            kind,
+        )) {
+            diagnostics.push({
+                level: 'error',
+                file: DEFAULT_DECLARATIONS_PATH,
+                line: 1,
+                message: `declaration ${JSON.stringify(id)} covers ${JSON.stringify(entry)} but the PR has no breaking finding for it`,
+            });
+        }
+    }
     if (breakingSurfaces.length === 0) return diagnostics;
 
     const migrationDeclarations = input.declarationChanges.added.filter(
@@ -183,7 +202,16 @@ export function evaluateReleaseSafetyGate(
         });
         return false;
     });
-    if (substantiveApiDeclarations.length === 0) {
+    const uncovered = (['rest', 'mcp'] as const).flatMap((kind) =>
+        input.marker.api[kind].checked
+            ? uncoveredFindings(
+                  input.marker.api[kind],
+                  input.declarationChanges.advisories,
+                  kind,
+              )
+            : [],
+    );
+    if (substantiveApiDeclarations.length === 0 && uncovered.length > 0) {
         diagnostics.push({
             level: 'error',
             file: input.markerPath,
@@ -191,7 +219,8 @@ export function evaluateReleaseSafetyGate(
             message: breakingChangeDecisionBrief({
                 file: input.markerPath,
                 line: 1,
-                pattern: `breaking ${breakingSurfaces.join(' and ')} API surface change`,
+                pattern: `breaking ${breakingSurfaces.join(' and ')} API surface change\n${uncovered.join('\n')}`,
+                allowNoExternalCallers: true,
                 declarationLocation: `a new stable ID in ${DEFAULT_DECLARATIONS_PATH} with reason and requiredStop`,
             }),
         });

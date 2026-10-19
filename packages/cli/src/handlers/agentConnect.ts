@@ -7,10 +7,13 @@ import {
 } from '@lightdash/common';
 import * as http from 'http';
 import type { Ora } from 'ora';
+import { getConfig } from '../config';
+import { refuseAgentConnection } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import {
     getAgentAccess,
+    isUsingSharedAgentAccount,
     resolveAgentProject,
     type AgentOptions,
 } from './agentAccess';
@@ -24,7 +27,7 @@ type AgentConnectOptions = AgentOptions & {
 const getFailureReason = (error: string): string => {
     switch (error) {
         case 'not_agent_session':
-            return 'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for AI.';
+            return 'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for agents.';
         case 'no_refresh_token':
             return 'Snowflake did not return a refresh token. Try again.';
         case 'license_required':
@@ -51,6 +54,7 @@ const isConnected = (access: AiAccessForUser): boolean =>
 export const agentConnectHandler = async (
     options: AgentConnectOptions,
 ): Promise<void> => {
+    refuseAgentConnection(true);
     GlobalState.setVerbose(options.verbose);
     const projectUuid = await resolveAgentProject(options.project);
     const access = await getAgentAccess(projectUuid);
@@ -58,12 +62,27 @@ export const agentConnectHandler = async (
         console.error('Agent already connected');
         return;
     }
+    if (isUsingSharedAgentAccount(access)) {
+        console.error(
+            'The CLI runs as you until agent connect issues an agent credential.',
+        );
+        return;
+    }
     if (access.requirementSource === null) {
-        console.error('Agent connection is not required for this project');
+        console.error('Agent sign-in is not required for this project');
         return;
     }
     if (access.refusal?.action !== 'sign_in' || !access.refusal.connectUrl) {
         console.error(access.refusal?.message ?? 'Agent not connected');
+        if (access.refusal?.settingsUrl) {
+            const config = await getConfig();
+            const serverUrl = config.context?.serverUrl;
+            console.error(
+                serverUrl
+                    ? new URL(access.refusal.settingsUrl, serverUrl).href
+                    : access.refusal.settingsUrl,
+            );
+        }
         process.exitCode = 1;
         return;
     }

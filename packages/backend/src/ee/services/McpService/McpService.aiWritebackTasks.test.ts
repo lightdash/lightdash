@@ -1,7 +1,16 @@
 import { ForbiddenError, NotFoundError } from '@lightdash/common';
 import { McpError } from '@modelcontextprotocol/sdk/types.js'; // eslint-disable-line import/extensions
+import { getOAuthScopeContext } from '../../../auth/oauthScopes/scopedAbility';
 import { McpService, McpToolName } from './McpService';
 import { makeMcpServerOptions } from './McpService.mock';
+
+vi.mock('../../../auth/oauthScopes/scopedAbility', () => ({
+    getOAuthScopeContext: vi.fn().mockReturnValue(null),
+}));
+
+afterEach(() => {
+    vi.mocked(getOAuthScopeContext).mockReturnValue(null);
+});
 
 type RegisteredToolCallback = (
     args: Record<string, unknown>,
@@ -29,6 +38,7 @@ vi.mock('@sentry/node', () => ({
 }));
 
 vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
+    ResourceTemplate: class {},
     McpServer: vi.fn().mockImplementation(
         // eslint-disable-next-line prefer-arrow-callback
         function MockMcpServer() {
@@ -117,6 +127,7 @@ const makeMcpService = ({
     aiWritebackService: Record<string, unknown>;
 }) =>
     new McpService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiAgentService: {},
         aiAgentToolsService: { createRuntime: vi.fn() },
         aiOrganizationSettingsService: {},
@@ -221,6 +232,75 @@ describe('McpService AI writeback MCP tasks', () => {
     });
 
     describe('run_ai_writeback task augmentation', () => {
+        it.each(['pat', 'oauth', 'session'] as const)(
+            'carries %s permission applicability into writeback jobs',
+            async (type) => {
+                const enqueueWriteback = vi.fn().mockResolvedValue({
+                    aiWritebackRunUuid: runUuid,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                });
+                await createServerWithWriteback({ enqueueWriteback });
+                const extra = makeExtra();
+                const result = await mockRegisteredMcpTools.get(
+                    McpToolName.RUN_AI_WRITEBACK,
+                )!(
+                    { prompt: 'add a metric', projectUuid },
+                    {
+                        ...extra,
+                        authInfo: {
+                            extra: {
+                                ...extra.authInfo.extra,
+                                account: {
+                                    ...account,
+                                    authentication: { type },
+                                },
+                                getAgentPermissionService: () => ({
+                                    loadRequest: vi.fn().mockResolvedValue({
+                                        enforcementMode: 'managed',
+                                    }),
+                                    assertOperationWithRequest: vi
+                                        .fn()
+                                        .mockResolvedValue(undefined),
+                                }),
+                            },
+                        },
+                    },
+                );
+                expect(result.isError).not.toBe(true);
+                expect(enqueueWriteback).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        source: 'mcp',
+                        agentPermissionsApply: type !== 'pat',
+                    }),
+                );
+            },
+        );
+
+        it.each([false, true])(
+            'passes the existing identity flag (%s) to the enqueue',
+            async (agentIdentityEnabled) => {
+                const enqueueWriteback = vi.fn().mockResolvedValue({
+                    aiWritebackRunUuid: runUuid,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                });
+                const mcpService = makeMcpService({
+                    aiWritebackService: { enqueueWriteback },
+                });
+                await mcpService.createServer(
+                    makeMcpServerOptions({ agentIdentityEnabled }),
+                );
+                await mockRegisteredMcpTools.get(McpToolName.RUN_AI_WRITEBACK)!(
+                    { prompt: 'add a metric', projectUuid },
+                    makeExtra(),
+                );
+                expect(enqueueWriteback).toHaveBeenCalledWith(
+                    expect.objectContaining({ agentIdentityEnabled }),
+                );
+            },
+        );
+
         it('returns the legacy uuid response when the client did not opt in', async () => {
             const enqueueWriteback = vi.fn().mockResolvedValue({
                 aiWritebackRunUuid: runUuid,
@@ -427,6 +507,43 @@ describe('McpService AI writeback MCP tasks', () => {
     });
 
     describe('tasks/cancel', () => {
+        it.each(['log', 'enforce'] as const)(
+            'checks the write scope in %s mode',
+            async (mode) => {
+                const cancelRun = vi.fn().mockResolvedValue({
+                    cancelled: true,
+                    status: 'cancelled',
+                });
+                const record = vi.fn();
+                await createServerWithWriteback({ cancelRun });
+                vi.mocked(getOAuthScopeContext).mockReturnValue({
+                    mode,
+                    scopes: ['mcp:read'],
+                    record,
+                });
+                const result = mockRegisteredRequestHandlers.get(
+                    'tasks/cancel',
+                )!(
+                    { method: 'tasks/cancel', params: { taskId: runUuid } },
+                    makeExtra(tasksOptInMeta),
+                );
+                if (mode === 'enforce') {
+                    await expect(result).rejects.toThrow(ForbiddenError);
+                    expect(cancelRun).not.toHaveBeenCalled();
+                } else {
+                    await expect(result).resolves.toEqual({
+                        resultType: 'complete',
+                    });
+                    expect(cancelRun).toHaveBeenCalledOnce();
+                }
+                expect(record).toHaveBeenCalledWith(
+                    'call',
+                    'McpTool',
+                    'run_ai_writeback',
+                );
+            },
+        );
+
         const cancelTask = (
             taskId: string,
             extra = makeExtra(tasksOptInMeta),

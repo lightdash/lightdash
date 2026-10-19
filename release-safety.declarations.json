@@ -53,6 +53,57 @@
             "reason": "Drops the never-populated ai_credit_entitlements table and the unused ai_credit_holds.ai_credit_entitlement_uuid column with its partial unique index. Releases from 2.388.0 onward neither read nor write them, so a rolling upgrade from 2.388.0 or later is unaffected. An instance upgrading straight from 2.381.0 through 2.387.x must use the Recreate strategy: those releases still query ai_credit_entitlements from the AI usage sink, so their pods would fail to record AI usage once the table is gone.",
             "requiredStop": false,
             "migration": "packages/backend/src/ee/database/migrations/20261009100000_drop_ai_credit_entitlements.ts"
+        },
+        "agent-identity-test-access-endpoint-removed": {
+            "reason": "Agent identity (beta, agent-identity feature flag) removes POST /api/v2/projects/{projectUuid}/ai-access/service-account/test-access and the exported AgentAccessReport, AgentAccessTestRequest and BigqueryAgentAccessProbe types. API clients that called the per-table access check get a 404 and must use POST .../ai-access/service-account/test instead, which still checks the AI service account key. Only the Lightdash frontend called the removed endpoint, so no rolling upgrade is affected.",
+            "requiredStop": false
+        },
+        "agent-permissions-pilot-preset-removed": {
+            "reason": "Agent identity (beta, agent-identity feature flag) removes POST /api/v2/org/agent-permissions/pilot-preset and the pilotPreset field from GET /api/v2/org/agent-permissions. The agent-identity flag is off by default on Cloud and on self-hosted, and the endpoint refuses callers when the flag is off. No released Lightdash UI ever called the endpoint or read the field. API clients get a 404 and must save the capability ceiling with PUT /api/v2/org/agent-permissions instead.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "featureFlag": "agent-identity",
+                "covers": {
+                    "rest": [
+                        "POST /api/v2/org/agent-permissions/pilot-preset",
+                        "GET /api/v2/org/agent-permissions"
+                    ],
+                    "mcp": []
+                }
+            }
+        },
+        "agent-warehouse-confirmation-endpoints-removed": {
+            "reason": "The three warehouse-confirmation operations (GET, PUT and DELETE /api/v2/org/agent-permissions/projects/{projectUuid}/warehouse-confirmation) and the exported AgentWarehouseRestrictionConfirmation and AgentWarehouseConfirmationStatus types are removed. The agent-identity flag is off by default on Cloud and on self-hosted. The endpoints refuse callers when the flag is off. Only the project Agent identity settings page of the same release called them. API clients get a 404. Raw SQL for agents no longer needs a project confirmation.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "featureFlag": "agent-identity",
+                "covers": {
+                    "rest": [
+                        "GET /api/v2/org/agent-permissions/projects/{projectUuid}/warehouse-confirmation",
+                        "PUT /api/v2/org/agent-permissions/projects/{projectUuid}/warehouse-confirmation",
+                        "DELETE /api/v2/org/agent-permissions/projects/{projectUuid}/warehouse-confirmation"
+                    ],
+                    "mcp": []
+                }
+            }
+        },
+        "spk-2738-agent-permissions-capability-list-and-group-only-api": {
+            "reason": "Only the organization Agents settings page calls these operations. An old browser tab can still save the old shape; its people and project choices are dropped. GET, PUT and reset no longer return those choices. The agent-identity flag is off by default on Cloud and on self-hosted instances. With the flag off nothing changes. With the flag on and limits off no request gets a different answer. With the flag on and limits on, access widens in four ways, and each matches the flag-off behaviour. First, Enable agents over MCP off no longer refuses agents in the app, Slack, the OAuth API or the CLI connection. Second, it no longer refuses generic MCP tools, skill tools and skill resources, or the warehouse connect and status calls; choosing or using a configured agent over MCP is still refused. Third, Allow content changes via MCP off no longer refuses data app generate and iterate over MCP, or content writes on the other surfaces; the MCP create content, edit content and scheduled delivery tools stay hidden. Fourth, a saved people list or project list no longer refuses anyone. To restrict agents, use Who can use agents or untick capabilities. Unticking every capability turns agents off.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "The organization Agents settings page is the only client of these policy operations. Old tabs can save and refresh. Their people and project choices no longer apply.",
+                "covers": {
+                    "rest": [
+                        "GET /api/v2/org/agent-permissions",
+                        "PUT /api/v2/org/agent-permissions",
+                        "POST /api/v2/org/agent-permissions/reset"
+                    ],
+                    "mcp": []
+                }
+            }
         }
     }
 }

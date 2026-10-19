@@ -1,6 +1,7 @@
 import { LightdashError, Project, ProjectType } from '@lightdash/common';
 import inquirer from 'inquirer';
 import { Config, unsetPreviewProject } from '../config';
+import { getAgentConnectionSelection } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { lightdashApi } from './dbt/apiClient';
@@ -72,6 +73,11 @@ export const resolveProjectOverride = async (
     config: Config,
     explicitProject: string | undefined,
 ): Promise<string | undefined> => {
+    if (getAgentConnectionSelection() !== null) {
+        const { resolveAgentConnectionProject } =
+            await import('../agentConnections/projectSelection');
+        return resolveAgentConnectionProject(explicitProject);
+    }
     if (explicitProject) {
         return resolveProjectFlag(explicitProject);
     }

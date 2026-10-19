@@ -71,7 +71,7 @@ export const useGenerateTableCalculation = ({
     >({
         onSuccess,
         mutationFn: ({ prompt, currentSql }) => {
-            if (!projectUuid || !itemsMap) {
+            if (!projectUuid || !itemsMap || !explore) {
                 throw new Error('Project UUID and itemsMap are required');
             }
 
@@ -127,6 +127,7 @@ export const useGenerateTableCalculation = ({
                 {
                     prompt,
                     tableName,
+                    exploreName: explore.name,
                     fieldsContext,
                     existingTableCalculations,
                     currentSql,

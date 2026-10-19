@@ -89,6 +89,7 @@ describe('SearchModel.searchDashboards', () => {
     const addVersionWithChartTile = async (savedChartId: number) => {
         const [version] = await transaction(DashboardVersionsTableName)
             .insert({
+                agent_identity: null,
                 dashboard_id: dashboardId,
                 updated_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
                 config: undefined,
@@ -295,6 +296,7 @@ describe('SearchModel.search dashboard tabs', () => {
     ) => {
         const [version] = await transaction(DashboardVersionsTableName)
             .insert({
+                agent_identity: null,
                 dashboard_id: dashboardId,
                 updated_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
                 config: undefined,
@@ -697,6 +699,7 @@ describe('SearchModel.searchDocuments', () => {
             throw new Error('Document fixture not found');
         }
         await database('document_versions').insert({
+            agent_identity: null,
             document_id: document.document_id,
             version_number: 1,
             schema_version: 2,

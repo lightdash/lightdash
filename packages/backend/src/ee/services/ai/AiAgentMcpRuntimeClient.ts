@@ -32,6 +32,7 @@ import { Agent, type Dispatcher } from 'undici';
 /* eslint-enable import/extensions */
 import { LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
+import type { ConnectedAgentTool } from '../../../services/AgentPermissionService/AgentPermissionService';
 import {
     isPrivateAddress,
     validatePublicHttpUrl,
@@ -310,6 +311,7 @@ export const hardenMcpToolDefinition = (
 export type ResolvedMcpTools = {
     tools: ToolSet;
     mcpToolNameToServerUuid: Record<string, string>;
+    connectedToolInventory: Record<string, ConnectedAgentTool>;
     unavailableMcpServers: UnavailableMcpServer[];
     closeMcpClients: () => Promise<void>;
 };
@@ -342,28 +344,41 @@ const buildDefaultClientMetadata = (
     token_endpoint_auth_method: 'none',
 });
 
-const getOAuthClientInformation = (
-    payload: AiMcpOAuthCredentialPayload,
+// A configured client ID without a secret is a public client: PKCE only.
+const getConfiguredClientInformation = (
+    payload: Pick<
+        AiMcpOAuthCredentialPayload,
+        'configuredClientId' | 'configuredClientSecret'
+    >,
 ): OAuthClientInformationMixed | undefined => {
-    if (payload.configuredClientId && payload.configuredClientSecret) {
+    if (!payload.configuredClientId) {
+        return undefined;
+    }
+
+    if (payload.configuredClientSecret) {
         return {
             client_id: payload.configuredClientId,
             client_secret: payload.configuredClientSecret,
         };
     }
 
-    return payload.clientInformation as OAuthClientInformationMixed | undefined;
+    return {
+        client_id: payload.configuredClientId,
+        token_endpoint_auth_method: 'none',
+    };
 };
+
+const getOAuthClientInformation = (
+    payload: AiMcpOAuthCredentialPayload,
+): OAuthClientInformationMixed | undefined =>
+    getConfiguredClientInformation(payload) ??
+    (payload.clientInformation as OAuthClientInformationMixed | undefined);
 
 const toPersistedOAuthPayload = (
     payload: AiMcpOAuthCredentialPayload,
     credentialScope: AiMcpCredentialScope,
 ): AiMcpOAuthCredentialPayload => {
-    if (
-        credentialScope !== 'user' ||
-        !payload.configuredClientId ||
-        !payload.configuredClientSecret
-    ) {
+    if (credentialScope !== 'user' || !payload.configuredClientId) {
         return payload;
     }
 
@@ -396,13 +411,9 @@ export const normalizeMcpOAuthPayloadForRedirect = (
         return {
             ...payload,
             credentialScope,
-            clientInformation:
-                payload.configuredClientId && payload.configuredClientSecret
-                    ? {
-                          client_id: payload.configuredClientId,
-                          client_secret: payload.configuredClientSecret,
-                      }
-                    : undefined,
+            clientInformation: getConfiguredClientInformation(payload) as
+                | Record<string, unknown>
+                | undefined,
             clientMetadata: defaultClientMetadata,
             codeVerifier: undefined,
             state: undefined,
@@ -1224,8 +1235,7 @@ export class AiAgentMcpRuntimeClient {
             if (
                 !sharedCredential ||
                 sharedPayload?.type !== 'oauth' ||
-                !sharedPayload.configuredClientId ||
-                !sharedPayload.configuredClientSecret
+                !sharedPayload.configuredClientId
             ) {
                 return credential;
             }
@@ -1591,6 +1601,7 @@ export class AiAgentMcpRuntimeClient {
             return {
                 tools: {},
                 mcpToolNameToServerUuid: {},
+                connectedToolInventory: {},
                 unavailableMcpServers: [],
                 closeMcpClients: async () => undefined,
             };
@@ -1600,6 +1611,7 @@ export class AiAgentMcpRuntimeClient {
         const usedToolNames = new Set<string>();
         const resolvedTools: ToolSet = {};
         const mcpToolNameToServerUuid: Record<string, string> = {};
+        const connectedToolInventory: Record<string, ConnectedAgentTool> = {};
         const unavailableMcpServers: UnavailableMcpServer[] = [];
 
         const serverResults = await Promise.all(
@@ -1750,6 +1762,12 @@ export class AiAgentMcpRuntimeClient {
                     usedToolNames.add(namespacedToolName);
                     mcpToolNameToServerUuid[namespacedToolName] =
                         serverResult.mcpServer.uuid;
+                    connectedToolInventory[namespacedToolName] = {
+                        serverUuid: serverResult.mcpServer.uuid,
+                        toolName,
+                        enabledToolNames:
+                            serverResult.mcpServer.enabledToolNames ?? null,
+                    };
                     try {
                         resolvedTools[namespacedToolName] =
                             hardenMcpToolDefinition(
@@ -1762,6 +1780,7 @@ export class AiAgentMcpRuntimeClient {
                             );
                             usedToolNames.delete(namespacedToolName);
                             delete mcpToolNameToServerUuid[namespacedToolName];
+                            delete connectedToolInventory[namespacedToolName];
                             // eslint-disable-next-line no-continue
                             continue;
                         }
@@ -1774,6 +1793,7 @@ export class AiAgentMcpRuntimeClient {
         return {
             tools: resolvedTools,
             mcpToolNameToServerUuid,
+            connectedToolInventory,
             unavailableMcpServers,
             closeMcpClients: async () => {
                 const results = await Promise.allSettled(

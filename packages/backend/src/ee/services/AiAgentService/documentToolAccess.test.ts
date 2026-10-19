@@ -1,4 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { AiAgentService } from './AiAgentService';
 
 vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
@@ -83,6 +84,14 @@ describe('Document runtime access', () => {
         '$name passes effective access to discovery and authoring',
         async ({ slack, trusted, authorized, enabled, expected }) => {
             const service = new AiAgentService({
+                agentPermissionService: {
+                    loadRequest: vi.fn().mockResolvedValue({
+                        enforcementMode: 'off',
+                    }),
+                    assertOperation: vi.fn(),
+                    assertActorVerifiedWithRequest: vi.fn(),
+                    assertOperationWithRequest: vi.fn(),
+                },
                 aiCreditService: {
                     assertAiCreditsAvailable: async () => undefined,
                 },
@@ -164,7 +173,11 @@ describe('Document runtime access', () => {
             const dependencies = vi
                 .spyOn(privateService, 'getAiAgentDependencies')
                 .mockRejectedValue(stopAtDependencies);
-            const user = { organizationUuid: 'organization', userUuid: 'user' };
+            const user = {
+                ...defaultSessionUser,
+                organizationUuid: 'organization',
+                userUuid: 'user',
+            };
             const prompt = {
                 organizationUuid: 'organization',
                 projectUuid: 'project',

@@ -1,22 +1,263 @@
 /// <reference path="../../@types/passport-openidconnect.d.ts" />
 /// <reference path="../../@types/express-session.d.ts" />
 import {
+    AGENT_CLIENT_IDS,
+    AgentActorSurface,
     ApiError,
+    assertRegisteredAccount,
     AuthorizationError,
     DeactivatedAccountError,
     InvalidUser,
     LightdashMode,
+    SessionUser,
 } from '@lightdash/common';
-import OAuth2Server from '@node-oauth/oauth2-server';
-import { ErrorRequestHandler, Request, RequestHandler } from 'express';
+import OAuth2Server, { type Token } from '@node-oauth/oauth2-server';
+import {
+    ErrorRequestHandler,
+    NextFunction,
+    Request,
+    RequestHandler,
+    Response,
+} from 'express';
 import passport from 'passport';
 import { URL } from 'url';
 import { fromApiKey, fromOauth } from '../../auth/account/account';
 import { requestContextFromExpress } from '../../auth/account/requestContext';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
+import { getGrantOperationContract } from '../../auth/agentConnectionGrants/operationContracts';
+import { resolveOAuthScopeMode } from '../../auth/oauthScopes/mode';
+import {
+    oauthApiResource,
+    oauthMcpResource,
+} from '../../auth/oauthScopes/oauthResources';
+import { type OAuthTokenBinding } from '../../auth/oauthScopes/oauthTokenBinding';
+import {
+    getOAuthRouteResource,
+    resolveOAuthRouteOperation,
+} from '../../auth/oauthScopes/routeOperation';
+import { OAuthScopePolicy } from '../../auth/oauthScopes/scopedAbility';
+import { OAuthBearerRefusalError } from '../../auth/oauthScopes/security';
+import {
+    assertOAuthScopeOperation,
+    OAUTH_UNCHECKED_OPERATIONS,
+} from '../../auth/oauthScopes/unchecked';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { authenticateServiceAccount } from '../../ee/authentication';
 import Logger from '../../logging/logger';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../../services/AiAccessService/agentExecutionContext';
+
+const isMcpRequest = (req: Request): boolean =>
+    req.baseUrl.toLowerCase().endsWith('/mcp');
+
+const refuseOAuthToken = (
+    req: Request,
+    res: Parameters<RequestHandler>[1],
+): void => {
+    if (isMcpRequest(req)) {
+        const siteUrl = oauthApiResource(
+            req.services.getOauthService().getSiteUrl(),
+        );
+        res.set(
+            'WWW-Authenticate',
+            `Bearer resource_metadata="${siteUrl}/api/v1/oauth/.well-known/oauth-protected-resource", error="invalid_token"`,
+        );
+    }
+    res.status(401).json({ error: 'invalid_token' });
+};
+
+export const acceptAnyOAuthAudience: RequestHandler = (_req, res, next) => {
+    res.locals.acceptAnyOAuthAudience = true;
+    next();
+};
+
+const hasWrongOAuthAudience = (
+    req: Request,
+    token: OAuth2Server.Token,
+): boolean => {
+    if (token.resource === null || token.resource === undefined) return false;
+    if (req.res?.locals.acceptAnyOAuthAudience === true) return false;
+    const siteUrl = req.services.getOauthService().getSiteUrl();
+    return (
+        token.resource !==
+        (isMcpRequest(req)
+            ? oauthMcpResource(siteUrl)
+            : oauthApiResource(siteUrl))
+    );
+};
+
+const getOAuthScopePolicy = async (
+    req: Request,
+    user: SessionUser,
+    enforceGrant = false,
+): Promise<OAuthScopePolicy | null> => {
+    const mode = await resolveOAuthScopeMode(
+        req.services.getFeatureFlagService(),
+        user,
+    );
+    if (mode === null && !enforceGrant) return null;
+    return {
+        mode: enforceGrant ? 'enforce' : mode!,
+        getRequest: () => {
+            const route = req.route as { path: unknown } | undefined;
+            return {
+                method: req.method,
+                routeTemplate:
+                    !req.baseUrl.endsWith('/mcp') &&
+                    typeof route?.path === 'string'
+                        ? route.path
+                        : null,
+            };
+        },
+    };
+};
+
+const assertOAuthAgentOperation = async (req: Request): Promise<void> => {
+    const { account } = req;
+    if (
+        account?.authentication.type !== 'oauth' ||
+        !account.organization.organizationUuid
+    )
+        return;
+    assertRegisteredAccount(account);
+    const operation = resolveOAuthRouteOperation(req);
+    const grantProjectUuids =
+        account.authentication.agentConnectionGrant && !isMcpRequest(req)
+            ? await req.services
+                  .getAgentConnectionGrantService()
+                  .assertRestOperation(req, operation)
+            : null;
+    if (
+        grantProjectUuids !== null &&
+        operation !== null &&
+        getGrantOperationContract(operation)?.kind === 'connection_lifecycle'
+    )
+        return;
+    const scopeOperation =
+        operation !== null &&
+        Object.hasOwn(OAUTH_UNCHECKED_OPERATIONS, operation)
+            ? (operation as keyof typeof OAUTH_UNCHECKED_OPERATIONS)
+            : null;
+    if (grantProjectUuids !== null && scopeOperation !== null)
+        assertOAuthScopeOperation(account, scopeOperation);
+    if (isMcpRequest(req)) return;
+    const service = req.services.getAgentPermissionService();
+    const request = await service.loadRequest(
+        account.organization.organizationUuid,
+    );
+    if (request.enforcementMode === 'off') return;
+    if (request.enforcementMode === 'admission') {
+        await service.assertOperationWithRequest({
+            request,
+            operation: {
+                account,
+                organizationUuid: account.organization.organizationUuid,
+                projectUuid: null,
+                kind: 'rest_operation',
+                key: operation ?? 'unknown',
+                surface: AgentActorSurface.API,
+            },
+        });
+        return;
+    }
+    if (grantProjectUuids === null && scopeOperation !== null)
+        assertOAuthScopeOperation(account, scopeOperation);
+    if (grantProjectUuids !== null) {
+        await Promise.all(
+            (grantProjectUuids.length === 0 ? [null] : grantProjectUuids).map(
+                (projectUuid) =>
+                    service.assertOperationWithRequest({
+                        request,
+                        operation: {
+                            account,
+                            organizationUuid:
+                                account.organization.organizationUuid!,
+                            projectUuid,
+                            kind: 'rest_operation',
+                            key: operation ?? 'unknown',
+                            surface: AgentActorSurface.CLI,
+                        },
+                    }),
+            ),
+        );
+        return;
+    }
+    let projectUuid =
+        typeof req.params.projectUuid === 'string'
+            ? req.params.projectUuid
+            : null;
+    if (projectUuid === null && operation !== null) {
+        const resource = getOAuthRouteResource(req);
+        if (resource)
+            projectUuid = await service.resolveResourceProjectUuid(resource);
+    }
+    await service.assertOperationWithRequest({
+        request,
+        operation: {
+            account,
+            organizationUuid: account.organization.organizationUuid,
+            projectUuid,
+            kind: 'rest_operation',
+            key: operation ?? 'unknown',
+            surface: AgentActorSurface.API,
+        },
+    });
+};
+
+const continueOAuthAuthentication = async (
+    req: Request,
+    next: NextFunction,
+    token: Token & Partial<OAuthTokenBinding>,
+): Promise<void> => {
+    const { account } = req;
+    if (
+        account?.authentication.type !== 'oauth' ||
+        account.authentication.agentConnectionGrant == null
+    ) {
+        await assertOAuthAgentOperation(req);
+        next();
+        return;
+    }
+    const grant = account.authentication.agentConnectionGrant;
+    if (
+        grant.clientId !== AGENT_CLIENT_IDS[AgentActorSurface.CLI] ||
+        account.authentication.clientId !== grant.clientId
+    )
+        throw new OAuthBearerRefusalError();
+    if (!token.familyUuid || token.resource !== grant.resource)
+        throw new OAuthBearerRefusalError();
+    const scope = createAgentExecutionContext({
+        account,
+        surface: AgentActorSurface.CLI,
+        clientId: grant.clientId,
+        agentUuid: null,
+        agentConnectionGrant: {
+            grantUuid: grant.grantUuid,
+            revision: grant.revision,
+        },
+        agentIdentityEnabled: true,
+        agentConnectionExecution: {
+            grantUuid: grant.grantUuid,
+            revision: grant.revision,
+            subjectUserUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid!,
+            clientId: grant.clientId,
+            resource: grant.resource,
+            refreshFamilyUuid: token.familyUuid,
+            scopes: [...account.authentication.scopes],
+            operation: {
+                kind: 'rest',
+                key: resolveOAuthRouteOperation(req) ?? 'unknown',
+            },
+        },
+    });
+    await agentExecutionContext.run(scope, async () => {
+        await assertOAuthAgentOperation(req);
+        next();
+    });
+};
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {
     if (req.account?.isAuthenticated() || req.user?.userUuid) {
@@ -53,13 +294,33 @@ export const unauthorisedInDemo: RequestHandler = (req, res, next) => {
     }
 };
 
+const hasSessionAndBearer = (req: Request): boolean =>
+    req.isAuthenticated() &&
+    /^Bearer\s+\S+$/i.test(req.headers.authorization ?? '');
+
+const refuseFailedBoundBearer = async (
+    req: Request,
+    res: Response,
+): Promise<boolean> => {
+    if (!hasSessionAndBearer(req)) return false;
+    const bearer = /^Bearer\s+(\S+)$/i.exec(req.headers.authorization!)![1];
+    if (
+        !(await req.services
+            .getOauthService()
+            .isAccessTokenBoundToGrant(bearer))
+    )
+        return false;
+    refuseOAuthToken(req, res);
+    return true;
+};
+
 /*
 This middleware allows ONLY OAuth bearer token authentication (no PAT, no service account).
 Used for endpoints that intentionally exclude PAT auth, e.g. creating a PAT from an OAuth token.
 For most endpoints, use allowApiKeyAuthentication which includes OAuth + all other auth methods.
 */
 export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
-    if (req.isAuthenticated()) {
+    if (req.isAuthenticated() && !hasSessionAndBearer(req)) {
         next();
         return;
     }
@@ -70,33 +331,93 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
         .getOauthService()
         .authenticate(oauthReq, oauthRes)
         .then((token) => {
-            req.services
-                .getUserService()
-                .findSessionUser({
-                    id: token.user.userUuid,
-                    organization: token.user.organizationUuid,
-                })
-                .then((user) => {
+            if (
+                hasSessionAndBearer(req) &&
+                token.agentConnectionGrantUuid == null
+            ) {
+                next();
+                return;
+            }
+
+            if (hasWrongOAuthAudience(req, token)) {
+                refuseOAuthToken(req, res);
+                return;
+            }
+            (token.agentConnectionGrantUuid == null
+                ? req.services.getUserService().findSessionUser({
+                      id: token.user.userUuid,
+                      organization: token.user.organizationUuid,
+                  })
+                : req.services
+                      .getAgentConnectionGrantService()
+                      .loadSessionUser(
+                          token.user.userUuid,
+                          token.user.organizationUuid,
+                      )
+            )
+                .then(async (user) => {
                     if (req.account?.isAuthenticated()) {
                         Logger.warn(
                             buildAccountExistsWarning('OAuth'),
                             req.account?.authentication?.type,
                         );
                     }
+                    if (!user && token.agentConnectionGrantUuid != null)
+                        throw new OAuthBearerRefusalError();
                     req.user = user;
                     if (user) {
-                        req.account = fromOauth(user, token);
+                        const grant =
+                            token.agentConnectionGrantUuid == null
+                                ? null
+                                : await req.services
+                                      .getAgentConnectionGrantService()
+                                      .authenticate(token, user);
+                        const scopePolicy = await getOAuthScopePolicy(
+                            req,
+                            user,
+                            grant !== null,
+                        );
+                        req.account = fromOauth(
+                            user,
+                            token,
+                            scopePolicy,
+                            grant,
+                        );
                         const requestContext = requestContextFromExpress(req);
                         req.account.requestContext = requestContext;
-                        req.user!.requestContext = requestContext;
+                        req.user = {
+                            ...user,
+                            ability: req.account.user.ability,
+                            abilityRules: req.account.user.abilityRules,
+                            requestContext,
+                        };
+                        if (grant) {
+                            await continueOAuthAuthentication(req, next, token);
+                            return;
+                        }
+                        await assertOAuthAgentOperation(req);
                     }
                     next();
                 })
                 .catch((userError) => {
+                    if (userError instanceof OAuthBearerRefusalError) {
+                        refuseOAuthToken(req, res);
+                        return;
+                    }
                     next(userError);
                 });
         })
-        .catch(() => {
+        .catch(async (error) => {
+            if (error instanceof OAuthBearerRefusalError) {
+                refuseOAuthToken(req, res);
+                return;
+            }
+            try {
+                if (await refuseFailedBoundBearer(req, res)) return;
+            } catch (bindingError) {
+                next(bindingError);
+                return;
+            }
             // Not an OAuth token — continue without authenticating
             next();
         });
@@ -108,7 +429,7 @@ We first try OAuth (bearer header), then service accounts (bearer header),
 then Personal access tokens (ApiKey header), which can throw an error if the token is invalid.
 */
 export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
-    if (req.isAuthenticated()) {
+    if (req.isAuthenticated() && !hasSessionAndBearer(req)) {
         next();
         return;
     }
@@ -168,34 +489,94 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
         .getOauthService()
         .authenticate(oauthReq, oauthRes)
         .then((token) => {
-            req.services
-                .getUserService()
-                .findSessionUser({
-                    id: token.user.userUuid,
-                    organization: token.user.organizationUuid,
-                })
-                .then((user) => {
+            if (
+                hasSessionAndBearer(req) &&
+                token.agentConnectionGrantUuid == null
+            ) {
+                next();
+                return;
+            }
+
+            if (hasWrongOAuthAudience(req, token)) {
+                refuseOAuthToken(req, res);
+                return;
+            }
+            (token.agentConnectionGrantUuid == null
+                ? req.services.getUserService().findSessionUser({
+                      id: token.user.userUuid,
+                      organization: token.user.organizationUuid,
+                  })
+                : req.services
+                      .getAgentConnectionGrantService()
+                      .loadSessionUser(
+                          token.user.userUuid,
+                          token.user.organizationUuid,
+                      )
+            )
+                .then(async (user) => {
                     if (req.account?.isAuthenticated()) {
                         Logger.warn(
                             buildAccountExistsWarning('OAuth'),
                             req.account?.authentication?.type,
                         );
                     }
+                    if (!user && token.agentConnectionGrantUuid != null)
+                        throw new OAuthBearerRefusalError();
                     req.user = user;
                     if (user) {
-                        req.account = fromOauth(user, token);
+                        const grant =
+                            token.agentConnectionGrantUuid == null
+                                ? null
+                                : await req.services
+                                      .getAgentConnectionGrantService()
+                                      .authenticate(token, user);
+                        const scopePolicy = await getOAuthScopePolicy(
+                            req,
+                            user,
+                            grant !== null,
+                        );
+                        req.account = fromOauth(
+                            user,
+                            token,
+                            scopePolicy,
+                            grant,
+                        );
                         const requestContext = requestContextFromExpress(req);
                         req.account.requestContext = requestContext;
-                        req.user!.requestContext = requestContext;
+                        req.user = {
+                            ...user,
+                            ability: req.account.user.ability,
+                            abilityRules: req.account.user.abilityRules,
+                            requestContext,
+                        };
+                        if (grant) {
+                            await continueOAuthAuthentication(req, next, token);
+                            return;
+                        }
+                        await assertOAuthAgentOperation(req);
                     }
                     next();
                 })
                 .catch((userError) => {
+                    if (userError instanceof OAuthBearerRefusalError) {
+                        refuseOAuthToken(req, res);
+                        return;
+                    }
                     // Valid oauth token but user not found — throw
                     next(userError);
                 });
         })
-        .catch(() => {
+        .catch(async (error) => {
+            if (error instanceof OAuthBearerRefusalError) {
+                refuseOAuthToken(req, res);
+                return;
+            }
+            try {
+                if (await refuseFailedBoundBearer(req, res)) return;
+            } catch (bindingError) {
+                next(bindingError);
+                return;
+            }
             // Not an OAuth token — try service account and PAT
             authenticateWithServiceAccountOrPat();
         });

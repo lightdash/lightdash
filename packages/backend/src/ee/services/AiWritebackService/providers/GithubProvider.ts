@@ -64,7 +64,7 @@ import {
     collectDiffStat,
     collectFileChanges,
     commitLocal,
-    resolveDbtProjectPaths,
+    resolveConnectionPaths,
     stageChanges,
 } from './sandboxGit';
 
@@ -261,13 +261,16 @@ export class GithubProvider implements GitProvider {
             branch: baseBranch,
             ...auth,
         });
-        await createBranch({
-            owner: connection.owner,
-            repo: connection.repo,
-            sha: baseOid,
-            branch,
-            ...auth,
-        });
+        if (args.assertStagedChangesAllowed === null) {
+            if (args.assertPublishAllowed) await args.assertPublishAllowed();
+            await createBranch({
+                owner: connection.owner,
+                repo: connection.repo,
+                sha: baseOid,
+                branch,
+                ...auth,
+            });
+        }
         await sandbox.git.createBranch(CWD, branch);
 
         const landed = await this.commitChangesToBranch({
@@ -276,13 +279,18 @@ export class GithubProvider implements GitProvider {
             installation,
             branch,
             expectedHeadOid: baseOid,
+            createRemoteBranch: args.assertStagedChangesAllowed !== null,
             title,
             description,
             user,
             setStage,
+            onRemoteCommitted: args.onRemoteCommitted,
+            assertStagedChangesAllowed: args.assertStagedChangesAllowed,
+            assertPublishAllowed: args.assertPublishAllowed,
         });
 
         setStage('pull_request');
+        if (args.assertPublishAllowed) await args.assertPublishAllowed();
         const pr = await createPullRequest({
             owner: connection.owner,
             repo: connection.repo,
@@ -325,13 +333,18 @@ export class GithubProvider implements GitProvider {
             installation,
             branch: featureBranch,
             expectedHeadOid,
+            createRemoteBranch: false,
             title,
             description,
             user,
             setStage,
+            onRemoteCommitted: args.onRemoteCommitted,
+            assertStagedChangesAllowed: args.assertStagedChangesAllowed,
+            assertPublishAllowed: args.assertPublishAllowed,
         });
 
         setStage('pull_request');
+        if (args.assertPublishAllowed) await args.assertPublishAllowed();
         await updatePullRequest({
             owner: connection.owner,
             repo: connection.repo,
@@ -451,35 +464,51 @@ export class GithubProvider implements GitProvider {
         installation,
         branch,
         expectedHeadOid,
+        createRemoteBranch,
         title,
         description,
         user,
         setStage,
+        onRemoteCommitted,
+        assertStagedChangesAllowed,
+        assertPublishAllowed,
     }: {
         sandbox: SandboxHandle;
         connection: GithubConnection;
         installation: GithubInstallation;
         branch: string;
         expectedHeadOid: string;
+        createRemoteBranch: boolean;
         title: string;
         description: string;
         user: SessionUser;
         setStage: SetStage;
+        onRemoteCommitted: () => Promise<void>;
+        assertStagedChangesAllowed: (() => Promise<void>) | null;
+        assertPublishAllowed: (() => Promise<void>) | null;
     }): Promise<LandedCommit> {
         setStage('commit');
-        const projectPaths =
-            connection.semanticLayer === 'lightdash'
-                ? [connection.projectSubPath]
-                : await resolveDbtProjectPaths(
-                      sandbox,
-                      connection.projectSubPath,
-                      this.logger,
-                  );
-        await stageChanges(sandbox, projectPaths, this.logger);
+        const paths = await resolveConnectionPaths(
+            sandbox,
+            connection,
+            this.logger,
+        );
+        await stageChanges(sandbox, paths, this.logger);
+        await assertStagedChangesAllowed?.();
         const fileChanges = await collectFileChanges(sandbox);
         // Read the line stat while the change is still staged — the local commit
         // below clears the index.
         const diffStat = await collectDiffStat(sandbox);
+        if (createRemoteBranch) {
+            if (assertPublishAllowed) await assertPublishAllowed();
+            await createBranch({
+                owner: connection.owner,
+                repo: connection.repo,
+                sha: expectedHeadOid,
+                branch,
+                ...githubAuth(installation),
+            });
+        }
         await commitLocal(sandbox, title, installation.commitAuthor);
 
         setStage('push');
@@ -498,6 +527,7 @@ export class GithubProvider implements GitProvider {
                 ? `${description}\n\n${coAuthorTrailer}`
                 : coAuthorTrailer;
         }
+        if (assertPublishAllowed) await assertPublishAllowed();
         const commit = await createSignedCommitOnBranch({
             owner: connection.owner,
             repo: connection.repo,
@@ -508,6 +538,7 @@ export class GithubProvider implements GitProvider {
             fileChanges,
             ...githubAuth(installation),
         });
+        await onRemoteCommitted();
         return { commitSha: commit.oid, ...diffStat };
     }
 }

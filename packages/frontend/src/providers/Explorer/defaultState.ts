@@ -10,6 +10,7 @@ export const defaultQueryExecution: ExplorerSliceState['queryExecution'] = {
     queryUuidHistory: [],
     unpivotedQueryUuidHistory: [],
     pendingFetch: false,
+    pendingCostConfirmation: null,
 };
 
 const defaultFilters: Filters = {};

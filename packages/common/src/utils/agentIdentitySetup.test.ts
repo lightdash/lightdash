@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { ParameterError } from '../types/errors';
 import {
+    buildAthenaAiServiceAccountCommands,
     buildBigQueryAiServiceAccountCommands,
+    buildClickhouseAiServiceAccountCommands,
+    buildDatabricksAiServiceAccountCommands,
+    buildPostgresAiServiceAccountCommands,
+    buildRedshiftAiServiceAccountCommands,
     buildSnowflakeAgentIntegrationSql,
+    buildTrinoAiServiceAccountCommands,
     getSnowflakeAgentRedirectUri,
     parseSnowflakeAccountUrl,
-    SNOWFLAKE_AGENT_OAUTH_SETTINGS,
 } from './agentIdentitySetup';
 
 describe('Snowflake agent setup', () => {
@@ -34,16 +39,6 @@ describe('Snowflake agent setup', () => {
   OAUTH_REFRESH_TOKEN_VALIDITY = 7776000;
 SELECT SYSTEM$SHOW_OAUTH_CLIENT_SECRETS('LIGHTDASH_AGENT');`);
     });
-    it('lists the four required settings in order', () => {
-        expect(
-            SNOWFLAKE_AGENT_OAUTH_SETTINGS.map(({ envVar }) => envVar),
-        ).toEqual([
-            'SNOWFLAKE_AI_OAUTH_CLIENT_ID',
-            'SNOWFLAKE_AI_OAUTH_CLIENT_SECRET',
-            'SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT',
-            'SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT',
-        ]);
-    });
 });
 
 describe('BigQuery AI service account commands', () => {
@@ -59,7 +54,7 @@ describe('BigQuery AI service account commands', () => {
                 step: 'create',
                 title: 'Create the service account',
                 command:
-                    'gcloud iam service-accounts create lightdash-agents \\\n  --project=data-project \\\n  --display-name="AI agents"',
+                    'gcloud iam service-accounts create lightdash-agents \\\n  --project=data-project \\\n  --display-name="Lightdash agents"',
             },
             {
                 step: 'job_user',
@@ -85,7 +80,7 @@ describe('BigQuery AI service account commands', () => {
                 serviceAccountName: 'custom-agent',
             });
             expect(commands.map(({ command }) => command)).toEqual([
-                'gcloud iam service-accounts create custom-agent \\\n  --project=data-project \\\n  --display-name="AI agents"',
+                'gcloud iam service-accounts create custom-agent \\\n  --project=data-project \\\n  --display-name="Lightdash agents"',
                 'gcloud projects add-iam-policy-binding data-project \\\n  --member="serviceAccount:custom-agent@data-project.iam.gserviceaccount.com" \\\n  --role="roles/bigquery.jobUser"',
             ]);
         },
@@ -98,7 +93,7 @@ describe('BigQuery AI service account commands', () => {
             serviceAccountName: 'agent`id`',
         });
         expect(commands.map(({ command }) => command)).toEqual([
-            "gcloud iam service-accounts create 'agent`id`' \\\n  --project='project'\"'\"'$(whoami)' \\\n  --display-name=\"AI agents\"",
+            "gcloud iam service-accounts create 'agent`id`' \\\n  --project='project'\"'\"'$(whoami)' \\\n  --display-name=\"Lightdash agents\"",
             'gcloud projects add-iam-policy-binding \'jobs; echo bad\' \\\n  --member="serviceAccount:agent\\`id\\`@project\'\\$(whoami).iam.gserviceaccount.com" \\\n  --role="roles/bigquery.jobUser"',
         ]);
     });
@@ -170,5 +165,358 @@ describe('parseSnowflakeAccountUrl', () => {
         'https://abc..snowflakecomputing.com',
     ])('rejects %s', (input) => {
         expect(() => parseSnowflakeAccountUrl(input)).toThrow(ParameterError);
+    });
+});
+
+describe('Databricks service account grants', () => {
+    it('grants catalog/schema use and per-table reads with an explicit principal placeholder', () => {
+        expect(
+            buildDatabricksAiServiceAccountCommands({
+                catalog: 'analytics',
+                schema: 'public',
+            }),
+        ).toBe(
+            'GRANT USE CATALOG ON CATALOG `analytics` TO `<service-principal-application-id>`;\nGRANT USE SCHEMA ON SCHEMA `analytics`.`public` TO `<service-principal-application-id>`;\nGRANT SELECT ON TABLE `analytics`.`public`.`<table>` TO `<service-principal-application-id>`;',
+        );
+    });
+    it('uses placeholders for missing identifiers', () => {
+        expect(
+            buildDatabricksAiServiceAccountCommands({
+                catalog: null,
+                schema: null,
+            }),
+        ).toContain('`<catalog>`.`<schema>`.`<table>`');
+    });
+    it('escapes identifier delimiters without creating broad grants', () => {
+        const sql = buildDatabricksAiServiceAccountCommands({
+            catalog: 'a`b',
+            schema: 'c`d',
+        });
+        expect(sql).toContain('`a``b`.`c``d`.`<table>`');
+        expect(sql).not.toMatch(
+            /ALL PRIVILEGES|ALL TABLES|CREATE SERVICE|SECRET/,
+        );
+    });
+});
+
+describe('Athena setup', () => {
+    it('substitutes only routing values and keeps identity and location placeholders', () => {
+        const result = buildAthenaAiServiceAccountCommands({
+            region: 'eu-west-1',
+            catalog: 'AwsDataCatalog',
+            database: 'analytics',
+        });
+        expect(JSON.parse(result.roleTrustPolicy)).toEqual({
+            Version: '2012-10-17',
+            Statement: [
+                {
+                    Effect: 'Allow',
+                    Principal: { AWS: '<trusted-caller-iam-arn>' },
+                    Action: 'sts:AssumeRole',
+                },
+            ],
+        });
+        const policy = JSON.parse(result.permissionPolicy);
+        expect(policy.Statement[0].Resource).toBe(
+            'arn:<partition>:athena:eu-west-1:<account-id>:workgroup/<agent-workgroup>',
+        );
+        expect(policy.Statement[1].Resource).toBe(
+            'arn:<partition>:athena:eu-west-1:<account-id>:datacatalog/AwsDataCatalog',
+        );
+        expect(policy.Statement[3].Resource).toBe(
+            'arn:<partition>:s3:::<agent-results-bucket>/<agent-results-prefix>/*',
+        );
+        expect(policy.Statement[4].Resource).toEqual([
+            'arn:<partition>:glue:eu-west-1:<account-id>:catalog',
+            'arn:<partition>:glue:eu-west-1:<account-id>:database/analytics',
+            'arn:<partition>:glue:eu-west-1:<account-id>:table/analytics/*',
+        ]);
+        expect(result.lakeFormationGrants).toContain('--permissions DESCRIBE');
+        expect(result.lakeFormationGrants).toContain('--permissions SELECT');
+        expect(result.lakeFormationGrants).not.toMatch(
+            /TableWildcard|permissions-with-grant-option/,
+        );
+        expect(result.filteredTableGrant).toContain('"DataCellsFilter"');
+        expect(result.filteredTableGrant).toContain('"TableName":"<table>"');
+        expect(result.filteredTableGrant).toContain('"Name":"<data-filter>"');
+        expect(result.filteredTableGrant).toContain(
+            '<agent-iam-principal-arn>',
+        );
+    });
+    it('uses placeholders when routing is unknown', () => {
+        const result = buildAthenaAiServiceAccountCommands({
+            region: null,
+            catalog: null,
+            database: null,
+        });
+        expect(result.permissionPolicy).toContain('<region>');
+        expect(result.permissionPolicy).toContain('<catalog>');
+        expect(result.permissionPolicy).toContain('<glue-database>');
+    });
+    it('preserves quotes and shell metacharacters inside JSON and shell arguments', () => {
+        const value = 'a\'"\\$HOME`command`\n; $(command)';
+        const result = buildAthenaAiServiceAccountCommands({
+            region: value,
+            catalog: value,
+            database: value,
+        });
+        expect(JSON.parse(result.permissionPolicy).Statement[1].Resource).toBe(
+            `arn:<partition>:athena:${value}:<account-id>:datacatalog/${value}`,
+        );
+        expect(result.filteredTableGrant).toContain(
+            `--region '${value.replaceAll("'", "'\"'\"'")}'`,
+        );
+        const resource = JSON.stringify({
+            DataCellsFilter: {
+                TableCatalogId: '<account-id>',
+                DatabaseName: value,
+                TableName: '<table>',
+                Name: '<data-filter>',
+            },
+        });
+        expect(result.filteredTableGrant).toContain(
+            `--resource '${resource.replaceAll("'", "'\"'\"'")}'`,
+        );
+    });
+});
+
+describe('Postgres AI service account setup commands', () => {
+    it('creates a restricted login and separate grants and row policy', () => {
+        const commands = buildPostgresAiServiceAccountCommands({
+            dbname: 'analytics',
+            schema: 'reporting',
+        });
+        expect(commands.createRole).toBe(
+            `CREATE ROLE "ai_agents" LOGIN PASSWORD '<choose-a-strong-password>'
+  NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
+ALTER ROLE "ai_agents" SET default_transaction_read_only = on;
+GRANT CONNECT ON DATABASE "analytics" TO "ai_agents";`,
+        );
+        expect(commands.grantReadAccess).toBe(
+            `GRANT USAGE ON SCHEMA "reporting" TO "ai_agents";
+GRANT SELECT ON ALL TABLES IN SCHEMA "reporting" TO "ai_agents";
+ALTER DEFAULT PRIVILEGES IN SCHEMA "reporting" GRANT SELECT ON TABLES TO "ai_agents";`,
+        );
+        expect(commands.rowLevelSecurity).toBe(
+            `ALTER TABLE "reporting"."<table>" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "ai_agents_rows" ON "reporting"."<table>"
+  FOR SELECT TO "ai_agents" USING (<condition>);`,
+        );
+    });
+    it('escapes quotes in identifiers without treating apostrophes as literals', () => {
+        const commands = buildPostgresAiServiceAccountCommands({
+            dbname: `data"base's`,
+            schema: `read"; DROP ROLE "someone`,
+        });
+        expect(commands.createRole).toContain(
+            `ON DATABASE "data""base's" TO "ai_agents"`,
+        );
+        expect(commands.grantReadAccess).toContain(
+            `ON SCHEMA "read""; DROP ROLE ""someone" TO "ai_agents"`,
+        );
+        expect(commands.rowLevelSecurity).toContain(
+            `"read""; DROP ROLE ""someone"."<table>"`,
+        );
+    });
+    it.each([null, ''])(
+        'uses placeholders for %s connection settings',
+        (value) => {
+            const commands = buildPostgresAiServiceAccountCommands({
+                dbname: value,
+                schema: value,
+            });
+            expect(commands.createRole).toContain('ON DATABASE "<database>"');
+            expect(commands.grantReadAccess).toContain('ON SCHEMA "<schema>"');
+            expect(commands.rowLevelSecurity).toContain('"<schema>"."<table>"');
+        },
+    );
+});
+
+describe('Redshift AI service account setup commands', () => {
+    it('creates a restricted user and uses Redshift grants, row and masking policies', () => {
+        const commands = buildRedshiftAiServiceAccountCommands({
+            schema: 'reporting',
+        });
+        expect(commands.createUser).toBe(`CREATE USER ai_agents
+  PASSWORD '<choose-a-strong-password>'
+  NOCREATEDB NOCREATEUSER
+  SYSLOG ACCESS RESTRICTED;`);
+        expect(commands.grantReadAccess).toBe(`GRANT USAGE ON SCHEMA "reporting"
+  TO ai_agents;
+GRANT SELECT ON ALL TABLES
+  IN SCHEMA "reporting"
+  TO ai_agents;
+ALTER DEFAULT PRIVILEGES
+  FOR USER "<table-owner>"
+  IN SCHEMA "reporting"
+  GRANT SELECT ON TABLES TO ai_agents;`);
+        expect(commands.rowLevelSecurity).toBe(`CREATE RLS POLICY ai_agents_rows
+  WITH ("<column>" <type>)
+  USING (<condition>);
+ATTACH RLS POLICY ai_agents_rows
+  ON "reporting"."<table>"
+  TO ai_agents;
+ALTER TABLE "reporting"."<table>"
+  ROW LEVEL SECURITY ON;`);
+        expect(commands.masking).toBe(`CREATE MASKING POLICY ai_agents_mask
+  WITH (value VARCHAR(256))
+  USING ('[redacted]'::VARCHAR(256));
+ATTACH MASKING POLICY ai_agents_mask
+  ON "reporting"."<table>" ("<column>")
+  TO ai_agents;`);
+        for (const sql of Object.values(commands))
+            for (const line of sql.split('\n'))
+                expect(line.length).toBeLessThanOrEqual(45);
+    });
+    it('quotes schema identifiers without interpreting SQL', () => {
+        const commands = buildRedshiftAiServiceAccountCommands({
+            schema: 'read"; DROP USER "someone',
+        });
+        expect(commands.grantReadAccess).toContain(
+            'IN SCHEMA "read""; DROP USER ""someone"',
+        );
+        for (const sql of [commands.rowLevelSecurity, commands.masking])
+            expect(sql).toContain('"read""; DROP USER ""someone"."<table>"');
+    });
+    it.each([null, ''])('uses placeholders for %s schema', (schema) => {
+        const commands = buildRedshiftAiServiceAccountCommands({ schema });
+        expect(commands.grantReadAccess).toContain('IN SCHEMA "<schema>"');
+        expect(commands.rowLevelSecurity).toContain('"<schema>"."<table>"');
+        expect(commands.masking).toContain('"<schema>"."<table>"');
+    });
+});
+
+describe('Trino agent setup commands', () => {
+    it('uses valid JSON, read-only catalog access and user-scoped deny rules', () => {
+        const commands = buildTrinoAiServiceAccountCommands({
+            dbname: 'catalog',
+            schema: 'schema',
+            user: 'agent',
+        });
+        try {
+            const rules = JSON.parse(commands.accessControlRules);
+            expect(rules.catalogs).toEqual([
+                { user: 'agent', catalog: 'catalog', allow: 'read-only' },
+                { user: 'agent', allow: 'none' },
+            ]);
+            expect(rules.schemas).toEqual([
+                {
+                    user: 'agent',
+                    catalog: 'catalog',
+                    schema: 'schema',
+                    owner: false,
+                },
+                { user: 'agent', owner: false },
+            ]);
+            expect(rules.tables).toEqual([
+                {
+                    user: 'agent',
+                    catalog: 'catalog',
+                    schema: 'schema',
+                    table: '<table>',
+                    privileges: ['SELECT'],
+                    filter: '<row-filter-expression>',
+                    columns: [{ name: '<column>', mask: '<mask-expression>' }],
+                },
+                { user: 'agent', privileges: [] },
+            ]);
+        } catch (error) {
+            throw new Error('Expected valid Trino access rules', {
+                cause: error,
+            });
+        }
+    });
+    it('escapes regex metacharacters in all matching names', () => {
+        const name = 'a.b+c*(d)[e]{f}?^$|\\end';
+        const commands = buildTrinoAiServiceAccountCommands({
+            dbname: name,
+            schema: name,
+            user: name,
+            table: name,
+        });
+        try {
+            const { tables } = JSON.parse(commands.accessControlRules);
+            for (const field of ['catalog', 'schema', 'table', 'user']) {
+                const regex = new RegExp(`^(?:${tables[0][field]})$`);
+                expect(regex.test(name)).toBe(true);
+                expect(regex.test(name.replace('.', 'X'))).toBe(false);
+                expect(regex.test(`prefix${name}`)).toBe(false);
+            }
+        } catch (error) {
+            throw new Error('Expected valid literal patterns', {
+                cause: error,
+            });
+        }
+    });
+    it('quotes SQL identifiers and doubles embedded quotes', () => {
+        const { grantReadAccess } = buildTrinoAiServiceAccountCommands({
+            dbname: 'cat"alog',
+            schema: 'sch"ema',
+            table: 'ta"ble',
+            user: 'us"er',
+        });
+        expect(grantReadAccess).toBe(`CREATE ROLE ai_agents_read;
+GRANT SELECT ON TABLE "cat""alog"."sch""ema"."ta""ble"
+  TO ROLE ai_agents_read;
+GRANT ai_agents_read TO USER "us""er";`);
+    });
+    it('uses placeholders for missing settings', () => {
+        const { grantReadAccess } = buildTrinoAiServiceAccountCommands({
+            dbname: '',
+            schema: null,
+        });
+        expect(grantReadAccess).toContain('"<catalog>"."<schema>"."<table>"');
+        expect(grantReadAccess).toContain('TO USER "<user>";');
+    });
+});
+
+describe('ClickHouse AI service account commands', () => {
+    it('creates a read-only user and grants access to the project database', () => {
+        expect(
+            buildClickhouseAiServiceAccountCommands({ schema: 'analytics' }),
+        ).toEqual({
+            createUser: `CREATE USER ai_agents
+  IDENTIFIED WITH sha256_password
+  BY '<choose-a-strong-password>'
+  SETTINGS readonly = 2;`,
+            grantReadAccess: `GRANT SELECT ON \`analytics\`.*
+  TO ai_agents;`,
+            rowPolicy: `CREATE ROW POLICY ai_agents_rows
+  ON \`analytics\`.\`<table>\`
+  FOR SELECT USING <condition>
+  TO ai_agents;`,
+        });
+    });
+
+    it.each([null, ''])(
+        'quotes placeholders for missing database %s',
+        (schema) => {
+            const commands = buildClickhouseAiServiceAccountCommands({
+                schema,
+            });
+            expect(commands.grantReadAccess).toBe(
+                'GRANT SELECT ON `<database>`.*\n  TO ai_agents;',
+            );
+            expect(commands.rowPolicy).toBe(
+                'CREATE ROW POLICY ai_agents_rows\n  ON `<database>`.`<table>`\n  FOR SELECT USING <condition>\n  TO ai_agents;',
+            );
+        },
+    );
+
+    it.each([
+        ['a"b', 'a"b'],
+        ["a'b", "a'b"],
+        ['a`b', 'a\\`b'],
+        ['a\\b', 'a\\\\b'],
+        ['a\nb', 'a\\nb'],
+        ['a\rb', 'a\\rb'],
+        ['a\tb', 'a\\tb'],
+        ['a\\`\nb', 'a\\\\\\`\\nb'],
+    ])('escapes the database identifier %j', (schema, escaped) => {
+        const commands = buildClickhouseAiServiceAccountCommands({ schema });
+        expect(commands.grantReadAccess).toBe(
+            `GRANT SELECT ON \`${escaped}\`.*\n  TO ai_agents;`,
+        );
+        expect(commands.rowPolicy).toContain(`ON \`${escaped}\`.\`<table>\``);
     });
 });

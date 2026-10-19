@@ -75,6 +75,7 @@ const fakeUser = {
 
 function buildService(appModel: Record<string, unknown>): AppGenerateService {
     const svc = new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {} as never,
         analytics: { track: vi.fn() } as never,

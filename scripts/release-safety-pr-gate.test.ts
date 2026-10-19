@@ -1,6 +1,8 @@
 import * as assert from 'assert';
+import { breakingChangeDecisionBrief } from './breaking-change-gate-policy';
 import type {
     BreakingChangeDeclaration,
+    AdvisoryDeclaration,
     BreakingChangeDeclarationDiff,
 } from './release-safety-declarations';
 import {
@@ -45,7 +47,7 @@ function changes(
     added: BreakingChangeDeclaration[] = [],
     diagnostics: BreakingChangeDeclarationDiff['diagnostics'] = [],
 ): BreakingChangeDeclarationDiff {
-    return { added, diagnostics };
+    return { added, advisories: [], diagnostics };
 }
 
 function evaluate(
@@ -340,6 +342,184 @@ test('a changed legacy inline declaration fails a clean API gate', () => {
 
 test('a clean marker requires no declaration', () => {
     assert.deepStrictEqual(evaluate(marker(false, false)), []);
+});
+
+const advisory: AdvisoryDeclaration = {
+    id: 'internal-operation',
+    reason: 'Only the Lightdash settings page calls this operation.',
+    requiredStop: false,
+    impact: {
+        kind: 'no-external-callers',
+        firstPartyOnly:
+            'Only the Lightdash settings page calls this operation.',
+        covers: { rest: ['POST /x'], mcp: [] },
+    },
+};
+
+function advisoryChanges(entry = advisory): BreakingChangeDeclarationDiff {
+    return { added: [], advisories: [entry], diagnostics: [] };
+}
+
+function findingMarker(
+    surface: 'rest' | 'mcp',
+    finding: string,
+): ReleaseSafetyGateMarker {
+    const result = marker(false, false);
+    result.api[surface] = {
+        checked: true,
+        breaking: true,
+        changes: [finding],
+        breakingCount: 1,
+    };
+    return result;
+}
+
+test('an advisory covers its exact REST operation', () => {
+    assert.deepStrictEqual(
+        evaluate(
+            findingMarker('rest', 'POST /x — endpoint removed'),
+            advisoryChanges(),
+        ),
+        [],
+    );
+});
+
+test('MCP covers cannot satisfy REST findings', () => {
+    const diagnostics = evaluate(
+        findingMarker('rest', 'POST /x — endpoint removed'),
+        advisoryChanges({
+            ...advisory,
+            impact: {
+                ...advisory.impact,
+                covers: { rest: [], mcp: ['POST', 'x'] },
+            },
+        }),
+    );
+    assert.ok(
+        diagnostics.some(({ message }) =>
+            message.includes('POST /x — endpoint removed'),
+        ),
+    );
+    assert.ok(
+        diagnostics.some(({ message }) => message.includes('covers "POST"')),
+    );
+});
+
+test('REST covers cannot satisfy MCP findings', () => {
+    const diagnostics = evaluate(
+        findingMarker('mcp', 'MCP tool `x` removed'),
+        advisoryChanges(),
+    );
+    assert.ok(
+        diagnostics.some(({ message }) =>
+            message.includes('MCP tool `x` removed'),
+        ),
+    );
+    assert.ok(
+        diagnostics.some(({ message }) => message.includes('covers "POST /x"')),
+    );
+});
+
+test('uncovered extra findings fail with the API-only third path', () => {
+    const releaseMarker = findingMarker('rest', 'POST /x — endpoint removed');
+    releaseMarker.api.rest.changes.push('GET /other — endpoint removed');
+    releaseMarker.api.rest.breakingCount = 2;
+    const diagnostics = evaluate(releaseMarker, advisoryChanges());
+    assert.ok(
+        diagnostics.some(
+            ({ message }) =>
+                message.includes('GET /other — endpoint removed') &&
+                message.includes('Path 3 — declare no external callers'),
+        ),
+    );
+    assert.deepStrictEqual(
+        evaluate(releaseMarker, { ...advisoryChanges(), added: [declaration] }),
+        [],
+    );
+});
+
+test('MCP advisory satisfies the gate for its exact tool', () => {
+    assert.deepStrictEqual(
+        evaluate(
+            findingMarker('mcp', 'MCP tool `x`: argument removed'),
+            advisoryChanges({
+                ...advisory,
+                impact: {
+                    ...advisory.impact,
+                    covers: { rest: [], mcp: ['x'] },
+                },
+            }),
+        ),
+        [],
+    );
+});
+
+test('a truncated finding list stays uncovered in the gate', () => {
+    for (const hasOverflow of [false, true]) {
+        const releaseMarker = findingMarker(
+            'rest',
+            'POST /x — endpoint removed',
+        );
+        releaseMarker.api.rest.breakingCount = 2;
+        if (hasOverflow)
+            releaseMarker.api.rest.changes.push(
+                '… and 1 more breaking change(s)',
+            );
+        assert.ok(
+            evaluate(releaseMarker, advisoryChanges()).some(({ message }) =>
+                message.includes('… and 1 more breaking change(s)'),
+            ),
+        );
+    }
+});
+
+test('51 REST findings with all 50 listed operations covered still fail the gate', () => {
+    const operations = Array.from({ length: 50 }, (_, index) => `POST /internal/${index}`);
+    const findings = operations.map((operation) => `${operation} — endpoint removed`);
+    const releaseMarker = marker(false, false);
+    releaseMarker.api.rest = {
+        checked: true,
+        breaking: true,
+        breakingCount: 51,
+        changes: [...findings, '… and 1 more breaking change(s)'],
+    };
+    const diagnostics = evaluate(releaseMarker, advisoryChanges({
+        ...advisory,
+        impact: { ...advisory.impact, covers: { rest: operations, mcp: [] } },
+    }));
+    const error = diagnostics.find(({ level }) => level === 'error');
+    assert.ok(error);
+    for (const finding of releaseMarker.api.rest.changes) {
+        assert.ok(error.message.includes(finding), finding);
+    }
+});
+
+test('unmatched covers fail even when no surface is breaking', () => {
+    const diagnostics = evaluate(marker(false, false), advisoryChanges());
+    assert.ok(
+        diagnostics.some(
+            ({ message }) =>
+                message ===
+                'declaration "internal-operation" covers "POST /x" but the PR has no breaking finding for it',
+        ),
+    );
+    const unchecked = marker(false, false);
+    unchecked.api.rest = { checked: false, breaking: 'unknown', changes: [] };
+    assert.deepStrictEqual(
+        evaluate(unchecked, advisoryChanges()),
+        evaluate(unchecked),
+    );
+});
+
+test('migration decision briefs do not offer no-external-callers', () => {
+    const brief = breakingChangeDecisionBrief({
+        file: migrationPath,
+        line: 1,
+        pattern: 'drop table',
+        declarationLocation: 'registry',
+    });
+    assert.ok(!brief.includes('Path 3'));
+    assert.ok(brief.includes('confirm with a human'));
 });
 
 if (failures.length > 0) {

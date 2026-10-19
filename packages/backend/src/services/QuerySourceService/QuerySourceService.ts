@@ -1,6 +1,9 @@
 import { subject } from '@casl/ability';
 import {
+    AgentActorSurface,
+    AgentCapability,
     assertIsAccountWithOrg,
+    assertRegisteredAccount,
     FeatureFlags,
     ForbiddenError,
     ParameterError,
@@ -15,10 +18,16 @@ import {
     type SourceQuery,
     type SourceQuerySubmission,
 } from '@lightdash/common';
+import { sourceRequiresRawSql } from '../../auth/agentConnectionGrants/operationContracts';
+import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import { isConnectionProducedQuery } from '../../utils/queryResultProducer';
 import { personaliseStoredSharedSignInError } from '../../utils/sharedSignInExpiry';
+import type { AgentPermissionService } from '../AgentPermissionService/AgentPermissionService';
+import { agentExecutionContext } from '../AiAccessService/agentExecutionContext';
+import { type AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 import { BaseService } from '../BaseService';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
@@ -34,6 +43,14 @@ export type InternalSourceQuerySubmission = SourceQuerySubmission &
     Pick<SourceQuerySubmissionResult, 'cacheHit'>;
 
 type QuerySourceServiceArguments = {
+    getAsyncQueryService?: () => Pick<
+        AsyncQueryService,
+        'assertCanReadStoredResults'
+    >;
+    getAgentPermissionService: () => Pick<
+        AgentPermissionService,
+        'loadRequest' | 'assertOperationWithRequest'
+    >;
     projectModel: ProjectModel;
     queryHistoryModel: QueryHistoryModel;
     featureFlagModel: FeatureFlagModel;
@@ -77,12 +94,105 @@ export class QuerySourceService extends BaseService {
 
     private readonly registry: QuerySourceRegistry;
 
+    private readonly getAgentPermissionService: QuerySourceServiceArguments['getAgentPermissionService'];
+
+    private readonly getAsyncQueryService: QuerySourceServiceArguments['getAsyncQueryService'];
+
     constructor(args: QuerySourceServiceArguments) {
         super({ serviceName: 'QuerySourceService' });
+        this.getAsyncQueryService = args.getAsyncQueryService;
         this.projectModel = args.projectModel;
         this.queryHistoryModel = args.queryHistoryModel;
         this.featureFlagModel = args.featureFlagModel;
         this.registry = args.registry;
+        this.getAgentPermissionService = args.getAgentPermissionService;
+    }
+
+    private static assertGrantSqlAccess(
+        account: Account,
+        projectUuid: string,
+    ): void {
+        const grant =
+            account.authentication.type === 'oauth'
+                ? account.authentication.agentConnectionGrant
+                : null;
+        if (
+            grant &&
+            !grantAllowsCapabilities(
+                grant,
+                [projectUuid],
+                [AgentCapability.RawSql],
+            )
+        )
+            throw new ForbiddenError(
+                'This agent connection is not approved for Raw SQL.',
+            );
+    }
+
+    private async assertAgentSqlAccess(
+        account: Account,
+        projectUuid: string,
+    ): Promise<void> {
+        QuerySourceService.assertGrantSqlAccess(account, projectUuid);
+        const execution = agentExecutionContext.getStore();
+        if (
+            account.authentication.type !== 'oauth' &&
+            (!execution || execution.surface === AgentActorSurface.MCP)
+        )
+            return;
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } = account.organization;
+        const permissionService = this.getAgentPermissionService();
+        const request = await permissionService.loadRequest(organizationUuid);
+        if (request.enforcementMode === 'off') return;
+        assertRegisteredAccount(account);
+        await permissionService.assertOperationWithRequest({
+            request,
+            operation: {
+                account,
+                organizationUuid,
+                projectUuid,
+                kind: 'agent_tool',
+                key: 'runSql',
+                surface: execution?.surface ?? AgentActorSurface.MCP,
+            },
+        });
+    }
+
+    private async isSourceEnabled(
+        account: Account,
+        source: QuerySourceClient,
+    ): Promise<boolean> {
+        if (source.requiredFeatureFlags.length === 0) return true;
+        assertIsAccountWithOrg(account);
+        const user = {
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        };
+        const flags = await Promise.all(
+            source.requiredFeatureFlags.map((featureFlagId) =>
+                this.featureFlagModel.get({ user, featureFlagId }),
+            ),
+        );
+        return flags.every(({ enabled }) => enabled);
+    }
+
+    private async throwIfSourcesDisabled(
+        account: Account,
+        sources: QuerySourceClient[],
+    ): Promise<void> {
+        const unique = [...new Set(sources)];
+        const enabled = await Promise.all(
+            unique.map((source) => this.isSourceEnabled(account, source)),
+        );
+        const disabled = unique.filter((_, index) => !enabled[index]);
+        if (disabled.length > 0) {
+            throw new ForbiddenError(
+                `${disabled
+                    .map((source) => source.definition.sourceType)
+                    .join(', ')} queries are not enabled`,
+            );
+        }
     }
 
     private async throwIfMultiSourceQueryDisabled(
@@ -139,7 +249,15 @@ export class QuerySourceService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        return { sources: this.registry.list() };
+        const sources = this.registry.list();
+        const enabled = await Promise.all(
+            sources.map((source) => this.isSourceEnabled(account, source)),
+        );
+        return {
+            sources: sources
+                .filter((_, index) => enabled[index])
+                .map((source) => source.definition),
+        };
     }
 
     async scanSchema(
@@ -149,6 +267,10 @@ export class QuerySourceService extends BaseService {
     ): Promise<ApiScanQuerySourceSchemaResults> {
         await this.throwIfMultiSourceQueryDisabled(account);
         const source = this.registry.get(sourceType);
+        await this.throwIfSourcesDisabled(account, [source]);
+        if (source.definition.sourceType === QuerySourceType.SQL) {
+            await this.assertAgentSqlAccess(account, projectUuid);
+        }
         return source.scanSchema({ account, projectUuid });
     }
 
@@ -353,6 +475,25 @@ export class QuerySourceService extends BaseService {
     }): Promise<{ queries: InternalSourceQuerySubmission[] }> {
         const ordered = this.validateQueries(queries, plans);
         QuerySourceService.assertPlansNameDuckdbNodes(ordered, plans);
+        await this.throwIfSourcesDisabled(
+            account,
+            ordered.map(({ source }) => source),
+        );
+        if (
+            ordered.some(({ source }) =>
+                sourceRequiresRawSql(source.definition.sourceType),
+            )
+        ) {
+            QuerySourceService.assertGrantSqlAccess(account, projectUuid);
+        }
+        if (
+            ordered.some(
+                ({ source }) =>
+                    source.definition.sourceType === QuerySourceType.SQL,
+            )
+        ) {
+            await this.assertAgentSqlAccess(account, projectUuid);
+        }
 
         // nodeId -> queryUuid, grown as submissions happen so later queries'
         // node-id references resolve
@@ -422,6 +563,10 @@ export class QuerySourceService extends BaseService {
             );
         }
 
+        const connectionReader =
+            account.authentication.type === 'oauth' &&
+            account.authentication.agentConnectionGrant != null;
+        const connectionChecks: (() => Promise<void>)[] = [];
         const statuses = await Promise.all(
             queryUuids.map(async (queryUuid) => {
                 const queryHistory = await this.queryHistoryModel.get(
@@ -429,7 +574,25 @@ export class QuerySourceService extends BaseService {
                     projectUuid,
                     account,
                 );
-                return {
+                const connection =
+                    connectionReader || isConnectionProducedQuery(queryHistory);
+                const check = connection ? this.getAsyncQueryService?.() : null;
+                if (connection && !check) throw new ForbiddenError();
+                if (check) {
+                    await check.assertCanReadStoredResults(
+                        account,
+                        projectUuid,
+                        queryHistory,
+                    );
+                    connectionChecks.push(() =>
+                        check.assertCanReadStoredResults(
+                            account,
+                            projectUuid,
+                            queryHistory,
+                        ),
+                    );
+                }
+                const status = {
                     queryUuid: queryHistory.queryUuid,
                     status: queryHistory.status,
                     error: await personaliseStoredSharedSignInError({
@@ -440,8 +603,11 @@ export class QuerySourceService extends BaseService {
                         featureFlagModel: this.featureFlagModel,
                     }),
                 };
+                return status;
             }),
         );
+        if (connectionChecks.length > 0)
+            await Promise.all(connectionChecks.map((check) => check()));
 
         return { statuses };
     }

@@ -8,6 +8,10 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../../../services/AiAccessService/agentActionTestUtils.mock';
+import {
     PreviewDeploySetupService,
     type PreviewDeployGithubClient,
 } from './PreviewDeploySetupService';
@@ -71,6 +75,7 @@ const makeGithubClient =
 
 const buildService = (overrides: Record<string, AnyType> = {}) =>
     new PreviewDeploySetupService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         lightdashConfig: {
             siteUrl: 'https://lightdash.example.com',
         } as AnyType,
@@ -254,3 +259,35 @@ describe('PreviewDeploySetupService.getOrScanProjectCiStatus', () => {
         expect(githubClient.getRepoWorkflowFiles).not.toHaveBeenCalled();
     });
 });
+
+test.each(agentActionTestCases)(
+    'preview deploy setup: %s',
+    async (_, surface, enabled, count) => {
+        const githubClient = makeGithubClient();
+        githubClient.getRepoDefaultBranch.mockResolvedValue('main');
+        githubClient.getBranchHeadSha.mockResolvedValue('sha');
+        githubClient.createPullRequest.mockResolvedValue({
+            number: 42,
+            html_url: 'secret-url',
+        } as never);
+        const service = buildService({
+            projectModel: { get: vi.fn().mockResolvedValue(githubProject()) },
+            githubClient,
+        });
+        const user = userWith('manage');
+        await withAgentActionScope(user, surface, enabled, () =>
+            service.setupPreviewDeploy({ user, projectUuid: PROJECT }),
+        );
+        const insert = vi.mocked(service['agentActionLogModel'].insert);
+        expect(insert).toHaveBeenCalledTimes(count);
+        if (count)
+            expect(insert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    object_type: 'preview_deploy',
+                    object_uuid: PROJECT,
+                    action: 'create',
+                }),
+            );
+        expect(JSON.stringify(insert.mock.calls)).not.toContain('secret-url');
+    },
+);

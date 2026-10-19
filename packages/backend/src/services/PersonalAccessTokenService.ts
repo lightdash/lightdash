@@ -9,6 +9,7 @@ import {
     RequestMethod,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import { assertOAuthCredentialOperationAllowed } from '../auth/oauthScopes/credentials';
 import { LightdashConfig } from '../config/parseConfig';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { BaseService } from './BaseService';
@@ -60,6 +61,10 @@ export class PersonalAccessTokenService extends BaseService {
         data: CreatePersonalAccessToken,
         method: RequestMethod,
     ): Promise<PersonalAccessTokenWithToken> {
+        assertOAuthCredentialOperationAllowed(
+            account,
+            'createPersonalAccessToken',
+        );
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -158,6 +163,10 @@ export class PersonalAccessTokenService extends BaseService {
         personalAccessTokenUuid: string,
         data: { expiresAt: Date },
     ): Promise<PersonalAccessTokenWithToken> {
+        assertOAuthCredentialOperationAllowed(
+            account,
+            'rotatePersonalAccessToken',
+        );
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(

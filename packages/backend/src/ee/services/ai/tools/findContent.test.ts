@@ -906,7 +906,6 @@ describe('getFindContent', () => {
             expect(output.result).toContain('search index unavailable');
             expect(output.structuredContent).toEqual({
                 error: output.result,
-                refusal: null,
             });
         });
     });
@@ -1053,7 +1052,6 @@ describe('getGetDashboardCharts', () => {
         expect(output.result).toContain('Dashboard not found');
         expect(output.structuredContent).toEqual({
             error: output.result,
-            refusal: null,
         });
         expect(
             toolGetDashboardChartsOutputSchema.safeParse(output).success,

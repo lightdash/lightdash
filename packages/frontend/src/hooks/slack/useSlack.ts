@@ -2,6 +2,7 @@ import {
     type ApiError,
     type SlackAppCustomSettings,
     type SlackChannel,
+    type SlackFeatureAvailabilityMap,
     type SlackSettings,
 } from '@lightdash/common';
 import {
@@ -15,16 +16,41 @@ import { type LightdashApi } from '../../api';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useToaster from '../toaster/useToaster';
 
+// An API pod from before `features` shipped omits it during a rolling update
+type LegacySlackSettings = Omit<SlackSettings, 'features'> & {
+    features?: SlackFeatureAvailabilityMap;
+};
+
+export const normalizeSlackSettings = (
+    raw: LegacySlackSettings | undefined,
+): SlackSettings | undefined => {
+    if (raw === undefined) return undefined;
+    if (raw.features) return { ...raw, features: raw.features };
+    const fallback = { available: raw.hasRequiredScopes, missingScopes: [] };
+    return {
+        ...raw,
+        features: {
+            scheduledDeliveries: fallback,
+            customAppProfile: fallback,
+            linkUnfurling: fallback,
+            writebackReactions: fallback,
+            aiAgent: fallback,
+        },
+    };
+};
+
 const getSlack = async (lightdashApi: LightdashApi) =>
-    lightdashApi<SlackSettings>({
-        url: `/slack/`,
-        method: 'GET',
-        body: undefined,
-    });
+    normalizeSlackSettings(
+        await lightdashApi<SlackSettings>({
+            url: `/slack/`,
+            method: 'GET',
+            body: undefined,
+        }),
+    );
 
 export const useGetSlack = () => {
     const lightdashApi = useLightdashApi();
-    return useQuery<SlackSettings, ApiError>({
+    return useQuery<SlackSettings | undefined, ApiError>({
         queryKey: ['slack'],
         queryFn: () => getSlack(lightdashApi),
         retry: false,
@@ -40,6 +66,7 @@ const deleteSlack = async (lightdashApi: LightdashApi) =>
 
 export const useDeleteSlack = () => {
     const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, undefined>(
@@ -113,6 +140,7 @@ export const useSlackChannels = (
     useQueryOptions?: UseQueryOptions<SlackChannel[] | undefined, ApiError>,
 ) => {
     const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -191,6 +219,7 @@ const getSlackChannelById = async (
  */
 export const useSlackChannelLookup = () => {
     const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
 
     return useMutation<SlackChannel | null, ApiError, string>({
@@ -223,6 +252,7 @@ const updateSlackCustomSettings = async (
 
 export const useUpdateSlackAppCustomSettingsMutation = () => {
     const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, SlackAppCustomSettings>(

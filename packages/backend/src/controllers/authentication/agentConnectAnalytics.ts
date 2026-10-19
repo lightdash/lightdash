@@ -160,7 +160,7 @@ export const authenticateAgentConnect: RequestHandler = async (
             : null;
         if (!client)
             throw new Error(
-                'The Snowflake agent connection is not configured for this organisation.',
+                'Snowflake agent sign-in is not set up for this organisation.',
             );
         reason = AgentIdentityConnectFailureReason.SIGN_IN_FAILED;
         passport.authenticate(createSnowflakeAiPassportStrategy(client), {
@@ -213,7 +213,7 @@ export const agentConnectCallback: RequestHandler = async (req, res, next) => {
             : null;
         if (!client)
             throw new Error(
-                'The Snowflake agent connection is not configured for this organisation.',
+                'Snowflake agent sign-in is not set up for this organisation.',
             );
         reason = AgentIdentityConnectFailureReason.SIGN_IN_FAILED;
         const bindings = req.session.agentConnectBindings;
@@ -225,11 +225,9 @@ export const agentConnectCallback: RequestHandler = async (req, res, next) => {
                 ? bindings[callbackState]
                 : null;
         if (
-            binding
-                ? binding.organizationUuid !== req.user?.organizationUuid ||
-                  binding.clientVersion !== client.clientVersion
-                : client.source !== 'environment' ||
-                  (bindings !== undefined && state === callbackState)
+            !binding ||
+            binding.organizationUuid !== req.user?.organizationUuid ||
+            binding.clientVersion !== client.clientVersion
         ) {
             consumeCallbackState();
             recordConnectOutcome(req, reason);
@@ -237,7 +235,7 @@ export const agentConnectCallback: RequestHandler = async (req, res, next) => {
                 getAgentConnectRedirectURL(
                     false,
                     new ForbiddenError(
-                        'The Snowflake agent connection changed. Please sign in again.',
+                        'The Snowflake agent sign-in settings changed. Sign in again.',
                     ),
                 )(req),
             );

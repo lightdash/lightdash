@@ -13,22 +13,33 @@ import {
     type Project,
 } from '@lightdash/common';
 import fetch, { BodyInit, type Response } from 'node-fetch';
+import { Readable } from 'stream';
 import { URL } from 'url';
 import { gzipSync } from 'zlib';
+import {
+    ConnectionServerError,
+    connectionServerError,
+} from '../../agentConnections/serverError';
 import { getConfig } from '../../config';
+import {
+    getAgentConnectionSelection,
+    resolveCredential,
+} from '../../credentials';
 import { CLI_VERSION, getUpdateInstructions } from '../../env';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
-import { buildRequestHeaders } from '../utils';
+import { buildCredentialHeaders, buildRequestHeaders } from '../utils';
 
 type LightdashApiProps = {
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
     url: string;
     body: BodyInit | undefined;
     signal?: AbortSignal;
+    safeToRetry?: boolean;
 };
 
 type LightdashRawApiProps = LightdashApiProps & {
+    lifecycle?: import('../../agentConnections/lifecycle').LifecycleOperation;
     headers?: Record<string, string>;
 };
 
@@ -59,6 +70,7 @@ const fetchWithTimeout = async (
         headers: Record<string, string>;
         body?: BodyInit;
         signal?: AbortSignal;
+        redirect?: 'error';
     },
 ): Promise<Response> => {
     const timeoutMs = getRequestTimeoutMs();
@@ -87,14 +99,184 @@ const fetchWithTimeout = async (
     }
 };
 
+const connectionResponses = new WeakSet<Response>();
+
 export const lightdashRawApi = async ({
     method,
     url,
     body,
     headers: requestHeaders = {},
     signal,
+    safeToRetry = false,
+    lifecycle,
 }: LightdashRawApiProps): Promise<Response> => {
-    const config = await getConfig();
+    const config = await (getAgentConnectionSelection() === null
+        ? getConfig()
+        : getConfig({ readOnly: true }));
+    if (lifecycle && getAgentConnectionSelection() === null)
+        throw new Error('An agent connection selection is required.');
+    if (getAgentConnectionSelection() !== null) {
+        if (
+            Object.keys(requestHeaders).some((header) =>
+                ['authorization', 'cookie'].includes(header.toLowerCase()),
+            )
+        )
+            throw new Error(
+                'Agent connection requests cannot override Authorization or include Cookie headers.',
+            );
+        if (!config.context?.serverUrl)
+            throw new Error(
+                'No instance is configured for this agent connection.',
+            );
+        const { agentConnectionApiUrl } =
+            await import('../../agentConnections/apiUrl');
+        const destination = agentConnectionApiUrl(
+            config.context.serverUrl,
+            url,
+        );
+        const { assertAgentRequestAllowed } =
+            await import('../../agentConnections/requestPolicy');
+        const requestPath = new URL(destination).pathname.slice(
+            new URL(config.context.serverUrl).pathname.replace(/\/$/, '')
+                .length,
+        );
+        assertAgentRequestAllowed(method, requestPath);
+        if (requestPath === '/api/v2/content') {
+            const allowedQueryKeys = new Set([
+                'projectUuids',
+                'contentTypes',
+                'page',
+                'pageSize',
+            ]);
+            const query = new URL(destination).search.slice(1);
+            if (
+                query
+                    .split('&')
+                    .some(
+                        (parameter) =>
+                            !allowedQueryKeys.has(parameter.split('=', 1)[0]),
+                    )
+            )
+                throw new Error(
+                    'This query is not available with an agent connection. No request was sent.',
+                );
+        }
+        if (
+            requestPath.startsWith('/api/v2/user/agent-connections/') &&
+            !lifecycle
+        )
+            throw new Error('Invalid connection lifecycle request.');
+        if (lifecycle) {
+            const statusPath = `/api/v2/user/agent-connections/${lifecycle.grantUuid}/status`;
+            const revokePath = `/api/v2/user/agent-connections/${lifecycle.grantUuid}`;
+            const validRoute =
+                lifecycle.kind === 'revoke'
+                    ? method === 'DELETE' && url === revokePath
+                    : method === 'GET' &&
+                      (url === statusPath ||
+                          /^\/api\/v2\/projects\/[a-f0-9-]+\/ai-access\/me$/.test(
+                              url,
+                          ));
+            if (!validRoute || body !== undefined)
+                throw new Error('Invalid connection lifecycle request.');
+        }
+        let credential = await resolveCredential(config, null, null, lifecycle);
+        let retried = false;
+        const send = async () => {
+            if (credential.kind !== 'agent_connection')
+                throw new Error(
+                    'The selected request requires an agent connection credential.',
+                );
+            if (!lifecycle) {
+                const { approvedProjects } = credential.slot.lastReported;
+                const pathProject = requestPath.match(
+                    /^\/api\/v[12]\/(?:ee\/)?projects\/([^/]+)/,
+                )?.[1];
+                const queryProjects = new URL(destination).searchParams
+                    .getAll('projectUuids')
+                    .flatMap((value) => value.split(','));
+                const projects = pathProject
+                    ? [pathProject, ...queryProjects]
+                    : queryProjects;
+                if (
+                    (requestPath === '/api/v2/content' &&
+                        projects.length === 0) ||
+                    projects.some(
+                        (projectUuid) =>
+                            !approvedProjects.some(
+                                (project) =>
+                                    project.projectUuid === projectUuid,
+                            ),
+                    )
+                )
+                    throw new Error(
+                        'This project is not approved for the selected agent connection. No request was sent.',
+                    );
+            }
+            try {
+                return await fetchWithTimeout(destination, {
+                    method,
+                    headers: {
+                        ...buildCredentialHeaders(
+                            credential,
+                            config.context?.proxyAuthorization ?? null,
+                        ),
+                        ...requestHeaders,
+                    },
+                    body,
+                    signal,
+                    redirect: 'error',
+                });
+            } catch {
+                if (lifecycle) {
+                    const { AgentConnectionRequestError } =
+                        await import('../../agentConnections/lifecycle');
+                    throw new AgentConnectionRequestError('unreachable');
+                }
+                throw new Error(
+                    retried
+                        ? 'The agent connection request failed. No further retry was attempted.'
+                        : 'The agent connection request failed. No request was retried.',
+                );
+            }
+        };
+        let response = await send();
+        if (
+            response.status === 401 &&
+            safeToRetry &&
+            method === 'GET' &&
+            body === undefined &&
+            credential.kind === 'agent_connection'
+        ) {
+            if (response.body instanceof Readable) response.body.destroy();
+            credential = await resolveCredential(
+                config,
+                null,
+                credential.slot.tokens.generation,
+                lifecycle,
+            );
+            retried = true;
+            response = await send();
+        }
+        if (!response.ok && lifecycle) {
+            const { AgentConnectionRequestError } =
+                await import('../../agentConnections/lifecycle');
+            throw new AgentConnectionRequestError(
+                response.status >= 500 ? 'unreachable' : 'rejected',
+            );
+        }
+        if (response.status === 401)
+            throw new Error(
+                `Agent connection ${getAgentConnectionSelection()} could not authenticate. No personal credential was used.`,
+            );
+        if (!response.ok)
+            throw connectionServerError(
+                response.status,
+                await response.json().catch(() => null),
+            );
+        connectionResponses.add(response);
+        return response;
+    }
     if (!(config.context?.apiKey && config.context.serverUrl)) {
         throw new AuthorizationError(
             `Not logged in. Run 'lightdash login --help'`,
@@ -130,12 +312,74 @@ export const lightdashRawApi = async ({
     return response;
 };
 
+export const readRawApiJson = async (response: Response): Promise<unknown> => {
+    const connection =
+        connectionResponses.has(response) ||
+        getAgentConnectionSelection() !== null;
+    try {
+        const value: unknown = await response.json();
+        if (
+            connection &&
+            typeof value === 'object' &&
+            value !== null &&
+            'status' in value &&
+            value.status === 'error'
+        )
+            throw connectionServerError(response.status, value);
+        return value;
+    } catch (error) {
+        if (connection) {
+            if (error instanceof ConnectionServerError) throw error;
+            throw connectionServerError(response.status, null);
+        }
+        throw error;
+    }
+};
+
+const readApiResults = async <T extends ApiResponse['results']>(
+    response: Response,
+): Promise<T> => {
+    const connection = getAgentConnectionSelection() !== null;
+    let data: ApiResponse | ApiError;
+    try {
+        data = await response.json();
+    } catch (error) {
+        if (connection) throw connectionServerError(response.status, null);
+        throw error;
+    }
+    if (
+        connection &&
+        (typeof data !== 'object' || data === null || data.status !== 'ok')
+    )
+        throw connectionServerError(response.status, data);
+    GlobalState.debug(`> HTTP request returned status: ${data.status}`);
+    switch (data.status) {
+        case 'ok':
+            return data.results as T;
+        case 'error':
+            throw new LightdashError(data.error);
+        default:
+            throw new Error(data);
+    }
+};
+
 export const lightdashApi = async <T extends ApiResponse['results']>({
     method,
     url,
     body,
     signal,
+    safeToRetry,
 }: LightdashApiProps): Promise<T> => {
+    if (
+        getAgentConnectionSelection() !== null &&
+        safeToRetry &&
+        method === 'GET' &&
+        body === undefined
+    ) {
+        return readApiResults<T>(
+            await lightdashRawApi({ method, url, body, signal, safeToRetry }),
+        );
+    }
     const headers: Record<string, string> = {};
 
     let requestBody: BodyInit | undefined = body;
@@ -159,6 +403,17 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             );
         }
     }
+
+    if (getAgentConnectionSelection() !== null)
+        return readApiResults<T>(
+            await lightdashRawApi({
+                method,
+                url,
+                body: requestBody,
+                headers,
+                signal,
+            }),
+        );
 
     return lightdashRawApi({
         method,
@@ -192,6 +447,7 @@ export const getUserContext =
             method: 'GET',
             url: `/api/v1/user`,
             body: undefined,
+            safeToRetry: true,
         });
 
 export type ContentAsCodeUploadPermissions = {
@@ -428,12 +684,30 @@ export const checkLightdashVersion = async (): Promise<void> => {
             method: 'GET',
             url: `/api/v1/health?skipMigrationCheck=true`,
             body: undefined,
+            safeToRetry: true,
         });
+
+        if (
+            getAgentConnectionSelection() !== null &&
+            (typeof health?.version !== 'string' ||
+                !/^\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?(?:\+[a-z0-9.-]+)?$/i.test(
+                    health.version,
+                ))
+        )
+            throw new Error('The server returned invalid version data.');
 
         const cliMajor = CLI_VERSION.split('.')[0];
         const serverMajor = health.version.split('.')[0];
         if (cliMajor !== serverMajor) {
-            const config = await getConfig();
+            if (getAgentConnectionSelection() !== null) {
+                console.error(
+                    'The CLI and server use different major versions. Use a CLI version that matches your server.',
+                );
+                return;
+            }
+            const config = await (getAgentConnectionSelection() === null
+                ? getConfig()
+                : getConfig({ readOnly: true }));
             console.error(
                 `${styles.title(
                     'Warning',
@@ -447,6 +721,7 @@ export const checkLightdashVersion = async (): Promise<void> => {
             );
         }
     } catch (err) {
+        if (getAgentConnectionSelection() !== null) throw err;
         GlobalState.debug(`> Health check failed: ${err}`);
     }
 };

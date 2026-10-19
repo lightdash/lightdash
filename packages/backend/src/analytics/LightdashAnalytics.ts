@@ -41,8 +41,6 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
-    type AgentAccessReport,
-    type AgentAccessTestEntryPoint,
     type AgentActorSurface,
     type AiAgentMemoryConsolidationTrigger,
     type AiAgentMemoryScope,
@@ -399,33 +397,6 @@ type AgentIdentityServiceAccountTestedEvent = BaseTrack & {
         credentialSource: 'submitted' | 'saved';
         inheritedFromProjectUuid: string | null;
     };
-};
-
-type AgentIdentityAccessTestedEvent = BaseTrack & {
-    event: 'agent_identity.access_tested';
-    userId: string;
-    properties: AgentIdentityServiceAccountEventProperties &
-        Pick<
-            AgentAccessReport,
-            | 'credentialSource'
-            | 'status'
-            | 'failureReason'
-            | 'readableCount'
-            | 'blockedCount'
-            | 'errorCount'
-            | 'checkedCount'
-            | 'notCheckedCount'
-            | 'totalCount'
-            | 'truncatedCount'
-        > & {
-            connectionUuid: string | null;
-            subjectKind: 'ai_service_account';
-            entryPoint: AgentAccessTestEntryPoint;
-            datasetCount: number;
-            durationMs: number;
-            capReached: boolean;
-            deadlineReached: boolean;
-        };
 };
 
 type AgentIdentityServiceAccountDeletedEvent = BaseTrack & {
@@ -2550,6 +2521,9 @@ export type DataAppUploadedEvent = BaseTrack & {
         customDependencyCount: number;
         customDependencies: AppVersionDependencyEntry[];
         lockfileHash?: string;
+        // Set when the upload re-installed a library chart type instead of building.
+        registrySlug?: string;
+        registryVersion?: string;
     };
 };
 
@@ -3947,8 +3921,15 @@ export type AiAgentArtifactVizQueryEvent = BaseTrack & {
         source: string;
         // Null for artifacts persisted without a prompt.
         promptId: string | null;
+        // Time to submit the query (every node, for composer runs), not to results.
         durationMs: number;
         queryId: string | null;
+        // Composer runs only, tracked once the run settles or the wait caps:
+        // nodes in the pipeline, nodes that reached a terminal status, and
+        // settled nodes served from cache.
+        nodeCount: number | null;
+        settledNodeCount: number | null;
+        cachedNodeCount: number | null;
     };
 };
 
@@ -4771,7 +4752,6 @@ type TypedEvent =
     | AgentIdentityEvent
     | AgentIdentityServiceAccountSavedEvent
     | AgentIdentityServiceAccountTestedEvent
-    | AgentIdentityAccessTestedEvent
     | AgentIdentityServiceAccountDeletedEvent
     | TrackSimpleEvent
     | CreateUserEvent

@@ -5,6 +5,7 @@ import {
     type Project,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
@@ -121,6 +122,14 @@ describe('SnowflakeForm agent identity requirement', () => {
         mocks.configured = true;
         mocks.requirementSource = 'organization';
     });
+    it('keeps None out of single-project creation', async () => {
+        renderWithProviders(<TestForm edit={false} />);
+        const user = userEvent.setup();
+        await user.click(
+            screen.getByRole('combobox', { name: /Authentication Type/ }),
+        );
+        expect(screen.queryByRole('option', { name: 'None' })).toBeNull();
+    });
     it.each([null, 'extra-connection'])(
         'shows the organisation requirement for connection %s',
         (connection) => {
@@ -131,9 +140,7 @@ describe('SnowflakeForm agent identity requirement', () => {
                 />,
             );
             expect(
-                screen.getByText(
-                    /Agent identity required by your organisation/,
-                ),
+                screen.getByText(/Your organisation requires agent identity/),
             ).toBeInTheDocument();
             expect(
                 screen.getByRole('link', { name: 'Organisation settings' }),
@@ -153,7 +160,7 @@ describe('SnowflakeForm agent identity requirement', () => {
         mocks.canManage = false;
         renderWithProviders(<TestForm />);
         expect(
-            screen.getByText(/Agent identity required by your organisation/),
+            screen.getByText(/Your organisation requires agent identity/),
         ).toBeInTheDocument();
     });
     it.each([

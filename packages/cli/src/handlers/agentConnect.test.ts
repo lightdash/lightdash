@@ -1,4 +1,8 @@
-import { AiAccessRefusalReason, ParameterError } from '@lightdash/common';
+import {
+    AiAccessRefusalAction,
+    AiAccessRefusalReason,
+    ParameterError,
+} from '@lightdash/common';
 import * as http from 'http';
 import { getConfig } from '../config';
 import GlobalState from '../globalState';
@@ -104,13 +108,45 @@ afterEach(() => {
 });
 
 describe('agent connect', () => {
+    it.each([
+        '/generalSettings/projectManagement/project-uuid/agentIdentity',
+        'https://settings.example/generalSettings/projectManagement/project-uuid/agentIdentity',
+    ])('prints the admin settings URL for %s', async (settingsUrl) => {
+        vi.mocked(getConfig).mockResolvedValue({
+            context: {
+                project: agentProjectUuid,
+                serverUrl: 'https://lightdash.example',
+            },
+        });
+        const message = 'Ask a project admin to add a shared agent account.';
+        vi.mocked(lightdashApi).mockResolvedValue({
+            ...agentAccess,
+            refusal: {
+                ...agentAccess.refusal!,
+                reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+                action: AiAccessRefusalAction.ASK_ADMIN,
+                message,
+                connectUrl: null,
+                settingsUrl,
+            },
+        });
+        await agentConnectHandler({ verbose: false });
+        expect(vi.mocked(console.error).mock.calls).toEqual([
+            [message],
+            [new URL(settingsUrl, 'https://lightdash.example').href],
+        ]);
+        expect(process.exitCode).toBe(1);
+        expect(openBrowser).not.toHaveBeenCalled();
+    });
+
     it('reconnects after an expired sign-in refusal', async () => {
         vi.mocked(lightdashApi).mockResolvedValue({
             ...agentAccess,
             refusal: {
                 ...agentAccess.refusal!,
                 reason: AiAccessRefusalReason.SIGN_IN_EXPIRED,
-                message: 'Your agent connection expired. Connect again.',
+                message:
+                    'Your agent sign-in expired. Connect your agent again.',
             },
         });
         const { completion, redirect } = await startWaitingForCallback();
@@ -131,6 +167,51 @@ describe('agent connect', () => {
         expect(process.exitCode ?? 0).toBe(0);
     });
 
+    it.each(['organization', null] as const)(
+        'reports that the CLI runs as you without a server for a shared agent account with requirement source %s',
+        async (requirementSource) => {
+            vi.mocked(lightdashApi).mockResolvedValue({
+                ...agentAccess,
+                requirementSource,
+                identity: 'ai_service_account',
+                source: 'ai_service_account',
+                enabled: true,
+                refusal: null,
+            });
+            await agentConnectHandler({ verbose: false });
+            expect(console.error).toHaveBeenCalledExactlyOnceWith(
+                'The CLI runs as you until agent connect issues an agent credential.',
+            );
+            expect(console.error).not.toHaveBeenCalledWith(
+                expect.stringContaining('use the shared agent account'),
+            );
+            expect(process.exitCode).toBeUndefined();
+            expect(http.Server.prototype.listen).not.toHaveBeenCalled();
+            expect(openBrowser).not.toHaveBeenCalled();
+        },
+    );
+
+    it('reports a refusal for a shared agent account', async () => {
+        const message = 'Ask an admin to review the connection.';
+        vi.mocked(lightdashApi).mockResolvedValue({
+            ...agentAccess,
+            identity: 'ai_service_account',
+            source: 'ai_service_account',
+            refusal: {
+                ...agentAccess.refusal!,
+                reason: AiAccessRefusalReason.PRINCIPAL_FAILED,
+                action: AiAccessRefusalAction.ASK_ADMIN,
+                message,
+                connectUrl: null,
+            },
+        });
+        await agentConnectHandler({ verbose: false });
+        expect(console.error).toHaveBeenCalledExactlyOnceWith(message);
+        expect(process.exitCode).toBe(1);
+        expect(http.Server.prototype.listen).not.toHaveBeenCalled();
+        expect(openBrowser).not.toHaveBeenCalled();
+    });
+
     it('returns without a server when connection is not required', async () => {
         vi.mocked(lightdashApi).mockResolvedValue({
             ...agentAccess,
@@ -139,7 +220,7 @@ describe('agent connect', () => {
         });
         await agentConnectHandler({ verbose: false });
         expect(console.error).toHaveBeenCalledExactlyOnceWith(
-            'Agent connection is not required for this project',
+            'Agent sign-in is not required for this project',
         );
         expect(http.Server.prototype.listen).not.toHaveBeenCalled();
         expect(process.exitCode ?? 0).toBe(0);
@@ -212,7 +293,7 @@ describe('agent connect', () => {
     it.each([
         [
             'not_agent_session',
-            'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for AI.',
+            'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for agents.',
         ],
         [
             'no_refresh_token',

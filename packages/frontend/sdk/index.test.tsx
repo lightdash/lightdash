@@ -1167,22 +1167,23 @@ describe('SDK AI agent', () => {
             window.location.origin,
         );
 
-        window.dispatchEvent(
-            new MessageEvent('message', {
-                origin: mockInstanceUrl,
-                data: {
-                    type: 'lightdash:aiAgentThreadChanged',
-                    payload: {
-                        projectUuid: 'test-project-uuid',
-                        agentUuid: 'test-agent-uuid',
-                        threadUuid: 'test-thread-uuid',
-                    },
-                    timestamp: Date.now(),
-                },
-            }),
-        );
-
+        // The listener attaches in an effect after the iframe renders, so
+        // resend until it is listening.
         await waitFor(() => {
+            window.dispatchEvent(
+                new MessageEvent('message', {
+                    origin: mockInstanceUrl,
+                    data: {
+                        type: 'lightdash:aiAgentThreadChanged',
+                        payload: {
+                            projectUuid: 'test-project-uuid',
+                            agentUuid: 'test-agent-uuid',
+                            threadUuid: 'test-thread-uuid',
+                        },
+                        timestamp: Date.now(),
+                    },
+                }),
+            );
             expect(onThreadChange).toHaveBeenCalledWith({
                 threadUuid: 'test-thread-uuid',
             });

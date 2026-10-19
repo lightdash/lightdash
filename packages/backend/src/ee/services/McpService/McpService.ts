@@ -1,7 +1,9 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AgentActorSurface,
     AgentIdentityConnectEntryPoint,
+    AiAccessRefusal,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AiAgentWithContext,
@@ -10,7 +12,6 @@ import {
     aiWritebackRunStatusToMcpTaskStatus,
     AiWritebackSource,
     AnyType,
-    ApiKeyAccount,
     assertRegisteredAccount,
     assertUnreachable,
     buildRunSqlDescription,
@@ -22,10 +23,12 @@ import {
     convertAiTableCalcsSchemaToTableCalcs,
     convertFieldRefToFieldId,
     createContentToolDefinition,
+    createCustomChartTypeToolDefinition,
     createMcpCompatibleInputShape,
     createScheduledDeliveryToolDefinition,
     createToolRunSqlArgsSchema,
     DATA_APP_BUILD_POLL_INTERVAL_MS,
+    DATA_APP_VIZ_TEMPLATE,
     editContentToolDefinition,
     Explore,
     FeatureFlags,
@@ -33,6 +36,8 @@ import {
     ForbiddenError,
     generateDataAppToolDefinition,
     generateHashesToolDefinition,
+    getAgentPermissionRefusalDetails,
+    getAiAccessRefusalSettingsUrl,
     getAiWritebackStatusToolDefinition,
     getAiWritebackTaskStatusMessage,
     getContextToolDefinition,
@@ -53,6 +58,7 @@ import {
     hashStringToBase36,
     isAiAccessRefusal,
     ItemsMap,
+    iterateCustomChartTypeToolDefinition,
     iterateDataAppToolDefinition,
     listAgentsToolDefinition,
     listContentToolDefinition,
@@ -60,6 +66,7 @@ import {
     listExploresToolDefinition,
     listSkillsToolDefinition,
     listVerifiedContentToolDefinition,
+    MAX_APP_VIZ_BUILD_SAMPLE_ROWS,
     MCP_AI_WRITEBACK_TASK_POLL_INTERVAL_MS,
     MCP_ERROR_CODE_MISSING_REQUIRED_CAPABILITY,
     MCP_QUERY_POLL_INTERVAL_MS,
@@ -70,12 +77,13 @@ import {
     mcpCreateContentToolDefinition,
     McpCreateTaskResult,
     mcpEditContentToolDefinition,
+    mcpFindCustomChartTypesToolDefinition,
     McpGetTaskResult,
+    mcpListCustomChartTypesToolDefinition,
     mcpListProjectsToolDefinition,
     mcpReadContentToolDefinition,
     MetricQuery,
     NotFoundError,
-    OauthAccount,
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -92,7 +100,6 @@ import {
     runSqlToolDefinition,
     searchFieldValuesFilterExpressionToolDefinition,
     searchFieldValuesToolDefinition,
-    ServiceAcctAccount,
     SessionUser,
     setAgentToolDefinition,
     setProjectToolDefinition,
@@ -140,13 +147,30 @@ import {
     LightdashAnalytics,
     McpToolCallEvent,
 } from '../../../analytics/LightdashAnalytics';
+import { assertAgentConnectionGrantOperation } from '../../../auth/agentConnectionGrants/evaluateGrant';
+import { mcpAgentPermissionsApply } from '../../../auth/agentPermissions/caller';
+import {
+    assertOAuthMcpToolAllowed,
+    isMcpToolAllowed,
+} from '../../../auth/oauthScopes/mcpTools';
+import { getOAuthScopeContext } from '../../../auth/oauthScopes/scopedAbility';
 import { LightdashConfig } from '../../../config/parseConfig';
+import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { McpContextModel } from '../../../models/McpContextModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import type { AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
+import {
+    buildResultReader,
+    getContentWriteAgentIdentity,
+} from '../../../services/AiAccessService/agentExecutionContext';
 import { AiAccessService } from '../../../services/AiAccessService/AiAccessService';
+import {
+    isAgentActionForbiddenError,
+    recordAgentRefusal,
+} from '../../../services/AiAccessService/logAgentContentWrite';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
@@ -210,6 +234,7 @@ import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService'
 import { AiRouterService } from '../AiRouterService/AiRouterService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { buildMcpExploreConfigState } from './buildMcpExploreConfigState';
+import { buildVizBuildSampleRows } from './buildVizBuildSampleRows';
 import {
     registerAppResource,
     registerAppTool,
@@ -251,6 +276,10 @@ export enum McpToolName {
     ITERATE_DATA_APP = 'iterate_data_app',
     LIST_DATA_APP_THEMES = 'list_data_app_themes',
     GET_DATA_APP_BUILD_STATUS = 'get_data_app_build_status',
+    CREATE_CUSTOM_CHART_TYPE = 'create_custom_chart_type',
+    ITERATE_CUSTOM_CHART_TYPE = 'iterate_custom_chart_type',
+    FIND_CUSTOM_CHART_TYPES = 'find_custom_chart_types',
+    LIST_CUSTOM_CHART_TYPES = 'list_custom_chart_types',
     LIST_SKILLS = 'list_skills',
     READ_SKILL = 'read_skill',
     READ_SKILL_RESOURCE = 'read_skill_resource',
@@ -320,6 +349,41 @@ const mcpGetDataAppBuildStatusTool = withProjectScopeInput(
 );
 const mcpGenerateDataAppTool = withProjectScopeInput(
     generateDataAppToolDefinition.for('mcp'),
+);
+type SampleRowsOutcome =
+    | { kind: 'not_requested' }
+    | { kind: 'shared'; sampleRows: Record<string, string>[] }
+    | { kind: 'sample_data_off' }
+    | { kind: 'no_rows' };
+
+const describeSampleRows = (outcome: SampleRowsOutcome): string => {
+    switch (outcome.kind) {
+        case 'not_requested':
+            return '';
+        case 'shared':
+            return ` Shared ${outcome.sampleRows.length} sample ${
+                outcome.sampleRows.length === 1 ? 'row' : 'rows'
+            } from the query.`;
+        case 'sample_data_off':
+            return ' Sample data is switched off on this instance, so no rows were shared.';
+        case 'no_rows':
+            return ' The query returned no rows, so none were shared.';
+        default:
+            return assertUnreachable(outcome, 'Unknown sample rows outcome');
+    }
+};
+
+const mcpCreateCustomChartTypeTool = withProjectScopeInput(
+    createCustomChartTypeToolDefinition.for('mcp'),
+);
+const mcpIterateCustomChartTypeTool = withProjectScopeInput(
+    iterateCustomChartTypeToolDefinition.for('mcp'),
+);
+const mcpFindCustomChartTypesTool = withProjectScopeInput(
+    mcpFindCustomChartTypesToolDefinition.for('mcp'),
+);
+const mcpListCustomChartTypesTool = withProjectScopeInput(
+    mcpListCustomChartTypesToolDefinition.for('mcp'),
 );
 const mcpIterateDataAppTool = withProjectScopeInput(
     iterateDataAppToolDefinition.for('mcp'),
@@ -422,6 +486,7 @@ const mcpReadSkillTool = readSkillToolDefinition.for('mcp');
 const mcpReadSkillResourceTool = readSkillResourceToolDefinition.for('mcp');
 
 type McpServiceArguments = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     aiAccessService: AiAccessService;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -447,7 +512,11 @@ type McpServiceArguments = {
 
 export type ExtraContext = {
     user: SessionUser;
-    account: OauthAccount | ApiKeyAccount | ServiceAcctAccount;
+    account: RegisteredAccount;
+    getAgentPermissionService?: () => Pick<
+        AgentPermissionService,
+        'loadRequest' | 'assertOperationWithRequest'
+    >;
     /** User attribute overrides passed via X-Lightdash-User-Attributes header */
     headerUserAttributes?: UserAttributeValueMap;
     /** Project UUID passed via X-Lightdash-Project header; overrides stored context */
@@ -485,7 +554,10 @@ type McpRunMetricQueryArgs = (
 // it asserts the type without runtime validation of the inner shape.
 const extraContextSchema = z.object({
     user: z.custom<SessionUser>(),
-    account: z.custom<OauthAccount | ApiKeyAccount | ServiceAcctAccount>(),
+    account: z.custom<RegisteredAccount>(),
+    getAgentPermissionService: z
+        .custom<ExtraContext['getAgentPermissionService']>()
+        .optional(),
     headerUserAttributes: z.custom<UserAttributeValueMap>().optional(),
     headerProjectUuid: z.string().optional(),
     legacyContextInjected: z.boolean().optional(),
@@ -538,11 +610,14 @@ export type McpServerToolOptions = {
         filterExpressionsEnabled: boolean;
         documentsEnabled: boolean;
         dataAppBuildsEnabled: boolean;
+        customChartTypesEnabled: boolean;
         agentIdentityEnabled: boolean;
     };
 };
 
 export class McpService extends BaseService {
+    private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
     private lightdashConfig: LightdashConfig;
 
     private aiAccessService: AiAccessService;
@@ -588,6 +663,7 @@ export class McpService extends BaseService {
     private mcpServer: McpServer;
 
     constructor({
+        agentActionLogModel,
         aiAccessService,
         lightdashConfig,
         analytics,
@@ -611,6 +687,7 @@ export class McpService extends BaseService {
         aiWritebackService,
     }: McpServiceArguments) {
         super();
+        this.agentActionLogModel = agentActionLogModel;
         this.aiAccessService = aiAccessService;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
@@ -859,9 +936,24 @@ export class McpService extends BaseService {
         if (Symbol.asyncIterator in result) {
             let out = '';
             for await (const chunk of result) {
-                out += chunk.result;
+                out += McpService.getToolResultText(chunk);
             }
             return out;
+        }
+        return McpService.getToolResultText(result);
+    }
+
+    private static getToolResultText(result: { result: string }): string {
+        const parsed = z
+            .object({
+                structuredContent: z.object({
+                    refusal: z.custom<AiAccessRefusal>(isAiAccessRefusal),
+                }),
+            })
+            .safeParse(result);
+        if (parsed.success) {
+            const { refusal } = parsed.data.structuredContent;
+            throw new AiAccessRefusedError(refusal.reason, refusal);
         }
         return result.result;
     }
@@ -1325,7 +1417,7 @@ export class McpService extends BaseService {
         const content = [
             {
                 type: 'text' as const,
-                text: `${mcpEchartsOption ? 'Chart' : 'Result table'} rendered for queryUuid: ${queryUuid}.${
+                text: `${mcpEchartsOption ? 'Chart' : 'Result table'} sent to the chart app for queryUuid: ${queryUuid}. Only MCP App-capable clients display it; echartsOption in structuredContent is a placeholder, not a failed render. If your client cannot display MCP Apps, the user has not seen it: build the visual from the query rows.${
                     exploreUrl ? ` Explore from here: ${exploreUrl}` : ''
                 }`,
             },
@@ -1442,6 +1534,11 @@ export class McpService extends BaseService {
         const { account } = McpService.getAccount(ctx);
         const result = await this.asyncQueryService.getAsyncQueryResults({
             account,
+            reader: buildResultReader(
+                account,
+                QueryExecutionContext.MCP_RUN_SQL,
+                QuerySurface.MCP,
+            ),
             projectUuid,
             queryUuid,
             page: 1,
@@ -1513,7 +1610,7 @@ export class McpService extends BaseService {
      * so setupHandlers can register it conditionally (dark launch — see the
      * AiWriteback gate in setupHandlers).
      */
-    private registerRunAiWritebackTool(): void {
+    private registerRunAiWritebackTool(agentIdentityEnabled: boolean): void {
         this.registerTrackedTool(
             mcpRunAiWritebackTool.name,
             {
@@ -1526,7 +1623,7 @@ export class McpService extends BaseService {
             async (args, extra) => {
                 const ctx = getMcpContext(extra);
 
-                const { user } = McpService.getAccount(ctx);
+                const { user, account } = McpService.getAccount(ctx);
                 const projectUuid = await this.resolveToolProjectUuid(
                     ctx,
                     args.projectUuid,
@@ -1535,10 +1632,14 @@ export class McpService extends BaseService {
                 try {
                     const { aiWritebackRunUuid, createdAt, updatedAt } =
                         await this.aiWritebackService.enqueueWriteback({
+                            agentIdentityEnabled,
                             user,
                             projectUuid,
                             prompt: args.prompt,
                             source: 'mcp',
+                            agentPermissionsApply: mcpAgentPermissionsApply(
+                                account.authentication.type,
+                            ),
                         });
 
                     // Server-directed task augmentation (MCP Tasks extension):
@@ -1563,6 +1664,7 @@ export class McpService extends BaseService {
                         projectUuid,
                     );
                 } catch (e) {
+                    if (e instanceof AiAccessRefusedError) throw e;
                     const errorMessage =
                         e instanceof Error ? e.message : String(e);
                     this.logger.error(
@@ -1588,6 +1690,8 @@ export class McpService extends BaseService {
         this.registerIterateDataAppTool();
         this.registerListDataAppThemesTool();
         this.registerGetDataAppBuildStatusTool();
+        this.registerCreateCustomChartTypeTool();
+        this.registerIterateCustomChartTypeTool();
     }
 
     /**
@@ -1632,6 +1736,7 @@ export class McpService extends BaseService {
                 args.agentUuid,
             );
         } catch (e) {
+            if (e instanceof AiAccessRefusedError) throw e;
             const errorMessage = getErrorMessage(e);
             this.logger.error(
                 `[McpService] ${errorLogContext}: ${errorMessage}`,
@@ -1676,6 +1781,252 @@ export class McpService extends BaseService {
                     },
                 ),
         );
+    }
+
+    private registerCreateCustomChartTypeTool(): void {
+        this.registerTrackedTool(
+            mcpCreateCustomChartTypeTool.name,
+            {
+                title: mcpCreateCustomChartTypeTool.title,
+                description: mcpCreateCustomChartTypeTool.description,
+                inputSchema: mcpCreateCustomChartTypeTool.inputSchema.shape,
+                outputSchema: mcpCreateCustomChartTypeTool.outputSchema.shape,
+                annotations: mcpCreateCustomChartTypeTool.annotations,
+            },
+            async (args, extra) =>
+                this.callDataAppBuildTool(
+                    extra,
+                    args,
+                    'Error starting the chart type build. No chart type was created',
+                    async (toolsRuntime, projectUuid) => {
+                        const sampleRows = await this.getSampleRows(
+                            getMcpContext(extra),
+                            projectUuid,
+                            args.agentUuid,
+                            args.queryUuid ?? null,
+                            mcpCreateCustomChartTypeTool.name,
+                        );
+                        const vizContext =
+                            sampleRows.kind === 'shared'
+                                ? { sampleRows: sampleRows.sampleRows }
+                                : null;
+                        const { slug, version } =
+                            await toolsRuntime.createCustomChartType({
+                                name: args.name,
+                                prompt: args.prompt,
+                                themeSlug: args.themeSlug ?? null,
+                                vizContext,
+                            });
+                        const chartStudioUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/chart-studio/${slug}`;
+                        return {
+                            summary: `Started building the chart type "${args.name}" as slug "${slug}", version ${version}. Poll get_data_app_build_status with appSlug "${slug}" every ${DATA_APP_BUILD_POLL_INTERVAL_MS / 1000} seconds until it reports a terminal status. Then open it in Chart Studio at ${chartStudioUrl}.${describeSampleRows(sampleRows)}`,
+                            structuredContent: { slug, version },
+                        };
+                    },
+                ),
+        );
+    }
+
+    private registerIterateCustomChartTypeTool(): void {
+        this.registerTrackedTool(
+            mcpIterateCustomChartTypeTool.name,
+            {
+                title: mcpIterateCustomChartTypeTool.title,
+                description: mcpIterateCustomChartTypeTool.description,
+                inputSchema: mcpIterateCustomChartTypeTool.inputSchema.shape,
+                outputSchema: mcpIterateCustomChartTypeTool.outputSchema.shape,
+                annotations: mcpIterateCustomChartTypeTool.annotations,
+            },
+            async (args, extra) =>
+                this.callDataAppBuildTool(
+                    extra,
+                    args,
+                    'Error starting the chart type build. No version was added',
+                    async (toolsRuntime, projectUuid) => {
+                        const sampleRows = await this.getSampleRows(
+                            getMcpContext(extra),
+                            projectUuid,
+                            args.agentUuid,
+                            args.queryUuid ?? null,
+                            mcpIterateCustomChartTypeTool.name,
+                        );
+                        const vizContext =
+                            sampleRows.kind === 'shared'
+                                ? { sampleRows: sampleRows.sampleRows }
+                                : null;
+                        const { slug, version, name } =
+                            await toolsRuntime.iterateCustomChartType({
+                                slug: args.slug,
+                                prompt: args.prompt,
+                                themeSlug: args.themeSlug ?? null,
+                                vizContext,
+                            });
+                        const chartStudioUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/chart-studio/${slug}`;
+                        return {
+                            summary: `Started building version ${version} of the chart type "${name}" (slug "${slug}"). Poll get_data_app_build_status with appSlug "${slug}" every ${DATA_APP_BUILD_POLL_INTERVAL_MS / 1000} seconds until it reports a terminal status. Then open it in Chart Studio at ${chartStudioUrl}.${describeSampleRows(sampleRows)}`,
+                            structuredContent: { slug, version },
+                        };
+                    },
+                ),
+        );
+    }
+
+    private registerFindCustomChartTypesTool(): void {
+        this.registerTrackedTool(
+            mcpFindCustomChartTypesTool.name,
+            {
+                title: mcpFindCustomChartTypesTool.title,
+                description: mcpFindCustomChartTypesTool.description,
+                inputSchema: mcpFindCustomChartTypesTool.inputSchema.shape,
+                outputSchema: mcpFindCustomChartTypesTool.outputSchema.shape,
+                annotations: mcpFindCustomChartTypesTool.annotations,
+            },
+            async (args, extra) =>
+                this.callDataAppBuildTool(
+                    extra,
+                    args,
+                    'Error finding custom chart types',
+                    async (toolsRuntime) => {
+                        const query = args.query?.trim() || null;
+                        const slug = args.slug?.trim() || null;
+                        const request = (() => {
+                            if (query !== null && slug === null)
+                                return { query };
+                            if (slug !== null && query === null)
+                                return { slug };
+                            throw new ParameterError(
+                                'Set exactly one of query (search) or slug (fetch one chart type).',
+                            );
+                        })();
+                        const results =
+                            await toolsRuntime.searchCustomChartTypes(request);
+                        const listed = results
+                            .map((match) => `${match.name} (${match.slug})`)
+                            .join(', ');
+                        const truncated =
+                            results.length >=
+                            AiAgentToolsService.CUSTOM_CHART_TYPES_SEARCH_LIMIT
+                                ? ' More may match: refine the query or browse with list_custom_chart_types.'
+                                : '';
+                        return {
+                            summary:
+                                results.length === 0
+                                    ? `No custom chart type matched ${'slug' in request ? `slug "${request.slug}"` : `"${request.query}"`}.`
+                                    : `Found ${results.length} custom chart type(s): ${listed}. Slots, options and versions are in structuredContent.${truncated}`,
+                            structuredContent: { results },
+                        };
+                    },
+                ),
+        );
+    }
+
+    private registerListCustomChartTypesTool(): void {
+        this.registerTrackedTool(
+            mcpListCustomChartTypesTool.name,
+            {
+                title: mcpListCustomChartTypesTool.title,
+                description: mcpListCustomChartTypesTool.description,
+                inputSchema: mcpListCustomChartTypesTool.inputSchema.shape,
+                outputSchema: mcpListCustomChartTypesTool.outputSchema.shape,
+                annotations: mcpListCustomChartTypesTool.annotations,
+            },
+            async (args, extra) =>
+                this.callDataAppBuildTool(
+                    extra,
+                    args,
+                    'Error listing custom chart types',
+                    async (toolsRuntime) => {
+                        const { output, skippedOnPage } =
+                            await toolsRuntime.listCustomChartTypesPage({
+                                page: args.page ?? 1,
+                            });
+                        const { pagination, results } = output;
+                        const listed = results
+                            .map((match) => `${match.name} (${match.slug})`)
+                            .join(', ');
+                        const pageSummary = (() => {
+                            if (pagination.totalResults === 0)
+                                return 'This project has no custom chart types.';
+                            if (results.length === 0)
+                                return `No custom chart types on page ${pagination.page} of ${pagination.totalPageCount}.`;
+                            return `Page ${pagination.page} of ${pagination.totalPageCount} (${pagination.totalResults} custom chart types): ${listed}. Slots, options and versions are in structuredContent.`;
+                        })();
+                        const skipped =
+                            skippedOnPage > 0
+                                ? ` ${skippedOnPage} chart type(s) on this page could not be read and were left out.`
+                                : '';
+                        return {
+                            summary: `${pageSummary}${skipped}`,
+                            structuredContent: output,
+                        };
+                    },
+                ),
+        );
+    }
+
+    /** Sample rows from a completed run_metric_query, the way Chart Studio shares them. */
+    private async getSampleRows(
+        ctx: McpProtocolContext,
+        projectUuid: string,
+        agentUuid: string | undefined,
+        queryUuid: string | null,
+        toolName: string,
+    ): Promise<SampleRowsOutcome> {
+        if (queryUuid === null) {
+            return { kind: 'not_requested' };
+        }
+        if (!this.lightdashConfig.appRuntime.sampleDataEnabled) {
+            return { kind: 'sample_data_off' };
+        }
+        const { user, account } = McpService.getAccount(ctx);
+        const reader = buildResultReader(
+            account,
+            QueryExecutionContext.MCP_RUN_SQL,
+            QuerySurface.MCP,
+        );
+        const queryHistory = await this.asyncQueryService.getAsyncQueryHistory({
+            account,
+            reader,
+            projectUuid,
+            queryUuid,
+        });
+        if (
+            queryHistory.context !== QueryExecutionContext.MCP_RUN_METRIC_QUERY
+        ) {
+            throw new ParameterError(
+                `${toolName} currently supports queries started by run_metric_query`,
+            );
+        }
+        if (queryHistory.status !== QueryHistoryStatus.READY) {
+            throw new UnexpectedServerError(
+                queryHistory.error ??
+                    `Query is not ready to share sample rows; current status is ${queryHistory.status}`,
+            );
+        }
+        await this.assertMetricQueryInEffectiveScope({
+            ctx,
+            user,
+            projectUuid,
+            agentUuid,
+            metricQuery: queryHistory.metricQuery,
+        });
+        const { rows, fields, displayTimezone } =
+            await this.asyncQueryService.getRawAsyncQueryResults({
+                account,
+                reader,
+                projectUuid,
+                queryUuid,
+                maxRows: MAX_APP_VIZ_BUILD_SAMPLE_ROWS,
+                aiAccessOnly: true,
+            });
+        const sampleRows = buildVizBuildSampleRows(
+            rows,
+            fields,
+            displayTimezone,
+        );
+        return sampleRows.length > 0
+            ? { kind: 'shared', sampleRows }
+            : { kind: 'no_rows' };
     }
 
     private registerIterateDataAppTool(): void {
@@ -1785,6 +2136,8 @@ export class McpService extends BaseService {
                             status: version.status,
                             error: version.error,
                             statusMessage: version.statusMessage,
+                            isCustomChartType:
+                                app.template === DATA_APP_VIZ_TEMPLATE,
                         });
                         return {
                             summary:
@@ -1848,6 +2201,7 @@ export class McpService extends BaseService {
                         projectUuid,
                     );
                 } catch (e) {
+                    if (e instanceof AiAccessRefusedError) throw e;
                     const errorMessage =
                         e instanceof Error ? e.message : String(e);
                     this.logger.error(
@@ -1991,6 +2345,7 @@ export class McpService extends BaseService {
         McpService.requireTasksCapability(extra);
         const ctx = getMcpContext(extra);
         const { user } = McpService.getAccount(ctx);
+        assertOAuthMcpToolAllowed(user.ability, McpToolName.RUN_AI_WRITEBACK);
 
         let outcome: {
             cancelled: boolean;
@@ -2294,22 +2649,95 @@ export class McpService extends BaseService {
         );
     }
 
-    private static formatToolError(error: unknown, prefix: string): string {
-        if (error instanceof AiAccessRefusedError && error.refusal.connectUrl) {
-            return `${error.refusal.message}\n\nConnect your agent (once per person): ${error.refusal.connectUrl}\nThen run the same call again.`;
+    private withAbsoluteRefusalSettingsUrl(
+        refusal: AiAccessRefusal,
+        projectUuid: string | null,
+    ): AiAccessRefusal {
+        const settingsUrl =
+            refusal.settingsUrl ??
+            getAiAccessRefusalSettingsUrl(refusal.reason, projectUuid);
+        return {
+            ...refusal,
+            settingsUrl: settingsUrl
+                ? new URL(settingsUrl, this.lightdashConfig.siteUrl).href
+                : null,
+            ...(refusal.explanationUrl
+                ? {
+                      explanationUrl: new URL(
+                          refusal.explanationUrl,
+                          this.lightdashConfig.siteUrl,
+                      ).href,
+                  }
+                : {}),
+            ...(refusal.blockers
+                ? {
+                      blockers: refusal.blockers.map((blocker) => ({
+                          ...blocker,
+                          settingsUrl: blocker.settingsUrl
+                              ? new URL(
+                                    blocker.settingsUrl,
+                                    this.lightdashConfig.siteUrl,
+                                ).href
+                              : null,
+                      })),
+                  }
+                : {}),
+        };
+    }
+
+    private buildToolError(
+        error: unknown,
+        prefix: string | null,
+        projectUuid: string | null,
+    ): CallToolResult {
+        if (error instanceof AiAccessRefusedError) {
+            const refusal = this.withAbsoluteRefusalSettingsUrl(
+                error.refusal,
+                projectUuid,
+            );
+            const message = refusal.connectUrl
+                ? `${refusal.message}\n\nConnect your agent (once per person): ${refusal.connectUrl}\nThen run the same call again.`
+                : `${prefix && !refusal.settingsUrl ? `${prefix}: ` : ''}${refusal.message}`;
+            const details = getAgentPermissionRefusalDetails(refusal);
+            return {
+                isError: true,
+                content: [
+                    {
+                        type: 'text',
+                        text: `${message}${refusal.settingsUrl ? `\n\n${refusal.settingsUrl}` : ''}${details ? `\n\n${details}` : ''}`,
+                    },
+                ],
+                structuredContent: { refusal },
+            };
         }
-        return `${prefix}: ${error instanceof Error ? error.message : String(error)}`;
+        return {
+            isError: true,
+            content: [
+                {
+                    type: 'text',
+                    text: `${prefix}: ${error instanceof Error ? error.message : String(error)}`,
+                },
+            ],
+        };
     }
 
     private async getAgentConnectionStatus(
         ctx: McpProtocolContext,
         requestedProjectUuid: string,
+        resourceRequest = false,
     ) {
         const { account } = McpService.getAccount(ctx);
         const projectUuid = await this.resolveToolProjectUuid(
             ctx,
             requestedProjectUuid,
         );
+        if (resourceRequest) {
+            await this.assertAgentResourceAllowed(
+                ctx,
+                McpToolName.CONNECT_AGENT,
+                { projectUuid },
+            );
+        }
         const access = await this.aiAccessService.getMyAccess(
             account,
             projectUuid,
@@ -2320,6 +2748,7 @@ export class McpService extends BaseService {
                 status: 'connected' as const,
                 message: 'Your agent is connected to the warehouse.',
                 connectUrl: null,
+                settingsUrl: null,
                 expiresAt: access.expiresAt?.toISOString() ?? null,
             };
         }
@@ -2330,8 +2759,9 @@ export class McpService extends BaseService {
             return {
                 status: 'not_required' as const,
                 message:
-                    "Agents run as the project's AI service account. Nothing to connect.",
+                    "Agents run as the project's shared agent account. Nothing to connect.",
                 connectUrl: null,
+                settingsUrl: null,
                 expiresAt: null,
             };
         }
@@ -2350,14 +2780,16 @@ export class McpService extends BaseService {
                 status: 'needs_sign_in' as const,
                 message: access.refusal.message,
                 connectUrl: connectUrl?.href ?? null,
+                settingsUrl: null,
                 expiresAt: null,
             };
         }
         if (access.requirementSource === null) {
             return {
                 status: 'not_required' as const,
-                message: 'Agent connection is not required for this project.',
+                message: 'Agent sign-in is not required for this project.',
                 connectUrl: null,
+                settingsUrl: null,
                 expiresAt: null,
             };
         }
@@ -2365,8 +2797,14 @@ export class McpService extends BaseService {
             status: 'unavailable' as const,
             message:
                 access.refusal?.message ??
-                'Agent connection is unavailable for this project.',
+                'Agent sign-in is not available for this project.',
             connectUrl: null,
+            settingsUrl: access.refusal
+                ? this.withAbsoluteRefusalSettingsUrl(
+                      access.refusal,
+                      projectUuid,
+                  ).settingsUrl
+                : null,
             expiresAt: null,
         };
     }
@@ -2387,6 +2825,7 @@ export class McpService extends BaseService {
                 documentsEnabled: false,
                 agentIdentityEnabled: false,
                 dataAppBuildsEnabled: false,
+                customChartTypesEnabled: false,
             },
         },
     ): void {
@@ -2406,7 +2845,7 @@ export class McpService extends BaseService {
                         args.projectUuid,
                     );
                     return mcpConnectAgentTool.result.structured(
-                        `${status.status}: ${status.message}${status.connectUrl ? ` ${status.connectUrl}` : ''}`,
+                        `${status.status}: ${status.message}${status.connectUrl ? ` ${status.connectUrl}` : ''}${status.settingsUrl ? ` ${status.settingsUrl}` : ''}`,
                         status,
                     );
                 },
@@ -2425,6 +2864,7 @@ export class McpService extends BaseService {
                     const status = await this.getAgentConnectionStatus(
                         getMcpContext(extra),
                         requestedProjectUuid,
+                        true,
                     );
                     return {
                         contents: [
@@ -2621,6 +3061,7 @@ export class McpService extends BaseService {
                             args.agentUuid,
                         );
                     } catch (error) {
+                        if (error instanceof AiAccessRefusedError) throw error;
                         return mcpGrepFieldsTool.result.error(
                             `Error grepping fields: ${getErrorMessage(error)}`,
                         );
@@ -2669,6 +3110,7 @@ export class McpService extends BaseService {
                             args.agentUuid,
                         );
                     } catch (error) {
+                        if (error instanceof AiAccessRefusedError) throw error;
                         return mcpGetMetadataTool.result.error(
                             `Error getting metadata: ${getErrorMessage(error)}`,
                         );
@@ -3579,6 +4021,11 @@ export class McpService extends BaseService {
                             await this.asyncQueryService.getRawAsyncQueryResults(
                                 {
                                     account,
+                                    reader: buildResultReader(
+                                        account,
+                                        QueryExecutionContext.MCP_RUN_SQL,
+                                        QuerySurface.MCP,
+                                    ),
                                     projectUuid,
                                     queryUuid,
                                     aiAccessOnly: true,
@@ -3608,18 +4055,11 @@ export class McpService extends BaseService {
                         this.logger.error(
                             `[McpService] Error in run_metric_query tool: ${errorMessage}`,
                         );
-                        return {
-                            content: [
-                                {
-                                    type: 'text' as const,
-                                    text: McpService.formatToolError(
-                                        e,
-                                        'Error running metric query',
-                                    ),
-                                },
-                            ],
-                            isError: true,
-                        };
+                        return this.buildToolError(
+                            e,
+                            'Error running metric query',
+                            projectUuid,
+                        );
                     }
                 },
             );
@@ -3661,6 +4101,11 @@ export class McpService extends BaseService {
                                 await this.asyncQueryService.getAsyncQueryHistory(
                                     {
                                         account,
+                                        reader: buildResultReader(
+                                            account,
+                                            QueryExecutionContext.MCP_RUN_SQL,
+                                            QuerySurface.MCP,
+                                        ),
                                         projectUuid,
                                         queryUuid: renderTool.queryUuid,
                                     },
@@ -3702,6 +4147,11 @@ export class McpService extends BaseService {
                                 await this.asyncQueryService.getRawAsyncQueryResults(
                                     {
                                         account,
+                                        reader: buildResultReader(
+                                            account,
+                                            QueryExecutionContext.MCP_RUN_SQL,
+                                            QuerySurface.MCP,
+                                        ),
                                         projectUuid,
                                         queryUuid: renderTool.queryUuid,
                                         aiAccessOnly: true,
@@ -3724,18 +4174,11 @@ export class McpService extends BaseService {
                             this.logger.error(
                                 `[McpService] Error in render_chart tool: ${errorMessage}`,
                             );
-                            return {
-                                content: [
-                                    {
-                                        type: 'text' as const,
-                                        text: McpService.formatToolError(
-                                            e,
-                                            'Error rendering chart',
-                                        ),
-                                    },
-                                ],
-                                isError: true,
-                            };
+                            return this.buildToolError(
+                                e,
+                                'Error rendering chart',
+                                projectUuid,
+                            );
                         }
                     },
                 ),
@@ -3800,25 +4243,14 @@ export class McpService extends BaseService {
                     if (
                         'structuredContent' in result &&
                         'refusal' in result.structuredContent &&
-                        isAiAccessRefusal(result.structuredContent.refusal) &&
-                        result.structuredContent.refusal.connectUrl
+                        isAiAccessRefusal(result.structuredContent.refusal)
                     ) {
                         const { refusal } = result.structuredContent;
-                        return {
-                            content: [
-                                {
-                                    type: 'text' as const,
-                                    text: McpService.formatToolError(
-                                        new AiAccessRefusedError(
-                                            refusal.reason,
-                                            refusal,
-                                        ),
-                                        'Error searching field values',
-                                    ),
-                                },
-                            ],
-                            isError: true,
-                        };
+                        return this.buildToolError(
+                            new AiAccessRefusedError(refusal.reason, refusal),
+                            'Error searching field values',
+                            projectUuid,
+                        );
                     }
 
                     return this.buildScopedResponse(
@@ -3930,18 +4362,11 @@ export class McpService extends BaseService {
                         this.logger.error(
                             `[McpService] Error in run_sql tool: ${errorMessage}`,
                         );
-                        return {
-                            content: [
-                                {
-                                    type: 'text' as const,
-                                    text: McpService.formatToolError(
-                                        e,
-                                        'Error running SQL query',
-                                    ),
-                                },
-                            ],
-                            isError: true,
-                        };
+                        return this.buildToolError(
+                            e,
+                            'Error running SQL query',
+                            projectUuid,
+                        );
                     }
                 },
             );
@@ -3971,6 +4396,11 @@ export class McpService extends BaseService {
                         let queryHistory =
                             await this.asyncQueryService.getAsyncQueryHistory({
                                 account,
+                                reader: buildResultReader(
+                                    account,
+                                    QueryExecutionContext.MCP_RUN_SQL,
+                                    QuerySurface.MCP,
+                                ),
                                 projectUuid,
                                 queryUuid: args.queryUuid,
                             });
@@ -4079,6 +4509,11 @@ export class McpService extends BaseService {
                                 await this.asyncQueryService.getRawAsyncQueryResults(
                                     {
                                         account,
+                                        reader: buildResultReader(
+                                            account,
+                                            QueryExecutionContext.MCP_RUN_SQL,
+                                            QuerySurface.MCP,
+                                        ),
                                         projectUuid,
                                         queryUuid: args.queryUuid,
                                         aiAccessOnly: true,
@@ -4113,18 +4548,11 @@ export class McpService extends BaseService {
                         this.logger.error(
                             `[McpService] Error in get_query_result tool: ${errorMessage}`,
                         );
-                        return {
-                            content: [
-                                {
-                                    type: 'text' as const,
-                                    text: McpService.formatToolError(
-                                        e,
-                                        'Error getting query result',
-                                    ),
-                                },
-                            ],
-                            isError: true,
-                        };
+                        return this.buildToolError(
+                            e,
+                            'Error getting query result',
+                            projectUuid,
+                        );
                     }
                 },
             );
@@ -4197,12 +4625,17 @@ export class McpService extends BaseService {
 
         this.registerSkillToolHandlers();
 
-        this.registerRunAiWritebackTool();
+        this.registerRunAiWritebackTool(options.agentIdentityEnabled);
         this.registerGetAiWritebackStatusTool();
         this.registerAiWritebackTaskHandlers();
 
         if (options.dataAppBuildsEnabled) {
             this.registerDataAppBuildTools();
+        }
+
+        if (options.customChartTypesEnabled) {
+            this.registerFindCustomChartTypesTool();
+            this.registerListCustomChartTypesTool();
         }
 
         this.mcpServer.registerPrompt(
@@ -4622,6 +5055,19 @@ export class McpService extends BaseService {
         options: McpServerToolOptions,
     ): Promise<McpServer> {
         const newServer = this.buildMcpServer(options.featureAvailability);
+        const scopeContext = options.req.user
+            ? getOAuthScopeContext(options.req.user.ability)
+            : null;
+        if (scopeContext?.mode === 'enforce') {
+            const registerTool = newServer.registerTool.bind(newServer);
+            newServer.registerTool = (name, config, handler) => {
+                const tool = registerTool(name, config, handler);
+                if (!isMcpToolAllowed(scopeContext.scopes, name)) {
+                    tool.disable();
+                }
+                return tool;
+            };
+        }
 
         // Temporarily swap the server to register handlers on the new instance.
         // Kept synchronous so concurrent createServer calls can't observe each
@@ -4869,7 +5315,11 @@ export class McpService extends BaseService {
                         mimeType: resource.mimeType,
                         size: resource.size,
                     },
-                    async () => {
+                    async (_uri, extra) => {
+                        await this.assertAgentResourceAllowed(
+                            getMcpContext(extra),
+                            McpToolName.READ_SKILL_RESOURCE,
+                        );
                         const text =
                             await this.aiAgentToolsService.getMcpSkillResourceBody(
                                 resource.uri,
@@ -4977,6 +5427,89 @@ export class McpService extends BaseService {
         );
     }
 
+    public async recordDisabledToolRefusal(
+        user: SessionUser,
+        request: unknown,
+        availability: McpServerToolOptions['featureAvailability'],
+    ): Promise<void> {
+        if (
+            !getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            })
+        )
+            return;
+        const call = z
+            .object({
+                method: z.literal('tools/call'),
+                params: z.object({
+                    name: z.enum([
+                        'create_content',
+                        'edit_content',
+                        'create_scheduled_delivery',
+                        'generate_data_app',
+                        'iterate_data_app',
+                        'create_custom_chart_type',
+                        'iterate_custom_chart_type',
+                    ]),
+                }),
+            })
+            .safeParse(request);
+        if (!call.success) return;
+        const dataApp = [
+            'generate_data_app',
+            'iterate_data_app',
+            'create_custom_chart_type',
+            'iterate_custom_chart_type',
+        ].includes(call.data.params.name);
+        if (dataApp) {
+            if (availability.dataAppBuildsEnabled) return;
+            const { enabled } = await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.EnableDataApps,
+            });
+            await recordAgentRefusal({
+                model: this.agentActionLogModel,
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                projectUuid: null,
+                objectType: 'app',
+                action: [
+                    'iterate_data_app',
+                    'iterate_custom_chart_type',
+                ].includes(call.data.params.name)
+                    ? 'update'
+                    : 'create',
+                policyLayer: enabled ? 'casl' : 'organization_setting',
+                reasonCode: enabled
+                    ? 'data_app_create_forbidden'
+                    : 'data_apps_disabled',
+            });
+            return;
+        }
+        const scheduler = call.data.params.name === 'create_scheduled_delivery';
+        if (
+            scheduler
+                ? availability.scheduledDeliveryEnabled
+                : availability.mcpContentWritesEnabled
+        )
+            return;
+        const settingEnabled = await this.isMcpContentWritesEnabled(user);
+        await recordAgentRefusal({
+            model: this.agentActionLogModel,
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid,
+            projectUuid: null,
+            objectType: scheduler ? 'scheduler' : 'content',
+            action:
+                call.data.params.name === 'edit_content' ? 'update' : 'create',
+            policyLayer: settingEnabled ? 'casl' : 'organization_setting',
+            reasonCode: settingEnabled
+                ? 'content_write_forbidden'
+                : 'mcp_content_writes_disabled',
+        });
+    }
+
     public async isContentToolsEnabled(user: SessionUser): Promise<boolean> {
         const settingEnabled = await this.isMcpContentWritesEnabled(user);
         return (
@@ -5018,6 +5551,17 @@ export class McpService extends BaseService {
         return this.aiAgentToolsService.canGenerateDataApp({
             user,
             projectUuid: headerProjectUuid,
+        });
+    }
+
+    /** Chart Studio's gallery gate; coarse without a pinned project, like isDataAppBuildsEnabled. */
+    public async isCustomChartTypesEnabled(
+        user: SessionUser,
+        headerProjectUuid?: string,
+    ): Promise<boolean> {
+        return this.aiAgentToolsService.canUseCustomChartTypes({
+            user,
+            projectUuid: headerProjectUuid ?? null,
         });
     }
 
@@ -5177,15 +5721,21 @@ export class McpService extends BaseService {
                         mimeType: resource.mimeType,
                         size: resource.size,
                     },
-                    async () => ({
-                        contents: [
-                            {
-                                uri: resource.uri,
-                                mimeType: resource.mimeType,
-                                text: body,
-                            },
-                        ],
-                    }),
+                    async (_uri, extra) => {
+                        await this.assertAgentResourceAllowed(
+                            getMcpContext(extra),
+                            McpToolName.READ_SKILL_RESOURCE,
+                        );
+                        return {
+                            contents: [
+                                {
+                                    uri: resource.uri,
+                                    mimeType: resource.mimeType,
+                                    text: body,
+                                },
+                            ],
+                        };
+                    },
                 );
             });
             if (custom.length > 0) {
@@ -5214,15 +5764,21 @@ export class McpService extends BaseService {
                         mimeType: 'application/json',
                         size: Buffer.byteLength(index, 'utf8'),
                     },
-                    async () => ({
-                        contents: [
-                            {
-                                uri: 'skill://custom/index.json',
-                                mimeType: 'application/json',
-                                text: index,
-                            },
-                        ],
-                    }),
+                    async (_uri, extra) => {
+                        await this.assertAgentResourceAllowed(
+                            getMcpContext(extra),
+                            McpToolName.READ_SKILL_RESOURCE,
+                        );
+                        return {
+                            contents: [
+                                {
+                                    uri: 'skill://custom/index.json',
+                                    mimeType: 'application/json',
+                                    text: index,
+                                },
+                            ],
+                        };
+                    },
                 );
             }
         } catch (error) {
@@ -5283,6 +5839,115 @@ export class McpService extends BaseService {
             });
     }
 
+    private static agentWriteTarget(
+        toolName: string,
+    ): { objectType: string; action: string } | null {
+        switch (toolName) {
+            case 'create_content':
+                return { objectType: 'content', action: 'create' };
+            case 'edit_content':
+                return { objectType: 'content', action: 'update' };
+            case 'create_scheduled_delivery':
+                return { objectType: 'scheduler', action: 'create' };
+            case 'generate_data_app':
+            case 'create_custom_chart_type':
+                return { objectType: 'app', action: 'create' };
+            case 'iterate_data_app':
+            case 'iterate_custom_chart_type':
+                return { objectType: 'app', action: 'update' };
+            case 'run_ai_writeback':
+                return { objectType: 'ai_writeback_run', action: 'enqueue' };
+            default:
+                return null;
+        }
+    }
+
+    private async assertAgentResourceAllowed(
+        context: McpProtocolContext,
+        toolName: McpToolName,
+        toolArgs: object = {},
+    ): Promise<void> {
+        try {
+            await this.assertAgentToolAllowed(context, toolName, toolArgs);
+        } catch (error) {
+            if (!(error instanceof AiAccessRefusedError)) throw error;
+            throw new McpError(
+                ErrorCode.InvalidRequest,
+                error.refusal.message,
+                {
+                    refusal: error.refusal,
+                },
+            );
+        }
+    }
+
+    private async assertAgentToolAllowed(
+        context: McpProtocolContext,
+        toolName: string,
+        toolArgs: unknown,
+    ): Promise<void> {
+        const authentication = context.authInfo?.extra.account?.authentication;
+        if (!mcpAgentPermissionsApply(authentication?.type)) {
+            return;
+        }
+        const { account, organizationUuid } = McpService.getAccount(context);
+        const permissions =
+            context.authInfo?.extra.getAgentPermissionService?.();
+        if (!permissions) {
+            throw new ForbiddenError('Agent permission service is unavailable');
+        }
+        const bound =
+            account.authentication.type === 'oauth' &&
+            account.authentication.agentConnectionGrant != null;
+        const request = await permissions.loadRequest(organizationUuid);
+        if (!bound && request.enforcementMode === 'off') return;
+        if (!bound && request.enforcementMode === 'admission') {
+            await permissions.assertOperationWithRequest({
+                request,
+                operation: {
+                    account,
+                    organizationUuid,
+                    projectUuid: null,
+                    kind: 'mcp_tool',
+                    key: toolName,
+                    surface: AgentActorSurface.MCP,
+                },
+            });
+            return;
+        }
+        const explicitScope = mcpToolScopeArgsSchema.safeParse(toolArgs);
+        const pinnedProjectUuid = context.authInfo?.extra.headerProjectUuid;
+        if (
+            explicitScope.success &&
+            pinnedProjectUuid &&
+            explicitScope.data.projectUuid !== pinnedProjectUuid
+        ) {
+            throw new ForbiddenError(
+                'The requested project does not match the pinned MCP project',
+            );
+        }
+        const projectUuid = explicitScope.success
+            ? explicitScope.data.projectUuid
+            : ((await this.getProjectUuidFromContext(context)) ?? null);
+        assertAgentConnectionGrantOperation(account, {
+            kind: 'mcp',
+            key: toolName,
+            projectUuids: projectUuid === null ? [] : [projectUuid],
+        });
+        if (request.enforcementMode === 'off') return;
+        await permissions.assertOperationWithRequest({
+            request,
+            operation: {
+                account,
+                organizationUuid,
+                projectUuid,
+                kind: 'mcp_tool',
+                key: toolName,
+                surface: AgentActorSurface.MCP,
+            },
+        });
+    }
+
     private wrapToolCallback<
         Callback extends (...cbArgs: AnyType[]) => AnyType,
     >(toolName: string, handler: Callback): Callback {
@@ -5292,11 +5957,18 @@ export class McpService extends BaseService {
             const [toolArgs, extra] =
                 cbArgs.length > 1 ? [cbArgs[0], cbArgs[1]] : [{}, cbArgs[0]];
             const startedAt = Date.now();
+            let toolAllowed = false;
             try {
+                const context = getMcpContext(extra);
+                const user = context.authInfo?.extra.user;
+                if (user) {
+                    assertOAuthMcpToolAllowed(user.ability, toolName);
+                }
+                await this.assertAgentToolAllowed(context, toolName, toolArgs);
+                toolAllowed = true;
                 const result = await handler(...cbArgs);
                 const legacyContextInjected =
-                    getMcpContext(extra).authInfo?.extra
-                        .legacyContextInjected === true;
+                    context.authInfo?.extra.legacyContextInjected === true;
                 const response =
                     legacyContextInjected && Array.isArray(result?.content)
                         ? {
@@ -5333,6 +6005,38 @@ export class McpService extends BaseService {
                 });
                 return response;
             } catch (error) {
+                if (error instanceof AiAccessRefusedError) {
+                    const context = getMcpContext(extra);
+                    const scope = mcpToolScopeArgsSchema.safeParse(toolArgs);
+                    const projectUuid = scope.success
+                        ? scope.data.projectUuid
+                        : (context.authInfo?.extra.headerProjectUuid ?? null);
+                    this.recordToolCall({
+                        toolName,
+                        toolArgs: toolAllowed ? toolArgs : {},
+                        extra,
+                        durationMs: Date.now() - startedAt,
+                        status: 'error',
+                        errorMessage: error.refusal.message,
+                    });
+                    return this.buildToolError(error, null, projectUuid);
+                }
+                const target = McpService.agentWriteTarget(toolName);
+                if (target && isAgentActionForbiddenError(error)) {
+                    const { user, organizationUuid } = McpService.getAccount(
+                        getMcpContext(extra),
+                    );
+                    await recordAgentRefusal({
+                        model: this.agentActionLogModel,
+                        userUuid: user.userUuid,
+                        organizationUuid,
+                        projectUuid: null,
+                        ...target,
+                        policyLayer: 'casl',
+                        reasonCode: 'content_write_forbidden',
+                        error,
+                    });
+                }
                 this.recordToolCall({
                     toolName,
                     toolArgs,

@@ -1647,6 +1647,15 @@ export type LightdashConfig = {
     lightdashSecrets: LightdashSecrets;
     secureCookies: boolean;
     cookieSameSite?: 'lax' | 'none';
+    /**
+     * The API server polls Docker Hub for the newest published tag so the UI
+     * can show an "update available" badge. `LIGHTDASH_DISABLE_UPDATE_CHECK=true`
+     * stops every call to hub.docker.com, for deployments with an egress
+     * allowlist.
+     */
+    updateCheck: {
+        enabled: boolean;
+    };
     security: {
         contentSecurityPolicy: {
             reportOnly: boolean;
@@ -1723,6 +1732,8 @@ export type LightdashConfig = {
         acquireConnectionTimeout: number | undefined;
         readinessProbeTtlMs: number;
         allowMissingMigrations: boolean;
+        logTransactionRollbacks: boolean;
+        slowTransactionThresholdMs: number | null;
     };
     allowMultiOrgs: boolean;
     maxPayloadSize: string;
@@ -2125,7 +2136,6 @@ export type S3Config = {
     useCredentialsFrom?: string[];
 };
 export type AppRuntimeConfig = {
-    enabled: boolean;
     /** Coding agent invoked by the data-app generation pipeline. */
     dataAppCodingAgent: 'claude' | 'codex';
     dataAppGatewayBaseUrls: {
@@ -2197,6 +2207,15 @@ export type AppRuntimeConfig = {
      * `lightdash-ai-writeback:local`).
      */
     sandboxAiWritebackDockerImage: string;
+    /**
+     * OCI image the `docker` sandbox provider launches python query runners
+     * from. Built locally from sandboxes/python-runner (e.g.
+     * `lightdash-python-runner:local`).
+     */
+    sandboxPythonDockerImage: string;
+    /** E2B template name+tag for the python query runner sandbox. */
+    e2bPythonTemplateName: string;
+    e2bPythonTemplateTag: string;
     /** OCI image used by managed project onboarding with the Docker provider. */
     sandboxAgentOnboardingDockerImage: string;
     /**
@@ -2354,6 +2373,16 @@ export type AppRuntimeConfig = {
      * the UI. Env var `LIGHTDASH_APP_SAMPLE_DATA_ENABLED`; defaults to `true`.
      */
     sampleDataEnabled: boolean;
+    /**
+     * When false, nothing may capture an image of a running data app or attach
+     * a file to a build anywhere on the instance: the prompt-bar screenshot
+     * button, file attachments sent to the coding agent, manual and automatic
+     * thumbnails, and the Slack build-outcome image are all disabled and
+     * hidden. This is the ceiling for the per-org "allow screenshots and
+     * attachments" setting — an org can turn captures off, never back on past
+     * it. Env var `LIGHTDASH_APP_CAPTURES_ENABLED`; defaults to `true`.
+     */
+    capturesEnabled: boolean;
     /** Instance-wide hostname@CIDR exceptions for external connections only. */
     externalConnectionAllowedPrivateHostCidrs: AllowedPrivateHostCidrs;
     chartRegistry: {
@@ -2494,9 +2523,28 @@ type AuthSnowflakeConfig = {
     clientSecret: string | undefined;
     authorizationEndpoint: string | undefined;
     tokenEndpoint: string | undefined;
-    account?: string;
     callbackPath: string;
     loginPath: string;
+};
+
+const parseSnowflakeAiTestAccountUrlOrigin = (): string | null => {
+    const value = process.env.SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN;
+    if (!value) return null;
+    try {
+        if (new URL(value).origin !== value || value.includes('*'))
+            throw new Error('Invalid origin');
+        return value;
+    } catch {
+        throw new ParseError(
+            'SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN must be an exact URL origin with no wildcard, trailing slash, path, credentials, query or fragment.',
+        );
+    }
+};
+
+type AuthSnowflakeAiConfig = {
+    loginPath: string;
+    callbackPath: string;
+    testAccountUrlOrigin: string | null;
 };
 
 type AuthDatabricksConfig = {
@@ -2526,7 +2574,7 @@ export type AuthConfig = {
     microsoftManagedSignIn: AuthMicrosoftManagedSignInConfig;
     oidc: AuthOidcConfig;
     snowflake: AuthSnowflakeConfig;
-    snowflakeAi: AuthSnowflakeConfig;
+    snowflakeAi: AuthSnowflakeAiConfig;
     databricks: AuthDatabricksConfig;
     pat: {
         enabled: boolean;
@@ -2644,7 +2692,6 @@ const parseChartRegistryAllowInsecure = (): boolean => {
 };
 
 const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
-    const enabled = process.env.APPS_RUNTIME_ENABLED === 'true';
     const dataAppCodingAgent = (() => {
         const value = process.env.APPS_CODING_AGENT?.trim().toLowerCase();
         if (!value || value === 'claude') return 'claude' as const;
@@ -2701,7 +2748,6 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         process.env.LAMBDA_MICROVM_REGION || 'eu-west-1';
 
     return {
-        enabled,
         dataAppCodingAgent,
         dataAppGatewayBaseUrls: {
             anthropic: process.env.DATA_APPS_ANTHROPIC_BASE_URL
@@ -2750,6 +2796,13 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         sandboxAiWritebackDockerImage:
             process.env.SANDBOX_AI_WRITEBACK_DOCKER_IMAGE ||
             'lightdash-ai-writeback:local',
+        sandboxPythonDockerImage:
+            process.env.SANDBOX_PYTHON_DOCKER_IMAGE ||
+            'lightdash-python-runner:local',
+        e2bPythonTemplateName:
+            process.env.E2B_PYTHON_TEMPLATE_NAME || 'lightdash-python-runner',
+        e2bPythonTemplateTag:
+            process.env.E2B_PYTHON_TEMPLATE_TAG ?? (VERSION as string),
         sandboxAgentOnboardingDockerImage:
             process.env.SANDBOX_AGENT_ONBOARDING_DOCKER_IMAGE ||
             'lightdash-agent-onboarding:local',
@@ -2848,6 +2901,7 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             'false',
         sampleDataEnabled:
             process.env.LIGHTDASH_APP_SAMPLE_DATA_ENABLED !== 'false',
+        capturesEnabled: process.env.LIGHTDASH_APP_CAPTURES_ENABLED !== 'false',
         externalConnectionAllowedPrivateHostCidrs: (() => {
             const name =
                 'APP_RUNTIME_EXTERNAL_CONNECTION_ALLOWED_PRIVATE_HOST_CIDRS';
@@ -2941,6 +2995,8 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
         'organization-warehouse-credentials',
     ],
     ['METRIC_DASHBOARD_FILTERS_ENABLED', 'metric-dashboard-filters'],
+    // Self-hosted switch for data apps; forces the flag on.
+    ['APPS_RUNTIME_ENABLED', 'enable-data-apps'],
 ];
 
 const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
@@ -3238,6 +3294,14 @@ export const parseConfig = (): LightdashConfig => {
         );
     }
 
+    const snowflakeAiTestAccountUrlOrigin =
+        parseSnowflakeAiTestAccountUrlOrigin();
+    if (snowflakeAiTestAccountUrlOrigin !== null) {
+        console.warn(
+            'WARNING: SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN is set. This account URL allowance is for tests only.',
+        );
+    }
+
     return {
         mode,
         mobile: {
@@ -3374,6 +3438,9 @@ export const parseConfig = (): LightdashConfig => {
         lightdashSecret,
         lightdashSecrets,
         secureCookies,
+        updateCheck: {
+            enabled: process.env.LIGHTDASH_DISABLE_UPDATE_CHECK !== 'true',
+        },
         cookiesMaxAgeHours: getIntegerFromEnvironmentVariable(
             'COOKIES_MAX_AGE_HOURS',
         ),
@@ -3392,6 +3459,12 @@ export const parseConfig = (): LightdashConfig => {
                 10_000,
             allowMissingMigrations:
                 process.env.ALLOW_MISSING_MIGRATIONS === 'true',
+            logTransactionRollbacks:
+                process.env.PG_LOG_TRANSACTION_ROLLBACKS === 'true',
+            slowTransactionThresholdMs:
+                getIntegerFromEnvironmentVariable(
+                    'PG_SLOW_TRANSACTION_THRESHOLD_MS',
+                ) || null,
         },
         auth: {
             mobileLogin: {
@@ -3503,14 +3576,9 @@ export const parseConfig = (): LightdashConfig => {
                 callbackPath: '/oauth/redirect/snowflake',
             },
             snowflakeAi: {
-                account: process.env.SNOWFLAKE_AI_OAUTH_ACCOUNT,
-                clientId: process.env.SNOWFLAKE_AI_OAUTH_CLIENT_ID,
-                clientSecret: process.env.SNOWFLAKE_AI_OAUTH_CLIENT_SECRET,
-                authorizationEndpoint:
-                    process.env.SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT,
-                tokenEndpoint: process.env.SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT,
                 loginPath: '/login/snowflake-ai',
                 callbackPath: SNOWFLAKE_AI_CALLBACK_PATH,
+                testAccountUrlOrigin: snowflakeAiTestAccountUrlOrigin,
             },
             databricks: {
                 clientId: process.env.DATABRICKS_OAUTH_CLIENT_ID,

@@ -1,14 +1,21 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    AgentActorSurface,
+    AgentCapability,
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     AnyType,
     DbtProjectType,
     DbtVersionOptionLatest,
     DEFAULT_PROJECT_DBT_SOURCE_NAME,
     FeatureFlags,
     ForbiddenError,
+    getAgentCapabilityRefusalMessage,
     getLatestSupportDbtVersion,
+    InvalidUser,
     ParameterError,
     PullRequestProvider,
+    PullRequestState,
     RequestMethod,
     SupportedDbtVersions,
     WarehouseTypes,
@@ -16,8 +23,13 @@ import {
     type MemberAbility,
     type SessionUser,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
+import * as BitbucketClient from '../../../clients/bitbucket/Bitbucket';
 import {
+    createBranch,
     createPullRequest,
+    createSignedCommitOnBranch,
     getAppBotIdentity,
     getAuthenticatedUser,
     getBranchHeadSha,
@@ -29,8 +41,17 @@ import {
     listReposAccessibleToInstallation,
     listReposAccessibleToUser,
     revokeInstallationToken,
+    updatePullRequest,
 } from '../../../clients/github/Github';
+import * as GitlabClient from '../../../clients/gitlab/Gitlab';
+import Logger from '../../../logging/logger';
+import { evaluate as evaluateAgentPolicy } from '../../../services/AgentPermissionService/AgentPermissionService';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../../../services/AiAccessService/agentActionTestUtils.mock';
 import { AiDecisionClient } from '../ai/decisions/AiDecisionClient';
+import { AiAgentService } from '../AiAgentService/AiAgentService';
 import { createSandboxManager, SandboxManager } from '../SandboxRuntime';
 import {
     AiWritebackService,
@@ -52,6 +73,7 @@ import {
     PR_TITLE_CLOSE,
     PR_TITLE_OPEN,
     PR_TITLE_PATH,
+    WAREHOUSE_SKILL_PATH,
 } from './constants';
 import { DeniedPathError } from './deniedPaths';
 import {
@@ -63,9 +85,22 @@ import {
     WritebackThreadPrClosedError,
 } from './errors';
 import { BitbucketProvider } from './providers/BitbucketProvider';
+import { GithubProvider } from './providers/GithubProvider';
+import { GitlabProvider } from './providers/GitlabProvider';
+import type { GitProvider, OpenPullRequestArgs } from './providers/GitProvider';
+import type { GitConnection, GitInstallation } from './types';
 
 // Stub e2b and the GitHub/octokit client so the run() tests drive fakes and the
 // unit tests below never reach the real SDKs.
+vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
+    AiAgentMcpRuntimeClient: class {},
+}));
+
+vi.mock('@sentry/node', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@sentry/node')>()),
+    captureException: vi.fn(),
+}));
+
 vi.mock('e2b', () => ({
     Sandbox: { create: vi.fn(), connect: vi.fn() },
     CommandExitError: class CommandExitError extends Error {},
@@ -135,6 +170,13 @@ const LANDED = { commitSha: 'sha-7', additions: 5, deletions: 2 };
 const buildService = (overrides: Record<string, AnyType> = {}) => {
     const { projectModel: projectModelOverride, ...otherOverrides } = overrides;
     return new AiWritebackService({
+        agentPermissionService: {
+            isManaged: vi.fn().mockResolvedValue(false),
+            assertOperation: vi.fn().mockResolvedValue(undefined),
+            loadRequest: vi.fn().mockResolvedValue({}),
+            assertOperationWithRequest: vi.fn().mockResolvedValue(undefined),
+        },
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         lightdashConfig: { gitlab: {} } as AnyType,
         analytics: { track: vi.fn() } as AnyType,
         orgAiCopilotConfigResolver: {
@@ -146,6 +188,9 @@ const buildService = (overrides: Record<string, AnyType> = {}) => {
                 dbtSourceUuid: PRIMARY_SOURCE_UUID,
                 dbtSourceName: DEFAULT_PROJECT_DBT_SOURCE_NAME,
             }),
+            getDbtSourceWarehouseType: vi
+                .fn()
+                .mockResolvedValue(WarehouseTypes.POSTGRES),
             ...projectModelOverride,
         } as AnyType,
         // Default: no additional dbt sources, so the single-source (primary)
@@ -196,8 +241,18 @@ const fakeProvider = (overrides: AnyType = {}): AnyType => ({
     resolveConnection: vi.fn(),
     resolveInstallation: vi.fn(),
     getCloneTarget: vi.fn(),
-    openPullRequest: vi.fn().mockResolvedValue({ prUrl: PR_7, ...LANDED }),
-    updatePullRequest: vi.fn().mockResolvedValue({ ...LANDED }),
+    openPullRequest: vi.fn(
+        async ({ onRemoteCommitted }: OpenPullRequestArgs) => {
+            await onRemoteCommitted();
+            return { prUrl: PR_7, ...LANDED };
+        },
+    ),
+    updatePullRequest: vi.fn(
+        async ({ onRemoteCommitted }: OpenPullRequestArgs) => {
+            await onRemoteCommitted();
+            return { ...LANDED };
+        },
+    ),
     adoptPullRequest: vi.fn(),
     ...overrides,
 });
@@ -273,6 +328,55 @@ describe('AiWritebackService.applyAgentChanges', () => {
             prDescription: 'D',
             ...args,
         });
+
+    test.each(['fresh', 'adopted'] as const)(
+        'keeps one %s mutation record after bookkeeping fails',
+        async (kind) => {
+            const insert = vi.fn().mockResolvedValue(undefined);
+            const service = buildService({
+                agentActionLogModel: { insert } as AnyType,
+            });
+            const provider = fakeProvider();
+            const user = {
+                userUuid: 'u1',
+                organizationUuid: ORG,
+            } as SessionUser;
+            vi.spyOn(
+                service as AnyType,
+                'recordWritebackPullRequest',
+            ).mockRejectedValue(new Error('bookkeeping unavailable'));
+            await expect(
+                withAgentActionScope(
+                    user,
+                    AgentActorSurface.IN_APP_AGENT,
+                    true,
+                    () =>
+                        applyAgentChanges(service, provider, {
+                            hasChanges: true,
+                            user,
+                            workstream: 'general',
+                            aiWritebackRunUuid: 'run-1',
+                            adoptedPr:
+                                kind === 'adopted'
+                                    ? adoptedPullRequest(PR_9)
+                                    : null,
+                        }),
+                ),
+            ).rejects.toThrow('bookkeeping unavailable');
+            expect(
+                kind === 'adopted'
+                    ? provider.updatePullRequest
+                    : provider.openPullRequest,
+            ).toHaveBeenCalledOnce();
+            expect(insert).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    object_type: 'ai_writeback_run',
+                    object_uuid: 'run-1',
+                    outcome: 'allowed',
+                }),
+            );
+        },
+    );
 
     it('does nothing when the agent made no changes (one-shot)', async () => {
         const { service, provider, open, update } = setup();
@@ -509,6 +613,85 @@ describe('AiWritebackService.prepareTurn', () => {
             dbtVersion: SupportedDbtVersions.V1_9,
         });
     });
+
+    it.each([
+        [PRIMARY_SOURCE_UUID, WarehouseTypes.POSTGRES],
+        ['bigquery-source', WarehouseTypes.BIGQUERY],
+    ])(
+        'uses the selected source %s warehouse for skills and the dbt prompt',
+        async (dbtSourceUuid, warehouseType) => {
+            const project = githubProject();
+            const getDbtSourceWarehouseType = vi
+                .fn()
+                .mockResolvedValue(WarehouseTypes.BIGQUERY);
+            const service = buildService({
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: true }),
+                },
+                projectModel: {
+                    get: vi.fn().mockResolvedValue(project),
+                    getDbtSourceWarehouseType,
+                },
+                projectDbtSourcesModel: {
+                    getSources: vi.fn().mockResolvedValue([
+                        {
+                            projectDbtSourceUuid: 'bigquery-source',
+                            name: 'BigQuery dbt',
+                            warehouseConnectionUuid: 'bigquery-connection',
+                            dbtConnection: {
+                                ...project.dbtConnection,
+                                repository: 'acme/bigquery-analytics',
+                            },
+                        },
+                    ]),
+                },
+            });
+            const prepared = await (service as AnyType).prepareTurn({
+                user: userWithOrg(true),
+                projectUuid: 'p1',
+                prompt: 'add a revenue metric',
+                dbtSourceUuid,
+                mode: 'dbt-writeback',
+            });
+            expect(prepared).toMatchObject({
+                kind: 'run',
+                turn: { warehouseType },
+            });
+            if (dbtSourceUuid === PRIMARY_SOURCE_UUID) {
+                expect(getDbtSourceWarehouseType).not.toHaveBeenCalled();
+            } else {
+                expect(getDbtSourceWarehouseType).toHaveBeenCalledWith(
+                    'p1',
+                    dbtSourceUuid,
+                );
+            }
+            const sandbox = { files: { write: vi.fn() } };
+            await (service as AnyType).prepareWarehouseSkills(
+                sandbox,
+                prepared.turn,
+            );
+            expect(sandbox.files.write).toHaveBeenCalledWith(
+                WAREHOUSE_SKILL_PATH,
+                expect.stringContaining(`name: warehouse-${warehouseType}`),
+            );
+            vi.spyOn(service as AnyType, 'gatherRepoContext').mockResolvedValue(
+                null,
+            );
+            vi.spyOn(service as AnyType, 'prepareProfiles').mockResolvedValue(
+                false,
+            );
+            const setup = await (service as AnyType)
+                .dbtWritebackConfig()
+                .buildAgentSetup({
+                    sandbox,
+                    turn: prepared.turn,
+                    repository: prepared.turn.gitConnection.repo,
+                });
+            expect(setup.systemPrompt).toContain(
+                `warehouse is **${warehouseType}**`,
+            );
+        },
+    );
 
     it('resolves the project `latest` dbt version to the newest supported version', async () => {
         const service = buildService({
@@ -1342,6 +1525,7 @@ describe('AiWritebackService dbt source targeting', () => {
         } as AnyType;
 
         const result = await service.run({
+            agentPermissionsApply: false,
             user,
             projectUuid: 'p1',
             prompt: 'add a new metric',
@@ -1401,6 +1585,7 @@ describe('AiWritebackService dbt source targeting', () => {
         // the run must already have been moved off 'pending' by that point so the
         // stale sweeper treats it as a worker's, not a queued one's.
         await service.run({
+            agentPermissionsApply: false,
             user,
             projectUuid: 'p1',
             prompt: 'add a metric',
@@ -1422,6 +1607,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         return {
             userUuid: 'u1',
             organizationUuid: ORG,
+            abilityRules: [],
             organizationName: 'Acme',
             organizationCreatedAt: new Date(),
             role: 'admin',
@@ -1503,15 +1689,14 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 sandboxAiWritebackDockerImage: 'lightdash-ai-writeback:local',
             },
             ai: { copilot: { providers: { anthropic } } },
-            aiWriteback: { legacyAnthropicApiKey: null },
+            aiWriteback: {
+                legacyAnthropicApiKey: null,
+                codingAgentMaxRepoSizeMb: 100,
+            },
         }) as AnyType;
 
-    const runService = (
-        sandbox: AnyType,
-        extraRunArgs: Record<string, AnyType> = {},
-        serviceOverrides: Record<string, AnyType> = {},
-    ) => {
-        const service = buildService({
+    const buildRunService = (serviceOverrides: Record<string, AnyType> = {}) =>
+        buildService({
             lightdashConfig: configWithAnthropic({ apiKey: 'anthropic-key' }),
             featureFlagModel: {
                 get: vi.fn().mockResolvedValue({ enabled: true }),
@@ -1519,6 +1704,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             projectModel: {
                 get: vi.fn().mockResolvedValue({
                     organizationUuid: ORG,
+                    projectUuid: 'p1',
                     name: 'Analytics',
                     dbtConnection: {
                         type: DbtProjectType.GITHUB,
@@ -1550,11 +1736,39 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             } as AnyType,
             ...serviceOverrides,
         });
-        return service.run({
+
+    const runPipelineService = (
+        _sandbox: AnyType,
+        extraRunArgs: Record<string, AnyType> = {},
+        serviceOverrides: Record<string, AnyType> = {},
+    ) =>
+        buildRunService(serviceOverrides).runPipeline({
+            aiWritebackRunUuid: 'run-1',
+            organizationUuid: ORG,
+            userUuid: 'u1',
+            projectUuid: 'p1',
+            prompt: 'add a revenue metric',
+            source: 'mcp',
+            agentPermissionsApply: true,
+            ...extraRunArgs,
+        });
+
+    const runService = (
+        sandbox: AnyType,
+        extraRunArgs: Record<string, AnyType> = {},
+        serviceOverrides: Record<string, AnyType> = {},
+    ) => {
+        const service = buildRunService(serviceOverrides);
+        return (
+            extraRunArgs.repoTarget
+                ? service.runEditRepo.bind(service)
+                : service.run.bind(service)
+        )({
             user: permittedUser(),
             projectUuid: 'p1',
             prompt: 'add a revenue metric',
             source: 'web',
+            agentPermissionsApply: true,
             ...extraRunArgs,
         });
     };
@@ -1612,6 +1826,495 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             .fn()
             .mockResolvedValue({ dbtConnection: connection }),
     });
+
+    it.each(['run', 'pipeline'] as const)(
+        'unmarked %s opens a PR with the baseline reads and remote calls',
+        async (entry) => {
+            const sandbox = fakeSandbox(0, true);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            const userModel = {
+                findSessionUserAndOrgByUuid: vi
+                    .fn()
+                    .mockResolvedValue(permittedUser()),
+                findServiceAccountByUserUuid: vi.fn(),
+            };
+            const featureFlagModel = {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            };
+            const agentPermissionService = {
+                isManaged: vi.fn().mockResolvedValue(false),
+                assertOperation: vi.fn(),
+                loadRequest: vi.fn(),
+                assertOperationWithRequest: vi.fn(),
+            };
+            const markReady = vi.fn().mockResolvedValue(true);
+            await (entry === 'pipeline' ? runPipelineService : runService)(
+                sandbox,
+                {},
+                {
+                    userModel,
+                    featureFlagModel,
+                    agentPermissionService,
+                    aiWritebackRunModel: {
+                        findByUuid: vi
+                            .fn()
+                            .mockResolvedValue({ status: 'pending' }),
+                        updateStageIfInProgress: vi
+                            .fn()
+                            .mockResolvedValue(true),
+                        claimForFinalize: vi.fn().mockResolvedValue(true),
+                        markReady,
+                        markError: vi.fn().mockResolvedValue(true),
+                    },
+                },
+            );
+            expect(userModel.findSessionUserAndOrgByUuid).toHaveBeenCalledTimes(
+                entry === 'pipeline' ? 1 : 0,
+            );
+            expect(
+                userModel.findServiceAccountByUserUuid,
+            ).not.toHaveBeenCalled();
+            expect(featureFlagModel.get).not.toHaveBeenCalled();
+            expect(agentPermissionService.isManaged).toHaveBeenCalledTimes(1);
+            expect(agentPermissionService.loadRequest).not.toHaveBeenCalled();
+            expect(
+                agentPermissionService.assertOperationWithRequest,
+            ).not.toHaveBeenCalled();
+            expect(
+                agentPermissionService.assertOperation,
+            ).not.toHaveBeenCalled();
+            expect(createBranch).toHaveBeenCalledTimes(1);
+            expect(createSignedCommitOnBranch).toHaveBeenCalledTimes(1);
+            expect(createPullRequest).toHaveBeenCalledTimes(1);
+            expect(updatePullRequest).not.toHaveBeenCalled();
+            expect(fakeSandboxProvider.create).toHaveBeenCalledTimes(1);
+            if (entry === 'pipeline')
+                expect(markReady).toHaveBeenCalledWith(
+                    'run-1',
+                    expect.objectContaining({ prUrl: PR_7 }),
+                );
+        },
+    );
+
+    it.each([
+        'inactive',
+        'removed',
+        'policy',
+        'capability',
+        'malformed',
+        'organization',
+        'project',
+        'check error',
+    ] as const)(
+        'marked pipeline refuses %s at start and settles the run before sandbox or Git',
+        async (reason) => {
+            const sandbox = fakeSandbox(0, true);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            const userModel = {
+                findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue({
+                    ...permittedUser(),
+                    isActive: reason !== 'inactive',
+                }),
+                findServiceAccountByUserUuid: vi
+                    .fn()
+                    .mockResolvedValue(undefined),
+            };
+            if (reason === 'removed')
+                userModel.findSessionUserAndOrgByUuid.mockRejectedValue(
+                    new InvalidUser('No membership'),
+                );
+            const agentPermissionService = {
+                isManaged: vi.fn().mockResolvedValue(false),
+                assertOperation: vi.fn(),
+                loadRequest: vi.fn().mockResolvedValue({}),
+                assertOperationWithRequest: vi.fn(async ({ operation }) => {
+                    if (
+                        reason === 'policy' ||
+                        (reason === 'capability' &&
+                            operation.key === 'run_ai_writeback')
+                    ) {
+                        throw new AiAccessRefusedError(
+                            AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+                        );
+                    }
+                }),
+            };
+            if (reason === 'check error')
+                agentPermissionService.loadRequest.mockRejectedValue(
+                    new Error('db unavailable'),
+                );
+            const markError = vi.fn().mockResolvedValue(true);
+            const marker = {
+                userUuid: 'u1',
+                organizationUuid: ORG,
+                projectUuid: 'p1',
+            };
+            const pipeline = runPipelineService(
+                sandbox,
+                {
+                    agentWork:
+                        reason === 'malformed'
+                            ? {}
+                            : {
+                                  ...marker,
+                                  ...(reason === 'organization'
+                                      ? { organizationUuid: 'other' }
+                                      : {}),
+                                  ...(reason === 'project'
+                                      ? { projectUuid: 'other' }
+                                      : {}),
+                              },
+                },
+                {
+                    userModel,
+                    agentPermissionService,
+                    aiWritebackRunModel: {
+                        findByUuid: vi
+                            .fn()
+                            .mockResolvedValue({ status: 'pending' }),
+                        markError,
+                    },
+                },
+            );
+            if (reason === 'check error')
+                await expect(pipeline).rejects.toThrow(
+                    'The access check could not run. This task stopped.',
+                );
+            else await pipeline;
+            expect(markError).toHaveBeenCalledWith(
+                'run-1',
+                reason === 'check error'
+                    ? 'The access check could not run. This task stopped.'
+                    : 'Agent access changed. This task stopped. Ask an admin to review agent access.',
+            );
+            expect(fakeSandboxProvider.create).not.toHaveBeenCalled();
+            expect(sandbox.commands.run).not.toHaveBeenCalled();
+            expect(createBranch).not.toHaveBeenCalled();
+            expect(getInstallationToken).not.toHaveBeenCalled();
+            expect(createSignedCommitOnBranch).not.toHaveBeenCalled();
+            expect(createPullRequest).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([true, false])(
+        'marked pipeline adds four checks for a new GitHub PR (policy=%s), including inactive service accounts',
+        async (agentPermissionsApply) => {
+            const sandbox = fakeSandbox(0, true);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            const userModel = {
+                findSessionUserAndOrgByUuid: vi
+                    .fn()
+                    .mockResolvedValue({ ...permittedUser(), isActive: false }),
+                findServiceAccountByUserUuid: vi
+                    .fn()
+                    .mockResolvedValue({ organizationUuid: ORG }),
+            };
+            const agentPermissionService = {
+                isManaged: vi.fn().mockResolvedValue(false),
+                assertOperation: vi.fn(),
+                loadRequest: vi.fn().mockResolvedValue({}),
+                assertOperationWithRequest: vi
+                    .fn()
+                    .mockResolvedValue(undefined),
+            };
+            await runPipelineService(
+                sandbox,
+                {
+                    agentPermissionsApply,
+                    agentWork: {
+                        userUuid: 'u1',
+                        organizationUuid: ORG,
+                        projectUuid: 'p1',
+                    },
+                },
+                {
+                    userModel,
+                    agentPermissionService,
+                    aiWritebackRunModel: {
+                        findByUuid: vi
+                            .fn()
+                            .mockResolvedValue({ status: 'pending' }),
+                        updateStageIfInProgress: vi
+                            .fn()
+                            .mockResolvedValue(true),
+                        claimForFinalize: vi.fn().mockResolvedValue(true),
+                        markReady: vi.fn().mockResolvedValue(true),
+                        markError: vi.fn(),
+                    },
+                },
+            );
+            expect(userModel.findSessionUserAndOrgByUuid).toHaveBeenCalledTimes(
+                5,
+            );
+            expect(
+                userModel.findServiceAccountByUserUuid,
+            ).toHaveBeenCalledTimes(4);
+            expect(agentPermissionService.loadRequest).toHaveBeenCalledTimes(
+                agentPermissionsApply ? 4 : 0,
+            );
+            expect(
+                agentPermissionService.assertOperationWithRequest,
+            ).toHaveBeenCalledTimes(agentPermissionsApply ? 4 : 0);
+            if (agentPermissionsApply)
+                expect(
+                    agentPermissionService.assertOperationWithRequest,
+                ).toHaveBeenCalledWith({
+                    request: {},
+                    operation: expect.objectContaining({
+                        kind: 'mcp_tool',
+                        key: 'run_ai_writeback',
+                        surface: AgentActorSurface.MCP,
+                    }),
+                });
+            expect(createPullRequest).toHaveBeenCalledTimes(1);
+        },
+    );
+
+    it('marked MCP work without agent policy refuses an inactive person without loading policy', async () => {
+        const sandbox = fakeSandbox(0, true);
+        const loadRequest = vi.fn();
+        const markError = vi.fn().mockResolvedValue(true);
+        await runPipelineService(
+            sandbox,
+            {
+                agentPermissionsApply: false,
+                agentWork: {
+                    userUuid: 'u1',
+                    organizationUuid: ORG,
+                    projectUuid: 'p1',
+                },
+            },
+            {
+                userModel: {
+                    findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue({
+                        ...permittedUser(),
+                        isActive: false,
+                    }),
+                    findServiceAccountByUserUuid: vi.fn(),
+                },
+                agentPermissionService: { loadRequest },
+                aiWritebackRunModel: {
+                    findByUuid: vi
+                        .fn()
+                        .mockResolvedValue({ status: 'pending' }),
+                    markError,
+                },
+            },
+        );
+        expect(markError).toHaveBeenCalledWith(
+            'run-1',
+            'Agent access changed. This task stopped. Ask an admin to review agent access.',
+        );
+        expect(loadRequest).not.toHaveBeenCalled();
+        expect(fakeSandboxProvider.create).not.toHaveBeenCalled();
+    });
+
+    it.each([2, 3, 4])(
+        'marked GitHub pipeline stops at publication check %s and cleans up the failed run',
+        async (failAt) => {
+            const sandbox = fakeSandbox(0, true);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            const markError = vi.fn().mockResolvedValue(true);
+            const markReady = vi.fn();
+            const capture = vi.mocked(Sentry.captureException);
+            capture.mockClear();
+            let checks = 0;
+            const loadRequest = vi.fn(async () => {
+                checks += 1;
+                if (checks === failAt)
+                    throw new AiAccessRefusedError(
+                        AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+                    );
+                return {};
+            });
+            const analytics = { track: vi.fn() };
+            await runPipelineService(
+                sandbox,
+                {
+                    agentWork: {
+                        userUuid: 'u1',
+                        organizationUuid: ORG,
+                        projectUuid: 'p1',
+                    },
+                },
+                {
+                    userModel: {
+                        findSessionUserAndOrgByUuid: vi
+                            .fn()
+                            .mockResolvedValue(permittedUser()),
+                        findServiceAccountByUserUuid: vi.fn(),
+                    },
+                    agentPermissionService: {
+                        isManaged: vi.fn().mockResolvedValue(false),
+                        loadRequest,
+                        assertOperationWithRequest: vi.fn(),
+                    },
+                    aiWritebackRunModel: {
+                        findByUuid: vi
+                            .fn()
+                            .mockResolvedValue({ status: 'pending' }),
+                        updateStageIfInProgress: vi
+                            .fn()
+                            .mockResolvedValue(true),
+                        claimForFinalize: vi.fn().mockResolvedValue(true),
+                        markError,
+                        markReady,
+                    },
+                    analytics,
+                },
+            );
+            expect(markError).toHaveBeenCalledWith(
+                'run-1',
+                'Agent access changed. This task stopped. Ask an admin to review agent access.',
+            );
+            expect(markReady).not.toHaveBeenCalled();
+            expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
+            expect(createBranch).toHaveBeenCalledTimes(failAt > 2 ? 1 : 0);
+            expect(createSignedCommitOnBranch).toHaveBeenCalledTimes(
+                failAt > 3 ? 1 : 0,
+            );
+            expect(createPullRequest).not.toHaveBeenCalled();
+            expect(capture).not.toHaveBeenCalled();
+            expect(analytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({ event: 'ai_writeback.failed' }),
+            );
+            capture.mockClear();
+        },
+    );
+
+    it.each([false, true])(
+        'runs the real dbt edit job through the real engine and GitHub provider (marked=%s)',
+        async (marked) => {
+            const sandbox = fakeSandbox(0, true);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            const userModel = {
+                findSessionUserAndOrgByUuid: vi
+                    .fn()
+                    .mockResolvedValue(permittedUser()),
+                findServiceAccountByUserUuid: vi.fn(),
+            };
+            const agentPermissionService = {
+                isManaged: vi.fn().mockResolvedValue(false),
+                assertOperation: vi.fn(),
+                loadRequest: vi.fn().mockResolvedValue({}),
+                assertOperationWithRequest: vi.fn(),
+            };
+            const featureFlagModel = { get: vi.fn() };
+            const featureFlagService = {
+                get: vi.fn().mockResolvedValue({ enabled: false }),
+            };
+            const agentActionLogModel = { insert: vi.fn() };
+            const runRow = {
+                status: 'pending',
+                organization_uuid: ORG,
+                project_uuid: 'p1',
+                pr_url: null,
+            };
+            const markReady = vi.fn(async () => {
+                runRow.status = 'ready';
+                return true;
+            });
+            const aiWritebackService = buildRunService({
+                userModel,
+                agentPermissionService,
+                featureFlagModel,
+                agentActionLogModel,
+                aiWritebackThreadModel: {
+                    findByAiThreadUuid: vi.fn().mockResolvedValue(null),
+                    findActiveWorkstreamByRepo: vi.fn().mockResolvedValue(null),
+                    acquireWorkstreamLock: vi.fn().mockResolvedValue({
+                        acquired: true,
+                        release: vi.fn(),
+                    }),
+                    create: vi.fn(),
+                },
+                aiWritebackRunModel: {
+                    findByUuid: vi.fn(async () => runRow),
+                    updateStageIfInProgress: vi.fn().mockResolvedValue(true),
+                    claimForFinalize: vi.fn().mockResolvedValue(true),
+                    markReady,
+                    markError: vi.fn(),
+                },
+            });
+            const updateToolResult = vi.fn();
+            const agentService = new AiAgentService({
+                userModel,
+                agentPermissionService,
+                agentActionLogModel,
+                featureFlagService,
+                aiWritebackService,
+                aiAgentModel: {
+                    findWebAppPrompt: vi.fn().mockResolvedValue({
+                        threadUuid: 'thread-1',
+                        promptUuid: 'prompt-1',
+                        organizationUuid: ORG,
+                        projectUuid: 'p1',
+                    }),
+                    hasToolResult: vi.fn().mockResolvedValue(true),
+                    updateToolResult,
+                },
+                aiAgentReviewClassifierModel: {
+                    findReviewRemediationByWorkThread: vi
+                        .fn()
+                        .mockResolvedValue(null),
+                },
+            } as AnyType);
+            await agentService.runEditDbtProjectPipeline({
+                aiWritebackRunUuid: 'run-1',
+                aiThreadUuid: 'thread-1',
+                organizationUuid: ORG,
+                projectUuid: 'p1',
+                userUuid: 'u1',
+                promptUuid: 'prompt-1',
+                toolCallId: 'tool-1',
+                isSlackPrompt: false,
+                writebackPrompt: 'Add a metric',
+                source: 'web',
+                prUrl: null,
+                startNewPullRequest: null,
+                suppressWritebackPreview: true,
+                ...(marked
+                    ? {
+                          agentWork: {
+                              userUuid: 'u1',
+                              organizationUuid: ORG,
+                              projectUuid: 'p1',
+                          },
+                      }
+                    : {}),
+            });
+            expect(updateToolResult).toHaveBeenCalledExactlyOnceWith(
+                'prompt-1',
+                'tool-1',
+                expect.objectContaining({
+                    metadata: expect.objectContaining({
+                        status: 'success',
+                        prUrl: PR_7,
+                    }),
+                }),
+            );
+            expect(userModel.findSessionUserAndOrgByUuid).toHaveBeenCalledTimes(
+                marked ? 6 : 1,
+            );
+            expect(
+                userModel.findServiceAccountByUserUuid,
+            ).not.toHaveBeenCalled();
+            expect(featureFlagModel.get).not.toHaveBeenCalled();
+            expect(featureFlagService.get).toHaveBeenCalledTimes(1);
+            expect(agentPermissionService.isManaged).toHaveBeenCalledTimes(1);
+            expect(agentPermissionService.loadRequest).toHaveBeenCalledTimes(
+                marked ? 5 : 0,
+            );
+            expect(
+                agentPermissionService.assertOperationWithRequest,
+            ).toHaveBeenCalledTimes(marked ? 5 : 0);
+            expect(agentActionLogModel.insert).not.toHaveBeenCalled();
+            expect(createBranch).toHaveBeenCalledTimes(1);
+            expect(createSignedCommitOnBranch).toHaveBeenCalledTimes(1);
+            expect(createPullRequest).toHaveBeenCalledTimes(1);
+            expect(markReady).toHaveBeenCalledTimes(1);
+        },
+    );
 
     it('clones the configured Bitbucket branch with the project token and creates no PR without changes', async () => {
         const sandbox = fakeSandbox(0, false);
@@ -1773,6 +2476,1069 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             expect(sandbox.files.write).not.toHaveBeenCalled();
             expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
             expect(createPullRequest).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([
+        {
+            agentPermissionsApply: true,
+            source: 'mcp',
+            change: 'deleted',
+            diff: 'D\0models/old.sql\0',
+            mode: 'managed',
+            capabilities: [AgentCapability.DbtWriteback],
+            denied: true,
+        },
+        {
+            agentPermissionsApply: true,
+            source: 'mcp',
+            change: 'deleted',
+            diff: 'D\0models/old.sql\0',
+            mode: 'managed',
+            capabilities: [
+                AgentCapability.Delete,
+                AgentCapability.DbtWriteback,
+            ],
+            denied: false,
+        },
+        {
+            agentPermissionsApply: true,
+            source: 'mcp',
+            change: 'deleted without dbt',
+            diff: 'D\0models/old.sql\0',
+            mode: 'managed',
+            capabilities: [AgentCapability.Delete],
+            denied: true,
+        },
+        {
+            agentPermissionsApply: true,
+            source: 'mcp',
+            change: 'modified/added',
+            diff: 'M\0models/old.sql\0A\0models/new.sql\0',
+            mode: 'managed',
+            capabilities: [AgentCapability.DbtWriteback],
+            denied: false,
+        },
+        {
+            agentPermissionsApply: true,
+            source: 'mcp',
+            change: 'renamed',
+            diff: 'D\0models/old.sql\0A\0models/new.sql\0',
+            mode: 'managed',
+            capabilities: [AgentCapability.DbtWriteback],
+            denied: true,
+        },
+        {
+            agentPermissionsApply: true,
+            source: 'mcp',
+            change: 'deleted',
+            diff: 'D\0models/old.sql\0',
+            mode: 'legacy',
+            capabilities: [],
+            denied: false,
+        },
+        {
+            agentPermissionsApply: true,
+            source: 'mcp',
+            change: 'deleted',
+            diff: 'D\0models/old.sql\0',
+            mode: 'off',
+            capabilities: [],
+            denied: false,
+        },
+        {
+            agentPermissionsApply: false,
+            source: 'mcp',
+            change: 'deleted by MCP PAT',
+            diff: 'D\0models/old.sql\0',
+            mode: 'managed',
+            capabilities: [AgentCapability.DbtWriteback],
+            denied: false,
+        },
+        {
+            agentPermissionsApply: false,
+            source: 'changeset',
+            change: 'deleted by changeset',
+            diff: 'D\0models/old.sql\0',
+            mode: 'managed',
+            capabilities: [],
+            denied: false,
+        },
+    ] as const)(
+        '$mode $change checks Delete + dbt before commits (denied=$denied)',
+        async ({
+            diff,
+            mode,
+            capabilities,
+            denied,
+            agentPermissionsApply,
+            source,
+        }) => {
+            const sandbox = fakeSandbox(0, true);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            const runCommand = sandbox.commands.run.getMockImplementation();
+            const inspect = vi
+                .fn()
+                .mockResolvedValue({ exitCode: 0, stdout: diff });
+            sandbox.commands.run.mockImplementation(
+                (command: string, options: unknown) =>
+                    command.includes(
+                        'diff --cached --name-status --no-renames -z',
+                    )
+                        ? inspect(command)
+                        : runCommand(command, options),
+            );
+            const assertOperation = vi.fn(
+                async (operation: { kind: string; key: string }) => {
+                    expect(operation).toMatchObject({
+                        kind: 'tool_effect',
+                        key: 'editRepo.delete_file',
+                        organizationUuid: ORG,
+                        projectUuid: 'p1',
+                        account: { user: { id: 'u1' } },
+                    });
+                    const denial = evaluateAgentPolicy(
+                        {
+                            mode,
+                            capabilities: new Set(capabilities),
+                            allowedCapabilities: null,
+                            allowedGroupUuids: null,
+                            version: 1,
+                            editableCustomRoleUuid: null,
+                        },
+                        {
+                            requiredCapabilities: [
+                                AgentCapability.Delete,
+                                AgentCapability.DbtWriteback,
+                            ],
+                            projectUuid: 'p1',
+                        },
+                    );
+                    if (denial)
+                        throw new AiAccessRefusedError(denial.reason, {
+                            ...denial,
+                            message: getAgentCapabilityRefusalMessage(
+                                denial.reason,
+                                denial.policyLayer,
+                                denial.capability,
+                            ),
+                            operation: operation.key,
+                        });
+                },
+            );
+            const markError = vi.fn().mockResolvedValue(true);
+            const claimForFinalize = vi.fn().mockResolvedValue(true);
+            const isManaged = vi.fn().mockResolvedValue(mode === 'managed');
+            const result = runService(
+                sandbox,
+                { aiWritebackRunUuid: 'run-1', agentPermissionsApply, source },
+                {
+                    agentPermissionService: {
+                        isManaged,
+                        assertOperation,
+                    },
+                    aiWritebackRunModel: {
+                        updateStageIfInProgress: vi
+                            .fn()
+                            .mockResolvedValue(true),
+                        updateStage: vi.fn().mockResolvedValue(undefined),
+                        markError,
+                        markReady: vi.fn().mockResolvedValue(true),
+                        claimForFinalize,
+                        recordRemoteCommitted: vi.fn().mockResolvedValue(true),
+                    },
+                },
+            );
+            if (denied) {
+                await expect(result).rejects.toMatchObject({
+                    refusal: {
+                        reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                        policyLayer: 'org_ceiling',
+                        operation: 'editRepo.delete_file',
+                    },
+                });
+                expect(markError).toHaveBeenCalledWith(
+                    'run-1',
+                    expect.stringContaining(
+                        "Your organization's agent permissions do not allow",
+                    ),
+                );
+                expect(claimForFinalize).toHaveBeenCalledOnce();
+                expect(createBranch).not.toHaveBeenCalled();
+                expect(sandbox.git.commit).not.toHaveBeenCalled();
+                expect(createSignedCommitOnBranch).not.toHaveBeenCalled();
+                expect(createPullRequest).not.toHaveBeenCalled();
+                expect(updatePullRequest).not.toHaveBeenCalled();
+                expect(
+                    sandbox.commands.run.mock.calls
+                        .map(([command]: [string]) => command)
+                        .join('\n'),
+                ).not.toMatch(/git push/);
+            } else {
+                await expect(result).resolves.toMatchObject({ prUrl: PR_7 });
+                expect(
+                    createSignedCommitOnBranch,
+                ).toHaveBeenCalledExactlyOnceWith(
+                    expect.objectContaining({
+                        fileChanges: expect.objectContaining({
+                            deletions: diff.startsWith('D')
+                                ? [{ path: 'models/old.sql' }]
+                                : [],
+                        }),
+                    }),
+                );
+                expect(createBranch).toHaveBeenCalledOnce();
+                if (mode === 'managed' && agentPermissionsApply) {
+                    expect(
+                        sandbox.git.add.mock.invocationCallOrder[0],
+                    ).toBeLessThan(
+                        vi.mocked(createBranch).mock.invocationCallOrder[0],
+                    );
+                } else {
+                    expect(
+                        vi.mocked(createBranch).mock.invocationCallOrder[0],
+                    ).toBeLessThan(sandbox.git.add.mock.invocationCallOrder[0]);
+                }
+            }
+            expect(inspect).toHaveBeenCalledTimes(
+                mode === 'managed' && agentPermissionsApply && !denied ? 2 : 1,
+            );
+            expect(assertOperation).toHaveBeenCalledTimes(
+                mode === 'managed' &&
+                    agentPermissionsApply &&
+                    diff.startsWith('D')
+                    ? 1
+                    : 0,
+            );
+            expect(isManaged).toHaveBeenCalledTimes(
+                agentPermissionsApply ? 1 : 0,
+            );
+            if (agentPermissionsApply)
+                expect(isManaged.mock.invocationCallOrder[0]).toBeLessThan(
+                    claimForFinalize.mock.invocationCallOrder[0],
+                );
+            expect(
+                sandbox.commands.run.mock.calls.filter(([command]: [string]) =>
+                    command.includes('--name-status'),
+                ),
+            ).toHaveLength(
+                mode === 'managed' && agentPermissionsApply && !denied ? 2 : 1,
+            );
+            expect(sandbox.git.add).toHaveBeenCalledOnce();
+            expect(
+                sandbox.commands.run.mock.calls.filter(([command]: [string]) =>
+                    command.includes('diff HEAD --name-status'),
+                ),
+            ).toHaveLength(0);
+            expect(fakeSandboxProvider.destroy).toHaveBeenCalledOnce();
+        },
+    );
+
+    it.each([
+        {
+            change: 'out-of-scope deletion',
+            deletedPath: 'README.md',
+            renamed: false,
+            general: false,
+            denied: false,
+        },
+        {
+            change: 'out-of-scope deletion with a quoted project path',
+            deletedPath: 'README.md',
+            renamed: false,
+            general: false,
+            denied: false,
+            projectPath: "analytics team's/dbt",
+        },
+        {
+            change: 'cached in-scope deletion restored by staging',
+            deletedPath: 'README.md',
+            renamed: false,
+            general: false,
+            denied: false,
+            restoredCachedDeletion: true,
+        },
+        {
+            change: 'in-scope deletion',
+            deletedPath: 'analytics/dbt/models/old.sql',
+            renamed: false,
+            general: false,
+            denied: true,
+        },
+        {
+            change: 'in-scope rename',
+            deletedPath: 'analytics/dbt/models/old.sql',
+            renamed: true,
+            general: false,
+            denied: true,
+        },
+        {
+            change: 'general repository deletion',
+            deletedPath: 'README.md',
+            renamed: false,
+            general: true,
+            denied: true,
+        },
+    ])(
+        'checks the committed scope for $change',
+        async ({
+            deletedPath,
+            renamed,
+            general,
+            denied,
+            projectPath = 'analytics/dbt',
+            restoredCachedDeletion = false,
+        }) => {
+            const sandbox = fakeSandbox(0, true);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            const changes = [
+                { status: 'D', path: deletedPath },
+                { status: 'M', path: `${projectPath}/models/current.sql` },
+                ...(renamed
+                    ? [{ status: 'A', path: 'analytics/dbt/models/new.sql' }]
+                    : []),
+            ];
+            let staged = restoredCachedDeletion
+                ? `D\0${projectPath}/models/current.sql\0`
+                : '';
+            sandbox.git.add.mockImplementation(
+                async (
+                    _cwd: string,
+                    options: { all?: boolean; files?: string[] },
+                ) => {
+                    staged = changes
+                        .filter(
+                            ({ path }) =>
+                                options.all ||
+                                options.files?.some(
+                                    (scope) =>
+                                        path === scope ||
+                                        path.startsWith(`${scope}/`),
+                                ),
+                        )
+                        .map(({ status, path }) => `${status}\0${path}\0`)
+                        .join('');
+                },
+            );
+            const runCommand = sandbox.commands.run.getMockImplementation();
+            const inspect = vi.fn(async (command: string) => {
+                expect(command).toBe(
+                    'git -C /home/user/repo diff --cached --name-status --no-renames -z',
+                );
+                expect(sandbox.git.add).toHaveBeenCalledOnce();
+                return { exitCode: 0, stdout: staged };
+            });
+            sandbox.commands.run.mockImplementation(
+                (command: string, options: unknown) => {
+                    if (
+                        command.includes(
+                            'diff --cached --name-status --no-renames -z',
+                        )
+                    )
+                        return inspect(command);
+                    return runCommand(command, options);
+                },
+            );
+            const refusal = new AiAccessRefusedError(
+                AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                {
+                    policyLayer: 'org_ceiling',
+                    capability: AgentCapability.Delete,
+                    message: 'Delete is required',
+                    operation: 'editRepo.delete_file',
+                },
+            );
+            const assertOperation = vi.fn().mockRejectedValue(refusal);
+            const claimForFinalize = vi.fn().mockResolvedValue(true);
+            const markError = vi.fn().mockResolvedValue(true);
+            vi.mocked(listReposAccessibleToInstallation).mockResolvedValue([
+                { owner: 'acme', repo: 'analytics' },
+            ] as AnyType);
+            vi.mocked(getRepoMetadata).mockResolvedValue({
+                defaultBranch: 'main',
+                sizeKb: 1,
+            } as AnyType);
+            const result = runService(
+                sandbox,
+                {
+                    aiWritebackRunUuid: 'run-1',
+                    ...(general ? { repoTarget: 'acme/analytics' } : {}),
+                },
+                {
+                    projectModel: {
+                        get: vi.fn().mockResolvedValue({
+                            organizationUuid: ORG,
+                            projectUuid: 'p1',
+                            name: 'Analytics',
+                            dbtConnection: {
+                                type: DbtProjectType.GITHUB,
+                                authorization_method: 'installation_id',
+                                repository: 'acme/analytics',
+                                branch: 'main',
+                                project_sub_path: projectPath,
+                            },
+                            warehouseConnection: null,
+                            dbtVersion: SupportedDbtVersions.V1_9,
+                        }),
+                    },
+                    agentPermissionService: {
+                        isManaged: vi.fn().mockResolvedValue(true),
+                        assertOperation,
+                    },
+                    aiWritebackRunModel: {
+                        updateStageIfInProgress: vi
+                            .fn()
+                            .mockResolvedValue(true),
+                        updateStage: vi.fn().mockResolvedValue(undefined),
+                        markError,
+                        markReady: vi.fn().mockResolvedValue(true),
+                        claimForFinalize,
+                        recordRemoteCommitted: vi.fn().mockResolvedValue(true),
+                    },
+                },
+            );
+            if (denied) {
+                await expect(result).rejects.toBe(refusal);
+                expect(claimForFinalize).toHaveBeenCalledOnce();
+                expect(createBranch).not.toHaveBeenCalled();
+                expect(sandbox.git.commit).not.toHaveBeenCalled();
+                expect(createSignedCommitOnBranch).not.toHaveBeenCalled();
+                expect(createPullRequest).not.toHaveBeenCalled();
+                expect(updatePullRequest).not.toHaveBeenCalled();
+                expect(markError).toHaveBeenCalledWith(
+                    'run-1',
+                    'Delete is required',
+                );
+                expect(assertOperation).toHaveBeenCalledWith(
+                    expect.objectContaining({ key: 'editRepo.delete_file' }),
+                );
+            } else {
+                await expect(result).resolves.toMatchObject({ prUrl: PR_7 });
+                expect(assertOperation).not.toHaveBeenCalled();
+                expect(createSignedCommitOnBranch).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        fileChanges: {
+                            additions: [
+                                {
+                                    path: `${projectPath}/models/current.sql`,
+                                    contents:
+                                        Buffer.from('model contents').toString(
+                                            'base64',
+                                        ),
+                                },
+                            ],
+                            deletions: [],
+                        },
+                    }),
+                );
+                expect(
+                    claimForFinalize.mock.invocationCallOrder[0],
+                ).toBeLessThan(inspect.mock.invocationCallOrder[0]);
+            }
+            expect(sandbox.git.add).toHaveBeenCalledExactlyOnceWith(
+                '/home/user/repo',
+                general ? { all: true } : { files: [projectPath] },
+            );
+            expect(sandbox.git.add.mock.invocationCallOrder[0]).toBeLessThan(
+                inspect.mock.invocationCallOrder[0],
+            );
+            expect(inspect).toHaveBeenCalledTimes(denied ? 1 : 2);
+            expect(
+                sandbox.commands.run.mock.calls
+                    .map(([command]: [string]) => command)
+                    .join('\n'),
+            ).not.toMatch(
+                /\bgit(?:\s+-C\s+\S+)?\s+(?:add|reset|rm|update-index|read-tree)\b/,
+            );
+            expect(fakeSandboxProvider.destroy).toHaveBeenCalledOnce();
+        },
+    );
+
+    it.each(['exit code', 'exception'] as const)(
+        'fails closed before commit when staged inspection fails with %s',
+        async (failure) => {
+            const sandbox = fakeSandbox(0, true);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            const runCommand = sandbox.commands.run.getMockImplementation();
+            sandbox.commands.run.mockImplementation(
+                async (command: string, options: unknown) => {
+                    if (
+                        command.includes(
+                            'diff --cached --name-status --no-renames -z',
+                        )
+                    ) {
+                        if (failure === 'exception')
+                            throw new Error('inspection failed');
+                        return { exitCode: 1, stdout: '' };
+                    }
+                    return runCommand(command, options);
+                },
+            );
+            const claimForFinalize = vi.fn().mockResolvedValue(true);
+            await expect(
+                runService(
+                    sandbox,
+                    { aiWritebackRunUuid: 'run-1' },
+                    {
+                        agentPermissionService: {
+                            isManaged: vi.fn().mockResolvedValue(true),
+                            assertOperation: vi.fn(),
+                        },
+                        aiWritebackRunModel: {
+                            updateStageIfInProgress: vi
+                                .fn()
+                                .mockResolvedValue(true),
+                            updateStage: vi.fn().mockResolvedValue(undefined),
+                            markError: vi.fn().mockResolvedValue(true),
+                            markReady: vi.fn().mockResolvedValue(true),
+                            claimForFinalize,
+                        },
+                    },
+                ),
+            ).rejects.toThrow(
+                failure === 'exception'
+                    ? 'inspection failed'
+                    : 'Could not inspect repository changes before commit',
+            );
+            expect(sandbox.git.add).toHaveBeenCalledOnce();
+            expect(claimForFinalize).toHaveBeenCalledOnce();
+            expect(sandbox.git.commit).not.toHaveBeenCalled();
+            expect(createSignedCommitOnBranch).not.toHaveBeenCalled();
+            expect(createPullRequest).not.toHaveBeenCalled();
+            expect(fakeSandboxProvider.destroy).toHaveBeenCalledOnce();
+        },
+    );
+
+    it('skips managed lookup and inspection when the working tree is unchanged', async () => {
+        const sandbox = fakeSandbox(0, false);
+        fakeSandboxProvider.create.mockResolvedValue(sandbox);
+        const isManaged = vi.fn().mockResolvedValue(true);
+        await runService(
+            sandbox,
+            {},
+            {
+                agentPermissionService: { isManaged, assertOperation: vi.fn() },
+            },
+        );
+        expect(isManaged).not.toHaveBeenCalled();
+        expect(sandbox.git.add).not.toHaveBeenCalled();
+        expect(
+            sandbox.commands.run.mock.calls
+                .map(([command]: [string]) => command)
+                .join('\n'),
+        ).not.toContain('diff HEAD --name-status');
+    });
+
+    const resumedRunModels = (prUrl: string, targetRepo = 'acme/analytics') => {
+        const existingRow = {
+            ...threadRow(prUrl),
+            project_dbt_source_uuid: null,
+            target_repo: targetRepo,
+        };
+        return {
+            aiWritebackThreadModel: {
+                findByAiThreadUuid: vi.fn().mockResolvedValue(existingRow),
+                findActiveWorkstreamByRepo: vi
+                    .fn()
+                    .mockResolvedValue(existingRow),
+                acquireWorkstreamLock: vi.fn().mockResolvedValue({
+                    release: vi.fn().mockResolvedValue(undefined),
+                }),
+            },
+            sandboxRegistryModel: {
+                findBySandboxUuid: vi
+                    .fn()
+                    .mockResolvedValue({ providerSandboxId: 'sbx-1' }),
+                markRunning: vi.fn().mockResolvedValue(undefined),
+                markSuspended: vi.fn().mockResolvedValue(undefined),
+            },
+        };
+    };
+
+    it.each(['refused', 'claim lost', 'inspection failed'] as const)(
+        'keeps the resumed changes uncommitted when finalization is %s',
+        async (outcome) => {
+            const sandbox = fakeSandbox(0, true);
+            fakeSandboxProvider.connect.mockResolvedValue(sandbox);
+            const staged = new Set(['previously-staged.sql']);
+            sandbox.git.add.mockImplementation(async () =>
+                staged.add('models/current.sql'),
+            );
+            const runCommand = sandbox.commands.run.getMockImplementation();
+            sandbox.commands.run.mockImplementation(
+                (command: string, options: unknown) => {
+                    if (command.includes('--name-status'))
+                        return Promise.resolve({
+                            exitCode: outcome === 'inspection failed' ? 1 : 0,
+                            stdout:
+                                outcome === 'refused'
+                                    ? 'D\0models/old.sql\0'
+                                    : 'M\0models/current.sql\0',
+                        });
+                    return runCommand(command, options);
+                },
+            );
+            const editState = vi
+                .spyOn(GithubProvider.prototype, 'getPullRequestEditState')
+                .mockResolvedValue({ editable: true, reason: null });
+            const claimForFinalize = vi
+                .fn()
+                .mockResolvedValue(outcome !== 'claim lost');
+            const assertOperation = vi.fn().mockRejectedValue(
+                new AiAccessRefusedError(
+                    AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    {
+                        policyLayer: 'org_ceiling',
+                        capability: AgentCapability.Delete,
+                        message: 'Delete is required',
+                        operation: 'editRepo.delete_file',
+                    },
+                ),
+            );
+            try {
+                await expect(
+                    runService(
+                        sandbox,
+                        {
+                            aiThreadUuid: 'thread-1',
+                            aiWritebackRunUuid: 'run-1',
+                        },
+                        {
+                            ...resumedRunModels(PR_7),
+                            agentPermissionService: {
+                                isManaged: vi.fn().mockResolvedValue(true),
+                                assertOperation,
+                            },
+                            aiWritebackRunModel: {
+                                updateStageIfInProgress: vi
+                                    .fn()
+                                    .mockResolvedValue(true),
+                                updateStage: vi
+                                    .fn()
+                                    .mockResolvedValue(undefined),
+                                claimForFinalize,
+                                findByUuid: vi
+                                    .fn()
+                                    .mockResolvedValue({ status: 'cancelled' }),
+                                markError: vi.fn().mockResolvedValue(true),
+                            },
+                        },
+                    ),
+                ).rejects.toThrow(
+                    {
+                        refused: 'Delete is required',
+                        'claim lost': WritebackRunAbortedError,
+                        'inspection failed':
+                            'Could not inspect repository changes before commit',
+                    }[outcome],
+                );
+                expect(claimForFinalize).toHaveBeenCalledOnce();
+                expect(sandbox.git.add).toHaveBeenCalledTimes(
+                    outcome === 'claim lost' ? 0 : 1,
+                );
+                expect(staged).toEqual(
+                    new Set([
+                        'previously-staged.sql',
+                        ...(outcome === 'claim lost'
+                            ? []
+                            : ['models/current.sql']),
+                    ]),
+                );
+                expect(sandbox.git.commit).not.toHaveBeenCalled();
+                expect(createSignedCommitOnBranch).not.toHaveBeenCalled();
+                expect(fakeSandboxProvider.persist).toHaveBeenCalledOnce();
+                expect(fakeSandboxProvider.destroy).not.toHaveBeenCalled();
+                for (const [command] of sandbox.commands.run.mock.calls) {
+                    expect(command).not.toMatch(
+                        /\bgit(?:\s+-C\s+\S+)?\s+(?:add|reset|rm|update-index|read-tree)\b/,
+                    );
+                }
+            } finally {
+                editState.mockRestore();
+            }
+        },
+    );
+
+    describe.each(['github', 'gitlab', 'bitbucket'] as const)(
+        '%s managed metadata cleanup',
+        (host) => {
+            it.each([
+                { action: 'open', scenario: 'untracked metadata' },
+                { action: 'update', scenario: 'untracked metadata' },
+                { action: 'open', scenario: 'tracked metadata' },
+                { action: 'update', scenario: 'tracked metadata' },
+                { action: 'update', scenario: 'cached deletion outside scope' },
+            ] as const)(
+                '$action with $scenario checks the actual commit',
+                async ({ action, scenario }) => {
+                    const denied = scenario !== 'untracked metadata';
+                    const projectPath =
+                        scenario === 'cached deletion outside scope'
+                            ? 'models'
+                            : '.';
+                    const sandbox = fakeSandbox(0, true);
+                    if (action === 'update')
+                        sandbox.git.status.mockResolvedValue({
+                            hasChanges: true,
+                            currentBranch: 'feature/model',
+                        });
+                    fakeSandboxProvider.create.mockResolvedValue(sandbox);
+                    fakeSandboxProvider.connect.mockResolvedValue(sandbox);
+                    const files = new Map([
+                        ['/home/user/repo/models/current.sql', 'select 2'],
+                        ['/home/user/repo/pr_title.txt', 'Update model'],
+                        [
+                            '/home/user/repo/pr_description.md',
+                            'Updates revenue.',
+                        ],
+                    ]);
+                    const head = new Map([
+                        ['/home/user/repo/models/current.sql', 'select 1'],
+                        ...(scenario === 'tracked metadata'
+                            ? [
+                                  [
+                                      '/home/user/repo/pr_title.txt',
+                                      'Update model',
+                                  ] as const,
+                              ]
+                            : []),
+                        ...(scenario === 'cached deletion outside scope'
+                            ? [
+                                  [
+                                      '/home/user/repo/packages/old/model.sql',
+                                      'select 1',
+                                  ] as const,
+                              ]
+                            : []),
+                    ]);
+                    const staged = new Map<string, string>(
+                        scenario === 'cached deletion outside scope'
+                            ? [['packages/old/model.sql', 'D']]
+                            : [],
+                    );
+                    const committed: string[][] = [];
+                    sandbox.files.read.mockImplementation(
+                        async (path: string) => {
+                            const value = files.get(path);
+                            if (value === undefined)
+                                throw new Error(`Missing file: ${path}`);
+                            return value;
+                        },
+                    );
+                    sandbox.files.remove.mockImplementation(
+                        async (path: string) => files.delete(path),
+                    );
+                    const workingChanges = () =>
+                        [...new Set([...head.keys(), ...files.keys()])]
+                            .filter(
+                                (path) => head.get(path) !== files.get(path),
+                            )
+                            .map((path) => {
+                                const relativePath = path.replace(
+                                    '/home/user/repo/',
+                                    '',
+                                );
+                                if (!files.has(path))
+                                    return { path: relativePath, status: 'D' };
+                                return {
+                                    path: relativePath,
+                                    status: head.has(path) ? 'M' : 'A',
+                                };
+                            });
+                    sandbox.git.add.mockImplementation(
+                        async (
+                            _cwd: string,
+                            options: { all?: boolean; files?: string[] },
+                        ) => {
+                            for (const { path, status } of workingChanges()) {
+                                if (
+                                    options.all ||
+                                    options.files?.some((scope) =>
+                                        path.startsWith(`${scope}/`),
+                                    )
+                                )
+                                    staged.set(path, status);
+                            }
+                        },
+                    );
+                    sandbox.git.commit.mockImplementation(async () =>
+                        committed.push([...staged.keys()]),
+                    );
+                    sandbox.git.push = vi.fn().mockResolvedValue(undefined);
+                    const runCommand =
+                        sandbox.commands.run.getMockImplementation();
+                    sandbox.commands.run.mockImplementation(
+                        (command: string, options: AnyType) => {
+                            if (command.includes('claude')) {
+                                options?.onStdout?.(
+                                    `${JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: 'Done.' }] } })}\n`,
+                                );
+                                return Promise.resolve({
+                                    exitCode: 0,
+                                    stdout: '',
+                                });
+                            }
+                            if (command.includes('diff HEAD --name-status'))
+                                return Promise.resolve({
+                                    exitCode: 0,
+                                    stdout: workingChanges()
+                                        .filter(
+                                            ({ path }) =>
+                                                projectPath === '.' ||
+                                                path.startsWith(
+                                                    `${projectPath}/`,
+                                                ),
+                                        )
+                                        .map(
+                                            ({ path, status }) =>
+                                                `${status}\0${path}\0`,
+                                        )
+                                        .join(''),
+                                });
+                            if (command.includes('--name-status'))
+                                return Promise.resolve({
+                                    exitCode: 0,
+                                    stdout: [...staged]
+                                        .map(
+                                            ([path, status]) =>
+                                                `${status}\0${path}\0`,
+                                        )
+                                        .join(''),
+                                });
+                            if (command.includes('rev-parse HEAD'))
+                                return Promise.resolve({
+                                    exitCode: 0,
+                                    stdout: 'sha-7\n',
+                                });
+                            return runCommand(command, options);
+                        },
+                    );
+                    const prUrl = {
+                        github: PR_7,
+                        gitlab: 'https://gitlab.com/acme/analytics/-/merge_requests/7',
+                        bitbucket:
+                            'https://bitbucket.org/acme/analytics/pull-requests/7',
+                    }[host];
+                    const pullRequest = {
+                        number: 7,
+                        title: 'Update model',
+                        html_url: prUrl,
+                        state: PullRequestState.OPEN,
+                        head: 'feature/model',
+                        base: 'main',
+                        sourceRepository: 'acme/analytics',
+                        destinationRepository: 'acme/analytics',
+                    };
+                    const providerClass = {
+                        github: GithubProvider,
+                        gitlab: GitlabProvider,
+                        bitbucket: BitbucketProvider,
+                    }[host];
+                    const editState = vi
+                        .spyOn(
+                            providerClass.prototype,
+                            'getPullRequestEditState',
+                        )
+                        .mockResolvedValue({ editable: true, reason: null });
+                    const gitlabAuth = vi
+                        .spyOn(GitlabProvider.prototype, 'resolveInstallation')
+                        .mockResolvedValue({
+                            provider: PullRequestProvider.GITLAB,
+                            token: 'test-token',
+                            instanceUrl: 'https://gitlab.com',
+                            commitAuthor: {
+                                name: 'Writer',
+                                email: 'writer@example.com',
+                            },
+                        });
+                    const remoteSpies = [
+                        vi
+                            .spyOn(GitlabClient, 'createPullRequest')
+                            .mockResolvedValue(pullRequest),
+                        vi
+                            .spyOn(GitlabClient, 'updateMergeRequest')
+                            .mockResolvedValue(pullRequest),
+                        vi
+                            .spyOn(BitbucketClient, 'createPullRequest')
+                            .mockResolvedValue(pullRequest),
+                        vi
+                            .spyOn(BitbucketClient, 'updatePullRequest')
+                            .mockResolvedValue(pullRequest),
+                        vi
+                            .spyOn(BitbucketClient, 'getPullRequest')
+                            .mockResolvedValue(pullRequest),
+                    ];
+                    const connection =
+                        host === 'bitbucket'
+                            ? {
+                                  ...bitbucketConnection,
+                                  project_sub_path: projectPath,
+                                  branch: 'main',
+                                  repository: 'acme/analytics',
+                              }
+                            : {
+                                  type:
+                                      host === 'github'
+                                          ? DbtProjectType.GITHUB
+                                          : DbtProjectType.GITLAB,
+                                  authorization_method: 'installation_id',
+                                  repository: 'acme/analytics',
+                                  branch: 'main',
+                                  project_sub_path: projectPath,
+                                  host_domain: 'gitlab.com',
+                              };
+                    const refusal = new AiAccessRefusedError(
+                        AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                        {
+                            policyLayer: 'org_ceiling',
+                            capability: AgentCapability.Delete,
+                            message: 'Delete is required',
+                            operation: 'editRepo.delete_file',
+                        },
+                    );
+                    const assertOperation = vi.fn().mockRejectedValue(refusal);
+                    const markError = vi.fn().mockResolvedValue(true);
+                    const markReady = vi.fn().mockResolvedValue(true);
+                    const claimForFinalize = vi.fn().mockResolvedValue(true);
+                    try {
+                        const result = runService(
+                            sandbox,
+                            {
+                                ...(action === 'update'
+                                    ? { aiThreadUuid: 'thread-1' }
+                                    : {}),
+                                aiWritebackRunUuid: 'run-1',
+                                source: {
+                                    github: 'mcp',
+                                    gitlab: 'web',
+                                    bitbucket: 'slack',
+                                }[host],
+                            },
+                            {
+                                ...(action === 'update'
+                                    ? resumedRunModels(prUrl)
+                                    : {}),
+                                aiWritebackRunModel: {
+                                    updateStageIfInProgress: vi
+                                        .fn()
+                                        .mockResolvedValue(true),
+                                    updateStage: vi
+                                        .fn()
+                                        .mockResolvedValue(undefined),
+                                    claimForFinalize,
+                                    markError,
+                                    markReady,
+                                    recordRemoteCommitted: vi
+                                        .fn()
+                                        .mockResolvedValue(true),
+                                },
+                                projectModel: {
+                                    getSummary: vi.fn().mockResolvedValue({
+                                        organizationUuid: ORG,
+                                    }),
+                                    get: vi.fn().mockResolvedValue({
+                                        organizationUuid: ORG,
+                                        projectUuid: 'p1',
+                                        name: 'Analytics',
+                                        dbtConnection: connection,
+                                        warehouseConnection: null,
+                                        dbtVersion: SupportedDbtVersions.V1_9,
+                                    }),
+                                    getWithSensitiveFields: vi
+                                        .fn()
+                                        .mockResolvedValue({
+                                            dbtConnection: connection,
+                                        }),
+                                },
+                                agentPermissionService: {
+                                    isManaged: vi.fn().mockResolvedValue(true),
+                                    assertOperation,
+                                },
+                            },
+                        );
+                        if (denied) {
+                            await expect(result).rejects.toBe(refusal);
+                            expect(markError).toHaveBeenCalledWith(
+                                'run-1',
+                                'Delete is required',
+                            );
+                            expect(markReady).not.toHaveBeenCalled();
+                            expect(claimForFinalize).toHaveBeenCalledOnce();
+                            expect(sandbox.git.add).toHaveBeenCalledOnce();
+                            expect(sandbox.git.commit).not.toHaveBeenCalled();
+                            expect(sandbox.git.push).not.toHaveBeenCalled();
+                            expect(createBranch).not.toHaveBeenCalled();
+                            expect(
+                                createSignedCommitOnBranch,
+                            ).not.toHaveBeenCalled();
+                            expect(createPullRequest).not.toHaveBeenCalled();
+                            expect(updatePullRequest).not.toHaveBeenCalled();
+                            for (const remoteSpy of remoteSpies.slice(0, 4))
+                                expect(remoteSpy).not.toHaveBeenCalled();
+                            expect(assertOperation).toHaveBeenCalledWith(
+                                expect.objectContaining({
+                                    key: 'editRepo.delete_file',
+                                    account: expect.objectContaining({
+                                        user: expect.objectContaining({
+                                            id: 'u1',
+                                        }),
+                                    }),
+                                    surface: {
+                                        github: AgentActorSurface.MCP,
+                                        gitlab: AgentActorSurface.IN_APP_AGENT,
+                                        bitbucket:
+                                            AgentActorSurface.SLACK_AGENT,
+                                    }[host],
+                                }),
+                            );
+                            expect(
+                                staged.get(
+                                    scenario === 'tracked metadata'
+                                        ? 'pr_title.txt'
+                                        : 'packages/old/model.sql',
+                                ),
+                            ).toBe('D');
+                            return;
+                        }
+                        await expect(result).resolves.toMatchObject({ prUrl });
+                        expect(committed).toEqual([['models/current.sql']]);
+                        expect(assertOperation).not.toHaveBeenCalled();
+                        expect(sandbox.git.add).toHaveBeenCalledExactlyOnceWith(
+                            '/home/user/repo',
+                            { all: true },
+                        );
+                        expect(files.has('/home/user/repo/pr_title.txt')).toBe(
+                            false,
+                        );
+                        expect(
+                            files.has('/home/user/repo/pr_description.md'),
+                        ).toBe(false);
+                        if (host === 'github')
+                            expect(
+                                createSignedCommitOnBranch,
+                            ).toHaveBeenCalledWith(
+                                expect.objectContaining({
+                                    fileChanges: {
+                                        additions: [
+                                            {
+                                                path: 'models/current.sql',
+                                                contents:
+                                                    Buffer.from(
+                                                        'select 2',
+                                                    ).toString('base64'),
+                                            },
+                                        ],
+                                        deletions: [],
+                                    },
+                                }),
+                            );
+                    } finally {
+                        editState.mockRestore();
+                        gitlabAuth.mockRestore();
+                        remoteSpies.forEach((spy) => spy.mockRestore());
+                    }
+                },
+            );
         },
     );
 
@@ -2072,6 +3838,124 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
     });
 
+    describe.each([
+        ...agentActionTestCases,
+        ['in-app flag off', AgentActorSurface.IN_APP_AGENT, false, 0],
+        ['Slack flag off', AgentActorSurface.SLACK_AGENT, false, 0],
+    ] as const)(
+        'editRepo production pipeline: %s',
+        (_, surface, enabled, count) => {
+            test.each([
+                { changed: true, runUuid: 'run-1' },
+                { changed: false, runUuid: 'run-1' },
+                { changed: true, runUuid: undefined },
+            ])(
+                'changed=$changed run=$runUuid',
+                async ({ changed, runUuid }) => {
+                    const sandbox = fakeSandbox(0, changed);
+                    fakeSandboxProvider.create.mockResolvedValue(sandbox);
+                    vi.mocked(
+                        listReposAccessibleToInstallation,
+                    ).mockResolvedValue([
+                        {
+                            owner: 'acme',
+                            repo: 'analytics',
+                            defaultBranch: 'main',
+                            private: true,
+                        },
+                    ]);
+                    vi.mocked(getRepoMetadata).mockResolvedValue({
+                        defaultBranch: 'main',
+                        sizeKb: 1024,
+                    });
+                    const insert = vi.fn().mockResolvedValue(undefined);
+                    const result = await withAgentActionScope(
+                        permittedUser(),
+                        surface,
+                        enabled,
+                        () =>
+                            runService(
+                                sandbox,
+                                {
+                                    repoTarget: 'acme/analytics',
+                                    aiWritebackRunUuid: runUuid,
+                                },
+                                { agentActionLogModel: { insert } },
+                            ),
+                    );
+                    expect(result.commitSha !== null).toBe(changed);
+                    expect(insert).toHaveBeenCalledTimes(changed ? count : 0);
+                    if (changed && count)
+                        expect(insert).toHaveBeenCalledWith(
+                            expect.objectContaining({
+                                object_type: 'ai_writeback_run',
+                                object_uuid: runUuid ?? null,
+                                action: 'update',
+                                outcome: 'allowed',
+                                agent_identity: expect.objectContaining({
+                                    act: expect.objectContaining({ surface }),
+                                }),
+                            }),
+                        );
+                    expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                        'analytics',
+                    );
+                    expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                        'github.com',
+                    );
+                },
+            );
+        },
+    );
+
+    test.each(['provider', 'bookkeeping'] as const)(
+        'records only completed external writes when %s fails',
+        async (failure) => {
+            const sandbox = fakeSandbox(0, true);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            vi.mocked(listReposAccessibleToInstallation).mockResolvedValue([
+                {
+                    owner: 'acme',
+                    repo: 'analytics',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+            ]);
+            vi.mocked(getRepoMetadata).mockResolvedValue({
+                defaultBranch: 'main',
+                sizeKb: 1024,
+            });
+            const insert = vi.fn().mockResolvedValue(undefined);
+            if (failure === 'provider')
+                vi.mocked(createPullRequest).mockRejectedValueOnce(
+                    new Error('provider unavailable'),
+                );
+            const findOrCreate = vi
+                .fn()
+                .mockRejectedValue(new Error('bookkeeping unavailable'));
+            await expect(
+                withAgentActionScope(
+                    permittedUser(),
+                    AgentActorSurface.IN_APP_AGENT,
+                    true,
+                    () =>
+                        runService(
+                            sandbox,
+                            { repoTarget: 'acme/analytics' },
+                            {
+                                agentActionLogModel: { insert },
+                                pullRequestsModel: { findOrCreate },
+                            },
+                        ),
+                ),
+            ).rejects.toThrow(`${failure} unavailable`);
+            expect(insert).toHaveBeenCalledTimes(1);
+            expect(findOrCreate).toHaveBeenCalledTimes(
+                failure === 'bookkeeping' ? 1 : 0,
+            );
+        },
+    );
+
     it('opens no PR when the agent produced no changes', async () => {
         const sandbox = fakeSandbox(0, false);
         fakeSandboxProvider.create.mockResolvedValue(sandbox);
@@ -2234,14 +4118,7 @@ describe('AiWritebackService repo read access', () => {
             const { service } = buildWithInstallation();
             (
                 listReposAccessibleToInstallation as import('vitest').Mock
-            ).mockResolvedValue([
-                {
-                    owner: 'acme',
-                    repo: 'analytics',
-                    defaultBranch: 'main',
-                    private: true,
-                },
-            ]);
+            ).mockResolvedValue([{ owner: 'acme', repo: 'analytics' }]);
 
             const access = await service.getInstallationRepoReadAccess({
                 user: userWithOrg(true),
@@ -2252,14 +4129,7 @@ describe('AiWritebackService repo read access', () => {
             expect(listReposAccessibleToInstallation).toHaveBeenCalledWith({
                 installationId: 'inst-1',
             });
-            expect(repos).toEqual([
-                {
-                    owner: 'acme',
-                    repo: 'analytics',
-                    defaultBranch: 'main',
-                    private: true,
-                },
-            ]);
+            expect(repos).toEqual([{ owner: 'acme', repo: 'analytics' }]);
             expect(access.installationToken).toBe('install-token');
             // No linked user token → the user listing is never fetched.
             expect(listReposAccessibleToUser).not.toHaveBeenCalled();
@@ -2270,12 +4140,7 @@ describe('AiWritebackService repo read access', () => {
             (
                 listReposAccessibleToInstallation as import('vitest').Mock
             ).mockResolvedValue([
-                {
-                    owner: 'acme',
-                    repo: 'analytics',
-                    defaultBranch: 'main',
-                    private: true,
-                },
+                { owner: 'acme', repo: 'analytics' },
                 {
                     owner: 'acme',
                     repo: 'secret-infrastructure',
@@ -2290,12 +4155,7 @@ describe('AiWritebackService repo read access', () => {
             });
 
             await expect(access.listRepos()).resolves.toEqual([
-                {
-                    owner: 'acme',
-                    repo: 'analytics',
-                    defaultBranch: 'main',
-                    private: true,
-                },
+                { owner: 'acme', repo: 'analytics' },
             ]);
         });
 
@@ -2339,12 +4199,7 @@ describe('AiWritebackService repo read access', () => {
             (
                 listReposAccessibleToInstallation as import('vitest').Mock
             ).mockResolvedValue([
-                {
-                    owner: 'acme',
-                    repo: 'analytics',
-                    defaultBranch: 'main',
-                    private: true,
-                },
+                { owner: 'acme', repo: 'analytics' },
                 {
                     owner: 'acme',
                     repo: 'additional-analytics',
@@ -2365,12 +4220,7 @@ describe('AiWritebackService repo read access', () => {
             });
 
             await expect(access.listRepos()).resolves.toEqual([
-                {
-                    owner: 'acme',
-                    repo: 'analytics',
-                    defaultBranch: 'main',
-                    private: true,
-                },
+                { owner: 'acme', repo: 'analytics' },
                 {
                     owner: 'acme',
                     repo: 'additional-analytics',
@@ -3166,6 +5016,81 @@ describe('AiWritebackService.resolveWritableRepoTarget (fail-closed authz)', () 
 
     beforeEach(() => vi.clearAllMocks());
 
+    test.each([
+        ['denylist', 'lightdash/lightdash', 'repository_denied'],
+        ['user intersection', 'acme/private', 'repository_user_access_denied'],
+        ['installation', 'acme/other', 'repository_installation_access_denied'],
+        ['provider failure', 'acme/analytics', null],
+    ])(
+        'records only policy refusals: %s',
+        async (scenario, repoTarget, reasonCode) => {
+            const user = userWithManage();
+            const service = buildService({
+                githubAppService: {
+                    getValidUserToken: vi.fn().mockResolvedValue('user-token'),
+                },
+            });
+            vi.spyOn(
+                service['githubProvider'],
+                'resolveInstallation',
+            ).mockResolvedValue({
+                provider: PullRequestProvider.GITHUB,
+                installationId: 'inst-1',
+            } as AnyType);
+            vi.mocked(listReposAccessibleToInstallation).mockResolvedValue([
+                {
+                    owner: 'acme',
+                    repo: 'analytics',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+                {
+                    owner: 'acme',
+                    repo: 'private',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+            ]);
+            vi.mocked(listReposAccessibleToUser).mockResolvedValue([]);
+            if (scenario === 'provider failure')
+                vi.mocked(listReposAccessibleToUser).mockRejectedValueOnce(
+                    new Error('provider unavailable'),
+                );
+            await expect(
+                withAgentActionScope(
+                    user,
+                    agentActionTestCases[1][1],
+                    true,
+                    () =>
+                        service.resolveWritableRepoTarget({
+                            user,
+                            project: githubProject(),
+                            repoTarget,
+                        }),
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(service['agentActionLogModel'].insert).toHaveBeenCalledTimes(
+                reasonCode ? 1 : 0,
+            );
+            if (reasonCode)
+                expect(
+                    service['agentActionLogModel'].insert,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        outcome: 'denied',
+                        action: 'update',
+                        policy_layer: 'writeback_policy',
+                        reason_code: reasonCode,
+                    }),
+                );
+            expect(
+                JSON.stringify(
+                    vi.mocked(service['agentActionLogModel'].insert).mock.calls,
+                ),
+            ).not.toContain(repoTarget);
+        },
+    );
+
     it('rejects an installation repository unrelated to the invoking project when the user is not linked', async () => {
         const service = buildService();
         vi.spyOn(
@@ -3878,57 +5803,114 @@ describe('AiWritebackService.enqueueWriteback', () => {
         get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
     } as AnyType;
 
-    it('creates a pending run row and enqueues the pipeline job', async () => {
-        const runRow = {
-            ai_writeback_run_uuid: 'run-1',
-            created_at: new Date('2026-07-01T10:00:00Z'),
-            updated_at: new Date('2026-07-01T10:00:00Z'),
-        };
-        const aiWritebackRunModel = {
-            create: vi.fn().mockResolvedValue(runRow),
-        } as AnyType;
-        const schedulerClient = {
-            aiWritebackPipeline: vi.fn().mockResolvedValue({ jobId: '1' }),
-        } as AnyType;
-        const service = buildService({
-            aiWritebackRunModel,
-            schedulerClient,
-            projectModel,
-        });
+    it.each([true, false])(
+        'creates a pending run row and enqueues the pipeline job',
+        async (agentPermissionsApply) => {
+            const runRow = {
+                ai_writeback_run_uuid: 'run-1',
+                created_at: new Date('2026-07-01T10:00:00Z'),
+                updated_at: new Date('2026-07-01T10:00:00Z'),
+            };
+            const aiWritebackRunModel = {
+                create: vi.fn().mockResolvedValue(runRow),
+            } as AnyType;
+            const schedulerClient = {
+                aiWritebackPipeline: vi.fn().mockResolvedValue({ jobId: '1' }),
+            } as AnyType;
+            const service = buildService({
+                aiWritebackRunModel,
+                schedulerClient,
+                projectModel,
+            });
 
-        const result = await service.enqueueWriteback({
+            const result = await service.enqueueWriteback({
+                user: userWithOrg(true),
+                projectUuid: 'proj-1',
+                prompt: 'add a metric',
+                source: 'mcp',
+                agentPermissionsApply,
+                aiThreadUuid: 'thread-1',
+            });
+
+            expect(result).toEqual({
+                aiWritebackRunUuid: 'run-1',
+                createdAt: runRow.created_at,
+                updatedAt: runRow.updated_at,
+            });
+            expect(aiWritebackRunModel.create).toHaveBeenCalledWith({
+                organizationUuid: ORG,
+                projectUuid: 'proj-1',
+                aiThreadUuid: 'thread-1',
+                createdByUserUuid: 'u1',
+                source: 'mcp',
+                promptUuid: null,
+                toolCallId: null,
+            });
+            expect(schedulerClient.aiWritebackPipeline).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    aiWritebackRunUuid: 'run-1',
+                    organizationUuid: ORG,
+                    projectUuid: 'proj-1',
+                    userUuid: 'u1',
+                    prompt: 'add a metric',
+                    aiThreadUuid: 'thread-1',
+                    source: 'mcp',
+                    agentPermissionsApply,
+                }),
+            );
+            expect(
+                Object.keys(
+                    schedulerClient.aiWritebackPipeline.mock.calls[0][0],
+                ).sort(),
+            ).toEqual(
+                [
+                    'aiWritebackRunUuid',
+                    'organizationUuid',
+                    'projectUuid',
+                    'userUuid',
+                    'prompt',
+                    'aiThreadUuid',
+                    'dbtSourceUuid',
+                    'prUrl',
+                    'startNewPullRequest',
+                    'agentPermissionsApply',
+                    'source',
+                ].sort(),
+            );
+        },
+    );
+
+    it('marks an MCP enqueue only from the supplied enabled flag', async () => {
+        const schedulerClient = { aiWritebackPipeline: vi.fn() };
+        const featureFlagModel = { get: vi.fn() };
+        const service = buildService({
+            projectModel,
+            schedulerClient,
+            featureFlagModel,
+            aiWritebackRunModel: {
+                create: vi
+                    .fn()
+                    .mockResolvedValue({ ai_writeback_run_uuid: 'run-1' }),
+            },
+        });
+        await service.enqueueWriteback({
             user: userWithOrg(true),
             projectUuid: 'proj-1',
             prompt: 'add a metric',
             source: 'mcp',
-            aiThreadUuid: 'thread-1',
-        });
-
-        expect(result).toEqual({
-            aiWritebackRunUuid: 'run-1',
-            createdAt: runRow.created_at,
-            updatedAt: runRow.updated_at,
-        });
-        expect(aiWritebackRunModel.create).toHaveBeenCalledWith({
-            organizationUuid: ORG,
-            projectUuid: 'proj-1',
-            aiThreadUuid: 'thread-1',
-            createdByUserUuid: 'u1',
-            source: 'mcp',
-            promptUuid: null,
-            toolCallId: null,
+            agentPermissionsApply: true,
+            agentIdentityEnabled: true,
         });
         expect(schedulerClient.aiWritebackPipeline).toHaveBeenCalledWith(
             expect.objectContaining({
-                aiWritebackRunUuid: 'run-1',
-                organizationUuid: ORG,
-                projectUuid: 'proj-1',
-                userUuid: 'u1',
-                prompt: 'add a metric',
-                aiThreadUuid: 'thread-1',
-                source: 'mcp',
+                agentWork: {
+                    userUuid: 'u1',
+                    organizationUuid: ORG,
+                    projectUuid: 'proj-1',
+                },
             }),
         );
+        expect(featureFlagModel.get).not.toHaveBeenCalled();
     });
 
     it('persists a null aiThreadUuid for a one-shot run', async () => {
@@ -3944,6 +5926,7 @@ describe('AiWritebackService.enqueueWriteback', () => {
         });
 
         await service.enqueueWriteback({
+            agentPermissionsApply: false,
             user: userWithOrg(true),
             projectUuid: 'proj-1',
             prompt: 'add a metric',
@@ -3960,6 +5943,7 @@ describe('AiWritebackService.enqueueWriteback', () => {
 
         await expect(
             service.enqueueWriteback({
+                agentPermissionsApply: false,
                 user: { userUuid: 'u1' } as AnyType,
                 projectUuid: 'proj-1',
                 prompt: 'add a metric',
@@ -3979,6 +5963,7 @@ describe('AiWritebackService.enqueueWriteback', () => {
 
         await expect(
             service.enqueueWriteback({
+                agentPermissionsApply: false,
                 user: userWithOrg(false),
                 projectUuid: 'proj-1',
                 prompt: 'add a metric',
@@ -4148,41 +6133,75 @@ describe('AiWritebackService.runPipeline', () => {
         expect(runSpy).not.toHaveBeenCalled();
     });
 
-    it('reconstructs the session user and runs the writeback turn', async () => {
-        const sessionUser = {
-            userUuid: 'u1',
-            organizationUuid: ORG,
-        } as AnyType;
-        const aiWritebackRunModel = {
-            findByUuid: vi.fn().mockResolvedValue({
-                ai_writeback_run_uuid: 'run-1',
-                status: 'pending',
-            }),
-        } as AnyType;
-        const userModel = {
-            findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(sessionUser),
-        } as AnyType;
-        const service = buildService({ aiWritebackRunModel, userModel });
-        const runSpy = vi
-            .spyOn(service, 'run')
-            .mockResolvedValue({} as AnyType);
+    it.each([
+        { source: 'mcp', explicit: undefined, expected: true },
+        { source: 'slack', explicit: undefined, expected: true },
+        { source: 'web', explicit: undefined, expected: true },
+        { source: 'api', explicit: undefined, expected: false },
+        { source: 'changeset', explicit: undefined, expected: false },
+        { source: 'admin_review', explicit: undefined, expected: false },
+        { source: 'mcp', explicit: false, expected: false },
+        { source: 'api', explicit: true, expected: true },
+    ] as const)(
+        'preserves agent applicability for $source (explicit=$explicit)',
+        async ({ source, explicit, expected }) => {
+            const sessionUser = {
+                userUuid: 'u1',
+                organizationUuid: ORG,
+            } as AnyType;
+            const aiWritebackRunModel = {
+                findByUuid: vi.fn().mockResolvedValue({
+                    ai_writeback_run_uuid: 'run-1',
+                    status: 'pending',
+                }),
+            } as AnyType;
+            const userModel = {
+                findSessionUserAndOrgByUuid: vi
+                    .fn()
+                    .mockResolvedValue(sessionUser),
+            } as AnyType;
+            const service = buildService({ aiWritebackRunModel, userModel });
+            const runSpy = vi
+                .spyOn(service, 'run')
+                .mockResolvedValue({} as AnyType);
 
-        await service.runPipeline(payload);
+            await service.runPipeline({
+                ...payload,
+                source,
+                ...(explicit === undefined
+                    ? {}
+                    : { agentPermissionsApply: explicit }),
+            });
 
-        expect(userModel.findSessionUserAndOrgByUuid).toHaveBeenCalledWith(
-            'u1',
-            ORG,
-        );
-        expect(runSpy).toHaveBeenCalledWith(
-            expect.objectContaining({
-                user: sessionUser,
-                projectUuid: 'proj-1',
-                prompt: 'add a metric',
-                aiThreadUuid: 'thread-1',
-                source: 'mcp',
-                aiWritebackRunUuid: 'run-1',
-            }),
-        );
+            expect(userModel.findSessionUserAndOrgByUuid).toHaveBeenCalledWith(
+                'u1',
+                ORG,
+            );
+            expect(runSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    user: sessionUser,
+                    projectUuid: 'proj-1',
+                    prompt: 'add a metric',
+                    aiThreadUuid: 'thread-1',
+                    source,
+                    agentPermissionsApply: expected,
+                    aiWritebackRunUuid: 'run-1',
+                }),
+            );
+        },
+    );
+
+    it('keeps an unmarked person-load error outside the engine abort handling', async () => {
+        const error = new WritebackRunAbortedError('cancelled');
+        const service = buildService({
+            aiWritebackRunModel: {
+                findByUuid: vi.fn().mockResolvedValue({ status: 'pending' }),
+            },
+            userModel: {
+                findSessionUserAndOrgByUuid: vi.fn().mockRejectedValue(error),
+            },
+        });
+        await expect(service.runPipeline(payload)).rejects.toBe(error);
     });
 
     it('swallows a mid-run abort so the scheduler job does not retry a cancelled run', async () => {
@@ -4511,4 +6530,601 @@ describe('AiWritebackService regional boundary', () => {
             'AI repository editing is not yet supported for organizations configured with Amazon Bedrock.',
         );
     });
+});
+
+describe.each([
+    ...agentActionTestCases,
+    ['in-app flag off', AgentActorSurface.IN_APP_AGENT, false, 0],
+    ['Slack flag off', AgentActorSurface.SLACK_AGENT, false, 0],
+] as const)('writeback agent records: %s', (_, surface, enabled, count) => {
+    const makeUser = (allowed = true) => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        if (allowed) can('manage', 'SourceCode');
+        return {
+            ...defaultSessionUser,
+            userUuid: 'user',
+            organizationUuid: ORG,
+            ability: build(),
+        };
+    };
+    const runRow = {
+        ai_writeback_run_uuid: 'run',
+        organization_uuid: ORG,
+        project_uuid: 'project',
+        source: 'mcp',
+        status: 'agent',
+        created_at: new Date(),
+        updated_at: new Date(),
+    };
+    test.each(['enqueue', 'pending', 'cancel', 'close'] as const)(
+        '%s',
+        async (operation) => {
+            const service = buildService({
+                projectModel: {
+                    get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+                },
+                aiWritebackRunModel: {
+                    create: vi.fn().mockResolvedValue(runRow),
+                    findByUuid: vi.fn().mockResolvedValue(runRow),
+                    markCancelled: vi.fn().mockResolvedValue(true),
+                    findLatestByProjectUuidAndPrUrl: vi
+                        .fn()
+                        .mockResolvedValue(runRow),
+                },
+                pullRequestsModel: {
+                    findByAiThreadUuidAndUrl: vi.fn().mockResolvedValue(null),
+                    findByProjectAndUrl: vi.fn().mockResolvedValue(null),
+                },
+                ciService: {
+                    closePullRequest: vi
+                        .fn()
+                        .mockResolvedValue({ closed: true }),
+                },
+            });
+            const user = makeUser();
+            await withAgentActionScope(user, surface, enabled, async () => {
+                if (operation === 'cancel')
+                    return service.cancelRun(user, 'run');
+                if (operation === 'close')
+                    return service.closePullRequest({
+                        user,
+                        projectUuid: 'project',
+                        aiThreadUuid: 'thread',
+                        prUrl: 'secret-url',
+                    });
+                if (operation === 'pending')
+                    return service.createPendingRun({
+                        user,
+                        projectUuid: 'project',
+                        aiThreadUuid: undefined,
+                        source: 'mcp',
+                        promptUuid: null,
+                        toolCallId: null,
+                    });
+                return service.enqueueWriteback({
+                    agentPermissionsApply: false,
+                    user,
+                    projectUuid: 'project',
+                    source: 'mcp',
+                    prompt: 'secret-prompt',
+                });
+            });
+            const insert = vi.mocked(service['agentActionLogModel'].insert);
+            expect(insert).toHaveBeenCalledTimes(count);
+            if (count)
+                expect(insert).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        object_type: 'ai_writeback_run',
+                        object_uuid: 'run',
+                        action: operation === 'pending' ? 'enqueue' : operation,
+                        outcome: 'allowed',
+                    }),
+                );
+            expect(JSON.stringify(insert.mock.calls)).not.toContain('secret');
+        },
+    );
+    test.each(['conversation', 'project'] as const)(
+        'records %s binding refusal',
+        async (binding) => {
+            const service = buildService({
+                pullRequestsModel: {
+                    findByAiThreadUuidAndUrl: vi
+                        .fn()
+                        .mockResolvedValue(
+                            binding === 'project'
+                                ? { projectUuid: 'different-project' }
+                                : null,
+                        ),
+                    findByProjectAndUrl: vi
+                        .fn()
+                        .mockResolvedValue({ projectUuid: 'project' }),
+                },
+            });
+            const user = makeUser();
+            await expect(
+                withAgentActionScope(user, surface, enabled, () =>
+                    service.closePullRequest({
+                        user,
+                        projectUuid: 'project',
+                        aiThreadUuid: 'thread',
+                        prUrl: 'private-url',
+                    }),
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(service['agentActionLogModel'].insert).toHaveBeenCalledTimes(
+                count,
+            );
+            if (count)
+                expect(
+                    service['agentActionLogModel'].insert,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        outcome: 'denied',
+                        action: 'close',
+                        policy_layer: 'writeback_policy',
+                        reason_code:
+                            binding === 'project'
+                                ? 'project_binding_mismatch'
+                                : 'conversation_binding_mismatch',
+                    }),
+                );
+        },
+    );
+    test.each(['missing', 'mismatch'] as const)(
+        'records conversation source %s',
+        async (source) => {
+            const service = buildService({
+                projectModel: {
+                    get: vi.fn().mockResolvedValue({
+                        organizationUuid: ORG,
+                        projectUuid: 'project',
+                        dbtConnection: bitbucketConnection,
+                    }),
+                },
+                pullRequestsModel: {
+                    findByAiThreadUuidAndUrl: vi.fn().mockResolvedValue({
+                        projectUuid: 'project',
+                        provider: PullRequestProvider.BITBUCKET,
+                    }),
+                },
+                aiWritebackThreadModel: {
+                    findByAiThreadUuidAndPrUrl: vi.fn().mockResolvedValue(
+                        source === 'missing'
+                            ? null
+                            : {
+                                  project_dbt_source_uuid:
+                                      'unconfigured-source',
+                              },
+                    ),
+                },
+            });
+            const user = makeUser();
+            await expect(
+                withAgentActionScope(user, surface, enabled, () =>
+                    service.closePullRequest({
+                        user,
+                        projectUuid: 'project',
+                        aiThreadUuid: 'thread',
+                        prUrl: 'private-url',
+                    }),
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(service['agentActionLogModel'].insert).toHaveBeenCalledTimes(
+                count,
+            );
+            if (count)
+                expect(
+                    service['agentActionLogModel'].insert,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        outcome: 'denied',
+                        action: 'close',
+                        policy_layer: 'writeback_policy',
+                        reason_code:
+                            source === 'missing'
+                                ? 'conversation_source_missing'
+                                : 'conversation_source_mismatch',
+                    }),
+                );
+        },
+    );
+    test('records source-code policy refusal before creating a run', async () => {
+        const service = buildService({
+            projectModel: {
+                get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+            },
+        });
+        const user = makeUser(false);
+        await expect(
+            withAgentActionScope(user, surface, enabled, () =>
+                service.createPendingRun({
+                    user,
+                    projectUuid: 'project',
+                    aiThreadUuid: undefined,
+                    source: 'mcp',
+                    promptUuid: null,
+                    toolCallId: null,
+                }),
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(service['aiWritebackRunModel'].create).not.toHaveBeenCalled();
+        expect(service['agentActionLogModel'].insert).toHaveBeenCalledTimes(
+            count,
+        );
+        if (count)
+            expect(service['agentActionLogModel'].insert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    outcome: 'denied',
+                    policy_layer: 'writeback_policy',
+                    reason_code: 'source_code_manage_forbidden',
+                    object_uuid: null,
+                }),
+            );
+    });
+});
+
+test('a committed writeback run retains its initiating action when dispatch fails', async () => {
+    const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+    can('manage', 'SourceCode');
+    const user = { ...defaultSessionUser, ability: build() };
+    const service = buildService({
+        projectModel: {
+            get: vi
+                .fn()
+                .mockResolvedValue({ organizationUuid: user.organizationUuid }),
+        },
+        aiWritebackRunModel: {
+            create: vi.fn().mockResolvedValue({ ai_writeback_run_uuid: 'run' }),
+        },
+        schedulerClient: {
+            aiWritebackPipeline: vi
+                .fn()
+                .mockRejectedValue(new Error('queue unavailable')),
+        },
+    });
+    await expect(
+        withAgentActionScope(user, agentActionTestCases[0][1], true, () =>
+            service.enqueueWriteback({
+                agentPermissionsApply: false,
+                user,
+                projectUuid: 'project',
+                source: 'mcp',
+                prompt: 'private prompt',
+            }),
+        ),
+    ).rejects.toThrow('queue unavailable');
+    expect(
+        service['agentActionLogModel'].insert,
+    ).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+            object_uuid: 'run',
+            action: 'enqueue',
+            outcome: 'allowed',
+        }),
+    );
+});
+
+describe('AiWritebackService remote commit recording with real providers', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    const setup = (
+        host: PullRequestProvider,
+        operation: 'open' | 'update',
+        failure:
+            | 'none'
+            | 'push'
+            | 'pr'
+            | 'bookkeeping'
+            | 'ledger'
+            | 'sha'
+            | 'cleanup',
+    ) => {
+        const events: string[] = [];
+        const insert = vi.fn(async () => {
+            await Promise.resolve();
+            events.push('ledger');
+            if (failure === 'ledger') throw new Error('ledger unavailable');
+        });
+        const service = buildService({ agentActionLogModel: { insert } });
+        const bookkeeping = vi
+            .spyOn(service as AnyType, 'recordWritebackPullRequest')
+            .mockImplementation(async () => {
+                events.push('bookkeeping');
+                if (failure === 'bookkeeping')
+                    throw new Error('bookkeeping unavailable');
+            });
+        const logError = vi
+            .spyOn(Logger, 'error')
+            .mockImplementation(() => Logger);
+        const commitAuthor = { name: 'Writer', email: 'writer@example.com' };
+        const baseConnection = {
+            owner: 'acme',
+            repo: 'analytics',
+            projectSubPath: '.',
+            branch: 'main',
+        };
+        const connections: Record<PullRequestProvider, GitConnection> = {
+            github: { ...baseConnection, provider: PullRequestProvider.GITHUB },
+            gitlab: {
+                ...baseConnection,
+                provider: PullRequestProvider.GITLAB,
+                hostDomain: 'gitlab.com',
+            },
+            bitbucket: {
+                ...baseConnection,
+                provider: PullRequestProvider.BITBUCKET,
+                projectUuid: 'p1',
+                projectDbtSourceUuid: null,
+                username: 'writer',
+            },
+        };
+        const installations: Record<PullRequestProvider, GitInstallation> = {
+            github: {
+                provider: PullRequestProvider.GITHUB,
+                installationId: 'installation',
+                token: 'test-token',
+                userToken: null,
+                commitAuthor,
+                coAuthorTrailer: '',
+            },
+            gitlab: {
+                provider: PullRequestProvider.GITLAB,
+                token: 'test-token',
+                instanceUrl: 'https://gitlab.com',
+                commitAuthor,
+            },
+            bitbucket: {
+                provider: PullRequestProvider.BITBUCKET,
+                owner: 'acme',
+                repo: 'analytics',
+                token: 'test-token',
+                commitAuthor,
+            },
+        };
+        const urls = {
+            github: PR_7,
+            gitlab: 'https://gitlab.com/acme/analytics/-/merge_requests/7',
+            bitbucket: 'https://bitbucket.org/acme/analytics/pull-requests/7',
+        };
+        const prUrl = urls[host];
+        const pullRequest = {
+            number: 7,
+            title: 'Update model',
+            html_url: prUrl,
+            state: PullRequestState.OPEN,
+            head: 'feature/model',
+            base: 'main',
+            sourceRepository: 'acme/analytics',
+            destinationRepository: 'acme/analytics',
+        };
+        const remoteCommit = vi.fn(async () => {
+            events.push('push');
+            if (failure === 'push') throw new Error('push unavailable');
+            return { oid: 'sha-7', url: 'https://example.com/commit' };
+        });
+        const prMutation = vi.fn(async () => {
+            events.push('pr');
+            if (failure === 'pr') throw new Error('pr unavailable');
+            return pullRequest;
+        });
+        vi.mocked(getBranchHeadSha).mockResolvedValue('base-sha');
+        vi.mocked(createSignedCommitOnBranch).mockImplementation(remoteCommit);
+        const githubPrMutation = async () =>
+            (await prMutation()) as unknown as Awaited<
+                ReturnType<typeof createPullRequest>
+            >;
+        vi.mocked(createPullRequest).mockImplementation(githubPrMutation);
+        vi.mocked(updatePullRequest).mockImplementation(githubPrMutation);
+        vi.spyOn(GitlabClient, 'createPullRequest').mockImplementation(
+            prMutation,
+        );
+        vi.spyOn(GitlabClient, 'updateMergeRequest').mockImplementation(
+            prMutation,
+        );
+        vi.spyOn(BitbucketClient, 'createPullRequest').mockImplementation(
+            prMutation,
+        );
+        vi.spyOn(BitbucketClient, 'updatePullRequest').mockImplementation(
+            prMutation,
+        );
+        vi.spyOn(BitbucketClient, 'getPullRequest').mockResolvedValue(
+            pullRequest,
+        );
+        const sandbox = {
+            sandboxId: 'sbx-1',
+            git: {
+                status: vi.fn().mockResolvedValue({
+                    currentBranch:
+                        operation === 'open' ? 'main' : 'feature/model',
+                }),
+                createBranch: vi.fn().mockResolvedValue(undefined),
+                add: vi.fn().mockResolvedValue(undefined),
+                commit: vi.fn().mockResolvedValue(undefined),
+                push: remoteCommit,
+            },
+            files: { read: vi.fn().mockResolvedValue('version: 2') },
+            commands: {
+                run: vi.fn(async (command: string) => {
+                    if (
+                        command.includes('--remove-section credential') &&
+                        events.includes('push')
+                    ) {
+                        events.push('cleanup');
+                        if (failure === 'cleanup')
+                            throw new Error('cleanup unavailable');
+                    }
+                    if (command.includes('rev-parse HEAD')) {
+                        events.push('sha');
+                        if (failure === 'sha')
+                            throw new Error('sha unavailable');
+                        return { exitCode: 0, stdout: 'sha-7\n' };
+                    }
+                    if (command.includes('--name-status'))
+                        return {
+                            exitCode: 0,
+                            stdout: 'M\0models/orders.yml\0',
+                        };
+                    if (command.includes('--numstat'))
+                        return {
+                            exitCode: 0,
+                            stdout: '5\t2\tmodels/orders.yml\n',
+                        };
+                    return { exitCode: 0, stdout: '' };
+                }),
+            },
+        };
+        const provider: GitProvider = (service as AnyType)[`${host}Provider`];
+        const user = { ...defaultSessionUser, organizationUuid: ORG };
+        const run = () =>
+            (service as AnyType).applyAgentChanges({
+                sandbox,
+                sandboxUuid: 'sbx-uuid',
+                installation: installations[host],
+                hasChanges: true,
+                adoptedPr:
+                    operation === 'update' ? adoptedPullRequest(prUrl) : null,
+                turn: turnContext({
+                    provider,
+                    gitConnection: connections[host],
+                }),
+                user,
+                projectUuid: 'p1',
+                aiThreadUuid: 'thread-1',
+                setStage: vi.fn(),
+                prTitle: 'Update model',
+                prDescription: 'Update the model.',
+                prSummary: 'Updated model',
+                workstream: 'general',
+                aiWritebackRunUuid: 'run-1',
+            });
+        return {
+            run,
+            user,
+            insert,
+            events,
+            remoteCommit,
+            prMutation,
+            bookkeeping,
+            logError,
+        };
+    };
+
+    describe.each([
+        PullRequestProvider.GITHUB,
+        PullRequestProvider.GITLAB,
+        PullRequestProvider.BITBUCKET,
+    ])('%s', (host) => {
+        describe.each(['open', 'update'] as const)('%s', (operation) => {
+            describe.each([
+                ...agentActionTestCases,
+                ['in-app flag off', AgentActorSurface.IN_APP_AGENT, false, 0],
+                ['Slack flag off', AgentActorSurface.SLACK_AGENT, false, 0],
+            ] as const)('%s', (_, surface, enabled, count) => {
+                test.each([
+                    'none',
+                    'push',
+                    'pr',
+                    'bookkeeping',
+                    'ledger',
+                ] as const)('failure=%s', async (failure) => {
+                    const fixture = setup(host, operation, failure);
+                    const result = withAgentActionScope(
+                        fixture.user,
+                        surface,
+                        enabled,
+                        fixture.run,
+                    );
+                    if (failure === 'none' || failure === 'ledger') {
+                        await expect(result).resolves.toMatchObject({
+                            commitSha: 'sha-7',
+                        });
+                    } else if (
+                        failure === 'push' &&
+                        host === PullRequestProvider.BITBUCKET
+                    ) {
+                        await expect(result).rejects.toThrow(
+                            'Could not push the Bitbucket writeback branch',
+                        );
+                    } else {
+                        await expect(result).rejects.toThrow(
+                            `${failure} unavailable`,
+                        );
+                    }
+                    expect(fixture.remoteCommit).toHaveBeenCalledTimes(1);
+                    const expectedCount = failure === 'push' ? 0 : count;
+                    expect(fixture.insert).toHaveBeenCalledTimes(expectedCount);
+                    expect(fixture.prMutation).toHaveBeenCalledTimes(
+                        failure === 'push' ? 0 : 1,
+                    );
+                    expect(fixture.bookkeeping).toHaveBeenCalledTimes(
+                        failure === 'push' || failure === 'pr' ? 0 : 1,
+                    );
+                    expect(fixture.logError).toHaveBeenCalledTimes(
+                        failure === 'ledger' ? expectedCount : 0,
+                    );
+                    if (expectedCount) {
+                        expect(fixture.insert).toHaveBeenCalledWith(
+                            expect.objectContaining({
+                                organization_uuid: ORG,
+                                project_uuid: 'p1',
+                                object_type: 'ai_writeback_run',
+                                object_uuid: 'run-1',
+                                outcome: 'allowed',
+                                action: 'update',
+                                agent_identity: expect.objectContaining({
+                                    act: expect.objectContaining({
+                                        surface,
+                                        client_id:
+                                            surface === AgentActorSurface.MCP
+                                                ? null
+                                                : 'test-client',
+                                    }),
+                                }),
+                            }),
+                        );
+                        expect(
+                            fixture.events.indexOf('ledger'),
+                        ).toBeGreaterThan(fixture.events.indexOf('push'));
+                        expect(fixture.events.indexOf('ledger')).toBeLessThan(
+                            fixture.events.indexOf('pr'),
+                        );
+                    }
+                });
+            });
+        });
+    });
+
+    describe.each(['open', 'update'] as const)(
+        '%s post-push failures',
+        (operation) => {
+            test.each([
+                [PullRequestProvider.GITLAB, 'sha'],
+                [PullRequestProvider.BITBUCKET, 'sha'],
+                [PullRequestProvider.BITBUCKET, 'cleanup'],
+            ] as const)(
+                '%s records before post-push %s fails',
+                async (host, failure) => {
+                    const fixture = setup(host, operation, failure);
+                    const result = withAgentActionScope(
+                        fixture.user,
+                        AgentActorSurface.IN_APP_AGENT,
+                        true,
+                        fixture.run,
+                    );
+                    if (failure === 'cleanup')
+                        await expect(result).rejects.toBeInstanceOf(
+                            WritebackCredentialCleanupError,
+                        );
+                    else
+                        await expect(result).rejects.toThrow('sha unavailable');
+                    expect(fixture.insert).toHaveBeenCalledTimes(1);
+                    expect(fixture.prMutation).not.toHaveBeenCalled();
+                    expect(fixture.bookkeeping).not.toHaveBeenCalled();
+                    expect(fixture.events.indexOf('ledger')).toBeLessThan(
+                        fixture.events.indexOf(failure),
+                    );
+                },
+            );
+        },
+    );
 });

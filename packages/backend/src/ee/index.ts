@@ -35,6 +35,7 @@ import {
     AppThumbnailClient,
 } from './clients/AppThumbnailClient';
 import { ChartRegistryClient } from './clients/ChartRegistryClient';
+import { GithubReleaseNotesClient } from './clients/GithubReleaseNotes/GithubReleaseNotesClient';
 import LicenseClient from './clients/License/LicenseClient';
 import OpenAi from './clients/OpenAi';
 import { CommercialSlackClient } from './clients/Slack/SlackClient';
@@ -70,6 +71,7 @@ import { MobilePushNotificationModel } from './models/MobilePushNotificationMode
 import { ProjectCiStatusModel } from './models/ProjectCiStatusModel';
 import { ProjectContextModel } from './models/ProjectContextModel';
 import { ProjectHomepageModel } from './models/ProjectHomepageModel';
+import { ReleaseHighlightsModel } from './models/ReleaseHighlightsModel';
 import { SandboxRegistryModel } from './models/SandboxRegistryModel';
 import { SchedulerAiAugmentationModel } from './models/SchedulerAiAugmentationModel';
 import { ScimRequestLogModel } from './models/ScimRequestLogModel';
@@ -137,6 +139,7 @@ import { provisionPlaygroundProject } from './services/ProjectService/provisionP
 import { seedTrainingCopyAgentDocuments } from './services/ProjectService/seedPlaygroundAgentDocuments';
 import { seedPlaygroundContent } from './services/ProjectService/seedPlaygroundContent';
 import { seedPlaygroundMetricsTrees } from './services/ProjectService/seedPlaygroundMetricsTrees';
+import { ReleaseHighlightsService } from './services/ReleaseHighlightsService/ReleaseHighlightsService';
 import { RoadmapService } from './services/RoadmapService/RoadmapService';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { ScimService } from './services/ScimService/ScimService';
@@ -427,12 +430,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     aiDeepResearchRunModel,
                     userService: repository.getUserService(),
-                    buildEvidencePack: (run) => service.buildEvidencePack(run),
+                    buildEvidencePack: (run, sourceForRun) =>
+                        service.buildEvidencePack(run, 0, sourceForRun),
                 }).execute;
                 return service;
             },
             projectContextService: ({ models }) =>
                 new ProjectContextService({
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     projectModel: models.getProjectModel(),
                     githubAppInstallationsModel:
                         models.getGithubAppInstallationsModel(),
@@ -447,6 +452,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 clients,
             }) =>
                 new AiWritebackService({
+                    agentPermissionService:
+                        repository.getAgentPermissionService(),
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     projectModel: models.getProjectModel(),
@@ -502,6 +510,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             previewDeploySetupService: ({ context, models }) =>
                 new PreviewDeploySetupService({
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     lightdashConfig: context.lightdashConfig,
                     projectModel: models.getProjectModel(),
                     githubAppInstallationsModel:
@@ -560,6 +569,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     }),
                 );
                 return new QuerySourceService({
+                    getAsyncQueryService: () =>
+                        repository.getAsyncQueryService(),
+                    getAgentPermissionService: () =>
+                        repository.getAgentPermissionService(),
                     projectModel: models.getProjectModel(),
                     queryHistoryModel: models.getQueryHistoryModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
@@ -568,6 +581,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             },
             appGenerateService: ({ context, models, clients, repository }) =>
                 new AppGenerateService({
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     analyticsModel: models.getAnalyticsModel(),
@@ -689,6 +703,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiAgentToolsService: ({ models, repository, context }) =>
                 new AiAgentToolsService({
+                    agentPermissionService:
+                        repository.getAgentPermissionService(),
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     builtInSkills: BuiltInSkills,
                     lightdashConfig: context.lightdashConfig,
                     appModel: models.getAppModel(),
@@ -742,6 +759,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 prometheusMetrics,
             }) =>
                 new AiAgentService({
+                    agentActionLogModel: models.getAgentActionLogModel(),
+                    agentPermissionService:
+                        repository.getAgentPermissionService(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     userModel: models.getUserModel(),
@@ -778,6 +798,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectService: repository.getProjectService(),
                     catalogService: repository.getCatalogService(),
                     asyncQueryService: repository.getAsyncQueryService(),
+                    querySourceService: repository.getQuerySourceService(),
+                    queryHistoryModel: models.getQueryHistoryModel(),
                     userAttributesModel: models.getUserAttributesModel(),
                     searchModel: models.getSearchModel(),
                     searchService: repository.getSearchService(),
@@ -870,6 +892,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     slackClient: clients.getSlackClient(),
                     userModel: models.getUserModel(),
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     lightdashConfig: context.lightdashConfig,
                     writebackPreviewService:
                         repository.getWritebackPreviewService<WritebackPreviewService>(),
@@ -1000,6 +1023,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             schedulerAiAugmentationService: ({ models, repository }) =>
                 new SchedulerAiAugmentationService({
+                    agentPermissionService:
+                        repository.getAgentPermissionService(),
+                    featureFlagModel: models.getFeatureFlagModel(),
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     projectModel: models.getProjectModel(),
                     warehouseConnectionModel:
                         models.getWarehouseConnectionModel(),
@@ -1123,6 +1150,16 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     slackClient: clients.getSlackClient(),
                     aiAgentModel: models.getAiAgentModel(),
                 }),
+            releaseHighlightsService: ({ models, context, repository }) =>
+                new ReleaseHighlightsService({
+                    lightdashConfig: context.lightdashConfig,
+                    model: models.getReleaseHighlightsModel<ReleaseHighlightsModel>(),
+                    githubClient: new GithubReleaseNotesClient(),
+                    roadmapService:
+                        repository.getRoadmapService<RoadmapService>(),
+                    now: null,
+                    aiService: repository.getAiService<AiService>(),
+                }),
             supportService: ({ models, context, repository, clients }) =>
                 new SupportService({
                     analytics: context.lightdashAnalytics,
@@ -1151,6 +1188,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     groupsModel: models.getGroupsModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     rolesModel: models.getRolesModel(),
+                    organizationSettingsModel:
+                        models.getOrganizationSettingsModel(),
                     onOrganizationCreated: ({ user, organizationUuid }) =>
                         provisionOnboardingOrgFlags({
                             user,
@@ -1169,6 +1208,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             projectService: ({ models, context, clients, utils, repository }) =>
                 new ProjectService({
+                    getAgentConnectionGrantService: () =>
+                        repository.getAgentConnectionGrantService(),
+                    refreshTokenRotation: models.getRefreshTokenRotation(),
                     aiAccessService: repository.getAiAccessService(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
@@ -1406,6 +1448,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 prometheusMetrics,
             }) =>
                 new AsyncQueryService({
+                    refreshTokenRotation: models.getRefreshTokenRotation(),
                     aiAccessService: repository.getAiAccessService(),
                     getDocumentService: () => repository.getDocumentService(),
                     contentDraftModel: models.getContentDraftModel(),
@@ -1535,6 +1578,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             mcpService: ({ context, repository, models }) =>
                 new McpService({
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     aiAccessService: repository.getAiAccessService(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
@@ -1583,6 +1627,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     spacePermissionService:
                         repository.getSpacePermissionService(),
                     userModel: models.getUserModel(),
+                    agentPermissionService:
+                        repository.getAgentPermissionService(),
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     schedulerClient: clients.getSchedulerClient(),
                     slackClient: clients.getSlackClient(),
@@ -1607,16 +1654,22 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     projectService: repository.getProjectService(),
                     schedulerClient: clients.getSchedulerClient(),
-                    exploreEnhancer: (explores, { startOfWeek }) =>
+                    exploreEnhancer: (
+                        explores,
+                        { startOfWeek, startOfWeekByExplore },
+                    ) =>
                         enhanceExploresForPreAggregates({
                             explores,
                             enabled:
                                 context.lightdashConfig.preAggregates.enabled,
                             startOfWeek,
+                            startOfWeekByExplore,
                         }),
                 }),
         },
         modelProviders: {
+            releaseHighlightsModel: ({ database }) =>
+                new ReleaseHighlightsModel({ database }),
             externalSourceModel: ({ database, utils }) =>
                 new ExternalSourceModel({
                     database,
@@ -1737,6 +1790,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
         ],
         schedulerWorkerFactory: (context) =>
             new CommercialSchedulerWorker({
+                getAgentConnectionGrantService: () =>
+                    context.serviceRepository.getAgentConnectionGrantService(),
+                agentActionLogModel: context.models.getAgentActionLogModel(),
                 usageDimensionsModel: context.models.getUsageDimensionsModel(),
                 featureFlagModel: context.models.getFeatureFlagModel(),
                 lightdashConfig: context.lightdashConfig,
@@ -1791,6 +1847,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getEmailWhitelabelService(),
                 warehouseConnectCodeModel:
                     context.models.getWarehouseConnectCodeModel(),
+                agentConnectionApprovalRequestModel:
+                    context.models.getAgentConnectionApprovalRequestModel(),
                 aiUsageLedgerModel: context.models.getAiUsageLedgerModel(),
                 learnSandboxService:
                     context.serviceRepository.getLearnSandboxService(),

@@ -1,23 +1,35 @@
 import {
+    assertUnreachable,
     BigqueryAuthenticationType,
     WarehouseTypes,
     type AiServiceAccountSlot,
+    type AiServiceAccountTestResult,
 } from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import MantineModal from '../../components/common/MantineModal';
 import { BigQueryKeyFileInput } from '../../components/ProjectConnection/WarehouseForms/BigQueryKeyFileInput';
 import { useSaveAiServiceAccount, useTestAiServiceAccount } from './api';
+import { AthenaAiServiceAccountForm } from './AthenaAiServiceAccountForm';
+import { DatabricksAiServiceAccountForm } from './DatabricksAiServiceAccountForm';
+import { SnowflakeAiServiceAccountForm } from './SnowflakeAiServiceAccountForm';
+import { UserPasswordAiServiceAccountForm } from './UserPasswordAiServiceAccountForm';
 
-export const AiServiceAccountForm = ({
+interface AiServiceAccountFormProps {
+    projectUuid: string;
+    onClose: () => void;
+    onSaved: (
+        slot: AiServiceAccountSlot,
+        principal: string | null,
+        verification?: AiServiceAccountTestResult | null,
+    ) => void;
+}
+
+const BigqueryAiServiceAccountForm = ({
     projectUuid,
     onClose,
     onSaved,
-}: {
-    projectUuid: string;
-    onClose: () => void;
-    onSaved: (slot: AiServiceAccountSlot, principal: string | null) => void;
-}) => {
+}: AiServiceAccountFormProps) => {
     const [file, setFile] = useState<File | null>(null);
     const [keyfileContents, setKeyfileContents] = useState<Record<
         string,
@@ -37,7 +49,7 @@ export const AiServiceAccountForm = ({
     return (
         <MantineModal
             opened
-            title="AI service account"
+            title="Shared agent account"
             onClose={busy ? () => {} : onClose}
             confirmLabel="Save"
             confirmDisabled={!credentials || busy}
@@ -45,13 +57,15 @@ export const AiServiceAccountForm = ({
             onConfirm={() => {
                 if (credentials)
                     save.mutate(credentials, {
-                        onSuccess: (savedSlot) => {
+                        onSuccess: ({ slot: savedSlot }) => {
                             if (savedSlot)
                                 onSaved(
                                     savedSlot,
                                     test.data?.ok &&
-                                        test.variables?.credentials
-                                            ?.keyfileContents ===
+                                        test.variables?.credentials?.type ===
+                                            WarehouseTypes.BIGQUERY &&
+                                        test.variables.credentials
+                                            .keyfileContents ===
                                             credentials.keyfileContents
                                         ? test.data.principal
                                         : null,
@@ -98,4 +112,66 @@ export const AiServiceAccountForm = ({
             </Stack>
         </MantineModal>
     );
+};
+
+interface WarehouseAiServiceAccountFormProps extends AiServiceAccountFormProps {
+    warehouseType:
+        | WarehouseTypes.CLICKHOUSE
+        | WarehouseTypes.POSTGRES
+        | WarehouseTypes.REDSHIFT
+        | WarehouseTypes.TRINO
+        | WarehouseTypes.ATHENA
+        | WarehouseTypes.BIGQUERY
+        | WarehouseTypes.DATABRICKS
+        | WarehouseTypes.SNOWFLAKE;
+}
+
+export const AiServiceAccountForm = ({
+    warehouseType,
+    ...props
+}: WarehouseAiServiceAccountFormProps) => {
+    switch (warehouseType) {
+        case WarehouseTypes.TRINO:
+            return (
+                <UserPasswordAiServiceAccountForm
+                    {...props}
+                    warehouseType={warehouseType}
+                    userDescription="The Trino login for agents"
+                />
+            );
+        case WarehouseTypes.CLICKHOUSE:
+            return (
+                <UserPasswordAiServiceAccountForm
+                    {...props}
+                    warehouseType={warehouseType}
+                    userDescription="The ClickHouse user for agents"
+                />
+            );
+        case WarehouseTypes.REDSHIFT:
+            return (
+                <UserPasswordAiServiceAccountForm
+                    {...props}
+                    warehouseType={warehouseType}
+                    userDescription="The Redshift database user for agents"
+                />
+            );
+        case WarehouseTypes.POSTGRES:
+            return (
+                <UserPasswordAiServiceAccountForm
+                    {...props}
+                    warehouseType={warehouseType}
+                    userDescription="The Postgres login role for agents"
+                />
+            );
+        case WarehouseTypes.ATHENA:
+            return <AthenaAiServiceAccountForm {...props} />;
+        case WarehouseTypes.BIGQUERY:
+            return <BigqueryAiServiceAccountForm {...props} />;
+        case WarehouseTypes.DATABRICKS:
+            return <DatabricksAiServiceAccountForm {...props} />;
+        case WarehouseTypes.SNOWFLAKE:
+            return <SnowflakeAiServiceAccountForm {...props} />;
+        default:
+            return assertUnreachable(warehouseType, 'Unknown warehouse type');
+    }
 };

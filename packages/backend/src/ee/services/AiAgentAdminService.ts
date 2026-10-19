@@ -68,6 +68,7 @@ import {
     UpdateAiReviewLinearDestination,
     UpdateAiReviewLinearRouting,
     UpdateAiReviewNotificationSettings,
+    type AgentWorkMarker,
     type AiAgentReviewItemWritebackBlockedReason,
     type AiAgentReviewItemWritebackEligibility,
     type AiAgentReviewItemWritebackPreview,
@@ -100,6 +101,7 @@ import {
 } from '../../logging/exploreCacheReadMetrics';
 import { measureTime } from '../../logging/measureTime';
 import { logAuditEvent } from '../../logging/winston';
+import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import { type GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { type GitlabAppInstallationsModel } from '../../models/GitlabAppInstallations/GitlabAppInstallationsModel';
 import { type JobModel } from '../../models/JobModel/JobModel';
@@ -127,8 +129,10 @@ import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificati
 import { type AiAgentService } from './AiAgentService/AiAgentService';
 import { isBitbucketCloudConnection } from './AiAgentService/writebackConnection';
 import { type AiOrganizationSettingsService } from './AiOrganizationSettingsService';
+import { WritebackAgentAccessError } from './AiWritebackService/errors';
 import { type WritebackPreviewService } from './AiWritebackService/WritebackPreviewService';
 import { type ProjectContextService } from './ProjectContextService/ProjectContextService';
+import { createReviewRemediationAgentWorkGuard } from './reviewRemediationAgentWork';
 
 type AiAgentAdminServiceDependencies = {
     analytics: LightdashAnalytics;
@@ -154,6 +158,7 @@ type AiAgentAdminServiceDependencies = {
     schedulerClient: CommercialSchedulerClient;
     slackClient: Pick<SlackClient, 'joinChannels'>;
     userModel: UserModel;
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     lightdashConfig: LightdashConfig;
     writebackPreviewService: WritebackPreviewService;
     jobModel: JobModel;
@@ -435,6 +440,8 @@ export class AiAgentAdminService extends BaseService {
 
     private readonly userModel: UserModel;
 
+    private readonly agentActionLogModel: AiAgentAdminServiceDependencies['agentActionLogModel'];
+
     private readonly writebackPreviewService: WritebackPreviewService;
 
     private readonly jobModel: JobModel;
@@ -468,6 +475,7 @@ export class AiAgentAdminService extends BaseService {
         this.schedulerClient = dependencies.schedulerClient;
         this.slackClient = dependencies.slackClient;
         this.userModel = dependencies.userModel;
+        this.agentActionLogModel = dependencies.agentActionLogModel;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.writebackPreviewService = dependencies.writebackPreviewService;
         this.jobModel = dependencies.jobModel;
@@ -837,6 +845,7 @@ export class AiAgentAdminService extends BaseService {
                       enableContentTools: agent.enableContentTools,
                       enableUserContext: agent.enableUserContext,
                       enableSqlMode: agent.enableSqlMode,
+                      enableSqlAutoApproval: agent.enableSqlAutoApproval,
                       adminOnly: agent.adminOnly,
                       version: agent.version,
                   }
@@ -2464,6 +2473,12 @@ export class AiAgentAdminService extends BaseService {
             buildYmlPathByModel(Object.values(explores)),
         );
 
+        const { enabled: agentIdentityEnabled } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AgentIdentity,
+            });
+
         // The model presents a stale remediation as failed, which relaxes the
         // eligibility check above — but the partial unique index still sees
         // the row as active, so it must be persisted as failed (the model
@@ -2595,6 +2610,15 @@ export class AiAgentAdminService extends BaseService {
         });
 
         await this.schedulerClient.aiAgentReviewWriteback({
+            ...(agentIdentityEnabled
+                ? {
+                      agentWork: {
+                          userUuid: user.userUuid,
+                          organizationUuid,
+                          projectUuid,
+                      },
+                  }
+                : {}),
             fingerprint,
             organizationUuid,
             projectUuid,
@@ -2755,9 +2779,24 @@ export class AiAgentAdminService extends BaseService {
                 message,
             });
 
+        const guard = createReviewRemediationAgentWorkGuard(
+            {
+                userModel: this.userModel,
+                agentActionLogModel: this.agentActionLogModel,
+            },
+            payload,
+        );
+        const assertPublishAllowed = guard?.assert ?? null;
+        let userLoaded = false;
         let strategy: AiAgentReviewItemWritebackStrategy | null = null;
         try {
-            const user = await this.userModel.findSessionUserByUUID(userUuid);
+            if (guard?.malformed) await guard.assert();
+            const user = await this.userModel.findSessionUserAndOrgByUuid(
+                userUuid,
+                organizationUuid,
+            );
+            userLoaded = true;
+            if (guard) await guard.assertUser(user);
             await setProgress('Starting writeback…');
 
             const runWritebackReadContext: ExploreCacheReadContext & {
@@ -2818,10 +2857,14 @@ export class AiAgentAdminService extends BaseService {
                         entry: plan.entry,
                         branchTimestamp: Date.now(),
                         sourceThread,
+                        ...(assertPublishAllowed
+                            ? { assertPublishAllowed }
+                            : {}),
                     });
                 prUrl = writeback.prUrl;
                 // Surface the PR in the project's Pull Requests list with
                 // AI_AGENT provenance, same as the semantic_layer writeback.
+                if (assertPublishAllowed) await assertPublishAllowed();
                 pullRequest = await this.pullRequestsModel.findOrCreate({
                     organizationUuid,
                     projectUuid,
@@ -2856,6 +2899,7 @@ export class AiAgentAdminService extends BaseService {
                     workThreadUuid,
                 );
                 if (writebackOutcome.type === 'not_started') {
+                    if (assertPublishAllowed) await assertPublishAllowed();
                     await this.aiAgentService.generateAgentThreadResponse(
                         user,
                         {
@@ -2921,6 +2965,7 @@ export class AiAgentAdminService extends BaseService {
                 if (prUrl && !pullRequest) {
                     const parsed = parsePullRequestUrl(prUrl);
                     if (parsed) {
+                        if (assertPublishAllowed) await assertPublishAllowed();
                         pullRequest = await this.pullRequestsModel.findOrCreate(
                             {
                                 organizationUuid,
@@ -2939,6 +2984,7 @@ export class AiAgentAdminService extends BaseService {
             }
 
             if (prUrl) {
+                if (assertPublishAllowed) await assertPublishAllowed();
                 await this.aiAgentReviewClassifierModel.setReviewItemPrLink({
                     fingerprint,
                     organizationUuid,
@@ -2949,6 +2995,7 @@ export class AiAgentAdminService extends BaseService {
                 });
                 let terminalMessage = 'Opened pull request';
                 if (remediationUuid && pullRequest) {
+                    if (assertPublishAllowed) await assertPublishAllowed();
                     await this.aiAgentReviewClassifierModel.setReviewRemediationPullRequest(
                         {
                             remediationUuid,
@@ -2956,6 +3003,7 @@ export class AiAgentAdminService extends BaseService {
                             pullRequestUuid: pullRequest.pullRequestUuid,
                         },
                     );
+                    if (assertPublishAllowed) await assertPublishAllowed();
                     await this.aiAgentReviewClassifierModel.createRemediationEvent(
                         {
                             remediationUuid,
@@ -2972,6 +3020,7 @@ export class AiAgentAdminService extends BaseService {
                         },
                     );
                 } else if (remediationUuid) {
+                    if (assertPublishAllowed) await assertPublishAllowed();
                     // The PR exists (e.g. a non-GitHub URL we cannot record in
                     // pull_requests) — keep the lifecycle truthful instead of
                     // failing a successful writeback. Preview creation is
@@ -2988,7 +3037,14 @@ export class AiAgentAdminService extends BaseService {
                 await setProgress('Creating preview environment…');
                 const preview =
                     await this.writebackPreviewService.createPreviewForPullRequest(
-                        { user, projectUuid, prUrl },
+                        {
+                            user,
+                            projectUuid,
+                            prUrl,
+                            ...(assertPublishAllowed
+                                ? { assertPublishAllowed }
+                                : {}),
+                        },
                     );
                 if (preview) {
                     terminalMessage = `Opened pull request · Preview: ${preview.previewUrl}`;
@@ -2998,6 +3054,7 @@ export class AiAgentAdminService extends BaseService {
                         // compile finishes makes it report a false negative.
                         // The wait runs as a self-rescheduling poll job so no
                         // worker slot is held and a deploy can't strand it.
+                        if (assertPublishAllowed) await assertPublishAllowed();
                         await this.schedulerClient.aiAgentReviewRemediationCompile(
                             {
                                 organizationUuid,
@@ -3008,13 +3065,18 @@ export class AiAgentAdminService extends BaseService {
                                 previewProjectUuid: preview.previewProjectUuid,
                                 compileJobUuid: preview.compileJobUuid,
                                 startedAt: Date.now(),
+                                ...(payload.agentWork
+                                    ? { agentWork: payload.agentWork }
+                                    : {}),
                             },
                         );
                     }
                 }
+                if (assertPublishAllowed) await assertPublishAllowed();
                 await setTerminal('completed', terminalMessage);
             } else {
                 if (remediationUuid) {
+                    if (assertPublishAllowed) await assertPublishAllowed();
                     await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
                         {
                             remediationUuid,
@@ -3023,6 +3085,7 @@ export class AiAgentAdminService extends BaseService {
                         },
                     );
                 }
+                if (assertPublishAllowed) await assertPublishAllowed();
                 await setTerminal(
                     'completed',
                     'Writeback ran — no changes were needed',
@@ -3041,17 +3104,24 @@ export class AiAgentAdminService extends BaseService {
                 },
             });
         } catch (error) {
+            const failure = guard?.getFailure();
+            let recordedError = error;
+            if (failure) {
+                recordedError = failure.error;
+            } else if (guard && !userLoaded) {
+                recordedError = new WritebackAgentAccessError(error);
+            }
             if (remediationUuid) {
                 await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
                     {
                         remediationUuid,
                         organizationUuid,
                         status: 'failed',
-                        errorMessage: getErrorMessage(error),
+                        errorMessage: getErrorMessage(recordedError),
                     },
                 );
             }
-            await setTerminal('failed', getErrorMessage(error));
+            await setTerminal('failed', getErrorMessage(recordedError));
             this.analytics.track({
                 event: 'ai_agent_review_item.writeback_failed',
                 userId: userUuid,
@@ -3061,10 +3131,16 @@ export class AiAgentAdminService extends BaseService {
                     fingerprint,
                     rootCause: reviewItem.primaryRootCause,
                     strategy,
-                    errorMessage: getErrorMessage(error),
+                    errorMessage: getErrorMessage(recordedError),
                 },
             });
-            throw error;
+            if (
+                guard &&
+                recordedError instanceof WritebackAgentAccessError &&
+                recordedError.isRefusal
+            )
+                return;
+            throw recordedError;
         }
     }
 
@@ -3275,6 +3351,12 @@ export class AiAgentAdminService extends BaseService {
             );
         }
 
+        const { enabled: agentIdentityEnabled } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AgentIdentity,
+            });
+
         await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus({
             remediationUuid: remediation.uuid,
             organizationUuid,
@@ -3290,6 +3372,15 @@ export class AiAgentAdminService extends BaseService {
         );
 
         await this.schedulerClient.aiAgentReviewRemediationCompile({
+            ...(agentIdentityEnabled
+                ? {
+                      agentWork: {
+                          userUuid: user.userUuid,
+                          organizationUuid,
+                          projectUuid: remediation.sourceProjectUuid,
+                      },
+                  }
+                : {}),
             organizationUuid,
             projectUuid: remediation.sourceProjectUuid,
             userUuid: user.userUuid,
@@ -3349,72 +3440,109 @@ export class AiAgentAdminService extends BaseService {
     async pollReviewRemediationCompile(
         payload: AiAgentReviewRemediationCompileJobPayload,
     ): Promise<void> {
-        const {
-            organizationUuid,
-            remediationUuid,
-            previewProjectUuid,
-            compileJobUuid,
-            startedAt,
-            userUuid,
-        } = payload;
-
-        // Status guard must run before the timeout: a poll firing after the
-        // remediation reached a terminal state must not overwrite that state.
-        const remediation =
-            await this.aiAgentReviewClassifierModel.getReviewRemediation({
+        const guard = createReviewRemediationAgentWorkGuard(
+            {
+                userModel: this.userModel,
+                agentActionLogModel: this.agentActionLogModel,
+            },
+            payload,
+        );
+        const assertPublishAllowed = guard?.assert ?? null;
+        try {
+            const {
                 organizationUuid,
                 remediationUuid,
-            });
-        if (!remediation || remediation.status !== 'pr_open') {
-            return;
-        }
+                previewProjectUuid,
+                compileJobUuid,
+                startedAt,
+                userUuid,
+            } = payload;
 
-        const failRemediation = (errorMessage: string) =>
-            this.aiAgentReviewClassifierModel.updateReviewRemediationStatus({
-                remediationUuid,
-                organizationUuid,
-                status: 'failed',
-                errorMessage,
-            });
+            if (guard?.malformed) await guard.assert();
 
-        if (Date.now() - startedAt > PREVIEW_COMPILE_WAIT_TIMEOUT_MS) {
-            await failRemediation('Preview project did not compile in time');
-            return;
-        }
-
-        const job = await this.jobModel.get(compileJobUuid);
-        switch (job.jobStatus) {
-            case JobStatusType.DONE:
-                await this.aiAgentReviewClassifierModel.createRemediationEvent({
-                    remediationUuid,
+            // Status guard must run before the timeout: a poll firing after the
+            // remediation reached a terminal state must not overwrite that state.
+            const remediation =
+                await this.aiAgentReviewClassifierModel.getReviewRemediation({
                     organizationUuid,
-                    event: {
-                        eventType: 'preview_compiled',
-                        payload: { previewProjectUuid },
+                    remediationUuid,
+                });
+            if (!remediation || remediation.status !== 'pr_open') {
+                return;
+            }
+
+            const failRemediation = (errorMessage: string) =>
+                this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
+                    {
+                        remediationUuid,
+                        organizationUuid,
+                        status: 'failed',
+                        errorMessage,
                     },
-                });
-                await this.setReviewRemediationPreviewFromProject({
-                    organizationUuid,
-                    remediationUuid,
-                    previewProjectUuid,
-                    userUuid,
-                });
-                return;
-            case JobStatusType.ERROR:
-                await failRemediation('Preview project failed to compile');
-                return;
-            case JobStatusType.STARTED:
-            case JobStatusType.RUNNING:
-                await this.schedulerClient.aiAgentReviewRemediationCompile(
-                    payload,
-                    new Date(Date.now() + PREVIEW_COMPILE_POLL_INTERVAL_MS),
+                );
+
+            if (Date.now() - startedAt > PREVIEW_COMPILE_WAIT_TIMEOUT_MS) {
+                await failRemediation(
+                    'Preview project did not compile in time',
                 );
                 return;
-            default:
-                assertUnreachable(
-                    job.jobStatus,
-                    `Unknown job status for compile job ${compileJobUuid}`,
-                );
+            }
+
+            const job = await this.jobModel.get(compileJobUuid);
+            switch (job.jobStatus) {
+                case JobStatusType.DONE:
+                    if (assertPublishAllowed) await assertPublishAllowed();
+                    await this.aiAgentReviewClassifierModel.createRemediationEvent(
+                        {
+                            remediationUuid,
+                            organizationUuid,
+                            event: {
+                                eventType: 'preview_compiled',
+                                payload: { previewProjectUuid },
+                            },
+                        },
+                    );
+                    await this.setReviewRemediationPreviewFromProject({
+                        organizationUuid,
+                        remediationUuid,
+                        previewProjectUuid,
+                        userUuid,
+                        agentWork: payload.agentWork ?? null,
+                        assertPublishAllowed,
+                    });
+                    return;
+                case JobStatusType.ERROR:
+                    await failRemediation('Preview project failed to compile');
+                    return;
+                case JobStatusType.STARTED:
+                case JobStatusType.RUNNING:
+                    await this.schedulerClient.aiAgentReviewRemediationCompile(
+                        payload,
+                        new Date(Date.now() + PREVIEW_COMPILE_POLL_INTERVAL_MS),
+                    );
+                    return;
+                default:
+                    assertUnreachable(
+                        job.jobStatus,
+                        `Unknown job status for compile job ${compileJobUuid}`,
+                    );
+            }
+        } catch (error) {
+            const failure = guard?.getFailure();
+            if (
+                !failure ||
+                !(failure.error instanceof WritebackAgentAccessError)
+            )
+                throw error;
+            await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
+                {
+                    organizationUuid: payload.organizationUuid,
+                    remediationUuid: payload.remediationUuid,
+                    status: 'failed',
+                    errorMessage: failure.error.message,
+                },
+            );
+            if (!failure.error.isRefusal) throw failure.error;
         }
     }
 
@@ -3438,12 +3566,14 @@ export class AiAgentAdminService extends BaseService {
         previewProjectUuid,
         previewAgentUuid,
         userUuid,
+        assertPublishAllowed,
     }: {
         remediation: AiAgentReviewRemediation;
         organizationUuid: string;
         previewProjectUuid: string;
         previewAgentUuid: string;
         userUuid: string;
+        assertPublishAllowed: (() => Promise<void>) | null;
     }): Promise<string> {
         // Seed the thread with a verification prompt that pins the source
         // conversation as context — the agent re-runs the original question
@@ -3459,6 +3589,7 @@ export class AiAgentAdminService extends BaseService {
         };
         let threadUuid: string;
         try {
+            if (assertPublishAllowed) await assertPublishAllowed();
             ({ threadUuid } =
                 await this.aiAgentModel.createWebAppThreadWithPrompt({
                     thread,
@@ -3485,6 +3616,11 @@ export class AiAgentAdminService extends BaseService {
                     },
                 }));
         } catch (error) {
+            if (
+                assertPublishAllowed &&
+                error instanceof WritebackAgentAccessError
+            )
+                throw error;
             this.logger.warn(
                 `Failed to seed review verification prompt, falling back to the flagged prompt text: ${getErrorMessage(
                     error,
@@ -3493,6 +3629,7 @@ export class AiAgentAdminService extends BaseService {
             if (!remediation.retryPrompt) {
                 throw error;
             }
+            if (assertPublishAllowed) await assertPublishAllowed();
             ({ threadUuid } =
                 await this.aiAgentModel.createWebAppThreadWithPrompt({
                     thread,
@@ -3509,6 +3646,7 @@ export class AiAgentAdminService extends BaseService {
                 organizationUuid,
                 remediation.fingerprint,
             );
+        if (assertPublishAllowed) await assertPublishAllowed();
         await this.aiAgentModel.updateThreadTitle({
             threadUuid,
             title: `Review fix: ${reviewItem?.title ?? remediation.retryPrompt ?? remediation.fingerprint}`,
@@ -3522,11 +3660,15 @@ export class AiAgentAdminService extends BaseService {
         remediationUuid,
         previewProjectUuid,
         userUuid,
+        agentWork,
+        assertPublishAllowed,
     }: {
         organizationUuid: string;
         remediationUuid: string;
         previewProjectUuid: string;
         userUuid: string;
+        agentWork: AgentWorkMarker | null;
+        assertPublishAllowed: (() => Promise<void>) | null;
     }): Promise<void> {
         const remediation =
             await this.aiAgentReviewClassifierModel.getReviewRemediation({
@@ -3563,9 +3705,15 @@ export class AiAgentAdminService extends BaseService {
                     previewProjectUuid,
                     previewAgentUuid,
                     userUuid,
+                    assertPublishAllowed,
                 },
             );
         } catch (error) {
+            if (
+                assertPublishAllowed &&
+                error instanceof WritebackAgentAccessError
+            )
+                throw error;
             this.logger.warn(
                 `Failed to create review verification thread: ${getErrorMessage(
                     error,
@@ -3574,6 +3722,7 @@ export class AiAgentAdminService extends BaseService {
             return;
         }
 
+        if (assertPublishAllowed) await assertPublishAllowed();
         await this.aiAgentReviewClassifierModel.setReviewRemediationPreviewThread(
             {
                 remediationUuid,
@@ -3584,7 +3733,16 @@ export class AiAgentAdminService extends BaseService {
             },
         );
 
+        if (assertPublishAllowed) await assertPublishAllowed();
         await this.schedulerClient.aiAgentReviewRemediationRun({
+            ...(agentWork
+                ? {
+                      agentWork: {
+                          ...agentWork,
+                          projectUuid: previewProjectUuid,
+                      },
+                  }
+                : {}),
             organizationUuid,
             projectUuid: previewProjectUuid,
             userUuid,
@@ -3598,72 +3756,103 @@ export class AiAgentAdminService extends BaseService {
     async pollReviewRemediationPreview(
         payload: AiAgentReviewRemediationPreviewJobPayload,
     ): Promise<void> {
-        const {
-            organizationUuid,
-            remediationUuid,
-            prUrl,
-            startedAt,
-            userUuid,
-        } = payload;
-
-        // Status guard must run before the timeout: a poll firing after the
-        // remediation reached a terminal state (e.g. an admin marked it fixed)
-        // must not overwrite that state.
-        const remediation =
-            await this.aiAgentReviewClassifierModel.getReviewRemediation({
+        const guard = createReviewRemediationAgentWorkGuard(
+            {
+                userModel: this.userModel,
+                agentActionLogModel: this.agentActionLogModel,
+            },
+            payload,
+        );
+        const assertPublishAllowed = guard?.assert ?? null;
+        try {
+            const {
                 organizationUuid,
                 remediationUuid,
+                prUrl,
+                startedAt,
+                userUuid,
+            } = payload;
+
+            if (guard?.malformed) await guard.assert();
+
+            // Status guard must run before the timeout: a poll firing after the
+            // remediation reached a terminal state (e.g. an admin marked it fixed)
+            // must not overwrite that state.
+            const remediation =
+                await this.aiAgentReviewClassifierModel.getReviewRemediation({
+                    organizationUuid,
+                    remediationUuid,
+                });
+            if (!remediation || remediation.status !== 'pr_open') {
+                return;
+            }
+
+            if (Date.now() - startedAt > REVIEW_PREVIEW_WAIT_TIMEOUT_MS) {
+                await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
+                    {
+                        remediationUuid,
+                        organizationUuid,
+                        status: 'failed',
+                        errorMessage: 'Preview URL was not published in time',
+                    },
+                );
+                return;
+            }
+
+            const previewUrl = await this.resolveReviewWritebackPreviewUrl(
+                organizationUuid,
+                prUrl,
+            );
+            if (!previewUrl) {
+                await this.schedulerClient.aiAgentReviewRemediationPreview(
+                    payload,
+                    new Date(Date.now() + REVIEW_PREVIEW_POLL_INTERVAL_MS),
+                );
+                return;
+            }
+
+            const previewProjectUuid = extractPreviewProjectUuidFromUrl(
+                previewUrl,
+                this.lightdashConfig.siteUrl,
+            );
+            if (!previewProjectUuid) {
+                await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
+                    {
+                        remediationUuid,
+                        organizationUuid,
+                        status: 'failed',
+                        errorMessage: 'Preview URL did not contain a project',
+                    },
+                );
+                return;
+            }
+
+            if (assertPublishAllowed) await assertPublishAllowed();
+            await this.setReviewRemediationPreviewFromProject({
+                organizationUuid,
+                remediationUuid,
+                previewProjectUuid,
+                userUuid,
+                agentWork: payload.agentWork ?? null,
+                assertPublishAllowed,
             });
-        if (!remediation || remediation.status !== 'pr_open') {
-            return;
-        }
-
-        if (Date.now() - startedAt > REVIEW_PREVIEW_WAIT_TIMEOUT_MS) {
+        } catch (error) {
+            const failure = guard?.getFailure();
+            if (
+                !failure ||
+                !(failure.error instanceof WritebackAgentAccessError)
+            )
+                throw error;
             await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
                 {
-                    remediationUuid,
-                    organizationUuid,
+                    organizationUuid: payload.organizationUuid,
+                    remediationUuid: payload.remediationUuid,
                     status: 'failed',
-                    errorMessage: 'Preview URL was not published in time',
+                    errorMessage: failure.error.message,
                 },
             );
-            return;
+            if (!failure.error.isRefusal) throw failure.error;
         }
-
-        const previewUrl = await this.resolveReviewWritebackPreviewUrl(
-            organizationUuid,
-            prUrl,
-        );
-        if (!previewUrl) {
-            await this.schedulerClient.aiAgentReviewRemediationPreview(
-                payload,
-                new Date(Date.now() + REVIEW_PREVIEW_POLL_INTERVAL_MS),
-            );
-            return;
-        }
-
-        const previewProjectUuid = extractPreviewProjectUuidFromUrl(
-            previewUrl,
-            this.lightdashConfig.siteUrl,
-        );
-        if (!previewProjectUuid) {
-            await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
-                {
-                    remediationUuid,
-                    organizationUuid,
-                    status: 'failed',
-                    errorMessage: 'Preview URL did not contain a project',
-                },
-            );
-            return;
-        }
-
-        await this.setReviewRemediationPreviewFromProject({
-            organizationUuid,
-            remediationUuid,
-            previewProjectUuid,
-            userUuid,
-        });
     }
 
     async failReviewItemWritebackJob(args: {

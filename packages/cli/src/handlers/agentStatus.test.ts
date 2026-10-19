@@ -36,6 +36,37 @@ afterEach(() => {
 });
 
 describe('agent status', () => {
+    it.each([
+        '/generalSettings/projectManagement/project-uuid/agentIdentity',
+        'https://settings.example/generalSettings/projectManagement/project-uuid/agentIdentity',
+    ])('prints the admin settings URL for %s', async (settingsUrl) => {
+        vi.mocked(getConfig).mockResolvedValue({
+            context: {
+                project: agentProjectUuid,
+                serverUrl: 'https://lightdash.example',
+            },
+        });
+        const message = 'Ask a project admin to add a shared agent account.';
+        vi.mocked(lightdashApi).mockResolvedValue({
+            ...agentAccess,
+            refusal: {
+                ...agentAccess.refusal!,
+                reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+                action: AiAccessRefusalAction.ASK_ADMIN,
+                message,
+                connectUrl: null,
+                settingsUrl,
+            },
+        });
+        await agentStatusHandler({ verbose: false });
+        expect(vi.mocked(console.error).mock.calls).toEqual([
+            [message],
+            [new URL(settingsUrl, 'https://lightdash.example').href],
+        ]);
+        expect(process.exitCode).toBe(1);
+        expect(openBrowser).not.toHaveBeenCalled();
+    });
+
     it('reports a connected person', async () => {
         vi.mocked(lightdashApi).mockResolvedValue(connectedAgentAccess);
         await agentStatusHandler({ verbose: false });
@@ -48,6 +79,49 @@ describe('agent status', () => {
             url: `/api/v2/projects/${agentProjectUuid}/ai-access/me`,
             body: undefined,
         });
+        expect(openBrowser).not.toHaveBeenCalled();
+    });
+
+    it.each(['organization', null] as const)(
+        'reports that the CLI runs as you for a shared agent account with requirement source %s',
+        async (requirementSource) => {
+            vi.mocked(lightdashApi).mockResolvedValue({
+                ...agentAccess,
+                requirementSource,
+                identity: 'ai_service_account',
+                source: 'ai_service_account',
+                enabled: true,
+                refusal: null,
+            });
+            await agentStatusHandler({ verbose: false });
+            expect(console.error).toHaveBeenCalledExactlyOnceWith(
+                'The CLI runs as you until agent connect issues an agent credential.',
+            );
+            expect(console.error).not.toHaveBeenCalledWith(
+                expect.stringContaining('use the shared agent account'),
+            );
+            expect(process.exitCode).toBeUndefined();
+            expect(openBrowser).not.toHaveBeenCalled();
+        },
+    );
+
+    it('reports a refusal for a shared agent account', async () => {
+        const message = 'Ask an admin to review the connection.';
+        vi.mocked(lightdashApi).mockResolvedValue({
+            ...agentAccess,
+            identity: 'ai_service_account',
+            source: 'ai_service_account',
+            refusal: {
+                ...agentAccess.refusal!,
+                reason: AiAccessRefusalReason.PRINCIPAL_FAILED,
+                action: AiAccessRefusalAction.ASK_ADMIN,
+                message,
+                connectUrl: null,
+            },
+        });
+        await agentStatusHandler({ verbose: false });
+        expect(console.error).toHaveBeenCalledExactlyOnceWith(message);
+        expect(process.exitCode).toBe(1);
         expect(openBrowser).not.toHaveBeenCalled();
     });
 
@@ -68,7 +142,7 @@ describe('agent status', () => {
     ])('reports %s and its link', async (reason) => {
         const message =
             reason === AiAccessRefusalReason.SIGN_IN_EXPIRED
-                ? 'Your agent connection expired. Connect again.'
+                ? 'Your agent sign-in expired. Connect your agent again.'
                 : agentAccess.refusal!.message;
         vi.mocked(lightdashApi).mockResolvedValue({
             ...agentAccess,
@@ -90,7 +164,7 @@ describe('agent status', () => {
         });
         await agentStatusHandler({ verbose: false });
         expect(console.error).toHaveBeenCalledExactlyOnceWith(
-            'Agent connection not required for this project',
+            'Agent sign-in is not required for this project',
         );
         expect(process.exitCode ?? 0).toBe(0);
     });

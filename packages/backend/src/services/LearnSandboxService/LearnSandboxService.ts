@@ -24,6 +24,7 @@ import { lstat, readdir, readFile, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fromSession } from '../../auth/account/account';
+import { assertOAuthCredentialOperationAllowed } from '../../auth/oauthScopes/credentials';
 import { LightdashConfig } from '../../config/parseConfig';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { LearnWorkspaceModel } from '../../models/LearnWorkspaceModel';
@@ -511,6 +512,10 @@ export class LearnSandboxService extends BaseService {
         projectUuid: string,
         request: LearnSandboxCommandRequest,
     ): Promise<{ commandUuid: string }> {
+        assertOAuthCredentialOperationAllowed(
+            user,
+            'enqueueLearnSandboxCommand',
+        );
         await this.assertSandboxAccess(user, projectUuid);
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');

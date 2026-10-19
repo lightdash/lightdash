@@ -66,6 +66,7 @@ import {
     validateProjectScopesCanBeGranted,
 } from '../../utils/organizationRolePermissions';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
 import { BaseService } from '../BaseService';
 import { LicenseService } from '../LicenseService/LicenseService';
 
@@ -144,6 +145,16 @@ export class RolesService extends BaseService {
         this.inviteLinkModel = inviteLinkModel;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.featureFlagModel = featureFlagModel;
+    }
+
+    private async assertHumanMutation(account: Account): Promise<void> {
+        await assertHumanManagedMutation({
+            organizationUuid: account.organization.organizationUuid,
+            ability: account.user.ability,
+            oauth: account.authentication.type === 'oauth',
+            database: this.rolesModel.db,
+            featureFlagModel: this.featureFlagModel,
+        });
     }
 
     /**
@@ -491,6 +502,7 @@ export class RolesService extends BaseService {
         organizationUuid: string,
         desiredRole: CustomRoleAsCode,
     ): Promise<ApiCustomRoleAsCodeUpsertResponse['results']> {
+        await this.assertHumanMutation(account);
         this.assertCustomRolesLicensed();
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateOrganizationAccess(
@@ -903,6 +915,7 @@ export class RolesService extends BaseService {
         desiredUserInput: UserAsCode,
         sendInvite: boolean = false,
     ): Promise<ApiUserAsCodeUpsertResponse['results']> {
+        await this.assertHumanMutation(account);
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateUsersAsCodeAccess(
             account,
@@ -1076,6 +1089,7 @@ export class RolesService extends BaseService {
         organizationUuid: string,
         createRoleData: CreateRole,
     ): Promise<Role> {
+        await this.assertHumanMutation(account);
         const { scopes, name, description, level = 'project' } = createRoleData;
         if (isSystemRole(name)) {
             throw new ParameterError(
@@ -1137,6 +1151,7 @@ export class RolesService extends BaseService {
         roleUuid: string,
         updateRoleData: UpdateRole,
     ): Promise<Role> {
+        await this.assertHumanMutation(account);
         const { scopes, name, description } = updateRoleData;
 
         if (isSystemRole(roleUuid)) {
@@ -1342,6 +1357,7 @@ export class RolesService extends BaseService {
         userUuid: string,
         request: { roleId: string },
     ): Promise<RoleAssignment> {
+        await this.assertHumanMutation(account);
         const { roleId } = request;
 
         // Validate organization access
@@ -1422,6 +1438,7 @@ export class RolesService extends BaseService {
         assigneeType: 'user' | 'group',
         request: UpdateRoleAssignmentRequest,
     ): Promise<RoleAssignment> {
+        await this.assertHumanMutation(account);
         if (assigneeType === 'user') {
             return this.upsertProjectUserRoleAssignment(
                 account,
@@ -1464,6 +1481,7 @@ export class RolesService extends BaseService {
         assigneeId: string,
         assigneeType: 'user' | 'group',
     ): Promise<void> {
+        await this.assertHumanMutation(account);
         if (assigneeType === 'user') {
             await this.removeUserProjectAccess(account, projectId, assigneeId);
         } else if (assigneeType === 'group') {
@@ -1483,6 +1501,7 @@ export class RolesService extends BaseService {
         userUuid: string,
         request: UpsertUserRoleAssignmentRequest,
     ): Promise<RoleAssignment> {
+        await this.assertHumanMutation(account);
         const { roleId } = request;
         const project = await this.projectModel.getSummary(projectUuid);
 
@@ -1606,6 +1625,7 @@ export class RolesService extends BaseService {
         groupUuid: string,
         request: UpsertUserRoleAssignmentRequest, // Reusing the same request type
     ): Promise<RoleAssignment> {
+        await this.assertHumanMutation(account);
         const { roleId } = request;
         const project = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(account);
@@ -1833,6 +1853,7 @@ export class RolesService extends BaseService {
         roleSet: OrganizationRoleSet,
         { source = 'api' }: { source?: RoleSetMutationSource } = {},
     ): Promise<OrganizationRoleSet> {
+        await this.assertHumanMutation(account);
         await this.assertRoleSetsEnabled(account);
         RolesService.validateOrganizationAccess(
             account,
@@ -1961,6 +1982,7 @@ export class RolesService extends BaseService {
         roleSet: ProjectRoleSet,
         { source = 'api' }: { source?: RoleSetMutationSource } = {},
     ): Promise<ProjectRoleSet> {
+        await this.assertHumanMutation(account);
         const { organizationUuid } = await this.validateProjectRoleSetRequest(
             account,
             projectUuid,
@@ -2016,6 +2038,7 @@ export class RolesService extends BaseService {
         roleSet: ProjectRoleSet,
         { source = 'api' }: { source?: RoleSetMutationSource } = {},
     ): Promise<ProjectRoleSet> {
+        await this.assertHumanMutation(account);
         const { organizationUuid } = await this.validateProjectRoleSetRequest(
             account,
             projectUuid,
@@ -2066,6 +2089,7 @@ export class RolesService extends BaseService {
     }
 
     async deleteRole(account: Account, roleUuid: string): Promise<void> {
+        await this.assertHumanMutation(account);
         if (isSystemRole(roleUuid)) {
             throw new ParameterError('Cannot remove system roles');
         }
@@ -2112,6 +2136,7 @@ export class RolesService extends BaseService {
         organizationUuid: string,
         projectUuid: string,
     ): Promise<void> {
+        await this.assertHumanMutation(account);
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateOrganizationAccess(
             account,
@@ -2139,6 +2164,7 @@ export class RolesService extends BaseService {
         roleUuid: string,
         projectUuid: string,
     ): Promise<void> {
+        await this.assertHumanMutation(account);
         const role = await this.rolesModel.getRoleByUuid(roleUuid);
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateRoleOwnership(account, auditedAbility, role);
@@ -2180,6 +2206,7 @@ export class RolesService extends BaseService {
         groupUuid: string,
         projectUuid: string,
     ): Promise<void> {
+        await this.assertHumanMutation(account);
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateOrganizationAccess(
             account,
@@ -2219,6 +2246,7 @@ export class RolesService extends BaseService {
         projectUuid: string,
         userUuid: string,
     ): Promise<void> {
+        await this.assertHumanMutation(account);
         const project = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateOrganizationAccess(
@@ -2246,6 +2274,7 @@ export class RolesService extends BaseService {
         scopeData: AddScopesToRole,
         { tx, role }: { tx?: Knex.Transaction; role?: Role } = {},
     ): Promise<void> {
+        await this.assertHumanMutation(account);
         if (isSystemRole(roleUuid)) {
             throw new ParameterError('Cannot add scopes to system roles');
         }
@@ -2290,6 +2319,7 @@ export class RolesService extends BaseService {
         roleUuid: string,
         scopeName: string,
     ): Promise<void> {
+        await this.assertHumanMutation(account);
         if (isSystemRole(roleUuid)) {
             throw new ParameterError('Cannot remove scopes from system roles');
         }
@@ -2318,6 +2348,7 @@ export class RolesService extends BaseService {
         scopeNames: string[],
         tx?: Knex.Transaction,
     ): Promise<void> {
+        await this.assertHumanMutation(account);
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateOrganizationAccess(
             account,
@@ -2352,6 +2383,7 @@ export class RolesService extends BaseService {
         roleUuid: string,
         duplicateRoleData: CreateRole,
     ): Promise<RoleWithScopes> {
+        await this.assertHumanMutation(account);
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateOrganizationAccess(
             account,

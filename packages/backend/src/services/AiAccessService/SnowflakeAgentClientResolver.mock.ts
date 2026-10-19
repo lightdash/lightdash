@@ -1,7 +1,7 @@
 import { type ResolvedSnowflakeAgentClient } from './SnowflakeAgentClientResolver';
 
 export const snowflakeAgentClientMock: ResolvedSnowflakeAgentClient = {
-    source: 'environment',
+    source: 'organization',
     organizationUuid: 'org-uuid',
     clientVersion: null,
     clientId: 'ai-client',

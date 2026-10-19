@@ -20,6 +20,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -37,7 +38,13 @@ export class AiAgentLiveActivityController extends BaseController {
         return this.services.getMobilePushNotificationService<MobilePushNotificationService>();
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentLiveActivityController.registerLiveActivity',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Put('/{liveActivityUuid}')
     @OperationId('registerAiAgentLiveActivity')
@@ -64,7 +71,13 @@ export class AiAgentLiveActivityController extends BaseController {
         return { status: 'ok', results: undefined };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentLiveActivityController.revokeLiveActivity',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Delete('/{liveActivityUuid}')
     @OperationId('revokeAiAgentLiveActivity')

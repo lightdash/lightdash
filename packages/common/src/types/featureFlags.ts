@@ -5,14 +5,21 @@
  * If the feature flag is no longer in use, remove it from this enum.
  */
 export enum FeatureFlags {
+    /** Organization-scoped, off by default. Retry missing cross-project refs with sibling models injected through a generated dbt plugin. */
+    CrossSourceDbtRefs = 'cross-source-dbt-refs',
+    DbtExplicitCredentials = 'dbt-explicit-credentials',
     /**
      * Agent identity gates agent query identity, organisation settings and
      * Snowflake agent sign-in. Off by default; organization scope; no handler.
      */
     AgentIdentity = 'agent-identity',
+    OAuthScopeEnforcement = 'oauth-scope-enforcement',
     AgentIdentitySilentRefresh = 'agent-identity-silent-refresh',
+    WarehouseOAuthRefreshLock = 'warehouse-oauth-refresh-lock',
 
     MultiConnectionProjects = 'multi-connection-projects',
+    /** Extra warehouse connections of a different type to the project's original connection. */
+    MixedWarehouseConnections = 'mixed-warehouse-connections',
     /** Independent Documents containing narrative and saved chart definitions. */
     Documents = 'documents',
     /** Backend-provisioned usage analytics projects. */
@@ -96,9 +103,9 @@ export enum FeatureFlags {
     MetricDashboardFilters = 'metric-dashboard-filters',
 
     /**
-     * Enable data apps feature. Works alongside the APPS_RUNTIME_ENABLED
-     * env var — data apps are enabled if either this flag or the env var
-     * is true. Disabled by default.
+     * Enable data apps feature. Disabled by default. Self-hosted
+     * deployments can force it on with APPS_RUNTIME_ENABLED=true, which
+     * the config parser translates into the enable allowlist.
      */
     EnableDataApps = 'enable-data-apps',
     // Enable the Learn library, walkthroughs and training project per org.
@@ -327,6 +334,15 @@ export enum FeatureFlags {
      * PREVIEW_ENABLED_FEATURE_FLAGS.
      */
     MultiSourceQuery = 'multi-source-query',
+
+    /**
+     * Enable the python query endpoint
+     * (POST /api/v2/projects/{projectUuid}/query/python): user python run in
+     * a sandbox over other queries' results. Requires compose-sql-runner as
+     * well. Off by default everywhere; enable per organization to limit
+     * blast radius while the sandbox runtime is new.
+     */
+    PythonQueryRunner = 'python-query-runner',
 
     /**
      * Enable the "My query history" page

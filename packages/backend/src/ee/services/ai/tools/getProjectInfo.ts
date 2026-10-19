@@ -26,6 +26,12 @@ const toProjectDetails = (
     dbtConnectionLabel: DbtProjectTypeLabels[info.dbtConnectionType],
     dbtVersion: info.dbtVersion,
     warehouseType: info.warehouseType,
+    connections: info.connections.map((connection) => ({
+        name: connection.name,
+        warehouseConnectionUuid: connection.warehouseConnectionUuid,
+        warehouseType: connection.warehouseType,
+        isOriginal: connection.isOriginal,
+    })),
     git: info.git
         ? {
               repository: info.git.repository,
@@ -52,6 +58,12 @@ const renderProjectDetails = (
     if (details.warehouseType) {
         lines.push(`Warehouse: ${details.warehouseType}`);
     }
+
+    details.connections.forEach((connection) => {
+        lines.push(
+            `Connection ${JSON.stringify(connection.name)} (${connection.warehouseConnectionUuid ?? 'original'}): ${connection.warehouseType}${connection.isOriginal ? ' (original; raw SQL tools use this connection)' : ''}`,
+        );
+    });
 
     if (details.git) {
         lines.push(

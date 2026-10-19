@@ -1,4 +1,8 @@
-import { NotFoundError, ProjectType } from '@lightdash/common';
+import {
+    NotFoundError,
+    ProjectType,
+    type ProjectSummary,
+} from '@lightdash/common';
 import { type AiServiceAccountCredentialsModel } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -25,7 +29,7 @@ type Resolution<T> = {
 
 export class AiServiceAccountSlotResolutionError extends Error {
     constructor(readonly inheritedFromProjectUuid: string | null) {
-        super('The saved AI service account credentials could not be read.');
+        super('The saved shared agent account credentials could not be read.');
     }
 }
 
@@ -47,10 +51,10 @@ export class AiServiceAccountSlotResolver {
         };
     }
 
-    private async parent(input: Input): Promise<Input | null> {
-        const project = await this.deps.projectModel.getSummary(
-            input.projectUuid,
-        );
+    private async parent(
+        input: Input,
+        project: ProjectSummary,
+    ): Promise<Input | null> {
         const parentUuid = project.upstreamProjectUuid ?? null;
         if (
             project.type !== ProjectType.PREVIEW ||
@@ -120,10 +124,25 @@ export class AiServiceAccountSlotResolver {
         load: (input: Input) => Promise<T | null>,
     ): Promise<Resolution<T> | null> {
         const normalized = await this.normalize(input);
-        const own = await this.read(normalized, false, load);
-        if (own !== null) return own;
-        const parent = await this.parent(normalized);
-        return parent === null ? null : this.read(parent, true, load);
+        let project: ProjectSummary;
+        try {
+            project = await this.deps.projectModel.getSummary(
+                input.projectUuid,
+            );
+        } catch (error) {
+            if (!(error instanceof NotFoundError)) throw error;
+            const own = await this.read(normalized, false, load);
+            if (own !== null) return own;
+            throw error;
+        }
+        if (
+            project.type === ProjectType.PREVIEW &&
+            project.upstreamProjectUuid
+        ) {
+            const parent = await this.parent(normalized, project);
+            return parent === null ? null : this.read(parent, true, load);
+        }
+        return this.read(normalized, false, load);
     }
 
     async resolve(input: Input) {
@@ -146,7 +165,11 @@ export class AiServiceAccountSlotResolver {
     }
 
     async resolveParent(input: Input) {
-        const parent = await this.parent(await this.normalize(input));
+        const normalized = await this.normalize(input);
+        const project = await this.deps.projectModel.getSummary(
+            input.projectUuid,
+        );
+        const parent = await this.parent(normalized, project);
         return parent === null
             ? null
             : this.read(parent, true, ({ projectUuid, connection }) =>
@@ -159,7 +182,11 @@ export class AiServiceAccountSlotResolver {
     }
 
     async resolveParentMetadata(input: Input) {
-        const parent = await this.parent(await this.normalize(input));
+        const normalized = await this.normalize(input);
+        const project = await this.deps.projectModel.getSummary(
+            input.projectUuid,
+        );
+        const parent = await this.parent(normalized, project);
         return parent === null
             ? null
             : this.read(parent, true, ({ projectUuid, connection }) =>

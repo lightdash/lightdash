@@ -53,6 +53,8 @@ describe('ciphertext registry', () => {
         expect(
             CIPHERTEXT_REGISTRY.map((e) => `${e.table}.${e.column}`),
         ).toEqual([
+            'credentials.encrypted_secrets',
+            'credential_token_state.encrypted_refresh_token',
             'organization_snowflake_agent_clients.encrypted_client_secret',
             'ai_service_account_credentials.encrypted_credentials',
             'projects.dbt_connection',

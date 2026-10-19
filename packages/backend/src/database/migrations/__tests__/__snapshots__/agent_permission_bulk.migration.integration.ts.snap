@@ -1,0 +1,8 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`review answer uses equal SQL round trips for 3 and 50 differentiated projects 1`] = `
+{
+  "large": 23,
+  "small": 23,
+}
+`;

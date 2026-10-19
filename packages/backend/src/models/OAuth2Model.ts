@@ -1,21 +1,49 @@
 /* eslint-disable class-methods-use-this */
 import {
+    AuthorizationError,
     AuthTokenPrefix,
     TOKEN_EXCHANGE_GRANT_TYPE,
     UserWithOrganizationUuid,
+    type AgentConnectionGrant,
+    type LightdashUser,
     type OAuthClientSummary,
 } from '@lightdash/common';
-import type {
-    AuthorizationCode,
-    AuthorizationCodeModel,
-    Client,
-    Token,
-    User,
+import OAuth2Server, {
+    type AuthorizationCode,
+    type AuthorizationCodeModel,
+    type Client,
+    type Token,
+    type User,
 } from '@node-oauth/oauth2-server';
 import { Knex } from 'knex';
 import { nanoid } from 'nanoid';
 import { Scope } from 'oauth2-server';
+import {
+    agentConnectionGrantEnabled,
+    matchesOAuthGrantBinding,
+} from '../auth/agentConnectionGrants/oauthGrantBinding';
+import {
+    OAUTH_SCOPES,
+    resolveOAuthScopeMode,
+    scopesForOAuthRecord,
+} from '../auth/oauthScopes/mode';
+import { OAuthResourceBinding } from '../auth/oauthScopes/oauthResources';
+import { OAuthTokenBinding } from '../auth/oauthScopes/oauthTokenBinding';
+import {
+    OAuthBearerRefusalError,
+    resolveOAuthSecurityStrict,
+} from '../auth/oauthScopes/security';
 import { LightdashConfig } from '../config/parseConfig';
+import Logger from '../logging/logger';
+import {
+    ClientIdMetadataDocumentResolver,
+    isClientIdMetadataDocumentUrl,
+} from '../services/OAuthService/clientIdMetadataDocument';
+import { getStoredTokenCandidates } from '../utils/oauthTokenDigest';
+import { AgentConnectionGrantModel } from './AgentConnectionGrantModel';
+import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
+import { matchesRegisteredRedirectUri } from './oauthRedirectUri';
+import { matchesRedirectUriStrict } from './oauthStrictRedirectUri';
 
 export const DEFAULT_OAUTH_CLIENT_ID = 'lightdash-cli';
 
@@ -35,6 +63,11 @@ export class OAuth2Model implements AuthorizationCodeModel {
     constructor(
         private database: Knex,
         private lightdashConfig: LightdashConfig,
+        private featureFlagModel: Pick<FeatureFlagModel, 'get'>,
+        private clientIdMetadataDocumentResolver: Pick<
+            ClientIdMetadataDocumentResolver,
+            'resolve'
+        > = new ClientIdMetadataDocumentResolver(),
     ) {}
 
     private getRefreshTokenLifetime(
@@ -70,6 +103,11 @@ export class OAuth2Model implements AuthorizationCodeModel {
         clientId: string,
         clientSecret?: string | null,
     ): Promise<Client | false> {
+        if (isClientIdMetadataDocumentUrl(clientId)) {
+            return clientSecret
+                ? false
+                : this.getClientIdMetadataDocumentClient(clientId);
+        }
         const query = this.database('oauth2_clients')
             .select('*')
             .where('client_id', clientId);
@@ -86,6 +124,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
 
         return {
             clientId: client.client_id,
+            scopes: client.scopes ?? [],
             id: client.client_id,
             redirectUris: client.redirect_uris,
             grants: OAuth2Model.withTokenExchangeGrant(
@@ -95,6 +134,42 @@ export class OAuth2Model implements AuthorizationCodeModel {
             refreshTokenLifetime: this.getRefreshTokenLifetime(
                 client.redirect_uris,
             ),
+        };
+    }
+
+    // CIMD clients are public clients described by the document at their client_id URL.
+    // The document is materialised as an oauth2_clients row so token foreign keys resolve.
+    private async getClientIdMetadataDocumentClient(
+        clientId: string,
+    ): Promise<Client | false> {
+        const document =
+            await this.clientIdMetadataDocumentResolver.resolve(clientId);
+        if (document === null) return false;
+        await this.database('oauth2_clients')
+            .insert({
+                client_id: document.clientId,
+                client_secret: null,
+                redirect_uris: document.redirectUris,
+                grants: document.grantTypes,
+                scopes: [],
+                client_name: document.clientName,
+                organization_uuid: null,
+                created_by_user_uuid: null,
+            })
+            .onConflict('client_id')
+            .merge({
+                redirect_uris: document.redirectUris,
+                grants: document.grantTypes,
+                client_name: document.clientName,
+                updated_at: this.database.fn.now(),
+            });
+        return {
+            clientId: document.clientId,
+            scopes: [],
+            id: document.clientId,
+            redirectUris: document.redirectUris,
+            grants: document.grantTypes,
+            refreshTokenLifetime: undefined,
         };
     }
 
@@ -115,7 +190,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
             | 'scope'
             | 'codeChallenge'
             | 'codeChallengeMethod'
-        >,
+        > &
+            OAuthResourceBinding & { agentConnectionGrantUuid?: string | null },
         client: Client,
         user: UserWithOrganizationUuid,
     ): Promise<AuthorizationCode> {
@@ -131,6 +207,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
             organization_uuid: user.organizationUuid,
             code_challenge: code.codeChallenge,
             code_challenge_method: code.codeChallengeMethod,
+            resource: code.resource ?? null,
+            agent_connection_grant_uuid: code.agentConnectionGrantUuid ?? null,
         });
 
         return {
@@ -142,12 +220,16 @@ export class OAuth2Model implements AuthorizationCodeModel {
             user,
             codeChallenge: code.codeChallenge,
             codeChallengeMethod: code.codeChallengeMethod,
+            resource: code.resource ?? null,
+            agentConnectionGrantUuid: code.agentConnectionGrantUuid ?? null,
         };
     }
 
     async getAuthorizationCode(
         authorizationCode: string,
     ): Promise<AuthorizationCode | false> {
+        const candidates = getStoredTokenCandidates(authorizationCode);
+        if (candidates.length === 0) return false;
         const result = await this.database('oauth2_authorization_codes')
             .select(
                 'oauth2_authorization_codes.*',
@@ -165,9 +247,9 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'oauth2_authorization_codes.client_id',
                 'oauth2_clients.client_id',
             )
-            .where(
+            .whereIn(
                 'oauth2_authorization_codes.authorization_code',
-                authorizationCode,
+                candidates,
             )
             .first();
 
@@ -175,15 +257,38 @@ export class OAuth2Model implements AuthorizationCodeModel {
             return false;
         }
 
+        const grant =
+            result.agent_connection_grant_uuid == null
+                ? null
+                : await this.getBoundGrant(
+                      this.database,
+                      {
+                          agentConnectionGrantUuid:
+                              result.agent_connection_grant_uuid,
+                          resource: result.resource ?? null,
+                          familyUuid: null,
+                      },
+                      { id: result.client_id },
+                      {
+                          userId: result.user_id,
+                          organizationUuid: result.organization_uuid,
+                      },
+                      true,
+                  );
         return {
-            authorizationCode: result.authorization_code,
+            agentConnectionGrantUuid:
+                result.agent_connection_grant_uuid ?? null,
+            familyUuid: grant?.refreshFamilyUuid ?? null,
+            authorizationCode,
             expiresAt: new Date(result.expires_at),
             redirectUri: result.redirect_uri,
             scope: result.scope,
             codeChallenge: result.code_challenge,
             codeChallengeMethod: result.code_challenge_method,
+            resource: result.resource ?? null,
             client: {
                 id: result.client_id,
+                scopes: result.scopes ?? [],
                 redirectUris: result.redirect_uris,
                 grants: result.grants,
             },
@@ -195,59 +300,399 @@ export class OAuth2Model implements AuthorizationCodeModel {
     }
 
     async revokeAuthorizationCode(code: AuthorizationCode): Promise<boolean> {
+        const candidates = getStoredTokenCandidates(code.authorizationCode);
+        if (candidates.length === 0) return false;
         const result = await this.database('oauth2_authorization_codes')
-            .where('authorization_code', code.authorizationCode)
+            .whereIn('authorization_code', candidates)
             .del();
 
         return result > 0;
     }
 
+    private async getBoundGrant(
+        database: Knex,
+        token: {
+            agentConnectionGrantUuid: string;
+            resource: string | null;
+            familyUuid: string | null;
+        },
+        client: Pick<Client, 'id'>,
+        user: UserWithOrganizationUuid,
+        allowUnboundFamily = false,
+    ): Promise<AgentConnectionGrant> {
+        const storedUser = await database('users')
+            .innerJoin(
+                'organization_memberships',
+                'users.user_id',
+                'organization_memberships.user_id',
+            )
+            .innerJoin(
+                'organizations',
+                'organization_memberships.organization_id',
+                'organizations.organization_id',
+            )
+            .select(
+                'users.user_uuid',
+                'users.is_active',
+                'organizations.organization_uuid',
+            )
+            .where('users.user_id', user.userId)
+            .andWhere('organizations.organization_uuid', user.organizationUuid)
+            .first();
+        const grant = await new AgentConnectionGrantModel({
+            database,
+        }).findActive(token.agentConnectionGrantUuid, new Date());
+        if (
+            !storedUser ||
+            storedUser.is_active !== true ||
+            storedUser.organization_uuid !== user.organizationUuid ||
+            !grant ||
+            !(await agentConnectionGrantEnabled(this.featureFlagModel, {
+                userUuid: storedUser.user_uuid,
+                organizationUuid: user.organizationUuid,
+            })) ||
+            !matchesOAuthGrantBinding(grant, {
+                subjectUserUuid: storedUser.user_uuid,
+                organizationUuid: user.organizationUuid,
+                clientId: client.id,
+                resource: token.resource,
+                familyUuid:
+                    allowUnboundFamily &&
+                    (grant.refreshFamilyUuid === null ||
+                        token.familyUuid === null)
+                        ? grant.refreshFamilyUuid
+                        : token.familyUuid,
+            })
+        )
+            throw new OAuth2Server.InvalidGrantError(
+                'Agent connection grant is invalid',
+            );
+        return grant;
+    }
+
+    private async lockRefreshRotation(
+        database: Knex,
+        userId: number,
+    ): Promise<void> {
+        await database.raw(
+            "SELECT pg_advisory_xact_lock(hashtext('oauth_refresh_rotation'), ?)",
+            [userId],
+        );
+    }
+
+    private async revokeRefreshFamily(
+        database: Knex,
+        token: Token,
+        familyUuid: string | null,
+        reason: 'reused' | 'race',
+    ): Promise<void> {
+        if (token.agentConnectionGrantUuid != null) {
+            await new AgentConnectionGrantModel({ database }).revoke({
+                grantUuid: token.agentConnectionGrantUuid,
+                organizationUuid: token.user.organizationUuid,
+                revokedByUserUuid: null,
+                reason: 'refresh_reuse',
+            });
+            if (familyUuid !== null)
+                Logger.warn('oauth_refresh_token_reuse', {
+                    clientId: token.client.id,
+                    userUuid: token.user.userUuid ?? null,
+                    familyUuid,
+                    reason,
+                });
+            return;
+        }
+        if (familyUuid === null) return;
+        await database('oauth2_refresh_tokens')
+            .where('family_uuid', familyUuid)
+            .update({
+                revoked_at: database.raw('coalesce(revoked_at, now())'),
+            });
+        await database('oauth2_access_tokens')
+            .where('family_uuid', familyUuid)
+            .whereNull('agent_connection_grant_uuid')
+            .del();
+        Logger.warn('oauth_refresh_token_reuse', {
+            clientId: token.client.id,
+            userUuid: token.user.userUuid ?? null,
+            familyUuid,
+            reason,
+        });
+    }
+
+    private async consumeRefreshToken(
+        database: Knex,
+        token: Token,
+        familyUuid: string | null,
+    ): Promise<boolean> {
+        if (!token.refreshToken) return false;
+        const candidates = getStoredTokenCandidates(token.refreshToken);
+        if (candidates.length === 0) return false;
+        const consumed = await database('oauth2_refresh_tokens')
+            .whereNull('revoked_at')
+            .whereIn('refresh_token', candidates)
+            .update({
+                revoked_at: database.fn.now(),
+                ...(familyUuid === null
+                    ? {}
+                    : {
+                          family_uuid: database.raw(
+                              'coalesce(family_uuid, ?)',
+                              [familyUuid],
+                          ),
+                      }),
+            });
+        if (consumed > 0) return true;
+        const parent = await database('oauth2_refresh_tokens')
+            .select(
+                'family_uuid',
+                'agent_connection_grant_uuid',
+                'organization_uuid',
+            )
+            .whereIn('refresh_token', candidates)
+            .first();
+        await this.revokeRefreshFamily(
+            database,
+            {
+                ...token,
+                agentConnectionGrantUuid:
+                    parent?.agent_connection_grant_uuid ?? null,
+                user: {
+                    ...token.user,
+                    organizationUuid:
+                        parent?.organization_uuid ??
+                        token.user.organizationUuid,
+                },
+            },
+            parent?.family_uuid ?? null,
+            'race',
+        );
+        return false;
+    }
+
     async saveToken(
+        token: Token & Partial<OAuthTokenBinding>,
+        client: Client,
+        user: UserWithOrganizationUuid,
+    ): Promise<Token> {
+        const { parentRefreshToken = null, ...issued } = token;
+        if (parentRefreshToken === null) {
+            if (issued.agentConnectionGrantUuid != null)
+                return this.database.transaction((database) =>
+                    this.persistToken(database, issued, client, user),
+                );
+            return this.persistToken(this.database, issued, client, user);
+        }
+        const candidates = getStoredTokenCandidates(parentRefreshToken);
+        if (candidates.length === 0)
+            throw new OAuth2Server.InvalidGrantError(
+                issued.agentConnectionGrantUuid != null
+                    ? 'Agent connection refresh binding is invalid'
+                    : 'Refresh token is already used',
+            );
+        const saved = await this.database.transaction(async (database) => {
+            await this.lockRefreshRotation(database, user.userId);
+            if (issued.agentConnectionGrantUuid != null) {
+                const stored = await database('oauth2_refresh_tokens')
+                    .whereIn('refresh_token', candidates)
+                    .forUpdate()
+                    .first();
+                if (
+                    !stored ||
+                    stored.agent_connection_grant_uuid !==
+                        issued.agentConnectionGrantUuid ||
+                    stored.family_uuid !== issued.familyUuid ||
+                    stored.resource !== issued.resource ||
+                    stored.client_id !== client.id ||
+                    stored.user_id !== user.userId ||
+                    stored.organization_uuid !== user.organizationUuid
+                )
+                    throw new OAuth2Server.InvalidGrantError(
+                        'Agent connection refresh binding is invalid',
+                    );
+                const scopes = issued.scope ?? [];
+                if (
+                    scopes.length !== stored.scope.length ||
+                    scopes.some((scope) => !stored.scope.includes(scope))
+                )
+                    throw new OAuth2Server.InvalidScopeError(
+                        'Agent connection scopes cannot change',
+                    );
+            }
+            const parent = {
+                ...issued,
+                refreshToken: parentRefreshToken,
+                client,
+                user,
+            };
+            if (
+                !(await this.consumeRefreshToken(
+                    database,
+                    parent,
+                    issued.familyUuid ?? null,
+                ))
+            )
+                return null;
+            return this.persistToken(database, issued, client, user);
+        });
+        if (saved === null)
+            throw new OAuth2Server.InvalidGrantError(
+                'Refresh token is already used',
+            );
+        return saved;
+    }
+
+    private async persistToken(
+        database: Knex,
         token: Token,
         client: Client,
         user: UserWithOrganizationUuid,
     ): Promise<Token> {
-        await this.database('oauth2_access_tokens').insert({
-            access_token: token.accessToken,
-            expires_at: token.accessTokenExpiresAt,
-            scope: Array.isArray(token.scope)
-                ? token.scope
-                : [token.scope].filter(Boolean),
+        let issued = token;
+        if (token.agentConnectionGrantUuid != null) {
+            const grant = await this.getBoundGrant(
+                database,
+                {
+                    agentConnectionGrantUuid: token.agentConnectionGrantUuid,
+                    resource: token.resource ?? null,
+                    familyUuid: token.familyUuid ?? null,
+                },
+                client,
+                user,
+                true,
+            );
+            if (!token.familyUuid)
+                throw new OAuth2Server.InvalidGrantError(
+                    'Agent connection refresh family is missing',
+                );
+            await new AgentConnectionGrantModel({ database }).bindRefreshFamily(
+                {
+                    grantUuid: grant.grantUuid,
+                    organizationUuid: grant.organizationUuid,
+                    familyUuid: token.familyUuid,
+                },
+            );
+            const clip = (expiry: Date | undefined) =>
+                new Date(
+                    Math.min(
+                        expiry?.getTime() ?? Infinity,
+                        grant.expiresAt.getTime(),
+                    ),
+                );
+            issued = {
+                ...token,
+                accessTokenExpiresAt: clip(token.accessTokenExpiresAt),
+                refreshTokenExpiresAt: clip(token.refreshTokenExpiresAt),
+            };
+        }
+        await database('oauth2_access_tokens').insert({
+            access_token: issued.accessToken,
+            resource: issued.resource ?? null,
+            family_uuid: issued.familyUuid ?? null,
+            agent_connection_grant_uuid:
+                issued.agentConnectionGrantUuid ?? null,
+            expires_at: issued.accessTokenExpiresAt,
+            scope: Array.isArray(issued.scope)
+                ? issued.scope
+                : [issued.scope].filter(Boolean),
             client_id: client.id,
             user_id: user.userId,
             organization_uuid: user.organizationUuid,
         });
 
-        if (token.refreshToken) {
-            await this.database('oauth2_refresh_tokens').insert({
-                refresh_token: token.refreshToken,
-                expires_at: token.refreshTokenExpiresAt,
-                scope: Array.isArray(token.scope)
-                    ? token.scope
-                    : [token.scope].filter(Boolean),
+        if (issued.refreshToken) {
+            await database('oauth2_refresh_tokens').insert({
+                refresh_token: issued.refreshToken,
+                resource: issued.resource ?? null,
+                family_uuid: issued.familyUuid ?? null,
+                agent_connection_grant_uuid:
+                    issued.agentConnectionGrantUuid ?? null,
+                expires_at: issued.refreshTokenExpiresAt,
+                scope: Array.isArray(issued.scope)
+                    ? issued.scope
+                    : [issued.scope].filter(Boolean),
                 client_id: client.id,
                 user_id: user.userId,
                 organization_uuid: user.organizationUuid,
             });
 
-            await this.database('oauth2_refresh_tokens')
+            await database('oauth2_refresh_tokens')
                 .where('user_id', user.userId)
-                .where((query) =>
-                    query
-                        .where('expires_at', '<', this.database.fn.now())
-                        .orWhere(
-                            'revoked_at',
-                            '<',
-                            this.database.raw("now() - interval '1 day'"),
-                        ),
-                )
+                .where((query) => {
+                    if (
+                        issued.familyUuid !== null &&
+                        issued.familyUuid !== undefined
+                    ) {
+                        void query
+                            .where((legacy) =>
+                                legacy
+                                    .whereNull('family_uuid')
+                                    .where((expired) =>
+                                        expired
+                                            .where(
+                                                'expires_at',
+                                                '<',
+                                                database.fn.now(),
+                                            )
+                                            .orWhere(
+                                                'revoked_at',
+                                                '<',
+                                                database.raw(
+                                                    "now() - interval '1 day'",
+                                                ),
+                                            ),
+                                    ),
+                            )
+                            .orWhere((family) =>
+                                family
+                                    .whereNotNull('family_uuid')
+                                    .whereNotExists(
+                                        database(
+                                            'oauth2_refresh_tokens as live',
+                                        )
+                                            .select(database.raw('1'))
+                                            .where(
+                                                'live.family_uuid',
+                                                database.ref(
+                                                    'oauth2_refresh_tokens.family_uuid',
+                                                ),
+                                            )
+                                            .where(
+                                                'live.expires_at',
+                                                '>=',
+                                                database.fn.now(),
+                                            ),
+                                    ),
+                            );
+                    } else {
+                        void query
+                            .where('expires_at', '<', database.fn.now())
+                            .orWhere(
+                                'revoked_at',
+                                '<',
+                                database.raw("now() - interval '1 day'"),
+                            );
+                    }
+                })
                 .del();
         }
 
-        return { ...token, client, user };
+        return { ...issued, client, user };
+    }
+
+    async isAccessTokenBoundToGrant(accessToken: string): Promise<boolean> {
+        const candidates = getStoredTokenCandidates(accessToken);
+        if (candidates.length === 0) return false;
+        const row = await this.database('oauth2_access_tokens')
+            .select('agent_connection_grant_uuid')
+            .whereIn('access_token', candidates)
+            .first();
+        return row?.agent_connection_grant_uuid != null;
     }
 
     async getAccessToken(accessToken: string): Promise<Token | false> {
+        const candidates = getStoredTokenCandidates(accessToken);
+        if (candidates.length === 0) return false;
         const result = await this.database('oauth2_access_tokens')
             .select(
                 'oauth2_access_tokens.*',
@@ -265,19 +710,45 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'oauth2_clients.client_id',
             )
             .leftJoin('users', 'oauth2_access_tokens.user_id', 'users.user_id')
-            .where('oauth2_access_tokens.access_token', accessToken)
+            .whereIn('oauth2_access_tokens.access_token', candidates)
             .first();
 
         if (!result) {
             return false;
         }
 
+        if (result.agent_connection_grant_uuid != null) {
+            try {
+                await this.getBoundGrant(
+                    this.database,
+                    {
+                        agentConnectionGrantUuid:
+                            result.agent_connection_grant_uuid,
+                        resource: result.resource ?? null,
+                        familyUuid: result.family_uuid ?? null,
+                    },
+                    { id: result.client_id },
+                    {
+                        userId: result.user_id,
+                        organizationUuid: result.organization_uuid,
+                    },
+                );
+            } catch {
+                throw new OAuthBearerRefusalError();
+            }
+        }
+
         return {
-            accessToken: result.access_token,
+            accessToken,
+            familyUuid: result.family_uuid ?? null,
+            agentConnectionGrantUuid:
+                result.agent_connection_grant_uuid ?? null,
+            resource: result.resource ?? null,
             accessTokenExpiresAt: new Date(result.expires_at),
             scope: result.scope,
             client: {
                 id: result.client_id,
+                scopes: result.scopes ?? [],
                 redirectUris: result.redirect_uris,
                 grants: result.grants,
             },
@@ -293,9 +764,22 @@ export class OAuth2Model implements AuthorizationCodeModel {
         if (!token.refreshToken) {
             return false;
         }
+        const candidates = getStoredTokenCandidates(token.refreshToken);
+        if (candidates.length === 0) return false;
+
+        if (
+            await this.isSecurityStrictForOAuthUser(
+                token.user as UserWithOrganizationUuid,
+            )
+        ) {
+            return this.database.transaction(async (database) => {
+                await this.lockRefreshRotation(database, token.user.userId);
+                return this.consumeRefreshToken(database, token, null);
+            });
+        }
 
         const result = await this.database('oauth2_refresh_tokens')
-            .where('refresh_token', token.refreshToken)
+            .whereIn('refresh_token', candidates)
             .update({
                 revoked_at: this.database.raw('coalesce(revoked_at, now())'),
             });
@@ -303,23 +787,72 @@ export class OAuth2Model implements AuthorizationCodeModel {
         return result > 0;
     }
 
+    async revokeUnboundRefreshFamily(
+        familyUuid: string,
+        userId: number,
+    ): Promise<boolean> {
+        return this.database.transaction(async (database) => {
+            await this.lockRefreshRotation(database, userId);
+            const deletedRefreshRows = await database('oauth2_refresh_tokens')
+                .where('family_uuid', familyUuid)
+                .whereNull('agent_connection_grant_uuid')
+                .del();
+            const deletedAccessRows = await database('oauth2_access_tokens')
+                .where('family_uuid', familyUuid)
+                .whereNull('agent_connection_grant_uuid')
+                .del();
+            return deletedRefreshRows > 0 || deletedAccessRows > 0;
+        });
+    }
+
     async deleteRefreshToken(refreshToken: string): Promise<boolean> {
+        const candidates = getStoredTokenCandidates(refreshToken);
+        if (candidates.length === 0) return false;
+        const boundToken = await this.database('oauth2_refresh_tokens')
+            .whereIn('refresh_token', candidates)
+            .whereNotNull('agent_connection_grant_uuid')
+            .first();
+        if (boundToken?.agent_connection_grant_uuid != null) {
+            await new AgentConnectionGrantModel({
+                database: this.database,
+            }).revoke({
+                grantUuid: boundToken.agent_connection_grant_uuid,
+                organizationUuid: boundToken.organization_uuid,
+                revokedByUserUuid: null,
+                reason: 'refresh_token_revoked',
+            });
+            return true;
+        }
         const result = await this.database('oauth2_refresh_tokens')
-            .where('refresh_token', refreshToken)
+            .whereIn('refresh_token', candidates)
+            .whereNull('agent_connection_grant_uuid')
             .del();
 
         return result > 0;
     }
 
     async deleteAccessToken(accessToken: string): Promise<boolean> {
+        const candidates = getStoredTokenCandidates(accessToken);
+        if (candidates.length === 0) return false;
+        const expired = await this.database('oauth2_access_tokens')
+            .whereIn('access_token', candidates)
+            .whereNotNull('agent_connection_grant_uuid')
+            .update({
+                expires_at: this.database.raw(
+                    "least(expires_at, TIMESTAMP '1970-01-01 00:00:00')",
+                ),
+            });
         const result = await this.database('oauth2_access_tokens')
-            .where('access_token', accessToken)
+            .whereIn('access_token', candidates)
+            .whereNull('agent_connection_grant_uuid')
             .del();
 
-        return result > 0;
+        return expired > 0 || result > 0;
     }
 
     async getRefreshToken(refreshToken: string): Promise<Token | false> {
+        const candidates = getStoredTokenCandidates(refreshToken);
+        if (candidates.length === 0) return false;
         const result = await this.database('oauth2_refresh_tokens')
             .select(
                 'oauth2_refresh_tokens.*',
@@ -335,29 +868,25 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'oauth2_refresh_tokens.client_id',
                 'oauth2_clients.client_id',
             )
-            .where('oauth2_refresh_tokens.refresh_token', refreshToken)
+            .whereIn('oauth2_refresh_tokens.refresh_token', candidates)
             .first();
 
         if (!result) {
             return false;
         }
 
-        if (
-            result.revoked_at !== null &&
-            result.revoked_at !== undefined &&
-            Date.now() - new Date(result.revoked_at).getTime() >
-                this.getRotationGraceMs()
-        ) {
-            return false;
-        }
-
-        return {
+        const token: Token = {
             accessToken: '',
-            refreshToken: result.refresh_token,
+            refreshToken,
+            resource: result.resource ?? null,
+            familyUuid: result.family_uuid ?? null,
+            agentConnectionGrantUuid:
+                result.agent_connection_grant_uuid ?? null,
             refreshTokenExpiresAt: new Date(result.expires_at),
             scope: result.scope,
             client: {
                 id: result.client_id,
+                scopes: result.scopes ?? [],
                 redirectUris: result.redirect_uris,
                 grants: result.grants,
                 refreshTokenLifetime: this.getRefreshTokenLifetime(
@@ -369,6 +898,62 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 organizationUuid: result.organization_uuid,
             },
         };
+        const strict =
+            token.agentConnectionGrantUuid != null ||
+            (await this.isSecurityStrictForOAuthUser(
+                token.user as UserWithOrganizationUuid,
+            ));
+        token.securityStrict = strict;
+        if (
+            strict &&
+            result.revoked_at !== null &&
+            result.revoked_at !== undefined
+        ) {
+            if (token.familyUuid !== null) {
+                await this.database.transaction(async (database) => {
+                    await this.lockRefreshRotation(database, token.user.userId);
+                    await this.revokeRefreshFamily(
+                        database,
+                        token,
+                        token.familyUuid,
+                        'reused',
+                    );
+                });
+            }
+            return false;
+        }
+        if (
+            result.revoked_at !== null &&
+            result.revoked_at !== undefined &&
+            Date.now() - new Date(result.revoked_at).getTime() >
+                this.getRotationGraceMs()
+        ) {
+            return false;
+        }
+
+        if (token.agentConnectionGrantUuid != null) {
+            const grant = await this.getBoundGrant(
+                this.database,
+                {
+                    agentConnectionGrantUuid: token.agentConnectionGrantUuid,
+                    resource: token.resource ?? null,
+                    familyUuid: token.familyUuid ?? null,
+                },
+                token.client,
+                token.user as UserWithOrganizationUuid,
+            );
+            if (!token.familyUuid)
+                throw new OAuth2Server.InvalidGrantError(
+                    'Agent connection refresh family is missing',
+                );
+            token.refreshTokenExpiresAt = new Date(
+                Math.min(
+                    token.refreshTokenExpiresAt!.getTime(),
+                    grant.expiresAt.getTime(),
+                ),
+            );
+        }
+        return token;
     }
 
     async generateAccessToken(
@@ -387,32 +972,97 @@ export class OAuth2Model implements AuthorizationCodeModel {
         return `${AuthTokenPrefix.OAUTH_REFRESH}${nanoid(64)}`;
     }
 
+    async getScopeMode(user: UserWithOrganizationUuid) {
+        const storedUser = await this.database('users')
+            .select('user_uuid')
+            .where('user_id', user.userId)
+            .first();
+        if (!storedUser) {
+            throw new AuthorizationError('OAuth user not found');
+        }
+        return resolveOAuthScopeMode(this.featureFlagModel, {
+            organizationUuid: user.organizationUuid,
+            userUuid: storedUser.user_uuid,
+        });
+    }
+
+    async isSecurityStrict(
+        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'> | null,
+    ): Promise<boolean> {
+        return resolveOAuthSecurityStrict(this.featureFlagModel, user);
+    }
+
+    async isSecurityStrictForOAuthUser(
+        user: UserWithOrganizationUuid,
+    ): Promise<boolean> {
+        const storedUser = await this.database('users')
+            .select('user_uuid')
+            .where('user_id', user.userId)
+            .first();
+        if (!storedUser) throw new AuthorizationError('OAuth user not found');
+        return this.isSecurityStrict({
+            userUuid: storedUser.user_uuid,
+            organizationUuid: user.organizationUuid,
+        });
+    }
+
+    async validateScope(
+        user: UserWithOrganizationUuid,
+        client: Client,
+        scope: string[] = [],
+    ): Promise<string[] | false> {
+        const mode = await this.getScopeMode(user);
+        if (mode === null) return scope;
+
+        const registeredScopes: string[] = client.scopes ?? [];
+        const allowedScopes = new Set<string>(
+            OAUTH_SCOPES.filter(
+                (knownScope) =>
+                    registeredScopes.length === 0 ||
+                    registeredScopes.includes(knownScope),
+            ),
+        );
+        if (
+            scope.every((requestedScope) => allowedScopes.has(requestedScope))
+        ) {
+            return scope;
+        }
+
+        Logger.warn('oauth_scope_refusal', {
+            mode,
+            clientId: client.id,
+            scopes: scopesForOAuthRecord(scope),
+            method: null,
+            routeTemplate: null,
+            toolName: null,
+            action: 'validateScope',
+            subjectType: 'OAuthClient',
+        });
+        return mode === 'enforce' ? false : scope;
+    }
+
     async validateRedirectUri(
         redirectUri: string,
         client: Client,
     ): Promise<boolean> {
-        const escapeRegExp = (string: string) =>
-            string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-        const wildcardToRegExp = (wildcard: string) =>
-            new RegExp(`^${escapeRegExp(wildcard).replace(/\\\*/g, '.*')}$`);
-
-        if (!client.redirectUris) {
-            return false;
-        }
-
-        const isValidRedirectUri =
+        return (
             Array.isArray(client.redirectUris) &&
-            client.redirectUris.some((uri) => {
-                const regex = wildcardToRegExp(uri);
-                return regex.test(redirectUri);
-            });
+            client.redirectUris.some((uri) =>
+                matchesRegisteredRedirectUri(redirectUri, uri),
+            )
+        );
+    }
 
-        if (isValidRedirectUri) {
-            return true;
-        }
-
-        return false;
+    async validateRedirectUriStrict(
+        redirectUri: string,
+        client: Client,
+    ): Promise<boolean> {
+        return (
+            Array.isArray(client.redirectUris) &&
+            client.redirectUris.some((uri) =>
+                matchesRedirectUriStrict(redirectUri, uri),
+            )
+        );
     }
 
     async createClient({

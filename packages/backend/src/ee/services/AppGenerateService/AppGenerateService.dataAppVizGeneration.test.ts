@@ -29,9 +29,10 @@ function buildService(
 ) {
     const analytics = { track: vi.fn() };
     const appModel = overrides.appModel ?? {
-        createWithVersion: vi
-            .fn()
-            .mockResolvedValue({ app: { slug: 'generated-app' } }),
+        createWithVersion: vi.fn().mockResolvedValue({
+            app: { slug: 'generated-app' },
+            version: { app_version_id: 'version-1' },
+        }),
         createVersion: vi.fn().mockResolvedValue(undefined),
         getApp: vi.fn().mockResolvedValue({
             app_id: 'app-1',
@@ -54,6 +55,7 @@ function buildService(
         appGeneratePipeline: vi.fn().mockResolvedValue(undefined),
     };
     const service = new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             appRuntime: {

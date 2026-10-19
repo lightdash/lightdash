@@ -1,5 +1,7 @@
 import {
+    AgentCapability,
     ChartType,
+    ForbiddenError,
     LightdashAppPreviewTokenHeader,
     LightdashCustomSqlProvenanceChartUuidHeader,
     LightdashRequestMethodHeader,
@@ -11,6 +13,8 @@ import {
     type ApiExecuteAsyncMergeQueryRequest,
 } from '@lightdash/common';
 import express from 'express';
+import { setupGrantAuthentication } from '../authentication/agentConnectionGrants.mock';
+import { allowApiKeyAuthentication } from '../authentication/middlewares';
 import { QueryController } from './QueryController';
 
 const passThroughResults = <T>(
@@ -281,3 +285,25 @@ describe('QueryController', () => {
         );
     });
 });
+
+it.each([
+    'downloadResults',
+    'scheduleDownloadResults',
+    'getResultsStream',
+    'executeAsyncUnderlyingDataQuery',
+    'executeAsyncCalculateTotal',
+])(
+    'refuses a connection before the %s handler even with every capability',
+    async (operation) => {
+        const auth = setupGrantAuthentication();
+        auth.grant.approvedCapabilities = Object.values(AgentCapability);
+        auth.req.route.stack[0].handle = Object.defineProperty(
+            () => {},
+            'name',
+            { value: `QueryController_${operation}` },
+        );
+        const response = await auth.run(allowApiKeyAuthentication);
+        expect(response.error).toBeInstanceOf(ForbiddenError);
+        expect(auth.downstream).not.toHaveBeenCalled();
+    },
+);

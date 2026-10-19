@@ -1,8 +1,10 @@
+import { AGENT_CAPABILITY_DEFAULTS } from '../types/agentPermissions';
 import {
     ProjectMemberRole,
     ProjectMemberRoleLabels,
 } from '../types/projectMemberRole';
 import type { RoleWithScopes } from '../types/roles';
+import { AGENT_CAPABILITY_SCOPES } from './agentCapabilityScopes';
 import { isOrganizationOnlyScope } from './scopes';
 
 /**
@@ -15,6 +17,9 @@ import { isOrganizationOnlyScope } from './scopes';
  */
 const BASE_ROLE_SCOPES = {
     [ProjectMemberRole.VIEWER]: [
+        ...AGENT_CAPABILITY_DEFAULTS.map(
+            (capability) => AGENT_CAPABILITY_SCOPES[capability],
+        ),
         // Basic viewing permissions
         'view:Dashboard',
         'view:Document',

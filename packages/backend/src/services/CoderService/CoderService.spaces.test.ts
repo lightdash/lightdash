@@ -1,6 +1,7 @@
 import { Ability, type RawRuleOf } from '@casl/ability';
 import {
     Account,
+    AgentActorSurface,
     AnyType,
     ContentAsCodeType,
     ForbiddenError,
@@ -13,9 +14,19 @@ import {
     SpaceAsCodeAction,
     SpaceMemberRole,
 } from '@lightdash/common';
+import { type Request } from 'express';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
-import { fromSession } from '../../auth/account';
+import { fromApiKey, fromOauth, fromSession } from '../../auth/account/account';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { ProjectCoderController } from '../../controllers/ProjectCoderController';
+import { AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { agentSystemRoleMatrix } from '../AgentPermissionService/AgentPermissionService';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../AiAccessService/agentActionTestUtils.mock';
+import { type ServiceRepository } from '../ServiceRepository';
 import { CoderService } from './CoderService';
 
 const PROJECT_UUID = 'project-uuid';
@@ -192,6 +203,7 @@ const buildService = ({
         findSessionUserAndOrgByUuid: vi.fn(async () => refreshedUser),
     };
     const service = new CoderService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
@@ -801,3 +813,328 @@ describe('CoderService spaces as code', () => {
         expect(spaceModel.applySpaceAsCode).toHaveBeenCalledOnce();
     });
 });
+
+test.each(agentActionTestCases)(
+    'implicit spaces: %s',
+    async (_, surface, enabled, count) => {
+        const { service, spaceModel } = buildService({ spaces: [] });
+        vi.spyOn(
+            service as unknown as {
+                findAccessibleSpace: () => Promise<undefined>;
+            },
+            'findAccessibleSpace',
+        ).mockResolvedValue(undefined);
+        Object.assign(spaceModel, {
+            findClosestAncestorByPath: vi.fn().mockResolvedValue(null),
+            createSpace: vi.fn().mockImplementation(async (_input, data) => ({
+                ...rootSpace,
+                uuid: data.path,
+                inheritParentPermissions: true,
+            })),
+        });
+        await withAgentActionScope(makeSessionUser(), surface, enabled, () =>
+            service.getOrCreateSpace(
+                PROJECT_UUID,
+                'parent/child',
+                makeSessionUser(),
+                false,
+                true,
+                undefined,
+                true,
+            ),
+        );
+        const insert = vi.mocked(service['agentActionLogModel'].insert);
+        expect(insert).toHaveBeenCalledTimes(count * 2);
+        if (count)
+            expect(
+                insert.mock.calls.map(([row]) => [
+                    row.object_type,
+                    row.object_uuid,
+                    row.action,
+                ]),
+            ).toEqual([
+                ['space', 'parent', 'create'],
+                ['space', 'parent.child', 'create'],
+            ]);
+    },
+);
+
+test.each(agentActionTestCases)(
+    'dashboard owner: %s',
+    async (_, surface, enabled, count) => {
+        const { service } = buildService();
+        Object.assign(service.dashboardModel, {
+            update: vi.fn().mockResolvedValue(undefined),
+        });
+        await withAgentActionScope(makeSessionUser(), surface, enabled, () =>
+            service['syncDashboardOwner']({
+                user: makeSessionUser(),
+                projectUuid: PROJECT_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+                dashboardUuid: 'dashboard',
+                currentOwnerUserUuid: 'owner',
+                ownerEmail: null,
+            }),
+        );
+        expect(service['agentActionLogModel'].insert).toHaveBeenCalledTimes(
+            count,
+        );
+        if (count)
+            expect(service['agentActionLogModel'].insert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    object_type: 'dashboard_owner',
+                    object_uuid: 'dashboard',
+                    action: 'update',
+                    outcome: 'allowed',
+                }),
+            );
+    },
+);
+
+describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
+    'managed spaces as code: %s',
+    (operation) => {
+        afterEach(() => vi.restoreAllMocks());
+        test('managed metadata retains a direct-grant uploader without replacing access', async () => {
+            vi.spyOn(FeatureFlagModel.prototype, 'get').mockResolvedValue({
+                enabled: true,
+            } as never);
+            vi.spyOn(
+                AgentCapabilityPolicyModel.prototype,
+                'get',
+            ).mockResolvedValue({
+                allowedGroupUuids: null,
+                mode: 'managed',
+                version: 1,
+                allowedCapabilities: null,
+                systemRoleMatrix: agentSystemRoleMatrix([]),
+            });
+            const user = makeSessionUser([
+                { subject: 'ContentAsCode', action: 'create' },
+                {
+                    subject: 'Space',
+                    action: 'manage',
+                    conditions: {
+                        projectUuid: PROJECT_UUID,
+                        access: {
+                            $elemMatch: {
+                                userUuid: USER_UUID,
+                                role: SpaceMemberRole.ADMIN,
+                            },
+                        },
+                    },
+                },
+            ]);
+            const { service, spaceModel, spacePermissionService } =
+                buildService({ refreshedUser: user });
+            const controller = new ProjectCoderController({
+                getCoderService: () => service,
+            } as unknown as ServiceRepository);
+            await expect(
+                controller[operation](
+                    PROJECT_UUID,
+                    spaceAsCode({ spaceName: 'Renamed' }),
+                    {
+                        account: fromOauth(user, {
+                            accessToken: 'token',
+                            client: { id: 'agent' },
+                        }),
+                    } as Request,
+                ),
+            ).resolves.toMatchObject({
+                results: { action: SpaceAsCodeAction.UPDATE },
+            });
+            expect(
+                spaceModel.applySpaceAsCode.mock.calls[0][0],
+            ).not.toHaveProperty('access');
+            expect(spacePermissionService.can).toHaveBeenCalledTimes(2);
+        });
+        test.each([
+            'managed',
+            'agent',
+            'legacy',
+            'off',
+            'pat',
+            'session',
+        ] as const)(
+            '%s gates implicit creation before writing any ancestor',
+            async (mode) => {
+                vi.spyOn(FeatureFlagModel.prototype, 'get').mockResolvedValue({
+                    enabled: mode !== 'off',
+                } as never);
+                vi.spyOn(
+                    AgentCapabilityPolicyModel.prototype,
+                    'get',
+                ).mockResolvedValue({
+                    allowedGroupUuids: null,
+                    mode: mode === 'legacy' ? 'legacy' : 'managed',
+                    version: 1,
+                    allowedCapabilities: null,
+                    systemRoleMatrix: agentSystemRoleMatrix([]),
+                });
+                const user = makeSessionUser();
+                let account: Account = fromSession(user);
+                if (mode === 'pat') account = fromApiKey(user, 'token');
+                else if (mode !== 'session' && mode !== 'agent')
+                    account = fromOauth(user, {
+                        accessToken: 'token',
+                        client: { id: 'agent' },
+                    });
+                await Promise.all(
+                    [
+                        {
+                            slug: 'finance',
+                            publicSpaceCreate: false,
+                            writes: 1,
+                        },
+                        { slug: 'finance', publicSpaceCreate: true, writes: 1 },
+                        {
+                            slug: 'company/finance/reports',
+                            publicSpaceCreate: false,
+                            writes: 3,
+                        },
+                    ].map(async ({ slug, publicSpaceCreate, writes }) => {
+                        const { service, spaceModel } = buildService({
+                            spaces: [],
+                        });
+                        const controller = new ProjectCoderController({
+                            getCoderService: () => service,
+                        } as unknown as ServiceRepository);
+                        const result = withAgentActionScope(
+                            user,
+                            mode === 'agent'
+                                ? AgentActorSurface.IN_APP_AGENT
+                                : null,
+                            true,
+                            () =>
+                                controller[operation](
+                                    PROJECT_UUID,
+                                    {
+                                        contentType: ContentAsCodeType.SPACE,
+                                        spaceName: 'Finance',
+                                        slug,
+                                    },
+                                    { account } as Request,
+                                    false,
+                                    publicSpaceCreate,
+                                ),
+                        );
+                        if (mode === 'managed' || mode === 'agent') {
+                            await expect(result).rejects.toMatchObject({
+                                refusal: { reason: 'agent_capability_denied' },
+                            });
+                            expect(
+                                spaceModel.applySpaceAsCode,
+                            ).not.toHaveBeenCalled();
+                        } else {
+                            await expect(result).resolves.toMatchObject({
+                                results: { action: SpaceAsCodeAction.CREATE },
+                            });
+                            expect(
+                                spaceModel.applySpaceAsCode,
+                            ).toHaveBeenCalledTimes(writes);
+                        }
+                    }),
+                );
+            },
+        );
+        test.each([
+            'managed',
+            'agent',
+            'legacy',
+            'off',
+            'pat',
+            'session',
+        ] as const)(
+            '%s permits metadata and gates changed access',
+            async (mode) => {
+                vi.spyOn(FeatureFlagModel.prototype, 'get').mockResolvedValue({
+                    enabled: mode !== 'off',
+                } as never);
+                vi.spyOn(
+                    AgentCapabilityPolicyModel.prototype,
+                    'get',
+                ).mockResolvedValue({
+                    allowedGroupUuids: null,
+                    mode: mode === 'legacy' ? 'legacy' : 'managed',
+                    version: 1,
+                    allowedCapabilities: null,
+                    systemRoleMatrix: agentSystemRoleMatrix([]),
+                });
+                const user = makeSessionUser();
+                let account: Account = fromSession(user);
+                if (mode === 'pat') account = fromApiKey(user, 'token');
+                else if (mode !== 'session' && mode !== 'agent')
+                    account = fromOauth(user, {
+                        accessToken: 'token',
+                        client: { id: 'agent' },
+                    });
+                const { service, spaceModel } = buildService();
+                const controller = new ProjectCoderController({
+                    getCoderService: () => service,
+                } as unknown as ServiceRepository);
+                const upsert = async (space: SpaceAsCode) =>
+                    (
+                        await withAgentActionScope(
+                            user,
+                            mode === 'agent'
+                                ? AgentActorSurface.IN_APP_AGENT
+                                : null,
+                            true,
+                            () =>
+                                controller[operation](PROJECT_UUID, space, {
+                                    account,
+                                } as Request),
+                        )
+                    ).results;
+                let persistedAccess = spaceAsCode().access;
+                const apply =
+                    spaceModel.applySpaceAsCode.getMockImplementation()!;
+                spaceModel.applySpaceAsCode.mockImplementationOnce(
+                    async (input, options) => {
+                        persistedAccess = {
+                            ...spaceAsCode().access!,
+                            users: [],
+                        };
+                        const result = await apply(input, options);
+                        if (input.access) persistedAccess = input.access;
+                        return result;
+                    },
+                );
+                await expect(
+                    upsert(spaceAsCode({ spaceName: 'Renamed' })),
+                ).resolves.toEqual({ action: SpaceAsCodeAction.UPDATE });
+                const [metadataWrite] =
+                    spaceModel.applySpaceAsCode.mock.calls[0];
+                if (mode === 'managed' || mode === 'agent') {
+                    expect(metadataWrite).not.toHaveProperty('access');
+                    expect(persistedAccess?.users).toEqual([]);
+                } else {
+                    expect(metadataWrite.access).toEqual(spaceAsCode().access);
+                    expect(persistedAccess).toEqual(spaceAsCode().access);
+                }
+                spaceModel.applySpaceAsCode.mockClear();
+                const changed = spaceAsCode({
+                    spaceName: 'Renamed',
+                    access: {
+                        inheritParentPermissions: true,
+                        projectMemberAccessRole: SpaceMemberRole.VIEWER,
+                        users: [],
+                        groups: [],
+                    },
+                });
+                if (mode === 'managed' || mode === 'agent') {
+                    await expect(upsert(changed)).rejects.toMatchObject({
+                        refusal: { reason: 'agent_capability_denied' },
+                    });
+                    expect(spaceModel.applySpaceAsCode).not.toHaveBeenCalled();
+                } else {
+                    await expect(upsert(changed)).resolves.toEqual({
+                        action: SpaceAsCodeAction.UPDATE,
+                    });
+                    expect(spaceModel.applySpaceAsCode).toHaveBeenCalledOnce();
+                }
+            },
+        );
+    },
+);

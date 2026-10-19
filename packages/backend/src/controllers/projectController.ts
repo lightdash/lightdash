@@ -126,6 +126,8 @@ import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import { getContextFromHeader } from '../analytics/LightdashAnalytics';
 import { toSessionUser } from '../auth/account';
+import { assertAgentConnectionGrantOperation } from '../auth/agentConnectionGrants/evaluateGrant';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import type { DbTagUpdate } from '../database/entities/tags';
 import Logger from '../logging/logger';
 import {
@@ -609,7 +611,11 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
      * POST {projectUuid}/mergeQuery/run.
      * @summary Compile merge query
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('ProjectController.CompileMergeQuery'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('{projectUuid}/mergeQuery/compile')
     @OperationId('CompileMergeQuery')
@@ -651,7 +657,11 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
      * compile it first to show the problem against the query that caused it.
      * @summary Run merge query
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('ProjectController.RunMergeQuery'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('{projectUuid}/mergeQuery/run')
     @OperationId('RunMergeQuery')
@@ -867,7 +877,13 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
      * Update the user's warehouse credentials preference for a project
      * @summary Update user warehouse credentials preference
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'ProjectController.updateUserWarehouseCredentialsPreference',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Patch('{projectUuid}/user-credentials/{userWarehouseCredentialsUuid}')
     @OperationId('updateUserWarehouseCredentialsPreference')
@@ -1122,7 +1138,11 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
      * Get all dashboards in a project
      * @summary List dashboards
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('ProjectController.getDashboards'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('{projectUuid}/dashboards')
     @OperationId('getDashboards')
@@ -1163,6 +1183,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('ProjectController.createDashboard'),
     ])
     @SuccessResponse('201', 'Created')
     @Post('{projectUuid}/dashboards')
@@ -1252,6 +1273,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('ProjectController.updateDashboards'),
     ])
     @SuccessResponse('200', 'Updated')
     @Patch('{projectUuid}/dashboards')
@@ -1282,6 +1304,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('ProjectController.createPreview'),
     ])
     @SuccessResponse('200', 'Created')
     @Post('{projectUuid}/createPreview')
@@ -1548,6 +1571,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('ProjectController.updateSchedulerSettings'),
     ])
     @SuccessResponse('200', 'Updated')
     @Patch('{projectUuid}/schedulerSettings')
@@ -1918,6 +1942,19 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         @Body() body?: ApiRefreshBody,
     ): Promise<ApiSuccess<ApiRefreshResults>> {
         assertRegisteredAccount(req.account);
+        assertAgentConnectionGrantOperation(req.account, {
+            kind: 'rest',
+            key: 'ProjectController.refresh',
+            projectUuids: [projectUuid],
+        });
+        if (
+            req.account.authentication.type === 'oauth' &&
+            req.account.authentication.agentConnectionGrant &&
+            body?.syncContent === true
+        )
+            throw new ForbiddenError(
+                "This agent connection can't sync content during refresh.",
+            );
         this.setStatus(200);
         const context = getRequestMethod(
             req.header(LightdashRequestMethodHeader),

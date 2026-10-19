@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AgentCapability,
     AlertAsCode,
     AlreadyExistsError,
     ApiAlertAsCodeListResponse,
@@ -104,14 +105,22 @@ import {
     type DirectAccessPrincipalRef,
     type Filters,
     type GoogleSheetsSyncAsCode,
+    type MetricQuery,
     type SpaceSummaryBase,
 } from '@lightdash/common';
 import type { Knex } from 'knex';
 import isEqual from 'lodash/isEqual';
+import isPlainObject from 'lodash/isPlainObject';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromSession, getAccountApiAccessContext } from '../../auth/account';
+import {
+    grantUploadBodySchema,
+    uploadEffectCapabilities,
+} from '../../auth/agentConnectionGrants/operationContracts';
+import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
 import { LightdashConfig } from '../../config/parseConfig';
+import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import { AppModel } from '../../models/AppModel';
 import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
 import {
@@ -120,7 +129,9 @@ import {
 } from '../../models/ContentAsCodeSnapshotModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../models/GroupsModel';
+import { type OnContentVersionCreated } from '../../models/OnContentVersionCreated';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -137,6 +148,15 @@ import type { RawSpaceDirectAccess } from '../../models/SpacePermissionModel';
 import { UserModel } from '../../models/UserModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import {
+    assertHumanManagedMutation,
+    getManagedAgentPolicy,
+} from '../AgentPermissionService/assertHumanManagedMutation';
+import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
+import {
+    logAgentContentWrite,
+    recordAgentRefusal,
+} from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
@@ -199,6 +219,7 @@ type ContentAsCodeSpaceContentMetadata = {
 };
 
 type CoderServiceArguments = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
@@ -237,6 +258,7 @@ type SqlChartsAsCodeResult = {
 };
 
 type UpsertContentAsCodeOptions = {
+    account?: Account;
     skipSpaceCreate?: boolean;
     publicSpaceCreate?: boolean;
     force?: boolean;
@@ -313,7 +335,10 @@ export class CoderService extends BaseService {
 
     directAccessService: DirectAccessService;
 
+    private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
     constructor({
+        agentActionLogModel,
         lightdashConfig,
         analytics,
         projectModel,
@@ -340,6 +365,7 @@ export class CoderService extends BaseService {
         warehouseConnectionModel,
     }: CoderServiceArguments) {
         super();
+        this.agentActionLogModel = agentActionLogModel;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.projectModel = projectModel;
@@ -396,6 +422,12 @@ export class CoderService extends BaseService {
         virtualView: VirtualViewAsCode,
         force = false,
     ): Promise<ApiVirtualViewAsCodeUpsertResponse['results']> {
+        await this.assertAgentUploadAllowed(
+            account,
+            getAccountApiAccessContext(account).user,
+            projectUuid,
+            virtualView,
+        );
         return this.virtualViewCoder.upsert(
             account,
             projectUuid,
@@ -1407,6 +1439,18 @@ export class CoderService extends BaseService {
             resourceUuid,
             assignments,
         );
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            }),
+            projectUuid,
+            objectType: 'direct_access_policy',
+            objectUuid: resourceUuid,
+            versionUuid: null,
+            action: 'replace',
+        });
     }
 
     async upsertSpace(
@@ -1451,6 +1495,34 @@ export class CoderService extends BaseService {
             throw new NotFoundError(
                 `Space ${desiredSpace.slug} does not exist, skipping creation`,
             );
+        }
+
+        const managedMutationContext = {
+            organizationUuid: project.organizationUuid,
+            ability: user.ability,
+            oauth: account.authentication.type === 'oauth',
+            database: this.groupsModel.database,
+            featureFlagModel: new FeatureFlagModel({
+                database: this.groupsModel.database,
+                lightdashConfig: this.lightdashConfig,
+            }),
+        };
+        if (!existingSpace) {
+            if (
+                auditedAbility.cannot(
+                    'create',
+                    subject('Space', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid,
+                        metadata: { spaceName: desiredSpace.spaceName },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    `You don't have permission to create space "${desiredSpace.slug}"`,
+                );
+            }
+            await assertHumanManagedMutation(managedMutationContext);
         }
 
         const parentPath = path.includes('.')
@@ -1554,35 +1626,19 @@ export class CoderService extends BaseService {
                     `You don't have permission to manage space "${desiredSpace.slug}"`,
                 );
             }
-        } else {
-            if (
-                auditedAbility.cannot(
-                    'create',
-                    subject('Space', {
-                        organizationUuid: project.organizationUuid,
-                        projectUuid,
-                        metadata: { spaceName: desiredSpace.spaceName },
-                    }),
-                )
-            ) {
-                throw new ForbiddenError(
-                    `You don't have permission to create space "${desiredSpace.slug}"`,
-                );
-            }
-            if (
-                parentSpaceUuid !== null &&
-                !(await this.spacePermissionService.can(
-                    'manage',
-                    user,
-                    parentSpaceUuid,
-                ))
-            ) {
-                throw new ForbiddenError(
-                    `You don't have permission to create a child of space "${getContentAsCodePathFromLtreePath(
-                        parentPath!,
-                    )}"`,
-                );
-            }
+        } else if (
+            parentSpaceUuid !== null &&
+            !(await this.spacePermissionService.can(
+                'manage',
+                user,
+                parentSpaceUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                `You don't have permission to create a child of space "${getContentAsCodePathFromLtreePath(
+                    parentPath!,
+                )}"`,
+            );
         }
 
         const rawAccess = existingSpace
@@ -1637,9 +1693,17 @@ export class CoderService extends BaseService {
             };
             accessChanged = !isEqual(currentAccess, desiredSpace.access);
         }
+        if (accessChanged) {
+            await assertHumanManagedMutation(managedMutationContext);
+        }
         if (existingSpace && !metadataChanged && !accessChanged) {
             return { action: SpaceAsCodeAction.NO_CHANGES };
         }
+
+        const omitUnchangedAccess =
+            !accessChanged &&
+            desiredSpace.access !== undefined &&
+            (await getManagedAgentPolicy(managedMutationContext)) !== null;
 
         const applyInput = {
             projectUuid,
@@ -1659,7 +1723,9 @@ export class CoderService extends BaseService {
             ...(desiredSpace.access === undefined && parentSpaceUuid !== null
                 ? { copyParentAccessOnLegacyCreate: true }
                 : {}),
-            ...(desiredSpace.access ? { access: desiredSpace.access } : {}),
+            ...(desiredSpace.access && !omitUnchangedAccess
+                ? { access: desiredSpace.access }
+                : {}),
         };
         await this.spaceModel.applySpaceAsCode(applyInput, {
             beforeMutation: async (trx, { userAccess }) => {
@@ -1737,13 +1803,13 @@ export class CoderService extends BaseService {
                         )}"`,
                     );
                 }
-                if (desiredSpace.access) {
+                if (applyInput.access) {
                     await this.assertSpaceUploaderRetainsManage({
                         user: currentUser,
                         auditedAbility: currentAbility,
                         project,
                         parentSpaceUuid,
-                        access: desiredSpace.access!,
+                        access: applyInput.access,
                         trx,
                         resolvedUserAccess: userAccess,
                     });
@@ -3272,6 +3338,17 @@ export class CoderService extends BaseService {
                 }),
             )
         ) {
+            await recordAgentRefusal({
+                model: this.agentActionLogModel,
+                userUuid: user.userUuid,
+                organizationUuid,
+                projectUuid,
+                objectType: 'content_verification',
+                objectUuid: contentUuid,
+                action: verified ? 'verify' : 'unverify',
+                policyLayer: 'casl',
+                reasonCode: 'content_verification_forbidden',
+            });
             // Warn and skip so CI pipelines run by non-admin deployers don't fail.
             this.logger.warn(
                 `User ${user.userUuid} cannot ${
@@ -3294,6 +3371,18 @@ export class CoderService extends BaseService {
                 projectUuid,
                 user.userUuid,
             );
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                agentIdentity: getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+                projectUuid,
+                objectType: 'content_verification',
+                objectUuid: contentUuid,
+                versionUuid: null,
+                action: 'verify',
+            });
             this.analytics.track({
                 event: 'content_verification.created',
                 userId: user.userUuid,
@@ -3309,6 +3398,18 @@ export class CoderService extends BaseService {
                 contentType,
                 contentUuid,
             );
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                agentIdentity: getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+                projectUuid,
+                objectType: 'content_verification',
+                objectUuid: contentUuid,
+                versionUuid: null,
+                action: 'unverify',
+            });
             this.analytics.track({
                 event: 'content_verification.deleted',
                 userId: user.userUuid,
@@ -3713,11 +3814,15 @@ export class CoderService extends BaseService {
      * Returns warnings when the email does not match any organization member.
      */
     private async syncDashboardOwner({
+        user,
+        projectUuid,
         organizationUuid,
         dashboardUuid,
         currentOwnerUserUuid,
         ownerEmail,
     }: {
+        user: SessionUser;
+        projectUuid: string;
         organizationUuid: string;
         dashboardUuid: string;
         currentOwnerUserUuid: string | null;
@@ -3729,6 +3834,18 @@ export class CoderService extends BaseService {
             if (currentOwnerUserUuid !== null) {
                 await this.dashboardModel.update(dashboardUuid, {
                     ownerUserUuid: null,
+                });
+                await logAgentContentWrite({
+                    model: this.agentActionLogModel,
+                    agentIdentity: getContentWriteAgentIdentity({
+                        userUuid: user.userUuid,
+                        organizationUuid: user.organizationUuid,
+                    }),
+                    projectUuid,
+                    objectType: 'dashboard_owner',
+                    objectUuid: dashboardUuid,
+                    versionUuid: null,
+                    action: 'update',
                 });
             }
             return [];
@@ -3748,8 +3865,131 @@ export class CoderService extends BaseService {
             await this.dashboardModel.update(dashboardUuid, {
                 ownerUserUuid: member.userUuid,
             });
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                agentIdentity: getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+                projectUuid,
+                objectType: 'dashboard_owner',
+                objectUuid: dashboardUuid,
+                versionUuid: null,
+                action: 'update',
+            });
         }
         return [];
+    }
+
+    private async assertAgentUploadAllowed(
+        account: Account | null,
+        user: SessionUser,
+        projectUuid: string,
+        payload: unknown,
+    ): Promise<void> {
+        if (
+            account?.authentication.type !== 'oauth' ||
+            !account.authentication.agentConnectionGrant
+        )
+            return;
+        const grant = account.authentication.agentConnectionGrant;
+        const parsed = grantUploadBodySchema.safeParse(payload);
+        if (!parsed.success)
+            throw new ForbiddenError(
+                "This agent connection can't upload an access policy or an unresolved space.",
+            );
+        if (
+            uploadEffectCapabilities(parsed.data).some(
+                (capability) =>
+                    !grantAllowsCapabilities(
+                        grant,
+                        [projectUuid],
+                        [capability],
+                    ),
+            )
+        )
+            throw new ForbiddenError(
+                'This agent connection is not approved for Publish and share.',
+            );
+        if (
+            parsed.data.spaceSlug !== undefined &&
+            (await this.findAccessibleSpace(
+                projectUuid,
+                parsed.data.spaceSlug,
+                user,
+            )) === undefined
+        )
+            throw new ForbiddenError(
+                "This agent connection can't create a space during upload.",
+            );
+    }
+
+    private static getChangedAgentChartSqlItems(
+        incoming: Partial<
+            Pick<
+                MetricQuery,
+                'tableCalculations' | 'customDimensions' | 'additionalMetrics'
+            >
+        >,
+        current:
+            | Partial<
+                  Pick<
+                      MetricQuery,
+                      | 'tableCalculations'
+                      | 'customDimensions'
+                      | 'additionalMetrics'
+                  >
+              >
+            | undefined,
+        stripMetricUuids = false,
+    ): Pick<
+        MetricQuery,
+        'tableCalculations' | 'customDimensions' | 'additionalMetrics'
+    > {
+        // JSON transport drops undefined properties at every depth
+        const definedProperties = (item: unknown): unknown => {
+            if (Array.isArray(item)) return item.map(definedProperties);
+            if (!isPlainObject(item)) return item;
+            return Object.fromEntries(
+                Object.entries(item as object)
+                    .filter(([, value]) => value !== undefined)
+                    .map(([key, value]) => [key, definedProperties(value)]),
+            );
+        };
+        const changedItems = <T extends object>(
+            items: T[] | undefined,
+            previous: T[] | undefined,
+        ): T[] =>
+            (items ?? []).filter(
+                (item) =>
+                    !(previous ?? []).some((stored) =>
+                        isEqual(
+                            definedProperties(item),
+                            definedProperties(stored),
+                        ),
+                    ),
+            );
+        const withoutMetricUuids = (
+            metrics: MetricQuery['additionalMetrics'],
+        ) => metrics?.map(({ uuid: _uuid, ...metric }) => metric);
+        return {
+            tableCalculations: changedItems(
+                incoming.tableCalculations,
+                current?.tableCalculations,
+            ),
+            customDimensions: changedItems(
+                incoming.customDimensions,
+                current?.customDimensions,
+            ),
+            additionalMetrics: changedItems(
+                stripMetricUuids
+                    ? withoutMetricUuids(incoming.additionalMetrics)
+                    : incoming.additionalMetrics,
+                stripMetricUuids
+                    ? withoutMetricUuids(current?.additionalMetrics)
+                    : current?.additionalMetrics,
+            ),
+        };
     }
 
     async upsertChart(
@@ -3759,6 +3999,12 @@ export class CoderService extends BaseService {
         chartAsCode: ChartAsCode,
         options: UpsertContentAsCodeOptions = {},
     ) {
+        await this.assertAgentUploadAllowed(
+            options.account ?? null,
+            user,
+            projectUuid,
+            chartAsCode,
+        );
         const {
             skipSpaceCreate,
             publicSpaceCreate,
@@ -3772,13 +4018,19 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        const { canUploadAnyContent, allowSpaceCreate } =
+        const { canUploadAnyContent, allowSpaceCreate: userCanCreateSpace } =
             CoderService.checkContentAsCodeWriteAccess({
                 auditedAbility,
                 project,
                 slug,
             });
 
+        const allowSpaceCreate =
+            userCanCreateSpace &&
+            !(
+                options.account?.authentication.type === 'oauth' &&
+                options.account.authentication.agentConnectionGrant
+            );
         const metricQuery = {
             ...chartAsCode.metricQuery,
             filters: normalizeFilterIds(chartAsCode.metricQuery.filters),
@@ -3837,6 +4089,80 @@ export class CoderService extends BaseService {
             );
         }
         const [chart] = existingCharts;
+        const grantAccount =
+            options.account?.authentication.type === 'oauth' &&
+            options.account.authentication.agentConnectionGrant
+                ? options.account
+                : null;
+        const currentChart =
+            chart && grantAccount
+                ? await this.savedChartModel.get(chart.uuid)
+                : undefined;
+        if (grantAccount) {
+            const { projectService } = this;
+            if (!projectService) {
+                throw new Error(
+                    'ProjectService is required to check agent chart uploads',
+                );
+            }
+            const sameChartExplore =
+                currentChart?.tableName === chartAsCode.tableName &&
+                currentChart?.metricQuery.exploreName ===
+                    metricQuery.exploreName;
+            const currentQuery = sameChartExplore
+                ? currentChart?.metricQuery
+                : undefined;
+            await projectService.assertAgentCustomSqlAuthorizedForQuery({
+                account: grantAccount,
+                projectUuid,
+                exploreName: metricQuery.exploreName,
+                metricQuery: CoderService.getChangedAgentChartSqlItems(
+                    metricQuery,
+                    currentQuery,
+                    true,
+                ),
+            });
+            if (merge) {
+                const currentMerge =
+                    sameChartExplore && currentChart?.merge
+                        ? normalizeSavedMergeDefinition(
+                              currentChart.merge,
+                              currentChart.metricQuery,
+                          )
+                        : null;
+                await Promise.all(
+                    Object.entries(merge.queries).map(([name, query]) => {
+                        const currentMergeQuery = currentMerge?.queries[name];
+                        return projectService.assertAgentCustomSqlAuthorizedForQuery(
+                            {
+                                account: grantAccount,
+                                projectUuid,
+                                exploreName: query.explore,
+                                metricQuery:
+                                    CoderService.getChangedAgentChartSqlItems(
+                                        query,
+                                        currentMergeQuery?.explore ===
+                                            query.explore
+                                            ? currentMergeQuery
+                                            : undefined,
+                                    ),
+                            },
+                        );
+                    }),
+                );
+                await projectService.assertAgentCustomSqlAuthorizedForQuery({
+                    account: grantAccount,
+                    projectUuid,
+                    exploreName: metricQuery.exploreName,
+                    metricQuery: CoderService.getChangedAgentChartSqlItems(
+                        { tableCalculations: merge.tableCalculations },
+                        {
+                            tableCalculations: currentMerge?.tableCalculations,
+                        },
+                    ),
+                });
+            }
+        }
 
         // If chart does not exist, we can't use promoteService,
         // since it relies on information that's not available in ChartAsCode, and other uuids
@@ -3920,6 +4246,10 @@ export class CoderService extends BaseService {
                         'Creating placeholder dashboard for chart within dashboard',
                         chartWithDefaults.slug,
                     );
+                    const agentIdentity = getContentWriteAgentIdentity({
+                        userUuid: user.userUuid,
+                        organizationUuid: user.organizationUuid ?? null,
+                    });
                     const newDashboard = await this.dashboardModel.create(
                         space.uuid,
                         {
@@ -3931,6 +4261,18 @@ export class CoderService extends BaseService {
                         },
                         user,
                         projectUuid,
+                        agentIdentity,
+                        (trx, versionUuid, objectUuid) =>
+                            logAgentContentWrite({
+                                trx,
+                                model: this.agentActionLogModel,
+                                projectUuid,
+                                agentIdentity,
+                                objectType: 'dashboard',
+                                objectUuid,
+                                versionUuid,
+                                action: 'create',
+                            }),
                     );
 
                     dashboardUuid = newDashboard.uuid;
@@ -3969,10 +4311,26 @@ export class CoderService extends BaseService {
                 };
             }
 
+            const agentIdentity = getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid ?? null,
+            });
             const newChart = await this.savedChartModel.create(
                 projectUuid,
                 user.userUuid,
                 createChart,
+                agentIdentity,
+                (trx, versionUuid, objectUuid) =>
+                    logAgentContentWrite({
+                        trx,
+                        model: this.agentActionLogModel,
+                        projectUuid,
+                        agentIdentity,
+                        objectType: 'chart',
+                        objectUuid,
+                        versionUuid,
+                        action: 'create',
+                    }),
             );
 
             await this.syncVerification({
@@ -4066,11 +4424,11 @@ export class CoderService extends BaseService {
         });
 
         if (!canUploadAnyContent) {
-            const currentChart = await this.savedChartModel.get(chart.uuid);
             CoderService.handleContentAsCodeSqlPermissionChecks({
                 checks: CoderService.getChartContentAsCodePermissionChecks(
                     chartWithDefaults,
-                    currentChart,
+                    currentChart ??
+                        (await this.savedChartModel.get(chart.uuid)),
                 ),
                 auditedAbility,
                 project,
@@ -4301,9 +4659,19 @@ export class CoderService extends BaseService {
         sqlChartAsCode: SqlChartAsCode,
         options: Pick<
             UpsertContentAsCodeOptions,
-            'skipSpaceCreate' | 'publicSpaceCreate' | 'spaceNames' | 'mode'
+            | 'skipSpaceCreate'
+            | 'publicSpaceCreate'
+            | 'spaceNames'
+            | 'mode'
+            | 'account'
         > = {},
     ): Promise<PromotionChanges> {
+        await this.assertAgentUploadAllowed(
+            options.account ?? null,
+            user,
+            projectUuid,
+            sqlChartAsCode,
+        );
         const {
             skipSpaceCreate,
             publicSpaceCreate,
@@ -4312,15 +4680,37 @@ export class CoderService extends BaseService {
         } = options;
         const project = await this.projectModel.get(projectUuid);
 
+        const agentIdentity = getContentWriteAgentIdentity({
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid,
+        });
+        const recordSqlWrite =
+            (action: string): OnContentVersionCreated =>
+            (trx, versionUuid, objectUuid) =>
+                logAgentContentWrite({
+                    trx,
+                    model: this.agentActionLogModel,
+                    projectUuid,
+                    agentIdentity,
+                    objectType: 'sql_chart',
+                    objectUuid,
+                    versionUuid,
+                    action,
+                });
         const auditedAbility = this.createAuditedAbility(user);
-        const { allowSpaceCreate } = CoderService.checkContentAsCodeWriteAccess(
-            {
+        const { allowSpaceCreate: userCanCreateSpace } =
+            CoderService.checkContentAsCodeWriteAccess({
                 auditedAbility,
                 project,
                 slug,
-            },
-        );
+            });
 
+        const allowSpaceCreate =
+            userCanCreateSpace &&
+            !(
+                options.account?.authentication.type === 'oauth' &&
+                options.account.authentication.agentConnectionGrant
+            );
         // Default updatedAt to now when missing (e.g. user-authored YAML)
         const sqlChartWithDefaults = {
             ...sqlChartAsCode,
@@ -4345,6 +4735,24 @@ export class CoderService extends BaseService {
                   })
                 : [];
         const existingSqlChart = sqlChartRows[0];
+        const grant =
+            options.account?.authentication.type === 'oauth'
+                ? options.account.authentication.agentConnectionGrant
+                : null;
+        if (
+            grant &&
+            !grantAllowsCapabilities(
+                grant,
+                [projectUuid],
+                [AgentCapability.RawSql],
+            ) &&
+            (existingSqlChart === undefined ||
+                existingSqlChart.sql !== sqlChartAsCode.sql)
+        ) {
+            throw new ForbiddenError(
+                'This agent connection is not approved for Raw SQL.',
+            );
+        }
 
         // SQL chart uploads mirror SavedSqlService. Check CustomSql before
         // resolving the space so a rejection cannot orphan a new space.
@@ -4461,6 +4869,8 @@ export class CoderService extends BaseService {
                 sqlChartToCreate,
                 binding,
                 { slugMode: mode === 'create' ? 'unique' : 'exact' },
+                agentIdentity,
+                recordSqlWrite('create'),
             );
             const { savedSqlUuid, slug: createdSlug } = created;
 
@@ -4527,11 +4937,12 @@ export class CoderService extends BaseService {
                 },
             },
         };
-        if (binding === undefined) {
-            await this.savedSqlModel.update(sqlChartUpdate);
-        } else {
-            await this.savedSqlModel.update(sqlChartUpdate, binding);
-        }
+        await this.savedSqlModel.update(
+            sqlChartUpdate,
+            binding,
+            agentIdentity,
+            recordSqlWrite('update'),
+        );
 
         this.logger.info(
             `Finished updating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
@@ -4970,6 +5381,18 @@ export class CoderService extends BaseService {
                 },
             );
 
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                agentIdentity: getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+                projectUuid,
+                objectType: 'space',
+                objectUuid: newSpace.uuid,
+                versionUuid: null,
+                action: 'create',
+            });
             if (!newSpace.inheritParentPermissions) {
                 if (parentSpaceUuid) {
                     const [ctx, groupsAccess] = await Promise.all([
@@ -5038,6 +5461,12 @@ export class CoderService extends BaseService {
         dashboardAsCode: DashboardAsCode,
         options: UpsertContentAsCodeOptions = {},
     ): Promise<DashboardAsCodeUpsertResult> {
+        await this.assertAgentUploadAllowed(
+            options.account ?? null,
+            user,
+            projectUuid,
+            dashboardAsCode,
+        );
         const {
             skipSpaceCreate,
             publicSpaceCreate,
@@ -5050,14 +5479,19 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        const { allowSpaceCreate } = CoderService.checkContentAsCodeWriteAccess(
-            {
+        const { allowSpaceCreate: userCanCreateSpace } =
+            CoderService.checkContentAsCodeWriteAccess({
                 auditedAbility,
                 project,
                 slug,
-            },
-        );
+            });
 
+        const allowSpaceCreate =
+            userCanCreateSpace &&
+            !(
+                options.account?.authentication.type === 'oauth' &&
+                options.account.authentication.agentConnectionGrant
+            );
         // Default optional fields when missing (e.g. user-authored YAML)
         const dashboardWithDefaults = {
             ...dashboardAsCode,
@@ -5156,6 +5590,10 @@ export class CoderService extends BaseService {
                 errorMessage: `You don't have access to create dashboards in space "${dashboardWithDefaults.spaceSlug}"`,
             });
 
+            const agentIdentity = getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid ?? null,
+            });
             let newDashboard = await this.dashboardModel.create(
                 space.uuid,
                 {
@@ -5167,6 +5605,18 @@ export class CoderService extends BaseService {
                 },
                 user,
                 projectUuid,
+                agentIdentity,
+                (trx, versionUuid, objectUuid) =>
+                    logAgentContentWrite({
+                        trx,
+                        model: this.agentActionLogModel,
+                        projectUuid,
+                        agentIdentity,
+                        objectType: 'dashboard',
+                        objectUuid,
+                        versionUuid,
+                        action: 'create',
+                    }),
             );
 
             if (hasChartsInDashboard(newDashboard)) {
@@ -5199,6 +5649,19 @@ export class CoderService extends BaseService {
                     { ...newDashboard, tiles: copiedTiles },
                     user,
                     projectUuid,
+                    undefined,
+                    agentIdentity,
+                    (trx, versionUuid, objectUuid) =>
+                        logAgentContentWrite({
+                            trx,
+                            model: this.agentActionLogModel,
+                            projectUuid,
+                            agentIdentity,
+                            objectType: 'dashboard',
+                            objectUuid,
+                            versionUuid,
+                            action: 'update',
+                        }),
                 );
             }
 
@@ -5212,6 +5675,8 @@ export class CoderService extends BaseService {
             });
 
             const createOwnerWarnings = await this.syncDashboardOwner({
+                user,
+                projectUuid,
                 organizationUuid: project.organizationUuid,
                 dashboardUuid: newDashboard.uuid,
                 currentOwnerUserUuid: newDashboard.owner?.userUuid ?? null,
@@ -5394,6 +5859,8 @@ export class CoderService extends BaseService {
         });
 
         const ownerWarnings = await this.syncDashboardOwner({
+            user,
+            projectUuid,
             organizationUuid: project.organizationUuid,
             dashboardUuid: dashboard.uuid,
             currentOwnerUserUuid: dashboard.owner?.userUuid ?? null,

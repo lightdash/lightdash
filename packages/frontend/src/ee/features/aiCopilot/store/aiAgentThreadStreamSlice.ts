@@ -1,3 +1,4 @@
+import { type AiAccessRefusal } from '@lightdash/common';
 import {
     createSlice,
     prepareAutoBatched,
@@ -45,7 +46,8 @@ export type AiAgentThreadStreamConnection =
     | { status: 'recovering' }
     | { status: 'polling' }
     | { status: 'complete' }
-    | { status: 'error'; error: string };
+    | { status: 'error'; error: string }
+    | { status: 'refused'; refusal: AiAccessRefusal };
 
 const activeConnectionStatuses = {
     streaming: true,
@@ -53,6 +55,7 @@ const activeConnectionStatuses = {
     polling: true,
     complete: false,
     error: false,
+    refused: false,
 } satisfies Record<AiAgentThreadStreamConnection['status'], boolean>;
 
 const recoveryConnectionStatuses = {
@@ -61,6 +64,7 @@ const recoveryConnectionStatuses = {
     polling: true,
     complete: false,
     error: false,
+    refused: false,
 } satisfies Record<AiAgentThreadStreamConnection['status'], boolean>;
 
 export const isAiAgentThreadStreamActive = (
@@ -317,6 +321,20 @@ export const aiAgentThreadStreamSlice = createSlice({
                 streamingThread.timing.finishedAt ??= Date.now();
             }
         },
+        setAccessRefusal: (
+            state,
+            action: PayloadAction<{
+                threadUuid: string;
+                refusal: AiAccessRefusal;
+            }>,
+        ) => {
+            const { threadUuid, refusal } = action.payload;
+            const streamingThread = state[threadUuid];
+            if (streamingThread) {
+                streamingThread.connection = { status: 'refused', refusal };
+                streamingThread.timing.finishedAt ??= Date.now();
+            }
+        },
         addReasoning: {
             reducer: (
                 state,
@@ -435,6 +453,7 @@ export const {
     markStreamPolling,
     stopStreaming,
     setError,
+    setAccessRefusal,
     addToolCall,
     addReasoning,
     appendStepProgress,

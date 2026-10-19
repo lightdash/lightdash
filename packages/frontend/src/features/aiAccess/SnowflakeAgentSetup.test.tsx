@@ -2,15 +2,28 @@ import {
     type OrganizationAgentIdentitySnowflakeSetup,
     type OrganizationAgentIdentitySnowflakeVerify,
 } from '@lightdash/common';
+import { Button } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sharedLightdashApi } from '../../api';
 import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
+import { useSnowflakeAgentVerify } from './api';
 import { SnowflakeAgentSetup } from './SnowflakeAgentSetup';
 
-const mocks = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    showMyAgentConnections: true,
+}));
+vi.mock('../../hooks/settings/useSettingsContext', () => ({
+    useSettingsContext: () => ({
+        showMyAgentConnections: mocks.showMyAgentConnections,
+    }),
+}));
 vi.mock('../../api');
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
@@ -57,6 +70,21 @@ const verified: OrganizationAgentIdentitySnowflakeVerify = {
         },
     ],
 };
+const ActiveSetupHarness = () => {
+    const verify = useSnowflakeAgentVerify(true);
+    const [expanded, setExpanded] = useState<boolean | null>(null);
+    return (
+        <>
+            <Button onClick={() => setExpanded(true)}>View setup</Button>
+            <SnowflakeAgentSetup
+                mode="active"
+                verify={verify}
+                expanded={expanded}
+                onToggle={() => setExpanded(false)}
+            />
+        </>
+    );
+};
 const renderSetup = (active = false) => {
     const client = new QueryClient({
         defaultOptions: { queries: { retry: false } },
@@ -64,16 +92,18 @@ const renderSetup = (active = false) => {
     const invalidate = vi.spyOn(client, 'invalidateQueries');
     renderWithProviders(
         <QueryClientProvider client={client}>
-            {active ? (
-                <SnowflakeAgentSetup mode="active" />
-            ) : (
-                <SnowflakeAgentSetup
-                    mode="pending"
-                    saving={false}
-                    onCancel={vi.fn()}
-                    onTurnOn={vi.fn()}
-                />
-            )}
+            <MemoryRouter>
+                {active ? (
+                    <ActiveSetupHarness />
+                ) : (
+                    <SnowflakeAgentSetup
+                        mode="pending"
+                        saving={false}
+                        onCancel={vi.fn()}
+                        onTurnOn={vi.fn()}
+                    />
+                )}
+            </MemoryRouter>
         </QueryClientProvider>,
     );
     return { client, invalidate };
@@ -96,6 +126,7 @@ const expandSetup = async () => {
 describe('SnowflakeAgentSetup client', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.showMyAgentConnections = true;
         setup = {
             client: {
                 source: null,
@@ -105,7 +136,7 @@ describe('SnowflakeAgentSetup client', () => {
                 updatedAt: null,
             },
             configured: false,
-            missingSettings: [],
+            missingSettings: ['Snowflake OAuth client'],
             redirectUri:
                 'https://instance.example/api/v1/oauth/redirect/snowflake-ai',
             integrationSql: 'CREATE SECURITY INTEGRATION test;',
@@ -118,7 +149,7 @@ describe('SnowflakeAgentSetup client', () => {
             return setup;
         });
     });
-    it('shows an empty form, the agreed hints and the persistent footnote', async () => {
+    it('shows an empty form with result-column hints and no instance footnote', async () => {
         renderSetup();
         expect(
             await screen.findByLabelText('Snowflake account URL'),
@@ -130,7 +161,7 @@ describe('SnowflakeAgentSetup client', () => {
             'password',
         );
         expect(
-            screen.getByText('Paste what Snowflake returned'),
+            screen.getByText('Add your Snowflake account and client details'),
         ).toBeInTheDocument();
         expect(
             screen.getByText(
@@ -139,14 +170,22 @@ describe('SnowflakeAgentSetup client', () => {
         ).toBeInTheDocument();
         expect(
             screen.getByText(
-                'Stored encrypted for your organisation. Only organisation admins can replace it; it is never shown again.',
+                'Stored encrypted for your organization. Only organization admins can replace it; it is never shown again.',
             ),
         ).toBeInTheDocument();
         expect(
-            screen.getByText(
-                'Instances with SNOWFLAKE_AI_OAUTH_* variables keep working. A client saved here overrides them for this organisation.',
+            screen.queryByText(
+                'This instance also has Snowflake OAuth settings. A client saved here overrides them for this organization.',
             ),
-        ).toBeInTheDocument();
+        ).not.toBeInTheDocument();
+        expect(screen.getByLabelText('Client ID')).toHaveAttribute(
+            'placeholder',
+            'OAUTH_CLIENT_ID from the query above',
+        );
+        expect(screen.getByLabelText('Client secret')).toHaveAttribute(
+            'placeholder',
+            'OAUTH_CLIENT_SECRET from the query above',
+        );
         expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
         fireEvent.change(screen.getByLabelText('Snowflake account URL'), {
             target: { value: request.accountUrl },
@@ -164,6 +203,62 @@ describe('SnowflakeAgentSetup client', () => {
         });
         expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
     });
+
+    it.each([false, true])(
+        'shows no instance footnote with a saved client=%s',
+        async (saved) => {
+            if (saved)
+                setup = {
+                    ...setup,
+                    configured: true,
+                    client: savedClient,
+                    missingSettings: [],
+                };
+            renderSetup(true);
+            await expandSetup();
+            await screen.findByLabelText('Snowflake account URL');
+            expect(screen.queryByText(/instance/i)).not.toBeInTheDocument();
+            expect(screen.queryByText(/overrides/i)).not.toBeInTheDocument();
+        },
+    );
+    it.each([
+        { status: 'not_checked', visible: true, linked: true },
+        { status: 'passed', visible: true, linked: false },
+        { status: 'not_checked', visible: false, linked: false },
+    ] as const)(
+        'gates the agent connection link for $status with visible=$visible',
+        async ({ status, visible, linked }) => {
+            mocks.showMyAgentConnections = visible;
+            mockedLightdashApi.mockImplementation(async ({ url }) =>
+                url.endsWith('/verify')
+                    ? {
+                          ...verified,
+                          checks: [
+                              {
+                                  id: 'agent_session',
+                                  label: 'Agent session',
+                                  required: false,
+                                  status,
+                                  detail: 'Agent session detail.',
+                              },
+                          ],
+                      }
+                    : setup,
+            );
+            renderSetup(true);
+            await expandSetup();
+            await screen.findByText('Agent session detail.');
+            const link = screen.queryByRole('link', {
+                name: 'My agent identity',
+            });
+            if (linked)
+                expect(link).toHaveAttribute(
+                    'href',
+                    '/generalSettings/myAgentConnections',
+                );
+            else expect(link).not.toBeInTheDocument();
+        },
+    );
     it('saves the exact sensitive body, caches only metadata and requires fresh verification', async () => {
         const { client, invalidate } = renderSetup();
         fireEvent.click(
@@ -174,6 +269,7 @@ describe('SnowflakeAgentSetup client', () => {
         await fillForm();
         fireEvent.click(screen.getByRole('button', { name: 'Save' }));
         await screen.findByText('Client secret saved');
+        expect(screen.getByLabelText('Step 1 done')).toBeInTheDocument();
         expect(sharedLightdashApi).toHaveBeenCalledWith({
             version: 'v2',
             url: '/org/agent-identity/snowflake/client',
@@ -253,23 +349,6 @@ describe('SnowflakeAgentSetup client', () => {
         );
         expect(screen.getByLabelText('Client secret')).toHaveValue('');
         expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-    });
-    it('shows an empty form and a note for an environment client', async () => {
-        setup = {
-            ...setup,
-            configured: true,
-            client: { ...savedClient, source: 'environment' },
-        };
-        renderSetup(true);
-        await expandSetup();
-        expect(
-            await screen.findByText(
-                'This instance currently uses its SNOWFLAKE_AI_OAUTH_* settings.',
-            ),
-        ).toBeInTheDocument();
-        expect(screen.getByLabelText('Snowflake account URL')).toHaveValue('');
-        expect(screen.getByLabelText('Client ID')).toHaveValue('');
-        expect(screen.getByLabelText('Client secret')).toHaveValue('');
     });
     it('shows the server validation error and keeps the form available for correction', async () => {
         renderSetup();

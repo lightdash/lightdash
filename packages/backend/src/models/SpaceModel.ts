@@ -138,7 +138,7 @@ const toCascadedDocuments = (rows: DocumentUuidRow[]): CascadedDocument[] =>
     }));
 
 export class SpaceModel {
-    private database: Knex;
+    readonly database: Knex;
 
     public MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT: number;
 

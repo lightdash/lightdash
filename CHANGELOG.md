@@ -1,3 +1,1013 @@
+## [2.605.3](https://github.com/lightdash/lightdash/compare/2.605.2...2.605.3) (2026-10-19)
+
+
+### Bug Fixes
+
+* **mcp:** publish required numeric tool inputs as required ([#31106](https://github.com/lightdash/lightdash/issues/31106)) ([37ee14a](https://github.com/lightdash/lightdash/commit/37ee14af246a7ed2a089bd45f5cb5af7988a71cf))
+
+## [2.605.2](https://github.com/lightdash/lightdash/compare/2.605.1...2.605.2) (2026-10-19)
+
+
+### Bug Fixes
+
+* simplify analytics settings while keeping access and recovery ([#31124](https://github.com/lightdash/lightdash/issues/31124)) ([e9b6f45](https://github.com/lightdash/lightdash/commit/e9b6f45b4cb7725c0186a1c6785a55bb543d1151))
+
+## [2.605.1](https://github.com/lightdash/lightdash/compare/2.605.0...2.605.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* **ai-agents:** don't persist step responses in generate path ([#31125](https://github.com/lightdash/lightdash/issues/31125)) ([385f5a9](https://github.com/lightdash/lightdash/commit/385f5a9c3d1824b399ff12b19135c1399f5c6c39))
+
+# [2.605.0](https://github.com/lightdash/lightdash/compare/2.604.0...2.605.0) (2026-10-19)
+
+
+### Features
+
+* capture usage events independently of the analytics flag ([#31098](https://github.com/lightdash/lightdash/issues/31098)) ([c709742](https://github.com/lightdash/lightdash/commit/c709742c9d8b3aaa87a26faf62750b65e22c88e8))
+
+# [2.604.0](https://github.com/lightdash/lightdash/compare/2.603.4...2.604.0) (2026-10-18)
+
+
+### Features
+
+* **connections:** mix warehouse types in one project behind a flag ([#31096](https://github.com/lightdash/lightdash/issues/31096)) ([f69a637](https://github.com/lightdash/lightdash/commit/f69a6378d4b50b4c6bfc5acdad9ef68430ac4b2c))
+
+## [2.603.4](https://github.com/lightdash/lightdash/compare/2.603.3...2.603.4) (2026-10-18)
+
+
+### Bug Fixes
+
+* **formula:** memoize the formula parser so nested calls parse in linear time ([#31122](https://github.com/lightdash/lightdash/issues/31122)) ([93bf1e2](https://github.com/lightdash/lightdash/commit/93bf1e203e409a1c8f49fa932408b088bb48e131))
+
+## [2.603.3](https://github.com/lightdash/lightdash/compare/2.603.2...2.603.3) (2026-10-18)
+
+
+### Bug Fixes
+
+* copy upstream primary connection when lightdash preview --source creates a temporary preview ([#31121](https://github.com/lightdash/lightdash/issues/31121)) ([7a5a0ea](https://github.com/lightdash/lightdash/commit/7a5a0ea4319d75b0b64dd7fb999c2455324dc917)), closes [#28702](https://github.com/lightdash/lightdash/issues/28702)
+
+## [2.603.2](https://github.com/lightdash/lightdash/compare/2.603.1...2.603.2) (2026-10-18)
+
+
+### Bug Fixes
+
+* copy upstream primary connection when lightdash start-preview --source creates a preview ([#31120](https://github.com/lightdash/lightdash/issues/31120)) ([4f209f2](https://github.com/lightdash/lightdash/commit/4f209f22fe22159cdb56eb152cdccfa7adf8058d)), closes [#28702](https://github.com/lightdash/lightdash/issues/28702) [#28702](https://github.com/lightdash/lightdash/issues/28702)
+
+## [2.603.1](https://github.com/lightdash/lightdash/compare/2.603.0...2.603.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* refresh source connection credentials in lightdash start-preview --source ([#31119](https://github.com/lightdash/lightdash/issues/31119)) ([1408762](https://github.com/lightdash/lightdash/commit/14087626d962258350fafb3b764a82cadeea8018)), closes [#28702](https://github.com/lightdash/lightdash/issues/28702) [#28702](https://github.com/lightdash/lightdash/issues/28702)
+* use source connection timestamp setting in lightdash deploy --source ([#31118](https://github.com/lightdash/lightdash/issues/31118)) ([fc2de50](https://github.com/lightdash/lightdash/commit/fc2de50bb756c5f379f21a2f60f94f3bf0f54fe8)), closes [#28702](https://github.com/lightdash/lightdash/issues/28702) [#28702](https://github.com/lightdash/lightdash/issues/28702)
+
+# [2.603.0](https://github.com/lightdash/lightdash/compare/2.602.1...2.603.0) (2026-10-17)
+
+
+### Features
+
+* **dbt:** resolve cross-source dbt refs without dbt-loom ([#31113](https://github.com/lightdash/lightdash/issues/31113)) ([b36463f](https://github.com/lightdash/lightdash/commit/b36463f0eaa8bb92a45853ca7783bf04ab4760c8)), closes [#31025](https://github.com/lightdash/lightdash/issues/31025)
+
+## [2.602.1](https://github.com/lightdash/lightdash/compare/2.602.0...2.602.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* **mcp:** serve favicon.ico cross-origin so Claude can show the connector icon ([#31117](https://github.com/lightdash/lightdash/issues/31117)) ([9422463](https://github.com/lightdash/lightdash/commit/942246331c49e8fc2aac22692b4cc8f535eb4b09))
+
+# [2.602.0](https://github.com/lightdash/lightdash/compare/2.601.0...2.602.0) (2026-10-17)
+
+
+### Features
+
+* **mcp:** advertise each tool's title in its annotations ([#31116](https://github.com/lightdash/lightdash/issues/31116)) ([46ce99c](https://github.com/lightdash/lightdash/commit/46ce99c20d0581c615eb5ac04e2daf58e3ca2e0b))
+
+# [2.601.0](https://github.com/lightdash/lightdash/compare/2.600.1...2.601.0) (2026-10-17)
+
+
+### Features
+
+* **plugins:** add the Lightdash plugin for Claude with a per-instance MCP URL ([#31114](https://github.com/lightdash/lightdash/issues/31114)) ([0200785](https://github.com/lightdash/lightdash/commit/02007851bfb14cae22f993720d064abe8110378d))
+
+## [2.600.1](https://github.com/lightdash/lightdash/compare/2.600.0...2.600.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **ai-agents:** let a person read and re-shape the results an agent produced for them ([#31103](https://github.com/lightdash/lightdash/issues/31103)) ([87a1137](https://github.com/lightdash/lightdash/commit/87a11371c085442cf4549eacaf6a86f0d9f443f2))
+
+# [2.600.0](https://github.com/lightdash/lightdash/compare/2.599.2...2.600.0) (2026-10-16)
+
+
+### Features
+
+* **sandboxes:** add scikit-learn and polars to the python-runner sandbox ([#31101](https://github.com/lightdash/lightdash/issues/31101)) ([2c83a79](https://github.com/lightdash/lightdash/commit/2c83a792ead526c8504e13ffb1485fdff0127965))
+
+## [2.599.2](https://github.com/lightdash/lightdash/compare/2.599.1...2.599.2) (2026-10-16)
+
+
+### Bug Fixes
+
+* **mcp:** explain render_chart placeholder to agents ([#31105](https://github.com/lightdash/lightdash/issues/31105)) ([92434d4](https://github.com/lightdash/lightdash/commit/92434d4520c3a0ee01ea14cb698b67230c12572b))
+
+## [2.599.1](https://github.com/lightdash/lightdash/compare/2.599.0...2.599.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **mcp:** check manage rights before describing apps in iterate tools ([#31100](https://github.com/lightdash/lightdash/issues/31100)) ([c02b5eb](https://github.com/lightdash/lightdash/commit/c02b5ebaf1cf5ef3ac0b84f8395be9d14c3bd7a1))
+* **query-sdk:** qualify short field names with the explore's base table ([#31071](https://github.com/lightdash/lightdash/issues/31071)) ([cb0abd8](https://github.com/lightdash/lightdash/commit/cb0abd823e799f9335400ce9407ca932a96fe44b))
+
+# [2.599.0](https://github.com/lightdash/lightdash/compare/2.598.0...2.599.0) (2026-10-16)
+
+
+### Bug Fixes
+
+* **ai-agents:** allow MCP OAuth client ID without a secret (public client with PKCE) ([#31087](https://github.com/lightdash/lightdash/issues/31087)) ([a38b39d](https://github.com/lightdash/lightdash/commit/a38b39dd05e4730d86e374904422465c4b9b7587)), closes [#31084](https://github.com/lightdash/lightdash/issues/31084)
+* **ai-agents:** tolerate a trailing slash between the MCP server URL and its advertised resource ([#31088](https://github.com/lightdash/lightdash/issues/31088)) ([7c03aa0](https://github.com/lightdash/lightdash/commit/7c03aa06e2842ff57114fee9b15e4e6fd90a5d42)), closes [#31085](https://github.com/lightdash/lightdash/issues/31085) [#31087](https://github.com/lightdash/lightdash/issues/31087) [modelcontextprotocol/typescript-sdk#1968](https://github.com/modelcontextprotocol/typescript-sdk/issues/1968) [#30682](https://github.com/lightdash/lightdash/issues/30682) [#31087](https://github.com/lightdash/lightdash/issues/31087)
+* **mcp:** address review findings on chart type discovery tools ([#31091](https://github.com/lightdash/lightdash/issues/31091)) ([8816ff5](https://github.com/lightdash/lightdash/commit/8816ff597e3d3d2eb8ed3b414c08a0aed2147bcc))
+
+
+### Features
+
+* **mcp:** find custom chart types ([#31081](https://github.com/lightdash/lightdash/issues/31081)) ([14de15d](https://github.com/lightdash/lightdash/commit/14de15dcab037f19a158db2c576a937e189315a3))
+* **mcp:** list custom chart types page by page ([#31083](https://github.com/lightdash/lightdash/issues/31083)) ([0be5c20](https://github.com/lightdash/lightdash/commit/0be5c2055f50c158f5a5eefb6e93269c82eb49dc))
+
+# [2.598.0](https://github.com/lightdash/lightdash/compare/2.597.1...2.598.0) (2026-10-16)
+
+
+### Features
+
+* add managed analytics read permission ([#31079](https://github.com/lightdash/lightdash/issues/31079)) ([a04a6a5](https://github.com/lightdash/lightdash/commit/a04a6a531a448f9447435cf350159238ac15fa33))
+
+## [2.597.1](https://github.com/lightdash/lightdash/compare/2.597.0...2.597.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **ai:** lock the availability toggle of the only org provider key ([#31090](https://github.com/lightdash/lightdash/issues/31090)) ([32d7cf0](https://github.com/lightdash/lightdash/commit/32d7cf0d921889f2502276a98028297e7d514760)), closes [#31089](https://github.com/lightdash/lightdash/issues/31089)
+
+# [2.597.0](https://github.com/lightdash/lightdash/compare/2.596.0...2.597.0) (2026-10-16)
+
+
+### Features
+
+* **ai:** add a Retry button to Slack agent error replies ([#31070](https://github.com/lightdash/lightdash/issues/31070)) ([0c1f4d1](https://github.com/lightdash/lightdash/commit/0c1f4d17cf8feb0ce190455db4f638c0aad08d72))
+
+# [2.596.0](https://github.com/lightdash/lightdash/compare/2.595.0...2.596.0) (2026-10-16)
+
+
+### Features
+
+* **mcp:** switch a custom chart type's theme when iterating ([#31080](https://github.com/lightdash/lightdash/issues/31080)) ([ba4716c](https://github.com/lightdash/lightdash/commit/ba4716c329bbd3e34f47abbe02505fca006e37c0))
+
+# [2.595.0](https://github.com/lightdash/lightdash/compare/2.594.0...2.595.0) (2026-10-16)
+
+
+### Bug Fixes
+
+* render custom tooltips for table calculation axes ([#31078](https://github.com/lightdash/lightdash/issues/31078)) ([c910c01](https://github.com/lightdash/lightdash/commit/c910c0131752079e307c9a60eca7a301783fae63))
+
+
+### Features
+
+* **data-apps:** org switch to disable screenshots, thumbnails and attachments ([#31068](https://github.com/lightdash/lightdash/issues/31068)) ([c61c67d](https://github.com/lightdash/lightdash/commit/c61c67db5c4c7a9dce23cfac6e327ba349cdcc17)), closes [#31063](https://github.com/lightdash/lightdash/issues/31063)
+
+# [2.594.0](https://github.com/lightdash/lightdash/compare/2.593.0...2.594.0) (2026-10-16)
+
+
+### Features
+
+* **settings:** sort users, groups and roles by name in admin settings ([#31067](https://github.com/lightdash/lightdash/issues/31067)) ([3cfce4b](https://github.com/lightdash/lightdash/commit/3cfce4b503853669cf2352e921d714b001df12f6)), closes [#23932](https://github.com/lightdash/lightdash/issues/23932)
+
+# [2.593.0](https://github.com/lightdash/lightdash/compare/2.592.2...2.593.0) (2026-10-16)
+
+
+### Bug Fixes
+
+* **mcp:** address review findings on custom chart type tools ([#31077](https://github.com/lightdash/lightdash/issues/31077)) ([5315613](https://github.com/lightdash/lightdash/commit/5315613f6b2b861a0bfaa00ae06c23c04dfb44dd))
+* **mcp:** describe custom chart type tools as chart types ([#31076](https://github.com/lightdash/lightdash/issues/31076)) ([1fd8f56](https://github.com/lightdash/lightdash/commit/1fd8f56a576bf10cc46a7ecba869a9cafb30f08e))
+
+
+### Features
+
+* **mcp:** build custom chart types from a query's sample rows ([#31073](https://github.com/lightdash/lightdash/issues/31073)) ([4f252bf](https://github.com/lightdash/lightdash/commit/4f252bfb56d97993462c772cf3d3d0254a0da448))
+* **mcp:** create custom chart types ([#31072](https://github.com/lightdash/lightdash/issues/31072)) ([e0d0430](https://github.com/lightdash/lightdash/commit/e0d04307485dc45ad6cde0650d84baa9199dd4ba))
+* **mcp:** iterate on custom chart types ([#31074](https://github.com/lightdash/lightdash/issues/31074)) ([dd28c17](https://github.com/lightdash/lightdash/commit/dd28c17b7c50cad766c2d89dedc3e7dbb8961c0c))
+
+## [2.592.2](https://github.com/lightdash/lightdash/compare/2.592.1...2.592.2) (2026-10-16)
+
+
+### Bug Fixes
+
+* compile models whose tables the warehouse credentials cannot read ([#31064](https://github.com/lightdash/lightdash/issues/31064)) ([19b8ba7](https://github.com/lightdash/lightdash/commit/19b8ba732e1853bf0aa3670f969479c98e779544)), closes [#31020](https://github.com/lightdash/lightdash/issues/31020)
+* **frontend:** keep a modal form's submit from reaching the page form ([#31069](https://github.com/lightdash/lightdash/issues/31069)) ([438654c](https://github.com/lightdash/lightdash/commit/438654c2ae71ebbf9a22fbc843b80a97f65a94b1)), closes [#31066](https://github.com/lightdash/lightdash/issues/31066)
+
+## [2.592.1](https://github.com/lightdash/lightdash/compare/2.592.0...2.592.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **dashboards:** explain disabled URL slug action ([#31056](https://github.com/lightdash/lightdash/issues/31056)) ([1370b82](https://github.com/lightdash/lightdash/commit/1370b826ebb5c27741712d9f4104b13ffc6bad34))
+
+# [2.592.0](https://github.com/lightdash/lightdash/compare/2.591.0...2.592.0) (2026-10-16)
+
+
+### Features
+
+* **ai:** add opt-in agent setting to run SQL without approval ([#31065](https://github.com/lightdash/lightdash/issues/31065)) ([480f036](https://github.com/lightdash/lightdash/commit/480f03699e5d92516dce78e59b79150b8cf787b3))
+* **backend:** re-install library chart types from the registry on upload ([#31036](https://github.com/lightdash/lightdash/issues/31036)) ([718b520](https://github.com/lightdash/lightdash/commit/718b5201a9f86adbccfea4ef83becbe7bac1407c)), closes [#31019](https://github.com/lightdash/lightdash/issues/31019)
+
+# [2.591.0](https://github.com/lightdash/lightdash/compare/2.590.0...2.591.0) (2026-10-16)
+
+
+### Features
+
+* **backend:** emit registry provenance in chart type downloads ([#31035](https://github.com/lightdash/lightdash/issues/31035)) ([b0376e7](https://github.com/lightdash/lightdash/commit/b0376e7eae392c6642827471e39d835efbb731a3)), closes [#31019](https://github.com/lightdash/lightdash/issues/31019)
+
+# [2.590.0](https://github.com/lightdash/lightdash/compare/2.589.5...2.590.0) (2026-10-16)
+
+
+### Bug Fixes
+
+* **totals:** keep the source-groups CTE valid for metric-only queries ([#31040](https://github.com/lightdash/lightdash/issues/31040)) ([a8378fb](https://github.com/lightdash/lightdash/commit/a8378fb4ee6db557da7f24d2d64ff5e184d3a760))
+
+
+### Features
+
+* **common,backend:** per-version chart registry entry lookup ([#31034](https://github.com/lightdash/lightdash/issues/31034)) ([b6ccee0](https://github.com/lightdash/lightdash/commit/b6ccee07153c04b353b0d178ef04dedd5cc07609)), closes [#31019](https://github.com/lightdash/lightdash/issues/31019)
+
+## [2.589.5](https://github.com/lightdash/lightdash/compare/2.589.4...2.589.5) (2026-10-16)
+
+
+### Bug Fixes
+
+* **ai:** create AI org settings row when mirroring the first Bedrock credential ([#31060](https://github.com/lightdash/lightdash/issues/31060)) ([1a446d5](https://github.com/lightdash/lightdash/commit/1a446d51eac7e650171ea6d1ab9a58af3da2cf29)), closes [#31001](https://github.com/lightdash/lightdash/issues/31001)
+
+## [2.589.4](https://github.com/lightdash/lightdash/compare/2.589.3...2.589.4) (2026-10-16)
+
+
+### Bug Fixes
+
+* **oauth:** accept client ID metadata documents that advertise extra grant types ([#31059](https://github.com/lightdash/lightdash/issues/31059)) ([e9ca97d](https://github.com/lightdash/lightdash/commit/e9ca97dc9cb99462906f373c4f08b7699af700c4))
+
+## [2.589.3](https://github.com/lightdash/lightdash/compare/2.589.2...2.589.3) (2026-10-15)
+
+
+### Bug Fixes
+
+* allow formatting metrics based on custom dimensions ([#31046](https://github.com/lightdash/lightdash/issues/31046)) ([1c8b6ae](https://github.com/lightdash/lightdash/commit/1c8b6aed4dcdee78416bc459e9a57811993e6f5e))
+
+## [2.589.2](https://github.com/lightdash/lightdash/compare/2.589.1...2.589.2) (2026-10-15)
+
+
+### Bug Fixes
+
+* **ai-agents:** label selected users in the agent access picker from the agent ([#31033](https://github.com/lightdash/lightdash/issues/31033)) ([a96300f](https://github.com/lightdash/lightdash/commit/a96300ffc22b5d2fa9f5d38187b3bbdf3a22f083))
+
+## [2.589.1](https://github.com/lightdash/lightdash/compare/2.589.0...2.589.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **sql-runner:** restore the saved chart's height in view mode ([#31039](https://github.com/lightdash/lightdash/issues/31039)) ([d43966c](https://github.com/lightdash/lightdash/commit/d43966c7a64e9990471afa9cf9e5ad4bbb76ffc9)), closes [#30686](https://github.com/lightdash/lightdash/issues/30686) [#30932](https://github.com/lightdash/lightdash/issues/30932)
+
+# [2.589.0](https://github.com/lightdash/lightdash/compare/2.588.1...2.589.0) (2026-10-15)
+
+
+### Features
+
+* **connections:** allow multiple Snowflake warehouse connections in one project ([#31030](https://github.com/lightdash/lightdash/issues/31030)) ([448fca1](https://github.com/lightdash/lightdash/commit/448fca10b69b9422ef43169a85f54f5feaea66d7))
+
+## [2.588.1](https://github.com/lightdash/lightdash/compare/2.588.0...2.588.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **s3:** stop leaking keep-alive sockets when a GetObject body is abandoned early ([#31027](https://github.com/lightdash/lightdash/issues/31027)) ([cb3a9f8](https://github.com/lightdash/lightdash/commit/cb3a9f8aaaf567b15d5fce16306deac500bf2b1f)), closes [#31026](https://github.com/lightdash/lightdash/issues/31026)
+
+# [2.588.0](https://github.com/lightdash/lightdash/compare/2.587.0...2.588.0) (2026-10-15)
+
+
+### Features
+
+* **backend:** opt-in slow transaction warning and transaction metrics ([#31011](https://github.com/lightdash/lightdash/issues/31011)) ([e17399b](https://github.com/lightdash/lightdash/commit/e17399bf2315badcd36ad5639d8dc40b952661ab)), closes [#30731](https://github.com/lightdash/lightdash/issues/30731) [#30731](https://github.com/lightdash/lightdash/issues/30731)
+
+# [2.587.0](https://github.com/lightdash/lightdash/compare/2.586.0...2.587.0) (2026-10-15)
+
+
+### Features
+
+* **backend:** opt-in logging for rolled-back database transactions ([#31010](https://github.com/lightdash/lightdash/issues/31010)) ([1d5a12b](https://github.com/lightdash/lightdash/commit/1d5a12ba964fef9072e7564ccf68de0283eb5d8f)), closes [#30731](https://github.com/lightdash/lightdash/issues/30731) [#30731](https://github.com/lightdash/lightdash/issues/30731)
+
+# [2.586.0](https://github.com/lightdash/lightdash/compare/2.585.0...2.586.0) (2026-10-15)
+
+
+### Features
+
+* **bigquery:** per-role and AI agent maximum bytes billed ([#31013](https://github.com/lightdash/lightdash/issues/31013)) ([c339bae](https://github.com/lightdash/lightdash/commit/c339bae95c387525ea913df7f06f88e2ec069fc2)), closes [#31003](https://github.com/lightdash/lightdash/issues/31003)
+
+# [2.585.0](https://github.com/lightdash/lightdash/compare/2.584.0...2.585.0) (2026-10-15)
+
+
+### Features
+
+* **bigquery:** dry-run cost estimates and an enforced agent limit ([#31014](https://github.com/lightdash/lightdash/issues/31014)) ([2bcb9d6](https://github.com/lightdash/lightdash/commit/2bcb9d65af6c6a7c528af548bf7cb4d9719829ad)), closes [#30791](https://github.com/lightdash/lightdash/issues/30791)
+
+# [2.584.0](https://github.com/lightdash/lightdash/compare/2.583.0...2.584.0) (2026-10-15)
+
+
+### Features
+
+* **ai-agent:** return warehouse execution stats from agent queries ([#31018](https://github.com/lightdash/lightdash/issues/31018)) ([ff822dc](https://github.com/lightdash/lightdash/commit/ff822dcac55fb2c21d9feef941959d82448dec6e)), closes [#31016](https://github.com/lightdash/lightdash/issues/31016)
+
+# [2.583.0](https://github.com/lightdash/lightdash/compare/2.582.0...2.583.0) (2026-10-15)
+
+
+### Features
+
+* **bigquery:** label agent queries with agent_uuid and keep user_uuid ([#31009](https://github.com/lightdash/lightdash/issues/31009)) ([576dcca](https://github.com/lightdash/lightdash/commit/576dccaf734bc7439318563fcae0fa2e8b7fb39b)), closes [#31002](https://github.com/lightdash/lightdash/issues/31002)
+
+# [2.582.0](https://github.com/lightdash/lightdash/compare/2.581.2...2.582.0) (2026-10-14)
+
+
+### Features
+
+* release highlights in a What's new drawer from the footer badge ([#31008](https://github.com/lightdash/lightdash/issues/31008)) ([73cb5a4](https://github.com/lightdash/lightdash/commit/73cb5a47e364db1282c9b05d2c91742ad41df34e))
+
+## [2.581.2](https://github.com/lightdash/lightdash/compare/2.581.1...2.581.2) (2026-10-14)
+
+
+### Bug Fixes
+
+* search organization users by complete role names ([#31017](https://github.com/lightdash/lightdash/issues/31017)) ([e03ccdd](https://github.com/lightdash/lightdash/commit/e03ccdd1af59d181867f3ca12f8edd607059994c))
+
+## [2.581.1](https://github.com/lightdash/lightdash/compare/2.581.0...2.581.1) (2026-10-14)
+
+
+### Bug Fixes
+
+* split pasted spreadsheet cells in number filters ([#31012](https://github.com/lightdash/lightdash/issues/31012)) ([fb21f6e](https://github.com/lightdash/lightdash/commit/fb21f6ee65704717f72f0093f531433c5cefa86c))
+
+# [2.581.0](https://github.com/lightdash/lightdash/compare/2.580.0...2.581.0) (2026-10-14)
+
+
+### Features
+
+* add LIGHTDASH_DISABLE_UPDATE_CHECK to opt out of the Docker Hub version poll ([#31006](https://github.com/lightdash/lightdash/issues/31006)) ([5333af4](https://github.com/lightdash/lightdash/commit/5333af4a9ac8bfc86b6bc9e2e5c9b7623fcdd7f1)), closes [#31005](https://github.com/lightdash/lightdash/issues/31005)
+
+# [2.580.0](https://github.com/lightdash/lightdash/compare/2.579.0...2.580.0) (2026-10-14)
+
+
+### Features
+
+* **oauth:** accept client ID metadata documents as public MCP clients ([#30981](https://github.com/lightdash/lightdash/issues/30981)) ([e838494](https://github.com/lightdash/lightdash/commit/e8384949aa56cfa7c4a7d7731a33853ca8397441))
+
+# [2.579.0](https://github.com/lightdash/lightdash/compare/2.578.1...2.579.0) (2026-10-14)
+
+
+### Features
+
+* **ai:** offer Frankfurt and Ireland for organization Bedrock credentials ([#31000](https://github.com/lightdash/lightdash/issues/31000)) ([f559434](https://github.com/lightdash/lightdash/commit/f55943408183186fde52f81e6d0c15d9770caa27))
+
+## [2.578.1](https://github.com/lightdash/lightdash/compare/2.578.0...2.578.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* **dbt:** run dbt from the project directory ([#30990](https://github.com/lightdash/lightdash/issues/30990)) ([900bf7f](https://github.com/lightdash/lightdash/commit/900bf7f4ac4e245deead30344580a160c6da7e4e)), closes [#30035](https://github.com/lightdash/lightdash/issues/30035)
+
+# [2.578.0](https://github.com/lightdash/lightdash/compare/2.577.2...2.578.0) (2026-10-13)
+
+
+### Features
+
+* **ai:** Slack agents run composer queries and post the result as a table ([#30972](https://github.com/lightdash/lightdash/issues/30972)) ([0ff2c39](https://github.com/lightdash/lightdash/commit/0ff2c39c30cf011460f9cfd457cc1c56a784308e))
+
+## [2.577.2](https://github.com/lightdash/lightdash/compare/2.577.1...2.577.2) (2026-10-13)
+
+
+### Bug Fixes
+
+* **ai-agents:** offer custom-role users in the agent user access picker ([#30977](https://github.com/lightdash/lightdash/issues/30977)) ([45f155c](https://github.com/lightdash/lightdash/commit/45f155cc697369f4b032e50a1b933108183336e6)), closes [#30975](https://github.com/lightdash/lightdash/issues/30975)
+
+## [2.577.1](https://github.com/lightdash/lightdash/compare/2.577.0...2.577.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* project-scoped service accounts can deploy to previews they create ([#30976](https://github.com/lightdash/lightdash/issues/30976)) ([2138f35](https://github.com/lightdash/lightdash/commit/2138f3521e1916f795533242ffd487a0cf677bce))
+
+# [2.577.0](https://github.com/lightdash/lightdash/compare/2.576.1...2.577.0) (2026-10-13)
+
+
+### Features
+
+* **ai:** composer artifact is declarative, runs on open, and references nodes by node id ([#30958](https://github.com/lightdash/lightdash/issues/30958)) ([68febbd](https://github.com/lightdash/lightdash/commit/68febbd769738b24342606dc1f374aae6a5b21a1))
+* **ai:** system prompt sends multi-step analysis to one composer pipeline ([#30970](https://github.com/lightdash/lightdash/issues/30970)) ([12a5899](https://github.com/lightdash/lightdash/commit/12a589905de02c6b038a00107e794603a51b4115))
+
+## [2.576.1](https://github.com/lightdash/lightdash/compare/2.576.0...2.576.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* **ai:** markdown tables scroll inside their own box instead of widening the chat ([#30967](https://github.com/lightdash/lightdash/issues/30967)) ([5a245af](https://github.com/lightdash/lightdash/commit/5a245af51a4636742986e0aebd1177d24490c106))
+
+# [2.576.0](https://github.com/lightdash/lightdash/compare/2.575.4...2.576.0) (2026-10-13)
+
+
+### Features
+
+* **cli:** issuer contract for agent connections, as a document and a consumer test ([#30962](https://github.com/lightdash/lightdash/issues/30962)) ([05d3c30](https://github.com/lightdash/lightdash/commit/05d3c30b694394d395b829f7ecbe99ed3a014156))
+
+## [2.575.4](https://github.com/lightdash/lightdash/compare/2.575.3...2.575.4) (2026-10-13)
+
+
+### Bug Fixes
+
+* improve share dialog role badge contrast ([#30959](https://github.com/lightdash/lightdash/issues/30959)) ([7fe0060](https://github.com/lightdash/lightdash/commit/7fe0060b31cddbc45d53ef28231c50da3d459865))
+
+## [2.575.3](https://github.com/lightdash/lightdash/compare/2.575.2...2.575.3) (2026-10-13)
+
+
+### Bug Fixes
+
+* **agent-identity:** the scheduled-refresh check for a connection runs inside the write transaction ([#30956](https://github.com/lightdash/lightdash/issues/30956)) ([f0d9e8d](https://github.com/lightdash/lightdash/commit/f0d9e8d9bfa6b539799530b8159ca6b9efff4484))
+
+## [2.575.2](https://github.com/lightdash/lightdash/compare/2.575.1...2.575.2) (2026-10-13)
+
+
+### Bug Fixes
+
+* **ai:** drop the node error text from the pipeline card tooltip ([#30954](https://github.com/lightdash/lightdash/issues/30954)) ([2648350](https://github.com/lightdash/lightdash/commit/264835038df4cb88dc04e3f08421d548d3491ece))
+* **query:** stamp python query results with a derived result producer ([#30955](https://github.com/lightdash/lightdash/issues/30955)) ([ef3eb81](https://github.com/lightdash/lightdash/commit/ef3eb813cb694f39c1d7db05655012bfd61f8518))
+
+## [2.575.1](https://github.com/lightdash/lightdash/compare/2.575.0...2.575.1) (2026-10-13)
+
+
+### Performance Improvements
+
+* **agent-identity:** the scheduled-refresh guard reads stored state with one small query ([#30952](https://github.com/lightdash/lightdash/issues/30952)) ([d4ed632](https://github.com/lightdash/lightdash/commit/d4ed632858dcce4c4f413a8a45998cea558c47d7))
+
+# [2.575.0](https://github.com/lightdash/lightdash/compare/2.574.0...2.575.0) (2026-10-13)
+
+
+### Features
+
+* **ai:** python nodes in composer pipelines ([#30941](https://github.com/lightdash/lightdash/issues/30941)) ([69adbc5](https://github.com/lightdash/lightdash/commit/69adbc525b26c83c325162c2a199eba699569283))
+* **query:** add python query endpoint over referenced results ([#30936](https://github.com/lightdash/lightdash/issues/30936)) ([5e8fdbb](https://github.com/lightdash/lightdash/commit/5e8fdbbfc268ffdee5bed5e97c06cd5a961499cb))
+* **sandboxes:** add python-runner sandbox image and config ([#30935](https://github.com/lightdash/lightdash/issues/30935)) ([0414b7b](https://github.com/lightdash/lightdash/commit/0414b7bb817dc260de07c80e623a3f5ffe459f47))
+
+# [2.574.0](https://github.com/lightdash/lightdash/compare/2.573.4...2.574.0) (2026-10-13)
+
+
+### Features
+
+* **cli:** fixed errors on agent connection commands and no deliberate credential output ([#30950](https://github.com/lightdash/lightdash/issues/30950)) ([dc7d0d6](https://github.com/lightdash/lightdash/commit/dc7d0d6d688557e3785c9a32c764195f18bd9f59))
+
+## [2.573.4](https://github.com/lightdash/lightdash/compare/2.573.3...2.573.4) (2026-10-13)
+
+
+### Bug Fixes
+
+* **agent-identity:** check the agent connection before each compile credential resolution ([#30951](https://github.com/lightdash/lightdash/issues/30951)) ([b2ed73f](https://github.com/lightdash/lightdash/commit/b2ed73f41c7aa7ee8bf62ce31cc3d7650b2f7857))
+
+## [2.573.3](https://github.com/lightdash/lightdash/compare/2.573.2...2.573.3) (2026-10-13)
+
+
+### Performance Improvements
+
+* **agent-identity:** connection status makes one bulk permission check and records no refusals ([#30949](https://github.com/lightdash/lightdash/issues/30949)) ([046b7d7](https://github.com/lightdash/lightdash/commit/046b7d77612d329114fd4e807f2638f06281815c))
+
+## [2.573.2](https://github.com/lightdash/lightdash/compare/2.573.1...2.573.2) (2026-10-13)
+
+
+### Bug Fixes
+
+* **deploy:** check the deploy permission again when a deploy is finalized ([#30945](https://github.com/lightdash/lightdash/issues/30945)) ([57e5edb](https://github.com/lightdash/lightdash/commit/57e5edbf515fa8862130fe57c6b6770d3da13212))
+
+## [2.573.1](https://github.com/lightdash/lightdash/compare/2.573.0...2.573.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* **agent-identity:** mark the identity choice being set up in the chip menu ([#30946](https://github.com/lightdash/lightdash/issues/30946)) ([a3df613](https://github.com/lightdash/lightdash/commit/a3df61372d9c277accd2726120d71a837a3c3e28))
+
+# [2.573.0](https://github.com/lightdash/lightdash/compare/2.572.1...2.573.0) (2026-10-12)
+
+
+### Features
+
+* **agent-identity:** show both sections of the agent permissions card open ([#30924](https://github.com/lightdash/lightdash/issues/30924)) ([61c4f80](https://github.com/lightdash/lightdash/commit/61c4f8058f33dbb9213e2e2bd1e4f5ca627a62a6))
+
+## [2.572.1](https://github.com/lightdash/lightdash/compare/2.572.0...2.572.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* **deploy:** a refused deploy batch no longer fails the deploy session ([#30944](https://github.com/lightdash/lightdash/issues/30944)) ([7822ce8](https://github.com/lightdash/lightdash/commit/7822ce877a069b20d5b22ea10328fe1302ff70e6))
+
+# [2.572.0](https://github.com/lightdash/lightdash/compare/2.571.2...2.572.0) (2026-10-12)
+
+
+### Features
+
+* **agent-identity:** delete expired agent connection approval requests every hour ([#30938](https://github.com/lightdash/lightdash/issues/30938)) ([a7a6d22](https://github.com/lightdash/lightdash/commit/a7a6d22434975a4c9d9cc9c6cf4f6f00501c54dc))
+
+## [2.571.2](https://github.com/lightdash/lightdash/compare/2.571.1...2.571.2) (2026-10-12)
+
+
+### Bug Fixes
+
+* **agent-identity:** allow a person's stored result when their attribute values change order ([#30931](https://github.com/lightdash/lightdash/issues/30931)) ([4cfb990](https://github.com/lightdash/lightdash/commit/4cfb990ea2e37a12be859254304e707a8aa7b06b))
+
+## [2.571.1](https://github.com/lightdash/lightdash/compare/2.571.0...2.571.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* **agent-identity:** show a failed connection list on either tab and stop late sign-in navigation ([#30930](https://github.com/lightdash/lightdash/issues/30930)) ([43b0b77](https://github.com/lightdash/lightdash/commit/43b0b771a5bbc348c7c1cb0689afc227a66f0fe3))
+
+# [2.571.0](https://github.com/lightdash/lightdash/compare/2.570.0...2.571.0) (2026-10-12)
+
+
+### Features
+
+* **oauth:** look up tokens and codes by plain value or stored digest ([#30928](https://github.com/lightdash/lightdash/issues/30928)) ([4db4d21](https://github.com/lightdash/lightdash/commit/4db4d21bc1b1a051dd1d92dece690ef9ee610b75))
+
+# [2.570.0](https://github.com/lightdash/lightdash/compare/2.569.0...2.570.0) (2026-10-12)
+
+
+### Features
+
+* **agent-identity:** approval page, warehouse step and agent connections list ([#30923](https://github.com/lightdash/lightdash/issues/30923)) ([321cfeb](https://github.com/lightdash/lightdash/commit/321cfeb5cc51844a2617e3df6c86287dd04fd208))
+
+# [2.569.0](https://github.com/lightdash/lightdash/compare/2.568.3...2.569.0) (2026-10-12)
+
+
+### Features
+
+* **slack:** evaluate Slack scopes per feature instead of all-or-nothing ([#30921](https://github.com/lightdash/lightdash/issues/30921)) ([8483cc3](https://github.com/lightdash/lightdash/commit/8483cc3f9f9b72934b8186e6589a7947cc19965a))
+
+## [2.568.3](https://github.com/lightdash/lightdash/compare/2.568.2...2.568.3) (2026-10-12)
+
+
+### Bug Fixes
+
+* keep catalog analytics limited to current chart and dashboard versions ([#30925](https://github.com/lightdash/lightdash/issues/30925)) ([8cfa579](https://github.com/lightdash/lightdash/commit/8cfa5793948ac74571698bff9927d8c3a9c2d9d7))
+
+## [2.568.2](https://github.com/lightdash/lightdash/compare/2.568.1...2.568.2) (2026-10-12)
+
+
+### Bug Fixes
+
+* honour Snowflake role with external browser authentication ([#30926](https://github.com/lightdash/lightdash/issues/30926)) ([c901467](https://github.com/lightdash/lightdash/commit/c9014670c7213d74edc49136b3633872ffa449cb))
+
+## [2.568.1](https://github.com/lightdash/lightdash/compare/2.568.0...2.568.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* **themes:** build the design S3 client through the shared factory so gcp_oauth works ([#30918](https://github.com/lightdash/lightdash/issues/30918)) ([d3634e8](https://github.com/lightdash/lightdash/commit/d3634e88b4f9e6aad781fbd0ba646f35dd6d8445)), closes [#30766](https://github.com/lightdash/lightdash/issues/30766)
+
+# [2.568.0](https://github.com/lightdash/lightdash/compare/2.567.0...2.568.0) (2026-10-12)
+
+
+### Features
+
+* **agent-identity:** review an agent connection request before approval (server) ([#30920](https://github.com/lightdash/lightdash/issues/30920)) ([6771aa0](https://github.com/lightdash/lightdash/commit/6771aa09e4e750aacb3a42df7edec2494b17a761))
+
+# [2.567.0](https://github.com/lightdash/lightdash/compare/2.566.0...2.567.0) (2026-10-12)
+
+
+### Features
+
+* **agent-identity:** show the Identity card as one row of warehouse chips ([#30919](https://github.com/lightdash/lightdash/issues/30919)) ([3d3dab9](https://github.com/lightdash/lightdash/commit/3d3dab9ed2c85abb4881aef5841f57bdce4cea49))
+
+# [2.566.0](https://github.com/lightdash/lightdash/compare/2.565.3...2.566.0) (2026-10-12)
+
+
+### Features
+
+* **agent-identity:** rebuild the Agents permissions page with one list of limits for the whole organization ([#30915](https://github.com/lightdash/lightdash/issues/30915)) ([94e4e92](https://github.com/lightdash/lightdash/commit/94e4e923b24dd9600fbea27fed7841f89bd6aad2))
+
+## [2.565.3](https://github.com/lightdash/lightdash/compare/2.565.2...2.565.3) (2026-10-12)
+
+
+### Bug Fixes
+
+* **ai-agent:** tell Slack agents the chart card carries the explore link ([#30917](https://github.com/lightdash/lightdash/issues/30917)) ([0a5cb71](https://github.com/lightdash/lightdash/commit/0a5cb71c648e41eed13b3524683eed7af2ea0858))
+
+## [2.565.2](https://github.com/lightdash/lightdash/compare/2.565.1...2.565.2) (2026-10-12)
+
+
+### Bug Fixes
+
+* account for page scroll in table cell tooltips ([#30916](https://github.com/lightdash/lightdash/issues/30916)) ([4eda721](https://github.com/lightdash/lightdash/commit/4eda721acb57255646fb53cc7dd0f250106a9b75))
+
+## [2.565.1](https://github.com/lightdash/lightdash/compare/2.565.0...2.565.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* **agent-identity:** refuse a revoked agent connection access token at once ([#30914](https://github.com/lightdash/lightdash/issues/30914)) ([22e0d74](https://github.com/lightdash/lightdash/commit/22e0d74fd34724079854d334b1366d164d1b2569))
+
+# [2.565.0](https://github.com/lightdash/lightdash/compare/2.564.0...2.565.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** review remediation jobs recheck the person before they publish ([#30910](https://github.com/lightdash/lightdash/issues/30910)) ([6776e1e](https://github.com/lightdash/lightdash/commit/6776e1e53eb4d4e3e6af5e87baf584c01e38feab))
+
+# [2.564.0](https://github.com/lightdash/lightdash/compare/2.563.0...2.564.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** dbt writeback jobs recheck the person before they publish ([#30909](https://github.com/lightdash/lightdash/issues/30909)) ([79d857f](https://github.com/lightdash/lightdash/commit/79d857f381e6916cc16d792782eca1e7e0be671b))
+
+# [2.563.0](https://github.com/lightdash/lightdash/compare/2.562.0...2.563.0) (2026-10-11)
+
+
+### Features
+
+* **cli:** agent connection credential for the CLI ([#30902](https://github.com/lightdash/lightdash/issues/30902)) ([996ec70](https://github.com/lightdash/lightdash/commit/996ec703178ee52fcaa5c151de1a891ad9d99b83))
+
+# [2.562.0](https://github.com/lightdash/lightdash/compare/2.561.0...2.562.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** Autopilot rechecks the person who enabled it ([#30908](https://github.com/lightdash/lightdash/issues/30908)) ([454f2cc](https://github.com/lightdash/lightdash/commit/454f2cca55eaf66653901b123bec69967130f991))
+
+# [2.561.0](https://github.com/lightdash/lightdash/compare/2.560.0...2.561.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** recheck the person before a delivery sends its AI summary ([#30907](https://github.com/lightdash/lightdash/issues/30907)) ([29a18e1](https://github.com/lightdash/lightdash/commit/29a18e1aad9575c9efe125d859e7c582a2000834))
+
+# [2.560.0](https://github.com/lightdash/lightdash/compare/2.559.1...2.560.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** recheck the person before the Slack agent posts ([#30906](https://github.com/lightdash/lightdash/issues/30906)) ([235fd9a](https://github.com/lightdash/lightdash/commit/235fd9ae1b37ba9e03d2c863f9cfd05adbf49033))
+
+## [2.559.1](https://github.com/lightdash/lightdash/compare/2.559.0...2.559.1) (2026-10-11)
+
+
+### Bug Fixes
+
+* **agent-identity:** delete the stored agent sign-in when a person is deactivated ([#30905](https://github.com/lightdash/lightdash/issues/30905)) ([ef0ca89](https://github.com/lightdash/lightdash/commit/ef0ca8912e7866742bea7206abc4729ea2b42610))
+
+# [2.559.0](https://github.com/lightdash/lightdash/compare/2.558.0...2.559.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** end the whole OAuth refresh family when a refresh token is revoked ([#30903](https://github.com/lightdash/lightdash/issues/30903)) ([8db1925](https://github.com/lightdash/lightdash/commit/8db1925d828ffc54077db96cf16a0fa8e8bd0091))
+
+# [2.558.0](https://github.com/lightdash/lightdash/compare/2.557.1...2.558.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** store agent connection approvals per project and add list, status and revoke ([#30901](https://github.com/lightdash/lightdash/issues/30901)) ([e6ac624](https://github.com/lightdash/lightdash/commit/e6ac624af7b8af2b727101c29466ff1a4255f870))
+
+## [2.557.1](https://github.com/lightdash/lightdash/compare/2.557.0...2.557.1) (2026-10-11)
+
+
+### Performance Improvements
+
+* **agent-identity:** read the agent policy once per admission check ([#30900](https://github.com/lightdash/lightdash/issues/30900)) ([5cc181e](https://github.com/lightdash/lightdash/commit/5cc181ed483a12af158375fb2b807fb6c7cb475b))
+
+# [2.557.0](https://github.com/lightdash/lightdash/compare/2.556.0...2.557.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** run agent connection requests as the agent ([#30895](https://github.com/lightdash/lightdash/issues/30895)) ([0455b09](https://github.com/lightdash/lightdash/commit/0455b09fab9f25b6345500511d082e634ef5cebf))
+
+# [2.556.0](https://github.com/lightdash/lightdash/compare/2.555.0...2.556.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** previews always use the shared agent account of their parent project ([#30896](https://github.com/lightdash/lightdash/issues/30896)) ([604cbf3](https://github.com/lightdash/lightdash/commit/604cbf30000d6e122e23d3be3e3f877a1cc9708a))
+
+# [2.555.0](https://github.com/lightdash/lightdash/compare/2.554.0...2.555.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** remove the raw SQL confirmation for agents ([#30890](https://github.com/lightdash/lightdash/issues/30890)) ([9f94d6a](https://github.com/lightdash/lightdash/commit/9f94d6ae7854316f04eba33fe8af714821414707))
+
+# [2.554.0](https://github.com/lightdash/lightdash/compare/2.553.0...2.554.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** limit who can use agents by group ([#30899](https://github.com/lightdash/lightdash/issues/30899)) ([972258f](https://github.com/lightdash/lightdash/commit/972258fc56dce4afca79d4055ddff1b97e9e42ef))
+
+# [2.553.0](https://github.com/lightdash/lightdash/compare/2.552.0...2.553.0) (2026-10-10)
+
+
+### Bug Fixes
+
+* **agent-identity:** show one loading state on the project Agent identity page ([#30894](https://github.com/lightdash/lightdash/issues/30894)) ([1ce2ec5](https://github.com/lightdash/lightdash/commit/1ce2ec5c12c2fea08a889122c758afc03aaac0d9))
+
+
+### Features
+
+* **agent-identity:** store and enforce agent connection grants ([#30888](https://github.com/lightdash/lightdash/issues/30888)) ([b3a1ff0](https://github.com/lightdash/lightdash/commit/b3a1ff09c8bfe1d7689a7761357e552561d10423))
+
+# [2.552.0](https://github.com/lightdash/lightdash/compare/2.551.1...2.552.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** show the shared agent account setup steps without a collapsible section ([#30892](https://github.com/lightdash/lightdash/issues/30892)) ([cbf7a75](https://github.com/lightdash/lightdash/commit/cbf7a75ce2e2b09e5452bceb7d75bb57521f059d))
+
+## [2.551.1](https://github.com/lightdash/lightdash/compare/2.551.0...2.551.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **agent-identity:** allow a person's stored result after an empty attribute is created or deleted ([#30889](https://github.com/lightdash/lightdash/issues/30889)) ([0976f9a](https://github.com/lightdash/lightdash/commit/0976f9af56b96899e989002c86f16c43b1d877fe))
+
+# [2.551.0](https://github.com/lightdash/lightdash/compare/2.550.0...2.551.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** list every blocker in agent permission refusals ([#30886](https://github.com/lightdash/lightdash/issues/30886)) ([9e78f01](https://github.com/lightdash/lightdash/commit/9e78f01d67df17610c03780b34b43deee635b40b))
+
+# [2.550.0](https://github.com/lightdash/lightdash/compare/2.549.0...2.550.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** authorise every stored-result read for agents and people ([#30863](https://github.com/lightdash/lightdash/issues/30863)) ([d4b802b](https://github.com/lightdash/lightdash/commit/d4b802ba37b4b6142902b264c4cddb88e8b8f54b))
+
+# [2.549.0](https://github.com/lightdash/lightdash/compare/2.548.0...2.549.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** remove the agent permissions pilot preset ([#30887](https://github.com/lightdash/lightdash/issues/30887)) ([85f301f](https://github.com/lightdash/lightdash/commit/85f301f7d7d8b770f94f1423ecad036c811d7bbd))
+
+# [2.548.0](https://github.com/lightdash/lightdash/compare/2.547.6...2.548.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** define agent capabilities and map operations to them ([#30881](https://github.com/lightdash/lightdash/issues/30881)) ([9af9fae](https://github.com/lightdash/lightdash/commit/9af9faef790c3ecac515dad81eb4b725903e85b9))
+
+## [2.547.6](https://github.com/lightdash/lightdash/compare/2.547.5...2.547.6) (2026-10-10)
+
+
+### Bug Fixes
+
+* **agent-identity:** record the agent on chat chart re-runs ([#30883](https://github.com/lightdash/lightdash/issues/30883)) ([61bed44](https://github.com/lightdash/lightdash/commit/61bed44594bf2ab2570c37661f47fa71a9f9093f))
+* **agent-identity:** recover the agent permissions form after a stale save ([#30885](https://github.com/lightdash/lightdash/issues/30885)) ([8a0888b](https://github.com/lightdash/lightdash/commit/8a0888b4312a4d5f4d9c60a1e9ad874e1c592da5))
+* **agent-identity:** report the shared agent account in CLI agent status ([#30884](https://github.com/lightdash/lightdash/issues/30884)) ([abf8287](https://github.com/lightdash/lightdash/commit/abf8287d919153d8755538372c001b18dee30fa0))
+
+## [2.547.5](https://github.com/lightdash/lightdash/compare/2.547.4...2.547.5) (2026-10-10)
+
+
+### Bug Fixes
+
+* **oauth:** return 400 for refused client registration metadata ([#30882](https://github.com/lightdash/lightdash/issues/30882)) ([796506c](https://github.com/lightdash/lightdash/commit/796506cc980ba538f9fd2d59a27727cf47f975aa))
+
+## [2.547.4](https://github.com/lightdash/lightdash/compare/2.547.3...2.547.4) (2026-10-10)
+
+
+### Bug Fixes
+
+* **agent-identity:** show the chat raw SQL refusal link to project admins ([#30880](https://github.com/lightdash/lightdash/issues/30880)) ([55ca3ea](https://github.com/lightdash/lightdash/commit/55ca3eacb4c29624318588735c3188019c5dbed9))
+
+## [2.547.3](https://github.com/lightdash/lightdash/compare/2.547.2...2.547.3) (2026-10-10)
+
+
+### Bug Fixes
+
+* **agent-identity:** add the settings link to MCP and CLI agent refusals ([#30879](https://github.com/lightdash/lightdash/issues/30879)) ([6c06a09](https://github.com/lightdash/lightdash/commit/6c06a09fa860d73c646519747582c0802a18cfa2))
+
+## [2.547.2](https://github.com/lightdash/lightdash/compare/2.547.1...2.547.2) (2026-10-10)
+
+
+### Bug Fixes
+
+* **agent-identity:** let unlinked Slack users connect when agent limits are on ([#30878](https://github.com/lightdash/lightdash/issues/30878)) ([1765c2e](https://github.com/lightdash/lightdash/commit/1765c2e6c7642b11069ce2c107bc6c8d9114dfe0))
+
+## [2.547.1](https://github.com/lightdash/lightdash/compare/2.547.0...2.547.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **agent-identity:** show agent limit refusals in chat instead of a generic error ([#30877](https://github.com/lightdash/lightdash/issues/30877)) ([979dc66](https://github.com/lightdash/lightdash/commit/979dc664c489b0c561d017175f835a9f7a6341d9))
+
+# [2.547.0](https://github.com/lightdash/lightdash/compare/2.546.0...2.547.0) (2026-10-10)
+
+
+### Features
+
+* **release-safety:** add a no-external-callers declaration kind ([#30876](https://github.com/lightdash/lightdash/issues/30876)) ([e602088](https://github.com/lightdash/lightdash/commit/e6020880700537667ccb9eb8e9eded980ebf3f42))
+
+# [2.546.0](https://github.com/lightdash/lightdash/compare/2.545.0...2.546.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** use one agent vocabulary across settings, cards and refusals ([#30874](https://github.com/lightdash/lightdash/issues/30874)) ([1a3ca91](https://github.com/lightdash/lightdash/commit/1a3ca9163a7ee6dfa32a619e598ad214b3c80567))
+
+# [2.545.0](https://github.com/lightdash/lightdash/compare/2.544.0...2.545.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** add the agent permissions admin UI ([#30875](https://github.com/lightdash/lightdash/issues/30875)) ([8415e1c](https://github.com/lightdash/lightdash/commit/8415e1cbad9925eb7bcdb9b7c91c820be4d05e9f))
+
+# [2.544.0](https://github.com/lightdash/lightdash/compare/2.543.0...2.544.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** let ClickHouse agents run as a separate read-only user (AI service account) ([#30873](https://github.com/lightdash/lightdash/issues/30873)) ([61e2d5a](https://github.com/lightdash/lightdash/commit/61e2d5a8339b5f94c9e13ad9caa1f5fd511f21b5))
+
+# [2.543.0](https://github.com/lightdash/lightdash/compare/2.542.0...2.543.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** add an org ceiling of agent capabilities (backend) ([#30871](https://github.com/lightdash/lightdash/issues/30871)) ([2eee3db](https://github.com/lightdash/lightdash/commit/2eee3db5a47cb5cb4dffb140cea3b79f2a5ad7a9))
+
+# [2.542.0](https://github.com/lightdash/lightdash/compare/2.541.0...2.542.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** let Trino agents run as a separate user (AI service account) ([#30870](https://github.com/lightdash/lightdash/issues/30870)) ([9ef1e93](https://github.com/lightdash/lightdash/commit/9ef1e93648a1942fd5b57284d74c32c11ae9a0b8))
+
+# [2.541.0](https://github.com/lightdash/lightdash/compare/2.540.0...2.541.0) (2026-10-10)
+
+
+### Features
+
+* **dbt:** build dbt targets through credential resolvers, so dbt does not use the server's identity ([#30872](https://github.com/lightdash/lightdash/issues/30872)) ([bb17b68](https://github.com/lightdash/lightdash/commit/bb17b689aa74af2e06fa4f4f0f02d277c5c9375f))
+
+# [2.540.0](https://github.com/lightdash/lightdash/compare/2.539.0...2.540.0) (2026-10-10)
+
+
+### Features
+
+* **credentials:** enforce the personal credential allowlist behind agent-identity ([#30868](https://github.com/lightdash/lightdash/issues/30868)) ([1369ebc](https://github.com/lightdash/lightdash/commit/1369ebcb9d026d0d0a4e2f08daf98da606618c27))
+
+# [2.539.0](https://github.com/lightdash/lightdash/compare/2.538.0...2.539.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** let Redshift agents run as a separate database user (AI service account) ([#30869](https://github.com/lightdash/lightdash/issues/30869)) ([961a0fa](https://github.com/lightdash/lightdash/commit/961a0fa4b9e48e8905f22bbf6a8305b235faadcd))
+* **oauth:** lock the OAuth server baseline behind agent-identity ([#30867](https://github.com/lightdash/lightdash/issues/30867)) ([5cbbe16](https://github.com/lightdash/lightdash/commit/5cbbe1690a07def3adc8a57bdba004a3291974ae))
+
+# [2.538.0](https://github.com/lightdash/lightdash/compare/2.537.1...2.538.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** let Postgres agents run as a separate database user (AI service account) ([#30865](https://github.com/lightdash/lightdash/issues/30865)) ([a534090](https://github.com/lightdash/lightdash/commit/a534090642496fa6aacbffb52a2758acce23ce2f))
+
+## [2.537.1](https://github.com/lightdash/lightdash/compare/2.537.0...2.537.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **oauth:** tighten wildcard redirect URI matching and redact tokens in logs ([#30864](https://github.com/lightdash/lightdash/issues/30864)) ([5d75e1f](https://github.com/lightdash/lightdash/commit/5d75e1f88e28cb2c25521f9d0f785ba1f3de106f))
+
+# [2.537.0](https://github.com/lightdash/lightdash/compare/2.536.0...2.537.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** record agent content writes and refusals ([#30862](https://github.com/lightdash/lightdash/issues/30862)) ([e7ef7a1](https://github.com/lightdash/lightdash/commit/e7ef7a121957271cb89ceb3f412a07a3f5c4a90d))
+
+# [2.536.0](https://github.com/lightdash/lightdash/compare/2.535.0...2.536.0) (2026-10-10)
+
+
+### Features
+
+* **oauth:** enforce OAuth grant scopes for REST and MCP behind agent-identity ([#30861](https://github.com/lightdash/lightdash/issues/30861)) ([4ea6d4e](https://github.com/lightdash/lightdash/commit/4ea6d4e4d715ae3e161fedd9c99e1f58c2ef4fbf))
+
+# [2.535.0](https://github.com/lightdash/lightdash/compare/2.534.0...2.535.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** let Athena agents run as a separate IAM role (AI service account) ([#30859](https://github.com/lightdash/lightdash/issues/30859)) ([fb65aec](https://github.com/lightdash/lightdash/commit/fb65aec135450736f625a7b5b66b957d4fa2cad0))
+
+# [2.534.0](https://github.com/lightdash/lightdash/compare/2.533.0...2.534.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** resolve the Snowflake agent sign-in through a credential resolver ([#30855](https://github.com/lightdash/lightdash/issues/30855)) ([bb40dc8](https://github.com/lightdash/lightdash/commit/bb40dc88775a2858c2482f99b25183b6d1c63928))
+
+# [2.533.0](https://github.com/lightdash/lightdash/compare/2.532.0...2.533.0) (2026-10-09)
+
+
+### Features
+
+* **credentials:** add credential tables, codec, rotation entries and lock key ([#30854](https://github.com/lightdash/lightdash/issues/30854)) ([c1e2140](https://github.com/lightdash/lightdash/commit/c1e21406474f445325e5c031d88a1e625007bf1c))
+
+# [2.532.0](https://github.com/lightdash/lightdash/compare/2.531.0...2.532.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** line up organization rule rows and use plain helper text ([#30852](https://github.com/lightdash/lightdash/issues/30852)) ([e67ccd9](https://github.com/lightdash/lightdash/commit/e67ccd9160dea52aef25b4715127bcbb315a1fa6))
+
+# [2.531.0](https://github.com/lightdash/lightdash/compare/2.530.0...2.531.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** show a card for each AI service account warehouse in My agent connections ([#30851](https://github.com/lightdash/lightdash/issues/30851)) ([b84f789](https://github.com/lightdash/lightdash/commit/b84f7896a8ab9ed85692a3ca3e1cbf70f979f23a))
+* **agent-identity:** show the AI service account status first, with one layout on every warehouse ([#30853](https://github.com/lightdash/lightdash/issues/30853)) ([af8b4c5](https://github.com/lightdash/lightdash/commit/af8b4c5ac828ed6f30cff710d001142b28583f58))
+
+# [2.530.0](https://github.com/lightdash/lightdash/compare/2.529.0...2.530.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** refusals link to the project Agent identity page, Slack posts one clear refusal ([#30850](https://github.com/lightdash/lightdash/issues/30850)) ([d22151f](https://github.com/lightdash/lightdash/commit/d22151f94ec19db0e058c41d952edb6b22d4debe))
+
+# [2.529.0](https://github.com/lightdash/lightdash/compare/2.528.0...2.529.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** set the Snowflake agent OAuth client only in the organisation form ([#30848](https://github.com/lightdash/lightdash/issues/30848)) ([51205f8](https://github.com/lightdash/lightdash/commit/51205f8ad991b9973a76e737d78dc09dc6d6aac0))
+
+# [2.528.0](https://github.com/lightdash/lightdash/compare/2.527.1...2.528.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** confirm org rule changes before they save ([#30849](https://github.com/lightdash/lightdash/issues/30849)) ([b421e00](https://github.com/lightdash/lightdash/commit/b421e004eb37e0caa67b9a8165ed479a97fe2af2))
+
+## [2.527.1](https://github.com/lightdash/lightdash/compare/2.527.0...2.527.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **warehouse:** attribute Snowflake sign-in expiry to the sent refresh token ([#30847](https://github.com/lightdash/lightdash/issues/30847)) ([0c2b1a7](https://github.com/lightdash/lightdash/commit/0c2b1a78b4cbe0778e0e01c4012746b3c45550e4))
+
+# [2.527.0](https://github.com/lightdash/lightdash/compare/2.526.0...2.527.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** AI service account for Snowflake connections ([#30842](https://github.com/lightdash/lightdash/issues/30842)) ([730af6d](https://github.com/lightdash/lightdash/commit/730af6d0f30c200da1d71ee67d8ba7f518832fbc)), closes [PKCS#1](https://github.com/PKCS/issues/1)
+
+# [2.526.0](https://github.com/lightdash/lightdash/compare/2.525.0...2.526.0) (2026-10-09)
+
+
+### Features
+
+* **warehouse:** refresh Databricks sign-ins through a resolver, one refresh at a time per credential row ([#30844](https://github.com/lightdash/lightdash/issues/30844)) ([4f1fe1e](https://github.com/lightdash/lightdash/commit/4f1fe1ee370a306d4ade820a97c7e556ae73f875))
+
+# [2.525.0](https://github.com/lightdash/lightdash/compare/2.524.0...2.525.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** Databricks AI service account with OAuth M2M ([#30843](https://github.com/lightdash/lightdash/issues/30843)) ([09257bd](https://github.com/lightdash/lightdash/commit/09257bd6014132b845e5e895095b92d5b27f77ac))
+
+# [2.524.0](https://github.com/lightdash/lightdash/compare/2.523.0...2.524.0) (2026-10-09)
+
+
+### Features
+
+* **warehouse:** refresh Snowflake sign-ins through a resolver, one refresh at a time per credential row ([#30840](https://github.com/lightdash/lightdash/issues/30840)) ([2dc4903](https://github.com/lightdash/lightdash/commit/2dc49031de83c0dba9ddb8ed27a115e58d462612))
+
+# [2.523.0](https://github.com/lightdash/lightdash/compare/2.522.0...2.523.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** AI service account takes only routing fields, and agent queries skip the warehouse result cache ([#30841](https://github.com/lightdash/lightdash/issues/30841)) ([f749e4f](https://github.com/lightdash/lightdash/commit/f749e4f5964f49f1b85e9e1946996a7424023dc1))
+
+# [2.522.0](https://github.com/lightdash/lightdash/compare/2.521.0...2.522.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** remove Test as agent and keep one Test for the AI service account key ([#30839](https://github.com/lightdash/lightdash/issues/30839)) ([71e4771](https://github.com/lightdash/lightdash/commit/71e4771ebe1fc0ebb972b14f51e414e4f269d9af))
+* **warehouse:** resolve the SSH tunnel private key through a credential resolver ([#30837](https://github.com/lightdash/lightdash/issues/30837)) ([c2c32d3](https://github.com/lightdash/lightdash/commit/c2c32d354283496357dd408c31c194a6ffda77e0))
+
 # [2.521.0](https://github.com/lightdash/lightdash/compare/2.520.0...2.521.0) (2026-10-09)
 
 

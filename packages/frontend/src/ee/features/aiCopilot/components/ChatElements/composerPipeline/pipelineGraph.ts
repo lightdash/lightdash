@@ -1,33 +1,16 @@
 import Dagre from '@dagrejs/dagre';
-import { assertUnreachable } from '@lightdash/common';
 import type { Edge, Node } from '@xyflow/react';
-import {
-    EARLIER_RESULT_NOTE,
-    sourceLabelOf,
-    type PipelineLayer,
-    type PipelineNode,
-} from './groupPipeline';
+import { nodeTypeLabelOf, type PipelineLayer } from './groupPipeline';
 
 type PipelineFlowNodeData = {
     title: string;
-    sourceLabel: string | null;
+    typeLabel: string | null;
     isTerminal: boolean;
     isDisplayed: boolean;
     isDisplayable: boolean;
 };
 
 export type PipelineFlowNode = Node<PipelineFlowNodeData, 'pipeline'>;
-
-const graphLabelOf = (node: PipelineNode): string | null => {
-    switch (node.kind) {
-        case 'query':
-            return sourceLabelOf(node.query);
-        case 'placeholder':
-            return EARLIER_RESULT_NOTE;
-        default:
-            return assertUnreachable(node, 'Unknown pipeline node');
-    }
-};
 
 const RANK_GAP = 56;
 const NODE_GAP = 12;
@@ -47,7 +30,7 @@ export const toPipelineFlow = (
         position: { x: 0, y: 0 },
         data: {
             title: node.title,
-            sourceLabel: graphLabelOf(node),
+            typeLabel: nodeTypeLabelOf(node.query),
             isTerminal: node.isTerminal,
             isDisplayed: node.nodeId === display.displayedNodeId,
             isDisplayable: display.displayableNodeIds.has(node.nodeId),

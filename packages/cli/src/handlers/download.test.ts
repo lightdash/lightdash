@@ -18,7 +18,9 @@ import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { vi } from 'vitest';
+import { slotFixture } from '../agentConnections/fixtures';
 import { LightdashAnalytics } from '../analytics/analytics';
+import { getConfig, setAnswer } from '../config';
 import GlobalState from '../globalState';
 import {
     getDataAppUploadFilter,
@@ -37,6 +39,12 @@ import {
     type DownloadHandlerOptions,
 } from './download';
 import { logUploadChanges } from './spacesAsCode';
+
+const selected = vi.hoisted(() => ({ credential: vi.fn() }));
+vi.mock('../credentials', async (original) => ({
+    ...(await original<typeof import('../credentials')>()),
+    resolveCredential: selected.credential,
+}));
 
 vi.mock('../analytics/analytics', () => ({
     LightdashAnalytics: {
@@ -2672,4 +2680,53 @@ describe('parseContentFilters', () => {
             ]),
         ).toBe('?ids=daily-sales&ids=monthly-revenue&ids=sales-overview');
     });
+});
+
+it('downloads with an agent credential and never saves the metadata notice preference', async () => {
+    vi.clearAllMocks();
+    const directory = await fs.mkdtemp(
+        path.join(os.tmpdir(), 'agent-download-'),
+    );
+    vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', 'work');
+    vi.spyOn(
+        await import('./dbt/apiClient'),
+        'checkLightdashVersion',
+    ).mockResolvedValueOnce(undefined);
+    const slot = slotFixture();
+    selected.credential.mockResolvedValue({
+        kind: 'agent_connection',
+        token: 'agent',
+        slot,
+    });
+    const config = { user: {}, context: { serverUrl: 'https://example.com' } };
+    vi.mocked(getConfig).mockResolvedValue(config);
+    vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+        if (url.startsWith('/api/v1/health'))
+            return { version: '2.0.0' } as never;
+        if (url === '/api/v1/projects/11111111-1111-4111-8111-111111111111')
+            return {
+                projectUuid: '11111111-1111-4111-8111-111111111111',
+                name: 'Project',
+            } as never;
+        throw new Error(`Unexpected request ${url}`);
+    });
+    try {
+        await downloadHandler(
+            makeDownloadHandlerOptions({
+                project: '11111111-1111-4111-8111-111111111111',
+                path: directory,
+            }),
+        );
+        expect(setAnswer).not.toHaveBeenCalled();
+        expect(selected.credential).toHaveBeenCalled();
+        expect(await fs.readdir(directory)).toContain(
+            '.lightdash-metadata.json',
+        );
+        expect(
+            vi.mocked(lightdashApi).mock.calls.map(([props]) => props.url),
+        ).toEqual(['/api/v1/projects/11111111-1111-4111-8111-111111111111']);
+    } finally {
+        vi.unstubAllEnvs();
+        await fs.rm(directory, { recursive: true, force: true });
+    }
 });

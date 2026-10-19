@@ -1,6 +1,7 @@
 import * as assert from 'assert';
 import {
     buildMarker,
+    buildAiReviewApiInput,
     detectMigrations,
     GitChange,
     isAiReviewEligible,
@@ -9,6 +10,8 @@ import {
     ownExpandContractFloor,
     parseArgs,
 } from './gen-release-safety';
+import { uncoveredFindings } from './release-safety-advisories';
+import type { AdvisoryDeclaration } from './release-safety-declarations';
 import type { MigrationOperation } from './release-safety-migrations';
 
 let passed = 0;
@@ -394,6 +397,26 @@ test('incomplete declaration metadata stays unknown after a definitive AI verdic
     assert.strictEqual(marker.compatibility.rollingUpdateSafe, 'unknown');
 });
 
+test('an ordinary API declaration still requires Recreate', () => {
+    const declaration = {
+        id: 'ordinary-operation',
+        reason: 'Existing clients still send the removed request field.',
+        requiredStop: false,
+    };
+    const marker = buildMarker({
+        ...base,
+        ...checkedSurfaces,
+        migrations: noMigrations,
+        declaredBreaks: [declaration],
+    });
+    assert.deepStrictEqual(marker.compatibility, {
+        rollingUpdateSafe: false,
+        recommendedStrategy: 'Recreate',
+    });
+    assert.deepStrictEqual(marker.declaredBreaks, [declaration]);
+    assert.deepStrictEqual(marker.declaredAdvisories, []);
+});
+
 test('a declared break stays unsafe when declaration metadata is incomplete', () => {
     const marker = buildMarker({
         ...base,
@@ -531,6 +554,153 @@ test('ownExpandContractFloor matches the marker floor', () => {
     assert.strictEqual(ownExpandContractFloor(input), '1.100.0');
     assert.strictEqual(marker.upgrade.minPreviousVersion, '1.100.0');
     assert.strictEqual(marker.compatibility.rollingUpdateSafe, true);
+});
+
+const internalAdvisory: AdvisoryDeclaration = {
+    id: 'internal-operation',
+    reason: 'This feature is off by default on Cloud and self-hosted.',
+    requiredStop: false,
+    impact: {
+        kind: 'no-external-callers',
+        featureFlag: 'agent-identity',
+        covers: { rest: ['POST /x'], mcp: ['x'] },
+    },
+};
+
+for (const kind of ['rest', 'mcp'] as const) {
+    test(`covered ${kind} findings keep the release rolling-safe and raw findings intact`, () => {
+        const surface = {
+            ...checkedSurfaces.restApi,
+            breaking: true,
+            breakingCount: 1,
+            changes: [
+                kind === 'rest'
+                    ? 'POST /x — endpoint removed'
+                    : 'MCP tool `x` removed',
+            ],
+        };
+        const input = {
+            ...base,
+            ...checkedSurfaces,
+            migrations: noMigrations,
+            [kind === 'rest' ? 'restApi' : 'mcpApi']: surface,
+            declaredAdvisories: [internalAdvisory],
+        };
+        const result = buildMarker(input);
+        assert.deepStrictEqual(result.compatibility, {
+            rollingUpdateSafe: true,
+            recommendedStrategy: 'RollingUpdate',
+        });
+        assert.deepStrictEqual(result.declaredBreaks, []);
+        assert.deepStrictEqual(result.declaredAdvisories, [internalAdvisory]);
+        assert.deepStrictEqual(result.api[kind], surface);
+        assert.deepStrictEqual(result.upgrade.requiredStops, []);
+        assert.strictEqual(isAiReviewEligible(input), false);
+        assert.strictEqual(
+            isDeterministicallyRollingUpdateSafe({
+                ...input,
+                migrations: migration,
+                migrationMetadataComplete: true,
+                declarationMetadataComplete: true,
+                migrationOperations: ['create-index-concurrently'],
+            }),
+            true,
+        );
+        const extra = {
+            ...input,
+            [kind === 'rest' ? 'restApi' : 'mcpApi']: {
+                ...surface,
+                breakingCount: 2,
+                changes: [
+                    ...surface.changes,
+                    kind === 'rest'
+                        ? 'GET /y — endpoint removed'
+                        : 'MCP tool `y` removed',
+                ],
+            },
+        };
+        assert.notStrictEqual(
+            buildMarker(extra).compatibility.rollingUpdateSafe,
+            true,
+        );
+        assert.strictEqual(isAiReviewEligible(extra), true);
+        for (const unknown of [
+            null,
+            { ...surface, checked: false },
+            { ...surface, breaking: 'unknown' as const },
+        ]) {
+            assert.notStrictEqual(
+                buildMarker({
+                    ...input,
+                    [kind === 'rest' ? 'restApi' : 'mcpApi']: unknown,
+                }).compatibility.rollingUpdateSafe,
+                true,
+            );
+        }
+        assert.notStrictEqual(
+            buildMarker({
+                ...input,
+                [kind === 'rest' ? 'restApi' : 'mcpApi']: {
+                    ...surface,
+                    breakingCount: 2,
+                    changes: [
+                        ...surface.changes,
+                        '… and 1 more breaking change(s)',
+                    ],
+                },
+            }).compatibility.rollingUpdateSafe,
+            true,
+        );
+        assert.strictEqual(
+            buildMarker({
+                ...input,
+                config: { checked: true, breaking: true, changes: [] },
+            }).compatibility.rollingUpdateSafe,
+            false,
+        );
+        assert.strictEqual(
+            buildMarker({ ...input, declarationMetadataComplete: false })
+                .compatibility.rollingUpdateSafe,
+            'unknown',
+        );
+    });
+}
+
+test('truncated REST findings remain reviewable after a positive AI verdict', () => {
+    const operations = Array.from({ length: 50 }, (_, index) => `POST /internal/${index}`);
+    const changes = [
+        ...operations.map((operation) => `${operation} — endpoint removed`),
+        '… and 1 more breaking change(s)',
+    ];
+    const input = {
+        ...base,
+        ...checkedSurfaces,
+        migrations: noMigrations,
+        restApi: { ...checkedSurfaces.restApi, breaking: true as const, breakingCount: 51, changes },
+        declaredAdvisories: [{
+            ...internalAdvisory,
+            impact: { ...internalAdvisory.impact, covers: { rest: operations, mcp: [] } },
+        }],
+    };
+    assert.strictEqual(isAiReviewEligible(input), true);
+    assert.notStrictEqual(buildMarker(input).compatibility.rollingUpdateSafe, true);
+    const marker = buildMarker({
+        ...input,
+        aiReview: {
+            rollingUpdateSafe: true,
+            recommendedStrategy: 'RollingUpdate',
+            summary: 'The reviewer cleared the concrete API findings.',
+        },
+    });
+    assert.deepStrictEqual(marker.api.rest, input.restApi);
+    assert.deepStrictEqual(
+        buildAiReviewApiInput(input),
+        { restBreaking: changes, mcpBreaking: [] },
+    );
+    assert.deepStrictEqual(
+        uncoveredFindings(marker.api.rest, marker.declaredAdvisories, 'rest'),
+        changes,
+    );
 });
 
 if (failures.length > 0) {

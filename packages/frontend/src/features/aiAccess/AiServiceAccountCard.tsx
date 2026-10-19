@@ -1,24 +1,28 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
+    supportsAiServiceAccount,
+    type WarehouseCredentials,
     FeatureFlags,
+    ProjectType,
+    getProjectAgentIdentitySettingsPath,
     WarehouseTypes,
-    formatDate,
     type Project,
+    type PostgresCredentials,
+    type RedshiftCredentials,
+    type TrinoCredentials,
+    type ClickhouseCredentials,
+    type AthenaCredentials,
     type BigqueryCredentials,
+    type DatabricksCredentials,
+    type SnowflakeCredentials,
+    type AiServiceAccountTestResult,
+    type ApiError,
     type AiServiceAccountSlot,
     type AiServiceAccountParent,
     type OrganizationAgentIdentityRule,
 } from '@lightdash/common';
-import {
-    Alert,
-    Anchor,
-    Button,
-    Group,
-    Paper,
-    Stack,
-    Text,
-    Title,
-} from '@mantine/core';
+import { Alert, Anchor, Button, Group, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
@@ -27,91 +31,98 @@ import MantineModal from '../../components/common/MantineModal';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
-import { AgentAccessReportPanel } from './AgentAccessReportPanel';
+import { AiServiceAccountDetails } from './AiServiceAccountDetails';
 import { AiServiceAccountForm } from './AiServiceAccountForm';
+import { AiServiceAccountStatus } from './AiServiceAccountStatus';
 import {
     useAiServiceAccount,
     useDeleteAiServiceAccount,
     useOrganizationAgentIdentitySettings,
     useTestAiServiceAccount,
 } from './api';
+import { AthenaAgentSetup } from './AthenaAgentSetup';
 import { BigQueryAgentSetup } from './BigQueryAgentSetup';
-import { useTestAgentAccess } from './useTestAgentAccess';
+import { ClickhouseAgentSetup } from './ClickhouseAgentSetup';
+import { DatabricksAgentSetup } from './DatabricksAgentSetup';
+import { getAiServiceAccountStatus } from './getAiServiceAccountStatus';
+import { PostgresAgentSetup } from './PostgresAgentSetup';
+import { RedshiftAgentSetup } from './RedshiftAgentSetup';
+import { getSnowflakeAiPrincipal } from './snowflakeAiPrincipal';
+import { SnowflakeAiServiceAccountSetup } from './SnowflakeAiServiceAccountSetup';
+import { TrinoAgentSetup } from './TrinoAgentSetup';
 
-const AiServiceAccountDetails = ({
-    slot,
-    parent,
-    testedPrincipal,
-}: {
-    slot: AiServiceAccountSlot | null;
-    parent: AiServiceAccountParent | null;
-    testedPrincipal: string | null;
-}) => (
-    <Stack gap="xs">
-        {slot ? (
-            <>
-                <Text size="sm">Service account key file</Text>
-                <Text size="xs" c="dimmed">
-                    Last updated {formatDate(slot.updatedAt)}
-                </Text>
-            </>
-        ) : parent ? (
-            <>
-                <Text size="sm">From parent project</Text>
-                {parent.projectName !== null ? (
-                    <Anchor
-                        component={Link}
-                        to={`/generalSettings/projectManagement/${parent.projectUuid}/agentIdentity`}
-                        size="sm"
-                    >
-                        {parent.projectName}
-                    </Anchor>
-                ) : (
-                    <Text size="sm">the parent project</Text>
-                )}
-                {parent.principal !== null ? (
-                    <Text size="sm" role="status">
-                        Signs in as {testedPrincipal ?? parent.principal}
-                    </Text>
-                ) : (
-                    <Text size="sm" role="status">
-                        The parent project's key could not be read.
-                    </Text>
-                )}
-            </>
-        ) : null}
-    </Stack>
-);
+type AiServiceAccountConnection =
+    | ClickhouseCredentials
+    | RedshiftCredentials
+    | TrinoCredentials
+    | PostgresCredentials
+    | AthenaCredentials
+    | BigqueryCredentials
+    | DatabricksCredentials
+    | SnowflakeCredentials;
+
+const isAiServiceAccountConnection = (
+    connection: WarehouseCredentials,
+): connection is AiServiceAccountConnection =>
+    supportsAiServiceAccount(connection.type);
 
 const AiServiceAccountRemoveModal = ({
     opened,
-    inherit,
-    parent,
     loading,
     onClose,
     onConfirm,
 }: {
     opened: boolean;
-    inherit: boolean;
-    parent: AiServiceAccountParent | null;
     loading: boolean;
     onClose: () => void;
     onConfirm: () => void;
 }) => (
     <MantineModal
         opened={opened}
-        title={inherit ? "Use the parent's key" : 'Remove AI service account'}
-        variant={inherit ? 'default' : 'delete'}
-        description={
-            inherit
-                ? `Remove this project's key and use the parent project's key${parent?.principal ? ` (${parent.principal})` : ''}? Agent queries use the parent's key on the next query.`
-                : 'Remove this AI service account? Agent queries are refused if your organisation requires it.'
-        }
-        confirmLabel={inherit ? "Use the parent's key" : 'Remove'}
+        title="Remove shared agent account"
+        variant="delete"
+        confirmLabel="Remove"
         confirmLoading={loading}
         onClose={onClose}
         onConfirm={onConfirm}
-    />
+    >
+        <Text size="sm">
+            Remove this shared agent account? Agent queries are refused if your
+            organization requires it.
+        </Text>
+    </MantineModal>
+);
+
+const AiServiceAccountTestFeedback = ({
+    result,
+    error,
+    observation,
+    warehouseType,
+}: {
+    result: AiServiceAccountTestResult | null;
+    error: ApiError | null;
+    observation: AiServiceAccountTestResult | null;
+    warehouseType: AiServiceAccountConnection['type'];
+}) => (
+    <>
+        {result && !result.ok && (
+            <Alert color="red" role="alert">
+                {result.message}
+            </Alert>
+        )}
+        {error && (
+            <Alert color="red" role="alert">
+                {error.error.message}
+            </Alert>
+        )}
+        {warehouseType !== WarehouseTypes.BIGQUERY &&
+            observation?.ok &&
+            (error || (result && !result.ok)) && (
+                <Text size="sm" c="dimmed">
+                    The account above is from the last successful check.
+                </Text>
+            )}
+    </>
 );
 
 const AiServiceAccountSummary = ({
@@ -119,6 +130,8 @@ const AiServiceAccountSummary = ({
     slot,
     parent,
     testedPrincipal,
+    observation,
+    warehouseType,
     onReplace,
     onTestSuccess,
 }: {
@@ -126,47 +139,47 @@ const AiServiceAccountSummary = ({
     slot: AiServiceAccountSlot | null;
     parent: AiServiceAccountParent | null;
     testedPrincipal: string | null;
-    onReplace: () => void;
-    onTestSuccess: (principal: string) => void;
+    observation: AiServiceAccountTestResult | null;
+    warehouseType: AiServiceAccountConnection['type'];
+    onReplace: (() => void) | null;
+    onTestSuccess: (
+        principal: string,
+        verification: AiServiceAccountTestResult | null,
+    ) => void;
 }) => {
     const remove = useDeleteAiServiceAccount(projectUuid);
     const test = useTestAiServiceAccount(projectUuid);
-    const accessTest = useTestAgentAccess(projectUuid, null);
-    const [confirmation, setConfirmation] = useState<
-        'remove' | 'inherit' | null
-    >(null);
-    const testing = test.isLoading || accessTest.isLoading;
-    const busy = testing || remove.isLoading;
+    const [confirmation, setConfirmation] = useState(false);
+    const busy = test.isLoading || remove.isLoading;
     return (
         <>
-            <Group justify="space-between">
+            <Stack gap="sm">
                 <AiServiceAccountDetails
                     slot={slot}
                     parent={parent}
                     testedPrincipal={testedPrincipal}
+                    observation={observation}
+                    warehouseType={warehouseType}
                 />
                 <Group gap="xs">
                     <Button
                         variant="default"
-                        disabled={busy}
-                        onClick={() => {
-                            test.reset();
-                            onReplace();
-                        }}
-                    >
-                        {slot ? 'Replace' : 'Use a different key'}
-                    </Button>
-                    <Button
-                        variant="default"
                         loading={test.isLoading}
-                        disabled={remove.isLoading || accessTest.isLoading}
+                        disabled={remove.isLoading}
                         onClick={() =>
                             test.mutate(
                                 { credentials: null },
                                 {
                                     onSuccess: (result) => {
-                                        if (result.ok && result.principal)
-                                            onTestSuccess(result.principal);
+                                        const principal =
+                                            warehouseType ===
+                                            WarehouseTypes.SNOWFLAKE
+                                                ? getSnowflakeAiPrincipal(
+                                                      result,
+                                                  )
+                                                : result.principal;
+                                        if (result.ok && principal)
+                                            onTestSuccess(principal, result);
                                     },
                                 },
                             )
@@ -174,173 +187,253 @@ const AiServiceAccountSummary = ({
                     >
                         Test
                     </Button>
-                    {slot && (
+                    {onReplace !== null && (
                         <>
                             <Button
                                 variant="default"
-                                loading={accessTest.isLoading}
-                                disabled={test.isLoading || remove.isLoading}
-                                onClick={() =>
-                                    accessTest.mutate({
-                                        credentials: null,
-                                        entryPoint:
-                                            'project_agent_identity_page',
-                                    })
-                                }
+                                disabled={busy}
+                                onClick={() => {
+                                    test.reset();
+                                    onReplace();
+                                }}
                             >
-                                Test as agent
+                                Replace
                             </Button>
-                            {parent && (
-                                <Button
-                                    variant="default"
-                                    disabled={busy}
-                                    onClick={() => setConfirmation('inherit')}
-                                >
-                                    Use the parent's key
-                                </Button>
-                            )}
                             <Button
                                 variant="subtle"
                                 color="red"
                                 disabled={busy}
-                                onClick={() => setConfirmation('remove')}
+                                onClick={() => setConfirmation(true)}
                             >
                                 Remove
                             </Button>
                         </>
                     )}
                 </Group>
-            </Group>
-            {slot && (
-                <>
-                    {accessTest.isLoading ? (
-                        <Text size="sm" role="status">
-                            Checking agent access…
-                        </Text>
-                    ) : (
-                        accessTest.data && (
-                            <AgentAccessReportPanel report={accessTest.data} />
-                        )
-                    )}
-                    {accessTest.isError && (
-                        <Text size="sm" c="red" role="alert">
-                            Could not test agent access. Try again.
-                        </Text>
-                    )}
-                </>
-            )}
-            {test.data && !test.data.ok && (
-                <Text size="sm" role="status">
-                    {test.data.message}
-                </Text>
-            )}
-            {test.error && (
-                <Text size="sm" c="red" role="alert">
-                    {test.error.error.message}
-                </Text>
-            )}
-            <AiServiceAccountRemoveModal
-                opened={confirmation !== null}
-                inherit={confirmation === 'inherit'}
-                parent={parent}
-                loading={remove.isLoading}
-                onClose={() => {
-                    if (!remove.isLoading) setConfirmation(null);
-                }}
-                onConfirm={() =>
-                    remove.mutate(undefined, {
-                        onSuccess: () => {
-                            test.reset();
-                            accessTest.reset();
-                            setConfirmation(null);
-                        },
-                    })
-                }
+            </Stack>
+            <AiServiceAccountTestFeedback
+                result={test.data ?? null}
+                error={test.error}
+                observation={observation}
+                warehouseType={warehouseType}
             />
+            {onReplace !== null && (
+                <AiServiceAccountRemoveModal
+                    opened={confirmation}
+                    loading={remove.isLoading}
+                    onClose={() => {
+                        if (!remove.isLoading) setConfirmation(false);
+                    }}
+                    onConfirm={() =>
+                        remove.mutate(undefined, {
+                            onSuccess: () => {
+                                test.reset();
+                                setConfirmation(false);
+                            },
+                        })
+                    }
+                />
+            )}
         </>
     );
 };
 
 const AiServiceAccountSettingsContent = ({
     projectUuid,
+    upstreamProjectUuid,
     slot,
+    credentialsReadable,
     parent,
     rule,
     testedPrincipal,
+    observation,
+    warehouseType,
     onTestSuccess,
     onEdit,
 }: {
     projectUuid: string;
+    upstreamProjectUuid: string | null;
     slot: AiServiceAccountSlot | null;
+    credentialsReadable: boolean;
     parent: AiServiceAccountParent | null;
     rule: OrganizationAgentIdentityRule;
     testedPrincipal: string | null;
-    onTestSuccess: (principal: string) => void;
+    observation: AiServiceAccountTestResult | null;
+    warehouseType: AiServiceAccountConnection['type'];
+    onTestSuccess: (
+        principal: string,
+        verification: AiServiceAccountTestResult | null,
+    ) => void;
     onEdit: () => void;
 }) => {
+    const status = getAiServiceAccountStatus({
+        rule: { ...rule, warehouseType },
+        slot,
+        parent,
+        credentialsReadable,
+        isPreview: upstreamProjectUuid !== null,
+    });
+    const parentLink =
+        upstreamProjectUuid !== null ? (
+            <Anchor
+                component={Link}
+                to={getProjectAgentIdentitySettingsPath(upstreamProjectUuid)}
+                size="sm"
+            >
+                the parent project
+            </Anchor>
+        ) : null;
+    const missingRequiredParent =
+        upstreamProjectUuid !== null &&
+        !slot &&
+        !parent &&
+        rule.source === 'ai_service_account';
     return (
         <Stack gap="sm">
-            {!slot && !parent && rule.source === 'ai_service_account' && (
-                <Alert color="yellow">
-                    AI agents on this connection are refused until an AI service
-                    account is added.
-                </Alert>
-            )}
-            {slot && testedPrincipal && (
-                <Text size="sm" role="status">
-                    Signs in as {testedPrincipal}
-                </Text>
-            )}
+            <AiServiceAccountStatus
+                status={{
+                    ...status,
+                    alert:
+                        missingRequiredParent && status.alert
+                            ? {
+                                  ...status.alert,
+                                  message: (
+                                      <>
+                                          {status.alert.message} Ask an admin to
+                                          add one on {parentLink}.
+                                      </>
+                                  ),
+                              }
+                            : status.alert,
+                }}
+            />
             {slot || parent ? (
                 <AiServiceAccountSummary
                     projectUuid={projectUuid}
                     slot={slot}
                     parent={parent}
                     testedPrincipal={testedPrincipal}
+                    observation={observation}
+                    warehouseType={warehouseType}
                     onTestSuccess={onTestSuccess}
-                    onReplace={onEdit}
+                    onReplace={upstreamProjectUuid === null ? onEdit : null}
                 />
+            ) : upstreamProjectUuid !== null ? (
+                !missingRequiredParent && (
+                    <Text size="sm">
+                        The parent project has no shared agent account. Add one
+                        on {parentLink}.
+                    </Text>
+                )
             ) : (
-                <Paper variant="dotted" p="sm">
-                    <Button variant="subtle" onClick={onEdit}>
-                        Add an AI service account
+                <Group>
+                    <Button variant="filled" onClick={onEdit}>
+                        Add shared agent account
                     </Button>
-                </Paper>
+                </Group>
             )}
         </Stack>
     );
 };
 
+interface TestedAiPrincipal {
+    identityKey: string;
+    principal: string;
+    verification: AiServiceAccountTestResult | null;
+}
+
+const getAiPrincipalState = (
+    slot: AiServiceAccountSlot | null,
+    parent: AiServiceAccountParent | null,
+    verification: AiServiceAccountTestResult | null,
+    testedPrincipal: TestedAiPrincipal | null,
+    warehouseType: AiServiceAccountConnection['type'],
+) => {
+    const identityKey = slot?.identityUuid ?? parent?.identityUuid ?? null;
+    const persistedVerification =
+        warehouseType === WarehouseTypes.BIGQUERY
+            ? null
+            : slot
+              ? verification
+              : (parent?.verification ?? null);
+    const currentTest =
+        testedPrincipal?.identityKey === identityKey ? testedPrincipal : null;
+    const observation = currentTest?.verification ?? persistedVerification;
+    const principal =
+        currentTest?.principal ??
+        (warehouseType === WarehouseTypes.SNOWFLAKE
+            ? getSnowflakeAiPrincipal(observation)
+            : warehouseType === WarehouseTypes.TRINO ||
+                warehouseType === WarehouseTypes.REDSHIFT ||
+                warehouseType === WarehouseTypes.CLICKHOUSE ||
+                warehouseType === WarehouseTypes.POSTGRES ||
+                warehouseType === WarehouseTypes.DATABRICKS ||
+                warehouseType === WarehouseTypes.ATHENA
+              ? observation?.ok
+                  ? observation.principal
+                  : null
+              : null);
+    return { identityKey, observation, principal };
+};
+
+const AiServiceAccountSetup = ({
+    connection,
+}: {
+    connection: AiServiceAccountConnection;
+}) => {
+    switch (connection.type) {
+        case WarehouseTypes.TRINO:
+            return <TrinoAgentSetup connection={connection} />;
+        case WarehouseTypes.CLICKHOUSE:
+            return <ClickhouseAgentSetup connection={connection} />;
+        case WarehouseTypes.REDSHIFT:
+            return <RedshiftAgentSetup connection={connection} />;
+        case WarehouseTypes.POSTGRES:
+            return <PostgresAgentSetup connection={connection} />;
+        case WarehouseTypes.ATHENA:
+            return <AthenaAgentSetup connection={connection} />;
+        case WarehouseTypes.BIGQUERY:
+            return <BigQueryAgentSetup connection={connection} />;
+        case WarehouseTypes.DATABRICKS:
+            return <DatabricksAgentSetup connection={connection} />;
+        case WarehouseTypes.SNOWFLAKE:
+            return <SnowflakeAiServiceAccountSetup />;
+        default:
+            return assertUnreachable(connection, 'Unknown warehouse type');
+    }
+};
+
 const AiServiceAccountSettingsBody = ({
     projectUuid,
+    upstreamProjectUuid,
     connection,
     slot,
+    credentialsReadable,
     parent,
     rule,
+    verification,
 }: {
     projectUuid: string;
-    connection: BigqueryCredentials;
+    upstreamProjectUuid: string | null;
+    connection: AiServiceAccountConnection;
+    verification: AiServiceAccountTestResult | null;
     slot: AiServiceAccountSlot | null;
+    credentialsReadable: boolean;
     parent: AiServiceAccountParent | null;
     rule: OrganizationAgentIdentityRule;
 }) => {
     const [editing, setEditing] = useState(false);
-    const [testedPrincipal, setTestedPrincipal] = useState<{
-        identityKey: string;
-        principal: string;
-    } | null>(null);
-    const identityKey = slot?.identityUuid ?? parent?.identityUuid ?? null;
-    const principal =
-        testedPrincipal?.identityKey === identityKey
-            ? (testedPrincipal?.principal ?? null)
-            : null;
+    const [testedPrincipal, setTestedPrincipal] =
+        useState<TestedAiPrincipal | null>(null);
+    const { identityKey, observation, principal } = getAiPrincipalState(
+        slot,
+        parent,
+        verification,
+        testedPrincipal,
+        connection.type,
+    );
     return (
         <>
-            <BigQueryAgentSetup
-                connection={connection}
-                hasKey={!!slot || !!parent}
-                tested={principal !== null}
-            />
             <AiServiceAccountSettingsContent
                 key={
                     slot
@@ -348,28 +441,38 @@ const AiServiceAccountSettingsBody = ({
                         : (identityKey ?? 'empty')
                 }
                 projectUuid={projectUuid}
+                upstreamProjectUuid={upstreamProjectUuid}
                 slot={slot}
+                credentialsReadable={credentialsReadable}
                 parent={parent}
                 rule={rule}
                 testedPrincipal={principal}
-                onTestSuccess={(principal) => {
+                observation={observation}
+                warehouseType={connection.type}
+                onTestSuccess={(principal, verification) => {
                     if (identityKey)
                         setTestedPrincipal({
                             identityKey,
                             principal,
+                            verification,
                         });
                 }}
                 onEdit={() => setEditing(true)}
             />
-            {editing && (
+            {upstreamProjectUuid === null && !slot && !parent && (
+                <AiServiceAccountSetup connection={connection} />
+            )}
+            {upstreamProjectUuid === null && editing && (
                 <AiServiceAccountForm
                     projectUuid={projectUuid}
-                    onSaved={(savedSlot, principal) =>
+                    warehouseType={connection.type}
+                    onSaved={(savedSlot, principal, verification) =>
                         setTestedPrincipal(
                             principal
                                 ? {
                                       identityKey: savedSlot.identityUuid,
                                       principal,
+                                      verification: verification ?? null,
                                   }
                                 : null,
                         )
@@ -383,21 +486,23 @@ const AiServiceAccountSettingsBody = ({
 
 const AiServiceAccountSettings = ({
     projectUuid,
+    upstreamProjectUuid,
     connection,
 }: {
     projectUuid: string;
-    connection: BigqueryCredentials;
+    upstreamProjectUuid: string | null;
+    connection: AiServiceAccountConnection;
 }) => {
     const settings = useOrganizationAgentIdentitySettings();
     const status = useAiServiceAccount(projectUuid);
     const rule = settings.data?.rules.find(
-        ({ warehouseType }) => warehouseType === WarehouseTypes.BIGQUERY,
+        ({ warehouseType }) => warehouseType === connection.type,
     );
     if (settings.isLoading || status.isLoading) return <EmptyStateLoader />;
     if (settings.isError || status.isError || !rule || !status.data)
         return (
             <InlineErrorState
-                message="Could not load the AI service account."
+                message="Could not load the shared agent account."
                 onRetry={() => {
                     void settings.refetch();
                     void status.refetch();
@@ -407,8 +512,11 @@ const AiServiceAccountSettings = ({
     return (
         <AiServiceAccountSettingsBody
             projectUuid={projectUuid}
+            upstreamProjectUuid={upstreamProjectUuid}
             connection={connection}
-            slot={status.data.results}
+            verification={status.data.verification ?? null}
+            slot={upstreamProjectUuid === null ? status.data.results : null}
+            credentialsReadable={status.data.credentialsReadable}
             parent={status.data.parent}
             rule={rule}
         />
@@ -420,7 +528,8 @@ export const AiServiceAccountCard = ({ project }: { project: Project }) => {
     const ability = useAbilityContext();
     if (
         !project.projectUuid ||
-        project.warehouseConnection?.type !== WarehouseTypes.BIGQUERY ||
+        !project.warehouseConnection ||
+        !isAiServiceAccountConnection(project.warehouseConnection) ||
         !flag?.enabled ||
         !ability.can(
             'manage',
@@ -434,10 +543,14 @@ export const AiServiceAccountCard = ({ project }: { project: Project }) => {
     return (
         <SettingsCard mt="md">
             <Stack gap="sm">
-                <Title order={5}>AI service account</Title>
                 <AiServiceAccountSettings
                     key={project.projectUuid}
                     projectUuid={project.projectUuid}
+                    upstreamProjectUuid={
+                        project.type === ProjectType.PREVIEW
+                            ? (project.upstreamProjectUuid ?? null)
+                            : null
+                    }
                     connection={project.warehouseConnection}
                 />
             </Stack>

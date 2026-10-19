@@ -22,7 +22,7 @@ A `compile` ref builds from credentials that the caller has already resolved, us
 
 ## Named bypass modes
 
-Bypass refs use the supplied credentials without credential resolution or AI planning. They never read or write the client cache.
+Bypass refs use the supplied credentials without legacy credential refresh or AI planning. Registered mode and transport resolvers still materialise them before client creation. They never read or write the client cache.
 
 `connection_test` tests submitted credentials that the caller has already resolved with `_resolveWarehouseClientCredentials`. It keeps the connection probe tunnel options and reports construction errors as test results.
 
@@ -91,8 +91,9 @@ The DuckDB engines for results files, local analytics and pre-aggregates are not
 ## Credential resolvers
 
 The factory selects a resolver by warehouse type and authentication mode. Only
-explicit BigQuery SSO uses a resolver. Other modes keep their existing refresh
-and rotation path. A CLI `authorized_user` keyfile does not select SSO on its own.
+explicit BigQuery SSO uses an authentication-mode resolver. Other authentication
+modes keep their existing refresh and rotation path. SSH uses a transport resolver
+independent of the authentication mode. A CLI `authorized_user` keyfile does not select SSO on its own.
 
 Selection runs first. The resolver receives the selected owner and credentials.
 It validates credentials on save and materialises credentials for client use.
@@ -115,4 +116,27 @@ idempotent disposal hook, including when client construction fails.
 
 A materialisation created by `resolveWarehouseCredentials` and reused by several
 `resolved` refs shares one `dispose`; resolvers that own resources must handle
-this shared ownership before they land, including the SSH step.
+this shared ownership before they land if they allocate resources during
+resolution. SSH key resolution allocates no resources.
+
+### SSH transport resolver
+
+Postgres and Redshift connections with SSH enabled use a transport resolver after
+the authentication resolver or legacy refresh. Save validation still stores a
+copy of the private key. At use time, the resolver reads the public key's pair
+and prefers its private key when it belongs to the context's organisation. If
+that pair is absent or not owned by the organisation, it uses the copied private
+key. Without either key, resolution fails.
+
+The identity tuple contains `ssh-tunnel-v1`, the organisation UUID, the key source
+(`organizationKeyPair` or `copiedKey`), the SHA-256 public key digest, the SSH host,
+effective SSH port, SSH user, database host and database port. Absent fields use
+null; ports use strings and the SSH port defaults to 22. It contains no private
+key. Transport identity follows authentication identity, and SSH clients are not
+cached.
+
+The factory still opens and closes each tunnel. The SSH resolver's disposal hook
+is a no-op. When a mode and transport compose, their options merge with transport
+options taking precedence, cacheability requires both, and disposal runs the
+transport before the mode. Disposal is idempotent and still runs the mode hook
+if the transport hook fails.

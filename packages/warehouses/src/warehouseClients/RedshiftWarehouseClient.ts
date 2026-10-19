@@ -12,7 +12,7 @@ import {
 } from '@lightdash/common';
 import * as fs from 'fs';
 import path from 'path';
-import { PoolConfig } from 'pg';
+import { PoolClient, PoolConfig } from 'pg';
 import { PostgresClient, PostgresSqlBuilder } from './PostgresWarehouseClient';
 import { mintRedshiftIamCredentials } from './redshiftIamCredentials';
 
@@ -62,13 +62,15 @@ export class RedshiftSqlBuilder extends PostgresSqlBuilder {
 export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCredentials> {
     private readonly ssl: PoolConfig['ssl'];
 
+    private readonly agentJobControls: boolean;
+
     private cachedIamPoolConfig:
         | { config: PoolConfig; expiresAt: number }
         | undefined;
 
     constructor(
         credentials: CreateRedshiftCredentials,
-        options?: { agentSession?: boolean },
+        options?: { agentSession?: boolean; agentJobControls?: boolean },
     ) {
         const sslmode = credentials.sslmode || 'prefer';
         const ssl = getSSLConfigFromMode(sslmode);
@@ -98,8 +100,15 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
             options,
         );
         this.ssl = ssl;
+        this.agentJobControls = options?.agentJobControls ?? false;
         // Override the sqlBuilder with RedshiftSqlBuilder
         this.sqlBuilder = new RedshiftSqlBuilder(credentials.startOfWeek);
+    }
+
+    protected async prepareSession(client: PoolClient): Promise<void> {
+        if (this.agentJobControls) {
+            await client.query('SET enable_result_cache_for_session TO off');
+        }
     }
 
     protected getAgentSessionStatement(): string {

@@ -23,7 +23,7 @@ type DelegateResearchTaskOptions = {
 const errorOutput = (result: string): ExecuteToolErrorResult => ({
     result,
     metadata: { status: 'error' },
-    structuredContent: { error: result, refusal: null },
+    structuredContent: { error: result },
 });
 
 export const getDelegateResearchTask = (options: DelegateResearchTaskOptions) =>

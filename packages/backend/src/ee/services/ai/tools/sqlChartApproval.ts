@@ -13,14 +13,24 @@ import {
     type SqlApprovalCopy,
     type SqlApprovalDependencies,
 } from './sqlApprovalGate';
-import { SQL_CHART_REJECTED_RESULT, type ApproveSqlFn } from './sqlApprovals';
+import {
+    SQL_CHART_REJECTED_RESULT,
+    SqlNotApprovedError,
+    type ApproveSqlFn,
+} from './sqlApprovals';
 
 // Never (no SQL mode), after the thread approves the SQL, or straight away
 // when the MCP client approves its own tool calls.
-export type SqlChartSaving =
+export type SqlChartSaving = {
+    recordRefusal?: (
+        action: 'create' | 'update',
+        reasonCode: string,
+    ) => Promise<void>;
+} & (
     | { mode: 'disabled' }
     | { mode: 'client_approved' }
-    | { mode: 'thread_approval'; approval: SqlApprovalDependencies };
+    | { mode: 'thread_approval'; approval: SqlApprovalDependencies }
+);
 
 export const SQL_CHART_TIMEOUT_RESULT =
     'SQL approval timed out after 5 minutes with no response, so the SQL chart was not saved. The user may have stepped away — acknowledge politely and wait for them to re-ask.';
@@ -94,16 +104,49 @@ export const createSqlChartGate = (
     ): Promise<T | ExecuteToolErrorResult> => {
         const isSqlChart = isSqlChartContentArgs(args);
         if (isSqlChart && sqlChartSaving.mode === 'disabled') {
+            await sqlChartSaving.recordRefusal?.(
+                toolName === 'createContent' ? 'create' : 'update',
+                'sql_mode_disabled',
+            );
             return toolFailure(SQL_CHART_DISABLED_RESULT);
         }
-        const call =
-            isSqlChart && approvalGate
-                ? await approvalGate.forToolCall(toolCallId, {
-                      sql: getGatedSql(args),
-                  })
-                : null;
-        const output = await execute(call ? getSqlChartApproveSql(call) : null);
-        return call ? call.persistIfResumed(output) : output;
+        const recorded = new WeakSet<SqlNotApprovedError>();
+        const recordRefusal = async (error: unknown) => {
+            if (!(error instanceof SqlNotApprovedError) || recorded.has(error))
+                return;
+            recorded.add(error);
+            await sqlChartSaving.recordRefusal?.(
+                toolName === 'createContent' ? 'create' : 'update',
+                error.outcome === 'rejected'
+                    ? 'sql_approval_rejected'
+                    : 'sql_approval_timeout',
+            );
+        };
+        try {
+            const call =
+                isSqlChart && approvalGate
+                    ? await approvalGate.forToolCall(toolCallId, {
+                          sql: getGatedSql(args),
+                      })
+                    : null;
+            const approveSql = call ? getSqlChartApproveSql(call) : null;
+            const output = await execute(
+                approveSql
+                    ? async (request) => {
+                          try {
+                              await approveSql(request);
+                          } catch (error) {
+                              await recordRefusal(error);
+                              throw error;
+                          }
+                      }
+                    : null,
+            );
+            return call ? await call.persistIfResumed(output) : output;
+        } catch (error) {
+            await recordRefusal(error);
+            throw error;
+        }
     };
 
     return { needsApproval, run };

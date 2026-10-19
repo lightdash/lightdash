@@ -852,16 +852,19 @@ describe('getLatestVersionSummaries', () => {
         tracker.on.select(SavedChartsTableName).responseOnce([
             {
                 ...chartSummary,
+                agent_identity: null,
                 saved_queries_version_uuid: 'version1',
                 created_at: dateDaysAgo(365),
             },
             {
                 ...chartSummary,
+                agent_identity: null,
                 saved_queries_version_uuid: 'version2',
                 created_at: dateDaysAgo(30),
             },
             {
                 ...chartSummary,
+                agent_identity: null,
                 saved_queries_version_uuid: 'version3',
                 created_at: new Date(),
             },
@@ -878,7 +881,9 @@ describe('getLatestVersionSummaries', () => {
         // `responseOnce` only answers the first query; the removed "fetch one
         // extra older version" fallback would issue a second (unmocked) query
         // and throw, so this implicitly guards against that regression.
-        tracker.on.select(SavedChartsTableName).responseOnce([chartSummary]);
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ ...chartSummary, agent_identity: null }]);
 
         const response = await model.getLatestVersionSummaries('chart_uuid');
 

@@ -26,6 +26,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -43,7 +44,11 @@ export class DataAppAnalysisController extends BaseController {
      * own session; sources must be queries the viewer ran.
      * @summary Detect anomalies in a data app view
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('DataAppAnalysisController.detect'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/detect')
     @OperationId('detectDataAppAnomalies')
@@ -72,7 +77,11 @@ export class DataAppAnalysisController extends BaseController {
      * is none.
      * @summary Look up a stored analysis for a data app view
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('DataAppAnalysisController.lookup'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/lookup')
     @OperationId('lookupDataAppAnalysis')
@@ -100,7 +109,11 @@ export class DataAppAnalysisController extends BaseController {
      * Plain-text answer from the fast model; no tools, no warehouse access.
      * @summary Ask the AI about a data app view
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('DataAppAnalysisController.prompt'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/prompt')
     @OperationId('promptDataAppAi')
@@ -129,7 +142,11 @@ export class DataAppAnalysisController extends BaseController {
      * details carry `investigationId`, readable via the analysis route.
      * @summary Investigate a detected anomaly
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('DataAppAnalysisController.investigate'),
+    ])
     @SuccessResponse('202', 'Accepted')
     @Post('/{analysisId}/investigate')
     @OperationId('investigateDataAppAnomaly')
@@ -158,7 +175,11 @@ export class DataAppAnalysisController extends BaseController {
      * Read a persisted detection or investigation the viewer generated.
      * @summary Get a data app analysis
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('DataAppAnalysisController.getAnalysis'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{analysisId}')
     @OperationId('getDataAppAnalysis')

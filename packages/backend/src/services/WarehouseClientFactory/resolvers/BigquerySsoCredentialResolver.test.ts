@@ -34,6 +34,11 @@ const stored: CreateBigqueryCredentials = {
     },
 };
 const selection: CredentialSelection<CreateBigqueryCredentials> = {
+    refreshSource: {
+        credentials: stored,
+        fallback: stored,
+        personalCredentialPolicy: { strictPersonalOverlay: false },
+    },
     connection: stored,
     stored,
     owner: {
@@ -166,6 +171,7 @@ it('resolves old and new rows identically without grant lookup, validation or mu
             },
         },
         clientOptions: {},
+        agentSignIn: null,
         cacheable: true,
     });
     expect(stored.keyfileContents).not.toHaveProperty('client_secret');

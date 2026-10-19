@@ -210,6 +210,7 @@ const setup = (
         getRefreshToken: vi.fn(async () => 'user-grant-refresh'),
     };
     const service = new ProjectService({
+        refreshTokenRotation: { run: vi.fn() },
         lightdashConfig: {
             ...lightdashConfigMock,
             warehouseClient: {
@@ -642,6 +643,7 @@ describe('timezone preview credential resolution', () => {
         ).toHaveBeenCalledExactlyOnceWith(
             account.user.id,
             'workspace.databricks.com',
+            { strictPersonalOverlay: false },
         );
         expect(refreshDatabricksOAuthToken).toHaveBeenCalledExactlyOnceWith(
             'workspace.databricks.com',
@@ -823,9 +825,10 @@ describe('timezone preview credential resolution', () => {
         };
         const f = setup(credentials);
         await f.create();
-        expect(f.sshKeyPairModel.find).toHaveBeenCalledExactlyOnceWith(
-            'public-key',
-        );
+        expect(f.sshKeyPairModel.find.mock.calls).toEqual([
+            ['public-key'],
+            ['public-key'],
+        ]);
         expect(SshTunnel).toHaveBeenCalledWith(
             expect.objectContaining({
                 sshTunnelPrivateKey: 'resolved-private-key',

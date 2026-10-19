@@ -225,10 +225,12 @@ const translateAthenaError = (
         (awsErrorName !== undefined &&
             AWS_AUTH_ERROR_NAMES.has(awsErrorName)) ||
         httpStatusCode === 401;
-    if (isAuthError || options.defaultErrorClass === 'connection') {
-        return new WarehouseConnectionError(fullMessage);
-    }
-    return new WarehouseQueryError(fullMessage);
+    const translatedError =
+        isAuthError || options.defaultErrorClass === 'connection'
+            ? new WarehouseConnectionError(fullMessage)
+            : new WarehouseQueryError(fullMessage);
+    translatedError.cause = error;
+    return translatedError;
 };
 
 export class AthenaSqlBuilder extends WarehouseBaseSqlBuilder {
@@ -615,9 +617,19 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
 
                     return { database, schema, table, columns };
                 } catch (e: unknown) {
-                    // Table not found - return undefined
+                    // Table not found, or not readable with these credentials:
+                    // compile the model without warehouse types rather than
+                    // failing the whole project.
                     const error = e as { name?: string };
                     if (error.name === 'MetadataException') {
+                        return undefined;
+                    }
+                    if (error.name === 'AccessDeniedException') {
+                        console.warn(
+                            `Skipping table metadata for '${database}.${schema}.${table}': ${getErrorMessage(
+                                e,
+                            )}`,
+                        );
                         return undefined;
                     }
                     throw translateAthenaError(e, {

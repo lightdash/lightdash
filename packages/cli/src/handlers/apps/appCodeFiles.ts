@@ -14,6 +14,7 @@ import {
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import * as YAML from 'yaml';
+import { getAgentConnectionSelection } from '../../credentials';
 
 const MANIFEST_FILENAME = 'lightdash-app.yml';
 
@@ -57,7 +58,9 @@ export const writeFilesToDir = async (
                 !filePath.startsWith(resolvedRoot + path.sep)
             ) {
                 throw new Error(
-                    `Refusing to write file outside the target directory: ${file.path}`,
+                    getAgentConnectionSelection() !== null
+                        ? 'Refusing to write a file outside the target directory.'
+                        : `Refusing to write file outside the target directory: ${file.path}`,
                 );
             }
             await fs.mkdir(path.dirname(filePath), { recursive: true });

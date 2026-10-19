@@ -5,9 +5,11 @@ import {
     AgentActorSurface,
     buildAgentIdentityClaim,
     getAgentClientLabel,
+    getAgentConnectionGrantRef,
     getAgentIdentityWarehouseTypes,
     getWarehouseServiceAuthMethods,
     isAllowedAgentIdentitySource,
+    normalizeAgentIdentityClaim,
     supportsAiServiceAccount,
     type OrganizationAgentIdentityRule,
     type UpdateOrganizationAgentIdentityRule,
@@ -50,17 +52,40 @@ describe('identity source map', () => {
                     type === WarehouseTypes.SNOWFLAKE,
                 );
                 expect(actorSources.includes('ai_service_account')).toBe(
-                    type === WarehouseTypes.BIGQUERY,
+                    type === WarehouseTypes.POSTGRES ||
+                        type === WarehouseTypes.REDSHIFT ||
+                        type === WarehouseTypes.TRINO ||
+                        type === WarehouseTypes.BIGQUERY ||
+                        type === WarehouseTypes.DATABRICKS ||
+                        type === WarehouseTypes.ATHENA ||
+                        type === WarehouseTypes.CLICKHOUSE ||
+                        type === WarehouseTypes.SNOWFLAKE,
                 );
             }
             expect(supportsAiServiceAccount(type)).toBe(
-                type === WarehouseTypes.BIGQUERY,
+                type === WarehouseTypes.POSTGRES ||
+                    type === WarehouseTypes.REDSHIFT ||
+                    type === WarehouseTypes.TRINO ||
+                    type === WarehouseTypes.BIGQUERY ||
+                    type === WarehouseTypes.DATABRICKS ||
+                    type === WarehouseTypes.ATHENA ||
+                    type === WarehouseTypes.CLICKHOUSE ||
+                    type === WarehouseTypes.SNOWFLAKE,
             );
             expect(sources.person).toEqual(sources.service_account);
+            const expectedCount = {
+                [WarehouseTypes.SNOWFLAKE]: 3,
+                [WarehouseTypes.BIGQUERY]: 2,
+                [WarehouseTypes.POSTGRES]: 2,
+                [WarehouseTypes.REDSHIFT]: 2,
+                [WarehouseTypes.TRINO]: 2,
+                [WarehouseTypes.DATABRICKS]: 2,
+                [WarehouseTypes.CLICKHOUSE]: 2,
+                [WarehouseTypes.ATHENA]: 2,
+            };
             expect(sources.person).toHaveLength(
-                type === WarehouseTypes.SNOWFLAKE ||
-                    type === WarehouseTypes.BIGQUERY
-                    ? 2
+                type in expectedCount
+                    ? expectedCount[type as keyof typeof expectedCount]
                     : 1,
             );
         },
@@ -125,6 +150,12 @@ describe('organization identity rules', () => {
         expect(getAgentIdentityWarehouseTypes()).toEqual([
             WarehouseTypes.SNOWFLAKE,
             WarehouseTypes.BIGQUERY,
+            WarehouseTypes.POSTGRES,
+            WarehouseTypes.REDSHIFT,
+            WarehouseTypes.DATABRICKS,
+            WarehouseTypes.TRINO,
+            WarehouseTypes.CLICKHOUSE,
+            WarehouseTypes.ATHENA,
         ]);
     });
 
@@ -139,7 +170,25 @@ describe('organization identity rules', () => {
             );
             expect(
                 isAllowedAgentIdentitySource(type, 'ai_service_account'),
-            ).toBe(type === WarehouseTypes.BIGQUERY);
+            ).toBe(
+                type === WarehouseTypes.POSTGRES ||
+                    type === WarehouseTypes.REDSHIFT ||
+                    type === WarehouseTypes.TRINO ||
+                    type === WarehouseTypes.BIGQUERY ||
+                    type === WarehouseTypes.DATABRICKS ||
+                    type === WarehouseTypes.ATHENA ||
+                    type === WarehouseTypes.CLICKHOUSE ||
+                    type === WarehouseTypes.SNOWFLAKE,
+            );
+        },
+    );
+
+    it.each(['person', 'service_account'] as const)(
+        'permits only marked-person and AI service account identities for ClickHouse %s',
+        (actor) => {
+            expect(
+                AGENT_IDENTITY_SOURCES[WarehouseTypes.CLICKHOUSE][actor],
+            ).toEqual(['marked_person', 'ai_service_account']);
         },
     );
 
@@ -246,6 +295,7 @@ describe('buildAgentIdentityClaim', () => {
                     sub: 'in_app_agent:lightdash-chat',
                     surface: 'in_app_agent',
                     client_id: 'lightdash-chat',
+                    agent_uuid: null,
                 },
             });
         },
@@ -257,7 +307,12 @@ describe('buildAgentIdentityClaim', () => {
                 surface: AgentActorSurface.MCP,
                 clientId: null,
             }).act,
-        ).toEqual({ sub: 'mcp:unknown', surface: 'mcp', client_id: null });
+        ).toEqual({
+            sub: 'mcp:unknown',
+            surface: 'mcp',
+            client_id: null,
+            agent_uuid: null,
+        });
     });
 });
 
@@ -291,4 +346,123 @@ describe('getAgentClientLabel', () => {
         ];
         expect(new Set(ids.map(getAgentClientLabel)).size).toBe(ids.length);
     });
+});
+
+describe('agent identity history', () => {
+    test('normalizes historical claims without changing their actor', () => {
+        const historical = {
+            sub: 'user:person',
+            subject: { type: 'user' as const, uuid: 'person' },
+            act: {
+                sub: 'mcp:client',
+                surface: AgentActorSurface.MCP,
+                client_id: 'client',
+            },
+        };
+        expect(normalizeAgentIdentityClaim(historical)).toEqual({
+            ...historical,
+            act: {
+                ...historical.act,
+                agent_uuid: null,
+            },
+        });
+        expect(historical.act).not.toHaveProperty('agent_uuid');
+        expect(normalizeAgentIdentityClaim(null)).toBeNull();
+    });
+    test('retains a known runtime agent without changing actor sub', () => {
+        const claim = buildAgentIdentityClaim({
+            subject: { type: 'user', uuid: 'person' },
+            surface: AgentActorSurface.IN_APP_AGENT,
+            clientId: 'lightdash-chat',
+            agentUuid: 'agent',
+        });
+        expect(claim.act).toEqual({
+            sub: 'in_app_agent:lightdash-chat',
+            surface: AgentActorSurface.IN_APP_AGENT,
+            client_id: 'lightdash-chat',
+            agent_uuid: 'agent',
+        });
+        expect(normalizeAgentIdentityClaim(claim)).toEqual(claim);
+    });
+});
+
+test('records OAuth REST as its own agent surface', () => {
+    expect(
+        buildAgentIdentityClaim({
+            subject: { type: 'user', uuid: 'person' },
+            surface: AgentActorSurface.API,
+            clientId: 'oauth-client',
+        }).act,
+    ).toEqual({
+        sub: 'api:oauth-client',
+        surface: 'api',
+        client_id: 'oauth-client',
+        agent_uuid: null,
+    });
+});
+
+describe('agent connection references', () => {
+    const input = {
+        subject: { type: 'user' as const, uuid: 'person' },
+        surface: AgentActorSurface.CLI,
+        clientId: 'lightdash-cli',
+    };
+    test('omits absent connections and builds exact connection references', () => {
+        expect(
+            buildAgentIdentityClaim(input).act.agent_connection_grant,
+        ).toBeUndefined();
+        const reference = { grantUuid: 'grant', revision: 2 };
+        expect(
+            buildAgentIdentityClaim({
+                ...input,
+                agentConnectionGrant: reference,
+            }).act.agent_connection_grant,
+        ).toEqual(reference);
+    });
+    test('normalizes legacy absence without mutating the stored claim', () => {
+        const claim = buildAgentIdentityClaim(input);
+        const { agent_connection_grant: ignored, ...act } = claim.act;
+        const legacy = { ...claim, act };
+        expect(
+            normalizeAgentIdentityClaim(legacy)?.act.agent_connection_grant,
+        ).toBeUndefined();
+        expect(legacy.act).not.toHaveProperty('agent_connection_grant');
+    });
+    test.each([
+        {},
+        { grantUuid: 'grant' },
+        { revision: 1 },
+        { grantUuid: '', revision: 1 },
+        { grantUuid: 2, revision: 1 },
+        { grantUuid: 'grant', revision: 0 },
+        { grantUuid: 'grant', revision: 1.5 },
+        { grantUuid: 'grant', revision: '1' },
+        'grant',
+    ])('rejects malformed stored reference %j', (reference) => {
+        const claim = buildAgentIdentityClaim(input);
+        expect(() =>
+            normalizeAgentIdentityClaim({
+                ...claim,
+                act: { ...claim.act, agent_connection_grant: reference },
+            } as never),
+        ).toThrow();
+    });
+});
+
+test.each([
+    null,
+    undefined,
+    {},
+    { act: null },
+    { act: {} },
+    { act: { agent_connection_grant: null } },
+])('an absent reference in a legacy claim is no connection: %j', (claim) => {
+    expect(getAgentConnectionGrantRef(claim as never)).toBeNull();
+});
+test('the connection reader rejects a malformed present reference', () => {
+    expect(() =>
+        getAgentConnectionGrantRef({
+            act: { agent_connection_grant: {} },
+        } as never),
+    ).toThrow('Invalid agent connection reference');
 });

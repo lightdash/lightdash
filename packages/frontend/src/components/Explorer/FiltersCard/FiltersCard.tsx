@@ -43,7 +43,7 @@ import { MergeFiltersCard } from '../../../features/mergeQuery/components/MergeF
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
-import { useProject } from '../../../hooks/useProject';
+import { useExploreWarehouseConnection } from '../../../hooks/useExploreWarehouseConnection';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
@@ -54,7 +54,6 @@ import { useFieldsWithSuggestions } from './useFieldsWithSuggestions';
 
 const QueryAFiltersCard: FC = memo(() => {
     const projectUuid = useProjectUuid();
-    const project = useProject(projectUuid);
 
     const filterIsOpen = useExplorerSelector(selectIsFiltersExpanded);
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
@@ -68,6 +67,10 @@ const QueryAFiltersCard: FC = memo(() => {
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const { data } = useExplore(tableName);
+    const { startOfWeek } = useExploreWarehouseConnection(
+        tableName,
+        projectUuid,
+    );
 
     // Cache visible fields to avoid repeated expensive flatMap operations
     const visibleFields = useMemo(
@@ -429,10 +432,7 @@ const QueryAFiltersCard: FC = memo(() => {
                 <FiltersProvider
                     projectUuid={projectUuid}
                     itemsMap={fieldsWithSuggestions}
-                    startOfWeek={
-                        project.data?.warehouseConnection?.startOfWeek ??
-                        undefined
-                    }
+                    startOfWeek={startOfWeek ?? undefined}
                     popoverProps={{
                         withinPortal: true,
                     }}

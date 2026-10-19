@@ -44,11 +44,14 @@ import path from 'path';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { preAggregatePostProcessor } from '../ee/preAggregates/postProcessor';
 import Logger from '../logging/logger';
+import { agentExecutionContext } from '../services/AiAccessService/agentExecutionContext';
 import { traceSpan } from '../tracing/tracing';
 import {
     CachedWarehouse,
     DbtClient,
+    DbtManifestFetchOptions,
     DbtManifestFetchResult,
+    DbtSourcePreparation,
     ProjectAdapter,
     type TrackingParams,
 } from '../types';
@@ -67,6 +70,10 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     private readonly analytics: LightdashAnalytics | undefined;
 
     dbtProjectDir?: string;
+
+    private preparation: Promise<DbtSourcePreparation> | null = null;
+
+    private preparationTimingsReported = false;
 
     constructor(
         dbtClient: DbtClient,
@@ -91,7 +98,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     public async test(): Promise<void> {
         Logger.debug('Test dbt client');
-        await this.dbtClient.test();
+        await this.dbtClient.test(async () => {
+            await this.prepareDbtSource();
+        });
         Logger.debug('Test warehouse client');
         await this.warehouseClient.test();
     }
@@ -104,24 +113,39 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         return undefined;
     }
 
-    public async getDbtManifest(): Promise<DbtManifestFetchResult> {
-        // Install dependencies first (same as compileAllExplores) — a git source's
-        // `dbt ls` fails without its packages installed.
-        let depsMs: number | null = null;
-        if (this.dbtClient.installDeps !== undefined) {
-            Logger.debug('Install dependencies');
-            const depsStartedAt = Date.now();
-            await this.dbtClient.installDeps();
-            depsMs = Date.now() - depsStartedAt;
-        }
+    public prepareDbtSource(): Promise<DbtSourcePreparation> {
+        this.preparation ??= (async () => {
+            let depsMs: number | null = null;
+            if (this.dbtClient.installDeps !== undefined) {
+                const startedAt = Date.now();
+                await this.dbtClient.installDeps();
+                depsMs = Date.now() - startedAt;
+            }
+            return {
+                projectDir: this.dbtClient.installDeps
+                    ? (this.dbtProjectDir ?? null)
+                    : null,
+                timings: { gitRefreshMs: null, depsMs },
+            };
+        })();
+        return this.preparation;
+    }
+
+    public async getDbtManifest(
+        options?: DbtManifestFetchOptions,
+    ): Promise<DbtManifestFetchResult> {
+        const preparation = await this.prepareDbtSource();
+        const timings = this.preparationTimingsReported
+            ? { gitRefreshMs: null, depsMs: null }
+            : preparation.timings;
+        this.preparationTimingsReported = true;
         Logger.debug(`Get dbt manifest`);
         const manifestStartedAt = Date.now();
-        const result = await this.dbtClient.getDbtManifest();
+        const result = await this.dbtClient.getDbtManifest(options);
         return {
             ...result,
             timings: {
-                gitRefreshMs: null,
-                depsMs,
+                ...timings,
                 manifestMs: Date.now() - manifestStartedAt,
             },
         };
@@ -227,11 +251,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         loadSources: boolean = false,
         allowPartialCompilation: boolean = true,
     ): Promise<AsyncIterable<Explore | ExploreError>> {
-        Logger.debug('Install dependencies');
-        // Install dependencies for dbt and fetch the manifest - may raise error meaning no explores compile
-        if (this.dbtClient.installDeps !== undefined) {
-            await this.dbtClient.installDeps();
-        }
+        await this.prepareDbtSource();
         Logger.debug('Get dbt manifest');
         const { manifest, selectedModelIds } =
             await this.dbtClient.getDbtManifest();
@@ -500,7 +520,10 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         // refetch again on domain-less warehouses.
         ensureCatalogTimestampDomainsKey(warehouseCatalog);
         setCatalogMissingEntries(warehouseCatalog, missingEntries);
-        await this.cachedWarehouse?.onWarehouseCatalogChange(warehouseCatalog);
+        if (!agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.cachedWarehouse?.onWarehouseCatalogChange(
+                warehouseCatalog,
+            );
 
         return attachTypesToModels(
             models,

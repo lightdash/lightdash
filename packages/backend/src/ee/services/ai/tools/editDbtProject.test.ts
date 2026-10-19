@@ -126,7 +126,6 @@ describe('getEditDbtProject', () => {
         expect(output.result).toContain('Unable to enqueue writeback');
         expect(output.structuredContent).toEqual({
             error: output.result,
-            refusal: null,
         });
         expect(toolEditDbtProjectOutputSchema.safeParse(output).success).toBe(
             true,

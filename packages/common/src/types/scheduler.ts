@@ -1,5 +1,9 @@
 import { type AiReviewNotificationEvent } from '../ee/types/aiReviewNotification';
 import assertUnreachable from '../utils/assertUnreachable';
+import {
+    type AgentConnectionExecution,
+    type AgentConnectionTaskEffect,
+} from './agentConnectionGrants';
 import { type AnyType } from './any';
 import { type ApiSuccess } from './api/success';
 import { type ConditionalFormattingConfig } from './conditionalFormatting';
@@ -680,7 +684,16 @@ export type ApiReassignUserSchedulersResponse = ApiSuccess<{
     reassignedCount: number;
 }>;
 
+export type AgentWorkMarker = {
+    userUuid: string;
+    organizationUuid: string;
+    projectUuid: string;
+};
+
 export type TraceTaskBase = {
+    agentConnectionExecution?: AgentConnectionExecution | null;
+    agentConnectionEffect?: AgentConnectionTaskEffect;
+    agentWork?: AgentWorkMarker;
     organizationUuid: string;
     projectUuid: string;
     userUuid: string;
@@ -760,6 +773,7 @@ export type DeliveryNotice = {
 };
 
 export type NotificationPayloadBase = {
+    aiSummaryOriginalMessage?: string | null;
     schedulerUuid?: string;
     scheduledTime: Date;
     jobGroup: string;

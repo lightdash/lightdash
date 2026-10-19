@@ -3,15 +3,24 @@ import {
     ActionIcon,
     Badge,
     Box,
+    Group,
     Menu,
     Paper,
     Table,
     Text,
     Tooltip,
+    UnstyledButton,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import {
+    IconArrowDown,
+    IconArrowsSort,
+    IconArrowUp,
+    IconDots,
+    IconEdit,
+    IconTrash,
+} from '@tabler/icons-react';
+import { useMemo, useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
@@ -97,6 +106,62 @@ const TableRow: FC<{
     );
 };
 
+type SortField = 'name' | 'createdAt';
+type SortDirection = 'asc' | 'desc';
+
+const compareRoles = (
+    a: RoleWithScopes,
+    b: RoleWithScopes,
+    field: SortField,
+): number => {
+    if (field === 'createdAt') {
+        return (
+            new Date(a.createdAt ?? 0).getTime() -
+            new Date(b.createdAt ?? 0).getTime()
+        );
+    }
+    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+};
+
+const SortableTh: FC<{
+    field: SortField;
+    sortField: SortField;
+    sortDirection: SortDirection;
+    onSort: (field: SortField) => void;
+    children: ReactNode;
+}> = ({ field, sortField, sortDirection, onSort, children }) => {
+    const isActive = field === sortField;
+    return (
+        <Table.Th
+            aria-sort={
+                isActive
+                    ? sortDirection === 'asc'
+                        ? 'ascending'
+                        : 'descending'
+                    : 'none'
+            }
+        >
+            <UnstyledButton onClick={() => onSort(field)} fz="inherit">
+                <Group gap="two" wrap="nowrap">
+                    {children}
+                    {isActive ? (
+                        <MantineIcon
+                            icon={
+                                sortDirection === 'asc'
+                                    ? IconArrowUp
+                                    : IconArrowDown
+                            }
+                            color="blue.6"
+                        />
+                    ) : (
+                        <MantineIcon icon={IconArrowsSort} color="ldGray.5" />
+                    )}
+                </Group>
+            </UnstyledButton>
+        </Table.Th>
+    );
+};
+
 type TableProps = {
     roles: RoleWithScopes[];
     onDelete: (uuid: string) => void;
@@ -115,6 +180,29 @@ export const CustomRolesTable: FC<TableProps> = ({
     const [roleToDelete, setRoleToDelete] = useState<
         RoleWithScopes | undefined
     >();
+    const [sortField, setSortField] = useState<SortField>('name');
+    const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+    const sortedRoles = useMemo(
+        () =>
+            roles
+                .slice()
+                .sort(
+                    (a, b) =>
+                        compareRoles(a, b, sortField) *
+                        (sortDirection === 'asc' ? 1 : -1),
+                ),
+        [roles, sortField, sortDirection],
+    );
+
+    const handleSort = (field: SortField) => {
+        if (field === sortField) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
+        }
+    };
 
     const handleDelete = async () => {
         if (roleToDelete) {
@@ -143,15 +231,29 @@ export const CustomRolesTable: FC<TableProps> = ({
                     >
                         <Table.Thead>
                             <Table.Tr>
-                                <Table.Th>Name</Table.Th>
+                                <SortableTh
+                                    field="name"
+                                    sortField={sortField}
+                                    sortDirection={sortDirection}
+                                    onSort={handleSort}
+                                >
+                                    Name
+                                </SortableTh>
                                 <Table.Th>Description</Table.Th>
                                 <Table.Th>Type</Table.Th>
-                                <Table.Th>Created</Table.Th>
+                                <SortableTh
+                                    field="createdAt"
+                                    sortField={sortField}
+                                    sortDirection={sortDirection}
+                                    onSort={handleSort}
+                                >
+                                    Created
+                                </SortableTh>
                                 <Table.Th></Table.Th>
                             </Table.Tr>
                         </Table.Thead>
                         <Table.Tbody>
-                            {roles.map((role) => (
+                            {sortedRoles.map((role) => (
                                 <TableRow
                                     key={role.roleUuid}
                                     role={role}

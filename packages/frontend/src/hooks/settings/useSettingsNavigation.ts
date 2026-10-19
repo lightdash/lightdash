@@ -99,7 +99,6 @@ export const useSettingsNavigation = (
         embeddingEnabled,
         dataAppsFlag,
         dataAppAnalysisFlag,
-        isDataAppGeneralSettingsEnabled,
         externalSourcesFlag,
         isResultsCacheEnabled,
         isGitProject,
@@ -149,11 +148,13 @@ export const useSettingsNavigation = (
 
         if (showMyAgentConnections) {
             yourSettings.push({
-                label: 'My agent connections',
+                label: 'My agent identity',
                 to: '/generalSettings/myAgentConnections',
                 icon: IconPlugConnected,
                 keywords: [
                     'agent',
+                    'identity',
+                    'sign-in',
                     'ai',
                     'mcp',
                     'snowflake',
@@ -326,10 +327,7 @@ export const useSettingsNavigation = (
         if (isDataAppsEnabled) {
             const dataAppChildren: SettingsNavigationItem[] = [];
 
-            if (
-                isDataAppGeneralSettingsEnabled &&
-                ability?.can('manage', 'Organization')
-            ) {
+            if (ability?.can('manage', 'Organization')) {
                 dataAppChildren.push({
                     label: 'General',
                     to: '/generalSettings/dataApps/general',
@@ -339,6 +337,10 @@ export const useSettingsNavigation = (
                         'thumbnails',
                         'automatic capture',
                         'card image',
+                        'screenshot',
+                        'screenshots',
+                        'attachments',
+                        'captures',
                     ],
                     children: [],
                     exact: true,
@@ -657,15 +659,38 @@ export const useSettingsNavigation = (
 
         if (isAgentIdentityEnabled && ability?.can('manage', 'Organization')) {
             organizationItems.push({
-                label: 'Agent identity',
+                label: 'Agents',
                 to: AGENT_IDENTITY_SETTINGS_PATH,
                 icon: IconIdBadge2,
                 keywords: [
                     'agents',
                     'identity',
+                    'agent identity',
+                    'permissions',
+                    'shared agent account',
                     'warehouse',
                     'snowflake',
                     'bigquery',
+                ],
+                pageSections: [
+                    {
+                        title: 'Identity',
+                        keywords: [
+                            'who agents run as',
+                            'shared agent account',
+                            'agent sign-in',
+                        ],
+                    },
+                    {
+                        title: 'Permissions',
+                        keywords: [
+                            'limit what agents can do',
+                            'who can use agents',
+                            'agent permissions',
+                            'allowed projects',
+                            'raw sql',
+                        ],
+                    },
                 ],
                 children: [],
                 exact: true,
@@ -1290,7 +1315,14 @@ export const useSettingsNavigation = (
                 id: 'current-project',
                 title: 'Current project',
                 subtitle: project.name,
-                items: projectItems,
+                items:
+                    project.provisioningSource === 'analytics'
+                        ? projectItems.filter(
+                              ({ to }) =>
+                                  to === `${base}/projectAccess` ||
+                                  to === `${base}/recentlyDeleted`,
+                          )
+                        : projectItems,
             });
         }
 
@@ -1322,7 +1354,6 @@ export const useSettingsNavigation = (
         isEmbeddingEnabled,
         isDataAppsEnabled,
         isDataAppAnalysisEnabled,
-        isDataAppGeneralSettingsEnabled,
         isExternalSourcesEnabled,
         isResultsCacheEnabled,
         isGitProject,

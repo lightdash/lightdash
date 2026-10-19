@@ -102,7 +102,7 @@ export const getGenerateDashboardV2 = ({
                         metadata: {
                             status: 'error',
                         },
-                        structuredContent: { error: result, refusal: null },
+                        structuredContent: { error: result },
                     };
                 }
 

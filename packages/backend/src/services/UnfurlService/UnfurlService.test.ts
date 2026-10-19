@@ -1,4 +1,8 @@
+import { Ability } from '@casl/ability';
 import {
+    AgentCapability,
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     DELIVERY_CAPTURE_GLOBAL,
     DownloadFileType,
     LightdashPage,
@@ -10,12 +14,16 @@ import {
     UnexpectedServerError,
     type DeliveryCaptureManifest,
     type Document,
+    type PossibleAbilities,
 } from '@lightdash/common';
 import type { Route, WebSocketRoute } from 'playwright';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
+import { setupGrantAuthentication } from '../../controllers/authentication/agentConnectionGrants.mock';
+import { allowApiKeyAuthentication } from '../../controllers/authentication/middlewares';
 import { type AppModel } from '../../models/AppModel';
 import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { type DocumentModel } from '../../models/DocumentModel';
@@ -107,6 +115,8 @@ function createService(
         documentService: Partial<DocumentService>;
         userModel: Partial<UserModel>;
         headlessBrowser: Record<string, unknown>;
+        lightdashConfig: Record<string, unknown>;
+        organizationSettingsModel: { get: () => Promise<unknown> };
     }> = {},
 ) {
     return new UnfurlService({
@@ -117,6 +127,7 @@ function createService(
                 screenshotTimeoutMs: 45_000,
                 ...(overrides.headlessBrowser ?? {}),
             },
+            ...(overrides.lightdashConfig ?? {}),
         } as unknown as LightdashConfig,
         dashboardModel: (overrides.dashboardModel ??
             {}) as unknown as DashboardModel,
@@ -145,6 +156,10 @@ function createService(
         documentService: (overrides.documentService ??
             {}) as unknown as DocumentService,
         userModel: (overrides.userModel ?? {}) as unknown as UserModel,
+        // Nothing stored: every org setting inherits the instance default.
+        organizationSettingsModel: (overrides.organizationSettingsModel ?? {
+            get: async () => ({}),
+        }) as never,
     });
 }
 
@@ -300,6 +315,35 @@ describe('UnfurlService', () => {
             agentUuid: ARTIFACT_REFS.agentUuid,
             artifact: customChartArtifact as never,
         };
+
+        it.each(['upload', 'download'] as const)(
+            'checks deferred image authority before %s persistence',
+            async (stage) => {
+                const { service } = setupScreenshot();
+                mockFileStorageClient.isEnabled.mockReturnValue(
+                    stage !== 'download',
+                );
+                const refusal = new AiAccessRefusedError(
+                    AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+                );
+                const assert = vi.fn().mockRejectedValue(refusal);
+                await expect(
+                    service.exportAiAgentArtifact(ACTING_USER, EXPORT_ARGS, {
+                        assert,
+                        assertIfStale: assert,
+                        getFailure: () => ({ error: refusal }),
+                    }),
+                ).rejects.toBe(refusal);
+                expect(assert).toHaveBeenCalledTimes(1);
+                expect(
+                    mockFileStorageClient.uploadImage,
+                ).not.toHaveBeenCalled();
+                expect(mockSlackUnfurlImageModel.create).not.toHaveBeenCalled();
+                expect(
+                    mockDownloadFileModel.createDownloadFile,
+                ).not.toHaveBeenCalled();
+            },
+        );
 
         it('rejects artifacts that are not custom chart type answers', async () => {
             const { service } = setupScreenshot();
@@ -1130,6 +1174,120 @@ describe('UnfurlService', () => {
             );
 
             expect(result.isValid).toBe(false);
+        });
+    });
+
+    describe('unfurlSlackUrls - data apps', () => {
+        const ORGANIZATION_UUID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+        const PROJECT_UUID = '21eef0b9-5bae-40f3-851e-9554588e71a6';
+        const APP_UUID = '44444444-5555-4666-8777-888888888888';
+        const APP_URL = `https://app.lightdash.cloud/projects/${PROJECT_UUID}/apps/${APP_UUID}`;
+
+        const setup = (storedCapturesChoice: boolean | null) => {
+            const getInstallationFromOrganizationUuid = vi
+                .fn()
+                .mockResolvedValue(undefined);
+            const service = createService({
+                headlessBrowser: { host: undefined },
+                lightdashConfig: {
+                    auth: lightdashConfigMock.auth,
+                    persistentDownloadUrls:
+                        lightdashConfigMock.persistentDownloadUrls,
+                    query: lightdashConfigMock.query,
+                    appRuntime: { capturesEnabled: true },
+                    slack: { linkShareImagePreviewEnabled: true },
+                },
+                organizationSettingsModel: {
+                    get: async () => ({
+                        dataAppCapturesEnabled: storedCapturesChoice,
+                    }),
+                },
+                slackAuthenticationModel: {
+                    getUnfurlsEnabled: vi.fn().mockResolvedValue(true),
+                    getOrganizationUuidFromTeamId: vi
+                        .fn()
+                        .mockResolvedValue(ORGANIZATION_UUID),
+                    getUserUuid: vi.fn().mockResolvedValue('installer-uuid'),
+                    getInstallationFromOrganizationUuid,
+                },
+            });
+            service.appModel = {
+                findAppByUuid: vi.fn().mockResolvedValue({
+                    app_id: APP_UUID,
+                    name: 'Revenue app',
+                    description: null,
+                    organization_uuid: ORGANIZATION_UUID,
+                    project_uuid: PROJECT_UUID,
+                }),
+            } as unknown as AppModel;
+            const unfurl = vi.fn().mockResolvedValue({ ok: true });
+            const message = {
+                event: {
+                    channel: 'C1',
+                    message_ts: '1.0',
+                    links: [{ url: APP_URL, domain: 'lightdash.cloud' }],
+                },
+                client: { chat: { unfurl } },
+                context: { teamId: 'T1', botUserId: 'B1' },
+            };
+            return {
+                service,
+                unfurl,
+                message,
+                getInstallationFromOrganizationUuid,
+            };
+        };
+
+        const unfurlAndSettle = async (
+            service: UnfurlService,
+            message: unknown,
+        ) => {
+            await service.unfurlSlackUrls(
+                message as Parameters<UnfurlService['unfurlSlackUrls']>[0],
+            );
+            await new Promise((resolve) => {
+                setTimeout(resolve, 0);
+            });
+        };
+
+        it('posts the text unfurl only, without rendering, while the organization has captures off', async () => {
+            const {
+                service,
+                unfurl,
+                message,
+                getInstallationFromOrganizationUuid,
+            } = setup(false);
+
+            await unfurlAndSettle(service, message);
+
+            expect(unfurl).toHaveBeenCalledTimes(1);
+            expect(unfurl).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    unfurls: {
+                        [APP_URL]: expect.not.objectContaining({
+                            image_url: expect.anything(),
+                        }),
+                    },
+                }),
+            );
+            // The image path starts by looking the installation up.
+            expect(getInstallationFromOrganizationUuid).not.toHaveBeenCalled();
+        });
+
+        it('goes on to render the preview image while captures are on', async () => {
+            const {
+                service,
+                unfurl,
+                message,
+                getInstallationFromOrganizationUuid,
+            } = setup(null);
+
+            await unfurlAndSettle(service, message);
+
+            expect(unfurl).toHaveBeenCalled();
+            expect(getInstallationFromOrganizationUuid).toHaveBeenCalledWith(
+                ORGANIZATION_UUID,
+            );
         });
     });
 
@@ -2006,3 +2164,71 @@ describe('expandViewportToDashboardGrid', () => {
         expect(page.setViewportSize).not.toHaveBeenCalled();
     });
 });
+
+it.each([true, false])(
+    'PNG export is refused before rendering only for a connection (bound=%s)',
+    async (bound) => {
+        const auth = setupGrantAuthentication();
+        auth.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'all' },
+        ]);
+        auth.grant.approvedCapabilities = Object.values(AgentCapability);
+        if (!bound)
+            auth.token.agentConnectionGrantUuid = null as unknown as string;
+        auth.req.params = { chartUuid: 'chart' };
+        auth.req.query = { projectUuid: auth.grant.approvedProjectUuids[0] };
+        auth.req.route.stack[0].handle = Object.defineProperty(
+            () => {},
+            'name',
+            { value: 'SavedChartController_exportSavedChartImage' },
+        );
+        auth.deps.resourceResolver.resolveResourceProjectUuid.mockResolvedValue(
+            auth.grant.approvedProjectUuids[0],
+        );
+        const service = createService({
+            savedChartModel: {
+                get: vi.fn().mockResolvedValue({
+                    uuid: 'chart',
+                    name: 'Chart',
+                    projectUuid: auth.grant.approvedProjectUuids[0],
+                    organizationUuid: auth.user.organizationUuid,
+                    spaceUuid: 'space',
+                }),
+            },
+        });
+        Object.assign(service, {
+            spacePermissionService: {
+                resolveAccess: vi.fn().mockResolvedValue({
+                    inheritsFromOrgOrProject: true,
+                    access: [],
+                }),
+            },
+        });
+        const cookie = vi.spyOn(
+            service as unknown as {
+                getUserCookie: (userUuid: string) => Promise<string>;
+            },
+            'getUserCookie',
+        );
+        const render = vi.spyOn(service, 'unfurlImage').mockResolvedValue({
+            imageUrl: 'https://server.example/preview/image',
+        } as never);
+        auth.downstream.mockImplementation(async () => {
+            expect(await service.exportChart('chart', auth.req.user!)).toBe(
+                'https://server.example/preview/image',
+            );
+        });
+        const result = await auth.run(allowApiKeyAuthentication);
+        if (bound) {
+            expect(result.error).toBeDefined();
+            expect(auth.downstream).not.toHaveBeenCalled();
+            expect(render).not.toHaveBeenCalled();
+            expect(cookie).not.toHaveBeenCalled();
+            expect(playwrightMocks.connectOverCDP).not.toHaveBeenCalled();
+            expect(mockFileStorageClient.uploadImage).not.toHaveBeenCalled();
+        } else {
+            expect(result.error).toBeUndefined();
+            expect(render).toHaveBeenCalledOnce();
+        }
+    },
+);

@@ -117,6 +117,8 @@ const buildScenario = ({
     const state = {
         // The organization's stored choice; null when it never changed it.
         automaticCaptureEnabled: null as boolean | null,
+        // The organization's stored captures switch; null when never changed.
+        capturesEnabled: null as boolean | null,
         featureFlagEnabled: true,
         renderFails: false,
         // Runs while the headless render is in flight.
@@ -149,6 +151,7 @@ const buildScenario = ({
         storage,
         organizationSettingsModel: organizationSettingsModelWith(
             () => state.automaticCaptureEnabled,
+            () => state.capturesEnabled,
         ),
         featureFlagModel: featureFlagModelWith(() => state.featureFlagEnabled),
     });
@@ -327,6 +330,57 @@ describe('AppThumbnailClient', () => {
 
             await s.becomeReady({ version: 1 });
 
+            expect(await s.versionThumbnail(1)).toBeNull();
+        });
+    });
+
+    describe('the organization captures switch', () => {
+        it('is on until the organization turns it off', async () => {
+            const s = buildScenario();
+
+            expect(await s.thumbnails.areCapturesEnabled('org-1')).toBe(true);
+
+            s.state.capturesEnabled = false;
+            expect(await s.thumbnails.areCapturesEnabled('org-1')).toBe(false);
+        });
+
+        it('cannot be turned on past the instance env', async () => {
+            const client = buildAppThumbnailClientMock({
+                capturesEnabledOnInstance: false,
+                organizationSettingsModel: organizationSettingsModelWith(
+                    () => null,
+                    () => true,
+                ),
+            });
+
+            expect(await client.areCapturesEnabled('org-1')).toBe(false);
+        });
+
+        it('captures nothing automatically while it is off, even with automatic capture on', async () => {
+            const s = buildScenario();
+            s.state.automaticCaptureEnabled = true;
+            s.state.capturesEnabled = false;
+
+            await s.becomeReady({ version: 1 });
+
+            expect(await s.versionThumbnail(1)).toBeNull();
+        });
+
+        it('skips a capture that was enqueued before it was turned off', async () => {
+            const s = buildScenario({
+                versions: [{ version: 1, status: 'ready' }],
+            });
+            s.state.capturesEnabled = false;
+
+            const outcome = await s.thumbnails.captureVersion({
+                appUuid: APP_UUID,
+                version: 1,
+            });
+
+            expect(outcome).toEqual({
+                status: 'skipped',
+                reason: 'captures_disabled',
+            });
             expect(await s.versionThumbnail(1)).toBeNull();
         });
 

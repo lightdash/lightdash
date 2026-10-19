@@ -67,11 +67,21 @@ import groupBy from 'lodash/groupBy';
 import pLimit from 'p-limit';
 import * as path from 'path';
 import { validate as isUuid } from 'uuid';
+import { assertAgentCommandAllowed } from '../agentConnections/commandPolicy';
+import {
+    assertConnectionResponse,
+    isResponseCount,
+} from '../agentConnections/responseValidation';
 import {
     LightdashAnalytics,
     type ProjectContentAsCodeCounts,
 } from '../analytics/analytics';
 import { getConfig, setAnswer } from '../config';
+import {
+    getAgentConnectionSelection,
+    refuseAgentConnection,
+    resolveCredential,
+} from '../credentials';
 import { CLI_VERSION } from '../env';
 import GlobalState from '../globalState';
 import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
@@ -972,6 +982,9 @@ export const downloadContent = async (
             body: undefined,
         });
 
+        assertConnectionResponse(
+            isResponseCount(results?.offset) && isResponseCount(results?.total),
+        );
         onProgress?.(
             `${results.offset} of ${results.total} ${config.displayName} downloaded`,
         );
@@ -980,7 +993,9 @@ export const downloadContent = async (
         // so we are going to get more false positives here, so we keep it on the debug log
         results.missingIds.forEach((missingId) => {
             GlobalState.debug(
-                `\nNo ${config.displayName} with id "${missingId}"`,
+                getAgentConnectionSelection() !== null
+                    ? 'Some requested items were not found.'
+                    : `\nNo ${config.displayName} with id "${missingId}"`,
             );
         });
 
@@ -1135,11 +1150,21 @@ const downloadVirtualViews = async (
     });
     results.skipped.forEach(({ slug, reason }) =>
         GlobalState.log(
-            styles.warning(`Skipped virtual view "${slug}": ${reason}`),
+            styles.warning(
+                getAgentConnectionSelection() !== null
+                    ? 'A virtual view was skipped.'
+                    : `Skipped virtual view "${slug}": ${reason}`,
+            ),
         ),
     );
     results.missingSlugs.forEach((slug) =>
-        GlobalState.log(styles.warning(`Virtual view "${slug}" was not found`)),
+        GlobalState.log(
+            styles.warning(
+                getAgentConnectionSelection() !== null
+                    ? 'A virtual view was not found.'
+                    : `Virtual view "${slug}" was not found`,
+            ),
+        ),
     );
     return results.virtualViews.length;
 };
@@ -1192,7 +1217,11 @@ const downloadLinkedVirtualViews = async (
     }
     results.skipped.forEach(({ slug, reason }) =>
         GlobalState.log(
-            styles.warning(`Skipped virtual view "${slug}": ${reason}`),
+            styles.warning(
+                getAgentConnectionSelection() !== null
+                    ? 'A virtual view was skipped.'
+                    : `Skipped virtual view "${slug}": ${reason}`,
+            ),
         ),
     );
     return results.virtualViews.length;
@@ -1342,6 +1371,10 @@ const downloadExternalConnections = async (
 
             connections.push(...results.externalConnections);
             missingSlugs = results.missingSlugs;
+            assertConnectionResponse(
+                isResponseCount(results?.offset) &&
+                    isResponseCount(results?.total),
+            );
             offset = results.offset;
             total = results.total;
         } while (offset < total);
@@ -1362,7 +1395,11 @@ const downloadExternalConnections = async (
 
     missingSlugs.forEach((slug) =>
         GlobalState.log(
-            styles.warning(`External connection "${slug}" was not found`),
+            styles.warning(
+                getAgentConnectionSelection() !== null
+                    ? 'An external connection was not found.'
+                    : `External connection "${slug}" was not found`,
+            ),
         ),
     );
 
@@ -1523,6 +1560,9 @@ const downloadDocuments = async (
             const page = await fetchPage(offset);
             documents.push(...page.documents);
             missingSlugs = page.missingSlugs;
+            assertConnectionResponse(
+                page.nextOffset === null || isResponseCount(page.nextOffset),
+            );
             offset = page.nextOffset;
         }
     } catch (error) {
@@ -1536,7 +1576,13 @@ const downloadDocuments = async (
     }
 
     missingSlugs.forEach((slug) =>
-        GlobalState.log(styles.warning(`Document "${slug}" was not found`)),
+        GlobalState.log(
+            styles.warning(
+                getAgentConnectionSelection() !== null
+                    ? 'A document was not found.'
+                    : `Document "${slug}" was not found`,
+            ),
+        ),
     );
     await writeCodeResourceDocuments({
         definition: DOCUMENT_CODE_RESOURCE,
@@ -1676,9 +1722,17 @@ const downloadAiAgents = async (
             agents.push(...results.agents);
 
             results.missingIds.forEach((id) =>
-                GlobalState.debug(`No AI agent with id "${id}"`),
+                GlobalState.debug(
+                    getAgentConnectionSelection() !== null
+                        ? 'An AI agent was not found.'
+                        : `No AI agent with id "${id}"`,
+                ),
             );
             downloaded += results.agents.length;
+            assertConnectionResponse(
+                isResponseCount(results?.offset) &&
+                    isResponseCount(results?.total),
+            );
             offset = results.offset;
             total = results.total;
         } while (offset < total);
@@ -1842,7 +1896,9 @@ const downloadScheduledContent = async (
 
     results.skipped.forEach((item) =>
         GlobalState.debug(
-            `Skipped ${config.singular} "${item.name}": ${item.reason}`,
+            getAgentConnectionSelection() !== null
+                ? 'A scheduled item was skipped.'
+                : `Skipped ${config.singular} "${item.name}": ${item.reason}`,
         ),
     );
 
@@ -1973,6 +2029,7 @@ const listAppsViaContentApi = async (
 export const downloadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
+    assertAgentCommandAllowed('download', options);
     GlobalState.setVerbose(options.verbose);
 
     const isOrganizationDownload = options.organization === true;
@@ -2128,8 +2185,12 @@ export const downloadHandler = async (
 
     await checkLightdashVersion();
 
-    const config = await getConfig();
-    if (!config.context?.apiKey || !config.context.serverUrl) {
+    const config = await (getAgentConnectionSelection() === null
+        ? getConfig()
+        : getConfig({ readOnly: true }));
+    if (getAgentConnectionSelection() !== null) {
+        await resolveCredential(config);
+    } else if (!config.context?.apiKey || !config.context.serverUrl) {
         throw new AuthorizationError(
             `Not logged in. Run 'lightdash login --help'`,
         );
@@ -3121,7 +3182,8 @@ export const downloadHandler = async (
                     `\nNote: ${METADATA_FILENAME} was written to ${baseDir}. Consider adding it to your .gitignore.`,
                 ),
             );
-            await setAnswer({ metadataFileGitignoreNoticeShown: true });
+            if (getAgentConnectionSelection() === null)
+                await setAnswer({ metadataFileGitignoreNoticeShown: true });
         }
         output.completeItem('timestamps written');
         const end = Date.now();
@@ -3452,7 +3514,9 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     total: number;
     failedSlugs: string[];
 }> => {
-    const config = await getConfig();
+    const config = await (getAgentConnectionSelection() === null
+        ? getConfig()
+        : getConfig({ readOnly: true }));
 
     const folderItems = await readCodeFiles<T>(type, customPath);
     const items = [...folderItems, ...extraItems];
@@ -3824,6 +3888,7 @@ const getStampedContentPath = (uploadRoot: string): string | undefined => {
 export const uploadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
+    refuseAgentConnection();
     GlobalState.setVerbose(options.verbose);
     const projectConfig = await readUploadProjectConfig();
     // --path wins; otherwise content_as_code.path from lightdash.config.yml
@@ -3914,7 +3979,9 @@ export const uploadHandler = async (
         setGzipEnabled(true);
     }
     await checkLightdashVersion();
-    const config = await getConfig();
+    const config = await (getAgentConnectionSelection() === null
+        ? getConfig()
+        : getConfig({ readOnly: true }));
     if (!config.context?.apiKey || !config.context.serverUrl) {
         throw new AuthorizationError(
             `Not logged in. Run 'lightdash login --help'`,

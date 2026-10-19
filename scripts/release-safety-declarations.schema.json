@@ -37,7 +37,78 @@
                     "type": "string",
                     "minLength": 1,
                     "description": "Optional documentation stamp. Activation never depends on this value."
+                },
+                "impact": { "$ref": "#/definitions/impact" }
+            },
+            "if": { "required": ["impact"], "properties": { "impact": {} } },
+            "then": {
+                "properties": {
+                    "requiredStop": { "const": false },
+                    "migration": false,
+                    "reason": { "$ref": "#/definitions/substantiveReason" }
                 }
+            }
+        },
+        "impact": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "covers"],
+            "properties": {
+                "kind": { "const": "no-external-callers" },
+                "featureFlag": { "type": "string", "pattern": "\\S" },
+                "firstPartyOnly": { "$ref": "#/definitions/substantiveReason" },
+                "covers": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["rest", "mcp"],
+                    "properties": {
+                        "rest": {
+                            "type": "array",
+                            "uniqueItems": true,
+                            "items": {
+                                "type": "string",
+                                "pattern": "^[A-Z]+ /\\S*(?![\\s\\S])"
+                            }
+                        },
+                        "mcp": {
+                            "type": "array",
+                            "uniqueItems": true,
+                            "items": {
+                                "type": "string",
+                                "pattern": "^[^`\\s]+(?![\\s\\S])"
+                            }
+                        }
+                    },
+                    "anyOf": [
+                        {
+                            "properties": {
+                                "rest": { "type": "array", "minItems": 1 }
+                            }
+                        },
+                        {
+                            "properties": {
+                                "mcp": { "type": "array", "minItems": 1 }
+                            }
+                        }
+                    ]
+                }
+            },
+            "oneOf": [
+                {
+                    "properties": { "featureFlag": {} },
+                    "required": ["featureFlag"]
+                },
+                {
+                    "properties": { "firstPartyOnly": {} },
+                    "required": ["firstPartyOnly"]
+                }
+            ]
+        },
+        "substantiveReason": {
+            "type": "string",
+            "pattern": "^\\s*(?=\\S)(?=(?:\\S|\\s+(?=\\S)){24,}\\s*$)(?=\\S+(?:\\s+\\S+)+\\s*$)",
+            "not": {
+                "pattern": "^\\s*<[oO][pP][eE][rR][aA][tT][oO][rR]-[fF][aA][cC][iI][nN][gG]\\s+[rR][eE][aA][sS][oO][nN]>\\s*$"
             }
         }
     }

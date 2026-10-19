@@ -3,6 +3,8 @@ import {
     FeatureFlags,
     getGroupByDimensions,
     getWebAiChartConfig,
+    isAiAgentComposerArtifactVizQuery,
+    isAiAgentSemanticArtifactVizQuery,
     isAiAgentSqlArtifactVizQuery,
     isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
@@ -34,6 +36,7 @@ import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
+import { getAiAgentArtifactResultsUrl } from '../../hooks/aiAgentRouting';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
 import {
@@ -138,6 +141,8 @@ const AiArtifactPanelContent: FC<
         );
         const { user } = useApp();
         const isEmbed = useIsEmbedded();
+        const identityFlag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
+        const identityEnabled = identityFlag.data?.enabled === true;
         const canManageAgent = useAiAgentPermission({
             action: 'manage',
             projectUuid: artifact.projectUuid,
@@ -168,20 +173,30 @@ const AiArtifactPanelContent: FC<
                 artifactUuid: artifact.artifactUuid,
                 versionUuid: artifact.versionUuid,
             },
-            { enabled: (isFloatingChart && !!vizConfig) || isSqlArtifact },
+            {
+                enabled:
+                    (isFloatingChart && !!vizConfig) ||
+                    isSqlArtifact ||
+                    !!composerConfig,
+            },
         );
 
         const semanticVizQueryData =
             queryExecutionHandle.data &&
-            !isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)
+            isAiAgentSemanticArtifactVizQuery(queryExecutionHandle.data)
                 ? queryExecutionHandle.data
                 : undefined;
+        const composerRun =
+            queryExecutionHandle.data &&
+            isAiAgentComposerArtifactVizQuery(queryExecutionHandle.data)
+                ? queryExecutionHandle.data
+                : null;
         const sqlVizQueryData =
             queryExecutionHandle.data &&
             isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)
                 ? queryExecutionHandle.data
                 : undefined;
-        // Composer artifacts read their own per-node results.
+        // Composer artifacts read each node result of the run themselves.
         const queryUuid =
             !composerConfig &&
             queryExecutionHandle.data &&
@@ -191,7 +206,21 @@ const AiArtifactPanelContent: FC<
 
         const queryResults = useInfiniteQueryResults(
             artifact.projectUuid,
-            queryUuid,
+            isEmbed || !identityFlag.isLoading ? queryUuid : undefined,
+            undefined,
+            identityEnabled &&
+                !isEmbed &&
+                queryUuid &&
+                artifactData?.artifactType === 'chart'
+                ? getAiAgentArtifactResultsUrl({
+                      projectUuid: artifact.projectUuid,
+                      agentUuid: artifact.agentUuid,
+                      artifactUuid: artifact.artifactUuid,
+                      versionUuid: artifact.versionUuid,
+                      queryUuid,
+                      cached: false,
+                  })
+                : null,
         );
 
         const compiledSqlQuery = useAiArtifactCompiledSql({
@@ -251,9 +280,11 @@ const AiArtifactPanelContent: FC<
             parsedChartConfig?.type === AiResultType.QUERY_RESULT &&
             !isCustomChartTypeAnswer;
 
-        const accessRefusal =
+        const artifactAccessRefusal =
             getAiAccessRefusal(artifactError?.error) ??
-            getAiAccessRefusal(threadError?.error) ??
+            getAiAccessRefusal(threadError?.error);
+        const accessRefusal =
+            artifactAccessRefusal ??
             getAiAccessRefusal(queryExecutionHandle.error?.error) ??
             getAiAccessRefusal(queryResults.error?.error);
 
@@ -263,6 +294,15 @@ const AiArtifactPanelContent: FC<
                     <AiAccessCallout
                         projectUuid={artifact.projectUuid}
                         refusal={accessRefusal}
+                        onRerun={
+                            artifactAccessRefusal
+                                ? undefined
+                                : () => {
+                                      if (queryExecutionHandle.error)
+                                          void queryExecutionHandle.refetch();
+                                      else void queryResults.refetchRows();
+                                  }
+                        }
                         variant="inline"
                     />
                 </Box>
@@ -354,6 +394,9 @@ const AiArtifactPanelContent: FC<
                     title={artifactData.title ?? 'Composer query results'}
                     description={artifactData.description ?? null}
                     config={composerConfig}
+                    run={composerRun}
+                    runError={queryExecutionHandle.error ?? null}
+                    onRerun={() => void queryExecutionHandle.refetch()}
                     onClose={
                         showCloseButton ? () => dispatch(clearPreview()) : null
                     }

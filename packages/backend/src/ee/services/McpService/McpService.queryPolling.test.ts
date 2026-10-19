@@ -1,4 +1,5 @@
 import {
+    AgentActorSurface,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     CatalogType,
@@ -9,9 +10,22 @@ import {
     NotFoundError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    type Account,
+    type SessionUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { z, type ZodRawShape } from 'zod';
+import { fromSession } from '../../../auth/account';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../../../services/AiAccessService/agentActionTestUtils.mock';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../../../services/AiAccessService/agentExecutionContext';
+import { ShareService } from '../../../services/ShareService/ShareService';
 import * as runQueryTool from '../ai/tools/runQuery';
 import { McpService, McpToolName } from './McpService';
 import { makeMcpServerOptions } from './McpService.mock';
@@ -113,6 +127,8 @@ const makeSpaceMetadata = (spaceUuid: string) => ({
 });
 
 const account = {
+    ...fromSession({ ...defaultSessionUser, userUuid, organizationUuid }),
+    organization: { organizationUuid },
     authentication: { type: 'session' },
     isRegisteredUser: () => true,
     isServiceAccount: () => false,
@@ -194,6 +210,12 @@ const extra = {
         extra: {
             user,
             account,
+            getAgentPermissionService: () => ({
+                loadRequest: vi
+                    .fn()
+                    .mockResolvedValue({ enforcementMode: 'off' }),
+                assertOperationWithRequest: vi.fn(),
+            }),
         },
     },
 };
@@ -517,7 +539,7 @@ const makeMcpService = ({
                         : undefined;
                 const { results } =
                     await projectService.searchFieldUniqueValues(
-                        user,
+                        account,
                         projectUuid,
                         args.table,
                         args.fieldId,
@@ -592,6 +614,7 @@ const makeMcpService = ({
     };
 
     const service = new McpService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiAccessService,
         aiAgentService,
         aiAgentToolsService,
@@ -669,7 +692,22 @@ const getToolCallback = (toolName: McpToolName) => {
     return (
         args: Record<string, unknown>,
         callbackExtra: Record<string, unknown>,
-    ) => callback({ projectUuid, ...args }, callbackExtra);
+    ) => {
+        const authenticated = (callbackExtra as typeof extra).authInfo.extra
+            .account as unknown as Account;
+        return agentExecutionContext.getStore()
+            ? callback({ projectUuid, ...args }, callbackExtra)
+            : agentExecutionContext.run(
+                  createAgentExecutionContext({
+                      account: authenticated,
+                      surface: AgentActorSurface.MCP,
+                      clientId: null,
+                      agentUuid: null,
+                      agentIdentityEnabled: true,
+                  }),
+                  () => callback({ projectUuid, ...args }, callbackExtra),
+              );
+    };
 };
 
 const getParsedToolCallback = (toolName: McpToolName) => {
@@ -740,6 +778,7 @@ describe('MCP catalogue audit', () => {
                                 filterExpressionsEnabled: true,
                                 documentsEnabled: false,
                                 dataAppBuildsEnabled: false,
+                                customChartTypesEnabled: false,
                                 agentIdentityEnabled: false,
                             },
                         },
@@ -1568,10 +1607,134 @@ describe('MCP async query polling', () => {
                 },
             },
         });
+        const [summary] = (result as { content: { text: string }[] }).content;
+        expect(summary.text).toContain('placeholder, not a failed render');
+        expect(summary.text).toContain('build the visual from the query rows');
         expect(
             asyncQueryService.executeAsyncMetricQuery,
         ).not.toHaveBeenCalled();
     });
+
+    it('carries the OAuth client id as the MCP result reader identity', async () => {
+        const { asyncQueryService } = makeMcpService({
+            agentIdentityEnabled: true,
+        });
+        const ready = makeQueryHistory(
+            QueryHistoryStatus.READY,
+            QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+        );
+        asyncQueryService.getAsyncQueryHistory.mockResolvedValue(ready);
+        asyncQueryService.pollQueryHistoryUntilDeadline.mockResolvedValue(
+            ready,
+        );
+        asyncQueryService.getRawAsyncQueryResults.mockResolvedValue({
+            rows: [],
+            fields: {},
+        });
+        const result = await getToolCallback(McpToolName.GET_QUERY_RESULT)(
+            { queryUuid },
+            {
+                ...extra,
+                authInfo: {
+                    ...extra.authInfo,
+                    extra: {
+                        ...extra.authInfo.extra,
+                        account: {
+                            ...account,
+                            authentication: {
+                                type: 'oauth',
+                                clientId: 'oauth-agent-client',
+                            },
+                        },
+                    },
+                },
+            },
+        );
+        expect(result).not.toMatchObject({ isError: true });
+        for (const method of [
+            'getAsyncQueryHistory',
+            'getRawAsyncQueryResults',
+        ] as const)
+            expect(asyncQueryService[method]).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    reader: {
+                        authMethod: 'oauth',
+                        kind: 'agent',
+                        claim: expect.objectContaining({
+                            subject: { type: 'user', uuid: userUuid },
+                            act: {
+                                sub: 'mcp:oauth-agent-client',
+                                surface: AgentActorSurface.MCP,
+                                client_id: 'oauth-agent-client',
+                                agent_uuid: null,
+                            },
+                        }),
+                    },
+                }),
+            );
+    });
+
+    it.each(['getAsyncQueryHistory', 'getRawAsyncQueryResults'] as const)(
+        'PAT-backed MCP forwards its session identity through %s',
+        async (method) => {
+            const { asyncQueryService } = makeMcpService({
+                agentIdentityEnabled: true,
+            });
+            const ready = makeQueryHistory(
+                QueryHistoryStatus.READY,
+                QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            );
+            asyncQueryService.getAsyncQueryHistory.mockResolvedValue(ready);
+            asyncQueryService.getRawAsyncQueryResults.mockResolvedValue({
+                rows: [{ one: 1 }],
+                fields: {},
+            });
+            asyncQueryService.pollQueryHistoryUntilDeadline.mockResolvedValue(
+                ready,
+            );
+            asyncQueryService[method].mockImplementation(async ({ reader }) => {
+                expect(reader).toMatchObject({
+                    authMethod: 'pat',
+                    kind: 'agent',
+                    claim: { act: { client_id: null } },
+                });
+                return method === 'getAsyncQueryHistory'
+                    ? ready
+                    : {
+                          rows: [{ one: 1 }],
+                          fields: {},
+                      };
+            });
+            const patExtra = {
+                ...extra,
+                authInfo: {
+                    ...extra.authInfo,
+                    extra: {
+                        ...extra.authInfo.extra,
+                        account: {
+                            ...account,
+                            authentication: {
+                                type: 'pat',
+                                source: 'dummy-pat',
+                            },
+                        },
+                    },
+                },
+            };
+            const result = await getToolCallback(McpToolName.GET_QUERY_RESULT)(
+                { queryUuid },
+                patExtra,
+            );
+            expect(result).not.toMatchObject({ isError: true });
+            expect(asyncQueryService[method]).toHaveBeenCalled();
+            expect(
+                asyncQueryService.getAsyncQueryResults,
+            ).not.toHaveBeenCalled();
+            expect(
+                asyncQueryService.getRawAsyncQueryResults,
+            ).toHaveBeenCalled();
+        },
+    );
 
     it('keeps get_query_result running without fetching result pages', async () => {
         const { asyncQueryService } = makeMcpService();
@@ -1994,7 +2157,7 @@ describe('MCP async query polling', () => {
 
         expect(getTextResult(result)).toContain('[]');
         expect(projectService.searchFieldUniqueValues).toHaveBeenCalledWith(
-            user,
+            account,
             projectUuid,
             'orders',
             'orders_status',
@@ -2026,7 +2189,7 @@ describe('MCP async query polling', () => {
 
         expect(getTextResult(result)).toContain('[]');
         expect(projectService.searchFieldUniqueValues).toHaveBeenCalledWith(
-            user,
+            account,
             projectUuid,
             'orders',
             'orders_status',
@@ -2192,6 +2355,126 @@ it('returns an AI access refusal as an MCP tool error', async () => {
 });
 
 describe('agent connection over MCP', () => {
+    describe.each([
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+    ])('admin settings for %s', (reason) => {
+        const settingsPath = `/generalSettings/projectManagement/${projectUuid}/agentIdentity`;
+        const settingsUrl = `https://lightdash.example${settingsPath}`;
+        const identityRefusal = new AiAccessRefusedError(reason);
+
+        it.each([
+            McpToolName.RUN_METRIC_QUERY,
+            McpToolName.RUN_SQL,
+            McpToolName.GET_QUERY_RESULT,
+            McpToolName.RENDER_CHART,
+            McpToolName.SEARCH_FIELD_VALUES,
+        ])(
+            'preserves the typed refusal and settings URL in %s',
+            async (name) => {
+                const { asyncQueryService, projectService } = makeMcpService({
+                    agentIdentityEnabled: true,
+                });
+                asyncQueryService.executeAsyncMetricQuery.mockRejectedValue(
+                    identityRefusal,
+                );
+                asyncQueryService.executeAsyncSqlQuery.mockRejectedValue(
+                    identityRefusal,
+                );
+                asyncQueryService.getAsyncQueryHistory.mockResolvedValue(
+                    makeQueryHistory(
+                        QueryHistoryStatus.READY,
+                        QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                    ),
+                );
+                asyncQueryService.getRawAsyncQueryResults.mockRejectedValue(
+                    identityRefusal,
+                );
+                projectService.searchFieldUniqueValues.mockRejectedValue(
+                    identityRefusal,
+                );
+                const result = await getToolCallback(name)(
+                    {
+                        projectUuid,
+                        queryUuid,
+                        sql: 'select 1',
+                        table: 'orders',
+                        fieldId: 'orders_status',
+                        query: 'complete',
+                        filters: null,
+                        title: 'Orders',
+                        description: 'Orders count',
+                        queryConfig: {
+                            exploreName: 'orders',
+                            dimensions: [],
+                            metrics: ['orders_orders_count'],
+                            sorts: [],
+                            limit: 10,
+                            customMetrics: null,
+                            tableCalculations: null,
+                            filters: null,
+                        },
+                        chartConfig: null,
+                    },
+                    extra,
+                );
+                expect(result).toMatchObject({
+                    isError: true,
+                    structuredContent: {
+                        refusal: { ...identityRefusal.refusal, settingsUrl },
+                    },
+                    content: [
+                        {
+                            type: 'text',
+                            text: expect.stringContaining(
+                                identityRefusal.message,
+                            ),
+                        },
+                    ],
+                });
+                expect(result).toMatchObject({
+                    content: [
+                        {
+                            type: 'text',
+                            text: expect.stringContaining(settingsUrl),
+                        },
+                    ],
+                });
+            },
+        );
+
+        it.each([null, settingsPath, settingsUrl])(
+            'includes the admin link from %s in connect_agent',
+            async (url) => {
+                const { aiAccessService } = makeMcpService({
+                    agentIdentityEnabled: true,
+                });
+                aiAccessService.getMyAccess.mockResolvedValue({
+                    requirementSource: 'organization',
+                    identity: 'ai_service_account',
+                    refusal: { ...identityRefusal.refusal, settingsUrl: url },
+                });
+                const result = await getToolCallback(McpToolName.CONNECT_AGENT)(
+                    { projectUuid },
+                    extra,
+                );
+                expect(result).toMatchObject({
+                    structuredContent: {
+                        status: 'unavailable',
+                        connectUrl: null,
+                        settingsUrl,
+                    },
+                    content: [
+                        {
+                            type: 'text',
+                            text: expect.stringContaining(settingsUrl),
+                        },
+                    ],
+                });
+            },
+        );
+    });
+
     const connectUrl =
         'https://lightdash.example/agent/connect?project=project-uuid&redirect=%2Fagent-connected&entryPoint=mcp_connect_link';
     const refusal = new AiAccessRefusedError(
@@ -2234,6 +2517,7 @@ describe('agent connection over MCP', () => {
                 status: 'needs_sign_in',
                 message: signInRefusal.message,
                 connectUrl,
+                settingsUrl: null,
                 expiresAt: null,
             };
             expect(
@@ -2302,6 +2586,7 @@ describe('agent connection over MCP', () => {
                             message:
                                 'Your agent is connected to the warehouse.',
                             connectUrl: null,
+                            settingsUrl: null,
                             expiresAt: '2030-01-01T00:00:00.000Z',
                         }),
                     },
@@ -2446,7 +2731,9 @@ describe('agent connection over MCP', () => {
                 },
             ],
         });
-        expect(result).not.toHaveProperty('structuredContent');
+        expect(result).toMatchObject({
+            structuredContent: { refusal: refusal.refusal },
+        });
     });
 
     it('includes the connect link in field-value search refusals', async () => {
@@ -2473,7 +2760,9 @@ describe('agent connection over MCP', () => {
                 },
             ],
         });
-        expect(result).not.toHaveProperty('structuredContent');
+        expect(result).toMatchObject({
+            structuredContent: { refusal: refusal.refusal },
+        });
     });
 
     it('ends a SQL refusal with the connect link', async () => {
@@ -2521,3 +2810,78 @@ describe('agent connection over MCP', () => {
         });
     });
 });
+
+test.each(agentActionTestCases)(
+    'MCP completed SQL tool persists share action through ShareService: %s',
+    async (_, surface, enabled, count) => {
+        const { service, asyncQueryService } = makeMcpService();
+        const insert = vi.fn().mockResolvedValue(undefined);
+        const createSharedUrl = vi.fn(async (input: object) => ({
+            ...input,
+            nanoid: 'saved-share',
+        }));
+        Object.assign(service, {
+            shareService: new ShareService({
+                shareModel: { createSharedUrl },
+                agentActionLogModel: { insert },
+                analytics: { track: vi.fn() },
+                lightdashConfig: { siteUrl: 'https://lightdash.example' },
+            } as unknown as ConstructorParameters<typeof ShareService>[0]),
+        });
+        asyncQueryService.executeAsyncSqlQuery.mockResolvedValue({ queryUuid });
+        asyncQueryService.pollQueryHistoryUntilDeadline.mockResolvedValue(
+            makeQueryHistory(QueryHistoryStatus.READY),
+        );
+        asyncQueryService.getAsyncQueryResults.mockResolvedValue({
+            status: QueryHistoryStatus.READY,
+            rows: [],
+            columns: {},
+        });
+        const authenticatedUser = { ...defaultSessionUser, ...user };
+        const result = await withAgentActionScope(
+            authenticatedUser as unknown as SessionUser,
+            surface,
+            enabled,
+            () =>
+                (surface === null
+                    ? mockRegisteredMcpTools.get(McpToolName.RUN_SQL)!
+                    : getToolCallback(McpToolName.RUN_SQL))(
+                    { projectUuid, sql: 'select 1', limit: 10 },
+                    {
+                        ...extra,
+                        authInfo: {
+                            extra: {
+                                ...extra.authInfo.extra,
+                                user: authenticatedUser,
+                                account,
+                            },
+                        },
+                    },
+                ),
+        );
+        expect(result).toMatchObject({
+            structuredContent: {
+                result: {
+                    sqlRunnerUrl:
+                        'https://lightdash.example/projects/project-uuid/sql-runner?share=saved-share',
+                },
+            },
+        });
+        expect(createSharedUrl).toHaveBeenCalledOnce();
+        expect(insert).toHaveBeenCalledTimes(count);
+        if (count)
+            expect(insert).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    object_type: 'share',
+                    object_id: 'saved-share',
+                    action: 'create',
+                    outcome: 'allowed',
+                    agent_identity: expect.objectContaining({
+                        subject: { type: 'user', uuid: userUuid },
+                        act: expect.objectContaining({ surface }),
+                    }),
+                }),
+            );
+        expect(JSON.stringify(insert.mock.calls)).not.toContain('select 1');
+    },
+);

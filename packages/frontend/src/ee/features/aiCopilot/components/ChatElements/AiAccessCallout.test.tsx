@@ -1,12 +1,20 @@
+import { subject } from '@casl/ability';
 import {
+    AGENT_IDENTITY_SETTINGS_PATH,
+    AgentCapability,
+    AiAccessRefusedError,
     AiAccessRefusalAction,
     AiAccessRefusalReason,
+    getAiAccessRefusalSettingsUrl,
+    getProjectAgentIdentitySettingsPath,
     type AiAccessRefusal,
+    type SdkUiOverrides,
 } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
+import EmbedProviderContext from '../../../../providers/Embed/context';
 import { AiAccessCallout } from './AiAccessCallout';
 import { AiAccessGate } from './AiAccessGate';
 import { getAiAccessRefusal } from './aiAccessRefusal';
@@ -20,7 +28,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../../../../providers/App/useApp', () => ({
     default: () => ({
         health: {},
-        user: { data: { ability: { can: mocks.can } } },
+        user: {
+            data: { organizationUuid: 'org', ability: { can: mocks.can } },
+        },
     }),
 }));
 vi.mock('../../../../../hooks/useProject', () => ({
@@ -41,7 +51,7 @@ vi.mock('../../../../../hooks/useSnowflake', () => ({
 const refusal: AiAccessRefusal = {
     code: 'ai_access_refused',
     reason: AiAccessRefusalReason.NEEDS_SIGN_IN,
-    message: 'Sign in to run AI queries.',
+    message: 'Sign in to run agent queries.',
     action: AiAccessRefusalAction.SIGN_IN,
     settingsUrl: null,
     connectUrl: null,
@@ -117,7 +127,8 @@ describe('AI access callout', () => {
     it.each(['card', 'inline'] as const)(
         'shows the expired refusal in the %s variant',
         (variant) => {
-            const message = 'Your agent connection expired. Connect again.';
+            const message =
+                'Your agent sign-in expired. Connect your agent again.';
             renderWithProviders(
                 <MemoryRouter>
                     <AiAccessCallout
@@ -147,7 +158,7 @@ describe('AI access callout', () => {
             }),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('link', { name: 'Manage agent connections' }),
+            screen.getByRole('link', { name: 'My agent identity' }),
         ).toHaveAttribute('href', '/generalSettings/myAgentConnections');
         expect(
             screen.getByText(
@@ -195,6 +206,232 @@ describe('AI access callout', () => {
         ).toBeEnabled();
         expect(screen.queryByRole('link')).not.toBeInTheDocument();
     });
+    it.each([
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+        AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED,
+        AiAccessRefusalReason.PRINCIPAL_FAILED,
+    ])('gates settings for %s at the appropriate scope', (reason) => {
+        const settingsUrl =
+            '/generalSettings/projectManagement/project/agentIdentity';
+        const projectRefusal = {
+            ...refusal,
+            reason,
+            settingsUrl,
+            action: AiAccessRefusalAction.ASK_ADMIN,
+        };
+        mocks.can.mockImplementation(
+            (action, resource) =>
+                action === 'manage' &&
+                resource !== 'Organization' &&
+                resource.organizationUuid === 'org' &&
+                resource.projectUuid === 'project',
+        );
+        const { rerender } = renderWithProviders(
+            <MemoryRouter>
+                <AiAccessCallout
+                    projectUuid="project"
+                    refusal={projectRefusal}
+                />
+            </MemoryRouter>,
+        );
+        if (reason === AiAccessRefusalReason.PRINCIPAL_FAILED) {
+            expect(screen.queryByRole('link')).not.toBeInTheDocument();
+        } else {
+            expect(
+                screen.getByRole('link', {
+                    name: 'Open project agent settings',
+                }),
+            ).toHaveAttribute('href', settingsUrl);
+        }
+        mocks.can.mockReturnValue(false);
+        rerender(
+            <MemoryRouter>
+                <AiAccessCallout
+                    projectUuid="project"
+                    refusal={projectRefusal}
+                />
+            </MemoryRouter>,
+        );
+        expect(screen.queryByRole('link')).not.toBeInTheDocument();
+        mocks.can.mockImplementation(
+            (_action, resource) => resource === 'Organization',
+        );
+        rerender(
+            <MemoryRouter>
+                <AiAccessCallout
+                    projectUuid="project"
+                    refusal={{
+                        ...projectRefusal,
+                        reason: AiAccessRefusalReason.PRINCIPAL_FAILED,
+                        settingsUrl: '/custom-org-settings',
+                    }}
+                />
+            </MemoryRouter>,
+        );
+        expect(
+            screen.getByRole('link', { name: 'Review agent identity' }),
+        ).toHaveAttribute('href', '/custom-org-settings');
+    });
+
+    it.each([
+        { target: 'project', absolute: true },
+        { target: 'other-project', absolute: false },
+        { target: 'other-project', absolute: true },
+    ])(
+        'uses the target project for raw SQL settings ($target, absolute: $absolute)',
+        ({ target, absolute }) => {
+            const settingsPath = getProjectAgentIdentitySettingsPath(target);
+            const projectRefusal: AiAccessRefusal = {
+                ...refusal,
+                reason: AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED,
+                action: AiAccessRefusalAction.ASK_ADMIN,
+                projectUuid: target,
+                settingsUrl: absolute
+                    ? new URL(settingsPath, window.location.origin).href
+                    : settingsPath,
+            };
+            mocks.can.mockImplementation(
+                (action, resource) =>
+                    action === 'manage' &&
+                    resource !== 'Organization' &&
+                    resource.organizationUuid === 'org' &&
+                    resource.projectUuid === target,
+            );
+            const { rerender } = renderWithProviders(
+                <MemoryRouter>
+                    <AiAccessCallout
+                        projectUuid="project"
+                        refusal={projectRefusal}
+                    />
+                </MemoryRouter>,
+            );
+            expect(
+                screen.getByRole('link', {
+                    name: 'Open project agent settings',
+                }),
+            ).toHaveAttribute('href', settingsPath);
+            expect(mocks.can).toHaveBeenLastCalledWith(
+                'manage',
+                subject('Project', {
+                    organizationUuid: 'org',
+                    projectUuid: target,
+                }),
+            );
+
+            mocks.can.mockImplementation(
+                (action, resource) =>
+                    action === 'manage' &&
+                    resource !== 'Organization' &&
+                    resource.projectUuid === 'project' &&
+                    resource.projectUuid !== target,
+            );
+            rerender(
+                <MemoryRouter>
+                    <AiAccessCallout
+                        projectUuid="project"
+                        refusal={projectRefusal}
+                    />
+                </MemoryRouter>,
+            );
+            expect(screen.queryByRole('link')).not.toBeInTheDocument();
+            expect(mocks.can).toHaveBeenLastCalledWith(
+                'manage',
+                subject('Project', {
+                    organizationUuid: 'org',
+                    projectUuid: target,
+                }),
+            );
+        },
+    );
+
+    it('does not treat a foreign-origin settings URL as a project link', () => {
+        mocks.can.mockImplementation(
+            (action, resource) =>
+                action === 'manage' && resource === 'Organization',
+        );
+        renderWithProviders(
+            <MemoryRouter>
+                <AiAccessCallout
+                    projectUuid="project"
+                    refusal={{
+                        ...refusal,
+                        reason: AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED,
+                        action: AiAccessRefusalAction.ASK_ADMIN,
+                        projectUuid: 'project',
+                        settingsUrl: `https://other.example${getProjectAgentIdentitySettingsPath('project')}`,
+                    }}
+                />
+            </MemoryRouter>,
+        );
+        expect(mocks.can).toHaveBeenLastCalledWith('manage', 'Organization');
+        expect(
+            screen.getByRole('link', { name: 'Review agent identity' }),
+        ).toHaveAttribute(
+            'href',
+            'https://other.example/generalSettings/projectManagement/project/agentIdentity',
+        );
+        expect(
+            screen.queryByRole('link', { name: 'Open project agent settings' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it.each([
+        AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED,
+        AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+    ])(
+        'requires organization manage for %s with organization settings',
+        (reason) => {
+            const orgRefusal: AiAccessRefusal = {
+                ...refusal,
+                reason,
+                action: AiAccessRefusalAction.ASK_ADMIN,
+                settingsUrl: getAiAccessRefusalSettingsUrl(reason, null),
+            };
+            mocks.can.mockImplementation(
+                (action, resource) =>
+                    action === 'manage' &&
+                    resource !== 'Organization' &&
+                    resource.organizationUuid === 'org' &&
+                    resource.projectUuid === 'project',
+            );
+            const content = (
+                <MemoryRouter>
+                    <AiAccessCallout
+                        projectUuid="project"
+                        refusal={orgRefusal}
+                    />
+                </MemoryRouter>
+            );
+            const { rerender } = renderWithProviders(content);
+            expect(screen.queryByRole('link')).not.toBeInTheDocument();
+            expect(mocks.can).toHaveBeenLastCalledWith(
+                'manage',
+                'Organization',
+            );
+
+            mocks.can.mockImplementation(
+                (action, resource) =>
+                    action === 'manage' && resource === 'Organization',
+            );
+            rerender(
+                <MemoryRouter>
+                    <AiAccessCallout
+                        projectUuid="project"
+                        refusal={orgRefusal}
+                    />
+                </MemoryRouter>,
+            );
+            expect(
+                screen.getByRole('link', { name: 'Review agent identity' }),
+            ).toHaveAttribute('href', AGENT_IDENTITY_SETTINGS_PATH);
+            expect(mocks.can).toHaveBeenLastCalledWith(
+                'manage',
+                'Organization',
+            );
+        },
+    );
+
     it('links organization managers to warehouse credential settings', () => {
         mocks.can.mockReturnValue(true);
         render(AiAccessRefusalAction.ASK_ADMIN);
@@ -228,7 +465,7 @@ describe('AI access callout', () => {
         AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
     ])('shows the backend message for %s without sign-in', (reason) => {
         const message =
-            'Ask an administrator to add or replace the AI service account.';
+            'Ask an administrator to add or replace the shared agent account.';
         renderWithProviders(
             <MemoryRouter>
                 <AiAccessCallout
@@ -247,4 +484,224 @@ describe('AI access callout', () => {
             screen.queryByRole('button', { name: 'Connect agent' }),
         ).not.toBeInTheDocument();
     });
+});
+
+it('shows other blockers and See why to the person, including structured extraction', () => {
+    const { refusal: detailedRefusal } = new AiAccessRefusedError(
+        AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+        {
+            capability: AgentCapability.ContentWrite,
+            policyLayer: 'org_ceiling',
+            requiredCapabilities: [
+                AgentCapability.ContentWrite,
+                AgentCapability.Publish,
+            ],
+            blockersComplete: true,
+            explanationUrl: '/generalSettings/myAgentConnections',
+            blockers: [
+                {
+                    checkId: 'capability:content_write',
+                    status: 'refused',
+                    reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    capability: AgentCapability.ContentWrite,
+                    policyLayer: 'org_ceiling',
+                    message: 'Primary',
+                    settingsUrl: null,
+                },
+                {
+                    checkId: 'capability:publish',
+                    status: 'refused',
+                    reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    capability: AgentCapability.Publish,
+                    policyLayer: 'org_ceiling',
+                    message: 'Secondary',
+                    settingsUrl: null,
+                },
+            ],
+        },
+    );
+    const parsed = getAiAccessRefusal({
+        structuredContent: { refusal: detailedRefusal },
+    });
+    expect(parsed).toEqual(detailedRefusal);
+    renderWithProviders(
+        <MemoryRouter>
+            <AiAccessCallout projectUuid="project" refusal={parsed!} />
+        </MemoryRouter>,
+    );
+    expect(screen.getByText(detailedRefusal.message)).toBeInTheDocument();
+    expect(
+        screen.getByText('Also needed: Publish and share'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'See why' })).toHaveAttribute(
+        'href',
+        '/generalSettings/myAgentConnections',
+    );
+});
+
+const managedRefusal: AiAccessRefusal = new AiAccessRefusedError(
+    AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+    {
+        capability: AgentCapability.ContentWrite,
+        policyLayer: 'org_ceiling',
+        blockers: [
+            {
+                checkId: 'capability:content_write',
+                status: 'refused',
+                reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                capability: AgentCapability.ContentWrite,
+                policyLayer: 'org_ceiling',
+                message: 'Primary',
+                settingsUrl: null,
+            },
+            {
+                checkId: 'capability:publish',
+                status: 'refused',
+                reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                capability: AgentCapability.Publish,
+                policyLayer: 'org_ceiling',
+                message: 'Secondary',
+                settingsUrl: null,
+            },
+            {
+                checkId: 'warehouse_confirmation',
+                status: 'setup_needed',
+                reason: AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED,
+                capability: AgentCapability.RawSql,
+                policyLayer: 'warehouse_identity',
+                message: 'Confirm warehouse',
+                settingsUrl: null,
+            },
+        ],
+    },
+).refusal;
+
+it.each(['direct', 'sdk', 'main'] as const)(
+    'keeps requirements and gates explanation links in the %s context',
+    (context) => {
+        const content = (explanationUrl: string) => (
+            <MemoryRouter>
+                <EmbedProviderContext.Consumer>
+                    {(defaults) => (
+                        <EmbedProviderContext.Provider
+                            value={{
+                                ...defaults,
+                                mode: context === 'sdk' ? 'sdk' : 'direct',
+                                embedToken:
+                                    context === 'main'
+                                        ? undefined
+                                        : 'embed-token',
+                            }}
+                        >
+                            <AiAccessCallout
+                                projectUuid="project"
+                                refusal={{ ...managedRefusal, explanationUrl }}
+                            />
+                        </EmbedProviderContext.Provider>
+                    )}
+                </EmbedProviderContext.Consumer>
+            </MemoryRouter>
+        );
+        const personalUrl = '/generalSettings/myAgentConnections';
+        renderWithProviders(content(personalUrl));
+        expect(screen.getByText(managedRefusal.message)).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Also needed: Publish and share, warehouse confirmation for this project',
+            ),
+        ).toBeInTheDocument();
+        if (context === 'main') {
+            expect(
+                screen.getByRole('link', { name: 'See why' }),
+            ).toHaveAttribute('href', personalUrl);
+        } else {
+            expect(
+                screen.queryByRole('link', { name: 'See why' }),
+            ).not.toBeInTheDocument();
+        }
+    },
+);
+
+it('uses embed UI overrides for capability and setting requirement labels', () => {
+    const overrides: SdkUiOverrides = {
+        'aiAccess.alsoNeeded': 'También se necesita: {requirements}',
+        'aiAccess.requirements.capabilities.publish': 'Publicar y compartir',
+        'aiAccess.requirements.warehouseConfirmation':
+            'confirmación del almacén para este proyecto',
+    };
+    renderWithProviders(
+        <MemoryRouter>
+            <EmbedProviderContext.Consumer>
+                {(defaults) => (
+                    <EmbedProviderContext.Provider
+                        value={{
+                            ...defaults,
+                            embedToken: 'embed-token',
+                            mode: 'sdk',
+                            t: (key) => overrides[key],
+                        }}
+                    >
+                        <AiAccessCallout
+                            projectUuid="project"
+                            refusal={managedRefusal}
+                        />
+                    </EmbedProviderContext.Provider>
+                )}
+            </EmbedProviderContext.Consumer>
+        </MemoryRouter>,
+    );
+    expect(
+        screen.getByText(
+            'También se necesita: Publicar y compartir, confirmación del almacén para este proyecto',
+        ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Publish and share/)).not.toBeInTheDocument();
+    expect(
+        screen.queryByText(/warehouse confirmation for this project/),
+    ).not.toBeInTheDocument();
+});
+
+it.each(['card', 'inline'] as const)(
+    'offers Run as me for a result refusal in the %s variant',
+    (variant) => {
+        const onRerun = vi.fn();
+        const resultRefusal = new AiAccessRefusedError(
+            AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+        ).refusal;
+        renderWithProviders(
+            <MemoryRouter>
+                <AiAccessCallout
+                    projectUuid="project"
+                    refusal={resultRefusal}
+                    variant={variant}
+                    onRerun={onRerun}
+                />
+            </MemoryRouter>,
+        );
+        fireEvent.click(screen.getByRole('button', { name: 'Run as me' }));
+        expect(onRerun).toHaveBeenCalledOnce();
+    },
+);
+
+it('hides Run as me without a handler or for other reasons', () => {
+    const resultRefusal = new AiAccessRefusedError(
+        AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+    ).refusal;
+    const content = (value: AiAccessRefusal, onRerun?: () => void) => (
+        <MemoryRouter>
+            <AiAccessCallout
+                projectUuid="project"
+                refusal={value}
+                onRerun={onRerun}
+            />
+        </MemoryRouter>
+    );
+    const { rerender } = renderWithProviders(content(resultRefusal));
+    expect(
+        screen.queryByRole('button', { name: 'Run as me' }),
+    ).not.toBeInTheDocument();
+    rerender(content(refusal, vi.fn()));
+    expect(
+        screen.queryByRole('button', { name: 'Run as me' }),
+    ).not.toBeInTheDocument();
 });

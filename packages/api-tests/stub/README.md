@@ -14,12 +14,10 @@ pnpm -F api-tests stub:snowflake-ai
 Configure a local backend with these values, plus a valid enterprise license:
 
 ```sh
-SNOWFLAKE_AI_OAUTH_ACCOUNT=stub
-SNOWFLAKE_AI_OAUTH_CLIENT_ID=stub-client
-SNOWFLAKE_AI_OAUTH_CLIENT_SECRET=stub-secret
-SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT=http://localhost:3900/oauth/authorize
-SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT=http://localhost:3900/oauth/token-request
+SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN=http://localhost:3900
 ```
+
+The test saves the org client through the form endpoint, `PUT /api/v2/org/agent-identity/snowflake/client`.
 
 With that backend running, run the whole sign-in and MCP SQL loop:
 
@@ -29,7 +27,7 @@ SITE_URL=http://localhost:<port> SNOWFLAKE_AI_STUB_URL=http://localhost:3900 pnp
 
 `SNOWFLAKE_AI_STUB_URL` is the URL the backend uses, including for the project's
 warehouse `accessUrl`. A containerised local backend needs a URL it can reach,
-such as `http://host.docker.internal:3900`, in both OAuth endpoints and
+such as `http://host.docker.internal:3900`, in both `SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN` and
 `SNOWFLAKE_AI_STUB_URL`.
 
 The test file is skipped when `SNOWFLAKE_AI_STUB_URL` is unset. When it is set,
@@ -38,6 +36,8 @@ point at this stub fails the test, so a misconfigured loop never passes
 silently. The test creates a project without a compile or refresh, so the
 preview's Postgres dbt profile is not used. It restores the org rule and flag
 override and deletes the AI credential, PATs, and project.
+The saved stub org client remains after the test: there is no client delete
+route, and the setup response omits the secret needed to restore an existing client.
 
 The preview runs the same stub as an internal sidecar. CI runs
 `pnpm -F api-tests test:api` against the preview and supplies

@@ -1,4 +1,8 @@
-import { getErrorMessage, QueryExecutionContext } from '@lightdash/common';
+import {
+    getErrorMessage,
+    QueryExecutionContext,
+    QueryHistoryStatus,
+} from '@lightdash/common';
 import { trace } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import { StringCodec, type Consumer, type JsMsg } from 'nats';
@@ -12,6 +16,7 @@ import {
 } from '../sentry/organizationNameResolver';
 import { type AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { continueTrace, traceSpan } from '../tracing/tracing';
+import { isConnectionProducedQuery } from '../utils/queryResultProducer';
 import {
     STREAM_CONFIGS,
     type AsyncQueryJobPayload,
@@ -162,14 +167,16 @@ export class NatsWorker {
               queryUuid: string,
               worker: string,
               queryTags?: AsyncQueryJobPayload['queryTags'],
+              onConnectionClaimed?: () => void,
           ) => Promise<boolean>)
         | null {
         if (subject === STREAM_CONFIGS.warehouse.subjects.query) {
-            return (queryUuid, worker, queryTags) =>
+            return (queryUuid, worker, queryTags, onConnectionClaimed) =>
                 this.asyncQueryService.runAsyncWarehouseQueryFromHistory(
                     queryUuid,
                     worker,
                     queryTags,
+                    onConnectionClaimed,
                 );
         }
 
@@ -178,29 +185,32 @@ export class NatsWorker {
             subject === STREAM_CONFIGS.duckdb.subjects.query ||
             (preAgg && subject === preAgg.subjects.duckdb)
         ) {
-            return (queryUuid, worker, queryTags) =>
+            return (queryUuid, worker, queryTags, onConnectionClaimed) =>
                 this.asyncQueryService.runAsyncDuckdbQueryFromHistory(
                     queryUuid,
                     worker,
                     queryTags,
+                    onConnectionClaimed,
                 );
         }
 
         if (preAgg && subject === preAgg.subjects.query) {
-            return (queryUuid, worker, queryTags) =>
+            return (queryUuid, worker, queryTags, onConnectionClaimed) =>
                 this.asyncQueryService.runAsyncPreAggregateQueryFromHistory(
                     queryUuid,
                     worker,
                     queryTags,
+                    onConnectionClaimed,
                 );
         }
 
         if (preAgg && subject === preAgg.subjects.materialization) {
-            return (queryUuid, worker, queryTags) =>
+            return (queryUuid, worker, queryTags, onConnectionClaimed) =>
                 this.asyncQueryService.runAsyncWarehouseQueryFromHistory(
                     queryUuid,
                     worker,
                     queryTags,
+                    onConnectionClaimed,
                 );
         }
 
@@ -214,6 +224,7 @@ export class NatsWorker {
             queryUuid: string,
             worker: string,
             queryTags?: AsyncQueryJobPayload['queryTags'],
+            onConnectionClaimed?: () => void,
         ) => Promise<boolean>,
     ): Promise<void> {
         const parsed = this.parseMessage(message);
@@ -233,6 +244,7 @@ export class NatsWorker {
             jobMetadata,
         );
 
+        let isConnectionQuery = false;
         try {
             const didRun = await NatsWorker.runWithAckProgress(message, () =>
                 continueTrace(
@@ -259,13 +271,17 @@ export class NatsWorker {
                                     },
                                 },
                                 async () => {
-                                    await this.applyQuerySentryContext(
-                                        parsed.payload.queryUuid,
-                                    );
+                                    isConnectionQuery =
+                                        await this.applyQuerySentryContext(
+                                            parsed.payload.queryUuid,
+                                        );
                                     return runQuery(
                                         parsed.payload.queryUuid,
                                         workerLabel,
                                         parsed.payload.queryTags,
+                                        () => {
+                                            isConnectionQuery = true;
+                                        },
                                     );
                                 },
                             ),
@@ -288,7 +304,13 @@ export class NatsWorker {
                 `Worker ${workerLabel} failed query job ${parsed.jobId ?? '<unknown>'} on ${message.subject}: ${getErrorMessage(error)}`,
                 { error, ...jobMetadata },
             );
-            message.nak();
+            const query = isConnectionQuery
+                ? await this.queryHistoryModel
+                      .getByQueryUuid(parsed.payload.queryUuid)
+                      .catch(() => null)
+                : null;
+            if (query?.status === QueryHistoryStatus.ERROR) message.term();
+            else message.nak();
         }
     }
 
@@ -357,11 +379,17 @@ export class NatsWorker {
         }
     }
 
-    private async applyQuerySentryContext(queryUuid: string): Promise<void> {
+    private async applyQuerySentryContext(queryUuid: string): Promise<boolean> {
+        let isConnectionQuery = false;
         try {
             const queryHistory =
                 await this.queryHistoryModel.getByQueryUuid(queryUuid);
-            if (!queryHistory) return;
+            if (!queryHistory) return false;
+            try {
+                isConnectionQuery = isConnectionProducedQuery(queryHistory);
+            } catch {
+                isConnectionQuery = true;
+            }
 
             const { organizationUuid, createdByUserUuid } = queryHistory;
 
@@ -403,6 +431,7 @@ export class NatsWorker {
                 `Failed to enrich Sentry context for query ${queryUuid}: ${getErrorMessage(error)}`,
             );
         }
+        return isConnectionQuery;
     }
 
     static async runWithAckProgress<T>(

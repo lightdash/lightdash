@@ -56,7 +56,8 @@ describe('agent result identity check configuration', () => {
 });
 
 describe('Snowflake AI OAuth configuration', () => {
-    it('reads the separate client and routes', () => {
+    it('ignores legacy OAuth environment settings', () => {
+        process.env.SNOWFLAKE_AI_OAUTH_ACCOUNT = 'legacy-account';
         process.env.SNOWFLAKE_AI_OAUTH_CLIENT_ID = 'ai-client';
         process.env.SNOWFLAKE_AI_OAUTH_CLIENT_SECRET = 'ai-secret';
         process.env.SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT =
@@ -64,14 +65,77 @@ describe('Snowflake AI OAuth configuration', () => {
         process.env.SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT =
             'https://snowflake.example/token';
         expect(parseConfig().auth.snowflakeAi).toEqual({
-            account: undefined,
-            clientId: 'ai-client',
-            clientSecret: 'ai-secret',
-            authorizationEndpoint: 'https://snowflake.example/authorize',
-            tokenEndpoint: 'https://snowflake.example/token',
             loginPath: '/login/snowflake-ai',
             callbackPath: '/oauth/redirect/snowflake-ai',
+            testAccountUrlOrigin: null,
         });
+    });
+    it.each([undefined, ''])(
+        'disables the test origin when it is %s',
+        (value) => {
+            if (value !== undefined)
+                process.env.SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN = value;
+            const warning = vi
+                .spyOn(console, 'warn')
+                .mockImplementation(() => {});
+            try {
+                expect(
+                    parseConfig().auth.snowflakeAi.testAccountUrlOrigin,
+                ).toBeNull();
+                expect(warning).not.toHaveBeenCalledWith(
+                    expect.stringContaining(
+                        'SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN',
+                    ),
+                );
+            } finally {
+                warning.mockRestore();
+            }
+        },
+    );
+    it.each(['http://snowflake-ai-stub:3900', 'https://localhost:3900'])(
+        'accepts the exact origin %s and warns once',
+        (value) => {
+            process.env.SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN = value;
+            const warning = vi
+                .spyOn(console, 'warn')
+                .mockImplementation(() => {});
+            try {
+                expect(
+                    parseConfig().auth.snowflakeAi.testAccountUrlOrigin,
+                ).toBe(value);
+                expect(
+                    warning.mock.calls.filter(([message]) =>
+                        String(message).includes(
+                            'SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN',
+                        ),
+                    ),
+                ).toEqual([[expect.stringContaining('for tests only')]]);
+            } finally {
+                warning.mockRestore();
+            }
+        },
+    );
+    it.each([
+        'not-a-url',
+        'null',
+        ' ',
+        'http://snowflake-ai-stub:3900/',
+        'http://snowflake-ai-stub:3900/path',
+        'http://snowflake-ai-stub:3900?query=value',
+        'http://snowflake-ai-stub:3900#fragment',
+        'http://user:secret@snowflake-ai-stub:3900',
+        'http://*.example:3900',
+        'http://SNOWFLAKE-AI-STUB:3900',
+        'http://snowflake-ai-stub:80',
+        ' http://snowflake-ai-stub:3900',
+        'http://snowflake-ai-stub:3900 ',
+        'file://snowflake-ai-stub',
+    ])('rejects an invalid test origin %s', (value) => {
+        process.env.SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN = value;
+        expect(() => parseConfig()).toThrow(ParseError);
+        expect(() => parseConfig()).toThrow(
+            'SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN',
+        );
     });
 });
 
@@ -2774,6 +2838,7 @@ describe('legacy feature-flag env vars (compat repair for trivial-batch)', () =>
             'organization-warehouse-credentials',
         ],
         ['METRIC_DASHBOARD_FILTERS_ENABLED', 'metric-dashboard-filters'],
+        ['APPS_RUNTIME_ENABLED', 'enable-data-apps'],
     ])('legacy %s=true translates to enabledFeatureFlags', (envVar, flagId) => {
         process.env[envVar] = 'true';
         const config = parseConfig();
@@ -3036,5 +3101,43 @@ describe('usage capture infrastructure', () => {
         delete process.env.LIGHTDASH_LICENSE_KEY;
         delete process.env.LIGHTDASH_LICENSE_CERTIFICATE;
         expect(parseConfig().usageEvents.enabled).toBe(false);
+    });
+});
+
+describe('Docker Hub update check', () => {
+    it('is enabled by default', () => {
+        expect(parseConfig().updateCheck.enabled).toBe(true);
+    });
+    it('is disabled with LIGHTDASH_DISABLE_UPDATE_CHECK=true', () => {
+        process.env.LIGHTDASH_DISABLE_UPDATE_CHECK = 'true';
+        expect(parseConfig().updateCheck.enabled).toBe(false);
+    });
+});
+
+describe('database transaction rollback logging', () => {
+    it('is disabled by default', () => {
+        expect(parseConfig().database.logTransactionRollbacks).toBe(false);
+    });
+    it('is enabled with PG_LOG_TRANSACTION_ROLLBACKS=true', () => {
+        process.env.PG_LOG_TRANSACTION_ROLLBACKS = 'true';
+        expect(parseConfig().database.logTransactionRollbacks).toBe(true);
+    });
+    it('treats any other value as disabled', () => {
+        process.env.PG_LOG_TRANSACTION_ROLLBACKS = 'yes';
+        expect(parseConfig().database.logTransactionRollbacks).toBe(false);
+    });
+});
+
+describe('database slow transaction threshold', () => {
+    it('is disabled by default', () => {
+        expect(parseConfig().database.slowTransactionThresholdMs).toBeNull();
+    });
+    it('treats 0 as disabled', () => {
+        process.env.PG_SLOW_TRANSACTION_THRESHOLD_MS = '0';
+        expect(parseConfig().database.slowTransactionThresholdMs).toBeNull();
+    });
+    it('reads a positive threshold in milliseconds', () => {
+        process.env.PG_SLOW_TRANSACTION_THRESHOLD_MS = '60000';
+        expect(parseConfig().database.slowTransactionThresholdMs).toBe(60000);
     });
 });

@@ -1,5 +1,6 @@
 import {
     BigqueryAuthenticationType,
+    DatabricksAuthenticationType,
     WarehouseTypes,
     type CreateBigqueryCredentials,
     type CreateWarehouseCredentials,
@@ -58,6 +59,34 @@ const selection = (): CredentialSelection<
     warehouseConnectionUuid: null,
     credentialKind: WarehouseCredentialKind.AI_SERVICE_ACCOUNT,
     aiPlan: null,
+});
+
+it('uses the slot key and disables connection user credentials', () => {
+    const connection = {
+        ...selection().connection,
+        allowUserCredentials: true,
+        requireUserCredentials: true,
+        keyfileContents: {
+            type: 'service_account',
+            client_email: 'connection@example.com',
+            private_key: 'connection-key',
+        },
+    };
+    const credentials =
+        new BigqueryAiServiceAccountCredentialResolver().buildCredentials(
+            connection,
+            secrets,
+        );
+
+    expect(credentials).toMatchObject({
+        authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+        keyfileContents: secrets.keyfileContents,
+        allowUserCredentials: false,
+        requireUserCredentials: false,
+    });
+    expect(credentials.keyfileContents).toStrictEqual(secrets.keyfileContents);
+    expect(credentials.keyfileContents).not.toEqual(connection.keyfileContents);
+    expect(credentials.keyfileContents.private_key).toBe('slot-key');
 });
 
 it('selects the explicit AI mode before connection SSO and materializes only once', async () => {
@@ -184,7 +213,7 @@ it.each([
             ...selection(),
             intent,
         }),
-    ).rejects.toThrow('service account');
+    ).rejects.toThrow('shared agent account');
 });
 
 it('separates slot, generation and source project but reuses identity across people', async () => {
@@ -228,4 +257,18 @@ it('separates slot, generation and source project but reuses identity across peo
             owner: { kind: 'project', uuid: 'project' },
         }),
     ).rejects.toThrow('owner');
+});
+
+it('rejects a parsed Databricks identity before constructing BigQuery credentials', () => {
+    expect(() =>
+        new BigqueryAiServiceAccountCredentialResolver().buildCredentials(
+            selection().connection,
+            {
+                type: WarehouseTypes.DATABRICKS,
+                authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+                oauthClientId: 'id',
+                oauthClientSecret: 'secret',
+            },
+        ),
+    ).toThrow('match the connection warehouse type');
 });

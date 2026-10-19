@@ -1,35 +1,23 @@
 import {
     assertUnreachable,
+    getSourceQueryResultReferences,
     QuerySourceType,
     type SourceQuery,
 } from '@lightdash/common';
 
-type PipelineNodeBase = {
+export type PipelineNode = {
     nodeId: string;
     title: string;
     description: string | null;
     isTerminal: boolean;
     /** Longest path from a source; 0 for nodes that read nothing. */
     depth: number;
-    /** Titles of the nodes this one reads; unknown array-form references stay as-is. */
+    /** Titles of the nodes this one reads; unknown references stay as-is. */
     reads: string[];
-    /** Node ids this one reads that resolve to nodes or placeholders in the pipeline. */
+    /** Node ids this one reads that resolve to nodes in the pipeline. */
     readNodeIds: string[];
-};
-
-export type PipelineQueryNode = PipelineNodeBase & {
-    kind: 'query';
     query: SourceQuery;
 };
-
-/** A map-form read of an earlier result that is not a node in the pipeline. */
-export type PipelinePlaceholderNode = PipelineNodeBase & {
-    kind: 'placeholder';
-};
-
-export type PipelineNode = PipelineQueryNode | PipelinePlaceholderNode;
-
-export const EARLIER_RESULT_NOTE = 'Earlier result';
 
 export type PipelineLayerKind = 'sources' | 'transformations' | 'result';
 
@@ -39,8 +27,8 @@ export type PipelineLayer = {
     nodes: PipelineNode[];
 };
 
-/** User-facing label of where a source node reads from; null for transformations. */
-export const sourceLabelOf = (query: SourceQuery): string | null => {
+/** User-facing node type: where a source reads from, or Python; null for DuckDB transformations. */
+export const nodeTypeLabelOf = (query: SourceQuery): string | null => {
     switch (query.sourceType) {
         case QuerySourceType.SEMANTIC_LAYER:
             return 'Semantic layer';
@@ -48,6 +36,8 @@ export const sourceLabelOf = (query: SourceQuery): string | null => {
             return 'Warehouse SQL';
         case QuerySourceType.EXTERNAL:
             return 'External data';
+        case QuerySourceType.PYTHON:
+            return 'Python';
         case QuerySourceType.DUCKDB:
             return null;
         default:
@@ -58,26 +48,13 @@ export const sourceLabelOf = (query: SourceQuery): string | null => {
 const nodeIdOf = (query: SourceQuery, index: number) =>
     query.nodeId ?? `query_${index + 1}`;
 
-type Reference = { alias: string | null; value: string };
-
-const referencesOf = (query: SourceQuery): Reference[] => {
-    if (query.sourceType !== QuerySourceType.DUCKDB || !query.references)
-        return [];
-    return Array.isArray(query.references)
-        ? query.references.map((value) => ({ alias: null, value }))
-        : Object.entries(query.references).map(([alias, value]) => ({
-              alias,
-              value,
-          }));
-};
-
-const placeholderIdOf = (reference: string) => `earlier:${reference}`;
+const referencesOf = (query: SourceQuery): string[] =>
+    Object.values(getSourceQueryResultReferences(query));
 
 /**
  * Layers a pipeline by longest path from a source, so a fan-in join lands
  * after everything it reads. The terminal node alone forms the last (result)
  * layer wherever it sits. Cycles and unknown references count as depth 0.
- * Unknown map-form references become placeholder source nodes named by alias.
  */
 export const groupPipeline = (
     queries: SourceQuery[],
@@ -89,32 +66,11 @@ export const groupPipeline = (
     }));
     const byId = new Map(entries.map((entry) => [entry.nodeId, entry]));
 
-    const placeholders = new Map<string, PipelinePlaceholderNode>();
-    entries.forEach(({ query }) =>
-        referencesOf(query).forEach(({ alias, value }) => {
-            if (alias === null || byId.has(value)) return;
-            const nodeId = placeholderIdOf(value);
-            if (placeholders.has(nodeId)) return;
-            placeholders.set(nodeId, {
-                kind: 'placeholder',
-                nodeId,
-                title: alias,
-                description: EARLIER_RESULT_NOTE,
-                isTerminal: false,
-                depth: 0,
-                reads: [],
-                readNodeIds: [],
-            });
-        }),
-    );
-
-    const resolveRead = ({ value }: Reference) => {
+    const resolveRead = (value: string) => {
         const entry = byId.get(value);
-        if (entry) return { nodeId: value, title: entry.query.title ?? value };
-        const placeholder = placeholders.get(placeholderIdOf(value));
-        if (placeholder)
-            return { nodeId: placeholder.nodeId, title: placeholder.title };
-        return { nodeId: null, title: value };
+        return entry
+            ? { nodeId: value, title: entry.query.title ?? value }
+            : { nodeId: null, title: value };
     };
     const readsOf = (query: SourceQuery) =>
         referencesOf(query).map(resolveRead);
@@ -144,20 +100,16 @@ export const groupPipeline = (
     };
     entries.forEach((entry) => depthOf(entry.nodeId, new Set()));
 
-    const nodes: PipelineNode[] = [
-        ...entries.map<PipelineQueryNode>(({ nodeId, query }) => ({
-            kind: 'query',
-            nodeId,
-            title: query.title ?? nodeId,
-            description: query.description ?? null,
-            isTerminal: nodeId === terminalNodeId,
-            depth: depths.get(nodeId)!,
-            reads: readsOf(query).map(({ title }) => title),
-            readNodeIds: readNodeIdsOf(query),
-            query,
-        })),
-        ...placeholders.values(),
-    ];
+    const nodes = entries.map<PipelineNode>(({ nodeId, query }) => ({
+        nodeId,
+        title: query.title ?? nodeId,
+        description: query.description ?? null,
+        isTerminal: nodeId === terminalNodeId,
+        depth: depths.get(nodeId)!,
+        reads: readsOf(query).map(({ title }) => title),
+        readNodeIds: readNodeIdsOf(query),
+        query,
+    }));
     const terminal = nodes.filter((node) => node.isTerminal);
     const others = nodes.filter((node) => !node.isTerminal);
     const layerDepths = [...new Set(others.map((node) => node.depth))].sort(

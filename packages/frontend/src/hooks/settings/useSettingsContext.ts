@@ -2,11 +2,9 @@ import { subject } from '@casl/ability';
 import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
 import { matchPath, useLocation } from 'react-router';
 import { useIsGitProject } from '../../components/Explorer/WriteBackModal/hooks';
-import { shouldShowMyAgentConnections } from '../../components/UserSettings/MyAgentConnectionsPanel/visibility';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useAiCreditUsage } from '../../ee/features/aiCredits/hooks/useAiCreditUsage';
 import { useContentReviewAvailability } from '../../ee/features/contentReview/hooks/useContentReviewAvailability';
-import { useOrganizationAgentIdentitySettings } from '../../features/aiAccess/api';
 import useApp from '../../providers/App/useApp';
 import { useOrganization } from '../organization/useOrganization';
 import { useActiveProjectUuid } from '../useActiveProject';
@@ -36,11 +34,7 @@ export const useSettingsContext = (): SettingsContext => {
         data: agentIdentityFlag,
         isInitialLoading: isAgentIdentityFlagLoading,
     } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
-    const agentIdentitySettings = useOrganizationAgentIdentitySettings();
-    const showMyAgentConnections = shouldShowMyAgentConnections(
-        agentIdentityFlag?.enabled === true,
-        agentIdentitySettings.data?.rules ?? [],
-    );
+    const showMyAgentConnections = agentIdentityFlag?.enabled === true;
     const aiOrganizationSettingsQuery = useAiOrganizationSettings();
     const isAiCopilotEnabledOrTrial =
         aiOrganizationSettingsQuery.isSuccess &&
@@ -89,14 +83,6 @@ export const useSettingsContext = (): SettingsContext => {
         FeatureFlags.EnableDataAppAnalysis,
     );
     const { data: dataAppAnalysisFlag } = dataAppAnalysisFlagQuery;
-    // Data apps > General holds a single setting (automatic thumbnails), so its
-    // sidebar entry follows that flag. Drop this once another setting lands
-    // there; the route itself is not gated.
-    const dataAppAutomaticThumbnailsFlagQuery = useServerFeatureFlag(
-        FeatureFlags.EnableDataAppAutomaticThumbnails,
-    );
-    const isDataAppGeneralSettingsEnabled =
-        dataAppAutomaticThumbnailsFlagQuery.data?.enabled ?? false;
 
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
@@ -240,9 +226,7 @@ export const useSettingsContext = (): SettingsContext => {
 
     return {
         showMyAgentConnections,
-        isMyAgentConnectionsLoading:
-            isAgentIdentityFlagLoading ||
-            agentIdentitySettings.isInitialLoading,
+        isMyAgentConnectionsLoading: isAgentIdentityFlagLoading,
         user,
         health,
         organization,
@@ -267,7 +251,6 @@ export const useSettingsContext = (): SettingsContext => {
             aiOrganizationSettingsQuery.isInitialLoading,
         dataAppsFlag,
         dataAppAnalysisFlag,
-        isDataAppGeneralSettingsEnabled,
         isDataAppsFlagLoading:
             dataAppsFlagQuery.isInitialLoading ||
             dataAppAnalysisFlagQuery.isInitialLoading,

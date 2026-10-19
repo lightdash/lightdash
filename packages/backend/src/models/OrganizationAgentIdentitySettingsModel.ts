@@ -19,6 +19,10 @@ export class OrganizationAgentIdentitySettingsModel {
 
     private readonly rulesModel: OrganizationAgentIdentityRulesModel;
 
+    get db(): Knex {
+        return this.database;
+    }
+
     constructor({
         database,
         rulesModel,
@@ -58,13 +62,7 @@ export class OrganizationAgentIdentitySettingsModel {
                 .select('organization_uuid')
                 .forUpdate()
                 .first();
-            const previous =
-                await transaction<DbOrganizationAgentIdentitySettings>(
-                    'organization_agent_identity_settings',
-                )
-                    .where('organization_uuid', organizationUuid)
-                    .first();
-            await this.rulesModel.set(
+            const { previousSource, changed } = await this.rulesModel.set(
                 organizationUuid,
                 WarehouseTypes.SNOWFLAKE,
                 {
@@ -79,12 +77,8 @@ export class OrganizationAgentIdentitySettingsModel {
                     requireVerifiedAgentSessions:
                         settings.requireVerifiedAgentSessions,
                 },
-                changed:
-                    (previous?.require_verified_agent_sessions ?? false) !==
-                    settings.requireVerifiedAgentSessions,
-                previousSource: previous?.require_verified_agent_sessions
-                    ? 'agent_sign_in'
-                    : 'marked_person',
+                changed,
+                previousSource,
             };
         });
     }

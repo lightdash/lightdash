@@ -1,0 +1,120 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`keeps the ordinary help bytes for "--help" 1`] = `
+"Usage: ⚡️lightdash [options] [command]
+
+Developer tools for dbt and Lightdash.
+See https://docs.lightdash.com for more help and examples
+
+Options:
+  -V, --version                           output the version number
+  --non-interactive                       Disable all interactive prompts. Commands fail with helpful error if required input is missing.
+  -h, --help                              display help for command
+
+Commands:
+  upgrade-check [options]                 Check release safety for an upgrade using the public release index
+  connect-snowflake [options]             Connects Lightdash to Snowflake using browser-based SSO
+  login [options] [url]                   Logs in to a Lightdash instance using OAuth2 (opens browser). Use --token to bypass OAuth.
+  
+  URL is optional - if not provided, uses the last URL you logged into. URL can be flexible: single words like "app" become "https://app.lightdash.cloud", protocol defaults to https, and paths are ignored.
+  
+  👀 See https://docs.lightdash.com/guides/cli/cli-authentication for more help and examples
+  agent                                   Connect your agent to the warehouse and check its status
+  config                                  Sets configuration
+  dbt                                     Runs dbt commands
+  compile [options]                       Compiles Lightdash resources
+  preview [options]                       Creates a new preview project - waits for a keypress to stop
+  start-preview [options]                 Creates a new preview project
+  stop-preview [options]                  Deletes preview project
+  download [options]                      Downloads project or organization content as code
+  upload [options]                        Uploads project or organization content as code
+  apps                                    Work with data apps (enterprise)
+  deploy [options]                        Compiles and deploys a Lightdash project
+  refresh [options]                       Refreshes Lightdash project with remote repository
+  validate [options]                      Validates a project
+  generate [options]                      Generates a new schema.yml file for model
+  rename [options]                        Rename models and fields on Lightdash content
+  slug-update [options]                   Rename a chart or dashboard slug and update its local references
+  generate-exposures [options]            [Experimental command] Generates a .yml file for Lightdash exposures
+  diagnostics [options]                   Shows diagnostic information about the CLI environment
+  lint [options]                          Validates Lightdash Code files (models, charts, dashboards) against JSON schemas
+  warehouse-catalog [options]             Explore the selected project's raw warehouse databases, schemas, tables, and fields
+  pre-aggregate-audit [options]           Audit pre-aggregate hit/miss coverage for a dashboard (or every dashboard with --all)
+  pre-aggregate-check-external [options]  Generate the expected table shape and materialization SQL for an external pre-aggregate, and check the declared table against it. Runs fully locally against the dbt project and warehouse credentials from profiles.yml.
+  sql [options] <query>                   Run raw SQL query against the warehouse using project credentials
+  run-chart [options]                     Execute a chart YAML to verify the query runs
+  set-warehouse [options]                 Update a project's warehouse connection from dbt profiles.yml. Use --assume-yes for non-interactive/CI usage. For organization-managed credentials, use the Lightdash UI.
+  export-chart-image [options] <chart>    Export a deployed chart as a PNG image. The chart must already exist on the server.
+  install-skills [options]                Installs Lightdash skills for AI coding assistants (Claude, Cursor, Codex)
+  help [command]                          display help for command
+
+Examples:
+  ⚡️lightdash generate -- generates .yml file for all dbt models
+  ⚡️lightdash generate -s mymodel -- generates .yml file for a single dbt model
+  ⚡️lightdash generate -s model1 model2 -- generates .yml for multiple dbt models
+  ⚡️lightdash generate -s tag:sales -- generates .yml for all dbt models tagged as sales
+  ⚡️lightdash generate -s +mymodel -- generates .yml for mymodel and all it's parents
+  ⚡️lightdash generate --help -- shows detailed help for the "generate" command
+  ⚡️lightdash dbt run -- runs dbt for all models and updates .yml for all models
+  ⚡️lightdash dbt run -s model1 model2+ tag:dev -- runs dbt for models and generates .yml for affected models
+  ⚡️lightdash dbt run --help -- shows detailed help for the "dbt run" command
+  ⚡️lightdash compile -- compiles Lightdash metrics and dimensions
+  ⚡️lightdash deploy -- compiles and deploys Lightdash metrics to active project
+  ⚡️lightdash login https://lightdash.domain.com -- logs in to a Lightdash instance
+
+"
+`;
+
+exports[`keeps the ordinary help bytes for "agent" 1`] = `
+"Usage: ⚡️lightdash agent [options] [command]
+
+Connect your agent to the warehouse and check its status
+
+Options:
+  -h, --help         display help for command
+
+Commands:
+  connect [options]  Connects your agent to the warehouse using browser sign-in
+  status [options]   Shows your agent sign-in status for a project
+  help [command]     display help for command
+"
+`;
+
+exports[`keeps the ordinary help bytes for "agent" 2`] = `
+"Usage: ⚡️lightdash agent status [options]
+
+Shows your agent sign-in status for a project
+
+Options:
+  --project <project uuid or slug>  Specify the project
+  --verbose                          (default: false)
+  -h, --help                        display help for command
+
+Examples:
+  lightdash agent status
+  lightdash agent status --project my-project
+
+"
+`;
+
+exports[`keeps the ordinary help bytes for "agent" 3`] = `
+"Usage: ⚡️lightdash agent connect [options]
+
+Connects your agent to the warehouse using browser sign-in
+
+Options:
+  --project <project uuid or slug>  Specify the project
+  --oauth-port <port>               Port for the local callback server
+                                    (default: LIGHTDASH_OAUTH_PORT or a random
+                                    available port)
+  --timeout <seconds>               Seconds the connect link stays valid while
+                                    the CLI waits for approval (default: 180)
+  --verbose                          (default: false)
+  -h, --help                        display help for command
+
+Examples:
+  lightdash agent connect
+  lightdash agent connect --project my-project --oauth-port 4321 --timeout 180
+
+"
+`;

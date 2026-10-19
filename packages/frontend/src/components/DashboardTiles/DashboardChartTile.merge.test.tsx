@@ -10,6 +10,7 @@ import {
     MetricType,
     QueryHistoryStatus,
     SupportedDbtAdapter,
+    WarehouseTypes,
     type ApiExploreResults,
     type CompiledDimension,
     type CompiledMetric,
@@ -174,6 +175,11 @@ const compiledMetric = (
 
 const ordersExplore: ApiExploreResults = {
     warehouseConnectionUuid: null,
+    warehouseConnection: {
+        warehouseConnectionUuid: null,
+        warehouseType: WarehouseTypes.POSTGRES,
+        startOfWeek: null,
+    },
     name: 'orders',
     label: 'Orders',
     tags: [],

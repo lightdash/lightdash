@@ -1,15 +1,15 @@
 import {
+    FeatureFlags,
     ChartKind,
-    DimensionType,
     getComposerVizPanelOptions,
-    VizIndexType,
     getComposerVizPanelValue,
     switchComposerVizKind,
     type AiComposerChartArtifactConfig,
     type AllVizChartConfig,
+    type ApiAiAgentComposerArtifactVizQuery,
+    type ApiError,
     type ComposerVizKind,
     type ComposerVizPanelOptions,
-    type ResultColumn,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Stack, Tooltip } from '@mantine/core';
 import { useDebouncedCallback } from '@mantine/hooks';
@@ -19,6 +19,9 @@ import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
+import { getAiAgentArtifactResultsUrl } from '../../hooks/aiAgentRouting';
 import { useUpdateComposerVizConfig } from '../../hooks/useAiAgentArtifacts';
 import styles from './AiArtifactPanel.module.css';
 import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualization';
@@ -28,38 +31,11 @@ import {
     type AiComposerVizConfigPanelMode,
 } from './composerVizConfig/AiComposerVizConfigPanel';
 import { useArtifactResultRows } from './useArtifactResultRows';
+import { useComposerRunNodeStatuses } from './useComposerRunNodeStatuses';
 
 const SAVE_DELAY_MS = 400;
 const READ_ONLY_REASON =
     'Only the thread owner or an agent admin can change this chart';
-const EXPIRED_REASON = 'These results have expired, so the chart is read-only';
-
-/** Columns an expired result's stored viz config names, so its controls can still show it. */
-const columnsOfVizConfig = (vizConfig: AllVizChartConfig): ResultColumn[] => {
-    if (vizConfig.type === ChartKind.TABLE || !vizConfig.fieldConfig) return [];
-    const { x, y, groupBy } = vizConfig.fieldConfig;
-    return [
-        ...(x
-            ? [
-                  {
-                      reference: x.reference,
-                      type:
-                          x.type === VizIndexType.TIME
-                              ? DimensionType.DATE
-                              : DimensionType.STRING,
-                  },
-              ]
-            : []),
-        ...y.map((item) => ({
-            reference: item.reference,
-            type: DimensionType.NUMBER,
-        })),
-        ...(groupBy ?? []).map((item) => ({
-            reference: item.reference,
-            type: DimensionType.STRING,
-        })),
-    ];
-};
 
 type Props = {
     projectUuid: string;
@@ -69,15 +45,17 @@ type Props = {
     title: string;
     description: string | null;
     config: AiComposerChartArtifactConfig;
+    /** The run started on open; null while it starts or when it failed. */
+    run: ApiAiAgentComposerArtifactVizQuery | null;
+    runError: ApiError | null;
+    onRerun: () => void;
     /** Whether edits on the terminal node are written to the artifact version. */
     canEdit: boolean;
     onClose: (() => void) | null;
 };
 
-const EMPTY_NODE_RESULTS = new Set<string>();
-
 // Composer artifact: the displayed node result, the viz config panel under it,
-// the pipeline panel at the bottom. Keyed per version so a new run resets it.
+// the pipeline panel at the bottom. Keyed per version so a new version resets it.
 export const AiComposerArtifactPanel: FC<Props> = ({
     projectUuid,
     agentUuid,
@@ -86,32 +64,51 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     title,
     description,
     config,
+    run,
+    runError,
+    onRerun,
     canEdit,
     onClose,
 }) => {
+    const isEmbed = useIsEmbedded();
+    const identityFlag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
+    const identityEnabled = identityFlag.data?.enabled === true;
     const [displayedNodeId, setDisplayedNodeId] = useState(
         config.terminalNodeId,
     );
     const isTerminalDisplayed = displayedNodeId === config.terminalNodeId;
+    const nodeQueryUuids = run?.nodeQueryUuids ?? null;
     const displayableNodeIds = useMemo(
-        () =>
-            config.nodeResults
-                ? new Set(Object.keys(config.nodeResults))
-                : EMPTY_NODE_RESULTS,
-        [config.nodeResults],
+        () => new Set(Object.keys(nodeQueryUuids ?? {})),
+        [nodeQueryUuids],
     );
+    const nodeStatuses = useComposerRunNodeStatuses({
+        projectUuid,
+        nodeQueryUuids,
+    });
     const displayedNode = useMemo(
         () =>
             config.queries.find((query) => query.nodeId === displayedNodeId) ??
             null,
         [config.queries, displayedNodeId],
     );
-    // The terminal node's stored snapshot predates per-node results.
-    const queryUuid = isTerminalDisplayed
-        ? config.lastQueryUuid
-        : config.nodeResults?.[displayedNodeId]?.queryUuid;
+    const queryUuid = nodeQueryUuids?.[displayedNodeId];
 
-    const results = useInfiniteQueryResults(projectUuid, queryUuid);
+    const results = useInfiniteQueryResults(
+        projectUuid,
+        isEmbed || !identityFlag.isLoading ? queryUuid : undefined,
+        undefined,
+        identityEnabled && !isEmbed && queryUuid
+            ? getAiAgentArtifactResultsUrl({
+                  projectUuid,
+                  agentUuid,
+                  artifactUuid,
+                  versionUuid,
+                  queryUuid,
+                  cached: false,
+              })
+            : null,
+    );
     const { columns, rows, isLoading } = useArtifactResultRows(results);
     const storedVizConfig = isTerminalDisplayed
         ? (config.vizConfig ?? null)
@@ -135,19 +132,15 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     const [rememberedCharts, setRememberedCharts] = useState<
         Record<string, AllVizChartConfig>
     >({});
-    const isResultReady = !isLoading && !results.error;
+    const isResultReady = !isLoading && !results.error && !runError;
     const value = isResultReady
         ? (editedValues[displayedNodeId] ?? derivedValue)
         : (editedValues[displayedNodeId] ?? storedVizConfig ?? derivedValue);
-    const isExpired = !!results.error;
-    const panelColumns = useMemo(
-        () => (isExpired ? columnsOfVizConfig(value) : columns),
-        [isExpired, value, columns],
+    const options = useMemo(
+        (): ComposerVizPanelOptions =>
+            getComposerVizPanelOptions(value, columns, rows),
+        [value, columns, rows],
     );
-    const options = useMemo((): ComposerVizPanelOptions => {
-        const available = getComposerVizPanelOptions(value, panelColumns, rows);
-        return isExpired ? { ...available, kinds: [] } : available;
-    }, [value, panelColumns, rows, isExpired]);
 
     const { mutate: saveVizConfig } = useUpdateComposerVizConfig({
         projectUuid,
@@ -186,18 +179,10 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     };
 
     const panelMode = ((): AiComposerVizConfigPanelMode => {
-        // An expired terminal result still opens onto its stored viz config, read-only.
-        if (isExpired)
-            return isTerminalDisplayed && storedVizConfig
-                ? 'expandable'
-                : 'static';
         if (!isResultReady || options.kinds.length <= 1) return 'static';
         return isTerminalDisplayed ? 'expandable' : 'switcher';
     })();
-    const fieldsDisabledReason = ((): string | null => {
-        if (isExpired) return EXPIRED_REASON;
-        return isWritable ? null : READ_ONLY_REASON;
-    })();
+    const fieldsDisabledReason = isWritable ? null : READ_ONLY_REASON;
     // Only one of Chart and Queries is open at a time.
     const [isChartOpen, setIsChartOpen] = useState(false);
     const [isPipelineOpen, setIsPipelineOpen] = useState(false);
@@ -254,6 +239,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                     displayedNodeId={displayedNodeId}
                     displayableNodeIds={displayableNodeIds}
                     onDisplayNode={setDisplayedNodeId}
+                    nodeStatuses={nodeStatuses}
                     expanded={isPipelineOpen}
                     onExpandedChange={(open) => {
                         setIsPipelineOpen(open);
@@ -262,7 +248,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                 >
                     <AiComposerVizConfigPanel
                         value={value}
-                        columns={panelColumns}
+                        columns={columns}
                         options={options}
                         onChange={setValue}
                         onKindChange={changeKind}
@@ -278,6 +264,8 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                             projectUuid={projectUuid}
                             results={results}
                             queryUuid={queryUuid ?? null}
+                            runError={runError}
+                            onRerun={onRerun}
                             vizConfig={value}
                             headerContent={head}
                             flush

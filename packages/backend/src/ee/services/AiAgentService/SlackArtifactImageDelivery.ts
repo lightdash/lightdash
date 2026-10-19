@@ -1,4 +1,9 @@
+import { AiAccessRefusedError } from '@lightdash/common';
 import { type Block, type KnownBlock } from '@slack/web-api';
+import {
+    type AgentDeliveryGuard,
+    type ParsedAgentWorkMarker,
+} from '../../../services/AgentPermissionService/agentWorkAuthority';
 import { type SlackArtifactRenderInput } from '../../database/entities/aiSlackArtifactDeliveries';
 import {
     SLACK_ARTIFACT_DELIVERY_MAX_ATTEMPTS,
@@ -28,20 +33,24 @@ export type SlackArtifactDeliveryRuntime = {
 
 /** Runs only after the answer is available. The scheduler serializes by prompt;
  * retries read persisted images and patch the current message rather than post. */
-export const deliverSlackArtifactImages = async ({
-    promptUuid,
-    model,
-    prepare,
-    signal,
-}: {
-    promptUuid: string;
-    model: Pick<
-        AiSlackArtifactDeliveryModel,
-        'claim' | 'get' | 'setMessage' | 'saveImage' | 'finish'
-    >;
-    prepare: () => Promise<SlackArtifactDeliveryRuntime | null>;
-    signal?: AbortSignal;
-}): Promise<void> => {
+export const deliverSlackArtifactImages = async (
+    {
+        promptUuid,
+        model,
+        prepare,
+        signal,
+    }: {
+        promptUuid: string;
+        model: Pick<
+            AiSlackArtifactDeliveryModel,
+            'claim' | 'get' | 'setMessage' | 'saveImage' | 'finish'
+        >;
+        prepare: () => Promise<SlackArtifactDeliveryRuntime | null>;
+        signal?: AbortSignal;
+    },
+    agentWork: ParsedAgentWorkMarker = { status: 'absent' },
+    deliveryGuard: AgentDeliveryGuard | null = null,
+): Promise<void> => {
     const delivery = await model.claim(promptUuid);
     if (!delivery) return;
     try {
@@ -82,7 +91,10 @@ export const deliverSlackArtifactImages = async ({
                         // eslint-disable-next-line no-await-in-loop
                         await model.saveImage(promptUuid, version, url);
                     } else unavailable = true;
-                } catch {
+                } catch (error) {
+                    const failure = deliveryGuard?.getFailure();
+                    if (agentWork.status === 'valid' && failure)
+                        throw failure.error;
                     // Persisted successes can be delivered even when another chart
                     // is temporarily unavailable; only failed renders repeat.
                     retryNeeded = true;
@@ -148,6 +160,13 @@ export const deliverSlackArtifactImages = async ({
             delivery.attempts,
         );
     } catch (error) {
+        if (
+            agentWork.status === 'valid' &&
+            error instanceof AiAccessRefusedError
+        ) {
+            await model.finish(promptUuid, 'cancelled', delivery.attempts);
+            return;
+        }
         if (delivery.attempts >= SLACK_ARTIFACT_DELIVERY_MAX_ATTEMPTS)
             await model.finish(promptUuid, 'unavailable', delivery.attempts);
         throw error;

@@ -1,7 +1,7 @@
 import { Button, MantineProvider, Modal } from '@mantine/core';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import MantineModal, { type MantineModalProps } from './index';
 import { useMantineModalClose } from './useMantineModalClose';
@@ -221,5 +221,40 @@ describe('MantineModal accessibility', () => {
             }),
         );
         expect(onClose).toHaveBeenCalledOnce();
+    });
+});
+
+describe('MantineModal form isolation', () => {
+    it('keeps a submit from a form inside the modal away from a form around it', async () => {
+        const user = userEvent.setup();
+        const onPageSubmit = vi.fn((event: FormEvent) =>
+            event.preventDefault(),
+        );
+        const onModalSubmit = vi.fn((event: FormEvent) =>
+            event.preventDefault(),
+        );
+        render(
+            <MantineProvider env="test">
+                <form onSubmit={onPageSubmit}>
+                    <MantineModal
+                        opened
+                        title="Create MCP server"
+                        onClose={vi.fn()}
+                        actions={
+                            <Button type="submit" form="create-mcp-server">
+                                Create
+                            </Button>
+                        }
+                    >
+                        <form id="create-mcp-server" onSubmit={onModalSubmit}>
+                            <input aria-label="URL" />
+                        </form>
+                    </MantineModal>
+                </form>
+            </MantineProvider>,
+        );
+        await user.click(screen.getByRole('button', { name: 'Create' }));
+        expect(onModalSubmit).toHaveBeenCalledOnce();
+        expect(onPageSubmit).not.toHaveBeenCalled();
     });
 });

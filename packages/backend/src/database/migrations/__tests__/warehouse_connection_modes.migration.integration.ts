@@ -18,9 +18,29 @@ const MIGRATION_NAMES = [
 
 const LATER_MIGRATIONS_REFERENCING_CONNECTIONS = [
     '20261008120000_add_ai_service_account_credentials',
+    '20261009223647_create_credentials_tables',
+    '20261011000000_add_agent_capability_policies',
+    '20261011000001_add_agent_policy_allowed_users',
+    '20261011000004_add_agent_policy_allowed_groups',
+    '20261011000005_add_agent_policy_allowed_capabilities',
 ] as const;
 
-const LATER_TABLES = ['ai_service_account_credentials'];
+const LATER_TABLES = [
+    'ai_service_account_credentials',
+    'credentials',
+    'credential_token_state',
+    'credential_bindings',
+    'organization_agent_capability_policies',
+    'organization_agent_system_role_capabilities',
+    'agent_warehouse_restriction_confirmations',
+];
+
+const LATER_COLUMNS = [
+    'warehouse_credentials.warehouse_credential_generation',
+    'organization_warehouse_credentials.organization_credential_generation',
+    'agent_action_log.capability',
+    'agent_action_log.policy_version',
+];
 
 const NEW_TABLES = [
     'warehouse_connections',
@@ -1159,6 +1179,7 @@ describe('warehouse connection mode schema on every migration', () => {
                 ({ table, column }) =>
                     !NEW_TABLES.includes(table) &&
                     !LATER_TABLES.includes(table) &&
+                    !LATER_COLUMNS.includes(`${table}.${column}`) &&
                     !beforeColumns.some(
                         (before) =>
                             before.table === table && before.column === column,

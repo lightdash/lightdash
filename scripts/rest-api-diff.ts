@@ -49,6 +49,8 @@ export interface ApiSurface {
 
 export const SPEC_PATH = 'packages/backend/src/generated/swagger.json';
 
+export const REST_FINDING_SEPARATOR = ' — ';
+
 /** Cap on rendered change lines so a large breaking diff can't bloat the marker. */
 const MAX_CHANGES = 50;
 
@@ -81,7 +83,7 @@ export function summarizeBreaking(items: OasdiffItem[]): {
 } {
     const render = (it: OasdiffItem): string => {
         const op = it.operation ? `${it.operation} ` : '';
-        const p = it.path ? `${it.path} — ` : '';
+        const p = it.path ? `${it.path}${REST_FINDING_SEPARATOR}` : '';
         return `${op}${p}${it.text}`.trim();
     };
     const errItems = items.filter((item) => item.level === undefined || item.level >= 3);

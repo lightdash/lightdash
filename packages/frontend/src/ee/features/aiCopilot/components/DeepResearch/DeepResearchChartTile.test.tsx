@@ -145,6 +145,7 @@ describe('DeepResearchChartTile', () => {
             'project-1',
             'live-query-uuid',
             chart.title,
+            '/ee/projects/project-1/ai-deep-research/run-1/queries/live-query-uuid/results?',
         );
         expect(screen.getByTestId('visualization')).toHaveAttribute(
             'data-display-fields',

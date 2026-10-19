@@ -1,0 +1,22 @@
+version: 2
+models:
+  - name: rs_orders
+    description: Redshift stand-in fixture on Postgres (see README). Not real Redshift.
+    columns:
+      - name: order_id
+        meta:
+          dimension: { type: number }
+          metrics:
+            order_count: { type: count_distinct }
+      - name: store_id
+        meta: { dimension: { type: number } }
+      - name: region
+        meta: { dimension: { type: string } }
+      - name: order_date
+        meta:
+          dimension: { type: date, time_intervals: ['DAY', 'WEEK', 'MONTH'] }
+      - name: order_total
+        meta:
+          dimension: { type: number }
+          metrics:
+            total_sales: { type: sum, round: 2 }

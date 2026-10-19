@@ -48,6 +48,10 @@ import {
     ClientProviderMap,
     ClientRepository,
 } from './clients/ClientRepository';
+import {
+    startDockerHubVersionPolling,
+    stopDockerHubVersionPolling,
+} from './clients/DockerHub/DockerHub';
 import { setGithubRateLimitObserver } from './clients/github/Github';
 import { SlackClient } from './clients/Slack/SlackClient';
 import { createStaticAssetsFallbackHandler } from './clients/StaticAssets/staticAssetsFallbackMiddleware';
@@ -65,6 +69,10 @@ import {
     oneLoginPassportStrategy,
     OpenIDClientOktaStrategy,
 } from './controllers/authentication';
+import {
+    AGENT_CONNECTION_REQUEST_PATH,
+    parseAgentConnectionApprovalBody,
+} from './controllers/authentication/agentConnectionApproval';
 import { databricksPassportStrategy } from './controllers/authentication/strategies/databricksStrategy';
 import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
 import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
@@ -133,6 +141,9 @@ const schedulerWorkerFactory = (context: {
     prometheusMetrics?: PrometheusMetrics;
 }) =>
     new SchedulerWorker({
+        getAgentConnectionGrantService: () =>
+            context.serviceRepository.getAgentConnectionGrantService(),
+        agentActionLogModel: context.models.getAgentActionLogModel(),
         usageDimensionsModel: context.models.getUsageDimensionsModel(),
         featureFlagModel: context.models.getFeatureFlagModel(),
         lightdashConfig: context.lightdashConfig,
@@ -170,6 +181,8 @@ const schedulerWorkerFactory = (context: {
             context.serviceRepository.getEmailWhitelabelService(),
         warehouseConnectCodeModel:
             context.models.getWarehouseConnectCodeModel(),
+        agentConnectionApprovalRequestModel:
+            context.models.getAgentConnectionApprovalRequestModel(),
         aiUsageLedgerModel: context.models.getAiUsageLedgerModel(),
         learnSandboxService: context.serviceRepository.getLearnSandboxService(),
         resolveOrganizationName: createOrganizationNameResolver(
@@ -265,7 +278,6 @@ export default class App {
         this.eventStreamWriter = createEventStreamWriter(
             this.lightdashConfig,
             this.prometheusMetrics,
-            () => this.models.getFeatureFlagModel(),
         );
         this.analytics = new LightdashAnalytics({
             lightdashConfig: this.lightdashConfig,
@@ -291,6 +303,12 @@ export default class App {
             this.environment === 'production'
                 ? args.knexConfig.production
                 : args.knexConfig.development,
+            {
+                logRollbacks:
+                    this.lightdashConfig.database.logTransactionRollbacks,
+                slowTransactionThresholdMs:
+                    this.lightdashConfig.database.slowTransactionThresholdMs,
+            },
         );
         this.utils = new UtilRepository({
             utilProviders: args.utilProviders,
@@ -353,6 +371,9 @@ export default class App {
         this.featureFlagCheckFlushInterval.unref();
 
         this.prometheusMetrics.start();
+        if (this.lightdashConfig.updateCheck.enabled) {
+            startDockerHubVersionPolling();
+        }
         MotherduckInstanceCache.configure(
             this.lightdashConfig.motherduckInstanceCache,
         );
@@ -506,6 +527,14 @@ export default class App {
             );
         }
 
+        expressApp.post(
+            [
+                AGENT_CONNECTION_REQUEST_PATH,
+                `${AGENT_CONNECTION_REQUEST_PATH}/:requestUuid/decision`,
+            ],
+            parseAgentConnectionApprovalBody,
+        );
+
         // Raise body-parser limit for the data-apps gsheet export route only.
         // Must run BEFORE the global parser below — `express.json()` is a no-op
         // when `req.body` is already populated, so whichever parser sees the
@@ -651,10 +680,18 @@ export default class App {
 
         expressApp.use(helmet(helmetConfig));
 
-        // Allow MCP-related icons to be embedded cross-origin so MCP hosts
-        // (e.g. claude.ai) can display them in connector listings.
+        // Allow site icons to be embedded cross-origin so MCP hosts
+        // (e.g. claude.ai) can display them in connector listings. Claude
+        // reads /favicon.ico from the server origin; the rest are the icons
+        // the MCP server advertises in its initialize response.
         expressApp.use(
-            ['/logo-icon.svg', '/favicon-32x32.png', '/apple-touch-icon.png'],
+            [
+                '/favicon.ico',
+                '/favicon-16x16.png',
+                '/favicon-32x32.png',
+                '/apple-touch-icon.png',
+                '/logo-icon.svg',
+            ],
             helmet.crossOriginResourcePolicy({ policy: 'cross-origin' }),
         );
 
@@ -1163,6 +1200,7 @@ export default class App {
             clearInterval(this.featureFlagCheckFlushInterval);
             this.featureFlagCheckFlushInterval = undefined;
         }
+        stopDockerHubVersionPolling();
         try {
             this.analytics.trackFeatureFlagChecks(
                 flushFeatureFlagChecks(),

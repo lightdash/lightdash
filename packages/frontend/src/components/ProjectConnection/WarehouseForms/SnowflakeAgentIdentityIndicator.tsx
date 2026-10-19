@@ -21,8 +21,8 @@ const SnowflakeAgentIdentityIndicator = ({
             <MantineIcon icon={IconShieldLock} color="dimmed" />
             <Stack gap="xs">
                 <Text size="sm" c="dimmed">
-                    Agent identity required by your organisation. AI queries on
-                    this connection run only for people who have connected their
+                    Your organisation requires agent identity. Agents on this
+                    connection run only for people who have connected their
                     agent.
                 </Text>
                 <Anchor

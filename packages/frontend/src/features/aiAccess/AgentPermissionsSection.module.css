@@ -1,0 +1,26 @@
+.choice {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    overflow: hidden;
+}
+.choice[data-selected='true'] {
+    border-color: var(--mantine-primary-color-filled);
+    background: var(--mantine-color-default-hover);
+}
+.choiceControl {
+    border: none;
+    padding: var(--mantine-spacing-md);
+    width: 100%;
+    background: transparent;
+}
+.choiceBody {
+    padding: 0 var(--mantine-spacing-md) var(--mantine-spacing-md);
+}
+.switchRow {
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    padding-block: var(--mantine-spacing-sm);
+}
+.footer {
+    border-top: 1px solid var(--mantine-color-default-border);
+    padding-top: var(--mantine-spacing-md);
+}

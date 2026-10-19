@@ -1,4 +1,6 @@
+import { AiAccessRefusalReason } from './aiPrincipal';
 import {
+    AiAccessRefusedError,
     BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
     BigqueryTokenError,
     isBigqueryTokenErrorMessage,
@@ -53,5 +55,18 @@ describe('PreviewWarehouseSignInExpiredError', () => {
             true,
         );
         expect(isBigqueryTokenErrorMessage(error.message)).toBe(false);
+    });
+});
+
+describe('AiAccessRefusedError settings URLs', () => {
+    it.each([
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+    ])('points %s to the project agent identity settings', (reason) => {
+        expect(
+            new AiAccessRefusedError(reason, { projectUuid: 'project-uuid' })
+                .refusal.settingsUrl,
+        ).toBe('/generalSettings/projectManagement/project-uuid/agentIdentity');
+        expect(new AiAccessRefusedError(reason).refusal.settingsUrl).toBeNull();
     });
 });

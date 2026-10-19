@@ -168,7 +168,7 @@ describe.skipIf(!hasBigqueryCredentials())(
             }
         }, 180_000);
 
-        it('lists only Snowflake and BigQuery and rejects agent sign-in for BigQuery without changing the rule or project', async () => {
+        it('lists only the enforceable warehouses and rejects agent sign-in for BigQuery without changing the rule or project', async () => {
             const overview =
                 await admin.get<ApiOrganizationAgentIdentityOverviewResponse>(
                     rulesUrl,
@@ -178,7 +178,16 @@ describe.skipIf(!hasBigqueryCredentials())(
                     .map(({ warehouseType }) => warehouseType)
                     .sort(),
             ).toEqual(
-                [WarehouseTypes.BIGQUERY, WarehouseTypes.SNOWFLAKE].sort(),
+                [
+                    WarehouseTypes.ATHENA,
+                    WarehouseTypes.BIGQUERY,
+                    WarehouseTypes.CLICKHOUSE,
+                    WarehouseTypes.DATABRICKS,
+                    WarehouseTypes.POSTGRES,
+                    WarehouseTypes.REDSHIFT,
+                    WarehouseTypes.TRINO,
+                    WarehouseTypes.SNOWFLAKE,
+                ].sort(),
             );
             const projectUrl = `/api/v1/projects/${SEED_PROJECT.project_uuid}`;
             const before = await admin.get<ApiProjectResponse>(projectUrl);
@@ -207,13 +216,26 @@ describe.skipIf(!hasBigqueryCredentials())(
             await putRule('marked_person');
         });
 
-        it('rejects an AI service account slot on the Postgres seed project', async () => {
-            const response = await admin.get(
-                `/api/v2/projects/${SEED_PROJECT.project_uuid}/ai-access/service-account`,
-                { failOnStatusCode: false },
-            );
-            expect(response.status).toBeGreaterThanOrEqual(400);
-            expect(response.status).toBeLessThan(500);
+        it('rejects BigQuery keys for the AI service account slot on the Postgres seed project', async () => {
+            const seedSlotUrl = `/api/v2/projects/${SEED_PROJECT.project_uuid}/ai-access/service-account`;
+            const getSeedSlot = async () => {
+                const response =
+                    await admin.get<ApiAiServiceAccountSlotResponse>(
+                        seedSlotUrl,
+                        { failOnStatusCode: false },
+                    );
+                expectNoSecrets(response.body);
+                expect(response.status).toBe(200);
+                return response.body.results;
+            };
+            expect(await getSeedSlot()).toBeNull();
+            const rejected = await admin.put(seedSlotUrl, credentials, {
+                failOnStatusCode: false,
+            });
+            expectNoSecrets(rejected.body);
+            expect(rejected.status).toBeGreaterThanOrEqual(400);
+            expect(rejected.status).toBeLessThan(500);
+            expect(await getSeedSlot()).toBeNull();
         });
 
         it('creates a dedicated BigQuery project with an empty slot', async () => {
@@ -271,6 +293,7 @@ describe.skipIf(!hasBigqueryCredentials())(
             expect(mcpText(refused)).toContain(
                 getAiAccessRefusalMessage(
                     AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+                    { projectName },
                 ),
             );
             const started = await admin.post<Body<{ queryUuid: string }>>(
@@ -377,6 +400,7 @@ describe.skipIf(!hasBigqueryCredentials())(
             expect(mcpText(refused)).toContain(
                 getAiAccessRefusalMessage(
                     AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                    { projectName },
                 ),
             );
             const tested = await admin.post<ApiAiServiceAccountTestResponse>(

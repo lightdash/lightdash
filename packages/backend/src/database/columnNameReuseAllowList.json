@@ -18,5 +18,25 @@
     {
         "column": "ai_agent.ai_organization_provider_credential_uuid",
         "reason": "FK deliberately named after the referenced ai_organization_provider_credential primary key, matching the existing project_ai_settings pin column. The previous release never selects this column and has no query joining ai_agent with the credential tables, so no existing query becomes ambiguous during a rolling deploy."
+    },
+    {
+        "column": "saved_queries_versions.agent_identity",
+        "reason": "Existing version queries do not join query_history or select agent_identity without a table qualifier. This nullable field preserves writes from previous releases."
+    },
+    {
+        "column": "dashboard_versions.agent_identity",
+        "reason": "Existing version queries do not join query_history or select agent_identity without a table qualifier. This nullable field preserves writes from previous releases."
+    },
+    {
+        "column": "saved_sql_versions.agent_identity",
+        "reason": "Existing version queries do not join query_history or select agent_identity without a table qualifier. This nullable field preserves writes from previous releases."
+    },
+    {
+        "column": "app_versions.agent_identity",
+        "reason": "Existing version queries do not join query_history or select agent_identity without a table qualifier. This nullable field preserves writes from previous releases."
+    },
+    {
+        "column": "document_versions.agent_identity",
+        "reason": "Existing version queries do not join query_history or select agent_identity without a table qualifier. This nullable field preserves writes from previous releases."
     }
 ]

@@ -35,6 +35,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../auth/account';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     parseEnumList,
     parseUuidList,
@@ -456,6 +457,7 @@ export class SchedulerController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('SchedulerController.patchEnabled'),
     ])
     @SuccessResponse('201', 'Updated')
     @Patch('{schedulerUuid}/enabled')
@@ -524,6 +526,7 @@ export class SchedulerController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('SchedulerController.delete'),
     ])
     @SuccessResponse('201', 'Deleted')
     @Delete('{schedulerUuid}')
@@ -561,6 +564,7 @@ export class SchedulerController extends BaseController {
             suffixMessage:
                 'This endpoint will be removed; there is no replacement.',
         }),
+        requireOAuthScopeOperation('SchedulerController.getJobs'),
     ])
     @SuccessResponse('200', 'Success')
     @Get('{schedulerUuid}/jobs')
@@ -651,6 +655,7 @@ export class SchedulerController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('SchedulerController.postByUuid'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('{schedulerUuid}/send')

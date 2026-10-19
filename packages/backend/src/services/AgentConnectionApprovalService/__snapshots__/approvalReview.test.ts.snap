@@ -1,0 +1,1148 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`pins every real admitted contract, base requirement and payload effect 1`] = `
+[
+  {
+    "candidates": [
+      {
+        "capabilities": [],
+        "key": "AgentConnectionController.getConnectionStatus",
+        "mapped": false,
+      },
+    ],
+    "key": "AgentConnectionController.getConnectionStatus",
+    "kind": "connection_lifecycle",
+    "required": null,
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [],
+        "key": "AgentConnectionController.revoke",
+        "mapped": false,
+      },
+    ],
+    "key": "AgentConnectionController.revoke",
+    "kind": "connection_lifecycle",
+    "required": null,
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "UserController.getAuthenticatedUser",
+        "mapped": true,
+      },
+    ],
+    "key": "UserController.getAuthenticatedUser",
+    "kind": "org_discovery",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "OrganizationController.getOrganization",
+        "mapped": true,
+      },
+    ],
+    "key": "OrganizationController.getOrganization",
+    "kind": "org_discovery",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "apiV1Router GET /health",
+        "mapped": true,
+      },
+    ],
+    "key": "apiV1Router GET /health",
+    "kind": "org_discovery",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectController.getMergedManifest",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectController.getMergedManifest",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "AppGenerateController.listProjectApps",
+        "mapped": true,
+      },
+    ],
+    "key": "AppGenerateController.listProjectApps",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "AppGenerateController.listProjectChartTypes",
+        "mapped": true,
+      },
+    ],
+    "key": "AppGenerateController.listProjectChartTypes",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "AppGenerateController.getAppCode",
+        "mapped": true,
+      },
+    ],
+    "key": "AppGenerateController.getAppCode",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ValidationController.get",
+        "mapped": true,
+      },
+    ],
+    "key": "ValidationController.get",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectController.getProject",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectController.getProject",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectController.GetDbtExposures",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectController.GetDbtExposures",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "deploy_upload",
+        ],
+        "key": "ProjectController.refresh",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectController.refresh",
+    "kind": "refresh",
+    "required": [
+      "deploy_upload",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectController.getSpacesInProject",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectController.getSpacesInProject",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectController.getDashboards",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectController.getDashboards",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "content_write",
+        ],
+        "key": "ProjectController.replaceYamlTags",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectController.replaceYamlTags",
+    "kind": "path_project",
+    "required": [
+      "content_write",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "administration",
+        ],
+        "key": "ProjectController.replaceProjectTableGroups",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectController.replaceProjectTableGroups",
+    "kind": "path_project",
+    "required": [
+      "administration",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectDbtSourcesController.listProjectDbtSources",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectDbtSourcesController.listProjectDbtSources",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "administration",
+        ],
+        "key": "ProjectDefaultsController.replaceProjectDefaults",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectDefaultsController.replaceProjectDefaults",
+    "kind": "path_project",
+    "required": [
+      "administration",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "administration",
+        ],
+        "key": "ParametersController.replaceParameters",
+        "mapped": true,
+      },
+    ],
+    "key": "ParametersController.replaceParameters",
+    "kind": "path_project",
+    "required": [
+      "administration",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "AiAccessController.getMyAccess",
+        "mapped": true,
+      },
+    ],
+    "key": "AiAccessController.getMyAccess",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ExploreController.GetExplores",
+        "mapped": true,
+      },
+    ],
+    "key": "ExploreController.GetExplores",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ExploreController.GetExplore",
+        "mapped": true,
+      },
+    ],
+    "key": "ExploreController.GetExplore",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "query",
+        ],
+        "key": "ExploreController.CompileQuery",
+        "mapped": true,
+      },
+    ],
+    "key": "ExploreController.CompileQuery",
+    "kind": "path_project",
+    "required": [
+      "query",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "query",
+        ],
+        "key": "ExploreController.CheckPreAggregate",
+        "mapped": true,
+      },
+    ],
+    "key": "ExploreController.CheckPreAggregate",
+    "kind": "path_project",
+    "required": [
+      "query",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "query",
+        ],
+        "key": "ExploreController.ValidateFormula",
+        "mapped": true,
+      },
+    ],
+    "key": "ExploreController.ValidateFormula",
+    "kind": "path_project",
+    "required": [
+      "query",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "deploy_upload",
+        ],
+        "key": "ExploreController.SetExplores",
+        "mapped": true,
+      },
+    ],
+    "key": "ExploreController.SetExplores",
+    "kind": "deployment",
+    "required": [
+      "deploy_upload",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "deploy_upload",
+        ],
+        "key": "DeployController.deployExplores",
+        "mapped": true,
+      },
+    ],
+    "key": "DeployController.deployExplores",
+    "kind": "deployment",
+    "required": [
+      "deploy_upload",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "deploy_upload",
+        ],
+        "key": "DeployController.startDeploySession",
+        "mapped": true,
+      },
+    ],
+    "key": "DeployController.startDeploySession",
+    "kind": "deployment",
+    "required": [
+      "deploy_upload",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "deploy_upload",
+        ],
+        "key": "DeployController.addDeployBatch",
+        "mapped": true,
+      },
+    ],
+    "key": "DeployController.addDeployBatch",
+    "kind": "deployment_session",
+    "required": [
+      "deploy_upload",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "deploy_upload",
+        ],
+        "key": "DeployController.finalizeDeploySession",
+        "mapped": true,
+      },
+    ],
+    "key": "DeployController.finalizeDeploySession",
+    "kind": "deployment_session",
+    "required": [
+      "deploy_upload",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "query",
+        ],
+        "key": "QueryController.executeAsyncMetricQuery",
+        "mapped": true,
+      },
+    ],
+    "key": "QueryController.executeAsyncMetricQuery",
+    "kind": "path_project",
+    "required": [
+      "query",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "raw_sql",
+        ],
+        "key": "QueryController.executeAsyncSqlQuery",
+        "mapped": true,
+      },
+    ],
+    "key": "QueryController.executeAsyncSqlQuery",
+    "kind": "path_project",
+    "required": [
+      "raw_sql",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "raw_sql",
+        ],
+        "key": "QueryController.executeAsyncComposeSqlQuery",
+        "mapped": true,
+      },
+    ],
+    "key": "QueryController.executeAsyncComposeSqlQuery",
+    "kind": "path_project",
+    "required": [
+      "raw_sql",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "raw_sql",
+        ],
+        "key": "QueryController.executeAsyncPythonQuery",
+        "mapped": true,
+      },
+    ],
+    "key": "QueryController.executeAsyncPythonQuery",
+    "kind": "path_project",
+    "required": [
+      "raw_sql",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "QueryController.getAsyncQueryResults",
+        "mapped": true,
+      },
+    ],
+    "key": "QueryController.getAsyncQueryResults",
+    "kind": "resource",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "QueryController.getQueryHistory",
+        "mapped": true,
+      },
+    ],
+    "key": "QueryController.getQueryHistory",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "raw_sql",
+        ],
+        "key": "SqlRunnerController.getTables",
+        "mapped": true,
+      },
+    ],
+    "key": "SqlRunnerController.getTables",
+    "kind": "path_project",
+    "required": [
+      "raw_sql",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "raw_sql",
+        ],
+        "key": "SqlRunnerController.getTableFields",
+        "mapped": true,
+      },
+    ],
+    "key": "SqlRunnerController.getTableFields",
+    "kind": "path_project",
+    "required": [
+      "raw_sql",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "raw_sql",
+        ],
+        "key": "SqlRunnerController.refreshSqlRunnerCatalog",
+        "mapped": true,
+      },
+    ],
+    "key": "SqlRunnerController.refreshSqlRunnerCatalog",
+    "kind": "path_project",
+    "required": [
+      "raw_sql",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "delete",
+        ],
+        "key": "SqlRunnerController.deleteSqlChart",
+        "mapped": true,
+      },
+    ],
+    "key": "SqlRunnerController.deleteSqlChart",
+    "kind": "resource",
+    "required": [
+      "delete",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "SqlRunnerController.getSavedSqlChart",
+        "mapped": true,
+      },
+    ],
+    "key": "SqlRunnerController.getSavedSqlChart",
+    "kind": "resource",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "SqlRunnerController.getSavedSqlChartBySlug",
+        "mapped": true,
+      },
+    ],
+    "key": "SqlRunnerController.getSavedSqlChartBySlug",
+    "kind": "resource",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "SchedulerController.get",
+        "mapped": true,
+      },
+    ],
+    "key": "SchedulerController.get",
+    "kind": "resource",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "QuerySourceController.listQuerySources",
+        "mapped": true,
+      },
+    ],
+    "key": "QuerySourceController.listQuerySources",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "QuerySourceController.getSourceQueryStatus",
+        "mapped": true,
+      },
+    ],
+    "key": "QuerySourceController.getSourceQueryStatus",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "query",
+        ],
+        "key": "QuerySourceController.executeSourceQueries",
+        "mapped": true,
+      },
+      {
+        "capabilities": [
+          "query",
+          "raw_sql",
+        ],
+        "key": "QuerySourceController.executeSourceQueries",
+        "mapped": true,
+      },
+    ],
+    "key": "QuerySourceController.executeSourceQueries",
+    "kind": "source_queries",
+    "required": [
+      "query",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "query",
+        ],
+        "key": "QuerySourceController.scanQuerySourceSchema",
+        "mapped": true,
+      },
+      {
+        "capabilities": [
+          "query",
+          "raw_sql",
+        ],
+        "key": "QuerySourceController.scanQuerySourceSchema",
+        "mapped": true,
+      },
+    ],
+    "key": "QuerySourceController.scanQuerySourceSchema",
+    "kind": "source_schema",
+    "required": [
+      "query",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ContentController.listContent",
+        "mapped": true,
+      },
+    ],
+    "key": "ContentController.listContent",
+    "kind": "project_filter",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ContentController.listDeletedContent",
+        "mapped": true,
+      },
+    ],
+    "key": "ContentController.listDeletedContent",
+    "kind": "project_filter",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "dashboardRouter GET /:dashboardUuidOrSlug",
+        "mapped": true,
+      },
+    ],
+    "key": "dashboardRouter GET /:dashboardUuidOrSlug",
+    "kind": "resource",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectCoderController.getChartsAsCode",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectCoderController.getChartsAsCode",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectCoderController.getDashboardsAsCode",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectCoderController.getDashboardsAsCode",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectCoderController.getSqlChartsAsCode",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectCoderController.getSqlChartsAsCode",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectCoderController.getVirtualViewsAsCode",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectCoderController.getVirtualViewsAsCode",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectCoderController.getScheduledDeliveriesAsCode",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectCoderController.getScheduledDeliveriesAsCode",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectCoderController.getAlertsAsCode",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectCoderController.getAlertsAsCode",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectCoderController.getGoogleSheetsSyncsAsCode",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectCoderController.getGoogleSheetsSyncsAsCode",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectCoderController.getCodeSpaces",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectCoderController.getCodeSpaces",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectCoderController.getAiAgentsAsCode",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectCoderController.getAiAgentsAsCode",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectCoderController.getExternalConnectionsAsCode",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectCoderController.getExternalConnectionsAsCode",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectCoderController.getDocumentsAsCode",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectCoderController.getDocumentsAsCode",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectCoderController.getHomepagesAsCode",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectCoderController.getHomepagesAsCode",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectCoderController.getContentAsCodeUploadAdvisory",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectCoderController.getContentAsCodeUploadAdvisory",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "content_write",
+          "deploy_upload",
+        ],
+        "key": "ProjectCoderController.upsertChartAsCode",
+        "mapped": true,
+      },
+      {
+        "capabilities": [
+          "content_write",
+          "deploy_upload",
+          "publish",
+        ],
+        "key": "ProjectCoderController.upsertChartAsCode",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectCoderController.upsertChartAsCode",
+    "kind": "content_upload",
+    "required": [
+      "content_write",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "content_write",
+          "deploy_upload",
+        ],
+        "key": "ProjectCoderController.upsertDashboardAsCode",
+        "mapped": true,
+      },
+      {
+        "capabilities": [
+          "content_write",
+          "deploy_upload",
+          "publish",
+        ],
+        "key": "ProjectCoderController.upsertDashboardAsCode",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectCoderController.upsertDashboardAsCode",
+    "kind": "content_upload",
+    "required": [
+      "content_write",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "raw_sql",
+          "content_write",
+          "deploy_upload",
+        ],
+        "key": "ProjectCoderController.upsertSqlChartAsCode",
+        "mapped": true,
+      },
+      {
+        "capabilities": [
+          "raw_sql",
+          "content_write",
+          "deploy_upload",
+          "publish",
+        ],
+        "key": "ProjectCoderController.upsertSqlChartAsCode",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectCoderController.upsertSqlChartAsCode",
+    "kind": "content_upload",
+    "required": [
+      "raw_sql",
+      "content_write",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "raw_sql",
+          "content_write",
+          "deploy_upload",
+        ],
+        "key": "ProjectCoderController.upsertVirtualViewAsCode",
+        "mapped": true,
+      },
+      {
+        "capabilities": [
+          "raw_sql",
+          "content_write",
+          "deploy_upload",
+          "publish",
+        ],
+        "key": "ProjectCoderController.upsertVirtualViewAsCode",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectCoderController.upsertVirtualViewAsCode",
+    "kind": "content_upload",
+    "required": [
+      "raw_sql",
+      "content_write",
+    ],
+  },
+]
+`;

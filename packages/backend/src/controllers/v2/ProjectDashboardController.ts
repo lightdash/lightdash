@@ -23,6 +23,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -78,6 +79,7 @@ export class ProjectDashboardControllerV2 extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('ProjectDashboardControllerV2.update'),
     ])
     @SuccessResponse('200', 'Success')
     @Patch('/{dashboardUuidOrSlug}')

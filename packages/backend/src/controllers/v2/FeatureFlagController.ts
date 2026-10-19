@@ -20,6 +20,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     allowApiKeyAuthenticationIfPresent,
@@ -58,7 +59,10 @@ export class FeatureFlagController extends BaseController {
      * Get feature flag
      * @summary Get feature flag
      */
-    @Middlewares([allowApiKeyAuthenticationIfPresent])
+    @Middlewares([
+        allowApiKeyAuthenticationIfPresent,
+        requireOAuthScopeOperation('FeatureFlagController.getFeatureFlag'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{featureFlagId}')
     @OperationId('Get feature flag')

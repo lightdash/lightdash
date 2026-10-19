@@ -10,6 +10,10 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
+import {
+    selectTableName,
+    useExplorerSelector,
+} from '../features/explorer/store';
 import { useMergeCompiledSql } from '../features/mergeQuery/hooks/useMergeCompiledSql';
 import {
     getLightdashMonacoTheme,
@@ -18,7 +22,7 @@ import {
     registerMonacoLanguage,
 } from '../features/sqlRunner/utils/monaco';
 import { useCompiledSql } from '../hooks/useCompiledSql';
-import { useProject } from '../hooks/useProject';
+import { useExploreWarehouseConnection } from '../hooks/useExploreWarehouseConnection';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import Editor, { type BeforeMount, type EditorProps } from './MonacoEditor';
 
@@ -38,11 +42,12 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
 }) => {
     const { colorScheme } = useMantineColorScheme();
     const projectUuid = useProjectUuid();
-    const { data: project } = useProject(projectUuid);
-    const language = useMemo(
-        () => getMonacoLanguage(project?.warehouseConnection?.type),
-        [project],
+    const tableName = useExplorerSelector(selectTableName);
+    const { warehouseType } = useExploreWarehouseConnection(
+        tableName,
+        projectUuid,
     );
+    const language = getMonacoLanguage(warehouseType ?? undefined);
     const { data, error, isInitialLoading } = useCompiledSql();
     // With a merge configured, each leg and then the join are what Run
     // executes; Query A's SQL alone would be SQL that does not run.
@@ -81,14 +86,14 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
               ? data?.pivotQuery
               : data?.query;
         if (!sqlToFormat) return '';
-        return formatSql(sqlToFormat, project?.warehouseConnection?.type);
+        return formatSql(sqlToFormat, warehouseType ?? undefined);
     }, [
         data?.query,
         data?.pivotQuery,
         effectiveView,
         merge.isMergeActive,
         merge.data,
-        project?.warehouseConnection?.type,
+        warehouseType,
     ]);
 
     const mergeCompileErrors = merge.isMergeActive

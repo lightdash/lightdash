@@ -14,13 +14,16 @@ import {
     getUserAvatarUrl,
     isUserAvatarColorValue,
     matchDocumentChartKeys,
+    normalizeAgentIdentityClaim,
     NotFoundError,
     ParameterError,
     parseDocumentContent,
     parseStoredDocumentContent,
     UpdateDocumentContentRequest,
+    type AgentIdentityClaim,
     type DocumentLinkingChart,
     type DocumentSavedChartKind,
+    type StoredAgentIdentityClaim,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { ContentVerificationTableName } from '../database/entities/contentVerification';
@@ -42,6 +45,7 @@ import {
     generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
 import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel';
+import { type OnContentVersionCreated } from './OnContentVersionCreated';
 
 /** A saved chart a Document link resolves to; `slugs` lists its current slug last. */
 export type SavedChartForLink = {
@@ -476,12 +480,14 @@ export class DocumentModel {
             .select<
                 Array<
                     UserDisplayRow & {
+                        agent_identity: StoredAgentIdentityClaim | null;
                         document_version_uuid: string;
                         version_number: number;
                         created_at: Date;
                     }
                 >
             >(
+                'document_versions.agent_identity',
                 'document_versions.document_version_uuid',
                 'document_versions.version_number',
                 'document_versions.created_at',
@@ -494,6 +500,7 @@ export class DocumentModel {
         const items: DocumentVersionSummary[] = rows
             .slice(0, limit)
             .map((row) => ({
+                agentIdentity: normalizeAgentIdentityClaim(row.agent_identity),
                 versionUuid: row.document_version_uuid,
                 versionNumber: row.version_number,
                 createdAt: row.created_at,
@@ -687,6 +694,9 @@ export class DocumentModel {
                   }
                 : null,
             version: {
+                agentIdentity: normalizeAgentIdentityClaim(
+                    version.agent_identity,
+                ),
                 versionUuid: version.document_version_uuid,
                 versionNumber: version.version_number,
                 schemaVersion: DOCUMENT_SCHEMA_VERSION,
@@ -824,7 +834,11 @@ export class DocumentModel {
         }));
     }
 
-    async create(input: CreateDocument): Promise<Document> {
+    async create(
+        input: CreateDocument,
+        agentIdentity: AgentIdentityClaim | null = null,
+        onVersionCreated?: OnContentVersionCreated,
+    ): Promise<Document> {
         const { content, nextChartNumber } = assignDocumentChartIds(
             parseDocumentContent(DOCUMENT_SCHEMA_VERSION, input.content),
             1,
@@ -893,6 +907,7 @@ export class DocumentModel {
             const [version] = await transaction(DocumentVersionsTableName)
                 .insert({
                     document_id: document.document_id,
+                    agent_identity: agentIdentity,
                     version_number: 1,
                     schema_version: DOCUMENT_SCHEMA_VERSION,
                     markdown: content.markdown,
@@ -904,6 +919,11 @@ export class DocumentModel {
                 transaction,
                 version.document_version_uuid,
                 content,
+            );
+            await onVersionCreated?.(
+                transaction,
+                version.document_version_uuid,
+                document.document_uuid,
             );
             return this.getWithDatabase(
                 transaction,
@@ -920,6 +940,8 @@ export class DocumentModel {
             expectedSpaceUuid: string | null;
         },
         createdByUserUuid: string,
+        agentIdentity: AgentIdentityClaim | null = null,
+        onVersionCreated?: OnContentVersionCreated,
     ): Promise<Document> {
         return this.database.transaction(async (transaction) => {
             const row = await this.activeDocuments(transaction, projectUuid)
@@ -958,6 +980,7 @@ export class DocumentModel {
             const [version] = await transaction(DocumentVersionsTableName)
                 .insert({
                     document_id: row.document_id,
+                    agent_identity: agentIdentity,
                     version_number: document.version.versionNumber + 1,
                     schema_version: DOCUMENT_SCHEMA_VERSION,
                     markdown: content.markdown,
@@ -976,6 +999,11 @@ export class DocumentModel {
                     updated_at: new Date(),
                     next_chart_number: nextChartNumber,
                 });
+            await onVersionCreated?.(
+                transaction,
+                version.document_version_uuid,
+                documentUuid,
+            );
             return this.getWithDatabase(transaction, projectUuid, documentUuid);
         });
     }

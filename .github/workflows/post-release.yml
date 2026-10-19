@@ -751,6 +751,15 @@ jobs:
             source_tag_env: E2B_CODING_AGENT_TEMPLATE_SOURCE_TAG
             additional_watch_paths: ''
             install_root_deps: false
+          - display_name: python runner E2B template
+            directory: sandboxes/python-runner
+            name: lightdash-python-runner
+            name_env: E2B_PYTHON_TEMPLATE_NAME
+            tag_env: E2B_PYTHON_TEMPLATE_TAG
+            extra_tags_env: E2B_PYTHON_TEMPLATE_EXTRA_TAGS
+            source_tag_env: E2B_PYTHON_TEMPLATE_SOURCE_TAG
+            additional_watch_paths: ''
+            install_root_deps: false
           - display_name: agent onboarding E2B template
             directory: sandboxes/agent-onboarding
             name: lightdash-agent-onboarding

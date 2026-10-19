@@ -1,6 +1,6 @@
 import {
-    CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
+    ParameterError,
     SupportedDbtVersions,
     UnexpectedServerError,
 } from '@lightdash/common';
@@ -11,9 +11,10 @@ import * as path from 'path';
 import { SimpleGit, simpleGit, SimpleGitProgressEvent } from 'simple-git';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import Logger from '../logging/logger';
+import type { DbtTargetResult } from '../services/WarehouseClientFactory/CredentialResolver';
 import {
     CachedWarehouse,
-    DbtManifestFetchResult,
+    DbtSourcePreparation,
     ProjectAdapter,
     type TrackingParams,
 } from '../types';
@@ -26,7 +27,8 @@ export type DbtGitProjectAdapterArgs = {
     repository: string;
     gitBranch: string;
     projectDirectorySubPath: string;
-    warehouseCredentials: CreateWarehouseCredentials;
+    dbtTarget: DbtTargetResult;
+    explicitCredentials: boolean;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
     environmentVariableAllowlist: string[];
@@ -55,13 +57,18 @@ export class DbtGitProjectAdapter
 
     git: SimpleGit;
 
+    private gitRefresh: Promise<number> | null = null;
+
+    private gitPreparation: Promise<DbtSourcePreparation> | null = null;
+
     constructor({
         warehouseClient,
         repository,
         remoteRepositoryUrl,
         gitBranch,
         projectDirectorySubPath,
-        warehouseCredentials,
+        dbtTarget,
+        explicitCredentials,
         targetName,
         environment,
         environmentVariableAllowlist,
@@ -73,6 +80,8 @@ export class DbtGitProjectAdapter
         dbtDepsErrorHint,
         partialParseBaselinePath,
     }: DbtGitProjectAdapterArgs) {
+        if (dbtTarget.kind === 'none')
+            throw new ParameterError(dbtTarget.reason);
         const localRepositoryDir = fs.mkdtempSync('/tmp/git_');
         const projectDir = path.join(
             localRepositoryDir,
@@ -81,7 +90,8 @@ export class DbtGitProjectAdapter
         super({
             warehouseClient,
             projectDir,
-            warehouseCredentials,
+            dbtTarget,
+            explicitCredentials,
             targetName,
             environment,
             environmentVariableAllowlist,
@@ -143,7 +153,7 @@ export class DbtGitProjectAdapter
         loadSources?: boolean,
         allowPartialCompilation?: boolean,
     ) {
-        await this._refreshRepo();
+        await this.prepareDbtSource();
         return super.prepareExploreStream(
             trackingParams,
             loadSources,
@@ -152,15 +162,28 @@ export class DbtGitProjectAdapter
     }
 
     public async test() {
-        await this._refreshRepo();
+        await this.prepareRepository();
         await super.test();
     }
 
-    public async getDbtManifest(): Promise<DbtManifestFetchResult> {
-        const refreshStartedAt = Date.now();
-        await this._refreshRepo();
-        const gitRefreshMs = Date.now() - refreshStartedAt;
-        const result = await super.getDbtManifest();
-        return { ...result, timings: { ...result.timings, gitRefreshMs } };
+    private prepareRepository(): Promise<number> {
+        this.gitRefresh ??= (async () => {
+            const startedAt = Date.now();
+            await this._refreshRepo();
+            return Date.now() - startedAt;
+        })();
+        return this.gitRefresh;
+    }
+
+    public prepareDbtSource(): Promise<DbtSourcePreparation> {
+        this.gitPreparation ??= (async () => {
+            const gitRefreshMs = await this.prepareRepository();
+            const preparation = await super.prepareDbtSource();
+            return {
+                ...preparation,
+                timings: { ...preparation.timings, gitRefreshMs },
+            };
+        })();
+        return this.gitPreparation;
     }
 }

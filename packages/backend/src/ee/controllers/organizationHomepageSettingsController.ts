@@ -18,6 +18,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -34,7 +35,13 @@ export class OrganizationHomepageSettingsController extends BaseController {
         return this.services.getProjectHomepageService<ProjectHomepageService>();
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'OrganizationHomepageSettingsController.getSettings',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/')
     @OperationId('getOrganizationHomepageSettings')

@@ -51,6 +51,7 @@ export type RunAutopilotAgentArgs = {
     timeoutMs: number;
     telemetry: ReturnType<typeof getAiCallTelemetry>;
     onStepFinish?: GenerateTextOnStepFinishCallback<ToolSet>;
+    abortSignal?: AbortSignal;
 };
 
 const MAX_RETRIES = 6;
@@ -72,11 +73,23 @@ export const runAutopilotAgent = async ({
     timeoutMs,
     telemetry,
     onStepFinish,
+    abortSignal: externalAbortSignal,
 }: RunAutopilotAgentArgs): Promise<AutopilotAgentRunResult> => {
     let slackSummary: string | null = null;
     const evidence: AutopilotToolEvidence[] = [];
     let stepCount = 0;
     const controller = new AbortController();
+    let externallyAborted = false;
+    const onExternalAbort = () => {
+        if (controller.signal.aborted) return;
+        externallyAborted = true;
+        controller.abort(externalAbortSignal?.reason);
+    };
+    if (externalAbortSignal?.aborted) onExternalAbort();
+    else
+        externalAbortSignal?.addEventListener('abort', onExternalAbort, {
+            once: true,
+        });
     const timer = setTimeout(
         () => controller.abort(new Error('Autopilot timed out')),
         timeoutMs,
@@ -93,6 +106,21 @@ export const runAutopilotAgent = async ({
             cause: new AutopilotRunError('AutopilotTimeoutError', error),
         };
     };
+    const abortedResult = (): AutopilotAgentRunResult => {
+        if (!externallyAborted) return timeoutResult();
+        const cause =
+            abortSignal.reason instanceof Error
+                ? abortSignal.reason
+                : new Error('Autopilot stopped');
+        return {
+            slackSummary,
+            evidence,
+            stepCount,
+            stopReason: 'error',
+            error: cause.message,
+            cause,
+        };
+    };
     const tools: ToolSet = {
         ...dataTools,
         ...buildAutopilotTools({
@@ -105,6 +133,7 @@ export const runAutopilotAgent = async ({
     };
 
     try {
+        if (abortSignal.aborted) return abortedResult();
         const result = await generateText({
             maxRetries: MAX_RETRIES,
             ...callOptions,
@@ -141,7 +170,7 @@ export const runAutopilotAgent = async ({
             },
         });
 
-        if (abortSignal.aborted) return timeoutResult();
+        if (abortSignal.aborted) return abortedResult();
         switch (result.finishReason) {
             case 'stop':
                 return {
@@ -186,7 +215,7 @@ export const runAutopilotAgent = async ({
                 );
         }
     } catch (error) {
-        if (abortSignal.aborted) return timeoutResult();
+        if (abortSignal.aborted) return abortedResult();
         return {
             slackSummary,
             evidence,
@@ -203,5 +232,6 @@ export const runAutopilotAgent = async ({
         };
     } finally {
         clearTimeout(timer);
+        externalAbortSignal?.removeEventListener('abort', onExternalAbort);
     }
 };

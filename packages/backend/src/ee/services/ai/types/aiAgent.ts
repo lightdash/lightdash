@@ -27,6 +27,7 @@ import {
     AiUsageChannel,
     type AiUsageTokens,
 } from '../../../../analytics/aiUsage';
+import type { ConnectedAgentTool } from '../../../../services/AgentPermissionService/AgentPermissionService';
 import type { AiMcpCredentialPayload } from '../../../models/AiAgentModel';
 import type {
     AiDecisionClient,
@@ -287,6 +288,9 @@ export type AiAgentArgs = AnyAiModel & {
     // Whether the runComposerQueries tool (multi-source pipelines) is
     // available: the MultiSourceQuery flag + data access, web chat only in v0.
     enableComposerQueries: boolean;
+    // Whether runComposerQueries offers python nodes: composer queries plus
+    // the PythonQueryRunner flag.
+    enableComposerPythonNodes: boolean;
     // Whether the user can save a generated dashboard anywhere in the project.
     // Gates generateDashboard so the agent does not build one the user is then
     // refused permission to keep.
@@ -304,6 +308,12 @@ export type AiAgentArgs = AnyAiModel & {
     slackLinksOnly: boolean;
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
+    warehouseConnections?: {
+        name: string;
+        warehouseConnectionUuid: string | null;
+        warehouseType: WarehouseTypes;
+        isOriginal: boolean;
+    }[];
     availableSkills: AiAgentSkillReference[];
     modelReasoningEnabled: boolean | null;
 
@@ -341,6 +351,11 @@ export type PerformanceMetrics = {
 export type OnAiAccessRefusal = (refusal: AiAccessRefusal) => void;
 
 export type AiAgentDependencies = {
+    assertToolOperation: (
+        kind: 'agent_tool' | 'connected_mcp_tool',
+        key: string,
+        connectedTool?: ConnectedAgentTool,
+    ) => Promise<void>;
     onAiAccessRefusal?: OnAiAccessRefusal;
     chartExportArtifacts?: ArtifactChartExportAccess;
     listExplores: ListExploresFn;
@@ -357,6 +372,10 @@ export type AiAgentDependencies = {
     readContent: ReadContentFn;
     resolveUrl: ResolveUrlFn;
     editContent: EditContentFn;
+    recordSqlChartRefusal?: (
+        action: 'create' | 'update',
+        reasonCode: string,
+    ) => Promise<void>;
     createContent: CreateContentFn;
     createScheduledDelivery: CreateScheduledDeliveryFn;
     updateUserName: UpdateUserNameFn;

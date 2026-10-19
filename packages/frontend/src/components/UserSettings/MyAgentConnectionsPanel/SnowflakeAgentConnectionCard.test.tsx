@@ -1,7 +1,6 @@
 import {
     AgentIdentityConnectEntryPoint,
     FeatureFlags,
-    formatDate,
     UserWarehouseCredentialPurpose,
     type UserWarehouseCredentialsWithAgentStatus,
 } from '@lightdash/common';
@@ -22,6 +21,7 @@ import {
 import { type PropsWithChildren } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import type * as SnowflakeHooks from '../../../hooks/useSnowflake';
 import { credential } from './fixtures';
 import { SnowflakeAgentConnectionCard } from './SnowflakeAgentConnectionCard';
 
@@ -45,9 +45,10 @@ const mockSilentRefreshFlag = (enabled: boolean | undefined) => {
     } as ReturnType<typeof useServerFeatureFlag>);
 };
 
-vi.mock('../../../hooks/useSnowflake', () => ({
-    useSnowflakeAiLoginPopup: (attribution: unknown) => {
-        popup(attribution);
+vi.mock('../../../hooks/useSnowflake', async (importOriginal) => ({
+    ...(await importOriginal<typeof SnowflakeHooks>()),
+    useSnowflakeAiLoginPopup: (attribution: unknown, options: unknown) => {
+        popup(attribution, options);
         return useMutation<void, Error>({ mutationFn: login });
     },
 }));
@@ -114,7 +115,7 @@ describe('SnowflakeAgentConnectionCard', () => {
             ).toBeInTheDocument();
             expect(screen.queryByRole('button')).not.toBeInTheDocument();
             expect(
-                screen.queryByText(/Your AI questions/),
+                screen.queryByText(/Your agents can't run/),
             ).not.toBeInTheDocument();
             expect(login).not.toHaveBeenCalled();
         },
@@ -127,17 +128,17 @@ describe('SnowflakeAgentConnectionCard', () => {
             screen.getByRole('button', { name: 'Disconnect' }),
         ).toBeEnabled();
         expect(
-            screen.getByText(/Your agent connection ends on/),
+            screen.getByText(/Your agent sign-in lasts until/),
         ).toBeInTheDocument();
         act(() => {
             vi.advanceTimersByTime(1001);
         });
         expect(screen.getByText('Expired')).toBeInTheDocument();
         expect(
-            screen.queryByText(/Your agent connection ends on/),
+            screen.queryByText(/Your agent sign-in lasts until/),
         ).not.toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Connect agent' }),
+            screen.getByRole('button', { name: 'Sign in again' }),
         ).toBeEnabled();
         expect(
             screen.queryByRole('button', { name: 'Disconnect' }),
@@ -172,7 +173,7 @@ describe('SnowflakeAgentConnectionCard', () => {
             ).not.toBeInTheDocument();
             expect(
                 screen.getByText(
-                    'Your AI questions on Snowflake projects are refused until you connect. Takes about 30 seconds.',
+                    "Your agents can't run on Snowflake projects until you connect. It takes about 30 seconds.",
                 ),
             ).toBeInTheDocument();
         },
@@ -182,16 +183,15 @@ describe('SnowflakeAgentConnectionCard', () => {
         'shows the stored expiry with silent refresh %s',
         (enabled) => {
             mockSilentRefreshFlag(enabled);
-            const expiresAt = new Date(Date.now() + 86400000);
+            vi.setSystemTime(new Date(2027, 0, 6));
+            const expiresAt = new Date(2027, 0, 7);
             renderCard([{ ...credential, expiresAt }]);
             expect(screen.getByText('Connected')).toBeInTheDocument();
             expect(useServerFeatureFlag).toHaveBeenCalledWith(
                 FeatureFlags.AgentIdentitySilentRefresh,
             );
             expect(
-                screen.getByText(
-                    `Your agent connection ends on ${formatDate(expiresAt)}`,
-                ),
+                screen.getByText('Your agent sign-in lasts until 7 Jan 2027.'),
             ).toBeInTheDocument();
             expect(
                 screen.getByRole('button', { name: 'Disconnect' }),
@@ -212,7 +212,7 @@ describe('SnowflakeAgentConnectionCard', () => {
             ]);
             expect(screen.getByText('Expired')).toBeInTheDocument();
             expect(
-                screen.getByRole('button', { name: 'Connect agent' }),
+                screen.getByRole('button', { name: 'Sign in again' }),
             ).toBeEnabled();
             expect(
                 screen.queryByRole('button', { name: 'Disconnect' }),
@@ -228,7 +228,7 @@ describe('SnowflakeAgentConnectionCard', () => {
             screen.getByRole('button', { name: 'Disconnect' }),
         ).toBeEnabled();
         expect(
-            screen.queryByText(/Your agent connection ends on/),
+            screen.queryByText(/Your agent sign-in lasts until/),
         ).not.toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Connect agent' }),
@@ -244,14 +244,16 @@ describe('SnowflakeAgentConnectionCard', () => {
             ]);
             expect(screen.getByText('Expired')).toBeInTheDocument();
             expect(
-                screen.queryByText(/Your agent connection ends on/),
+                screen.queryByText(/Your agent sign-in lasts until/),
             ).not.toBeInTheDocument();
             expect(
                 screen.queryByRole('button', { name: 'Disconnect' }),
             ).not.toBeInTheDocument();
-            expect(screen.getByText(/Your AI questions/)).toBeInTheDocument();
+            expect(
+                screen.queryByText(/Your agents can't run/),
+            ).not.toBeInTheDocument();
             fireEvent.click(
-                screen.getByRole('button', { name: 'Connect agent' }),
+                screen.getByRole('button', { name: 'Sign in again' }),
             );
         },
     );
@@ -263,10 +265,10 @@ describe('SnowflakeAgentConnectionCard', () => {
             renderCard([credential]);
             expect(screen.getByText('Connected')).toBeInTheDocument();
             expect(
-                screen.queryByText(/Your AI questions/),
+                screen.queryByText(/Your agents can't run/),
             ).not.toBeInTheDocument();
             expect(
-                screen.queryByText(/Your agent connection ends on/),
+                screen.queryByText(/Your agent sign-in lasts until/),
             ).not.toBeInTheDocument();
             expect(
                 screen.queryByText(credential.createdAt.toLocaleDateString()),
@@ -295,10 +297,13 @@ describe('SnowflakeAgentConnectionCard', () => {
             name: 'Connect agent',
         });
         fireEvent.click(button);
-        expect(popup).toHaveBeenLastCalledWith({
-            entryPoint: AgentIdentityConnectEntryPoint.MY_AGENT_CONNECTIONS,
-            projectUuid: null,
-        });
+        expect(popup).toHaveBeenLastCalledWith(
+            {
+                entryPoint: AgentIdentityConnectEntryPoint.MY_AGENT_CONNECTIONS,
+                projectUuid: null,
+            },
+            { showErrorToast: false },
+        );
         await waitFor(() =>
             expect(button).toHaveAttribute('data-loading', 'true'),
         );
@@ -310,7 +315,7 @@ describe('SnowflakeAgentConnectionCard', () => {
         expect(screen.getByText('Failing')).toBeInTheDocument();
         expect(
             screen.getByText(
-                'Your AI questions on Snowflake projects are refused until you connect. Takes about 30 seconds.',
+                "Your agents can't run on Snowflake projects until you connect. It takes about 30 seconds.",
             ),
         ).toBeInTheDocument();
         expect(button).toBeEnabled();
@@ -340,7 +345,7 @@ describe('SnowflakeAgentConnectionCard', () => {
         expect(
             screen.queryByRole('button', { name: 'Disconnect' }),
         ).not.toBeInTheDocument();
-        expect(screen.getByText(/Your AI questions/)).toBeInTheDocument();
+        expect(screen.getByText(/Your agents can't run/)).toBeInTheDocument();
     });
 
     it('hides a previous login failure when setup becomes unavailable', async () => {
@@ -371,5 +376,33 @@ describe('SnowflakeAgentConnectionCard', () => {
         await waitFor(() =>
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
         );
+    });
+    it.each([
+        [
+            new Date(2027, 0, 7),
+            'Your Snowflake agent sign-in ended on 7 Jan 2027. Sign in again to keep using agents on Snowflake projects.',
+        ],
+        [
+            new Date(2027, 0, 8),
+            'Your Snowflake agent sign-in ended on 8 Jan 2027. Sign in again to keep using agents on Snowflake projects.',
+        ],
+        [
+            new Date(2027, 0, 9),
+            'Your Snowflake agent sign-in ended. Sign in again to keep using agents on Snowflake projects.',
+        ],
+        [
+            null,
+            'Your Snowflake agent sign-in ended. Sign in again to keep using agents on Snowflake projects.',
+        ],
+    ])('shows truthful expiry copy for %s', (expiresAt, message) => {
+        vi.setSystemTime(new Date(2027, 0, 8));
+        renderCard([{ ...credential, agentClientCurrent: false, expiresAt }]);
+        expect(screen.getByText(message)).toBeInTheDocument();
+        expect(
+            screen.queryByText(/Your agents can't run/),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Sign in again' }),
+        ).toBeEnabled();
     });
 });

@@ -89,6 +89,7 @@ const previewAccessContext = {
 
 const buildService = () =>
     new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {} as never,
         analytics: {} as never,

@@ -2,6 +2,7 @@ import {
     AI_ACCESS_REFUSED_CODE,
     getAiAccessRefusalAction,
     getAiAccessRefusalMessage,
+    getAiAccessRefusalSettingsUrl,
     type AiAccessRefusal,
     type AiAccessRefusalReason,
 } from './aiPrincipal';
@@ -87,15 +88,59 @@ export class AiAccessRefusedError extends ForbiddenError {
             settingsUrl?: string | null;
             connectUrl?: string | null;
             inheritedFromProjectUuid?: string | null;
+            requiredCapabilities?: AiAccessRefusal['requiredCapabilities'];
+            blockers?: AiAccessRefusal['blockers'];
+            blockersComplete?: boolean;
+            explanationUrl?: string;
+            capability?: AiAccessRefusal['capability'];
+            policyLayer?: AiAccessRefusal['policyLayer'];
+            operation?: string;
+            policyVersion?: number;
+            projectUuid?: string | null;
         } = {},
     ) {
         const refusal: AiAccessRefusal = {
             code: AI_ACCESS_REFUSED_CODE,
             reason,
-            message: options.message ?? getAiAccessRefusalMessage(reason),
+            message:
+                options.message ??
+                getAiAccessRefusalMessage(reason, { projectName: null }),
             action: getAiAccessRefusalAction(reason),
-            settingsUrl: options.settingsUrl ?? null,
+            settingsUrl:
+                options.settingsUrl === undefined
+                    ? getAiAccessRefusalSettingsUrl(
+                          reason,
+                          options.projectUuid ?? null,
+                      )
+                    : options.settingsUrl,
             connectUrl: options.connectUrl ?? null,
+            ...(options.requiredCapabilities === undefined
+                ? {}
+                : { requiredCapabilities: options.requiredCapabilities }),
+            ...(options.blockers === undefined
+                ? {}
+                : { blockers: options.blockers }),
+            ...(options.blockersComplete === undefined
+                ? {}
+                : { blockersComplete: options.blockersComplete }),
+            ...(options.explanationUrl === undefined
+                ? {}
+                : { explanationUrl: options.explanationUrl }),
+            ...(options.capability === undefined
+                ? {}
+                : { capability: options.capability }),
+            ...(options.policyLayer === undefined
+                ? {}
+                : { policyLayer: options.policyLayer }),
+            ...(options.operation === undefined
+                ? {}
+                : { operation: options.operation }),
+            ...(options.policyVersion === undefined
+                ? {}
+                : { policyVersion: options.policyVersion }),
+            ...(options.projectUuid === undefined
+                ? {}
+                : { projectUuid: options.projectUuid }),
         };
         super(refusal.message, refusal);
         this.refusal = refusal;
@@ -435,6 +480,20 @@ export class WarehouseQueryError extends LightdashError {
             message,
             name: 'WarehouseQueryError',
             statusCode: 400,
+            data,
+        });
+    }
+}
+
+export class QueryCostEstimateExceededError extends LightdashError {
+    constructor(
+        message: string,
+        data: { estimatedBytes: number; limitBytes: number },
+    ) {
+        super({
+            message,
+            name: 'QueryCostEstimateExceededError',
+            statusCode: 422,
             data,
         });
     }

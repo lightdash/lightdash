@@ -18,6 +18,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -38,7 +39,13 @@ export class AiAgentScopedSkillController extends BaseController {
      * ones. Anyone who can use the agent can read this.
      * @summary List agent skills
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentScopedSkillController.listAgentSkills',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/')
     @OperationId('listAgentSkills')

@@ -1,9 +1,24 @@
 import {
     BigqueryAuthenticationType,
+    DatabricksAuthenticationType,
     WarehouseTypes,
     type AiServiceAccountCredentialInput,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
+import {
+    athenaSecrets,
+    clickhouseConnection,
+    clickhouseSecrets,
+    postgresConnection,
+    postgresSecrets,
+    redshiftConnection,
+    redshiftSecrets,
+    snowflakeEncryptedKey,
+    snowflakePassphrase,
+    snowflakeSecrets,
+    trinoConnection,
+    trinoSecrets,
+} from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import {
     applyAiServiceAccountCredentials,
     mergeAiServiceAccountCredentials,
@@ -76,7 +91,15 @@ it('removes inherited auth fields and preserves tunnel configuration', () => {
 
 it.each(
     Object.values(WarehouseTypes).filter(
-        (type) => type !== WarehouseTypes.BIGQUERY,
+        (type) =>
+            type !== WarehouseTypes.POSTGRES &&
+            type !== WarehouseTypes.REDSHIFT &&
+            type !== WarehouseTypes.TRINO &&
+            type !== WarehouseTypes.CLICKHOUSE &&
+            type !== WarehouseTypes.BIGQUERY &&
+            type !== WarehouseTypes.ATHENA &&
+            type !== WarehouseTypes.DATABRICKS &&
+            type !== WarehouseTypes.SNOWFLAKE,
     ),
 )('rejects unsupported %s connections', (type) => {
     expect(() =>
@@ -109,8 +132,8 @@ it('replaces a submitted key file without borrowing saved fields', () => {
         mergeAiServiceAccountCredentials(
             { ...secrets, keyfileContents: replacement },
             secrets,
-        ).keyfileContents,
-    ).toEqual(replacement);
+        ),
+    ).toMatchObject({ keyfileContents: replacement });
     expect(() =>
         mergeAiServiceAccountCredentials(
             {
@@ -205,4 +228,226 @@ it('allows routing and transport fields while dropping unrecognised connection i
         requireUserCredentials: false,
         allowUserCredentials: false,
     });
+});
+
+it.each(['oauthClientId', 'oauthClientSecret'] as const)(
+    'requires a submitted Databricks %s even when saved',
+    (field) => {
+        const saved = {
+            type: WarehouseTypes.DATABRICKS,
+            authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+            oauthClientId: 'id',
+            oauthClientSecret: 'secret',
+        } as const;
+        expect(() =>
+            mergeAiServiceAccountCredentials(
+                {
+                    ...saved,
+                    [field]: undefined,
+                } as unknown as AiServiceAccountCredentialInput,
+                saved,
+            ),
+        ).toThrow('complete');
+        expect(mergeAiServiceAccountCredentials(saved, null)).toEqual(saved);
+    },
+);
+
+describe('Snowflake replacement semantics', () => {
+    const saved = {
+        ...snowflakeSecrets,
+        privateKey: snowflakeEncryptedKey,
+        privateKeyPass: snowflakePassphrase,
+    };
+    const { privateKey: _key, ...partial } = snowflakeSecrets;
+    it('preserves omitted key and passphrase', () => {
+        expect(mergeAiServiceAccountCredentials(partial, saved)).toEqual(saved);
+    });
+    it('clears a passphrase explicitly when replacing with an unencrypted key', () => {
+        expect(
+            mergeAiServiceAccountCredentials(
+                { ...snowflakeSecrets, privateKeyPass: null },
+                saved,
+            ),
+        ).toEqual(snowflakeSecrets);
+    });
+    it('refuses to clear a passphrase for a still-encrypted key', () => {
+        expect(() =>
+            mergeAiServiceAccountCredentials(
+                { ...partial, privateKeyPass: null },
+                saved,
+            ),
+        ).toThrow('valid RSA');
+    });
+    it('validates a new encrypted key with its supplied passphrase', () => {
+        expect(
+            mergeAiServiceAccountCredentials(saved, snowflakeSecrets),
+        ).toEqual(saved);
+    });
+    it.each([null, secrets])(
+        'does not borrow a missing key from %j',
+        (previous) => {
+            expect(() =>
+                mergeAiServiceAccountCredentials(partial, previous),
+            ).toThrow('complete');
+        },
+    );
+    it('does not inherit across methods', () => {
+        expect(() =>
+            mergeAiServiceAccountCredentials(
+                {
+                    ...partial,
+                    authenticationType: 'password',
+                } as unknown as AiServiceAccountCredentialInput,
+                saved,
+            ),
+        ).toThrow('complete');
+    });
+});
+
+it('replaces Athena bundles and clears omitted optional fields', () => {
+    expect(
+        mergeAiServiceAccountCredentials(athenaSecrets, {
+            ...athenaSecrets,
+            accessKeyId: 'old',
+            secretAccessKey: 'old-secret',
+            sessionToken: 'old-session',
+            s3DataDir: 's3://old-data/',
+        }),
+    ).toEqual(athenaSecrets);
+    expect(() =>
+        mergeAiServiceAccountCredentials(
+            { ...athenaSecrets, secretAccessKey: undefined } as never,
+            athenaSecrets,
+        ),
+    ).toThrow('complete');
+});
+
+it('requires a complete Postgres replacement and never keeps a blank password', () => {
+    for (const password of ['', undefined]) {
+        expect(() =>
+            mergeAiServiceAccountCredentials(
+                {
+                    ...postgresSecrets,
+                    password,
+                } as AiServiceAccountCredentialInput,
+                postgresSecrets,
+            ),
+        ).toThrow('complete');
+    }
+    const replacement = {
+        ...postgresSecrets,
+        user: 'new_user',
+        password: 'new-password',
+    };
+    expect(
+        mergeAiServiceAccountCredentials(replacement, postgresSecrets),
+    ).toEqual(replacement);
+    expect(
+        applyAiServiceAccountCredentials(postgresConnection, replacement),
+    ).toMatchObject({
+        ...replacement,
+        sshTunnelPrivateKey: 'tunnel-private',
+        requireUserCredentials: false,
+    });
+});
+
+it('requires a complete Redshift replacement and never keeps a blank password', () => {
+    for (const password of ['', undefined]) {
+        expect(() =>
+            mergeAiServiceAccountCredentials(
+                {
+                    ...redshiftSecrets,
+                    password,
+                } as AiServiceAccountCredentialInput,
+                redshiftSecrets,
+            ),
+        ).toThrow('complete');
+    }
+    const replacement = {
+        ...redshiftSecrets,
+        user: 'new_user',
+        password: 'new-password',
+    };
+    expect(
+        mergeAiServiceAccountCredentials(replacement, redshiftSecrets),
+    ).toEqual(replacement);
+    expect(
+        applyAiServiceAccountCredentials(redshiftConnection, replacement),
+    ).toMatchObject({
+        ...replacement,
+        sshTunnelPrivateKey: 'tunnel-private',
+        requireUserCredentials: false,
+    });
+});
+
+it('requires a complete Trino replacement and never keeps a blank password', () => {
+    for (const password of ['', undefined]) {
+        expect(() =>
+            mergeAiServiceAccountCredentials(
+                {
+                    ...trinoSecrets,
+                    password,
+                } as AiServiceAccountCredentialInput,
+                trinoSecrets,
+            ),
+        ).toThrow('complete');
+    }
+    const replacement = {
+        ...trinoSecrets,
+        user: 'new_user',
+        password: 'new-password',
+    };
+    expect(mergeAiServiceAccountCredentials(replacement, trinoSecrets)).toEqual(
+        replacement,
+    );
+    expect(
+        applyAiServiceAccountCredentials(trinoConnection, replacement),
+    ).toMatchObject({
+        ...replacement,
+        requireUserCredentials: false,
+    });
+});
+
+it('requires a complete ClickHouse replacement and never keeps a blank password', () => {
+    for (const password of ['', undefined]) {
+        expect(() =>
+            mergeAiServiceAccountCredentials(
+                {
+                    ...clickhouseSecrets,
+                    password,
+                } as AiServiceAccountCredentialInput,
+                clickhouseSecrets,
+            ),
+        ).toThrow('complete');
+    }
+    const replacement = {
+        ...clickhouseSecrets,
+        user: 'new_user',
+        password: 'new-password',
+    };
+    expect(
+        mergeAiServiceAccountCredentials(replacement, clickhouseSecrets),
+    ).toEqual(replacement);
+    expect(
+        applyAiServiceAccountCredentials(clickhouseConnection, replacement),
+    ).toMatchObject({
+        ...replacement,
+        requireUserCredentials: false,
+    });
+});
+
+it('retains ClickHouse routing and rejects a mismatched warehouse', () => {
+    expect(
+        applyAiServiceAccountCredentials(
+            clickhouseConnection,
+            clickhouseSecrets,
+        ),
+    ).toEqual({
+        ...clickhouseConnection,
+        ...clickhouseSecrets,
+        requireUserCredentials: false,
+    });
+    expect(() =>
+        applyAiServiceAccountCredentials(clickhouseConnection, postgresSecrets),
+    ).toThrow('match');
 });

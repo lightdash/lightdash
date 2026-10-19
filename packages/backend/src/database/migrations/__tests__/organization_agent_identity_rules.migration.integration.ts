@@ -1,6 +1,8 @@
 import {
+    AgentActorSurface,
     AiAccessRefusalReason,
     AiAccessRefusedError,
+    buildAgentIdentityClaim,
     QueryExecutionContext,
     QuerySurface,
     WarehouseTypes,
@@ -177,6 +179,36 @@ test('defaults every missing actor and type and lists only enforceable warehouse
         },
         {
             warehouseType: WarehouseTypes.BIGQUERY,
+            source: 'marked_person',
+            projectsMissingAiServiceAccount: null,
+        },
+        {
+            warehouseType: WarehouseTypes.POSTGRES,
+            source: 'marked_person',
+            projectsMissingAiServiceAccount: null,
+        },
+        {
+            warehouseType: WarehouseTypes.REDSHIFT,
+            source: 'marked_person',
+            projectsMissingAiServiceAccount: null,
+        },
+        {
+            warehouseType: WarehouseTypes.DATABRICKS,
+            source: 'marked_person',
+            projectsMissingAiServiceAccount: null,
+        },
+        {
+            warehouseType: WarehouseTypes.TRINO,
+            source: 'marked_person',
+            projectsMissingAiServiceAccount: null,
+        },
+        {
+            warehouseType: WarehouseTypes.CLICKHOUSE,
+            source: 'marked_person',
+            projectsMissingAiServiceAccount: null,
+        },
+        {
+            warehouseType: WarehouseTypes.ATHENA,
             source: 'marked_person',
             projectsMissingAiServiceAccount: null,
         },
@@ -492,6 +524,36 @@ test.each([true, false])(
                     source: 'ai_service_account',
                     projectsMissingAiServiceAccount: null,
                 },
+                {
+                    warehouseType: WarehouseTypes.POSTGRES,
+                    source: 'marked_person',
+                    projectsMissingAiServiceAccount: null,
+                },
+                {
+                    warehouseType: WarehouseTypes.REDSHIFT,
+                    source: 'marked_person',
+                    projectsMissingAiServiceAccount: null,
+                },
+                {
+                    warehouseType: WarehouseTypes.DATABRICKS,
+                    source: 'marked_person',
+                    projectsMissingAiServiceAccount: null,
+                },
+                {
+                    warehouseType: WarehouseTypes.TRINO,
+                    source: 'marked_person',
+                    projectsMissingAiServiceAccount: null,
+                },
+                {
+                    warehouseType: WarehouseTypes.CLICKHOUSE,
+                    source: 'marked_person',
+                    projectsMissingAiServiceAccount: null,
+                },
+                {
+                    warehouseType: WarehouseTypes.ATHENA,
+                    source: 'marked_person',
+                    projectsMissingAiServiceAccount: null,
+                },
             ]);
         });
     },
@@ -544,10 +606,18 @@ test('resolvePlan refuses needs_sign_in after an old pod enables the legacy swit
         },
         lightdashConfig: { siteUrl: 'https://lightdash.example' },
         analytics: { track: vi.fn() },
-        providerRegistry: () => ({ configurationError: () => null, mint }),
+        agentSignInCredentialResolver: {
+            inspectClient: () => null,
+            resolve: mint,
+        },
     } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
     await expect(
         service.resolvePlan({
+            agentIdentity: buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: 'person' },
+                surface: AgentActorSurface.IN_APP_AGENT,
+                clientId: 'lightdash-chat',
+            }),
             organizationUuid,
             projectUuid: 'project',
             warehouseConnectionUuid: null,
@@ -629,4 +699,42 @@ test('round 11 legacy saves return transaction change metadata', async () => {
         previousSource: 'agent_sign_in',
         changed: false,
     });
+});
+
+test('writes both ClickHouse actors without creating or changing legacy settings', async () => {
+    const { model, settings, organizationUuid } = await fixture();
+    const rule = { source: 'ai_service_account' } as const;
+    await model.set(organizationUuid, WarehouseTypes.CLICKHOUSE, rule);
+    expect(
+        await migrated
+            .database('organization_agent_identity_settings')
+            .where('organization_uuid', organizationUuid),
+    ).toHaveLength(0);
+    await Promise.all(
+        actors.map(async (actor) => {
+            expect(
+                await model.get(
+                    organizationUuid,
+                    WarehouseTypes.CLICKHOUSE,
+                    actor,
+                ),
+            ).toEqual(rule);
+        }),
+    );
+    await settings.upsert(organizationUuid, {
+        requireVerifiedAgentSessions: true,
+    });
+    const before = await migrated
+        .database('organization_agent_identity_settings')
+        .where('organization_uuid', organizationUuid)
+        .first();
+    await model.set(organizationUuid, WarehouseTypes.CLICKHOUSE, {
+        source: 'marked_person',
+    });
+    expect(
+        await migrated
+            .database('organization_agent_identity_settings')
+            .where('organization_uuid', organizationUuid)
+            .first(),
+    ).toEqual(before);
 });

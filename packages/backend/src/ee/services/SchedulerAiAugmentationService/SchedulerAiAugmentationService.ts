@@ -3,6 +3,7 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     assertUnreachable,
+    FeatureFlags,
     ForbiddenError,
     hasAiAgentAccessToSpace,
     hasSchedulerUuid,
@@ -17,16 +18,36 @@ import {
     SendNowScheduler,
     SessionUser,
     type Account,
+    type AgentWorkMarker,
     type DashboardDAO,
 } from '@lightdash/common';
 import { fromSession } from '../../../auth/account/account';
+import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
+import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../../models/UserModel';
 import { type WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
-import type { SchedulerDeliveryQuery } from '../../../scheduler/SchedulerTask';
-import { agentExecutionContext } from '../../../services/AiAccessService/agentExecutionContext';
+import type {
+    SchedulerAiAugmentationResult,
+    SchedulerAiAugmentationRunner,
+    SchedulerDeliveryQuery,
+} from '../../../scheduler/SchedulerTask';
+import { type AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
+import {
+    AGENT_SUMMARY_REFUSED_MESSAGE,
+    assertAgentWorkAllowed,
+} from '../../../services/AgentPermissionService/agentWorkAuthority';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+    getContentWriteAgentIdentity,
+} from '../../../services/AiAccessService/agentExecutionContext';
 import { type AiAccessService } from '../../../services/AiAccessService/AiAccessService';
+import {
+    logAgentContentWrite,
+    recordAgentRefusal,
+} from '../../../services/AiAccessService/logAgentContentWrite';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../../../services/AsyncQueryService/types';
 import { BaseService } from '../../../services/BaseService';
@@ -52,6 +73,12 @@ import {
 } from './deliveryContext';
 
 type Dependencies = {
+    agentPermissionService: Pick<
+        AgentPermissionService,
+        'loadRequest' | 'assertOperationWithRequest'
+    >;
+    featureFlagModel: FeatureFlagModel;
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     schedulerAiAugmentationModel: SchedulerAiAugmentationModel;
     schedulerService: SchedulerService;
     userModel: UserModel;
@@ -64,7 +91,14 @@ type Dependencies = {
     aiService: AiService;
 };
 
-export class SchedulerAiAugmentationService extends BaseService {
+export class SchedulerAiAugmentationService
+    extends BaseService
+    implements SchedulerAiAugmentationRunner
+{
+    private readonly agentPermissionService: Dependencies['agentPermissionService'];
+    private readonly featureFlagModel: FeatureFlagModel;
+    private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
     private readonly schedulerAiAugmentationModel: SchedulerAiAugmentationModel;
 
     private readonly schedulerService: SchedulerService;
@@ -87,7 +121,11 @@ export class SchedulerAiAugmentationService extends BaseService {
 
     constructor(dependencies: Dependencies) {
         super();
+        this.agentPermissionService = dependencies.agentPermissionService;
+        const { agentActionLogModel } = dependencies;
+        this.agentActionLogModel = agentActionLogModel;
         this.aiAccessService = dependencies.aiAccessService;
+        this.featureFlagModel = dependencies.featureFlagModel;
         this.projectModel = dependencies.projectModel;
         this.warehouseConnectionModel = dependencies.warehouseConnectionModel;
         this.schedulerAiAugmentationModel =
@@ -127,7 +165,21 @@ export class SchedulerAiAugmentationService extends BaseService {
                 schedulerUuid,
             );
         if (!(await this.aiAgentService.getIsCopilotEnabled(user))) {
-            throw new ForbiddenError('AI is not enabled for this organization');
+            const error = new ForbiddenError(
+                'AI is not enabled for this organization',
+            );
+            await recordAgentRefusal({
+                model: this.agentActionLogModel,
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                projectUuid: resource.projectUuid,
+                objectType: 'scheduler_ai_augmentation',
+                action: 'update',
+                policyLayer: 'organization_setting',
+                reasonCode: 'ai_copilot_disabled',
+                error,
+            });
+            throw error;
         }
         if (augmentation.prompt.trim().length === 0) {
             throw new ParameterError(
@@ -144,6 +196,16 @@ export class SchedulerAiAugmentationService extends BaseService {
                 resource.spaceUuid !== null &&
                 !hasAiAgentAccessToSpace(agent, resource.spaceUuid)
             ) {
+                await recordAgentRefusal({
+                    model: this.agentActionLogModel,
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                    projectUuid: resource.projectUuid,
+                    objectType: 'scheduler_ai_augmentation',
+                    action: 'update',
+                    policyLayer: 'agent_scope',
+                    reasonCode: 'content_outside_agent_scope',
+                });
                 throw new ParameterError(
                     `AI agent "${agent.name}" does not have access to the space containing this delivery's content`,
                 );
@@ -158,6 +220,18 @@ export class SchedulerAiAugmentationService extends BaseService {
             schedulerUuid,
             augmentation,
         );
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            }),
+            projectUuid: resource.projectUuid,
+            objectType: 'scheduler_ai_augmentation',
+            objectUuid: schedulerUuid,
+            versionUuid: null,
+            action: 'update',
+        });
         return augmentation;
     }
 
@@ -218,7 +292,7 @@ export class SchedulerAiAugmentationService extends BaseService {
         scheduler: SchedulerAndTargets | SendNowScheduler;
         createdBy: string;
         deliveryQueries?: SchedulerDeliveryQuery[];
-    }): Promise<string | null> {
+    }): Promise<SchedulerAiAugmentationResult | null> {
         const augmentation = hasSchedulerUuid(scheduler)
             ? await this.schedulerAiAugmentationModel.find(
                   scheduler.schedulerUuid,
@@ -261,11 +335,43 @@ export class SchedulerAiAugmentationService extends BaseService {
                 }
             }),
         );
-        return agentExecutionContext.run(
-            {
+        const { enabled: agentIdentityEnabled } =
+            await this.featureFlagModel.get({
+                user: { userUuid: account.user.id, organizationUuid },
+                featureFlagId: FeatureFlags.AgentIdentity,
+            });
+        const agentWork: AgentWorkMarker | null = agentIdentityEnabled
+            ? { userUuid: createdBy, organizationUuid, projectUuid }
+            : null;
+        if (agentWork) {
+            try {
+                await assertAgentWorkAllowed(
+                    {
+                        userModel: this.userModel,
+                        agentPermissionService: this.agentPermissionService,
+                        agentActionLogModel: this.agentActionLogModel,
+                    },
+                    { ...agentWork, surface: AgentActorSurface.AI_SUMMARY },
+                    { freshlyLoadedUser: creator },
+                );
+            } catch (error) {
+                if (error instanceof AiAccessRefusedError) {
+                    throw new ForbiddenError(AGENT_SUMMARY_REFUSED_MESSAGE);
+                }
+                throw error;
+            }
+        }
+        const message = await agentExecutionContext.run(
+            createAgentExecutionContext({
+                account,
                 surface: AgentActorSurface.AI_SUMMARY,
                 clientId: 'lightdash-ai-summary',
-            },
+                agentUuid:
+                    augmentation.type === 'agent'
+                        ? augmentation.agentUuid
+                        : null,
+                agentIdentityEnabled,
+            }),
             () => {
                 switch (augmentation.type) {
                     case 'agent':
@@ -274,6 +380,7 @@ export class SchedulerAiAugmentationService extends BaseService {
                             createdBy,
                             augmentation,
                             deliveryQueries,
+                            agentIdentityEnabled ? creator : null,
                         );
                     case 'fast_model':
                         return this.runFastModelForDelivery(
@@ -281,6 +388,7 @@ export class SchedulerAiAugmentationService extends BaseService {
                             createdBy,
                             augmentation.prompt,
                             deliveryQueries,
+                            agentIdentityEnabled ? creator : null,
                         );
                     default:
                         return assertUnreachable(
@@ -289,6 +397,18 @@ export class SchedulerAiAugmentationService extends BaseService {
                         );
                 }
             },
+        );
+        return { message, agentWork };
+    }
+
+    async assertDeliveryAllowed(marker: AgentWorkMarker): Promise<void> {
+        await assertAgentWorkAllowed(
+            {
+                userModel: this.userModel,
+                agentPermissionService: this.agentPermissionService,
+                agentActionLogModel: this.agentActionLogModel,
+            },
+            { ...marker, surface: AgentActorSurface.AI_SUMMARY },
         );
     }
 
@@ -300,16 +420,19 @@ export class SchedulerAiAugmentationService extends BaseService {
         createdBy: string,
         augmentation: Extract<SchedulerAiAugmentation, { type: 'agent' }>,
         deliveryQueries: SchedulerDeliveryQuery[] | undefined,
+        checkedCreator: SessionUser | null,
     ): Promise<string> {
         const dashboard = scheduler.dashboardUuid
             ? await this.dashboardModel.getByIdOrSlug(scheduler.dashboardUuid)
             : null;
         const { organizationUuid, projectUuid, spaceUuid } =
             await this.schedulerService.getSchedulerProjectContext(scheduler);
-        const creator = await this.userModel.findSessionUserAndOrgByUuid(
-            createdBy,
-            organizationUuid,
-        );
+        const creator =
+            checkedCreator ??
+            (await this.userModel.findSessionUserAndOrgByUuid(
+                createdBy,
+                organizationUuid,
+            ));
         // Re-checked per fire (not just at write time) because the agent's
         // space access can change after the schedule is saved, and an unsaved
         // "send now" never goes through upsert. Failing here degrades to a
@@ -366,6 +489,7 @@ export class SchedulerAiAugmentationService extends BaseService {
         createdBy: string,
         prompt: string,
         deliveryQueries: SchedulerDeliveryQuery[] | undefined,
+        checkedCreator: SessionUser | null,
     ): Promise<string> {
         const dashboard = scheduler.dashboardUuid
             ? await this.dashboardModel.getByIdOrSlug(scheduler.dashboardUuid)
@@ -373,10 +497,12 @@ export class SchedulerAiAugmentationService extends BaseService {
         const { projectUuid, organizationUuid } =
             dashboard ??
             (await this.schedulerService.getSchedulerProjectContext(scheduler));
-        const creator = await this.userModel.findSessionUserAndOrgByUuid(
-            createdBy,
-            organizationUuid,
-        );
+        const creator =
+            checkedCreator ??
+            (await this.userModel.findSessionUserAndOrgByUuid(
+                createdBy,
+                organizationUuid,
+            ));
         if (!(await this.aiAgentService.getIsCopilotEnabled(creator))) {
             throw new ForbiddenError('AI is not enabled for this organization');
         }

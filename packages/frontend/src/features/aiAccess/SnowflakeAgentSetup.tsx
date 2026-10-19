@@ -2,14 +2,25 @@ import {
     type OrganizationAgentIdentitySnowflakeSetup,
     type OrganizationAgentIdentitySnowflakeVerify,
 } from '@lightdash/common';
-import { Badge, Button, Group, Paper, Stack, Text, Title } from '@mantine/core';
+import {
+    Anchor,
+    Badge,
+    Button,
+    Group,
+    Paper,
+    Stack,
+    Text,
+    Title,
+} from '@mantine/core';
 import { IconCheck, IconMinus, IconX } from '@tabler/icons-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useState } from 'react';
+import { Link } from 'react-router';
 import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useSettingsContext } from '../../hooks/settings/useSettingsContext';
 import { AgentSetupStep } from './AgentSetupStep';
 import { useSnowflakeAgentSetup, useSnowflakeAgentVerify } from './api';
 import { SnowflakeAgentClient } from './SnowflakeAgentClient';
@@ -33,24 +44,23 @@ const SnowflakeSetupSteps = ({
     onVerify: () => void;
     onClientSave: () => void;
 }) => {
-    const [copied, setCopied] = useState(false);
+    const { showMyAgentConnections } = useSettingsContext();
     return (
         <Stack gap="lg">
             <AgentSetupStep
                 number={1}
                 title="Copy and run in Snowflake"
-                done={copied || setup.configured}
+                done={setup.configured}
             >
                 <CodeBlock
                     language="sql"
                     code={setup.integrationSql}
                     copyLabel="Copy integration SQL"
-                    onCopy={() => setCopied(true)}
                 />
             </AgentSetupStep>
             <AgentSetupStep
                 number={2}
-                title="Paste what Snowflake returned"
+                title="Add your Snowflake account and client details"
                 done={setup.configured}
             >
                 <Stack gap="xs">
@@ -105,6 +115,17 @@ const SnowflakeSetupSteps = ({
                                     <Text size="sm" c="dimmed">
                                         {check.detail}
                                     </Text>
+                                    {check.id === 'agent_session' &&
+                                        check.status === 'not_checked' &&
+                                        showMyAgentConnections && (
+                                            <Anchor
+                                                component={Link}
+                                                to="/generalSettings/myAgentConnections"
+                                                size="sm"
+                                            >
+                                                My agent identity
+                                            </Anchor>
+                                        )}
                                 </Stack>
                             </Group>
                         );
@@ -237,7 +258,12 @@ const SnowflakeSetupActions = ({
 );
 
 type Props =
-    | { mode: 'active' }
+    | {
+          mode: 'active';
+          verify: ReturnType<typeof useSnowflakeAgentVerify>;
+          expanded: boolean | null;
+          onToggle: () => void;
+      }
     | {
           mode: 'pending';
           saving: boolean;
@@ -245,18 +271,51 @@ type Props =
           onTurnOn: () => void;
       };
 
-export const SnowflakeAgentSetup = (props: Props) => {
+const SnowflakeSetupHeader = ({
+    compactConfirm,
+    pending,
+}: {
+    compactConfirm: boolean;
+    pending: boolean;
+}) => (
+    <Stack gap="xs">
+        <Group justify="space-between" wrap="nowrap">
+            <Title order={5}>
+                {compactConfirm
+                    ? 'Turn on agent sign-in'
+                    : 'Set up the Snowflake agent integration'}
+            </Title>
+            {pending && (
+                <Badge color="orange" variant="light">
+                    Not active yet
+                </Badge>
+            )}
+        </Group>
+        {!compactConfirm && (
+            <Text size="sm" c="dimmed">
+                Run this once in Snowflake as ACCOUNTADMIN. It lets people sign
+                their agent in as themselves.
+            </Text>
+        )}
+    </Stack>
+);
+
+const SnowflakeAgentSetupContent = (
+    props: Props & { verify: ReturnType<typeof useSnowflakeAgentVerify> },
+) => {
+    const { verify } = props;
     const setup = useSnowflakeAgentSetup();
-    const verify = useSnowflakeAgentVerify(props.mode === 'active');
-    const [expanded, setExpanded] = useState(false);
     const [clientEdited, setClientEdited] = useState(false);
     const needsAttention = verify.isError || verify.data?.passed === false;
-    const showSteps = props.mode === 'pending' || expanded || needsAttention;
+    const open =
+        props.mode === 'pending' ||
+        (props.expanded ?? (needsAttention && !setup.isLoading));
     const compactConfirm =
         props.mode === 'pending' &&
         !clientEdited &&
         setup.data?.configured === true;
     const verified = !verify.isError && verify.data?.passed === true;
+    if (!open) return null;
     return (
         <Stack gap="sm">
             {props.mode === 'active' && (
@@ -264,61 +323,56 @@ export const SnowflakeAgentSetup = (props: Props) => {
                     verified={verified}
                     needsAttention={needsAttention}
                     verification={verify.data ?? null}
-                    expanded={expanded}
-                    onToggle={() => setExpanded((value) => !value)}
+                    expanded={open}
+                    onToggle={props.onToggle}
                 />
             )}
-            {showSteps && (
-                <Paper withBorder p="md" radius="md">
-                    <Stack gap="md">
-                        <Stack gap="xs">
-                            <Group justify="space-between" wrap="nowrap">
-                                <Title order={5}>
-                                    {compactConfirm
-                                        ? 'Turn on agent sign-in'
-                                        : 'Set up the Snowflake agent integration'}
-                                </Title>
-                                {props.mode === 'pending' && (
-                                    <Badge color="orange" variant="light">
-                                        Not active yet
-                                    </Badge>
-                                )}
-                            </Group>
-                            {!compactConfirm && (
-                                <Text size="sm" c="dimmed">
-                                    Run this once in Snowflake as ACCOUNTADMIN.
-                                    It lets people sign their agent in as
-                                    themselves.
-                                </Text>
-                            )}
-                        </Stack>
-                        <SnowflakeSetupContent
-                            setup={setup}
-                            verify={verify}
+            <Paper withBorder p="md" radius="md">
+                <Stack gap="md">
+                    <SnowflakeSetupHeader
+                        compactConfirm={compactConfirm}
+                        pending={props.mode === 'pending'}
+                    />
+                    <SnowflakeSetupContent
+                        setup={setup}
+                        verify={verify}
+                        compactConfirm={compactConfirm}
+                        onClientSave={() => setClientEdited(true)}
+                    />
+                    {verify.isError && (
+                        <Text size="sm" c="red" role="alert">
+                            Could not verify the Snowflake agent integration.
+                            Try again.
+                        </Text>
+                    )}
+                    {props.mode === 'pending' && (
+                        <SnowflakeSetupActions
+                            saving={props.saving}
+                            onCancel={props.onCancel}
+                            onTurnOn={props.onTurnOn}
                             compactConfirm={compactConfirm}
-                            onClientSave={() => setClientEdited(true)}
+                            setupLoading={setup.isLoading}
+                            setupError={setup.isError}
+                            verifying={verify.isFetching}
+                            verified={verified}
                         />
-                        {verify.isError && (
-                            <Text size="sm" c="red" role="alert">
-                                Could not verify the Snowflake agent
-                                integration. Try again.
-                            </Text>
-                        )}
-                        {props.mode === 'pending' && (
-                            <SnowflakeSetupActions
-                                saving={props.saving}
-                                onCancel={props.onCancel}
-                                onTurnOn={props.onTurnOn}
-                                compactConfirm={compactConfirm}
-                                setupLoading={setup.isLoading}
-                                setupError={setup.isError}
-                                verifying={verify.isFetching}
-                                verified={verified}
-                            />
-                        )}
-                    </Stack>
-                </Paper>
-            )}
+                    )}
+                </Stack>
+            </Paper>
         </Stack>
     );
 };
+
+const PendingSnowflakeAgentSetup = (
+    props: Extract<Props, { mode: 'pending' }>,
+) => {
+    const verify = useSnowflakeAgentVerify(false);
+    return <SnowflakeAgentSetupContent {...props} verify={verify} />;
+};
+
+export const SnowflakeAgentSetup = (props: Props) =>
+    props.mode === 'active' ? (
+        <SnowflakeAgentSetupContent {...props} />
+    ) : (
+        <PendingSnowflakeAgentSetup {...props} />
+    );

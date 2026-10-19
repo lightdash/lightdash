@@ -28,6 +28,7 @@ import {
 import express from 'express';
 import { getContextFromHeader } from '../analytics/LightdashAnalytics';
 import { toSessionUser } from '../auth/account';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     deprecatedResultsRoute,
@@ -72,6 +73,9 @@ Migrate to the v2 async query flow: [Execute underlying data](https://docs.light
         allowApiKeyAuthentication,
         isAuthenticated,
         deprecatedResultsRoute,
+        requireOAuthScopeOperation(
+            'RunViewChartQueryController.postUnderlyingData',
+        ),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/explores/{exploreId}/runUnderlyingDataQuery')

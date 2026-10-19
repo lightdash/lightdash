@@ -31,6 +31,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../auth/account';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -127,7 +128,11 @@ export class ExploreController extends BaseController {
      * Get a specific explore
      * @summary Get explore
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('ExploreController.GetExplore'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('{exploreId}')
     @OperationId('GetExplore')
@@ -152,7 +157,11 @@ export class ExploreController extends BaseController {
      * Compile a metric query for an explore
      * @summary Compile query
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('ExploreController.CompileQuery'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('{exploreId}/compileQuery')
     @OperationId('CompileQuery')
@@ -188,7 +197,11 @@ export class ExploreController extends BaseController {
      * Check pre-aggregate availability for a metric query
      * @summary Check pre-aggregate
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('ExploreController.CheckPreAggregate'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('{exploreId}/preAggregateCheck')
     @OperationId('CheckPreAggregate')
@@ -225,7 +238,11 @@ export class ExploreController extends BaseController {
      * Validate a spreadsheet formula against the explore's fields
      * @summary Validate formula
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('ExploreController.ValidateFormula'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('{exploreId}/validateFormula')
     @OperationId('ValidateFormula')

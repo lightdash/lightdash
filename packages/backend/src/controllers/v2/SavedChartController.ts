@@ -20,6 +20,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     parseEnumList,
     parseWhitelistedList,
@@ -46,7 +47,13 @@ export class SavedChartControllerV2 extends BaseController {
      * @param formats comma-separated list of scheduler formats to include
      * @param includeLatestRun include the most recent run for each scheduler
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'SavedChartControllerV2.getSavedChartSchedulers',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/schedulers')
     @OperationId('getSavedChartSchedulers')

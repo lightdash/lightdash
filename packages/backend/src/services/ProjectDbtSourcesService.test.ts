@@ -3,6 +3,7 @@ import {
     AlreadyExistsError,
     DbtProjectType,
     EMPTY_WAREHOUSE_LOCATION,
+    FeatureFlags,
     ForbiddenError,
     ParameterError,
     PossibleAbilities,
@@ -14,6 +15,7 @@ import { fromSession } from '../auth/account/account';
 import { buildAccount, defaultSessionUser } from '../auth/account/account.mock';
 import { GITHUB_APP_NOT_INSTALLED_MESSAGE } from '../projectAdapters/githubAuthorization';
 import { ProjectDbtSourcesService } from './ProjectDbtSourcesService';
+import { warehouseConnectionCredentials } from './WarehouseConnectionService/warehouseConnectionFixtures.mock';
 
 const projectUuid = '11111111-1111-4111-8111-111111111111';
 const otherProjectUuid = '99999999-9999-4999-8999-999999999999';
@@ -69,6 +71,7 @@ const projectModel = {
         projectUuid: uuid,
         dbtConnection: primaryDbtConnection,
     })),
+    getWarehouseConnectionForBinding: vi.fn(),
     getDbtSourceIdentity: vi.fn(async () => ({
         dbtSourceUuid: primarySourceUuid,
         dbtSourceName: 'dbt_project',
@@ -78,6 +81,7 @@ const projectModel = {
 
 const projectDbtSourcesModel = {
     getSources: vi.fn(async () => []),
+    getSourcesWithBindings: vi.fn(),
     getSource: vi.fn(),
     createSource: vi.fn(),
     updateSource: vi.fn(),
@@ -90,6 +94,16 @@ const githubAppInstallationsModel = {
     ),
 };
 
+const mixedWarehouseConnections = { enabled: false };
+const featureFlagService = {
+    get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+        id: featureFlagId,
+        enabled:
+            featureFlagId === FeatureFlags.MixedWarehouseConnections &&
+            mixedWarehouseConnections.enabled,
+    })),
+};
+
 const getService = () =>
     new ProjectDbtSourcesService({
         lightdashConfig: {} as never,
@@ -97,11 +111,13 @@ const getService = () =>
         projectModel: projectModel as never,
         projectDbtSourcesModel: projectDbtSourcesModel as never,
         githubAppInstallationsModel: githubAppInstallationsModel as never,
+        featureFlagService,
     });
 
 describe('ProjectDbtSourcesService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mixedWarehouseConnections.enabled = false;
         projectModel.getSummary.mockResolvedValue({
             organizationUuid: 'org-uuid',
             projectUuid,
@@ -116,6 +132,10 @@ describe('ProjectDbtSourcesService', () => {
             dbtSourceName: 'dbt_project',
         });
         projectDbtSourcesModel.getSources.mockResolvedValue([]);
+        projectDbtSourcesModel.getSourcesWithBindings.mockResolvedValue([]);
+        projectModel.getWarehouseConnectionForBinding.mockResolvedValue(
+            warehouseConnectionCredentials[WarehouseTypes.BIGQUERY],
+        );
         // By default the org has no GitHub App installation.
         githubAppInstallationsModel.findInstallationId.mockResolvedValue(
             undefined,
@@ -276,6 +296,80 @@ describe('ProjectDbtSourcesService', () => {
             ).rejects.toThrow(ParameterError);
 
             expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
+        });
+
+        it('refuses a manifest source when mixed warehouse connections are off', async () => {
+            const service = getService();
+
+            await expect(
+                service.createProjectDbtSource(adminAccount, projectUuid, {
+                    name: 'trino_models',
+                    dbtConnection: {
+                        type: DbtProjectType.MANIFEST,
+                        manifest: '{}',
+                        hideRefreshButton: false,
+                    } as never,
+                }),
+            ).rejects.toThrow(
+                'Additional dbt sources currently support GitHub connections only',
+            );
+            expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
+        });
+
+        it('creates a manifest source when mixed warehouse connections are on', async () => {
+            mixedWarehouseConnections.enabled = true;
+            projectDbtSourcesModel.getSources.mockResolvedValue([]);
+            projectDbtSourcesModel.createSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                name: 'trino_models',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: {
+                    type: DbtProjectType.MANIFEST,
+                    manifest: '{}',
+                    hideRefreshButton: false,
+                },
+            } as never);
+            const service = getService();
+
+            const created = await service.createProjectDbtSource(
+                adminAccount,
+                projectUuid,
+                {
+                    name: 'trino_models',
+                    dbtConnection: {
+                        type: DbtProjectType.MANIFEST,
+                        manifest: '{}',
+                        hideRefreshButton: false,
+                    } as never,
+                },
+            );
+
+            expect(created.name).toBe('trino_models');
+            expect(featureFlagService.get).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    featureFlagId: FeatureFlags.MixedWarehouseConnections,
+                }),
+            );
+        });
+
+        it('still refuses other non-GitHub sources when mixed warehouse connections are on', async () => {
+            mixedWarehouseConnections.enabled = true;
+            const service = getService();
+
+            await expect(
+                service.createProjectDbtSource(adminAccount, projectUuid, {
+                    name: 'gitlab_models',
+                    dbtConnection: {
+                        type: DbtProjectType.GITLAB,
+                        repository: 'acme/models',
+                        branch: 'main',
+                        project_sub_path: '/',
+                    } as never,
+                }),
+            ).rejects.toThrow(
+                'Additional dbt sources currently support GitHub connections only',
+            );
         });
 
         it('creates a GitHub source at precedence = max(existing) + 1', async () => {
@@ -504,6 +598,9 @@ describe('ProjectDbtSourcesService', () => {
         });
 
         it('rejects a database on a warehouse whose tables have none', async () => {
+            projectModel.getWarehouseConnectionForBinding.mockResolvedValue(
+                warehouseConnectionCredentials[WarehouseTypes.CLICKHOUSE],
+            );
             projectModel.get.mockResolvedValue({
                 projectUuid,
                 dbtConnection: primaryDbtConnection,
@@ -722,6 +819,48 @@ describe('ProjectDbtSourcesService', () => {
                     },
                 }),
             );
+        });
+
+        it('validates a source location against its bound Trino connection', async () => {
+            projectDbtSourcesModel.getSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                projectUuid,
+                dbtConnection: githubConnection,
+            } as never);
+            projectDbtSourcesModel.getSourcesWithBindings.mockResolvedValue([
+                {
+                    projectDbtSourceUuid: sourceUuid,
+                    warehouseConnectionUuid: 'trino-extra',
+                },
+            ]);
+            projectDbtSourcesModel.updateSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                name: 'source',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: githubConnection,
+            } as never);
+            projectModel.getWarehouseConnectionForBinding.mockResolvedValue(
+                warehouseConnectionCredentials[WarehouseTypes.TRINO],
+            );
+            await getService().updateProjectDbtSource(
+                adminAccount,
+                projectUuid,
+                sourceUuid,
+                {
+                    warehouseLocation: {
+                        database: 'catalog',
+                        schema: 'public',
+                    },
+                },
+            );
+            expect(
+                projectModel.getWarehouseConnectionForBinding,
+            ).toHaveBeenCalledWith(projectUuid, {
+                kind: 'connection',
+                warehouseConnectionUuid: 'trino-extra',
+            });
+            expect(projectDbtSourcesModel.updateSource).toHaveBeenCalled();
         });
 
         it('rejects an invalid GitHub token before updating the source', async () => {

@@ -17,6 +17,13 @@ type AgentConnectAttribution = {
     projectUuid: string | null;
 };
 
+export class SnowflakeSignInPopupBlockedError extends Error {
+    constructor() {
+        super('Failed to open popup window');
+        this.name = 'SnowflakeSignInPopupBlockedError';
+    }
+}
+
 // TODO: This is a stub for the actual implementation
 //       It could maybe be abstracted into a generic oauth login hook
 const triggerSnowflakeLogin = async (
@@ -43,7 +50,8 @@ const triggerSnowflakeLogin = async (
         );
 
         if (!popupWindow) {
-            reject(new Error('Failed to open popup window'));
+            channel.close();
+            reject(new SnowflakeSignInPopupBlockedError());
             return;
         }
 
@@ -107,7 +115,10 @@ export function useSnowflakeLoginPopup({
     }, [ssoMutation, health.data?.auth.snowflake.enabled]);
 }
 
-export function useSnowflakeAiLoginPopup(attribution: AgentConnectAttribution) {
+export function useSnowflakeAiLoginPopup(
+    attribution: AgentConnectAttribution,
+    { showErrorToast = true }: { showErrorToast?: boolean } = {},
+) {
     const t = useUiStrings();
     const health = useHealth();
     const queryClient = useQueryClient();
@@ -131,11 +142,14 @@ export function useSnowflakeAiLoginPopup(attribution: AgentConnectAttribution) {
                 }),
             ]);
         },
-        onError: (error: Error) =>
-            showToastError({
-                title: t('aiAccess.signInError'),
-                subtitle: error.message,
-            }),
+        onError: (error: Error) => {
+            if (showErrorToast) {
+                showToastError({
+                    title: t('aiAccess.signInError'),
+                    subtitle: error.message,
+                });
+            }
+        },
     });
 }
 

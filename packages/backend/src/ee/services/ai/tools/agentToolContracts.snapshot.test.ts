@@ -212,10 +212,12 @@ const makeAgentTools = (
             waitForSqlApproval: noop,
         }),
         runComposerQueries: getRunComposerQueries({
+            agentContext: new AgentContext([]),
             createOrUpdateArtifact: noop,
             listThreadComposerPipelines: noop,
             enableDataAccess: true,
             canRunSql: true,
+            enablePythonNodes: false,
             getPrompt: noop,
             recordSqlApproval: noop,
             trackSqlApprovalTimeout: noop,

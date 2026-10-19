@@ -66,6 +66,9 @@ describe('AiAgentService SQL artifact visualization query', () => {
             };
             const service = new AiAgentService({
                 aiAgentModel,
+                featureFlagService: {
+                    get: vi.fn().mockResolvedValue({ enabled: false }),
+                },
                 asyncQueryService,
                 analytics,
                 lightdashConfig: { ai: { copilot: { maxQueryLimit: 5000 } } },
@@ -114,6 +117,9 @@ describe('AiAgentService SQL artifact visualization query', () => {
                 versionUuid: 'version-uuid',
             });
 
+            expect(
+                asyncQueryService.executeAsyncSqlQuery.mock.calls[0][0],
+            ).not.toHaveProperty('agentActor');
             expect(asyncQueryService.executeAsyncSqlQuery).toHaveBeenCalledWith(
                 expect.objectContaining({
                     projectUuid: 'project-uuid',

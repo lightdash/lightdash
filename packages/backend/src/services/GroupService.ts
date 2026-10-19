@@ -24,6 +24,7 @@ import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { UpdateDBProjectGroupAccess } from '../database/entities/projectGroupAccess';
 import { GroupsModel } from '../models/GroupsModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
+import { assertHumanManagedMutation } from './AgentPermissionService/assertHumanManagedMutation';
 import { BaseService } from './BaseService';
 import { FeatureFlagService } from './FeatureFlag/FeatureFlagService';
 
@@ -168,6 +169,13 @@ export class GroupsService extends BaseService {
         organizationUuid: string,
         groupInput: GroupAsCode,
     ): Promise<ApiGroupAsCodeUpsertResponse['results']> {
+        await assertHumanManagedMutation({
+            organizationUuid: account.organization.organizationUuid,
+            ability: account.user.ability,
+            oauth: account.authentication.type === 'oauth',
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagService,
+        });
         this.validateGroupsAsCodeAccess(account, organizationUuid);
         if (!(await this.isGroupServiceEnabled(account))) {
             throw new ForbiddenError('Group service is not enabled');
@@ -223,6 +231,13 @@ export class GroupsService extends BaseService {
         user: SessionUser,
         member: GroupMembership,
     ): Promise<GroupMembership | undefined> {
+        await assertHumanManagedMutation({
+            organizationUuid: user.organizationUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagService,
+        });
         if (!(await this.isGroupServiceEnabled(user))) {
             throw new ForbiddenError('Group service is not enabled');
         }
@@ -272,6 +287,13 @@ export class GroupsService extends BaseService {
         user: SessionUser,
         member: GroupMembership,
     ): Promise<boolean> {
+        await assertHumanManagedMutation({
+            organizationUuid: user.organizationUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagService,
+        });
         if (!(await this.isGroupServiceEnabled(user))) {
             throw new ForbiddenError('Group service is not enabled');
         }
@@ -316,6 +338,13 @@ export class GroupsService extends BaseService {
     }
 
     async delete(user: SessionUser, groupUuid: string): Promise<void> {
+        await assertHumanManagedMutation({
+            organizationUuid: user.organizationUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagService,
+        });
         if (!(await this.isGroupServiceEnabled(user))) {
             throw new ForbiddenError('Group service is not enabled');
         }
@@ -390,6 +419,13 @@ export class GroupsService extends BaseService {
         groupUuid: string,
         update: UpdateGroupWithMembers,
     ): Promise<Group | GroupWithMembers> {
+        await assertHumanManagedMutation({
+            organizationUuid: user.organizationUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagService,
+        });
         if (!(await this.isGroupServiceEnabled(user))) {
             throw new ForbiddenError('Group service is not enabled');
         }
@@ -463,6 +499,13 @@ export class GroupsService extends BaseService {
         user: SessionUser,
         { groupUuid, projectUuid, role }: ProjectGroupAccess,
     ): Promise<ProjectGroupAccess> {
+        await assertHumanManagedMutation({
+            organizationUuid: user.organizationUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagService,
+        });
         if (!(await this.isGroupServiceEnabled(user))) {
             throw new ForbiddenError('Group service is not enabled');
         }
@@ -522,6 +565,13 @@ export class GroupsService extends BaseService {
             projectUuid,
         }: Pick<ProjectGroupAccess, 'groupUuid' | 'projectUuid'>,
     ) {
+        await assertHumanManagedMutation({
+            organizationUuid: user.organizationUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagService,
+        });
         if (!(await this.isGroupServiceEnabled(user))) {
             throw new ForbiddenError('Group service is not enabled');
         }
@@ -577,6 +627,13 @@ export class GroupsService extends BaseService {
         }: Pick<ProjectGroupAccess, 'groupUuid' | 'projectUuid'>,
         updateAttributes: UpdateDBProjectGroupAccess,
     ): Promise<ProjectGroupAccess> {
+        await assertHumanManagedMutation({
+            organizationUuid: user.organizationUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagService,
+        });
         if (!(await this.isGroupServiceEnabled(user))) {
             throw new ForbiddenError('Group service is not enabled');
         }

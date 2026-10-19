@@ -73,6 +73,7 @@ export const useGenerateCustomDimension = ({
                 {
                     prompt,
                     tableName: explore.label ?? explore.name,
+                    exploreName: explore.name,
                     fieldsContext,
                     currentSql,
                 },

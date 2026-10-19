@@ -40,6 +40,7 @@ export const useOrganizationSettings = ({
 
 export const useUpdateOrganizationSettings = () => {
     const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
@@ -52,7 +53,13 @@ export const useUpdateOrganizationSettings = () => {
         {
             mutationKey: ['organization_settings', 'update'],
             onSuccess: async () => {
-                await queryClient.invalidateQueries(QUERY_KEY);
+                await Promise.all([
+                    queryClient.invalidateQueries(QUERY_KEY),
+                    // GET /org carries the resolved data app captures switch for
+                    // every member; refresh it so open builders hide their
+                    // capture affordances without a reload.
+                    queryClient.invalidateQueries(['organization']),
+                ]);
                 showToastSuccess({ title: 'Organization settings saved' });
             },
             onError: ({ error }) => {

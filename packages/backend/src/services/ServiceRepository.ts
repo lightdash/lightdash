@@ -1,6 +1,9 @@
 import { BulkActionable, MissingConfigError } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import { AgentConnectionGrantResourceResolver } from '../auth/agentConnectionGrants/AgentConnectionGrantResourceResolver';
+import { AgentConnectionGrantService } from '../auth/agentConnectionGrants/AgentConnectionGrantService';
+import { AgentConnectionService } from '../auth/agentConnectionGrants/AgentConnectionService';
 import { ClientRepository } from '../clients/ClientRepository';
 import {
     closePullRequest,
@@ -12,17 +15,24 @@ import {
     mergePullRequest,
 } from '../clients/github/Github';
 import { LightdashConfig } from '../config/parseConfig';
+import { type AiOrganizationSettingsModel } from '../ee/models/AiOrganizationSettingsModel';
 import type { ServiceAccountModel } from '../ee/models/ServiceAccountModel';
 import { AppGenerateService } from '../ee/services/AppGenerateService/AppGenerateService';
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import { seedPlaygroundContent } from '../ee/services/ProjectService/seedPlaygroundContent';
 import { seedPlaygroundMetricsTrees } from '../ee/services/ProjectService/seedPlaygroundMetricsTrees';
+import Logger from '../logging/logger';
 import { ModelRepository } from '../models/ModelRepository';
 import PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import type { UtilRepository } from '../utils/UtilRepository';
 import { AdminNotificationService } from './AdminNotificationService/AdminNotificationService';
-import { AiAccessService } from './AiAccessService/AiAccessService';
-import { createAiCredentialProviderRegistry } from './AiAccessService/providers/registry';
+import { AgentConnectionApprovalService } from './AgentConnectionApprovalService/AgentConnectionApprovalService';
+import { AgentPermissionService } from './AgentPermissionService/AgentPermissionService';
+import { areOrganizationGroupsAvailable } from './AgentPermissionService/groupsAvailable';
+import {
+    AiAccessService,
+    type AgentResultReadAccess,
+} from './AiAccessService/AiAccessService';
 import { SnowflakeAgentClientResolver } from './AiAccessService/SnowflakeAgentClientResolver';
 import { AiServiceAccountService } from './AiServiceAccountService/AiServiceAccountService';
 import { AnalyticsProjectService } from './AnalyticsProjectService/AnalyticsProjectService';
@@ -105,6 +115,7 @@ import { UnfurlService } from './UnfurlService/UnfurlService';
 import { UserAttributesService } from './UserAttributesService/UserAttributesService';
 import { UserService } from './UserService';
 import { ValidationService } from './ValidationService/ValidationService';
+import { SnowflakeAgentSignInCredentialResolver } from './WarehouseClientFactory/resolvers/SnowflakeAgentSignInCredentialResolver';
 import { WarehouseConnectionBindingService } from './WarehouseConnectionBindingService/WarehouseConnectionBindingService';
 import { WarehouseConnectionService } from './WarehouseConnectionService/WarehouseConnectionService';
 import { WarehouseConnectionSwitchService } from './WarehouseConnectionSwitchService/WarehouseConnectionSwitchService';
@@ -156,6 +167,10 @@ interface ServiceManifest {
     pinningService: PinningService;
     pivotTableService: PivotTableService;
     aiAccessService: AiAccessService;
+    agentPermissionService: AgentPermissionService;
+    agentConnectionGrantService: AgentConnectionGrantService;
+    agentConnectionApprovalService: AgentConnectionApprovalService;
+    agentConnectionService: AgentConnectionService;
     aiServiceAccountService: AiServiceAccountService;
     projectService: ProjectService;
     analyticsProjectService: AnalyticsProjectService;
@@ -229,6 +244,7 @@ interface ServiceManifest {
     projectContextService: unknown;
     roadmapService: unknown;
     scimService: unknown;
+    releaseHighlightsService: unknown;
     supportService: unknown;
     cacheService: unknown;
     serviceAccountService: unknown;
@@ -427,6 +443,7 @@ export class ServiceRepository
             'documentService',
             () =>
                 new DocumentService({
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     analyticsModel: this.models.getAnalyticsModel(),
@@ -493,6 +510,8 @@ export class ServiceRepository
             'dashboardService',
             () =>
                 new DashboardService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     dashboardModel: this.models.getDashboardModel(),
@@ -785,6 +804,8 @@ export class ServiceRepository
                     groupsModel: this.models.getGroupsModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     rolesModel: this.models.getRolesModel(),
+                    organizationSettingsModel:
+                        this.models.getOrganizationSettingsModel(),
                 }),
         );
     }
@@ -982,27 +1003,146 @@ export class ServiceRepository
         );
     }
 
+    public getAgentConnectionApprovalService(): AgentConnectionApprovalService {
+        return this.getService(
+            'agentConnectionApprovalService',
+            () =>
+                new AgentConnectionApprovalService({
+                    reviewModel:
+                        this.models.getAgentConnectionApprovalReadModel(),
+                    agentPermissionService: this.getAgentPermissionService(),
+                    siteUrl: this.context.lightdashConfig.siteUrl,
+                    model: this.models.getAgentConnectionApprovalRequestModel(),
+                    userModel: this.models.getUserModel(),
+                    projectModel: this.models.getProjectModel(),
+                    oauthModel: this.models.getOauthModel(),
+                    featureFlags: this.models.getFeatureFlagModel(),
+                }),
+        );
+    }
+
+    public getAgentConnectionService(): AgentConnectionService {
+        return this.getService(
+            'agentConnectionService',
+            () =>
+                new AgentConnectionService({
+                    model: this.models.getAgentConnectionGrantModel(),
+                    userModel: this.models.getUserModel(),
+                    projectModel: this.models.getProjectModel(),
+                    featureFlags: this.models.getFeatureFlagModel(),
+                    getAgentPermissionService: () =>
+                        this.getAgentPermissionService(),
+                }),
+        );
+    }
+
+    public getAgentConnectionGrantService(): AgentConnectionGrantService {
+        return this.getService(
+            'agentConnectionGrantService',
+            () =>
+                new AgentConnectionGrantService({
+                    userModel: this.models.getUserModel(),
+                    getAgentPermissionService: () =>
+                        this.getAgentPermissionService(),
+                    model: this.models.getAgentConnectionGrantModel(),
+                    featureFlags: this.models.getFeatureFlagModel(),
+                    resourceResolver: new AgentConnectionGrantResourceResolver({
+                        deploySessionModel: this.models.getDeploySessionModel(),
+                        projectModel: this.models.getProjectModel(),
+                        savedSqlModel: this.models.getSavedSqlModel(),
+                        savedChartModel: this.models.getSavedChartModel(),
+                        dashboardModel: this.models.getDashboardModel(),
+                        schedulerModel: this.models.getSchedulerModel(),
+                        queryHistoryModel: this.models.getQueryHistoryModel(),
+                    }),
+                }),
+        );
+    }
+
+    public getAgentPermissionService(): AgentPermissionService {
+        return this.getService(
+            'agentPermissionService',
+            () =>
+                new AgentPermissionService({
+                    resolveResourceProjectUuid: async ({ type, uuid }) => {
+                        const resolvers = {
+                            dashboard: () =>
+                                this.models
+                                    .getDashboardModel()
+                                    .getSummaryByUuid(uuid),
+                            saved_chart: () =>
+                                this.models
+                                    .getSavedChartModel()
+                                    .getSummary(uuid),
+                            space: () => this.models.getSpaceModel().get(uuid),
+                            query: () =>
+                                this.models
+                                    .getQueryHistoryModel()
+                                    .getByQueryUuid(uuid),
+                        };
+                        return (await resolvers[type]())?.projectUuid ?? null;
+                    },
+                    areGroupsAvailable: (organizationUuid) =>
+                        areOrganizationGroupsAvailable({
+                            organizationUuid,
+                            isLicensed: () =>
+                                this.getLicenseService().getLicenseStatus()
+                                    .valid,
+                            featureFlagModel: this.models.getFeatureFlagModel(),
+                        }),
+                    groupsModel: this.models.getGroupsModel(),
+                    isCustomRolesLicensed: () =>
+                        this.getLicenseService().getLicenseStatus().valid,
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    agentCapabilityPolicyModel:
+                        this.models.getAgentCapabilityPolicyModel(),
+                    userModel: this.models.getUserModel(),
+                    projectModel: this.models.getProjectModel(),
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
+                }),
+        );
+    }
+
     public getAiAccessService(): AiAccessService {
         return this.getService(
             'aiAccessService',
             () =>
                 new AiAccessService({
+                    getAgentResultReadAccess: () =>
+                        this.providers.aiAgentService != null
+                            ? this.getAiAgentService<AgentResultReadAccess>()
+                            : null,
+                    getAgentConnectionGrantService: () =>
+                        this.getAgentConnectionGrantService(),
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
+                    getWarehouseClientFactory: () =>
+                        this.getProjectService().warehouseClientFactory,
                     aiServiceAccountCredentialsModel:
                         this.models.getAiServiceAccountCredentialsModel(),
                     analytics: this.context.lightdashAnalytics,
                     userWarehouseCredentialsModel:
                         this.models.getUserWarehouseCredentialsModel(),
-                    providerRegistry: createAiCredentialProviderRegistry({
-                        snowflakeAgentClientResolver:
-                            new SnowflakeAgentClientResolver({
-                                lightdashConfig: this.context.lightdashConfig,
-                                organizationSnowflakeAgentClientModel:
-                                    this.models.getOrganizationSnowflakeAgentClientModel(),
-                            }),
-                        lightdashConfig: this.context.lightdashConfig,
-                        userWarehouseCredentialsModel:
-                            this.models.getUserWarehouseCredentialsModel(),
-                    }),
+                    agentSignInCredentialResolver:
+                        new SnowflakeAgentSignInCredentialResolver({
+                            projectModel: this.models.getProjectModel(),
+                            organizationWarehouseCredentialsModel:
+                                this.models.getOrganizationWarehouseCredentialsModel(),
+                            warehouseConnectionModel:
+                                this.models.getWarehouseConnectionModel(),
+                            logger: Logger,
+                            featureFlagModel: this.models.getFeatureFlagModel(),
+                            refreshTokenRotation:
+                                this.models.getRefreshTokenRotation(),
+                            snowflakeAgentClientResolver:
+                                new SnowflakeAgentClientResolver({
+                                    lightdashConfig:
+                                        this.context.lightdashConfig,
+                                    organizationSnowflakeAgentClientModel:
+                                        this.models.getOrganizationSnowflakeAgentClientModel(),
+                                }),
+                            userWarehouseCredentialsModel:
+                                this.models.getUserWarehouseCredentialsModel(),
+                        }),
                     lightdashConfig: this.context.lightdashConfig,
                     organizationAgentIdentityRulesModel:
                         this.models.getOrganizationAgentIdentityRulesModel(),
@@ -1025,6 +1165,9 @@ export class ServiceRepository
             'projectService',
             () =>
                 new ProjectService({
+                    getAgentConnectionGrantService: () =>
+                        this.getAgentConnectionGrantService(),
+                    refreshTokenRotation: this.models.getRefreshTokenRotation(),
                     aiAccessService: this.getAiAccessService(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
@@ -1180,6 +1323,7 @@ export class ServiceRepository
             'asyncQueryService',
             () =>
                 new AsyncQueryService({
+                    refreshTokenRotation: this.models.getRefreshTokenRotation(),
                     aiAccessService: this.getAiAccessService(),
                     getDocumentService: () => this.getDocumentService(),
                     lightdashConfig: this.context.lightdashConfig,
@@ -1269,6 +1413,9 @@ export class ServiceRepository
             });
 
             return new QuerySourceService({
+                getAsyncQueryService: () => this.getAsyncQueryService(),
+                getAgentPermissionService: () =>
+                    this.getAgentPermissionService(),
                 projectModel: this.models.getProjectModel(),
                 queryHistoryModel: this.models.getQueryHistoryModel(),
                 featureFlagModel: this.models.getFeatureFlagModel(),
@@ -1282,6 +1429,7 @@ export class ServiceRepository
             'savedChartService',
             () =>
                 new SavedChartService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     analytics: this.context.lightdashAnalytics,
                     lightdashConfig: this.context.lightdashConfig,
                     projectModel: this.models.getProjectModel(),
@@ -1362,6 +1510,7 @@ export class ServiceRepository
             'shareService',
             () =>
                 new ShareService({
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     shareModel: this.models.getShareModel(),
@@ -1507,6 +1656,8 @@ export class ServiceRepository
                     documentModel: this.models.getDocumentModel(),
                     documentService: this.getDocumentService(),
                     userModel: this.models.getUserModel(),
+                    organizationSettingsModel:
+                        this.models.getOrganizationSettingsModel(),
                 }),
         );
     }
@@ -1635,6 +1786,7 @@ export class ServiceRepository
             'coderService',
             () =>
                 new CoderService({
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
@@ -1704,6 +1856,7 @@ export class ServiceRepository
             'promoteService',
             () =>
                 new PromoteService({
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
@@ -1751,6 +1904,7 @@ export class ServiceRepository
             'savedSqlService',
             () =>
                 new SavedSqlService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
@@ -2084,6 +2238,10 @@ export class ServiceRepository
         return this.getService('scimService');
     }
 
+    public getReleaseHighlightsService<ServiceImplT>(): ServiceImplT {
+        return this.getService('releaseHighlightsService');
+    }
+
     public getSupportService<SupportServiceImptT>(): SupportServiceImptT {
         return this.getService('supportService');
     }
@@ -2212,6 +2370,7 @@ export class ServiceRepository
                         this.models.getProjectDbtSourcesModel(),
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
+                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }

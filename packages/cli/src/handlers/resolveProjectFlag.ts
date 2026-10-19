@@ -1,4 +1,5 @@
 import { OrganizationProject, ParameterError } from '@lightdash/common';
+import { getAgentConnectionSelection } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { lightdashApi } from './dbt/apiClient';
@@ -16,6 +17,12 @@ const isUuid = (value: string): boolean =>
 export const resolveProjectFlag = async (value: string): Promise<string> => {
     if (isUuid(value)) {
         return value;
+    }
+
+    if (getAgentConnectionSelection() !== null) {
+        const { resolveAgentConnectionProject } =
+            await import('../agentConnections/projectSelection');
+        return resolveAgentConnectionProject(value);
     }
 
     const projects = await lightdashApi<OrganizationProject[]>({

@@ -1,6 +1,6 @@
 import {
-    CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
+    ParameterError,
     SupportedDbtVersions,
     validateGithubToken,
 } from '@lightdash/common';
@@ -11,6 +11,7 @@ import {
     createGithubGitCredentialFiles,
     GitCredentialFiles,
 } from '../dbt/gitCredentials';
+import type { DbtTargetResult } from '../services/WarehouseClientFactory/CredentialResolver';
 import { CachedWarehouse } from '../types';
 import { DEFAULT_GITHUB_HOST_DOMAIN } from '../utils/credentialDestination';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
@@ -22,7 +23,8 @@ type DbtGithubProjectAdapterArgs = {
     githubRepository: string;
     githubBranch: string;
     projectDirectorySubPath: string;
-    warehouseCredentials: CreateWarehouseCredentials;
+    dbtTarget: DbtTargetResult;
+    explicitCredentials: boolean;
     hostDomain?: string;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
@@ -44,7 +46,8 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         githubInstallationId,
         githubRepository,
         projectDirectorySubPath,
-        warehouseCredentials,
+        dbtTarget,
+        explicitCredentials,
         hostDomain,
         targetName,
         environment,
@@ -55,6 +58,8 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         analytics,
         partialParseBaselinePath,
     }: DbtGithubProjectAdapterArgs) {
+        if (dbtTarget.kind === 'none')
+            throw new ParameterError(dbtTarget.reason);
         const [isValid, error] = validateGithubToken(githubPersonalAccessToken);
         if (!isValid) {
             throw new Error(error);
@@ -72,7 +77,8 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
             warehouseClient,
             remoteRepositoryUrl,
             projectDirectorySubPath,
-            warehouseCredentials,
+            dbtTarget,
+            explicitCredentials,
             repository: githubRepository,
             gitBranch: githubBranch,
             targetName,

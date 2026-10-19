@@ -33,6 +33,7 @@ import {
 import express from 'express';
 import { z } from 'zod';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -76,6 +77,7 @@ export class AiWritebackController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('AiWritebackController.runAiWriteback'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/')
@@ -95,6 +97,7 @@ export class AiWritebackController extends BaseController {
         const { prompt, dbtSourceUuid } = parsed.data;
         this.setStatus(200);
         const result = await this.getAiWritebackService().run({
+            agentPermissionsApply: req.account.authentication.type === 'oauth',
             user: toSessionUser(req.account),
             projectUuid,
             prompt,

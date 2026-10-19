@@ -9,6 +9,7 @@ import {
 } from '@lightdash/warehouses';
 import express, { type Router } from 'express';
 import passport from 'passport';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     allowApiKeyAuthenticationIfPresent,
@@ -422,6 +423,7 @@ const authenticateDatabricks = (
 apiV1Router.get(
     '/health',
     allowApiKeyAuthenticationIfPresent,
+    requireOAuthScopeOperation('apiV1Router GET /health'),
     async (req, res, next) => {
         const skipMigrationCheck = req.query.skipMigrationCheck === 'true';
         req.services

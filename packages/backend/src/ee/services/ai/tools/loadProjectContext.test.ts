@@ -321,7 +321,6 @@ describe('loadProjectContext tool', () => {
         expect(res.result).toContain('context file unreadable');
         expect(res.structuredContent).toEqual({
             error: res.result,
-            refusal: null,
         });
         expect(toolLoadProjectContextOutputSchema.safeParse(res).success).toBe(
             true,

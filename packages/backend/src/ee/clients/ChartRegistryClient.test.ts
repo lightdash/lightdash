@@ -472,6 +472,92 @@ describe('ChartRegistryClient', () => {
     });
 });
 
+describe('ChartRegistryClient.getVersionEntry', () => {
+    const snapshot = {
+        slug: 'sankey',
+        name: 'Sankey Diagram',
+        description: 'Flow between categories',
+        version: '1.1.0',
+        publishedAt: '2026-08-01T00:00:00.000Z',
+        tags: [],
+        changelog: '',
+        minLightdashVersion: null,
+        vizSchema: { fields: [], configOptions: [], colorPalette: null },
+        preview: null,
+        screenshots: [{ fileName: 'thumb.png' }],
+        icon: null,
+        artifacts: {
+            source: { sha256: 'c'.repeat(64) },
+            dist: { sha256: 'd'.repeat(64) },
+        },
+    };
+
+    it('fetches charts/<slug>/<version>/entry.json and reconstructs paths', async () => {
+        const fetchImpl = vi.fn().mockResolvedValue(jsonResponse(snapshot));
+        const client = makeClient(fetchImpl);
+        const resolved = await client.getVersionEntry('sankey', '1.1.0');
+        expect(fetchImpl).toHaveBeenCalledWith(
+            `${BASE}/charts/sankey/1.1.0/entry.json`,
+            expect.any(Number),
+        );
+        expect(resolved?.artifacts.source.path).toBe(
+            'charts/sankey/1.1.0/source.tar',
+        );
+        expect(resolved?.thumbnail).toBe('charts/sankey/1.1.0/thumb.png');
+    });
+
+    it('returns undefined on 404', async () => {
+        const fetchImpl = vi.fn().mockResolvedValue({
+            status: 404,
+            body: Buffer.from(''),
+            contentType: null,
+        });
+        await expect(
+            makeClient(fetchImpl).getVersionEntry('sankey', '9.9.9'),
+        ).resolves.toBeUndefined();
+    });
+
+    it('rejects an invalid slug or version before fetching', async () => {
+        const fetchImpl = vi.fn();
+        const client = makeClient(fetchImpl);
+        await expect(
+            client.getVersionEntry('../index', '1.1.0'),
+        ).rejects.toThrow(/slug/);
+        await expect(client.getVersionEntry('sankey', '1.1')).rejects.toThrow(
+            /version/,
+        );
+        expect(fetchImpl).not.toHaveBeenCalled();
+    });
+
+    it('rejects a snapshot served under another identity', async () => {
+        const fetchImpl = vi
+            .fn()
+            .mockResolvedValue(jsonResponse({ ...snapshot, slug: 'radar' }));
+        await expect(
+            makeClient(fetchImpl).getVersionEntry('sankey', '1.1.0'),
+        ).rejects.toThrow(/radar/);
+    });
+
+    it('rejects a non-2xx response and non-JSON body loudly', async () => {
+        const fetchImpl = vi.fn().mockResolvedValue({
+            status: 500,
+            body: Buffer.from(''),
+            contentType: null,
+        });
+        await expect(
+            makeClient(fetchImpl).getVersionEntry('sankey', '1.1.0'),
+        ).rejects.toThrow(/status 500/);
+        const badJson = vi.fn().mockResolvedValue({
+            status: 200,
+            body: Buffer.from('{nope'),
+            contentType: 'application/json',
+        });
+        await expect(
+            makeClient(badJson).getVersionEntry('sankey', '1.1.0'),
+        ).rejects.toThrow(/not valid JSON/);
+    });
+});
+
 // Exercises the real network layer (chartRegistryFetch / defaultFetch)
 // against a real HTTP server, rather than the injected fetchImpl used above.
 describe('ChartRegistryClient real network (defaultFetch)', () => {

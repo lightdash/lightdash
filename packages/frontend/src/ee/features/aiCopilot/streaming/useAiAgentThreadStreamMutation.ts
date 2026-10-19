@@ -13,7 +13,8 @@ import {
 } from 'ai';
 import { useCallback } from 'react';
 import { z } from 'zod';
-import { type LightdashApi } from '../../../../api';
+import { LightdashApiStreamError, type LightdashApi } from '../../../../api';
+import { getAiAccessRefusal } from '../../../../features/aiAccess/errors';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import { getAiAgentApiBase } from '../hooks/aiAgentRouting';
 import { readAiAgentFastMode } from '../hooks/useAiAgentFastMode';
@@ -25,6 +26,7 @@ import {
     markStreamRecovering,
     markToolCallDecided,
     setError,
+    setAccessRefusal,
     setMessage,
     setParts,
     startStreaming,
@@ -321,6 +323,7 @@ const FIRST_TOKEN_CHUNK_TYPES = new Set<UIMessageChunk['type']>([
 
 export function useAiAgentThreadStreamMutation() {
     const lightdashApi = useLightdashApi();
+
     const dispatch = useAiAgentStoreDispatch();
     const { setAbortController, abort } =
         useAiAgentThreadStreamAbortController();
@@ -716,6 +719,17 @@ export function useAiAgentThreadStreamMutation() {
 
                 if (error instanceof Error && error.name === 'AbortError') {
                     dispatch(stopStreaming({ threadUuid }));
+                    return;
+                }
+
+                const refusal = getAiAccessRefusal(
+                    error instanceof LightdashApiStreamError
+                        ? error.error
+                        : null,
+                );
+                if (refusal) {
+                    dispatch(setAccessRefusal({ threadUuid, refusal }));
+                    onError?.(refusal.message);
                     return;
                 }
 

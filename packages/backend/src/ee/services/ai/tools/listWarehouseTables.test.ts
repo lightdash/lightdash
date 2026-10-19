@@ -316,7 +316,6 @@ describe('listWarehouseTables tool', () => {
         expect(output.result).toContain('warehouse unreachable');
         expect(output.structuredContent).toEqual({
             error: output.result,
-            refusal: null,
         });
         expect(
             toolListWarehouseTablesOutputSchema.safeParse(output).success,

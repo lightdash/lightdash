@@ -34,6 +34,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -344,7 +345,13 @@ export class ExternalConnectionController extends BaseController {
      * or origin — only the alias + a relative path.
      * @summary External fetch proxy for data apps
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'ExternalConnectionController.externalFetch',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('apps/{appUuid}/external-fetch')
     @OperationId('externalFetch')

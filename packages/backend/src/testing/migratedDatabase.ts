@@ -179,6 +179,7 @@ const ensureTemplate = async (
 
 export const createMigratedDatabase = async (
     server: PostgresServer = getPostgresServer(),
+    pool?: Knex.PoolConfig,
 ): Promise<MigratedDatabase> => {
     const templateName = `lightdash_schema_${await getMigrationFingerprint(
         await listMigrationFiles(),
@@ -196,7 +197,7 @@ export const createMigratedDatabase = async (
         await admin.destroy();
     }
 
-    const database = connect(server, databaseName);
+    const database = connect(server, databaseName, pool);
     return {
         database,
         databaseName,

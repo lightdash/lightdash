@@ -1,3 +1,4 @@
+import assertUnreachable from '../utils/assertUnreachable';
 import { type QueryExecutionContext } from './analytics';
 import { type UUID } from './api/uuid';
 import {
@@ -41,6 +42,11 @@ export enum QuerySourceType {
     DUCKDB = 'duckdb',
     /** Durable external tables queried with DuckDB; enterprise only. */
     EXTERNAL = 'external',
+    /**
+     * Python `run(inputs, params)` over previous results, executed in a
+     * sandbox. References expose other queries' results as pandas DataFrames.
+     */
+    PYTHON = 'python',
 }
 
 /**
@@ -179,6 +185,38 @@ export type DuckdbSourceQuery = {
 };
 
 /**
+ * A python query as a source query: code defining
+ * `run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame`.
+ * References expose other queries' results as DataFrames in `inputs`, keyed
+ * like DuckDB references expose tables. Referenced queries still running are
+ * waited on; the query fails if any referenced query fails.
+ */
+export type PythonSourceQuery = {
+    sourceType: QuerySourceType.PYTHON;
+    /** Names this query so other queries in the same submission can reference its results. */
+    nodeId?: QueryNodeId;
+    /** Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it. */
+    title?: string;
+    /** One-line note on what this query does, shown under the title. */
+    description?: string;
+    code: string;
+    /** Maximum rows kept from the returned DataFrame. */
+    limit?: number;
+    /**
+     * Which query results the code reads, in the same two forms as duckdb
+     * references. Shorthand array: node ids of queries in the same
+     * submission, each exposed as inputs[nodeId]. Map form for aliasing or
+     * existing results: {inputName: nodeIdOrQueryUuid}. At least one is
+     * required.
+     */
+    references:
+        | QueryNodeId[]
+        | Record<QuerySourceTableName, QueryResultReference>;
+    /** Python queries refuse a pivot; pivot in a referencing duckdb query. */
+    pivotConfiguration?: PivotConfiguration;
+};
+
+/**
  * External table SQL name or UUID.
  * @pattern ^[a-zA-Z0-9_][a-zA-Z0-9_-]{0,63}$
  */
@@ -214,7 +252,8 @@ export type SourceQuery =
     | SemanticLayerSourceQuery
     | SqlSourceQuery
     | DuckdbSourceQuery
-    | ExternalSourceQuery;
+    | ExternalSourceQuery
+    | PythonSourceQuery;
 
 /** A column in a source schema, aligned with ResultColumns' {reference, type}. */
 export type QuerySourceSchemaColumn = {
@@ -314,3 +353,29 @@ export const metricQueryOfSemanticNode = (
     dimensionOverrides: query.dimensionOverrides,
     timezone: query.timezone,
 });
+
+/**
+ * The results a node reads, as {tableOrInputName: nodeIdOrQueryUuid}. The
+ * array shorthand names each result by its own node id. Empty for nodes that
+ * read no other results.
+ */
+export const getSourceQueryResultReferences = (
+    query: SourceQuery,
+): Record<QuerySourceTableName, QueryResultReference> => {
+    switch (query.sourceType) {
+        case QuerySourceType.DUCKDB:
+        case QuerySourceType.PYTHON:
+            if (query.references === undefined) return {};
+            return Array.isArray(query.references)
+                ? Object.fromEntries(
+                      query.references.map((nodeId) => [nodeId, nodeId]),
+                  )
+                : query.references;
+        case QuerySourceType.SEMANTIC_LAYER:
+        case QuerySourceType.SQL:
+        case QuerySourceType.EXTERNAL:
+            return {};
+        default:
+            return assertUnreachable(query, 'Unknown source type');
+    }
+};

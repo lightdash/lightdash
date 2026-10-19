@@ -22,17 +22,6 @@ vi.mock('../../../config/lightdashConfig', async () => {
             ...lightdashConfigMock,
             siteUrl: 'https://lightdash.example',
             license: { licenseKey: 'test-license' },
-            auth: {
-                snowflakeAi: {
-                    account: 'test-account',
-                    clientId: 'ai-client',
-                    clientSecret: 'ai-secret',
-                    authorizationEndpoint:
-                        'https://snowflake.example/authorize',
-                    tokenEndpoint: 'https://snowflake.example/token',
-                    callbackPath: '/oauth/redirect/snowflake-ai',
-                },
-            },
         },
     };
 });
@@ -81,6 +70,7 @@ const callVerify = async (
         }),
     );
     const service = new AiAccessService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         analytics: analyticsMock,
         featureFlagModel: { get },
     } as unknown as ConstructorParameters<typeof AiAccessService>[0]);

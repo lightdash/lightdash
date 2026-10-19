@@ -86,13 +86,9 @@ export const lightdashConfigMock: LightdashConfig = {
             clientSecret: undefined,
         },
         snowflakeAi: {
-            account: undefined,
             loginPath: '/login/snowflake-ai',
             callbackPath: '/oauth/redirect/snowflake-ai',
-            authorizationEndpoint: undefined,
-            tokenEndpoint: undefined,
-            clientId: undefined,
-            clientSecret: undefined,
+            testAccountUrlOrigin: null,
         },
         databricks: {
             loginPath: '/login/databricks',
@@ -144,6 +140,8 @@ export const lightdashConfigMock: LightdashConfig = {
         acquireConnectionTimeout: undefined,
         readinessProbeTtlMs: 10_000,
         allowMissingMigrations: false,
+        logTransactionRollbacks: false,
+        slowTransactionThresholdMs: null,
     },
     intercom: {
         appId: '',
@@ -242,6 +240,7 @@ export const lightdashConfigMock: LightdashConfig = {
         },
     },
     secureCookies: false,
+    updateCheck: { enabled: true },
     sentry: {
         backend: {
             dsn: '',
@@ -510,7 +509,6 @@ export const lightdashConfigMock: LightdashConfig = {
         s3: null,
     },
     appRuntime: {
-        enabled: false,
         dataAppCodingAgent: 'claude',
         dataAppGatewayBaseUrls: {
             anthropic: null,
@@ -524,6 +522,7 @@ export const lightdashConfigMock: LightdashConfig = {
         s3: null,
         e2bApiKey: null,
         sampleDataEnabled: true,
+        capturesEnabled: true,
         externalConnectionAllowedPrivateHostCidrs: {},
         e2bTemplateName: 'lightdash-data-app',
         e2bTemplateTag: '',
@@ -532,6 +531,9 @@ export const lightdashConfigMock: LightdashConfig = {
         sandboxProvider: 'e2b',
         sandboxDockerImage: 'lightdash-sandbox:local',
         sandboxAiWritebackDockerImage: 'lightdash-ai-writeback:local',
+        sandboxPythonDockerImage: 'lightdash-python-runner:local',
+        e2bPythonTemplateName: 'lightdash-python-runner',
+        e2bPythonTemplateTag: '',
         sandboxAgentOnboardingDockerImage: 'lightdash-agent-onboarding:local',
         sandboxIdleTimeoutMs: 30 * 60 * 1000,
         sandboxSnapshotRetentionMs: 7 * 24 * 60 * 60 * 1000,

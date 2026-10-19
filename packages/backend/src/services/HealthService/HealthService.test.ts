@@ -75,9 +75,9 @@ describe('health', () => {
             BaseResponse,
         );
     });
-    it.each([undefined, 'test-account'])(
-        'requires an account for Snowflake AI behind a proxy (%s)',
-        async (account) => {
+    it.each([null, 'test-license'])(
+        'enables Snowflake AI based only on the Enterprise licence (%s)',
+        async (licenseKey) => {
             const service = new HealthService({
                 organizationModel:
                     organizationModel as unknown as OrganizationModel,
@@ -85,19 +85,7 @@ describe('health', () => {
                     ...lightdashConfigMock,
                     license: {
                         ...lightdashConfigMock.license,
-                        licenseKey: 'test-license',
-                    },
-                    auth: {
-                        ...lightdashConfigMock.auth,
-                        snowflakeAi: {
-                            ...lightdashConfigMock.auth.snowflakeAi,
-                            account,
-                            clientId: 'test-client',
-                            clientSecret: 'test-secret',
-                            authorizationEndpoint:
-                                'https://proxy.example/authorize',
-                            tokenEndpoint: 'https://proxy.example/token',
-                        },
+                        licenseKey,
                     },
                 },
                 licenseService: validLicenseService,
@@ -107,7 +95,7 @@ describe('health', () => {
                 learnSandboxService: learnSandboxServiceMock,
             });
             const health = await service.getHealthState(undefined);
-            expect(health.auth.snowflakeAi.enabled).toBe(Boolean(account));
+            expect(health.auth.snowflakeAi.enabled).toBe(licenseKey !== null);
         },
     );
     it('Should return last version as undefined when fails fetch', async () => {

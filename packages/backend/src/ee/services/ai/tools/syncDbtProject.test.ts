@@ -144,7 +144,6 @@ describe('getSyncDbtProject', () => {
         );
         expect(output.structuredContent).toEqual({
             error: output.result,
-            refusal: null,
         });
     });
 });

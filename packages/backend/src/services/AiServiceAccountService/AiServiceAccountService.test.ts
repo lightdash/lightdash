@@ -1,25 +1,64 @@
+import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 import { Ability } from '@casl/ability';
 import {
     BigqueryAuthenticationType,
+    DatabricksAuthenticationType,
     FeatureFlags,
     FeatureNotEnabledError,
     ForbiddenError,
     NotFoundError,
     ParameterError,
     ProjectType,
+    RedshiftAuthenticationType,
     WarehouseTypes,
     type AiServiceAccountCredentialInput,
     type PossibleAbilities,
 } from '@lightdash/common';
+import { exchangeDatabricksOAuthCredentials } from '@lightdash/warehouses';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { buildAccount } from '../../auth/account/account.mock';
 import * as auditLogger from '../../logging/winston';
+import {
+    athenaConnection,
+    athenaSecrets,
+    athenaVerification,
+    clickhouseConnection,
+    clickhouseSecrets,
+    clickhouseVerification,
+    postgresConnection,
+    postgresSecrets,
+    postgresVerification,
+    redshiftConnection,
+    redshiftSecrets,
+    redshiftVerification,
+    snowflakeSecrets,
+    snowflakeVerification,
+    trinoConnection,
+    trinoSecrets,
+    trinoVerification,
+} from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import { aiServiceAccountCredentialResolvers } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
 import {
     credentialResolution,
     type MaterializedCredentials,
 } from '../WarehouseClientFactory/CredentialResolver';
 import { AiServiceAccountService } from './AiServiceAccountService';
+
+const stsMocks = vi.hoisted(() => ({ send: vi.fn(), destroy: vi.fn() }));
+vi.mock('@aws-sdk/client-sts', () => ({
+    STSClient: vi.fn(
+        class MockSTSClient {
+            send = stsMocks.send;
+            destroy = stsMocks.destroy;
+        },
+    ),
+    GetCallerIdentityCommand: vi.fn(),
+}));
+
+vi.mock('@lightdash/warehouses', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@lightdash/warehouses')>()),
+    exchangeDatabricksOAuthCredentials: vi.fn(),
+}));
 
 const secrets = {
     type: WarehouseTypes.BIGQUERY,
@@ -52,6 +91,7 @@ const setup = () => {
         { action: 'manage', subject: 'Project' },
     ]);
     const model = {
+        getCredentialsReadable: vi.fn().mockResolvedValue(true),
         getSlot: vi.fn().mockResolvedValue({
             uuid: 'slot',
             identityUuid: 'generation-before',
@@ -66,6 +106,8 @@ const setup = () => {
             identityUuid: 'generation-after',
         }),
         delete: vi.fn().mockResolvedValue(undefined),
+        getVerification: vi.fn().mockResolvedValue(null),
+        updateVerification: vi.fn().mockResolvedValue(undefined),
     };
     const flag = vi.fn().mockResolvedValue({ enabled: true });
     const load = vi.fn().mockResolvedValue(connection);
@@ -169,7 +211,15 @@ describe.each(operations)('%s boundaries', (operation) => {
     });
     it.each(
         Object.values(WarehouseTypes).filter(
-            (type) => type !== WarehouseTypes.BIGQUERY,
+            (type) =>
+                type !== WarehouseTypes.POSTGRES &&
+                type !== WarehouseTypes.REDSHIFT &&
+                type !== WarehouseTypes.TRINO &&
+                type !== WarehouseTypes.CLICKHOUSE &&
+                type !== WarehouseTypes.BIGQUERY &&
+                type !== WarehouseTypes.ATHENA &&
+                type !== WarehouseTypes.DATABRICKS &&
+                type !== WarehouseTypes.SNOWFLAKE,
         ),
     )('rejects %s slot access', async (type) => {
         const f = setup();
@@ -501,56 +551,6 @@ describe('AI service account analytics', () => {
     });
 });
 
-describe('testAccess boundaries', () => {
-    const request = {
-        credentials: null,
-        entryPoint: 'project_agent_identity_page',
-    } as const;
-    it('checks the flag before any credential or client work', async () => {
-        const f = setup();
-        f.flag.mockResolvedValue({ enabled: false });
-        await expect(
-            f.service.testAccess(f.account, 'project', null, request),
-        ).rejects.toBeInstanceOf(FeatureNotEnabledError);
-        expect(f.load).not.toHaveBeenCalled();
-        expect(f.model.getSecrets).not.toHaveBeenCalled();
-        expect(f.withWarehouseClient).not.toHaveBeenCalled();
-    });
-    it('refuses a non-manager before credentials or flag evaluation', async () => {
-        const f = setup();
-        f.account.user.ability = new Ability<PossibleAbilities>([]);
-        await expect(
-            f.service.testAccess(f.account, 'project', null, request),
-        ).rejects.toBeInstanceOf(ForbiddenError);
-        expect(f.flag).not.toHaveBeenCalled();
-        expect(f.load).not.toHaveBeenCalled();
-        expect(f.withWarehouseClient).not.toHaveBeenCalled();
-    });
-    it('normalises an original connection UUID before loading the saved key', async () => {
-        const f = setup();
-        f.model.getSecrets.mockResolvedValue(secrets);
-        f.getConnection.mockResolvedValue({ isOriginal: true });
-        await f.service.testAccess(
-            f.account,
-            'project',
-            'original-uuid',
-            request,
-        );
-        expect(f.model.getSecrets).toHaveBeenCalledWith('project', null);
-    });
-    it('rejects an unrelated connection before secrets or clients', async () => {
-        const f = setup();
-        f.getConnection.mockRejectedValue(
-            new NotFoundError('Connection not found'),
-        );
-        await expect(
-            f.service.testAccess(f.account, 'project', 'other', request),
-        ).rejects.toBeInstanceOf(NotFoundError);
-        expect(f.model.getSecrets).not.toHaveBeenCalled();
-        expect(f.withWarehouseClient).not.toHaveBeenCalled();
-    });
-});
-
 describe('service account audit logging', () => {
     const prepare = () => {
         const f = setup();
@@ -699,7 +699,9 @@ describe('service account audit logging', () => {
         });
         await expect(
             f.service.upsert(f.account, 'project', null, input),
-        ).resolves.toMatchObject({ identityUuid: 'generation-after' });
+        ).resolves.toMatchObject({
+            results: { identityUuid: 'generation-after' },
+        });
         expect(f.logger.warn).toHaveBeenCalledWith(
             'Failed to write the AI service account audit event',
             {
@@ -816,8 +818,10 @@ it.each([true, false])(
                 : []),
         ]);
         expect(await f.service.getStatus(f.account, 'project', null)).toEqual({
-            results: { uuid: 'slot', identityUuid: 'generation-before' },
+            results: null,
+            credentialsReadable: false,
             parent: {
+                credentialsReadable: true,
                 projectUuid: 'parent',
                 projectName: canView ? 'Parent project' : null,
                 identityUuid: 'parent-generation',
@@ -840,15 +844,22 @@ it.each([true, false])(
         await expect(
             f.service.getStatus(f.account, 'project', null),
         ).resolves.toEqual({
-            results: ownSlot,
+            results: null,
+            credentialsReadable: false,
             parent: {
                 projectUuid: 'parent',
                 projectName: 'Parent project',
                 identityUuid: 'parent-generation',
                 principal: null,
+                credentialsReadable: false,
             },
         });
-        expect(f.model.getSlot).toHaveBeenLastCalledWith('parent', null);
+        expect(f.model.getSlot).toHaveBeenCalledExactlyOnceWith('parent', null);
+        expect(f.model.getSecrets).toHaveBeenCalledExactlyOnceWith(
+            'parent',
+            null,
+            true,
+        );
     },
 );
 it('propagates unexpected errors while loading parent status', async () => {
@@ -867,6 +878,7 @@ it('returns no parent on a non-preview status response', async () => {
     const f = setup();
     expect(await f.service.getStatus(f.account, 'project', null)).toEqual({
         results: { uuid: 'slot', identityUuid: 'generation-before' },
+        credentialsReadable: true,
         parent: null,
     });
 });
@@ -878,9 +890,29 @@ it('deletes only the preview slot when a parent key exists', async () => {
 });
 it('tests inherited secrets against preview connection settings', async () => {
     const f = previewFixture();
+    f.model.getSecrets.mockImplementation(async (uuid: string) => ({
+        slot: { uuid: `${uuid}-slot`, identityUuid: `${uuid}-generation` },
+        secrets:
+            uuid === 'parent'
+                ? secrets
+                : {
+                      ...secrets,
+                      keyfileContents: {
+                          ...secrets.keyfileContents,
+                          client_email: 'stale@example.com',
+                      },
+                  },
+    }));
     expect(
         await f.service.test(f.account, 'project', null, null),
     ).toMatchObject({ ok: true });
+    expect(f.model.getSlot).not.toHaveBeenCalled();
+    expect(f.model.getReplaceableSecrets).not.toHaveBeenCalled();
+    expect(f.model.getSecrets).toHaveBeenCalledExactlyOnceWith(
+        'parent',
+        null,
+        true,
+    );
     expect(f.withWarehouseClient.mock.calls[0][0]).toMatchObject({
         projectUuid: 'project',
         credentials: {
@@ -897,14 +929,24 @@ it('tests inherited secrets against preview connection settings', async () => {
         }),
     );
 });
-it('never merges submitted credentials with a parent key', async () => {
-    const f = previewFixture();
-    f.model.getReplaceableSecrets.mockResolvedValue(null);
-    await expect(
-        f.service.test(f.account, 'project', null, input),
-    ).rejects.toBeInstanceOf(ParameterError);
-    expect(f.model.getSecrets).not.toHaveBeenCalled();
-});
+it.each([input, secrets, snowflakeSecrets])(
+    'refuses submitted preview credentials before reading any secrets: $type',
+    async (credentials) => {
+        const f = previewFixture();
+        await expect(
+            f.service.test(f.account, 'project', null, credentials),
+        ).rejects.toMatchObject({
+            name: 'ParameterError',
+            message:
+                'A preview uses the shared agent account of its parent project. Add or change the account on the parent project.',
+        });
+        expect(f.getSummary).toHaveBeenCalledExactlyOnceWith('project');
+        expect(f.load).not.toHaveBeenCalled();
+        expect(f.getExtra).not.toHaveBeenCalled();
+        for (const mock of Object.values(f.model))
+            expect(mock).not.toHaveBeenCalled();
+    },
+);
 
 it('records the parent generation when Test uses an inherited key', async () => {
     const f = previewFixture();
@@ -976,3 +1018,2073 @@ it.each([true, false])(
         );
     },
 );
+
+const databricksSecrets = {
+    type: WarehouseTypes.DATABRICKS,
+    authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+    oauthClientId: 'slot-client',
+    oauthClientSecret: 'slot-secret',
+} as const;
+const databricksConnection = {
+    ...databricksSecrets,
+    serverHostName: 'workspace.example.com',
+    httpPath: '/sql/preview',
+    catalog: 'catalog',
+    database: 'schema',
+    oauthClientId: 'project-client',
+    oauthClientSecret: 'project-secret',
+    token: 'project-token',
+    refreshToken: 'personal-refresh',
+    personalAccessToken: 'project-pat',
+    requireUserCredentials: true,
+};
+const databricksFixture = (preview = false) => {
+    const f = preview ? previewFixture() : setup();
+    f.load.mockResolvedValue(databricksConnection);
+    f.getExtra.mockResolvedValue(databricksConnection);
+    f.model.getReplaceableSecrets.mockResolvedValue(databricksSecrets);
+    f.model.getSecrets.mockImplementation(async (uuid: string) =>
+        preview && uuid !== 'parent'
+            ? null
+            : {
+                  slot: {
+                      uuid: `${uuid}-slot`,
+                      identityUuid: `${uuid}-generation`,
+                  },
+                  secrets: databricksSecrets,
+              },
+    );
+    f.runQuery.mockResolvedValue({ rows: [{ PrInCiPaL: 'principal-uuid' }] });
+    vi.mocked(exchangeDatabricksOAuthCredentials)
+        .mockReset()
+        .mockResolvedValue({ accessToken: 'slot-token' });
+    return f;
+};
+describe('Databricks identity verification', () => {
+    it('probes before saving and returns only slot metadata and the observation', async () => {
+        const f = databricksFixture();
+        const result = await f.service.upsert(
+            f.account,
+            'project',
+            null,
+            databricksSecrets,
+        );
+        expect(result).toEqual({
+            results: { uuid: 'slot', identityUuid: 'generation-after' },
+            verification: {
+                ok: true,
+                principal: 'principal-uuid',
+                observed: { currentUser: 'principal-uuid' },
+                message: 'Shared agent account connection checked.',
+                checkedAt: expect.any(Date),
+            },
+        });
+        expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+            'SELECT current_user() AS principal',
+            {},
+        );
+        expect(f.withWarehouseClient.mock.calls[0][0]).toMatchObject({
+            kind: 'bypass',
+            mode: 'connection_test',
+            agentSession: true,
+            clientOptions: { agentJobControls: true },
+            credentials: {
+                ...databricksSecrets,
+                token: 'slot-token',
+                requireUserCredentials: false,
+            },
+        });
+        expect(f.model.upsert).toHaveBeenCalledExactlyOnceWith(
+            'project',
+            null,
+            databricksSecrets,
+            f.account.user.id,
+            result.verification,
+        );
+        expect(f.runQuery.mock.invocationCallOrder[0]).toBeLessThan(
+            f.model.upsert.mock.invocationCallOrder[0],
+        );
+        for (const value of [
+            'slot-secret',
+            'slot-client',
+            'slot-token',
+            'project-token',
+            'personal-refresh',
+        ]) {
+            expect(JSON.stringify(result)).not.toContain(value);
+            expect(JSON.stringify(f.analytics.track.mock.calls)).not.toContain(
+                value,
+            );
+        }
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each(['exchange', 'query', 'missing principal', 'blank principal'])(
+        'does not replace a slot after %s failure',
+        async (failure) => {
+            const f = databricksFixture();
+            if (failure === 'exchange')
+                vi.mocked(exchangeDatabricksOAuthCredentials).mockRejectedValue(
+                    new Error('slot-secret'),
+                );
+            if (failure === 'query')
+                f.runQuery.mockRejectedValue(new Error('slot-secret'));
+            if (failure === 'missing principal')
+                f.runQuery.mockResolvedValue({ rows: [{}] });
+            if (failure === 'blank principal')
+                f.runQuery.mockResolvedValue({ rows: [{ principal: '  ' }] });
+            await expect(
+                f.service.upsert(f.account, 'project', null, databricksSecrets),
+            ).rejects.toThrow('Could not');
+            expect(f.model.upsert).not.toHaveBeenCalled();
+            expect(f.model.updateVerification).not.toHaveBeenCalled();
+        },
+    );
+    it.each([false, true])(
+        'writes saved Test to the source generation, inherited=%s',
+        async (preview) => {
+            const f = databricksFixture(preview);
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            const source = preview ? 'parent' : 'project';
+            expect(result).toMatchObject({
+                ok: true,
+                observed: { currentUser: 'principal-uuid' },
+            });
+            expect(f.model.updateVerification).toHaveBeenCalledExactlyOnceWith(
+                source,
+                null,
+                `${source}-generation`,
+                result,
+            );
+            expect(
+                exchangeDatabricksOAuthCredentials,
+            ).toHaveBeenCalledExactlyOnceWith(
+                'workspace.example.com',
+                'slot-client',
+                'slot-secret',
+            );
+            expect(f.withWarehouseClient.mock.calls[0][0]).toMatchObject({
+                projectUuid: 'project',
+                credentials: { httpPath: '/sql/preview' },
+            });
+        },
+    );
+    it('does not persist an unsaved or failed Test', async () => {
+        const f = databricksFixture();
+        await f.service.test(f.account, 'project', null, databricksSecrets);
+        f.runQuery.mockRejectedValue(new Error('slot-secret'));
+        expect(
+            await f.service.test(f.account, 'project', null, null),
+        ).toMatchObject({ ok: false, principal: null });
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each([null, 'original', 'extra'])(
+        'refuses preview writes and still normalizes deletion connection %s',
+        async (connectionUuid) => {
+            const f = databricksFixture(true);
+            if (connectionUuid === 'original')
+                f.getConnection.mockResolvedValue({
+                    isOriginal: true,
+                    name: 'Original',
+                });
+            await expect(
+                f.service.upsert(
+                    f.account,
+                    'project',
+                    connectionUuid,
+                    databricksSecrets,
+                ),
+            ).rejects.toMatchObject({
+                statusCode: 400,
+                message:
+                    'A preview uses the shared agent account of its parent project. Add or change the account on the parent project.',
+            });
+            expect(f.load).not.toHaveBeenCalled();
+            expect(f.getExtra).not.toHaveBeenCalled();
+            for (const mock of Object.values(f.model))
+                expect(mock).not.toHaveBeenCalled();
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+            await f.service.delete(f.account, 'project', connectionUuid);
+            expect(f.model.delete).toHaveBeenCalledExactlyOnceWith(
+                'project',
+                connectionUuid === 'extra' ? 'extra' : null,
+            );
+        },
+    );
+    it.each(['get', 'getStatus', 'upsert', 'delete', 'test'] as const)(
+        'flag off stops %s before secrets, observations, or tokens',
+        async (operation) => {
+            const f = databricksFixture();
+            f.flag.mockResolvedValue({ enabled: false });
+            await expect(
+                f.service[operation](
+                    f.account,
+                    'project',
+                    null,
+                    databricksSecrets,
+                ),
+            ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+            expect(f.load).not.toHaveBeenCalled();
+            for (const mock of Object.values(f.model))
+                expect(mock).not.toHaveBeenCalled();
+            expect(exchangeDatabricksOAuthCredentials).not.toHaveBeenCalled();
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        },
+    );
+    it.each([false, true])(
+        'returns generation-bound status observations, parent view=%s',
+        async (canView) => {
+            const f = databricksFixture(true);
+            f.account.user.ability = new Ability<PossibleAbilities>([
+                {
+                    action: 'manage',
+                    subject: 'Project',
+                    conditions: { projectUuid: 'project' },
+                },
+                ...(canView
+                    ? [
+                          {
+                              action: 'view' as const,
+                              subject: 'Project' as const,
+                              conditions: { projectUuid: 'parent' },
+                          },
+                      ]
+                    : []),
+            ]);
+            const verification = {
+                ok: true,
+                principal: 'principal-uuid',
+                observed: { currentUser: 'principal-uuid' },
+                message: 'checked',
+                checkedAt: new Date(),
+            };
+            f.model.getVerification.mockResolvedValue(verification);
+            const status = await f.service.getStatus(
+                f.account,
+                'project',
+                null,
+            );
+            expect(status).toMatchObject({
+                results: null,
+                credentialsReadable: false,
+                verification: null,
+                parent: {
+                    projectUuid: 'parent',
+                    projectName: canView ? 'Parent project' : null,
+                    identityUuid: 'parent-generation',
+                    principal: null,
+                    verification,
+                },
+            });
+            expect(f.model.getVerification).toHaveBeenCalledExactlyOnceWith(
+                'parent',
+                null,
+                'parent-generation',
+            );
+            expect(JSON.stringify(status)).not.toContain('slot-secret');
+            expect(exchangeDatabricksOAuthCredentials).not.toHaveBeenCalled();
+        },
+    );
+    it('keeps BigQuery save responses unchanged and does not probe', async () => {
+        const f = setup();
+        expect(
+            await f.service.upsert(f.account, 'project', null, input),
+        ).toEqual({
+            results: { uuid: 'slot', identityUuid: 'generation-after' },
+        });
+        expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        expect(f.model.getVerification).not.toHaveBeenCalled();
+    });
+});
+
+describe('Snowflake slots', () => {
+    const prepare = (inherited = false) => {
+        const f = inherited ? previewFixture() : setup();
+        f.load.mockResolvedValue({
+            ...snowflakeSecrets,
+            account: 'account',
+            database: 'preview_db',
+            schema: 'public',
+            user: 'PERSON',
+            role: 'PERSON_ROLE',
+            warehouse: 'PERSON_WH',
+        });
+        f.model.getReplaceableSecrets.mockResolvedValue(snowflakeSecrets);
+        f.model.getSecrets.mockImplementation(async (uuid: string) =>
+            inherited && uuid !== 'parent'
+                ? null
+                : {
+                      slot: { uuid: 'slot', identityUuid: 'tested-generation' },
+                      secrets: snowflakeSecrets,
+                  },
+        );
+        f.runQuery.mockResolvedValue({
+            rows: [
+                {
+                    USER: 'OBSERVED_USER',
+                    ROLE: 'OBSERVED_ROLE',
+                },
+            ],
+        });
+        return f;
+    };
+    it.each(['save', 'test_saved', 'test_submitted'] as const)(
+        'requests agent job controls before the Snowflake %s probe SQL',
+        async (operation) => {
+            const f = prepare();
+            f.runQuery.mockImplementation(async () => {
+                expect(f.withWarehouseClient.mock.calls[0][0]).toMatchObject({
+                    kind: 'bypass',
+                    mode: 'connection_test',
+                    agentSession: true,
+                    clientOptions: { agentJobControls: true },
+                });
+                return {
+                    rows: [{ USER: 'OBSERVED_USER', ROLE: 'OBSERVED_ROLE' }],
+                };
+            });
+            if (operation === 'save') {
+                await f.service.upsert(
+                    f.account,
+                    'project',
+                    null,
+                    snowflakeSecrets,
+                );
+            } else {
+                await expect(
+                    f.service.test(
+                        f.account,
+                        'project',
+                        null,
+                        operation === 'test_saved' ? null : snowflakeSecrets,
+                    ),
+                ).resolves.toMatchObject({ ok: true });
+            }
+            expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+                'SELECT CURRENT_USER() AS "user", CURRENT_ROLE() AS "role"',
+                {},
+            );
+        },
+    );
+    it.each([
+        { USER: 'OBSERVED_USER', ROLE: 'OBSERVED_ROLE' },
+        { User: 'OBSERVED_USER', Role: 'OBSERVED_ROLE' },
+    ])('probes before saving and returns observations from %j', async (row) => {
+        const f = prepare();
+        f.runQuery.mockImplementation(async () => {
+            expect(f.model.upsert).not.toHaveBeenCalled();
+            return { rows: [row] };
+        });
+        const result = await f.service.upsert(
+            f.account,
+            'project',
+            null,
+            snowflakeSecrets,
+        );
+        expect(result).toMatchObject({
+            results: { uuid: 'slot' },
+            verification: {
+                principal: 'OBSERVED_USER',
+                observed: snowflakeVerification.observed,
+            },
+        });
+        expect(f.model.upsert).toHaveBeenCalledExactlyOnceWith(
+            'project',
+            null,
+            snowflakeSecrets,
+            f.account.user.id,
+            result.verification,
+        );
+        expect(f.withWarehouseClient.mock.calls[0][0]).toMatchObject({
+            kind: 'bypass',
+            mode: 'connection_test',
+            agentSession: true,
+            credentials: { database: 'preview_db', ...snowflakeSecrets },
+        });
+        expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+            'SELECT CURRENT_USER() AS "user", CURRENT_ROLE() AS "role"',
+            {},
+        );
+        expect(
+            f.analytics.track.mock.calls.map(([event]) => event.event),
+        ).toEqual([
+            'agent_identity.service_account_tested',
+            'agent_identity.service_account_saved',
+        ]);
+        expect(
+            JSON.stringify([result, f.analytics.track.mock.calls]),
+        ).not.toContain(snowflakeSecrets.privateKey);
+    });
+    it.each([
+        {},
+        { USER: 'USER' },
+        { ROLE: 'ROLE' },
+        { USER: 'USER', ROLE: ' ' },
+    ])('does not save missing observations %j', async (row) => {
+        const f = prepare();
+        f.runQuery.mockResolvedValue({ rows: [row] });
+        await expect(
+            f.service.upsert(f.account, 'project', null, snowflakeSecrets),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(f.model.upsert).not.toHaveBeenCalled();
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+        expect(f.analytics.track).toHaveBeenCalledTimes(1);
+    });
+    it.each(['connection', 'query'])(
+        'keeps the prior slot after %s failure and redacts the error',
+        async (phase) => {
+            const f = prepare();
+            const error = new Error(snowflakeSecrets.privateKey);
+            if (phase === 'connection')
+                f.withWarehouseClient.mockRejectedValue(error);
+            else f.runQuery.mockRejectedValue(error);
+            await expect(
+                f.service.upsert(f.account, 'project', null, snowflakeSecrets),
+            ).rejects.toThrow('Could not verify');
+            expect(f.model.upsert).not.toHaveBeenCalled();
+            expect(f.model.updateVerification).not.toHaveBeenCalled();
+            expect(f.analytics.track).toHaveBeenCalledTimes(1);
+            expect(JSON.stringify(f.analytics.track.mock.calls)).not.toContain(
+                snowflakeSecrets.privateKey,
+            );
+        },
+    );
+    it.each([false, true])(
+        'updates only the effective saved generation, inherited=%s',
+        async (inherited) => {
+            const f = prepare(inherited);
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            expect(f.model.updateVerification).toHaveBeenCalledExactlyOnceWith(
+                inherited ? 'parent' : 'project',
+                null,
+                'tested-generation',
+                result,
+            );
+            expect(f.model.upsert).not.toHaveBeenCalled();
+        },
+    );
+    it('writes inherited extra-connection verification to the matching parent slot', async () => {
+        const f = prepare(true);
+        f.getExtra.mockResolvedValue({
+            ...snowflakeSecrets,
+            account: 'account',
+            database: 'preview_db',
+            schema: 'public',
+        });
+        f.getConnection.mockResolvedValue({
+            isOriginal: false,
+            name: 'Extra warehouse',
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+        });
+        f.listConnections.mockResolvedValue([
+            {
+                isOriginal: false,
+                name: 'Extra warehouse',
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+                warehouseConnectionUuid: 'parent-extra',
+            },
+        ]);
+        const result = await f.service.test(
+            f.account,
+            'project',
+            'extra',
+            null,
+        );
+        expect(result.ok).toBe(true);
+        expect(f.model.updateVerification).toHaveBeenCalledExactlyOnceWith(
+            'parent',
+            'parent-extra',
+            'tested-generation',
+            result,
+        );
+    });
+    it('does not persist a submitted test', async () => {
+        const f = prepare();
+        await expect(
+            f.service.test(f.account, 'project', null, snowflakeSecrets),
+        ).resolves.toMatchObject({ ok: true });
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+        expect(f.model.upsert).not.toHaveBeenCalled();
+    });
+    it('keeps the last good observation after a failed saved test', async () => {
+        const f = prepare();
+        f.runQuery.mockRejectedValue(new Error('failed'));
+        await expect(
+            f.service.test(f.account, 'project', null, null),
+        ).resolves.toMatchObject({ ok: false });
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each([true, false])(
+        'reports own Snowflake slot readability, readable=%s',
+        async (readable) => {
+            const f = prepare();
+            f.model.getCredentialsReadable.mockResolvedValue(readable);
+            const result = await f.service.getStatus(
+                f.account,
+                'project',
+                null,
+            );
+            expect(result.credentialsReadable).toBe(readable);
+            expect(result.verification).toBeNull();
+            expect(
+                f.model.getCredentialsReadable,
+            ).toHaveBeenCalledExactlyOnceWith(
+                'project',
+                null,
+                'generation-before',
+            );
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+            expect(JSON.stringify(result)).not.toContain(
+                snowflakeSecrets.privateKey,
+            );
+        },
+    );
+    it.each([true, false])(
+        'reports inherited Snowflake slot readability, readable=%s',
+        async (readable) => {
+            const f = prepare(true);
+            f.model.getSlot.mockImplementation(async (uuid: string) =>
+                uuid === 'parent'
+                    ? { uuid: 'parent-slot', identityUuid: 'parent-generation' }
+                    : null,
+            );
+            if (!readable)
+                f.model.getSecrets.mockRejectedValue(
+                    new Error('unreadable credentials'),
+                );
+            const result = await f.service.getStatus(
+                f.account,
+                'project',
+                null,
+            );
+            expect(result.parent).toMatchObject({
+                credentialsReadable: readable,
+                verification: null,
+                principal: null,
+            });
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+            expect(JSON.stringify(result)).not.toContain(
+                snowflakeSecrets.privateKey,
+            );
+        },
+    );
+    it.each([false, true])(
+        'projects verification without secrets or network calls, inherited=%s',
+        async (inherited) => {
+            const f = prepare(inherited);
+            f.model.getVerification.mockResolvedValue(snowflakeVerification);
+            const result = await f.service.getStatus(
+                f.account,
+                'project',
+                null,
+            );
+            expect(result.verification).toEqual(
+                inherited ? null : snowflakeVerification,
+            );
+            if (inherited)
+                expect(result.parent).toMatchObject({
+                    principal: null,
+                    verification: snowflakeVerification,
+                });
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+            expect(JSON.stringify(result)).not.toContain(
+                snowflakeSecrets.privateKey,
+            );
+        },
+    );
+});
+
+const athenaFixture = (preview = false) => {
+    const f = preview ? previewFixture() : setup();
+    vi.mocked(STSClient).mockClear();
+    stsMocks.send
+        .mockReset()
+        .mockResolvedValue({ Arn: athenaVerification.principal });
+    stsMocks.destroy.mockClear();
+    f.load.mockResolvedValue(athenaConnection);
+    f.getExtra.mockResolvedValue(athenaConnection);
+    f.model.getReplaceableSecrets.mockResolvedValue(athenaSecrets);
+    f.model.getSecrets.mockImplementation(async (uuid: string) =>
+        preview && uuid !== 'parent'
+            ? null
+            : {
+                  slot: {
+                      uuid: `${uuid}-slot`,
+                      identityUuid: `${uuid}-generation`,
+                  },
+                  secrets: athenaSecrets,
+              },
+    );
+    f.runQuery.mockResolvedValue({ rows: [{ connection_check: 1 }] });
+    return f;
+};
+
+describe('Athena identity verification', () => {
+    it.each([undefined, 'session-token'])(
+        'uses explicit slot keys in STS and the isolated query with token=%s',
+        async (sessionToken) => {
+            const f = athenaFixture();
+            const submitted = {
+                ...athenaSecrets,
+                ...(sessionToken ? { sessionToken } : {}),
+            };
+            const result = await f.service.upsert(
+                f.account,
+                'project',
+                null,
+                submitted,
+            );
+            expect(STSClient).toHaveBeenCalledExactlyOnceWith({
+                region: 'eu-west-1',
+                credentials: {
+                    accessKeyId: submitted.accessKeyId,
+                    secretAccessKey: submitted.secretAccessKey,
+                    ...(sessionToken ? { sessionToken } : {}),
+                },
+            });
+            expect(GetCallerIdentityCommand).toHaveBeenCalledWith({});
+            expect(stsMocks.send).toHaveBeenCalledOnce();
+            expect(stsMocks.destroy).toHaveBeenCalledOnce();
+            expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+                'SELECT 1 AS connection_check',
+                {},
+            );
+            expect(f.withWarehouseClient.mock.calls[0][0]).toEqual({
+                kind: 'bypass',
+                mode: 'connection_test',
+                agentSession: true,
+                projectUuid: 'project',
+                credentials: {
+                    ...submitted,
+                    region: 'eu-west-1',
+                    database: 'AwsDataCatalog',
+                    schema: 'analytics',
+                    threads: 2,
+                    numRetries: 1,
+                    startOfWeek: 1,
+                    dataTimezone: 'UTC',
+                    requireUserCredentials: false,
+                },
+            });
+            expect(result.verification).toEqual({
+                ...athenaVerification,
+                checkedAt: expect.any(Date),
+            });
+            expect(f.model.upsert).toHaveBeenCalledExactlyOnceWith(
+                'project',
+                null,
+                submitted,
+                f.account.user.id,
+                result.verification,
+            );
+            expect(stsMocks.send.mock.invocationCallOrder[0]).toBeLessThan(
+                f.runQuery.mock.invocationCallOrder[0],
+            );
+            expect(f.runQuery.mock.invocationCallOrder[0]).toBeLessThan(
+                f.model.upsert.mock.invocationCallOrder[0],
+            );
+            expect(
+                JSON.stringify([result, f.analytics.track.mock.calls]),
+            ).not.toMatch(
+                /slot-access-key|slot-secret-key|session-token|person-key/,
+            );
+        },
+    );
+    it.each([
+        'ExpiredToken',
+        'InvalidClientTokenId',
+        'AccessDenied',
+        'ThrottlingException',
+    ])('does not query or save after STS %s', async (name) => {
+        const f = athenaFixture();
+        stsMocks.send.mockRejectedValue(
+            Object.assign(new Error('safe'), { name }),
+        );
+        await expect(
+            f.service.upsert(f.account, 'project', null, athenaSecrets),
+        ).rejects.toThrow(ParameterError);
+        expect(stsMocks.destroy).toHaveBeenCalledOnce();
+        expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        expect(f.model.upsert).not.toHaveBeenCalled();
+        expect(f.analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                properties: expect.objectContaining({
+                    failureReason: 'connection_failed',
+                }),
+            }),
+        );
+    });
+    it.each([undefined, '', ' '])(
+        'rejects absent ARN %s and disposes STS',
+        async (Arn) => {
+            const f = athenaFixture();
+            stsMocks.send.mockResolvedValue({ Arn });
+            expect(
+                (
+                    await f.service.test(
+                        f.account,
+                        'project',
+                        null,
+                        athenaSecrets,
+                    )
+                ).ok,
+            ).toBe(false);
+            expect(stsMocks.destroy).toHaveBeenCalledOnce();
+            expect(f.runQuery).not.toHaveBeenCalled();
+        },
+    );
+    it.each([[], [{ connection_check: 0 }], [{ principal: 'other' }]])(
+        'requires the query check result %j',
+        async (...[rows]) => {
+            const f = athenaFixture();
+            f.runQuery.mockResolvedValue({ rows });
+            await expect(
+                f.service.upsert(f.account, 'project', null, athenaSecrets),
+            ).rejects.toThrow(ParameterError);
+            expect(f.model.upsert).not.toHaveBeenCalled();
+        },
+    );
+    it.each([false, true])(
+        'writes saved observations using the tested generation, inherited=%s',
+        async (preview) => {
+            const f = athenaFixture(preview);
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            expect(result.ok).toBe(true);
+            expect(f.model.updateVerification).toHaveBeenCalledExactlyOnceWith(
+                preview ? 'parent' : 'project',
+                null,
+                preview ? 'parent-generation' : 'project-generation',
+                result,
+            );
+        },
+    );
+    it('does not write an observation for submitted credentials', async () => {
+        const f = athenaFixture();
+        await f.service.test(f.account, 'project', null, athenaSecrets);
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each([false, true])(
+        'preserves the previous observation after a query failure, inherited=%s',
+        async (preview) => {
+            const f = athenaFixture(preview);
+            f.runQuery.mockRejectedValue(
+                Object.assign(new Error('denied'), {
+                    name: 'AccessDeniedException',
+                }),
+            );
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            expect(result).toMatchObject({
+                ok: false,
+                principal: null,
+                observed: {},
+                message: expect.stringContaining('permissions'),
+            });
+            expect(f.model.updateVerification).not.toHaveBeenCalled();
+            expect(f.analytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    properties: expect.objectContaining({
+                        failureReason: 'query_failed',
+                        inheritedFromProjectUuid: preview ? 'parent' : null,
+                    }),
+                }),
+            );
+        },
+    );
+    it.each([false, true])(
+        'returns saved status without keys or AWS calls, inherited=%s',
+        async (preview) => {
+            const f = athenaFixture(preview);
+            f.model.getVerification.mockResolvedValue(athenaVerification);
+            const status = await f.service.getStatus(
+                f.account,
+                'project',
+                null,
+            );
+            expect(status.verification).toEqual(
+                preview ? null : athenaVerification,
+            );
+            if (preview)
+                expect(status.parent?.verification).toEqual(athenaVerification);
+            expect(STSClient).not.toHaveBeenCalled();
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+            expect(JSON.stringify(status)).not.toMatch(
+                /slot-access-key|slot-secret-key/,
+            );
+        },
+    );
+    it.each(['upsert', 'test'] as const)(
+        'gates %s before AWS or slot access',
+        async (operation) => {
+            const f = athenaFixture();
+            f.flag.mockResolvedValue({ enabled: false });
+            await expect(
+                f.service[operation](f.account, 'project', null, athenaSecrets),
+            ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+            expect(STSClient).not.toHaveBeenCalled();
+            expect(f.model.getSlot).not.toHaveBeenCalled();
+            f.flag.mockResolvedValue({ enabled: true });
+            f.account.user.ability = new Ability<PossibleAbilities>([]);
+            await expect(
+                f.service[operation](f.account, 'project', null, athenaSecrets),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(STSClient).not.toHaveBeenCalled();
+        },
+    );
+});
+
+const postgresFixture = (preview = false) => {
+    const f = preview ? previewFixture() : setup();
+    f.load.mockResolvedValue(postgresConnection);
+    f.getExtra.mockResolvedValue(postgresConnection);
+    f.model.getReplaceableSecrets.mockResolvedValue(postgresSecrets);
+    f.model.getSecrets.mockImplementation(async (uuid: string) =>
+        preview && uuid !== 'parent'
+            ? null
+            : {
+                  slot: {
+                      uuid: `${uuid}-slot`,
+                      identityUuid: `${uuid}-generation`,
+                  },
+                  secrets: postgresSecrets,
+              },
+    );
+    f.runQuery.mockResolvedValue({
+        rows: [{ principal: 'ai_agents', session_principal: 'ai_agents' }],
+    });
+    return f;
+};
+
+describe('Postgres identity verification', () => {
+    it.each([null, 'extra-connection'])(
+        'tests and saves the separate login through the factory for %s',
+        async (connectionUuid) => {
+            const f = postgresFixture();
+            const result = await f.service.upsert(
+                f.account,
+                'project',
+                connectionUuid,
+                postgresSecrets,
+            );
+            expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+                'SELECT current_user AS principal, session_user AS session_principal',
+                {},
+            );
+            const ref = f.withWarehouseClient.mock.calls[0][0];
+            expect(ref).toMatchObject({
+                kind: 'bypass',
+                mode: 'connection_test',
+                agentSession: true,
+                credentials: {
+                    ...postgresSecrets,
+                    host: 'warehouse.internal',
+                    port: 5432,
+                    useSshTunnel: true,
+                    sshTunnelPrivateKey: 'tunnel-private',
+                    requireUserCredentials: false,
+                    sslrootcert: 'root-cert',
+                },
+            });
+            for (const field of ['role', 'sslcert', 'sslkey'])
+                expect(ref.credentials).not.toHaveProperty(field);
+            expect(result.verification).toEqual({
+                ...postgresVerification,
+                checkedAt: expect.any(Date),
+            });
+            expect(f.model.upsert).toHaveBeenCalledExactlyOnceWith(
+                'project',
+                connectionUuid,
+                postgresSecrets,
+                f.account.user.id,
+                result.verification,
+            );
+            expect(
+                JSON.stringify([result, f.analytics.track.mock.calls]),
+            ).not.toMatch(/agent-password|project-password|tunnel-private/);
+        },
+    );
+    it.each([
+        { rows: [{ principal: 'other', session_principal: 'ai_agents' }] },
+        { rows: [{ principal: 'ai_agents', session_principal: 'other' }] },
+        { rows: [{ principal: 'ai_agents' }] },
+        { rows: [{ session_principal: 'ai_agents' }] },
+        { rows: [] },
+    ])(
+        'refuses mismatched or missing session identities %j',
+        async ({ rows }) => {
+            const f = postgresFixture();
+            f.runQuery.mockResolvedValue({ rows });
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            expect(result).toMatchObject({
+                ok: false,
+                principal: null,
+                observed: {},
+                message: 'Postgres signed in as a different user.',
+            });
+            expect(f.model.updateVerification).not.toHaveBeenCalled();
+            await expect(
+                f.service.upsert(f.account, 'project', null, postgresSecrets),
+            ).rejects.toThrow('signed in as a different user');
+            expect(f.model.upsert).not.toHaveBeenCalled();
+        },
+    );
+    it.each([false, true])(
+        'records only the saved generation after Test, inherited=%s',
+        async (preview) => {
+            const f = postgresFixture(preview);
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            expect(result.ok).toBe(true);
+            expect(f.model.updateVerification).toHaveBeenCalledExactlyOnceWith(
+                preview ? 'parent' : 'project',
+                null,
+                preview ? 'parent-generation' : 'project-generation',
+                result,
+            );
+        },
+    );
+    it('does not persist an observation for submitted credentials', async () => {
+        const f = postgresFixture();
+        await f.service.test(f.account, 'project', null, postgresSecrets);
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each([false, true])(
+        'returns safe status without credentials, inherited=%s',
+        async (preview) => {
+            const f = postgresFixture(preview);
+            f.model.getVerification.mockResolvedValue(postgresVerification);
+            const status = await f.service.getStatus(
+                f.account,
+                'project',
+                null,
+            );
+            expect(status.verification).toEqual(
+                preview ? null : postgresVerification,
+            );
+            if (preview)
+                expect(status.parent?.verification).toEqual(
+                    postgresVerification,
+                );
+            expect(JSON.stringify(status)).not.toMatch(
+                /password|tunnel-private|project-user/,
+            );
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['28P01', '28000', '42501', '3D000'])(
+        'does not save or expose driver secrets after %s',
+        async (code) => {
+            const f = postgresFixture();
+            const logger = { warn: vi.fn(), debug: vi.fn(), info: vi.fn() };
+            Object.assign(f.service, { logger });
+            f.runQuery.mockRejectedValue(
+                Object.assign(new Error('agent-password'), { code }),
+            );
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                postgresSecrets,
+            );
+            expect(result.ok).toBe(false);
+            expect(
+                JSON.stringify([result, f.analytics.track.mock.calls]),
+            ).not.toContain('agent-password');
+            await expect(
+                f.service.upsert(f.account, 'project', null, postgresSecrets),
+            ).rejects.toThrow(ParameterError);
+            expect(JSON.stringify(logger.warn.mock.calls)).not.toContain(
+                postgresSecrets.password,
+            );
+            expect(logger.warn).toHaveBeenCalledWith(
+                'AI service account test failed',
+                expect.objectContaining({ errorCode: code }),
+            );
+            expect(f.model.upsert).not.toHaveBeenCalled();
+            expect(f.model.updateVerification).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['upsert', 'test'] as const)(
+        'gates %s before credentials and factory access',
+        async (operation) => {
+            const f = postgresFixture();
+            f.flag.mockResolvedValue({ enabled: false });
+            await expect(
+                f.service[operation](
+                    f.account,
+                    'project',
+                    null,
+                    postgresSecrets,
+                ),
+            ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+            expect(f.model.getSlot).not.toHaveBeenCalled();
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+            f.flag.mockResolvedValue({ enabled: true });
+            f.account.user.ability = new Ability<PossibleAbilities>([]);
+            await expect(
+                f.service[operation](
+                    f.account,
+                    'project',
+                    null,
+                    postgresSecrets,
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        },
+    );
+});
+
+const redshiftFixture = (preview = false) => {
+    const f = preview ? previewFixture() : setup();
+    f.load.mockResolvedValue(redshiftConnection);
+    f.getExtra.mockResolvedValue(redshiftConnection);
+    f.model.getReplaceableSecrets.mockResolvedValue(redshiftSecrets);
+    f.model.getSecrets.mockImplementation(async (uuid: string) =>
+        preview && uuid !== 'parent'
+            ? null
+            : {
+                  slot: {
+                      uuid: `${uuid}-slot`,
+                      identityUuid: `${uuid}-generation`,
+                  },
+                  secrets: redshiftSecrets,
+              },
+    );
+    f.runQuery.mockResolvedValue({
+        rows: [{ principal: 'ai_agents', session_principal: 'ai_agents' }],
+    });
+    return f;
+};
+
+describe('Redshift identity verification', () => {
+    it.each([null, 'extra-connection'])(
+        'tests and saves the separate login through the factory for %s',
+        async (connectionUuid) => {
+            const f = redshiftFixture();
+            const result = await f.service.upsert(
+                f.account,
+                'project',
+                connectionUuid,
+                redshiftSecrets,
+            );
+            expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+                'SELECT current_user AS principal, session_user AS session_principal',
+                {},
+            );
+            const ref = f.withWarehouseClient.mock.calls[0][0];
+            expect(ref).toMatchObject({
+                kind: 'bypass',
+                mode: 'connection_test',
+                agentSession: true,
+                clientOptions: { agentJobControls: true },
+                credentials: {
+                    ...redshiftSecrets,
+                    host: 'warehouse.internal',
+                    port: 5439,
+                    authenticationType: RedshiftAuthenticationType.PASSWORD,
+                    useSshTunnel: true,
+                    sshTunnelPrivateKey: 'tunnel-private',
+                    requireUserCredentials: false,
+                },
+            });
+            for (const field of ['role', 'sslcert', 'sslkey'])
+                expect(ref.credentials).not.toHaveProperty(field);
+            expect(result.verification).toEqual({
+                ...redshiftVerification,
+                checkedAt: expect.any(Date),
+            });
+            expect(f.model.upsert).toHaveBeenCalledExactlyOnceWith(
+                'project',
+                connectionUuid,
+                redshiftSecrets,
+                f.account.user.id,
+                result.verification,
+            );
+            expect(
+                JSON.stringify([result, f.analytics.track.mock.calls]),
+            ).not.toMatch(/agent-password|project-password|tunnel-private/);
+        },
+    );
+    it.each([
+        { rows: [{ principal: 'other', session_principal: 'ai_agents' }] },
+        { rows: [{ principal: 'ai_agents', session_principal: 'other' }] },
+        { rows: [{ principal: 'ai_agents' }] },
+        { rows: [{ session_principal: 'ai_agents' }] },
+        { rows: [] },
+    ])(
+        'refuses mismatched or missing session identities %j',
+        async ({ rows }) => {
+            const f = redshiftFixture();
+            f.runQuery.mockResolvedValue({ rows });
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            expect(result).toMatchObject({
+                ok: false,
+                principal: null,
+                observed: {},
+                message: 'Redshift signed in as a different user.',
+            });
+            expect(f.model.updateVerification).not.toHaveBeenCalled();
+            await expect(
+                f.service.upsert(f.account, 'project', null, redshiftSecrets),
+            ).rejects.toThrow('signed in as a different user');
+            expect(f.model.upsert).not.toHaveBeenCalled();
+        },
+    );
+    it.each([false, true])(
+        'records only the saved generation after Test, inherited=%s',
+        async (preview) => {
+            const f = redshiftFixture(preview);
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            expect(result.ok).toBe(true);
+            expect(f.model.updateVerification).toHaveBeenCalledExactlyOnceWith(
+                preview ? 'parent' : 'project',
+                null,
+                preview ? 'parent-generation' : 'project-generation',
+                result,
+            );
+        },
+    );
+    it('does not persist an observation for submitted credentials', async () => {
+        const f = redshiftFixture();
+        const result = await f.service.test(
+            f.account,
+            'project',
+            null,
+            redshiftSecrets,
+        );
+        expect(result).toMatchObject({ ok: true, principal: 'ai_agents' });
+        expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+            'SELECT current_user AS principal, session_user AS session_principal',
+            {},
+        );
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each([false, true])(
+        'returns safe status without credentials, inherited=%s',
+        async (preview) => {
+            const f = redshiftFixture(preview);
+            f.model.getVerification.mockResolvedValue(redshiftVerification);
+            const status = await f.service.getStatus(
+                f.account,
+                'project',
+                null,
+            );
+            expect(status.verification).toEqual(
+                preview ? null : redshiftVerification,
+            );
+            if (preview)
+                expect(status.parent?.verification).toEqual(
+                    redshiftVerification,
+                );
+            expect(JSON.stringify(status)).not.toMatch(
+                /password|tunnel-private|project-user/,
+            );
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['28P01', '28000', '42501', '3D000'])(
+        'does not save or expose driver secrets after %s',
+        async (code) => {
+            const f = redshiftFixture();
+            const logger = { warn: vi.fn(), debug: vi.fn(), info: vi.fn() };
+            Object.assign(f.service, { logger });
+            f.runQuery.mockRejectedValue(
+                Object.assign(new Error('agent-password'), { code }),
+            );
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                redshiftSecrets,
+            );
+            expect(result.ok).toBe(false);
+            expect(
+                JSON.stringify([result, f.analytics.track.mock.calls]),
+            ).not.toContain('agent-password');
+            await expect(
+                f.service.upsert(f.account, 'project', null, redshiftSecrets),
+            ).rejects.toThrow(ParameterError);
+            expect(JSON.stringify(logger.warn.mock.calls)).not.toContain(
+                redshiftSecrets.password,
+            );
+            expect(logger.warn).toHaveBeenCalledWith(
+                'AI service account test failed',
+                expect.objectContaining({ errorCode: code }),
+            );
+            expect(f.model.upsert).not.toHaveBeenCalled();
+            expect(f.model.updateVerification).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['upsert', 'test'] as const)(
+        'gates %s before credentials and factory access',
+        async (operation) => {
+            const f = redshiftFixture();
+            f.flag.mockResolvedValue({ enabled: false });
+            await expect(
+                f.service[operation](
+                    f.account,
+                    'project',
+                    null,
+                    redshiftSecrets,
+                ),
+            ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+            expect(f.model.getSlot).not.toHaveBeenCalled();
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+            f.flag.mockResolvedValue({ enabled: true });
+            f.account.user.ability = new Ability<PossibleAbilities>([]);
+            await expect(
+                f.service[operation](
+                    f.account,
+                    'project',
+                    null,
+                    redshiftSecrets,
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        },
+    );
+});
+
+it.each([
+    ['AI_Agents', 'AI_Agents'],
+    ['AI_Agents', 'ai_agents'],
+])(
+    'verifies Redshift user %s as %s without changing saved spelling',
+    async (user, principal) => {
+        const f = redshiftFixture();
+        f.runQuery.mockResolvedValue({
+            rows: [{ principal, session_principal: principal }],
+        });
+        const submitted = {
+            ...redshiftSecrets,
+            user: ` ${user} `,
+            password: ' password bytes ',
+        };
+        const result = await f.service.upsert(
+            f.account,
+            'project',
+            null,
+            submitted,
+        );
+        expect(result.verification).toMatchObject({
+            ok: true,
+            principal,
+            observed: { currentUser: principal },
+        });
+        expect(f.model.upsert).toHaveBeenCalledWith(
+            'project',
+            null,
+            { ...submitted, user },
+            f.account.user.id,
+            result.verification,
+        );
+        expect(f.runQuery).toHaveBeenCalledOnce();
+    },
+);
+
+it.each([
+    ['ai_agents', 'AI_Agents', 'AI_Agents'],
+    ['AI_Agents', 'ai_agents', 'AI_Agents'],
+    ['ai_agents', '', ''],
+    ['ai_agents', ' ', ' '],
+])(
+    'refuses Redshift identity mismatch %s / %s / %s',
+    async (user, principal, sessionPrincipal) => {
+        const f = redshiftFixture();
+        f.runQuery.mockResolvedValue({
+            rows: [{ principal, session_principal: sessionPrincipal }],
+        });
+        expect(
+            await f.service.test(f.account, 'project', null, {
+                ...redshiftSecrets,
+                user,
+            }),
+        ).toMatchObject({
+            ok: false,
+            principal: null,
+            message: 'Redshift signed in as a different user.',
+        });
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    },
+);
+
+it('disables the Redshift result cache for submitted and saved Test probes', async () => {
+    const f = redshiftFixture();
+    await f.service.test(f.account, 'project', null, redshiftSecrets);
+    await f.service.test(f.account, 'project', null, null);
+    for (const [ref] of f.withWarehouseClient.mock.calls)
+        expect(ref).toMatchObject({
+            kind: 'bypass',
+            mode: 'connection_test',
+            agentSession: true,
+            clientOptions: { agentJobControls: true },
+            credentials: {
+                ...redshiftSecrets,
+                authenticationType: RedshiftAuthenticationType.PASSWORD,
+            },
+        });
+    expect(f.runQuery).toHaveBeenCalledTimes(2);
+    expect(f.runQuery).toHaveBeenNthCalledWith(
+        1,
+        'SELECT current_user AS principal, session_user AS session_principal',
+        {},
+    );
+    expect(f.runQuery).toHaveBeenNthCalledWith(
+        2,
+        'SELECT current_user AS principal, session_user AS session_principal',
+        {},
+    );
+});
+
+const trinoFixture = (preview = false) => {
+    const f = preview ? previewFixture() : setup();
+    f.load.mockResolvedValue(trinoConnection);
+    f.getExtra.mockResolvedValue(trinoConnection);
+    f.model.getReplaceableSecrets.mockResolvedValue(trinoSecrets);
+    f.model.getSecrets.mockImplementation(async (uuid: string) =>
+        preview && uuid !== 'parent'
+            ? null
+            : {
+                  slot: {
+                      uuid: `${uuid}-slot`,
+                      identityUuid: `${uuid}-generation`,
+                  },
+                  secrets: trinoSecrets,
+              },
+    );
+    f.runQuery.mockResolvedValue({
+        rows: [{ principal: trinoVerification.principal }],
+    });
+    return f;
+};
+
+describe('Trino identity verification', () => {
+    it.each([null, 'extra-connection'])(
+        'tests and saves the separate login through the factory for %s',
+        async (connectionUuid) => {
+            const f = trinoFixture();
+            const result = await f.service.upsert(
+                f.account,
+                'project',
+                connectionUuid,
+                trinoSecrets,
+            );
+            expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+                'SELECT current_user AS principal',
+                {},
+            );
+            const ref = f.withWarehouseClient.mock.calls[0][0];
+            expect(ref).toMatchObject({
+                kind: 'bypass',
+                mode: 'connection_test',
+                agentSession: true,
+                credentials: {
+                    ...trinoSecrets,
+                    host: 'warehouse.internal',
+                    port: 8443,
+                    requireUserCredentials: false,
+                },
+            });
+            for (const field of ['role', 'sslcert', 'sslkey'])
+                expect(ref.credentials).not.toHaveProperty(field);
+            expect(result.verification).toEqual({
+                ...trinoVerification,
+                checkedAt: expect.any(Date),
+            });
+            expect(f.model.upsert).toHaveBeenCalledExactlyOnceWith(
+                'project',
+                connectionUuid,
+                trinoSecrets,
+                f.account.user.id,
+                result.verification,
+            );
+            expect(
+                JSON.stringify([result, f.analytics.track.mock.calls]),
+            ).not.toMatch(/agent-password|project-password|tunnel-private/);
+        },
+    );
+    it.each([undefined, null, '', ' ', 123])(
+        'refuses an absent or invalid current user %j',
+        async (principal) => {
+            const f = trinoFixture();
+            f.runQuery.mockResolvedValue({ rows: [{ principal }] });
+            expect(
+                await f.service.test(f.account, 'project', null, null),
+            ).toMatchObject({ ok: false, principal: null, observed: {} });
+            expect(f.model.updateVerification).not.toHaveBeenCalled();
+            await expect(
+                f.service.upsert(f.account, 'project', null, trinoSecrets),
+            ).rejects.toThrow('Could not verify the shared agent account.');
+            expect(f.model.upsert).not.toHaveBeenCalled();
+        },
+    );
+    it('refuses an empty result', async () => {
+        const f = trinoFixture();
+        f.runQuery.mockResolvedValue({ rows: [] });
+        expect(
+            await f.service.test(f.account, 'project', null, null),
+        ).toMatchObject({ ok: false, principal: null });
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each([false, true])(
+        'records only the saved generation after Test, inherited=%s',
+        async (preview) => {
+            const f = trinoFixture(preview);
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            expect(result.ok).toBe(true);
+            expect(f.model.updateVerification).toHaveBeenCalledExactlyOnceWith(
+                preview ? 'parent' : 'project',
+                null,
+                preview ? 'parent-generation' : 'project-generation',
+                result,
+            );
+        },
+    );
+    it('does not persist an observation for submitted credentials', async () => {
+        const f = trinoFixture();
+        const result = await f.service.test(
+            f.account,
+            'project',
+            null,
+            trinoSecrets,
+        );
+        expect(result).toMatchObject({
+            ok: true,
+            principal: trinoVerification.principal,
+        });
+        expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+            'SELECT current_user AS principal',
+            {},
+        );
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each([false, true])(
+        'returns safe status without credentials, inherited=%s',
+        async (preview) => {
+            const f = trinoFixture(preview);
+            f.model.getVerification.mockResolvedValue(trinoVerification);
+            const status = await f.service.getStatus(
+                f.account,
+                'project',
+                null,
+            );
+            expect(status.verification).toEqual(
+                preview ? null : trinoVerification,
+            );
+            if (preview)
+                expect(status.parent?.verification).toEqual(trinoVerification);
+            expect(JSON.stringify(status)).not.toMatch(
+                /password|tunnel-private|project-user/,
+            );
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        },
+    );
+    it.each([
+        { status: 401 },
+        { status: 403 },
+        { errorName: 'PERMISSION_DENIED' },
+    ])('does not save or expose driver secrets after %s', async (cause) => {
+        const f = trinoFixture();
+        const logger = { warn: vi.fn(), debug: vi.fn(), info: vi.fn() };
+        Object.assign(f.service, { logger });
+        f.runQuery.mockRejectedValue(new Error('agent-password', { cause }));
+        const result = await f.service.test(
+            f.account,
+            'project',
+            null,
+            trinoSecrets,
+        );
+        expect(result.ok).toBe(false);
+        expect(
+            JSON.stringify([result, f.analytics.track.mock.calls]),
+        ).not.toContain('agent-password');
+        await expect(
+            f.service.upsert(f.account, 'project', null, trinoSecrets),
+        ).rejects.toThrow(ParameterError);
+        expect(JSON.stringify(logger.warn.mock.calls)).not.toContain(
+            trinoSecrets.password,
+        );
+        expect(logger.warn).toHaveBeenCalledWith(
+            'AI service account test failed',
+            expect.objectContaining({ errorMessage: expect.any(String) }),
+        );
+        expect(f.model.upsert).not.toHaveBeenCalled();
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each(['upsert', 'test'] as const)(
+        'gates %s before credentials and factory access',
+        async (operation) => {
+            const f = trinoFixture();
+            f.flag.mockResolvedValue({ enabled: false });
+            await expect(
+                f.service[operation](f.account, 'project', null, trinoSecrets),
+            ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+            expect(f.model.getSlot).not.toHaveBeenCalled();
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+            f.flag.mockResolvedValue({ enabled: true });
+            f.account.user.ability = new Ability<PossibleAbilities>([]);
+            await expect(
+                f.service[operation](f.account, 'project', null, trinoSecrets),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        },
+    );
+});
+
+it.each(['AI_Agents', 'MappedAgent/RestrictedRole', ' user with spaces '])(
+    'records the exact Trino effective user %s independently of the login',
+    async (principal) => {
+        const f = trinoFixture();
+        f.runQuery.mockResolvedValue({ rows: [{ principal }] });
+        const result = await f.service.upsert(
+            f.account,
+            'project',
+            null,
+            trinoSecrets,
+        );
+        expect(result.verification).toMatchObject({
+            ok: true,
+            principal,
+            observed: { currentUser: principal },
+        });
+        expect(f.model.upsert).toHaveBeenCalledWith(
+            'project',
+            null,
+            trinoSecrets,
+            f.account.user.id,
+            result.verification,
+        );
+    },
+);
+it('uses Trino agent sessions without warehouse-side cache controls for Test and save', async () => {
+    const f = trinoFixture();
+    await f.service.test(f.account, 'project', null, trinoSecrets);
+    await f.service.test(f.account, 'project', null, null);
+    await f.service.upsert(f.account, 'project', null, trinoSecrets);
+    expect(f.withWarehouseClient).toHaveBeenCalledTimes(3);
+    for (const [ref] of f.withWarehouseClient.mock.calls) {
+        expect(ref).toMatchObject({
+            kind: 'bypass',
+            mode: 'connection_test',
+            agentSession: true,
+        });
+        expect(ref.clientOptions?.agentJobControls).toBeUndefined();
+    }
+});
+
+const clickhouseProbe =
+    "SELECT\n  currentUser() AS principal,\n  getSetting('readonly') AS readonly,\n  getSetting('use_query_cache') AS use_query_cache";
+
+const clickhouseFixture = (preview = false) => {
+    const f = preview ? previewFixture() : setup();
+    f.load.mockResolvedValue(clickhouseConnection);
+    f.getExtra.mockResolvedValue(clickhouseConnection);
+    f.model.getReplaceableSecrets.mockResolvedValue(clickhouseSecrets);
+    f.model.getSecrets.mockImplementation(async (uuid: string) =>
+        preview && uuid !== 'parent'
+            ? null
+            : {
+                  slot: {
+                      uuid: `${uuid}-slot`,
+                      identityUuid: `${uuid}-generation`,
+                  },
+                  secrets: clickhouseSecrets,
+              },
+    );
+    f.runQuery.mockResolvedValue({
+        rows: [{ principal: 'ai_agents', readonly: 2, use_query_cache: false }],
+    });
+    return f;
+};
+
+describe('ClickHouse identity verification', () => {
+    it.each([null, 'extra-connection'])(
+        'tests and saves the separate login through the factory for %s',
+        async (connectionUuid) => {
+            const f = clickhouseFixture();
+            const result = await f.service.upsert(
+                f.account,
+                'project',
+                connectionUuid,
+                clickhouseSecrets,
+            );
+            expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+                clickhouseProbe,
+                { agent: 'true' },
+                'Europe/London',
+            );
+            const ref = f.withWarehouseClient.mock.calls[0][0];
+            expect(ref).toMatchObject({
+                kind: 'bypass',
+                mode: 'connection_test',
+                agentSession: true,
+                clientOptions: { agentJobControls: true },
+                credentials: {
+                    ...clickhouseSecrets,
+                    host: 'warehouse.internal',
+                    port: 8443,
+                    secure: true,
+                    schema: 'analytics',
+                    timeoutSeconds: 60,
+                    startOfWeek: 1,
+                    dataTimezone: 'Europe/London',
+                    requireUserCredentials: false,
+                },
+            });
+            for (const field of ['role', 'sslcert', 'sslkey'])
+                expect(ref.credentials).not.toHaveProperty(field);
+            expect(result.verification).toEqual({
+                ...clickhouseVerification,
+                checkedAt: expect.any(Date),
+            });
+            expect(f.model.upsert).toHaveBeenCalledExactlyOnceWith(
+                'project',
+                connectionUuid,
+                clickhouseSecrets,
+                f.account.user.id,
+                result.verification,
+            );
+            expect(
+                JSON.stringify([result, f.analytics.track.mock.calls]),
+            ).not.toMatch(/agent-password|project-password|tunnel-private/);
+        },
+    );
+    it.each([false, true])(
+        'records only the saved generation after Test, inherited=%s',
+        async (preview) => {
+            const f = clickhouseFixture(preview);
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            expect(result.ok).toBe(true);
+            expect(f.model.updateVerification).toHaveBeenCalledExactlyOnceWith(
+                preview ? 'parent' : 'project',
+                null,
+                preview ? 'parent-generation' : 'project-generation',
+                result,
+            );
+        },
+    );
+    it('does not persist an observation for submitted credentials', async () => {
+        const f = clickhouseFixture();
+        const result = await f.service.test(
+            f.account,
+            'project',
+            null,
+            clickhouseSecrets,
+        );
+        expect(result).toMatchObject({ ok: true, principal: 'ai_agents' });
+        expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+            clickhouseProbe,
+            { agent: 'true' },
+            'Europe/London',
+        );
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each([false, true])(
+        'returns safe status without credentials, inherited=%s',
+        async (preview) => {
+            const f = clickhouseFixture(preview);
+            f.model.getVerification.mockResolvedValue(clickhouseVerification);
+            const status = await f.service.getStatus(
+                f.account,
+                'project',
+                null,
+            );
+            expect(status.verification).toEqual(
+                preview ? null : clickhouseVerification,
+            );
+            if (preview)
+                expect(status.parent?.verification).toEqual(
+                    clickhouseVerification,
+                );
+            expect(JSON.stringify(status)).not.toMatch(
+                /password|tunnel-private|project-user/,
+            );
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['516', '192', '193', '194', '164', '497', '210'])(
+        'does not save or expose driver secrets after %s',
+        async (code) => {
+            const f = clickhouseFixture();
+            const logger = { warn: vi.fn(), debug: vi.fn(), info: vi.fn() };
+            Object.assign(f.service, { logger });
+            f.runQuery.mockRejectedValue(
+                Object.assign(new Error('agent-password'), { code }),
+            );
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                clickhouseSecrets,
+            );
+            expect(result.ok).toBe(false);
+            expect(
+                JSON.stringify([result, f.analytics.track.mock.calls]),
+            ).not.toContain('agent-password');
+            await expect(
+                f.service.upsert(f.account, 'project', null, clickhouseSecrets),
+            ).rejects.toThrow(ParameterError);
+            expect(JSON.stringify(logger.warn.mock.calls)).not.toContain(
+                clickhouseSecrets.password,
+            );
+            expect(logger.warn).toHaveBeenCalledWith(
+                'AI service account test failed',
+                expect.objectContaining({ errorCode: code }),
+            );
+            expect(f.model.upsert).not.toHaveBeenCalled();
+            expect(f.model.updateVerification).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['upsert', 'test'] as const)(
+        'gates %s before credentials and factory access',
+        async (operation) => {
+            const f = clickhouseFixture();
+            f.flag.mockResolvedValue({ enabled: false });
+            await expect(
+                f.service[operation](
+                    f.account,
+                    'project',
+                    null,
+                    clickhouseSecrets,
+                ),
+            ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+            expect(f.model.getSlot).not.toHaveBeenCalled();
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+            f.flag.mockResolvedValue({ enabled: true });
+            f.account.user.ability = new Ability<PossibleAbilities>([]);
+            await expect(
+                f.service[operation](
+                    f.account,
+                    'project',
+                    null,
+                    clickhouseSecrets,
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        },
+    );
+});
+
+it.each(
+    [1, 2, '1', '2'].flatMap((readonly) =>
+        [false, 0, '0'].map((useQueryCache) => ({ readonly, useQueryCache })),
+    ),
+)(
+    'accepts ClickHouse settings %j after the tagged probe',
+    async ({ readonly, useQueryCache }) => {
+        const f = clickhouseFixture();
+        f.runQuery.mockResolvedValue({
+            rows: [
+                {
+                    principal: 'AI_Agents',
+                    readonly,
+                    use_query_cache: useQueryCache,
+                },
+            ],
+        });
+        const result = await f.service.test(f.account, 'project', null, {
+            ...clickhouseSecrets,
+            user: ' AI_Agents ',
+        });
+        expect(result).toMatchObject({
+            ok: true,
+            principal: 'AI_Agents',
+            observed: {
+                currentUser: 'AI_Agents',
+                readonly: String(readonly),
+                useQueryCache: '0',
+            },
+        });
+        expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+            clickhouseProbe,
+            { agent: 'true' },
+            'Europe/London',
+        );
+    },
+);
+
+it.each([
+    ...[0, '0'].map((readonly) => ({
+        row: { principal: 'ai_agents', readonly, use_query_cache: false },
+        message:
+            'This ClickHouse user is not read-only. Set readonly to 2 before using it for agents.',
+    })),
+    ...[true, 1, '1'].map((cache) => ({
+        row: { principal: 'ai_agents', readonly: 2, use_query_cache: cache },
+        message:
+            'The ClickHouse query cache is enabled for this connection check.',
+    })),
+    ...['other', 'AI_AGENTS'].map((principal) => ({
+        row: { principal, readonly: 2, use_query_cache: false },
+        message: 'ClickHouse signed in as a different user.',
+    })),
+    ...[
+        {},
+        { principal: 'ai_agents' },
+        { principal: '', readonly: 2, use_query_cache: false },
+        { principal: ' ', readonly: 2, use_query_cache: false },
+        { principal: 1, readonly: 2, use_query_cache: false },
+        ...[undefined, null, true, 3, '2 ', 'false', {}, []].map(
+            (readonly) => ({
+                principal: 'ai_agents',
+                readonly,
+                use_query_cache: false,
+            }),
+        ),
+        ...[undefined, null, 'false', '0 ', 2, {}, []].map((cache) => ({
+            principal: 'ai_agents',
+            readonly: 2,
+            use_query_cache: cache,
+        })),
+    ].map((row) => ({
+        row,
+        message:
+            'ClickHouse did not return its current user and read-only settings.',
+    })),
+])(
+    'refuses invalid ClickHouse observations %j before replacing a saved slot',
+    async ({ row, message }) => {
+        const f = clickhouseFixture();
+        f.runQuery.mockResolvedValue({ rows: [row] });
+        expect(await f.service.test(f.account, 'project', null, null)).toEqual({
+            ok: false,
+            principal: null,
+            observed: {},
+            message,
+            checkedAt: expect.any(Date),
+        });
+        await expect(
+            f.service.upsert(f.account, 'project', null, clickhouseSecrets),
+        ).rejects.toThrow(message);
+        expect(f.model.upsert).not.toHaveBeenCalled();
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    },
+);
+
+it('disables the ClickHouse query cache for Test and save', async () => {
+    const f = clickhouseFixture();
+    await f.service.test(f.account, 'project', null, clickhouseSecrets);
+    await f.service.test(f.account, 'project', null, null);
+    await f.service.upsert(f.account, 'project', null, clickhouseSecrets);
+    expect(f.withWarehouseClient).toHaveBeenCalledTimes(3);
+    for (const [ref] of f.withWarehouseClient.mock.calls)
+        expect(ref).toMatchObject({
+            kind: 'bypass',
+            agentSession: true,
+            clientOptions: { agentJobControls: true },
+        });
+});
+
+it('uses UTC for the ClickHouse tagged probe when no timezone is configured', async () => {
+    const f = clickhouseFixture();
+    f.load.mockResolvedValue({
+        ...clickhouseConnection,
+        dataTimezone: undefined,
+    });
+    await f.service.test(f.account, 'project', null, clickhouseSecrets);
+    expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+        clickhouseProbe,
+        { agent: 'true' },
+        'UTC',
+    );
+});
+
+it('uses preview ClickHouse routing and persists the source generation', async () => {
+    const f = clickhouseFixture(true);
+    f.load.mockResolvedValue({
+        ...clickhouseConnection,
+        host: 'preview.internal',
+        schema: 'preview',
+        dataTimezone: 'America/New_York',
+    });
+    const result = await f.service.test(f.account, 'project', null, null);
+    expect(f.withWarehouseClient.mock.calls[0][0].credentials).toMatchObject({
+        ...clickhouseSecrets,
+        host: 'preview.internal',
+        schema: 'preview',
+        dataTimezone: 'America/New_York',
+    });
+    expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+        clickhouseProbe,
+        { agent: 'true' },
+        'America/New_York',
+    );
+    expect(f.model.updateVerification).toHaveBeenCalledExactlyOnceWith(
+        'parent',
+        null,
+        'parent-generation',
+        result,
+    );
+});
+
+it.each([
+    [
+        '516',
+        'ClickHouse rejected this user or password. Check the credentials or replace them.',
+    ],
+    [
+        '164',
+        'ClickHouse blocked the query settings. Use readonly = 2, or allow the required settings in the read-only profile.',
+    ],
+    [
+        '497',
+        "ClickHouse denied access. Check the shared agent account's SELECT grants and connection database.",
+    ],
+])(
+    'returns the safe ClickHouse Test message for code %s',
+    async (code, message) => {
+        const f = clickhouseFixture();
+        f.runQuery.mockRejectedValue(
+            new Error('wrapper', {
+                cause: { code, message: 'private password' },
+            }),
+        );
+        expect(
+            await f.service.test(f.account, 'project', null, clickhouseSecrets),
+        ).toMatchObject({ ok: false, principal: null, observed: {}, message });
+    },
+);
+
+it.each([true, false])(
+    'hides preview status with own slot=%s across parent states',
+    async (hasOwn) => {
+        const f = previewFixture();
+        f.model.getSlot.mockResolvedValue(
+            hasOwn ? { uuid: 'stale', identityUuid: 'stale-generation' } : null,
+        );
+        await expect(
+            f.service.getStatus(f.account, 'project', null),
+        ).resolves.toMatchObject({
+            results: null,
+            credentialsReadable: false,
+            parent: { projectUuid: 'parent' },
+        });
+        f.model.getSecrets.mockResolvedValue(null);
+        await expect(
+            f.service.getStatus(f.account, 'project', null),
+        ).resolves.toEqual({
+            results: null,
+            credentialsReadable: false,
+            parent: null,
+        });
+        expect(f.model.getSlot).not.toHaveBeenCalled();
+        expect(f.model.getCredentialsReadable).not.toHaveBeenCalled();
+        expect(f.model.getVerification).not.toHaveBeenCalled();
+    },
+);
+it.each([null, 'extra'])(
+    'refuses preview save before reading secrets on connection %s',
+    async (connectionUuid) => {
+        const f = previewFixture();
+        await expect(
+            f.service.upsert(f.account, 'project', connectionUuid, secrets),
+        ).rejects.toMatchObject({
+            statusCode: 400,
+            message:
+                'A preview uses the shared agent account of its parent project. Add or change the account on the parent project.',
+        });
+        expect(f.getSummary).toHaveBeenCalledExactlyOnceWith('project');
+        expect(f.load).not.toHaveBeenCalled();
+        expect(f.getExtra).not.toHaveBeenCalled();
+        for (const mock of Object.values(f.model))
+            expect(mock).not.toHaveBeenCalled();
+        expect(f.withWarehouseClient).not.toHaveBeenCalled();
+    },
+);
+it('allows a preview without an upstream project to save its account', async () => {
+    const f = setup();
+    f.getSummary.mockResolvedValue({
+        organizationUuid: f.account.organization.organizationUuid,
+        type: ProjectType.PREVIEW,
+        upstreamProjectUuid: null,
+    });
+    await expect(
+        f.service.upsert(f.account, 'project', null, secrets),
+    ).resolves.toMatchObject({ results: { uuid: 'slot' } });
+    expect(f.model.upsert).toHaveBeenCalled();
+});
+
+it.each(['upsert', 'test'] as const)(
+    'checks preview authorization and flag before refusing %s',
+    async (operation) => {
+        const f = previewFixture();
+        f.account.user.ability = new Ability<PossibleAbilities>([]);
+        await expect(
+            f.service[operation](f.account, 'project', null, secrets),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(f.flag).not.toHaveBeenCalled();
+        f.account.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'Project' },
+        ]);
+        f.flag.mockResolvedValue({ enabled: false });
+        await expect(
+            f.service[operation](f.account, 'project', null, secrets),
+        ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+        expect(f.load).not.toHaveBeenCalled();
+        for (const mock of Object.values(f.model))
+            expect(mock).not.toHaveBeenCalled();
+    },
+);
+
+it('tests submitted credentials on a preview without a parent', async () => {
+    const f = previewFixture();
+    f.getSummary.mockResolvedValue({
+        organizationUuid: f.account.organization.organizationUuid,
+        type: ProjectType.PREVIEW,
+        upstreamProjectUuid: null,
+    });
+    await expect(
+        f.service.test(f.account, 'project', null, input),
+    ).resolves.toMatchObject({ ok: true });
+    expect(f.model.getReplaceableSecrets).toHaveBeenCalledExactlyOnceWith(
+        'project',
+        null,
+    );
+});

@@ -20,6 +20,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../auth/account';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import { GdriveService } from '../services/GdriveService/GdriveService';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
@@ -33,7 +34,11 @@ export class GoogleDriveController extends BaseController {
      * @summary Get Google Drive access token
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('GoogleDriveController.get'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/get-access-token')
     @OperationId('getAccessToken')

@@ -12,6 +12,16 @@ export type CiphertextRegistryEntry = {
 // still hold ciphertext in it.
 export const CIPHERTEXT_REGISTRY: CiphertextRegistryEntry[] = [
     {
+        table: 'credentials',
+        primaryKeyColumn: 'credential_uuid',
+        column: 'encrypted_secrets',
+    },
+    {
+        table: 'credential_token_state',
+        primaryKeyColumn: 'credential_uuid',
+        column: 'encrypted_refresh_token',
+    },
+    {
         table: 'organization_snowflake_agent_clients',
         primaryKeyColumn: 'organization_snowflake_agent_client_uuid',
         column: 'encrypted_client_secret',

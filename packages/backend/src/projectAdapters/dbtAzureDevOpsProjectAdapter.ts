@@ -1,10 +1,10 @@
 import {
-    CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
     SupportedDbtVersions,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import type { DbtTargetResult } from '../services/WarehouseClientFactory/CredentialResolver';
 import { CachedWarehouse } from '../types';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 
@@ -16,7 +16,8 @@ type Args = {
     repository: string;
     branch: string;
     projectDirectorySubPath: string;
-    warehouseCredentials: CreateWarehouseCredentials;
+    dbtTarget: DbtTargetResult;
+    explicitCredentials: boolean;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
     environmentVariableAllowlist: string[];
@@ -38,7 +39,8 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
         repository,
         branch,
         projectDirectorySubPath,
-        warehouseCredentials,
+        dbtTarget,
+        explicitCredentials,
         targetName,
         environment,
         environmentVariableAllowlist,
@@ -55,7 +57,8 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
             remoteRepositoryUrl,
             repository,
             projectDirectorySubPath,
-            warehouseCredentials,
+            dbtTarget,
+            explicitCredentials,
             targetName,
             environment,
             environmentVariableAllowlist,

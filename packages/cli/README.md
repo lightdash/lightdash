@@ -26,7 +26,10 @@ eg: `ligthdash test` Runs `dbt test`
 
 ## Agent connection
 
-Use your saved CLI login to connect your agent to the warehouse:
+### Warehouse sign-in
+
+Bare `agent connect` and unnamed, unselected `agent status` use your saved
+personal CLI login for warehouse sign-in:
 
 ```shell
 lightdash agent connect --project my-project
@@ -42,6 +45,41 @@ Use `--oauth-port <port>` to choose the local callback port, or set
 `--timeout <seconds>` defaults to 180. After that wait, the CLI checks the
 connection every 3 seconds for up to another 120 seconds. Both commands accept
 `--verbose` and exit with code 1 if the connection is refused or incomplete.
+
+### Scoped CLI credentials
+
+An agent connection limits the projects and actions available to requests that use
+its credential. Programs the CLI starts run as your computer user and can still
+read your files, including your saved personal API key and connection tokens.
+Removing the API key from those programs' environment helps avoid accidental use
+or exposure; it does not isolate those programs from your account or files.
+
+`agent connect --connection` (or a connection option such as `--name`) requests
+an agent connection. Approval is review-only today: it creates no connection,
+code or token. The CLI's issuer contract is exercised against a test double;
+[real issuer evidence is still needed](../../docs/agent-identity/issuer-contract.md#evidence-still-needed-from-the-real-issuer).
+
+For a saved connection, `--agent-connection <slot>` or
+`LIGHTDASH_AGENT_CONNECTION` selects its credential. Selected requests do not
+fall back to the personal API key if the connection is missing or invalid.
+`agent status --name <slot>` reports that connection;
+[CLI revocation and recovery](../../docs/agent-identity/revocation.md#cli-revocation-and-recovery)
+use `agent revoke --name <slot>` and its `--human` option.
+
+When a connection is selected, the CLI removes exactly one variable from a
+program's environment: `LIGHTDASH_API_KEY`. It keeps the rest, including
+`LIGHTDASH_PROXY_AUTHORIZATION`, and passes the selected slot as
+`LIGHTDASH_AGENT_CONNECTION`. Command-specific environment overrides still
+apply. The CLI does not put the connection's saved access or refresh token into
+that environment. It does not remove credentials already present under other
+variable names or clear the parent CLI's environment.
+
+The CLI config is `~/.config/lightdash/config.yaml`; saved connections are in
+`~/.config/lightdash/agent-connections.yaml`. Both are readable YAML text,
+including the saved personal API key and connection tokens. On POSIX systems,
+the CLI uses owner-only permissions: directories `0700`, files `0600`.
+A program running as your computer user can open them. On Windows, access
+depends on the operating system's ACLs; the CLI skips POSIX permission changes.
 
 ## Project validation
 
@@ -211,7 +249,10 @@ default project and a preview are available.
 LIGHTDASH_PROJECT=<target-project-uuid> lightdash deploy --non-interactive
 ```
 
-Credentials resolve in the usual order: command flags, then environment variables, then the config file written by `lightdash login`. So a `LIGHTDASH_API_KEY` left in your shell profile is used ahead of your saved login — `lightdash login` warns when this is the case, and `unset LIGHTDASH_API_KEY` restores the saved token.
+With no agent connection selected, credentials resolve in the usual order: command flags, then environment variables, then the config file written by `lightdash login`. So a `LIGHTDASH_API_KEY` left in your shell profile is used ahead of your saved login — `lightdash login` warns when this is the case, and `unset LIGHTDASH_API_KEY` restores the saved token.
+
+For a selected connection, see [Scoped CLI credentials](#scoped-cli-credentials)
+for credential selection and local program access.
 
 ### Example Automation Scripts
 
@@ -310,3 +351,72 @@ The CLI supports these environment variables for authentication:
 | ------------------------ | ---------------------------------------------- |
 | `LIGHTDASH_CLI_EMAIL`    | Email for login (alternative to `--email`)     |
 | `LIGHTDASH_CLI_PASSWORD` | Password for email login (used with `--email`) |
+
+### Instance URLs and proxies for agent connections
+
+Configure the final public HTTPS URL, including the deployment path prefix.
+For example, use `https://example.com/tools/lightdash` if that is the public
+address. For local development, HTTP is accepted on `localhost`, `127.0.0.1` or
+`[::1]`. For the connection's identity and its API requests, one trailing slash
+is the same as none.
+
+Every instance API request made with a connection keeps the prefix and stays
+inside `<instance>/api/`. This also applies to credential-bearing steps during
+approval, token exchange, verification, refresh, status checks and revocation,
+including personal recovery with `agent revoke --name <slot> --human`.
+The CLI refuses all HTTP redirects on these requests, including redirects to
+the same origin or to add a trailing slash. Configure the final address directly;
+the proxy must serve the API paths without a redirect. A proxy can rewrite the
+prefix internally while the CLI continues to use the public address.
+
+The CLI builds approval and settings links from the configured instance URL.
+Without a usable saved connection, a settings link is the configured URL as
+written with the path added.
+This API rule does not cover public asset downloads (`install-skills`,
+`upgrade-check` or an explicit external manifest), browser sign-in navigation,
+or the local callback listener. Public downloads carry no connection credential;
+the CLI does not supply its credential or proxy authorization header to the
+browser.
+
+`lightdash login <url>` removes a path from the URL. Set `LIGHTDASH_URL` or the
+saved config to preserve a deployment prefix for connections. Ordinary instance
+API requests still use root `/api/...` paths, even with a prefix in the environment
+or config. A proxy must also make the root API paths work for ordinary commands.
+Some displayed links keep the prefix. The connection rule does not change
+ordinary command behaviour.
+
+### Connection errors and credential output
+
+On the agent connection commands, and when a request made with a connection fails,
+the CLI prints fixed messages and no server-written text. The CLI never prints a
+credential on purpose. Data that a command exists to show is shown as received.
+
+The connection forms are `agent connect --connection` (or a connection option
+such as `--name`), `agent status --name <slot>` (or a selected connection), and
+`agent revoke --name <slot>`. Bare `agent connect` and unnamed, unselected
+`agent status` use the older personal flow.
+Failures include an error status, an error envelope on HTTP 200, an unreadable or
+aborted body, and a redirect. Known error codes select fixed messages; unknown
+codes are omitted. Links use the configured instance and fixed paths and query
+fields. The approval link contains a validated request UUID.
+
+An error the CLI raises while using data from a successful answer can quote that
+data (for example a slug or a file path). Two known cases with a connection:
+`download --spaces-only` names a space slug the server returned twice, and
+`download` names the file path built from a chart slug when that file cannot be
+written.
+
+Connection success reports show the person's project names, UUIDs, approved and
+effective actions, connection states and timestamps, and warehouse readiness.
+In these connection reports, project names have ANSI escapes and C0/C1 control
+characters removed; other server-supplied report fields are validated UUIDs,
+timestamps, booleans or fixed enums. Report fields the CLI does not know are
+not saved.
+
+Successful catalogue names and types, query results, downloaded content and
+project names in ordinary listings retain the server's characters, including
+control characters.
+
+The CLI has no general screen that rewrites its output.
+
+For local program and file access, see [Scoped CLI credentials](#scoped-cli-credentials).

@@ -36,7 +36,6 @@ import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
-import Callout from '../common/Callout';
 import { DocumentTitle } from '../common/DocumentTitle';
 import ErrorState from '../common/ErrorState';
 import PageBreadcrumbs from '../common/PageBreadcrumbs';
@@ -214,7 +213,7 @@ const ProjectSettings: FC<{
                 },
             ];
         }
-        return [
+        const projectRoutes: RouteObject[] = [
             {
                 path: `/settings`,
                 element: (
@@ -244,7 +243,7 @@ const ProjectSettings: FC<{
                           element: (
                               <ProjectSettingsPage
                                   title="Agent identity"
-                                  description="Choose how AI agents connect to this project's warehouse and check what they can read."
+                                  description="See who agents run as on this project, and manage its shared agent account."
                               >
                                   <ProjectAgentIdentityPage
                                       key={project.projectUuid}
@@ -260,7 +259,11 @@ const ProjectSettings: FC<{
                 element: (
                     <ProjectSettingsPage
                         title="Project access"
-                        description="Manage who can access this project and what they can do."
+                        description={
+                            project?.provisioningSource === 'analytics'
+                                ? 'Grant access with a custom role containing View managed analytics. Standard project roles alone do not grant access to organization analytics.'
+                                : 'Manage who can access this project and what they can do.'
+                        }
                         actions={
                             <SettingsPageDocumentationLink
                                 href="https://docs.lightdash.com/references/roles"
@@ -612,6 +615,32 @@ const ProjectSettings: FC<{
                   ]
                 : []),
         ];
+        if (project?.provisioningSource === 'analytics') {
+            return [
+                ...projectRoutes.filter(
+                    ({ path }) =>
+                        path === '/recentlyDeleted' ||
+                        (path === '/projectAccess' &&
+                            user.data?.ability.can(
+                                'manage',
+                                subject('Project', {
+                                    organizationUuid: project.organizationUuid,
+                                    projectUuid,
+                                }),
+                            )),
+                ),
+                {
+                    path: '*',
+                    element: (
+                        <Navigate
+                            to="/generalSettings/lightdashAnalytics"
+                            replace
+                        />
+                    ),
+                },
+            ];
+        }
+        return projectRoutes;
     }, [
         projectUuid,
         projectSettingsAccess,
@@ -707,19 +736,7 @@ const ProjectSettings: FC<{
                         ]}
                     />
                 </SettingsPageContainer>
-                {project.provisioningSource === 'analytics' ? (
-                    <ProjectSettingsPage
-                        title="Project settings"
-                        description="Lightdash manages this analytics project's configuration."
-                    >
-                        <Callout
-                            variant="warning"
-                            title="Settings cannot be changed for managed analytics projects."
-                        />
-                    </ProjectSettingsPage>
-                ) : (
-                    routesElements
-                )}
+                {routesElements}
             </Stack>
         </>
     );

@@ -27,6 +27,7 @@ import type { PoolClient } from 'pg';
 import { UsageEventsCompactor } from '../analytics/eventStream/UsageEventsCompactor';
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
+import { type AgentActionLogModel } from '../models/AgentActionLogModel';
 import type { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import type { UsageDimensionsModel } from '../models/UsageDimensionsModel';
 import type PrometheusMetrics from '../prometheus/PrometheusMetrics';
@@ -51,6 +52,7 @@ import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
 import { TypedTaskList } from './types';
 
 export type SchedulerWorkerArguments = SchedulerTaskArguments & {
+    agentActionLogModel: AgentActionLogModel;
     usageDimensionsModel: UsageDimensionsModel;
     featureFlagModel: FeatureFlagModel;
     // When omitted, no pg-ping interval runs and the health probe falls back to
@@ -60,6 +62,7 @@ export type SchedulerWorkerArguments = SchedulerTaskArguments & {
     // When omitted, worker tasks that report metrics simply skip reporting.
     prometheusMetrics?: PrometheusMetrics;
     dailyJobRetryBackoffMs?: readonly [number, number];
+    approvalRequestCleanupMaxBatches?: number;
 };
 
 const DEFAULT_DAILY_JOB_RETRY_BACKOFF_MS = [2_000, 5_000] as const;
@@ -190,8 +193,24 @@ export class SchedulerWorker extends SchedulerTask {
 
     private readonly dailyJobRetryBackoffMs: readonly [number, number];
 
+    private readonly agentActionLogModel: AgentActionLogModel;
+
+    private readonly approvalRequestCleanupMaxBatches: number;
+
     constructor(schedulerWorkerArgs: SchedulerWorkerArguments) {
         super(schedulerWorkerArgs);
+        this.agentActionLogModel = schedulerWorkerArgs.agentActionLogModel;
+        this.approvalRequestCleanupMaxBatches =
+            schedulerWorkerArgs.approvalRequestCleanupMaxBatches ?? 50;
+        if (
+            !Number.isSafeInteger(this.approvalRequestCleanupMaxBatches) ||
+            this.approvalRequestCleanupMaxBatches < 1 ||
+            this.approvalRequestCleanupMaxBatches > 50
+        ) {
+            throw new Error(
+                'Approval request cleanup batch cap must be between 1 and 50',
+            );
+        }
         this.enabledTasks = this.lightdashConfig.scheduler.tasks;
         this.workerHealth = schedulerWorkerArgs.workerHealth;
         this.resolveOrganizationName =
@@ -787,6 +806,21 @@ export class SchedulerWorker extends SchedulerTask {
                     maxAttempts: 3,
                 },
             },
+            // Scheduled only where a worker can run it, so jobs never queue unclaimed.
+            ...(this.enabledTasks.includes(
+                SCHEDULER_TASKS.CLEAN_AGENT_CONNECTION_APPROVAL_REQUESTS,
+            )
+                ? [
+                      {
+                          task: SCHEDULER_TASKS.CLEAN_AGENT_CONNECTION_APPROVAL_REQUESTS,
+                          pattern: '53 * * * *',
+                          options: {
+                              backfillPeriod: 2 * 3600 * 1000,
+                              maxAttempts: 3,
+                          },
+                      },
+                  ]
+                : []),
             {
                 task: SCHEDULER_TASKS.RECONCILE_PLAYGROUND_BUNDLES,
                 pattern: '*/10 * * * *',
@@ -1885,6 +1919,17 @@ export class SchedulerWorker extends SchedulerTask {
                     throw error;
                 }
 
+                const actionCleanup =
+                    await this.agentActionLogModel.cleanupBatch(
+                        cutoffDate,
+                        cleanupConfig.batchSize,
+                        cleanupConfig.delayMs,
+                        cleanupConfig.maxBatches,
+                    );
+                Logger.info(
+                    `Agent action log cleanup completed. Total records deleted: ${actionCleanup.totalDeleted} in ${actionCleanup.batchCount} batches`,
+                );
+
                 // Also clean up pre-aggregate daily stats (3-day retention)
                 try {
                     const preAggDeleted =
@@ -1948,6 +1993,36 @@ export class SchedulerWorker extends SchedulerTask {
                     throw error;
                 }
             },
+            [SCHEDULER_TASKS.CLEAN_AGENT_CONNECTION_APPROVAL_REQUESTS]:
+                async () => {
+                    let deletedCount = 0;
+                    let batchCount = 0;
+                    let batchCapHit = false;
+                    try {
+                        const deleteNextBatch = async (): Promise<void> => {
+                            const deleted =
+                                await this.agentConnectionApprovalRequestModel.deleteExpiredBatch(
+                                    1000,
+                                );
+                            deletedCount += deleted;
+                            batchCount += 1;
+                            if (deleted < 1000) return;
+                            batchCapHit =
+                                batchCount ===
+                                this.approvalRequestCleanupMaxBatches;
+                            if (!batchCapHit) await deleteNextBatch();
+                        };
+                        await deleteNextBatch();
+                        Logger.info(
+                            `Agent connection approval requests cleanup completed. Deleted: ${deletedCount}. Batches: ${batchCount}. Batch cap hit: ${batchCapHit}`,
+                        );
+                    } catch (error) {
+                        Logger.error(
+                            `Agent connection approval requests cleanup failed. Deleted: ${deletedCount}. Batches: ${batchCount}. Batch cap hit: ${batchCapHit}`,
+                        );
+                        throw error;
+                    }
+                },
             [SCHEDULER_TASKS.RECONCILE_PLAYGROUND_BUNDLES]: async () => {
                 const result =
                     await this.projectService.reconcilePlaygroundBundles();

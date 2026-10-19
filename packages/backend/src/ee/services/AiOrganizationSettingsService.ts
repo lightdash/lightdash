@@ -27,13 +27,16 @@ import {
     type CreateAiProviderCredential,
     type DataAppAnalysisLimits,
     type ProjectAiCredentialSelection,
+    type RegisteredAccount,
     type SessionUser,
     type UpdateAiProviderCredential,
 } from '@lightdash/common';
+import { toSessionUser } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { assertHumanManagedMutation } from '../../services/AgentPermissionService/assertHumanManagedMutation';
 import { BaseService } from '../../services/BaseService';
 import { AiOrganizationProviderCredentialModel } from '../models/AiOrganizationProviderCredentialModel';
 import { AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
@@ -697,9 +700,17 @@ export class AiOrganizationSettingsService extends BaseService {
     }
 
     async upsertSettings(
-        user: SessionUser,
+        account: RegisteredAccount,
         aiSettingsUpdate: UpdateAiOrganizationSettings,
     ): Promise<AiOrganizationSettings> {
+        const user = toSessionUser(account);
+        await assertHumanManagedMutation({
+            organizationUuid: user.organizationUuid,
+            ability: user.ability,
+            oauth: account.authentication.type === 'oauth',
+            database: this.aiOrganizationSettingsModel.db,
+            featureFlagModel: this.featureFlagModel,
+        });
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('User must belong to an organization');
@@ -1071,7 +1082,9 @@ export class AiOrganizationSettingsService extends BaseService {
 
         if (defaultCredential.status === 'ok') {
             const { config } = defaultCredential.credential;
-            await this.aiOrganizationSettingsModel.update(organizationUuid, {
+            // Upsert: the organization may never have saved AI settings, and
+            // the first credential must not fail on the missing settings row.
+            await this.aiOrganizationSettingsModel.upsert(organizationUuid, {
                 providerApiKeys: {
                     bedrock: {
                         apiKey: config.apiKey,

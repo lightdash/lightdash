@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { createSnowflakeAiPassportStrategy } from '../controllers/authentication/strategies/snowflakeAiStrategy';
 import { type ResolvedSnowflakeAgentClient } from '../services/AiAccessService/SnowflakeAgentClientResolver';
+import { requestOAuthRefreshWithDeadline } from './oauthRequestDeadline';
 
 export type SnowflakeRefreshResult = {
     accessToken: string;
@@ -70,7 +71,18 @@ export const snowflakeOAuthRefreshClient = {
         client: ResolvedSnowflakeAgentClient,
         refreshToken: string,
         callback: RefreshCallback,
+        requestTimeoutMs?: number,
     ): void {
+        if (requestTimeoutMs !== undefined) {
+            requestOAuthRefreshWithDeadline(
+                createSnowflakeAiPassportStrategy(client),
+                client.tokenEndpoint,
+                refreshToken,
+                callback,
+                requestTimeoutMs,
+            );
+            return;
+        }
         const strategy = createSnowflakeAiPassportStrategy(
             client,
         ) as unknown as {
@@ -94,11 +106,13 @@ export const exchangeSnowflakeRefreshToken = ({
     client,
     refreshToken,
     now,
+    requestTimeoutMs,
     requestNewAccessToken = snowflakeOAuthRefreshClient.requestNewAccessToken,
 }: {
     client: ResolvedSnowflakeAgentClient;
     refreshToken: string;
     now: Date;
+    requestTimeoutMs?: number;
     requestNewAccessToken?: typeof snowflakeOAuthRefreshClient.requestNewAccessToken;
 }): Promise<SnowflakeRefreshResult> =>
     new Promise((resolve, reject) => {
@@ -126,5 +140,6 @@ export const exchangeSnowflakeRefreshToken = ({
                     ),
                 });
             },
+            ...(requestTimeoutMs === undefined ? [] : [requestTimeoutMs]),
         );
     });

@@ -30,5 +30,5 @@
     "logo": "./assets/logo.png",
     "composerIcon": "./assets/icon.png"
   },
-  "mcpServers": "./.mcp.json"
+  "mcpServers": "./codex.mcp.json"
 }

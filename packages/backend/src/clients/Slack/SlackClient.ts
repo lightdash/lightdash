@@ -3,6 +3,8 @@ import {
     friendlyName,
     getErrorMessage,
     getSlackErrorCode,
+    getSlackFeatureAvailability,
+    getSlackInstallScopes,
     getSlackInvalidBlockIndices,
     isSlackRateLimitedError,
     isUnrecoverableSlackError,
@@ -11,6 +13,8 @@ import {
     SlackAppCustomSettings,
     SlackChannel,
     SlackError,
+    SlackFeature,
+    SlackFeatureAvailabilityMap,
     SlackFileUploadError,
     SlackInstallationNotFoundError,
     SlackSettings,
@@ -252,24 +256,42 @@ export class SlackClient {
     }
 
     // eslint-disable-next-line class-methods-use-this
+    protected isCommercial(): boolean {
+        return false;
+    }
+
     public getRequiredScopes() {
-        return [
-            'links:read',
-            'links:write',
-            'chat:write',
-            'chat:write.customize',
-            'channels:read',
-            'groups:read',
-            'users:read',
-            'app_mentions:read',
-            'files:write',
-            'files:read',
-            // Used to react with :white_check_mark: on writeback prompts.
-            // Best-effort — installs that haven't re-authorized for this
-            // scope silently skip the reaction.
-            'reactions:write',
-            // 'channels:join', - Made optional since users can manually add the app to channels
-        ];
+        return getSlackInstallScopes(this.isCommercial());
+    }
+
+    public getFeatureAvailability(
+        installationScopes: string[] | undefined,
+    ): SlackFeatureAvailabilityMap {
+        return getSlackFeatureAvailability(
+            installationScopes,
+            this.isCommercial(),
+        );
+    }
+
+    public isFeatureAvailable(
+        installationScopes: string[] | undefined,
+        feature: SlackFeature,
+    ): boolean {
+        return this.getFeatureAvailability(installationScopes)[feature]
+            .available;
+    }
+
+    private getCustomIconArgs(
+        installationScopes: string[] | undefined,
+        appProfilePhotoUrl: string | null | undefined,
+    ): { icon_url: string } | Record<string, never> {
+        if (!appProfilePhotoUrl) return {};
+        return this.isFeatureAvailable(
+            installationScopes,
+            SlackFeature.CUSTOM_APP_PROFILE,
+        )
+            ? { icon_url: appProfilePhotoUrl }
+            : {};
     }
 
     public getSlackOptions() {
@@ -613,15 +635,17 @@ export class SlackClient {
             };
         }
 
-        if (!this.hasRequiredScopes(installation.scopes)) {
-            const currentScopes = installation.scopes.join(', ');
-            const requiredScopes = this.getRequiredScopes().join(', ');
+        const deliveries = this.getFeatureAvailability(
+            installation.scopes,
+        ).scheduledDeliveries;
+        if (!deliveries.available) {
+            const missing = deliveries.missingScopes.join(', ');
             Logger.debug(
-                `Skipping Slack channel sync for organization ${organizationUuid}: missing required scopes. Has: [${currentScopes}], needs: [${requiredScopes}]`,
+                `Skipping Slack channel sync for organization ${organizationUuid}: missing scopes [${missing}]`,
             );
             return {
                 status: 'skipped',
-                reason: 'Missing required Slack scopes - user needs to re-install',
+                reason: `Missing Slack scopes for scheduled deliveries: ${missing}. Reinstall the Slack app to grant them.`,
                 totalChannels: 0,
             };
         }
@@ -976,7 +1000,10 @@ export class SlackClient {
             throw new SlackInstallationNotFoundError();
         }
 
-        const { appProfilePhotoUrl } = installation;
+        const customIconArgs = this.getCustomIconArgs(
+            installation.scopes,
+            installation.appProfilePhotoUrl,
+        );
 
         // Resolve channel name to ID for reliable API calls (critical for private channels)
         const resolvedChannel = await this.resolveChannelToId(
@@ -986,7 +1013,7 @@ export class SlackClient {
 
         return webClient.chat
             .postMessage({
-                ...(appProfilePhotoUrl ? { icon_url: appProfilePhotoUrl } : {}),
+                ...customIconArgs,
                 channel: resolvedChannel,
                 ...slackMessageArgs,
             })
@@ -1019,9 +1046,7 @@ export class SlackClient {
                         );
                         return webClient.chat
                             .postMessage({
-                                ...(appProfilePhotoUrl
-                                    ? { icon_url: appProfilePhotoUrl }
-                                    : {}),
+                                ...customIconArgs,
                                 channel: resolvedChannel,
                                 ...slackMessageArgs,
                                 blocks: replaceImageBlocksWithNotice(
@@ -1059,6 +1084,14 @@ export class SlackClient {
         );
 
         if (channelId && channelId !== currentChannelId) {
+            const installation =
+                await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                    organizationUuid,
+                );
+            const customIconArgs = this.getCustomIconArgs(
+                installation?.scopes,
+                appProfilePhotoUrl,
+            );
             await this.joinChannels(organizationUuid, [channelId]);
             await webClient.chat
                 .postMessage({
@@ -1066,9 +1099,7 @@ export class SlackClient {
                     text: `This channel will now receive notifications for failed scheduled delivery jobs in Lightdash. Configuration completed${
                         userFullName.trim().length ? ` by ${userFullName}` : ''
                     }. Stay informed on your job status here.`,
-                    ...(appProfilePhotoUrl
-                        ? { icon_url: appProfilePhotoUrl }
-                        : {}),
+                    ...customIconArgs,
                 })
                 .catch((e) => {
                     slackErrorHandler(

@@ -33,6 +33,7 @@ export const AI_CALL_FEATURES = [
     'chart-type-explore',
     'document-summary',
     'thread-title',
+    'release-highlights',
     'tooltip',
     'artifact-question',
     'agent-suggestions',

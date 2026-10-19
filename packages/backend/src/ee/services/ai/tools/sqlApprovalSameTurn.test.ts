@@ -161,7 +161,12 @@ const makeTurns = ({
         rowCount: 1,
     });
 
-    const sqlChartSaving = { mode: 'thread_approval' as const, approval };
+    const recordRefusal = vi.fn().mockResolvedValue(undefined);
+    const sqlChartSaving = {
+        mode: 'thread_approval' as const,
+        approval,
+        recordRefusal,
+    };
     const tools = {
         runSql: getRunSql({
             ...approval,
@@ -258,6 +263,7 @@ const makeTurns = ({
         )(argsFor[toolName](sql), options(toolCallId));
 
     return {
+        recordRefusal,
         call,
         storeCall,
         needsApproval,
@@ -412,3 +418,22 @@ describe('SQL approved earlier in the same turn', () => {
         ).resolves.toBe(true);
     });
 });
+
+test.each(['createContent', 'editContent'] as const)(
+    '%s records rejection before its tool output handles the error',
+    async (toolName) => {
+        const turns = makeTurns();
+        turns.answer('rejected-chart', 'rejected');
+        const result = await turns.call(
+            toolName,
+            'rejected-chart',
+            approvedSql,
+        );
+        expect(result.metadata?.status).toBe('error');
+        expect(turns.recordRefusal).toHaveBeenCalledExactlyOnceWith(
+            toolName === 'createContent' ? 'create' : 'update',
+            'sql_approval_rejected',
+        );
+        expect(turns.saved).toEqual([]);
+    },
+);

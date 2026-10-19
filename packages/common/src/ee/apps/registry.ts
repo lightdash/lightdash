@@ -183,6 +183,84 @@ export const parseChartRegistryIndexTolerant = (
     };
 };
 
+// Manifest `registry` block written by a registry-installed download.
+export const dataAppManifestRegistryProvenanceSchema = z.object({
+    slug: registrySlug,
+    version: semverString,
+    url: z.string().min(1),
+});
+
+const registryFileRef = z.object({ fileName: z.string().min(1) });
+
+// Shape of the per-version `charts/<slug>/<version>/entry.json` the registry
+// publishes: images are file names and artifacts carry digests only.
+const chartRegistryVersionSnapshotSchema = z.object({
+    slug: registrySlug,
+    name: z.string().min(1),
+    description: z.string(),
+    version: semverString,
+    publishedAt: z.string(),
+    tags: z.array(z.string()).default([]),
+    changelog: z.string().default(''),
+    minLightdashVersion: semverString.nullable().default(null),
+    channel: z.enum(['stable', 'beta']).optional(),
+    vizSchema: dataAppVizSchema,
+    preview: dataAppVizPreviewSchema.nullable().default(null),
+    screenshots: z.array(registryFileRef).default([]),
+    thumbnailDark: registryFileRef.nullable().optional(),
+    icon: chartTypeIconSchema.nullable().default(null),
+    artifacts: z.object({
+        source: z.object({ sha256: z.string().regex(/^[a-f0-9]{64}$/) }),
+        dist: z.object({ sha256: z.string().regex(/^[a-f0-9]{64}$/) }),
+    }),
+});
+
+/**
+ * Converts a per-version registry snapshot into a full entry with paths
+ * rooted at `charts/<slug>/<version>/`. The snapshot's own identity must
+ * match the requested one so a misrouted file never installs as another chart.
+ */
+export const parseChartRegistryVersionSnapshot = (
+    raw: unknown,
+    expected: { slug: string; version: string },
+): ChartRegistryEntry => {
+    const snapshot = chartRegistryVersionSnapshotSchema.parse(raw);
+    if (snapshot.slug !== expected.slug) {
+        throw new Error(
+            `Chart registry snapshot is for "${snapshot.slug}", expected "${expected.slug}"`,
+        );
+    }
+    if (snapshot.version !== expected.version) {
+        throw new Error(
+            `Chart registry snapshot is version ${snapshot.version}, expected ${expected.version}`,
+        );
+    }
+    const prefix = `charts/${expected.slug}/${expected.version}`;
+    const screenshots = snapshot.screenshots.map(
+        (s) => `${prefix}/${s.fileName}`,
+    );
+    const { channel, ...rest } = snapshot;
+    return registryEntrySchema.parse({
+        ...rest,
+        ...(channel !== undefined ? { channel } : {}),
+        thumbnail: screenshots[0] ?? null,
+        thumbnailDark: snapshot.thumbnailDark
+            ? `${prefix}/${snapshot.thumbnailDark.fileName}`
+            : null,
+        screenshots,
+        artifacts: {
+            source: {
+                path: `${prefix}/source.tar`,
+                sha256: snapshot.artifacts.source.sha256,
+            },
+            dist: {
+                path: `${prefix}/dist.tar`,
+                sha256: snapshot.artifacts.dist.sha256,
+            },
+        },
+    });
+};
+
 type AssertMutuallyAssignable<A, B> = [A] extends [B]
     ? [B] extends [A]
         ? true

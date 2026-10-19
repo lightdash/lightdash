@@ -144,6 +144,8 @@ import {
     ExternalSourceTablesTableName,
 } from '../../database/entities/externalSources';
 import { OrganizationDesignsTableName } from '../../database/entities/organizationDesigns';
+import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
+import { OrganizationTableName } from '../../database/entities/organizations';
 import { DbProject, ProjectTableName } from '../../database/entities/projects';
 import {
     SavedChartsTableName,
@@ -268,6 +270,7 @@ import {
     type SqlApprovalDecision,
     type SqlApprovalDecisionOnCall,
 } from '../services/ai/tools/sqlApprovals';
+import { normalizeAiMcpOAuthClientCredentials } from '../services/ai/utils/mcpServerCredentials';
 import { type AiAgentThreadLiveStateSignals } from '../services/AiAgentService/aiAgentThreadLiveStatus';
 import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from '../services/AiDeepResearchService/constants';
 import { AI_AGENT_THREAD_PENDING_TIMEOUT_MS } from './aiAgentConstants';
@@ -718,6 +721,11 @@ export class AiAgentModel {
             .select('ai_agent_uuid', 'user_uuid')
             .where(`${AiAgentUserAccessTableName}.ai_agent_uuid`, agentUuid);
 
+        const userAccessDetails = this.userAccessDetailsQuery().where(
+            `${AiAgentUserAccessTableName}.ai_agent_uuid`,
+            agentUuid,
+        );
+
         const spaceAccess = this.database
             .from(AiAgentSpaceAccessTableName)
             .select('ai_agent_uuid', 'space_uuid')
@@ -738,6 +746,7 @@ export class AiAgentModel {
             .with('latest_instruction', latestInstruction)
             .with('group_access', groupAccess)
             .with('user_access', userAccess)
+            .with('user_access_details', userAccessDetails)
             .with('space_access', spaceAccess)
             .from(AiAgentTableName)
             .select({
@@ -772,6 +781,7 @@ export class AiAgentModel {
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
                 enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
+                enableSqlAutoApproval: `${AiAgentTableName}.enable_sql_auto_approval`,
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 providerCredentialUuid: `${AiAgentTableName}.ai_organization_provider_credential_uuid`,
@@ -789,6 +799,21 @@ export class AiAgentModel {
                     COALESCE(
                         (SELECT json_agg(user_uuid)
                          FROM user_access
+                         WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
+                        '[]'::json
+                    )
+                `),
+                userAccessDetails: this.database.raw(`
+                    COALESCE(
+                        (SELECT json_agg(
+                            json_build_object(
+                                'userUuid', user_uuid,
+                                'firstName', first_name,
+                                'lastName', last_name,
+                                'email', email
+                            )
+                            ORDER BY first_name, last_name, user_uuid
+                        ) FROM user_access_details
                          WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
                         '[]'::json
                     )
@@ -855,6 +880,8 @@ export class AiAgentModel {
             .from(AiAgentUserAccessTableName)
             .select('ai_agent_uuid', 'user_uuid');
 
+        const userAccessDetails = this.userAccessDetailsQuery();
+
         const spaceAccess = this.database
             .from(AiAgentSpaceAccessTableName)
             .select('ai_agent_uuid', 'space_uuid');
@@ -874,6 +901,7 @@ export class AiAgentModel {
             .with('latest_instruction', latestInstruction)
             .with('group_access', groupAccess)
             .with('user_access', userAccess)
+            .with('user_access_details', userAccessDetails)
             .with('space_access', spaceAccess)
             .from(AiAgentTableName)
             .innerJoin(
@@ -913,6 +941,7 @@ export class AiAgentModel {
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
                 enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
+                enableSqlAutoApproval: `${AiAgentTableName}.enable_sql_auto_approval`,
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 providerCredentialUuid: `${AiAgentTableName}.ai_organization_provider_credential_uuid`,
@@ -930,6 +959,21 @@ export class AiAgentModel {
                     COALESCE(
                         (SELECT json_agg(user_uuid)
                          FROM user_access
+                         WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
+                        '[]'::json
+                    )
+                `),
+                userAccessDetails: this.database.raw(`
+                    COALESCE(
+                        (SELECT json_agg(
+                            json_build_object(
+                                'userUuid', user_uuid,
+                                'firstName', first_name,
+                                'lastName', last_name,
+                                'email', email
+                            )
+                            ORDER BY first_name, last_name, user_uuid
+                        ) FROM user_access_details
                          WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
                         '[]'::json
                     )
@@ -1001,6 +1045,7 @@ export class AiAgentModel {
                 | 'enableContentTools'
                 | 'enableUserContext'
                 | 'enableSqlMode'
+                | 'enableSqlAutoApproval'
                 | 'threadRetentionHours'
                 | 'modelConfig'
                 | 'updatedAt'
@@ -1033,6 +1078,7 @@ export class AiAgentModel {
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
                 enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
+                enableSqlAutoApproval: `${AiAgentTableName}.enable_sql_auto_approval`,
                 threadRetentionHours: `${AiAgentTableName}.thread_retention_hours`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 updatedAt: `${AiAgentTableName}.updated_at`,
@@ -1378,24 +1424,21 @@ export class AiAgentModel {
                     type: 'bearer',
                     bearerToken: credentials.bearerToken,
                 };
-            case 'oauth':
-                if (!credentials?.clientId && !credentials?.clientSecret) {
+            case 'oauth': {
+                const oauthClient =
+                    normalizeAiMcpOAuthClientCredentials(credentials);
+                if (!oauthClient) {
                     return null;
-                }
-
-                if (!credentials.clientId || !credentials.clientSecret) {
-                    throw new ParameterError(
-                        'OAuth client ID and secret must be provided together',
-                    );
                 }
 
                 return {
                     type: 'oauth',
                     credentialScope: 'shared',
                     connectionStatus: 'not_connected',
-                    configuredClientId: credentials.clientId,
-                    configuredClientSecret: credentials.clientSecret,
+                    configuredClientId: oauthClient.clientId,
+                    configuredClientSecret: oauthClient.clientSecret,
                 };
+            }
             default:
                 return assertUnreachable(
                     authType,
@@ -2241,6 +2284,7 @@ export class AiAgentModel {
             | 'enableContentTools'
             | 'enableUserContext'
             | 'enableSqlMode'
+            | 'enableSqlAutoApproval'
             | 'adminOnly'
             | 'modelConfig'
             | 'providerCredentialUuid'
@@ -2278,6 +2322,8 @@ export class AiAgentModel {
                     enable_content_tools: args.enableContentTools ?? false,
                     enable_user_context: args.enableUserContext ?? false,
                     enable_sql_mode: args.enableSqlMode ?? true,
+                    enable_sql_auto_approval:
+                        args.enableSqlAutoApproval ?? false,
                     admin_only: args.adminOnly ?? false,
                     model_config: args.modelConfig ?? null,
                     ai_organization_provider_credential_uuid:
@@ -2348,7 +2394,12 @@ export class AiAgentModel {
 
             const userAccess = await this.setAndGetUserAccess(
                 agent.ai_agent_uuid,
+                agent.organization_uuid,
                 args.userAccess ?? undefined,
+                { trx },
+            );
+            const userAccessDetails = await this.getUserAccessDetails(
+                agent.ai_agent_uuid,
                 { trx },
             );
 
@@ -2380,12 +2431,14 @@ export class AiAgentModel {
                 imageUrlSource: agent.image_url_source,
                 groupAccess,
                 userAccess,
+                userAccessDetails,
                 spaceAccess,
                 enableDataAccess: agent.enable_data_access,
                 enableSelfImprovement: agent.enable_self_improvement,
                 enableContentTools: agent.enable_content_tools,
                 enableUserContext: agent.enable_user_context,
                 enableSqlMode: agent.enable_sql_mode,
+                enableSqlAutoApproval: agent.enable_sql_auto_approval,
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
                 providerCredentialUuid:
@@ -2527,6 +2580,12 @@ export class AiAgentModel {
                         : {}),
                     ...(args.enableSqlMode !== undefined
                         ? { enable_sql_mode: args.enableSqlMode }
+                        : {}),
+                    ...(args.enableSqlAutoApproval !== undefined
+                        ? {
+                              enable_sql_auto_approval:
+                                  args.enableSqlAutoApproval,
+                          }
                         : {}),
                     ...(args.adminOnly !== undefined
                         ? { admin_only: args.adminOnly }
@@ -2674,7 +2733,12 @@ export class AiAgentModel {
 
             const userAccess = await this.setAndGetUserAccess(
                 agent.ai_agent_uuid,
+                agent.organization_uuid,
                 args.userAccess ?? undefined,
+                { trx },
+            );
+            const userAccessDetails = await this.getUserAccessDetails(
+                agent.ai_agent_uuid,
                 { trx },
             );
 
@@ -2706,12 +2770,14 @@ export class AiAgentModel {
                 imageUrlSource: agent.image_url_source,
                 groupAccess,
                 userAccess,
+                userAccessDetails,
                 spaceAccess,
                 enableDataAccess: agent.enable_data_access,
                 enableSelfImprovement: agent.enable_self_improvement,
                 enableContentTools: agent.enable_content_tools,
                 enableUserContext: agent.enable_user_context,
                 enableSqlMode: agent.enable_sql_mode,
+                enableSqlAutoApproval: agent.enable_sql_auto_approval,
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
                 providerCredentialUuid:
@@ -2799,6 +2865,138 @@ export class AiAgentModel {
         return this.getGroupAccess(agentUuid, { trx });
     }
 
+    /**
+     * One row per user with access to an agent, with the name and email the
+     * settings form labels their pill with. Keyed by `ai_agent_uuid` so it
+     * can serve as a CTE across many agents.
+     */
+    private userAccessDetailsQuery({
+        trx = this.database,
+    }: { trx?: Knex } = {}) {
+        return (
+            trx(AiAgentUserAccessTableName)
+                .innerJoin(
+                    UserTableName,
+                    `${UserTableName}.user_uuid`,
+                    `${AiAgentUserAccessTableName}.user_uuid`,
+                )
+                .innerJoin(EmailTableName, function joinPrimaryEmail() {
+                    this.on(
+                        `${EmailTableName}.user_id`,
+                        `${UserTableName}.user_id`,
+                    ).andOn(`${EmailTableName}.is_primary`, trx.raw('true'));
+                })
+                // Only current members of the agent's organization are resolved. A
+                // uuid that is not (a user who has left, or a row written before
+                // membership was validated) stays in `userAccess` but gets no name.
+                // Written as EXISTS rather than a join on purpose: membership
+                // statistics are averaged across all organizations, so a join
+                // makes the planner walk every member of the organization per
+                // agent. EXISTS keeps it driving from the few access rows and
+                // probing the membership primary key.
+                .innerJoin(
+                    AiAgentTableName,
+                    `${AiAgentTableName}.ai_agent_uuid`,
+                    `${AiAgentUserAccessTableName}.ai_agent_uuid`,
+                )
+                .whereExists(
+                    trx
+                        .select(1)
+                        .from(OrganizationMembershipsTableName)
+                        .innerJoin(
+                            OrganizationTableName,
+                            `${OrganizationTableName}.organization_id`,
+                            `${OrganizationMembershipsTableName}.organization_id`,
+                        )
+                        .whereRaw(
+                            `${OrganizationMembershipsTableName}.user_id = ${UserTableName}.user_id`,
+                        )
+                        .whereRaw(
+                            `${OrganizationTableName}.organization_uuid = ${AiAgentTableName}.organization_uuid`,
+                        ),
+                )
+                .select<
+                    {
+                        ai_agent_uuid: string;
+                        user_uuid: string;
+                        first_name: string;
+                        last_name: string;
+                        email: string;
+                    }[]
+                >(
+                    `${AiAgentUserAccessTableName}.ai_agent_uuid`,
+                    `${UserTableName}.user_uuid`,
+                    `${UserTableName}.first_name`,
+                    `${UserTableName}.last_name`,
+                    `${EmailTableName}.email`,
+                )
+        );
+    }
+
+    private async getUserAccessDetails(
+        agentUuid: AiAgent['uuid'],
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<AiAgent['userAccessDetails']> {
+        const rows = await this.userAccessDetailsQuery({ trx })
+            .where(`${AiAgentUserAccessTableName}.ai_agent_uuid`, agentUuid)
+            .orderBy([
+                { column: `${UserTableName}.first_name` },
+                { column: `${UserTableName}.last_name` },
+                { column: `${UserTableName}.user_uuid` },
+            ]);
+
+        return rows.map((row) => ({
+            userUuid: row.user_uuid,
+            firstName: row.first_name,
+            lastName: row.last_name,
+            email: row.email,
+        }));
+    }
+
+    /**
+     * Access can only be granted to members of the agent's organization.
+     * Otherwise an agent manager could name any user uuid and, through the
+     * resolved details, learn that person's name and email.
+     */
+    private static async assertOrganizationMembers(
+        trx: Knex,
+        organizationUuid: AiAgent['organizationUuid'],
+        userUuids: string[],
+    ): Promise<void> {
+        const wanted = [...new Set(userUuids)];
+        if (wanted.length === 0) return;
+
+        const members = await trx(UserTableName)
+            .innerJoin(
+                OrganizationMembershipsTableName,
+                `${OrganizationMembershipsTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${OrganizationMembershipsTableName}.organization_id`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .whereIn(`${UserTableName}.user_uuid`, wanted)
+            .pluck<string[]>(`${UserTableName}.user_uuid`);
+
+        const missing = wanted.filter((uuid) => !members.includes(uuid));
+        if (missing.length > 0) {
+            // The uuids stay out of the response so a rejected request cannot
+            // be used to probe which ones exist; they are logged for support.
+            Logger.warn(
+                `Rejected AI agent user access for organization ${organizationUuid}: not members: ${missing.join(', ')}`,
+            );
+            throw new NotFoundError(
+                'One or more users were not found in this organization',
+            );
+        }
+    }
+
     private async getUserAccess(
         agentUuid: AiAgent['uuid'],
         { trx = this.database }: { trx?: Knex } = {},
@@ -2812,9 +3010,16 @@ export class AiAgentModel {
 
     private async setUserAccess(
         agentUuid: AiAgent['uuid'],
+        organizationUuid: AiAgent['organizationUuid'],
         userAccess: NonNullable<AiAgent['userAccess']>,
         { trx = this.database }: { trx?: Knex } = {},
     ): Promise<NonNullable<AiAgent['userAccess']>> {
+        await AiAgentModel.assertOrganizationMembers(
+            trx,
+            organizationUuid,
+            userAccess,
+        );
+
         // Delete existing user access
         await trx(AiAgentUserAccessTableName)
             .where('ai_agent_uuid', agentUuid)
@@ -2836,11 +3041,14 @@ export class AiAgentModel {
 
     private async setAndGetUserAccess(
         agentUuid: AiAgent['uuid'],
+        organizationUuid: AiAgent['organizationUuid'],
         userAccess: NonNullable<AiAgent['userAccess']> | undefined,
         { trx = this.database }: { trx?: Knex } = {},
     ): Promise<NonNullable<AiAgent['userAccess']>> {
         if (userAccess !== undefined) {
-            await this.setUserAccess(agentUuid, userAccess, { trx });
+            await this.setUserAccess(agentUuid, organizationUuid, userAccess, {
+                trx,
+            });
         }
         return this.getUserAccess(agentUuid, { trx });
     }
@@ -6030,6 +6238,24 @@ export class AiAgentModel {
             })
             .where('ai_prompt_uuid', promptUuid)
             .modify((query) => wherePromptResponseState(query, previousState))
+            .returning<{ ai_prompt_uuid: string }[]>('ai_prompt_uuid');
+
+        return rows.length > 0;
+    }
+
+    async resetFailedPromptForRetry(promptUuid: string): Promise<boolean> {
+        const rows = await this.database(AiPromptTableName)
+            .update({
+                responded_at: this.database.raw('NULL'),
+                error_message: null,
+                token_usage: null,
+                needs_user_input: null,
+                needs_user_input_metadata: null,
+                retried_at: this.database.fn.now(),
+            })
+            .where('ai_prompt_uuid', promptUuid)
+            .whereNull('response')
+            .whereNotNull('error_message')
             .returning<{ ai_prompt_uuid: string }[]>('ai_prompt_uuid');
 
         return rows.length > 0;

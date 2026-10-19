@@ -8,6 +8,17 @@ import {
 import { toSessionUser } from '../auth/account';
 import { DeployService } from './DeployService';
 
+const projectSummary = {
+    projectUuid: 'project-uuid',
+    organizationUuid: 'org-uuid',
+    slug: 'project',
+    name: 'Project',
+    type: ProjectType.DEFAULT,
+    upstreamProjectUuid: undefined,
+    createdByUserUuid: null,
+    provisioningSource: null,
+};
+
 const buildAccount = (ability: MemberAbility): RegisteredAccount =>
     ({
         authentication: {
@@ -76,7 +87,10 @@ describe('DeployService', () => {
                     createdByUserUuid: 'service-account-user-uuid',
                 }),
             },
-            projectService: {},
+            projectService: {
+                assertConnectionPreAggregateRefresh: vi.fn(),
+                assertAgentConnectionEffect: vi.fn(),
+            },
             schedulerClient: {},
         } as never);
 
@@ -97,8 +111,13 @@ describe('DeployService', () => {
         'passes batched completeness $complete and model inventory $dbtModelNames to the cache write',
         async ({ complete, dbtModelNames }) => {
             const projectService = {
+                assertConnectionPreAggregateRefresh: vi.fn(),
+                assertAgentConnectionEffect: vi.fn(),
                 saveDeployExplores: vi.fn().mockResolvedValue('index-job-uuid'),
                 trackCliSourceDeploy: vi.fn().mockResolvedValue(undefined),
+                getDeployStartOfWeekByExplore: vi
+                    .fn()
+                    .mockResolvedValue(new Map()),
             };
             const deploySessionModel = {
                 getSession: vi.fn().mockResolvedValue({
@@ -126,6 +145,7 @@ describe('DeployService', () => {
                     requireSingleConnectionRoute: vi
                         .fn()
                         .mockResolvedValue('single'),
+                    getSummary: vi.fn().mockResolvedValue(projectSummary),
                     getWithSensitiveFields: vi.fn().mockResolvedValue({
                         organizationUuid: 'org-uuid',
                         warehouseConnection: null,
@@ -134,7 +154,17 @@ describe('DeployService', () => {
                 projectService,
                 schedulerClient,
             } as never);
-            const user = toSessionUser(buildAccount(new Ability()));
+            const user = toSessionUser(
+                buildAccount(
+                    new Ability([
+                        {
+                            action: 'manage',
+                            subject: 'DeployProject',
+                            conditions: { projectUuid: 'project-uuid' },
+                        },
+                    ]),
+                ),
+            );
 
             await service.finalizeDeploy(
                 user,
@@ -160,7 +190,17 @@ describe('DeployService', () => {
         const updateStatus = vi.fn().mockResolvedValue(undefined);
         const deleteSession = vi.fn().mockResolvedValue(undefined);
         const generateValidation = vi.fn().mockResolvedValue(undefined);
-        const user = toSessionUser(buildAccount(new Ability()));
+        const user = toSessionUser(
+            buildAccount(
+                new Ability([
+                    {
+                        action: 'manage',
+                        subject: 'DeployProject',
+                        conditions: { projectUuid: 'project-uuid' },
+                    },
+                ]),
+            ),
+        );
         const service = new DeployService({
             deploySessionModel: {
                 getSession: vi.fn().mockResolvedValue({
@@ -179,12 +219,21 @@ describe('DeployService', () => {
                 deleteSession,
             },
             projectModel: {
+                getSummary: vi.fn().mockResolvedValue(projectSummary),
                 getWithSensitiveFields: vi.fn().mockResolvedValue({
                     organizationUuid: 'org-uuid',
                     warehouseConnection: null,
                 }),
             },
-            projectService: { saveDeployExplores, trackCliSourceDeploy },
+            projectService: {
+                assertConnectionPreAggregateRefresh: vi.fn(),
+                assertAgentConnectionEffect: vi.fn(),
+                saveDeployExplores,
+                trackCliSourceDeploy,
+                getDeployStartOfWeekByExplore: vi
+                    .fn()
+                    .mockResolvedValue(new Map()),
+            },
             schedulerClient: {
                 generateValidation,
             },
@@ -241,7 +290,17 @@ describe('DeployService', () => {
         const failure = new Error('validation unavailable');
         const trackCliSourceDeploy = vi.fn().mockResolvedValue(undefined);
         const updateStatus = vi.fn().mockResolvedValue(undefined);
-        const user = toSessionUser(buildAccount(new Ability()));
+        const user = toSessionUser(
+            buildAccount(
+                new Ability([
+                    {
+                        action: 'manage',
+                        subject: 'DeployProject',
+                        conditions: { projectUuid: 'project-uuid' },
+                    },
+                ]),
+            ),
+        );
         const service = new DeployService({
             deploySessionModel: {
                 getSession: vi.fn().mockResolvedValue({
@@ -260,14 +319,20 @@ describe('DeployService', () => {
                 deleteSession: vi.fn().mockResolvedValue(undefined),
             },
             projectModel: {
+                getSummary: vi.fn().mockResolvedValue(projectSummary),
                 getWithSensitiveFields: vi.fn().mockResolvedValue({
                     organizationUuid: 'org-uuid',
                     warehouseConnection: null,
                 }),
             },
             projectService: {
+                assertConnectionPreAggregateRefresh: vi.fn(),
+                assertAgentConnectionEffect: vi.fn(),
                 saveDeployExplores: vi.fn().mockResolvedValue('index-job-uuid'),
                 trackCliSourceDeploy,
+                getDeployStartOfWeekByExplore: vi
+                    .fn()
+                    .mockResolvedValue(new Map()),
             },
             schedulerClient: {
                 generateValidation: vi.fn().mockRejectedValue(failure),
@@ -303,6 +368,68 @@ describe('DeployService', () => {
         expect(updateStatus).not.toHaveBeenCalledWith(
             'deploy-session-uuid',
             DeploySessionStatus.COMPLETED,
+        );
+    });
+    it('checks the deploy permission from the project summary, so a credential error still fails the session as before', async () => {
+        const failure = new Error('credentials cannot be decrypted');
+        const updateStatus = vi.fn().mockResolvedValue(undefined);
+        const getSummary = vi.fn().mockResolvedValue(projectSummary);
+        const getWithSensitiveFields = vi.fn().mockRejectedValue(failure);
+        const user = toSessionUser(
+            buildAccount(
+                new Ability([
+                    {
+                        action: 'manage',
+                        subject: 'DeployProject',
+                        conditions: { projectUuid: 'project-uuid' },
+                    },
+                ]),
+            ),
+        );
+        const service = new DeployService({
+            deploySessionModel: {
+                getSession: vi.fn().mockResolvedValue({
+                    deploySessionUuid: 'deploy-session-uuid',
+                    projectUuid: 'project-uuid',
+                    userUuid: user.userUuid,
+                    status: DeploySessionStatus.UPLOADING,
+                    batchCount: 1,
+                    exploreCount: 0,
+                    createdAt: new Date(),
+                }),
+                updateStatus,
+            },
+            projectModel: { getSummary, getWithSensitiveFields },
+            projectService: {
+                assertConnectionPreAggregateRefresh: vi.fn(),
+                assertAgentConnectionEffect: vi.fn(),
+                trackCliSourceDeploy: vi.fn().mockResolvedValue(undefined),
+                getDeployStartOfWeekByExplore: vi
+                    .fn()
+                    .mockResolvedValue(new Map()),
+            },
+            schedulerClient: {},
+        } as never);
+
+        await expect(
+            service.finalizeDeploy(
+                user,
+                'project-uuid',
+                'deploy-session-uuid',
+                'cli-1',
+            ),
+        ).rejects.toBe(failure);
+
+        expect(getSummary).toHaveBeenCalledExactlyOnceWith('project-uuid');
+        expect(getWithSensitiveFields).toHaveBeenCalledTimes(1);
+        expect(updateStatus.mock.calls).toEqual([
+            ['deploy-session-uuid', DeploySessionStatus.FINALIZING],
+            ['deploy-session-uuid', DeploySessionStatus.FAILED],
+        ]);
+        expect(
+            vi.mocked(updateStatus).mock.invocationCallOrder[0],
+        ).toBeLessThan(
+            vi.mocked(getWithSensitiveFields).mock.invocationCallOrder[0],
         );
     });
 });

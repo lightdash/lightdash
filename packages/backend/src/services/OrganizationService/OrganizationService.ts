@@ -10,6 +10,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     Group,
+    GroupSort,
     GroupWithMembers,
     isSystemRole,
     isUserWithOrg,
@@ -30,9 +31,11 @@ import {
     OrganizationMemberProfileUpdate,
     OrganizationMemberProfileWithGroups,
     OrganizationMemberRole,
+    OrganizationMemberSort,
     OrganizationProject,
     ParameterError,
     ProjectType,
+    resolveEffectiveOrganizationSettings,
     SaveOrganizationBrandRequest,
     SessionUser,
     TooManyRequestsError,
@@ -58,6 +61,7 @@ import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationAllowedEmailDomainsModel } from '../../models/OrganizationAllowedEmailDomainsModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
+import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../models/RolesModel';
 import { UserModel } from '../../models/UserModel';
@@ -66,7 +70,9 @@ import {
     getOrganizationSystemRoleScopes,
     validateOrganizationScopesCanBeGranted,
 } from '../../utils/organizationRolePermissions';
+import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
 import { BaseService } from '../BaseService';
+import { getOrganizationSettingsInstanceDefaults } from '../OrganizationSettingsService/getInstanceDefaults';
 import { isAnalyticsProjectEnabled } from '../ProjectService/analyticsProject/analyticsProjectClient';
 
 const BRANDFETCH_API_URL = 'https://api.brandfetch.io/v2/brands';
@@ -108,6 +114,7 @@ export type OrganizationServiceArguments = {
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     featureFlagModel: FeatureFlagModel;
     rolesModel: RolesModel;
+    organizationSettingsModel: Pick<OrganizationSettingsModel, 'get'>;
     onOrganizationCreated?: (args: {
         user: SessionUser;
         organizationUuid: string;
@@ -137,6 +144,11 @@ export class OrganizationService extends BaseService {
 
     private readonly rolesModel: RolesModel;
 
+    private readonly organizationSettingsModel: Pick<
+        OrganizationSettingsModel,
+        'get'
+    >;
+
     private readonly onOrganizationCreated: OrganizationServiceArguments['onOrganizationCreated'];
 
     constructor({
@@ -151,6 +163,7 @@ export class OrganizationService extends BaseService {
         organizationAllowedEmailDomainsModel,
         featureFlagModel,
         rolesModel,
+        organizationSettingsModel,
         onOrganizationCreated,
     }: OrganizationServiceArguments) {
         super();
@@ -166,26 +179,33 @@ export class OrganizationService extends BaseService {
         this.groupsModel = groupsModel;
         this.featureFlagModel = featureFlagModel;
         this.rolesModel = rolesModel;
+        this.organizationSettingsModel = organizationSettingsModel;
         this.onOrganizationCreated = onOrganizationCreated;
     }
 
     async get(account: Account): Promise<Organization> {
         assertIsAccountWithOrg(account);
+        const { organizationUuid } = account.organization;
 
-        const needsProject = !(await this.projectModel.hasProjects(
-            account.organization.organizationUuid,
-        ));
-
-        const organization = await this.organizationModel.get(
-            account.organization.organizationUuid,
+        const [needsProject, organization, settings] = await Promise.all([
+            this.projectModel
+                .hasProjects(organizationUuid)
+                .then((hasProjects) => !hasProjects),
+            this.organizationModel.get(organizationUuid),
+            this.organizationSettingsModel.get(organizationUuid),
+        ]);
+        // Every member gets the effective captures switch so the data app
+        // builder can hide its capture affordances; GET /org/settings is
+        // admin-only.
+        const { dataAppCapturesEnabled } = resolveEffectiveOrganizationSettings(
+            settings,
+            getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
         );
         return {
             ...organization,
             needsProject,
-            pgWire: this.getPgWireConnectionDetails(
-                account,
-                account.organization.organizationUuid,
-            ),
+            dataAppCapturesEnabled: dataAppCapturesEnabled !== false,
+            pgWire: this.getPgWireConnectionDetails(account, organizationUuid),
         };
     }
 
@@ -554,6 +574,7 @@ export class OrganizationService extends BaseService {
         searchQuery?: string,
         projectUuid?: string,
         googleOidcOnly?: boolean,
+        sort?: OrganizationMemberSort,
     ): Promise<KnexPaginatedData<OrganizationMemberProfile[]>> {
         const { organizationUuid } = user;
         if (organizationUuid === undefined) {
@@ -572,16 +593,20 @@ export class OrganizationService extends BaseService {
 
         const { pagination, data: organizationMembers } = includeGroups
             ? await this.organizationMemberProfileModel.getOrganizationMembersAndGroups(
-                  organizationUuid,
-                  includeGroups,
-                  paginateArgs,
-                  searchQuery,
-                  googleOidcOnly,
+                  {
+                      organizationUuid,
+                      includeGroups,
+                      paginateArgs,
+                      searchQuery,
+                      googleOidcOnly,
+                      sort,
+                  },
               )
             : await this.organizationMemberProfileModel.getOrganizationMembers({
                   organizationUuid,
                   paginateArgs,
                   searchQuery,
+                  sort,
                   googleOidcOnly,
               });
 
@@ -676,10 +701,6 @@ export class OrganizationService extends BaseService {
             projects.some(
                 (project) => project.provisioningSource === 'analytics',
             ) &&
-            auditedAbility.can(
-                'manage',
-                subject('Organization', { organizationUuid }),
-            ) &&
             (await isAnalyticsProjectEnabled(
                 this.featureFlagModel,
                 organizationUuid,
@@ -689,7 +710,18 @@ export class OrganizationService extends BaseService {
             (project, index) =>
                 accessResults[index] &&
                 (project.provisioningSource !== 'analytics' ||
-                    analyticsEnabled),
+                    (analyticsEnabled &&
+                        (auditedAbility.can(
+                            'manage',
+                            subject('Organization', { organizationUuid }),
+                        ) ||
+                            auditedAbility.can(
+                                'view',
+                                subject('SystemAnalytics', {
+                                    organizationUuid,
+                                    projectUuid: project.projectUuid,
+                                }),
+                            )))),
         );
     }
 
@@ -785,6 +817,13 @@ export class OrganizationService extends BaseService {
         memberUserUuid: string,
         data: OrganizationMemberProfileUpdate,
     ): Promise<OrganizationMemberProfile> {
+        await assertHumanManagedMutation({
+            organizationUuid: authenticatedUser.organizationUuid,
+            ability: authenticatedUser.ability,
+            oauth: false,
+            database: this.rolesModel.db,
+            featureFlagModel: this.featureFlagModel,
+        });
         if (!isUserWithOrg(authenticatedUser)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -1049,6 +1088,7 @@ export class OrganizationService extends BaseService {
         includeMembers?: number,
         paginateArgs?: KnexPaginateArgs,
         searchQuery?: string,
+        sort?: GroupSort,
     ): Promise<KnexPaginatedData<Group[] | GroupWithMembers[]>> {
         if (user.organizationUuid === undefined) {
             throw new ForbiddenError();
@@ -1057,6 +1097,7 @@ export class OrganizationService extends BaseService {
             {
                 organizationUuid: user.organizationUuid,
                 searchQuery,
+                sort,
             },
             paginateArgs,
         );

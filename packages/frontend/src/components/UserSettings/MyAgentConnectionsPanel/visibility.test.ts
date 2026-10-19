@@ -64,7 +64,7 @@ describe('getAgentConnectionVisibility', () => {
                 rules('agent_sign_in', 'marked_person'),
                 [project],
             ),
-        ).toEqual({ showSnowflake: true, showBigQuery: false });
+        ).toEqual({ showSnowflakeSignIn: true, serviceAccountWarehouses: [] });
     });
 
     it('hides Snowflake when the rule does not require sign-in', () => {
@@ -72,7 +72,7 @@ describe('getAgentConnectionVisibility', () => {
             getAgentConnectionVisibility(
                 rules('marked_person', 'marked_person'),
                 [project],
-            ).showSnowflake,
+            ).showSnowflakeSignIn,
         ).toBe(false);
     });
 
@@ -81,7 +81,62 @@ describe('getAgentConnectionVisibility', () => {
             getAgentConnectionVisibility(
                 rules('agent_sign_in', 'marked_person'),
                 [],
-            ).showSnowflake,
+            ).showSnowflakeSignIn,
         ).toBe(false);
+    });
+    it('orders service accounts by preferred warehouses, then rule order', () => {
+        const warehouseTypes = [
+            WarehouseTypes.TRINO,
+            WarehouseTypes.DATABRICKS,
+            WarehouseTypes.POSTGRES,
+            WarehouseTypes.BIGQUERY,
+            WarehouseTypes.SNOWFLAKE,
+        ];
+        expect(
+            getAgentConnectionVisibility(
+                warehouseTypes.map((warehouseType) => ({
+                    warehouseType,
+                    source: 'ai_service_account',
+                    projectsMissingAiServiceAccount: null,
+                })),
+                warehouseTypes.flatMap((warehouseType) => [
+                    { ...project, warehouseType },
+                    { ...project, warehouseType },
+                ]),
+            ),
+        ).toEqual({
+            showSnowflakeSignIn: false,
+            serviceAccountWarehouses: [
+                WarehouseTypes.SNOWFLAKE,
+                WarehouseTypes.BIGQUERY,
+                WarehouseTypes.DATABRICKS,
+                WarehouseTypes.TRINO,
+                WarehouseTypes.POSTGRES,
+            ],
+        });
+    });
+
+    it('filters service accounts by accessible projects and rule source', () => {
+        expect(
+            getAgentConnectionVisibility(
+                rules('ai_service_account', 'ai_service_account'),
+                [project],
+            ),
+        ).toEqual({
+            showSnowflakeSignIn: false,
+            serviceAccountWarehouses: [WarehouseTypes.SNOWFLAKE],
+        });
+        expect(
+            getAgentConnectionVisibility(
+                rules('ai_service_account', 'ai_service_account'),
+                [],
+            ),
+        ).toEqual({ showSnowflakeSignIn: false, serviceAccountWarehouses: [] });
+        expect(
+            getAgentConnectionVisibility(
+                rules('marked_person', 'marked_person'),
+                [project],
+            ),
+        ).toEqual({ showSnowflakeSignIn: false, serviceAccountWarehouses: [] });
     });
 });

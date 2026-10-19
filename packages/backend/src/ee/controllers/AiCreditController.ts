@@ -17,6 +17,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -32,7 +33,11 @@ export class AiCreditController extends BaseController {
      * with its allowance when one is agreed. Organization admins only.
      * @summary Get AI credit usage
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiCreditController.getUsage'),
+    ])
     @SuccessResponse('200', 'Retrieved AI credit usage')
     @Get('/usage')
     @OperationId('getOrganizationAiCreditUsage')
@@ -53,7 +58,11 @@ export class AiCreditController extends BaseController {
      * @summary Get daily AI credit usage
      * @param breakdown what to split each day's credits by
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiCreditController.getDailyUsage'),
+    ])
     @SuccessResponse('200', 'Retrieved daily AI credit usage')
     @Get('/usage/daily')
     @OperationId('getOrganizationAiCreditDailyUsage')

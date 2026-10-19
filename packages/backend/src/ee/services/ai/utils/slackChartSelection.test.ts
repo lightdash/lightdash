@@ -198,7 +198,7 @@ describe('getSlackSelectedCardArtifacts', () => {
                 schemaVersion: 1,
                 queries: [],
                 terminalNodeId: 'final',
-                lastQueryUuid: 'composer-query',
+                vizConfig: null,
             },
         });
         const unconfigured = artifact('unconfigured', { chartConfig: null });

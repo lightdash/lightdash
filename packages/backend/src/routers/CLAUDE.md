@@ -85,6 +85,7 @@ apiV1Router.use('/my-resource', myRouter);
 - `/oauth/authorize` — authorization code flow (requires user session)
 - `/oauth/token` — token exchange (unauthenticated, per spec)
 - `/oauth/register` — dynamic client registration (unauthenticated, RFC 7591, needed for MCP)
+- Client ID Metadata Documents — an `https://` URL with a path is accepted as a public `client_id` in every mode; the document it serves is fetched (public addresses only, no redirects, size and time limits, cached), validated and materialised as an `oauth2_clients` row, and such clients always need PKCE S256 and an exact redirect match (see `services/OAuthService/clientIdMetadataDocument.ts`)
 - `/oauth/introspect` — token introspection (requires user session, intentionally deviates from RFC 7662)
 - `/oauth/revoke` — token revocation (unauthenticated, per RFC 7009)
 - `/oauth/userinfo` — OpenID Connect user info (requires auth)

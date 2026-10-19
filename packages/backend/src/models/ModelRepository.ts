@@ -3,6 +3,11 @@ import { LightdashConfig } from '../config/parseConfig';
 import { PreAggregateDailyStatsModel } from '../ee/models/PreAggregateDailyStatsModel';
 import { PreAggregateModel } from '../ee/models/PreAggregateModel';
 import { type UtilRepository } from '../utils/UtilRepository';
+import { AgentActionLogModel } from './AgentActionLogModel';
+import { AgentCapabilityPolicyModel } from './AgentCapabilityPolicyModel';
+import { AgentConnectionApprovalReadModel } from './AgentConnectionApprovalReadModel';
+import { AgentConnectionApprovalRequestModel } from './AgentConnectionApprovalRequestModel';
+import { AgentConnectionGrantModel } from './AgentConnectionGrantModel';
 import { AiServiceAccountCredentialsModel } from './AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import { AiUsageLedgerModel } from './AiUsageLedgerModel';
 import { AnalyticsModel } from './AnalyticsModel';
@@ -69,6 +74,7 @@ import { ProjectParametersModel } from './ProjectParametersModel';
 import { PullRequestsModel } from './PullRequestsModel';
 import { QueryHistoryModel } from './QueryHistoryModel/QueryHistoryModel';
 import { RecentContentModel } from './RecentContentModel';
+import { RefreshTokenRotation } from './RefreshTokenRotation/RefreshTokenRotation';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { RolesModel } from './RolesModel';
 import { SavedChartAccessModel } from './SavedChartAccessModel';
@@ -112,6 +118,7 @@ import { WarehouseConnectionTablesModel } from './WarehouseConnectionTablesModel
 export type ModelManifest = {
     analyticsModel: AnalyticsModel;
     recentContentModel: RecentContentModel;
+    refreshTokenRotation: RefreshTokenRotation;
     appAccessModel: AppAccessModel;
     appModel: AppModel;
     commentModel: CommentModel;
@@ -209,10 +216,16 @@ export type ModelManifest = {
     featureFlagModel: FeatureFlagModel;
     spotlightTableConfigModel: SpotlightTableConfigModel;
     queryHistoryModel: QueryHistoryModel;
+    agentActionLogModel: AgentActionLogModel;
+    agentCapabilityPolicyModel: AgentCapabilityPolicyModel;
+    agentConnectionGrantModel: AgentConnectionGrantModel;
+    agentConnectionApprovalReadModel: AgentConnectionApprovalReadModel;
+    agentConnectionApprovalRequestModel: AgentConnectionApprovalRequestModel;
     preAggregateModel: PreAggregateModel;
     preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
     projectParametersModel: ProjectParametersModel;
     /** An implementation signature for these models are not available at this stage */
+    releaseHighlightsModel: unknown;
     externalSourceModel: unknown;
     aiAgentMemoryModel: unknown;
     aiAgentModel: unknown;
@@ -618,7 +631,12 @@ export class ModelRepository
     public getOauthModel(): OAuth2Model {
         return this.getModel(
             'oauthModel',
-            () => new OAuth2Model(this.database, this.lightdashConfig),
+            () =>
+                new OAuth2Model(
+                    this.database,
+                    this.lightdashConfig,
+                    this.getFeatureFlagModel(),
+                ),
         );
     }
 
@@ -1019,6 +1037,40 @@ export class ModelRepository
         );
     }
 
+    public getAgentConnectionApprovalReadModel(): AgentConnectionApprovalReadModel {
+        return this.getModel(
+            'agentConnectionApprovalReadModel',
+            () =>
+                new AgentConnectionApprovalReadModel({
+                    database: this.database,
+                }),
+        );
+    }
+
+    public getAgentConnectionApprovalRequestModel(): AgentConnectionApprovalRequestModel {
+        return this.getModel(
+            'agentConnectionApprovalRequestModel',
+            () =>
+                new AgentConnectionApprovalRequestModel({
+                    database: this.database,
+                }),
+        );
+    }
+
+    public getAgentConnectionGrantModel(): AgentConnectionGrantModel {
+        return this.getModel(
+            'agentConnectionGrantModel',
+            () => new AgentConnectionGrantModel({ database: this.database }),
+        );
+    }
+
+    public getAgentCapabilityPolicyModel(): AgentCapabilityPolicyModel {
+        return this.getModel(
+            'agentCapabilityPolicyModel',
+            () => new AgentCapabilityPolicyModel({ database: this.database }),
+        );
+    }
+
     public getOrganizationAgentIdentityRulesModel(): OrganizationAgentIdentityRulesModel {
         return this.getModel(
             'organizationAgentIdentityRulesModel',
@@ -1187,6 +1239,10 @@ export class ModelRepository
         return this.getModel('externalSourceModel');
     }
 
+    public getReleaseHighlightsModel<ModelImplT>(): ModelImplT {
+        return this.getModel('releaseHighlightsModel');
+    }
+
     public getProjectHomepageModel<ModelImplT>(): ModelImplT {
         return this.getModel('projectHomepageModel');
     }
@@ -1330,6 +1386,13 @@ export class ModelRepository
         );
     }
 
+    public getAgentActionLogModel(): AgentActionLogModel {
+        return this.getModel(
+            'agentActionLogModel',
+            () => new AgentActionLogModel({ database: this.database }),
+        );
+    }
+
     public getQueryHistoryModel(): QueryHistoryModel {
         return this.getModel(
             'queryHistoryModel',
@@ -1354,6 +1417,12 @@ export class ModelRepository
                 new PreAggregateModel({
                     database: this.database,
                 }),
+        );
+    }
+
+    public getRefreshTokenRotation(): RefreshTokenRotation {
+        return this.getModel('refreshTokenRotation', () =>
+            RefreshTokenRotation.forDatabase(this.database),
         );
     }
 

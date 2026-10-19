@@ -346,6 +346,12 @@ const requestResponse = async <T extends ApiResponse>(
         });
 };
 
+export class LightdashApiStreamError extends Error {
+    constructor(readonly error: ApiError['error']) {
+        super(error.message);
+    }
+}
+
 const requestStream = (
     embed: InMemoryEmbed | undefined,
     {
@@ -398,7 +404,7 @@ const requestStream = (
                 hosted: baseUrl !== null || !!embed?.token,
                 diagnose: diagnoseTransportFailures,
             });
-            throw new Error(apiError.error.message);
+            throw new LightdashApiStreamError(apiError.error);
         }
         return r;
     });

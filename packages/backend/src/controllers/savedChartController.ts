@@ -43,6 +43,7 @@ import {
     getContextFromQueryOrHeader,
 } from '../analytics/LightdashAnalytics';
 import { toSessionUser } from '../auth/account';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     deprecatedResultsRoute,
@@ -81,6 +82,7 @@ Migrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash
         allowApiKeyAuthentication,
         isAuthenticated,
         deprecatedResultsRoute,
+        requireOAuthScopeOperation('SavedChartController.postChartResults'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/results')
@@ -144,6 +146,7 @@ Migrate to the v2 async query flow: [Execute dashboard chart](https://docs.light
         allowApiKeyAuthentication,
         isAuthenticated,
         getDeprecatedRouteMiddleware(new Date('2025-03-20')),
+        requireOAuthScopeOperation('SavedChartController.postDashboardTile'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/chart-and-results')
@@ -252,6 +255,9 @@ Migrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash
         allowApiKeyAuthentication,
         isAuthenticated,
         deprecatedResultsRoute,
+        requireOAuthScopeOperation(
+            'SavedChartController.getChartVersionResults',
+        ),
     ])
     @SuccessResponse('200', 'Success')
     @Post('version/{versionUuid}/results')
@@ -337,6 +343,9 @@ Migrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash
             suffixMessage:
                 'Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total instead, which computes totals from a previously-executed async query.',
         }),
+        requireOAuthScopeOperation(
+            'SavedChartController.calculateTotalFromSavedChart',
+        ),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/calculate-total')
@@ -427,6 +436,9 @@ Migrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash
         allowApiKeyAuthentication,
         isAuthenticated,
         getDeprecatedRouteMiddleware(new Date('2026-01-26')),
+        requireOAuthScopeOperation(
+            'SavedChartController.getSavedChartSchedulers',
+        ),
     ])
     @SuccessResponse('200', 'Success')
     @Get('/schedulers')
@@ -483,7 +495,13 @@ Migrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash
      * @param chartUuid chartUuid for the chart to export
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'SavedChartController.exportSavedChartImage',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/export')
     @OperationId('exportSavedChartImage')

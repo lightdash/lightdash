@@ -22,16 +22,6 @@ export const buildSnowflakeAgentIntegrationSql = ({
   OAUTH_REFRESH_TOKEN_VALIDITY = 7776000;
 SELECT SYSTEM$SHOW_OAUTH_CLIENT_SECRETS('${SNOWFLAKE_AGENT_INTEGRATION_NAME}');`;
 
-export const SNOWFLAKE_AGENT_OAUTH_SETTINGS = [
-    { envVar: 'SNOWFLAKE_AI_OAUTH_CLIENT_ID', label: 'Client ID' },
-    { envVar: 'SNOWFLAKE_AI_OAUTH_CLIENT_SECRET', label: 'Client secret' },
-    {
-        envVar: 'SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT',
-        label: 'Authorization endpoint',
-    },
-    { envVar: 'SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT', label: 'Token endpoint' },
-] as const;
-
 const singleQuote = (value: string): string =>
     `'${value.replaceAll("'", "'\"'\"'")}'`;
 const shellWord = (value: string): string =>
@@ -66,7 +56,7 @@ export const buildBigQueryAiServiceAccountCommands = ({
             title: 'Create the service account',
             command: `gcloud iam service-accounts create ${shellWord(serviceAccountName)} \\
   --project=${shellWord(project)} \\
-  --display-name="AI agents"`,
+  --display-name="Lightdash agents"`,
         },
         {
             step: 'job_user',
@@ -146,5 +136,340 @@ export const parseSnowflakeAccountUrl = (
         accountIdentifier,
         authorizationEndpoint: `${url.origin}/oauth/authorize`,
         tokenEndpoint: `${url.origin}/oauth/token-request`,
+    };
+};
+
+export const buildDatabricksAiServiceAccountCommands = ({
+    catalog,
+    schema,
+}: {
+    catalog: string | null;
+    schema: string | null;
+}): string => {
+    const quote = (value: string): string =>
+        `\`${value.replaceAll('`', '``')}\``;
+    const catalogIdentifier = quote(catalog || '<catalog>');
+    const schemaIdentifier = `${catalogIdentifier}.${quote(schema || '<schema>')}`;
+    const principal = quote('<service-principal-application-id>');
+    return `GRANT USE CATALOG ON CATALOG ${catalogIdentifier} TO ${principal};
+GRANT USE SCHEMA ON SCHEMA ${schemaIdentifier} TO ${principal};
+GRANT SELECT ON TABLE ${schemaIdentifier}.${quote('<table>')} TO ${principal};`;
+};
+
+export interface AthenaAiServiceAccountCommands {
+    roleTrustPolicy: string;
+    permissionPolicy: string;
+    lakeFormationGrants: string;
+    filteredTableGrant: string;
+}
+
+export const buildAthenaAiServiceAccountCommands = ({
+    region,
+    catalog,
+    database,
+}: {
+    region: string | null;
+    catalog: string | null;
+    database: string | null;
+}): AthenaAiServiceAccountCommands => {
+    const awsRegion = region || '<region>';
+    const glueDatabase = database || '<glue-database>';
+    const athenaArn = `arn:<partition>:athena:${awsRegion}:<account-id>`;
+    const glueArn = `arn:<partition>:glue:${awsRegion}:<account-id>`;
+    const roleTrustPolicy = {
+        Version: '2012-10-17',
+        Statement: [
+            {
+                Effect: 'Allow',
+                Principal: { AWS: '<trusted-caller-iam-arn>' },
+                Action: 'sts:AssumeRole',
+            },
+        ],
+    };
+    const permissionPolicy = {
+        Version: '2012-10-17',
+        Statement: [
+            {
+                Effect: 'Allow',
+                Action: [
+                    'athena:StartQueryExecution',
+                    'athena:GetQueryExecution',
+                    'athena:GetQueryResults',
+                    'athena:GetWorkGroup',
+                ],
+                Resource: `${athenaArn}:workgroup/<agent-workgroup>`,
+            },
+            {
+                Effect: 'Allow',
+                Action: [
+                    'athena:GetDataCatalog',
+                    'athena:GetDatabase',
+                    'athena:GetTableMetadata',
+                    'athena:ListDatabases',
+                    'athena:ListTableMetadata',
+                ],
+                Resource: `${athenaArn}:datacatalog/${catalog || '<catalog>'}`,
+            },
+            {
+                Effect: 'Allow',
+                Action: [
+                    's3:GetBucketLocation',
+                    's3:ListBucket',
+                    's3:ListBucketMultipartUploads',
+                ],
+                Resource: 'arn:<partition>:s3:::<agent-results-bucket>',
+            },
+            {
+                Effect: 'Allow',
+                Action: [
+                    's3:GetObject',
+                    's3:PutObject',
+                    's3:AbortMultipartUpload',
+                    's3:ListMultipartUploadParts',
+                ],
+                Resource:
+                    'arn:<partition>:s3:::<agent-results-bucket>/<agent-results-prefix>/*',
+            },
+            {
+                Effect: 'Allow',
+                Action: [
+                    'glue:GetDatabase',
+                    'glue:GetDatabases',
+                    'glue:GetTable',
+                    'glue:GetTables',
+                    'glue:GetPartition',
+                    'glue:GetPartitions',
+                    'glue:BatchGetPartition',
+                ],
+                Resource: [
+                    `${glueArn}:catalog`,
+                    `${glueArn}:database/${glueDatabase}`,
+                    `${glueArn}:table/${glueDatabase}/*`,
+                ],
+            },
+            {
+                Effect: 'Allow',
+                Action: 'lakeformation:GetDataAccess',
+                Resource: '*',
+            },
+        ],
+    };
+    const principal = JSON.stringify({
+        DataLakePrincipalIdentifier: '<agent-iam-principal-arn>',
+    });
+    const grant = (resource: object, permission: 'DESCRIBE' | 'SELECT') =>
+        `aws lakeformation grant-permissions --region ${shellWord(awsRegion)} \\
+  --principal ${singleQuote(principal)} \\
+  --resource ${singleQuote(JSON.stringify(resource))} \\
+  --permissions ${permission}`;
+    return {
+        roleTrustPolicy: JSON.stringify(roleTrustPolicy, null, 2),
+        permissionPolicy: JSON.stringify(permissionPolicy, null, 2),
+        lakeFormationGrants: [
+            grant(
+                { Database: { CatalogId: '<account-id>', Name: glueDatabase } },
+                'DESCRIBE',
+            ),
+            grant(
+                {
+                    Table: {
+                        CatalogId: '<account-id>',
+                        DatabaseName: glueDatabase,
+                        Name: '<table>',
+                    },
+                },
+                'SELECT',
+            ),
+        ].join('\n'),
+        filteredTableGrant: grant(
+            {
+                DataCellsFilter: {
+                    TableCatalogId: '<account-id>',
+                    DatabaseName: glueDatabase,
+                    TableName: '<table>',
+                    Name: '<data-filter>',
+                },
+            },
+            'SELECT',
+        ),
+    };
+};
+
+export interface PostgresAiServiceAccountCommands {
+    createRole: string;
+    grantReadAccess: string;
+    rowLevelSecurity: string;
+}
+
+export const buildPostgresAiServiceAccountCommands = ({
+    dbname,
+    schema,
+}: {
+    dbname: string | null;
+    schema: string | null;
+}): PostgresAiServiceAccountCommands => {
+    const quoteIdentifier = (value: string): string =>
+        `"${value.replaceAll('"', '""')}"`;
+    const databaseIdentifier = quoteIdentifier(dbname || '<database>');
+    const schemaIdentifier = quoteIdentifier(schema || '<schema>');
+    const role = quoteIdentifier('ai_agents');
+    const table = `${schemaIdentifier}.${quoteIdentifier('<table>')}`;
+    return {
+        createRole: `CREATE ROLE ${role} LOGIN PASSWORD '<choose-a-strong-password>'
+  NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
+ALTER ROLE ${role} SET default_transaction_read_only = on;
+GRANT CONNECT ON DATABASE ${databaseIdentifier} TO ${role};`,
+        grantReadAccess: `GRANT USAGE ON SCHEMA ${schemaIdentifier} TO ${role};
+GRANT SELECT ON ALL TABLES IN SCHEMA ${schemaIdentifier} TO ${role};
+ALTER DEFAULT PRIVILEGES IN SCHEMA ${schemaIdentifier} GRANT SELECT ON TABLES TO ${role};`,
+        rowLevelSecurity: `ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "ai_agents_rows" ON ${table}
+  FOR SELECT TO ${role} USING (<condition>);`,
+    };
+};
+
+export interface RedshiftAiServiceAccountCommands {
+    createUser: string;
+    grantReadAccess: string;
+    rowLevelSecurity: string;
+    masking: string;
+}
+
+interface RedshiftAiServiceAccountSetupInput {
+    schema: string | null;
+}
+
+export const buildRedshiftAiServiceAccountCommands = ({
+    schema,
+}: RedshiftAiServiceAccountSetupInput): RedshiftAiServiceAccountCommands => {
+    const quoteIdentifier = (value: string): string =>
+        `"${value.replaceAll('"', '""')}"`;
+    const schemaIdentifier = quoteIdentifier(schema || '<schema>');
+    const table = `${schemaIdentifier}."<table>"`;
+    return {
+        createUser: `CREATE USER ai_agents
+  PASSWORD '<choose-a-strong-password>'
+  NOCREATEDB NOCREATEUSER
+  SYSLOG ACCESS RESTRICTED;`,
+        grantReadAccess: `GRANT USAGE ON SCHEMA ${schemaIdentifier}
+  TO ai_agents;
+GRANT SELECT ON ALL TABLES
+  IN SCHEMA ${schemaIdentifier}
+  TO ai_agents;
+ALTER DEFAULT PRIVILEGES
+  FOR USER "<table-owner>"
+  IN SCHEMA ${schemaIdentifier}
+  GRANT SELECT ON TABLES TO ai_agents;`,
+        rowLevelSecurity: `CREATE RLS POLICY ai_agents_rows
+  WITH ("<column>" <type>)
+  USING (<condition>);
+ATTACH RLS POLICY ai_agents_rows
+  ON ${table}
+  TO ai_agents;
+ALTER TABLE ${table}
+  ROW LEVEL SECURITY ON;`,
+        masking: `CREATE MASKING POLICY ai_agents_mask
+  WITH (value VARCHAR(256))
+  USING ('[redacted]'::VARCHAR(256));
+ATTACH MASKING POLICY ai_agents_mask
+  ON ${table} ("<column>")
+  TO ai_agents;`,
+    };
+};
+
+export interface TrinoAiServiceAccountCommands {
+    accessControlRules: string;
+    grantReadAccess: string;
+}
+
+interface TrinoAiServiceAccountSetupInput {
+    dbname: string | null;
+    schema: string | null;
+    user?: string;
+    table?: string;
+}
+
+export const buildTrinoAiServiceAccountCommands = ({
+    dbname,
+    schema,
+    user = '<user>',
+    table = '<table>',
+}: TrinoAiServiceAccountSetupInput): TrinoAiServiceAccountCommands => {
+    const regexLiteral = (value: string): string =>
+        value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const quoteIdentifier = (value: string): string =>
+        `"${value.replaceAll('"', '""')}"`;
+    const catalogName = dbname || '<catalog>';
+    const schemaName = schema || '<schema>';
+    const userPattern = regexLiteral(user);
+    const catalogPattern = regexLiteral(catalogName);
+    const rules = {
+        catalogs: [
+            { user: userPattern, catalog: catalogPattern, allow: 'read-only' },
+            { user: userPattern, allow: 'none' },
+        ],
+        schemas: [
+            {
+                user: userPattern,
+                catalog: catalogPattern,
+                schema: regexLiteral(schemaName),
+                owner: false,
+            },
+            { user: userPattern, owner: false },
+        ],
+        tables: [
+            {
+                user: userPattern,
+                catalog: catalogPattern,
+                schema: regexLiteral(schemaName),
+                table: regexLiteral(table),
+                privileges: ['SELECT'],
+                filter: '<row-filter-expression>',
+                columns: [{ name: '<column>', mask: '<mask-expression>' }],
+            },
+            { user: userPattern, privileges: [] },
+        ],
+    };
+    return {
+        accessControlRules: JSON.stringify(rules, null, 2),
+        grantReadAccess: `CREATE ROLE ai_agents_read;
+GRANT SELECT ON TABLE ${quoteIdentifier(catalogName)}.${quoteIdentifier(schemaName)}.${quoteIdentifier(table)}
+  TO ROLE ai_agents_read;
+GRANT ai_agents_read TO USER ${quoteIdentifier(user)};`,
+    };
+};
+
+export interface ClickhouseAiServiceAccountCommands {
+    createUser: string;
+    grantReadAccess: string;
+    rowPolicy: string;
+}
+
+interface ClickhouseAiServiceAccountSetupInput {
+    schema: string | null;
+}
+
+export const buildClickhouseAiServiceAccountCommands = ({
+    schema,
+}: ClickhouseAiServiceAccountSetupInput): ClickhouseAiServiceAccountCommands => {
+    const quoteIdentifier = (value: string): string =>
+        `\`${value
+            .replaceAll('\\', '\\\\')
+            .replaceAll('`', '\\`')
+            .replaceAll('\n', '\\n')
+            .replaceAll('\r', '\\r')
+            .replaceAll('\t', '\\t')}\``;
+    const database = quoteIdentifier(schema || '<database>');
+    return {
+        createUser: `CREATE USER ai_agents
+  IDENTIFIED WITH sha256_password
+  BY '<choose-a-strong-password>'
+  SETTINGS readonly = 2;`,
+        grantReadAccess: `GRANT SELECT ON ${database}.*
+  TO ai_agents;`,
+        rowPolicy: `CREATE ROW POLICY ai_agents_rows
+  ON ${database}.\`<table>\`
+  FOR SELECT USING <condition>
+  TO ai_agents;`,
     };
 };

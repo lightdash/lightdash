@@ -1,13 +1,16 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AgentActorSurface,
     AnyType,
+    AppVizBuildContext,
     assertRegisteredAccount,
     assertUnreachable,
     CatalogFilter,
     CatalogType,
     ConflictError,
     ContentType,
+    DATA_APP_VIZ_TEMPLATE,
     dataAppVizSchema,
     DimensionType,
     DOCUMENT_CONVERSATION_TAGS,
@@ -19,6 +22,7 @@ import {
     filterStaticFilterAutocompleteValues,
     findFieldByIdInExplore,
     ForbiddenError,
+    getAppDisplayName,
     getConnectionDefaults,
     getContentAsCodePathFromLtreePath,
     getDocumentSummaryMarkdown,
@@ -45,10 +49,12 @@ import {
     SessionUser,
     shouldUseStaticFilterAutocomplete,
     TimeoutError,
+    toMcpCustomChartTypeVizSchema,
     UnexpectedServerError,
     UserAttributeValueMap,
     WarehouseQueryError,
     type AgentSqlScope,
+    type AgentToolName,
     type AiAgentDocumentSummary,
     type AppChartReference,
     type AppDashboardReference,
@@ -59,15 +65,23 @@ import {
     type DataAppVizSchema,
     type Document,
     type FieldValueSearchResult,
+    type McpCustomChartType,
+    type McpListCustomChartTypesOutput,
     type ParameterDefinitions,
     type PersistedDataAppDataReferences,
     type SchedulerAiAugmentation,
     type SqlChartAsCode,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
+import { mcpAgentPermissionsApply } from '../../../auth/agentPermissions/caller';
+import { type AgentToolEffect } from '../../../auth/agentPermissions/capabilityMap';
 import { type DbApp } from '../../../database/entities/apps';
 import Logger from '../../../logging/logger';
-import { AppModel } from '../../../models/AppModel';
+import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
+import {
+    AppModel,
+    type DbDataAppVizWithLatestReadyVersion,
+} from '../../../models/AppModel';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
@@ -79,6 +93,17 @@ import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import { type AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
+import {
+    agentExecutionContext,
+    buildResultReader,
+    getContentWriteAgentIdentity,
+} from '../../../services/AiAccessService/agentExecutionContext';
+import {
+    isAgentActionForbiddenError,
+    logAgentContentWrite,
+    recordAgentRefusal,
+} from '../../../services/AiAccessService/logAgentContentWrite';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
@@ -173,6 +198,7 @@ import {
     formatWarehouseTableScopeError,
     isSqlScopeConfigured,
 } from '../ai/utils/sqlScope';
+import { truncateMiddle } from '../ai/utils/truncation';
 import { findAiDeepResearchRunDocuments } from '../AiDeepResearchService/runDocument';
 import type {
     AppGenerateService,
@@ -193,6 +219,9 @@ type ContentAsCodeType = Parameters<ValidateContentFn>[0]['type'];
 type SearchContentResult = Awaited<
     ReturnType<SearchService['findContent']>
 >['content'][number];
+
+// A failed node's error, e.g. a Python traceback, as the model sees it.
+const COMPOSER_NODE_ERROR_MAX_CHARS = 4096;
 
 const isDataAppSearchResult = (
     item: SearchContentResult,
@@ -263,6 +292,10 @@ type FindFieldsRuntimeResult = Awaited<ReturnType<FindFieldsFn>>;
 type GetExploreRuntimeResult = Awaited<ReturnType<GetExploreFn>>;
 
 export type AiAgentToolsRuntime = {
+    recordSqlChartRefusal: (
+        action: 'create' | 'update',
+        reasonCode: string,
+    ) => Promise<void>;
     listExplores: ListExploresFn;
     getProjectParameterDefinitions: () => Promise<ParameterDefinitions>;
     getExplore: GetExploreFn;
@@ -309,11 +342,83 @@ export type AiAgentToolsRuntime = {
     loadSkill: LoadAgentSkillFn;
 };
 
+const AGENT_RUNTIME_TOOL_NAMES = {
+    recordSqlChartRefusal: null,
+    listExplores: 'findExplores',
+    getProjectParameterDefinitions: 'getProjectInfo',
+    getExplore: 'findExplores',
+    findExplores: 'findExplores',
+    listCustomChartTypes: 'findCustomChartTypes',
+    findCustomChartTypes: 'findCustomChartTypes',
+    resolveCustomChartType: 'findCustomChartTypes',
+    getVerifiedFieldUsage: 'findFields',
+    findFields: 'findFields',
+    findContent: 'findContent',
+    searchFieldValues: 'searchFieldValues',
+    searchSemanticLayer: 'searchSemanticLayer',
+    analyzeFieldImpact: 'analyzeFieldImpact',
+    syncDbtProject: 'syncDbtProject',
+    runAsyncQuery: 'runQuery',
+    runAsyncMergeQuery: 'runQuery',
+    runSavedChartQuery: 'runSavedChart',
+    runSqlJob: 'runSql',
+    runComposerQueries: 'runComposerQueries',
+    listWarehouseTables: 'listWarehouseTables',
+    describeWarehouseTable: 'describeWarehouseTable',
+    listContent: 'listContent',
+    getDashboardCharts: 'getDashboardCharts',
+    readContent: 'readContent',
+    resolveUrl: 'resolveUrl',
+    editContent: 'editContent',
+    createContent: 'createContent',
+    createScheduledDelivery: 'createScheduledDelivery',
+    updateUserName: 'updateUserName',
+    generateDataApp: 'generateDataApp',
+    iterateDataApp: 'iterateDataApp',
+    listDataAppThemes: 'listDataAppThemes',
+    validateContent: null,
+    listKnowledgeDocuments: 'listKnowledgeDocuments',
+    getKnowledgeDocumentContent: 'getKnowledgeDocumentContent',
+    getSavedChart: 'readContent',
+    setupPreviewDeploy: 'setupPreviewDeploy',
+    listProjects: 'listProjects',
+    getProjectInfo: 'getProjectInfo',
+    loadSkill: 'loadSkill',
+} satisfies Record<keyof AiAgentToolsRuntime, AgentToolName | null>;
+
+export type CreateCustomChartTypeFn = (args: {
+    name: string;
+    prompt: string;
+    themeSlug: string | null;
+    vizContext: AppVizBuildContext | null;
+}) => Promise<{ appUuid: string; slug: string; version: number }>;
+
+export type IterateCustomChartTypeFn = (args: {
+    slug: string;
+    prompt: string;
+    themeSlug: string | null;
+    vizContext: AppVizBuildContext | null;
+}) => Promise<{ appUuid: string; slug: string; version: number; name: string }>;
+
+export type SearchCustomChartTypesFn = (
+    args: { query: string } | { slug: string },
+) => Promise<McpCustomChartType[]>;
+
+export type ListCustomChartTypesPageFn = (args: { page: number }) => Promise<{
+    output: McpListCustomChartTypesOutput;
+    /** Rows on this page dropped because their stored viz_schema failed validation. */
+    skippedOnPage: number;
+}>;
+
 export type McpAiAgentToolsRuntime = Omit<
     AiAgentToolsRuntime,
     'getExplore' | 'findExplores' | 'findFields' | 'updateUserName'
 > & {
     getDataAppBuildStatus: GetDataAppBuildStatusFn;
+    createCustomChartType: CreateCustomChartTypeFn;
+    iterateCustomChartType: IterateCustomChartTypeFn;
+    searchCustomChartTypes: SearchCustomChartTypesFn;
+    listCustomChartTypesPage: ListCustomChartTypesPageFn;
     createDocumentContent: (content: unknown) => Promise<DocumentContentResult>;
     readDocumentContent: (
         slug: string,
@@ -346,6 +451,11 @@ type BuiltInSkillsClient = Pick<
 >;
 
 type AiAgentToolsServiceDependencies = {
+    agentPermissionService: Pick<
+        AgentPermissionService,
+        'loadRequest' | 'assertOperationWithRequest'
+    >;
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     builtInSkills: BuiltInSkillsClient;
     appModel: AppModel;
     projectModel: ProjectModel;
@@ -393,6 +503,9 @@ type AiAgentToolsServiceDependencies = {
 };
 
 export class AiAgentToolsService extends BaseService {
+    private readonly agentPermissionService: AiAgentToolsServiceDependencies['agentPermissionService'];
+    private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
     private readonly runtimePromiseCache = new WeakMap<
         AiAgentToolsRuntimeContext,
         Map<string, Promise<unknown>>
@@ -524,6 +637,8 @@ export class AiAgentToolsService extends BaseService {
     }
 
     constructor({
+        agentPermissionService,
+        agentActionLogModel,
         builtInSkills,
         appModel,
         projectModel,
@@ -561,6 +676,8 @@ export class AiAgentToolsService extends BaseService {
         lightdashConfig,
     }: AiAgentToolsServiceDependencies) {
         super();
+        this.agentPermissionService = agentPermissionService;
+        this.agentActionLogModel = agentActionLogModel;
         this.builtInSkills = builtInSkills;
         this.appModel = appModel;
         this.projectModel = projectModel;
@@ -694,6 +811,82 @@ export class AiAgentToolsService extends BaseService {
         return explore;
     }
 
+    private async assertToolEffectAllowed(
+        context: AiAgentToolsRuntimeContext,
+        key: AgentToolEffect,
+    ): Promise<void> {
+        if (
+            context.source === 'mcp' &&
+            !mcpAgentPermissionsApply(context.account.authentication.type)
+        )
+            return;
+        const request = await this.agentPermissionService.loadRequest(
+            context.organizationUuid,
+        );
+        if (request.enforcementMode === 'off') return;
+        assertRegisteredAccount(context.account);
+        await this.agentPermissionService.assertOperationWithRequest({
+            request,
+            operation: {
+                account: context.account,
+                organizationUuid: context.organizationUuid,
+                projectUuid: context.projectUuid,
+                kind: 'tool_effect',
+                key,
+                surface:
+                    agentExecutionContext.getStore()?.surface ??
+                    (context.source === 'mcp'
+                        ? AgentActorSurface.MCP
+                        : AgentActorSurface.IN_APP_AGENT),
+            },
+        });
+    }
+
+    private withAgentRuntimePermissions(
+        runtime: AiAgentToolsRuntime,
+        context: AiAgentToolsRuntimeContext,
+    ): AiAgentToolsRuntime {
+        return Object.fromEntries(
+            Object.entries(runtime).map(([name, execute]) => {
+                const key =
+                    AGENT_RUNTIME_TOOL_NAMES[name as keyof AiAgentToolsRuntime];
+                if (key === null) return [name, execute];
+                return [
+                    name,
+                    async (...args: unknown[]) => {
+                        const request =
+                            await this.agentPermissionService.loadRequest(
+                                context.organizationUuid,
+                            );
+                        if (request.enforcementMode !== 'off') {
+                            assertRegisteredAccount(context.account);
+                            await this.agentPermissionService.assertOperationWithRequest(
+                                {
+                                    request,
+                                    operation: {
+                                        account: context.account,
+                                        organizationUuid:
+                                            context.organizationUuid,
+                                        projectUuid: context.projectUuid,
+                                        kind: 'agent_tool',
+                                        key,
+                                        surface:
+                                            agentExecutionContext.getStore()
+                                                ?.surface ??
+                                            AgentActorSurface.IN_APP_AGENT,
+                                    },
+                                },
+                            );
+                        }
+                        return (
+                            execute as (...input: unknown[]) => Promise<unknown>
+                        )(...args);
+                    },
+                ];
+            }),
+        ) as AiAgentToolsRuntime;
+    }
+
     createRuntime(
         context: AiAgentToolsRuntimeContext & { source: 'mcp' },
     ): McpAiAgentToolsRuntime;
@@ -704,8 +897,22 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
     ): AiAgentToolsRuntime | McpAiAgentToolsRuntime {
         const runtime: Omit<AiAgentToolsRuntime, 'updateUserName'> = {
-            generateDataApp: (args) => this.generateDataApp(context, args),
-            iterateDataApp: (args) => this.iterateDataApp(context, args),
+            recordSqlChartRefusal: (action, reasonCode) =>
+                this.recordRefusal(
+                    context,
+                    'sql_chart',
+                    action,
+                    'sql_approval',
+                    reasonCode,
+                ),
+            generateDataApp: (args) =>
+                this.withWriteRefusal(context, 'app', 'create', () =>
+                    this.generateDataApp(context, args),
+                ),
+            iterateDataApp: (args) =>
+                this.withWriteRefusal(context, 'app', 'update', () =>
+                    this.iterateDataApp(context, args),
+                ),
             listDataAppThemes: () => this.listDataAppThemes(context),
             listExplores: () => this.listExplores(context),
             getProjectParameterDefinitions: () =>
@@ -725,7 +932,13 @@ export class AiAgentToolsService extends BaseService {
                 this.searchSemanticLayer(context, args),
             analyzeFieldImpact: (args) =>
                 this.analyzeFieldImpact(context, args),
-            syncDbtProject: (args) => this.syncDbtProject(context, args),
+            syncDbtProject: (args) =>
+                this.withWriteRefusal(
+                    context,
+                    'project_compile',
+                    'enqueue',
+                    () => this.syncDbtProject(context, args),
+                ),
             runAsyncQuery: (
                 metricQuery,
                 additionalMetrics,
@@ -757,17 +970,28 @@ export class AiAgentToolsService extends BaseService {
                 this.getDashboardCharts(context, args),
             readContent: (args) => this.readContent(context, args),
             resolveUrl: (args) => this.resolveUrl(context, args),
-            editContent: (args) => this.editContent(context, args),
-            createContent: (args) => this.createContent(context, args),
+            editContent: (args) =>
+                this.withWriteRefusal(context, 'content', 'update', () =>
+                    this.editContent(context, args),
+                ),
+            createContent: (args) =>
+                this.withWriteRefusal(context, 'content', 'create', () =>
+                    this.createContent(context, args),
+                ),
             createScheduledDelivery: (args) =>
-                this.createScheduledDelivery(context, args),
+                this.withWriteRefusal(context, 'scheduler', 'create', () =>
+                    this.createScheduledDelivery(context, args),
+                ),
             validateContent: (args) => this.validateContent(args),
             listKnowledgeDocuments: () => this.listKnowledgeDocuments(context),
             getKnowledgeDocumentContent: (args) =>
                 this.getKnowledgeDocumentContent(context, args),
             getSavedChart: (chartUuid) =>
                 this.getSavedChartForRuntime(context, chartUuid),
-            setupPreviewDeploy: () => this.setupPreviewDeploy(context),
+            setupPreviewDeploy: () =>
+                this.withWriteRefusal(context, 'preview_deploy', 'create', () =>
+                    this.setupPreviewDeploy(context),
+                ),
             listProjects: () => this.listProjects(context),
             getProjectInfo: () => this.getProjectInfo(context),
             loadSkill: (name) => this.loadAgentSkill(name),
@@ -775,10 +999,16 @@ export class AiAgentToolsService extends BaseService {
 
         return context.source === 'mcp'
             ? this.withMcpRuntimeResults(runtime, context)
-            : {
-                  ...runtime,
-                  updateUserName: (args) => this.updateUserName(context, args),
-              };
+            : this.withAgentRuntimePermissions(
+                  {
+                      ...runtime,
+                      updateUserName: (args) =>
+                          this.withWriteRefusal(context, 'user', 'update', () =>
+                              this.updateUserName(context, args),
+                          ),
+                  },
+                  context,
+              );
     }
 
     private withMcpRuntimeResults(
@@ -789,12 +1019,28 @@ export class AiAgentToolsService extends BaseService {
             ...runtime,
             getDataAppBuildStatus: (args) =>
                 this.getDataAppBuildStatus(context, args),
+            createCustomChartType: (args) =>
+                this.withWriteRefusal(context, 'app', 'create', () =>
+                    this.createCustomChartType(context, args),
+                ),
+            iterateCustomChartType: (args) =>
+                this.withWriteRefusal(context, 'app', 'update', () =>
+                    this.iterateCustomChartType(context, args),
+                ),
+            searchCustomChartTypes: (args) =>
+                this.searchCustomChartTypes(context, args),
+            listCustomChartTypesPage: (args) =>
+                this.listCustomChartTypesPage(context, args),
             createDocumentContent: (content) =>
-                this.createDocumentContent(context, content),
+                this.withWriteRefusal(context, 'document', 'create', () =>
+                    this.createDocumentContent(context, content),
+                ),
             readDocumentContent: (slug, chartId) =>
                 this.readDocumentContent(context, slug, chartId),
             editDocumentContent: (slug, edit) =>
-                this.editDocumentContent(context, slug, edit),
+                this.withWriteRefusal(context, 'document', 'update', () =>
+                    this.editDocumentContent(context, slug, edit),
+                ),
             getExplore: this.withMcpRuntimeResult(
                 'get_explore',
                 runtime.getExplore,
@@ -808,6 +1054,52 @@ export class AiAgentToolsService extends BaseService {
                 runtime.findFields,
             ),
         };
+    }
+
+    private recordRefusal(
+        context: AiAgentToolsRuntimeContext,
+        objectType: string,
+        action: string,
+        policyLayer: 'casl' | 'agent_scope' | 'sql_approval',
+        reasonCode: string,
+        error?: object,
+        objectUuid: string | null = null,
+    ) {
+        return recordAgentRefusal({
+            model: this.agentActionLogModel,
+            userUuid: context.user.userUuid,
+            organizationUuid: context.organizationUuid,
+            projectUuid: context.projectUuid,
+            objectType,
+            objectUuid,
+            action,
+            policyLayer,
+            reasonCode,
+            error,
+        });
+    }
+
+    private async withWriteRefusal<T>(
+        context: AiAgentToolsRuntimeContext,
+        objectType: string,
+        action: string,
+        run: () => Promise<T>,
+    ): Promise<T> {
+        try {
+            return await run();
+        } catch (error) {
+            if (isAgentActionForbiddenError(error)) {
+                await this.recordRefusal(
+                    context,
+                    objectType,
+                    action,
+                    'casl',
+                    'content_write_forbidden',
+                    error,
+                );
+            }
+            throw error;
+        }
     }
 
     private withMcpRuntimeResult<TArgs extends unknown[], TData>(
@@ -1086,6 +1378,125 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
+    /** Chart Studio's gallery gate: chart types enabled and manage:Explore. */
+    async canUseCustomChartTypes(context: {
+        user: SessionUser;
+        projectUuid: string | null;
+    }): Promise<boolean> {
+        return this.appGenerateService.canUseChartTypes(
+            context.user,
+            context.projectUuid,
+        );
+    }
+
+    /** MCP-only: the agent's lookups behind the gallery gate, with version and Chart Studio link. */
+    private searchCustomChartTypes(
+        context: AiAgentToolsRuntimeContext,
+        args: Parameters<SearchCustomChartTypesFn>[0],
+    ): ReturnType<SearchCustomChartTypesFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.searchCustomChartTypes`,
+            args,
+            async () => {
+                if (!(await this.canUseCustomChartTypes(context))) {
+                    throw new ForbiddenError(
+                        'You do not have permission to use chart types in this project',
+                    );
+                }
+                const rows =
+                    'slug' in args
+                        ? [
+                              await this.appModel.findDataAppVisualizationBySlug(
+                                  context.projectUuid,
+                                  args.slug,
+                              ),
+                          ].filter((row) => row !== undefined)
+                        : (
+                              await this.appModel.listDataAppVisualizations(
+                                  context.projectUuid,
+                                  {
+                                      page: 1,
+                                      pageSize:
+                                          AiAgentToolsService.CUSTOM_CHART_TYPES_SEARCH_LIMIT,
+                                  },
+                                  args.query,
+                              )
+                          ).data;
+                return this.toMcpCustomChartTypes(context, rows);
+            },
+        );
+    }
+
+    static readonly CUSTOM_CHART_TYPES_LIST_PAGE_SIZE = 10;
+
+    /** MCP-only: browse the project's chart types newest first, behind the gallery gate. */
+    private listCustomChartTypesPage(
+        context: AiAgentToolsRuntimeContext,
+        { page }: Parameters<ListCustomChartTypesPageFn>[0],
+    ): ReturnType<ListCustomChartTypesPageFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.listCustomChartTypesPage`,
+            { page },
+            async () => {
+                if (!(await this.canUseCustomChartTypes(context))) {
+                    throw new ForbiddenError(
+                        'You do not have permission to use chart types in this project',
+                    );
+                }
+                const pageSize =
+                    AiAgentToolsService.CUSTOM_CHART_TYPES_LIST_PAGE_SIZE;
+                const { data, pagination } =
+                    await this.appModel.listDataAppVisualizations(
+                        context.projectUuid,
+                        { page, pageSize },
+                    );
+                if (pagination === undefined) {
+                    throw new UnexpectedServerError(
+                        'Custom chart types page returned without pagination',
+                    );
+                }
+                const results = this.toMcpCustomChartTypes(context, data);
+                return {
+                    output: {
+                        pagination: {
+                            page,
+                            pageSize,
+                            totalResults: pagination.totalResults,
+                            totalPageCount: pagination.totalPageCount,
+                        },
+                        results,
+                    },
+                    skippedOnPage: data.length - results.length,
+                };
+            },
+        );
+    }
+
+    private toMcpCustomChartTypes(
+        context: AiAgentToolsRuntimeContext,
+        rows: DbDataAppVizWithLatestReadyVersion[],
+    ): McpCustomChartType[] {
+        return rows.flatMap((row) => {
+            const parsed = dataAppVizSchema.safeParse(row.viz_schema);
+            if (!parsed.success) {
+                this.logger.warn(
+                    `Dropping custom chart type "${row.slug}": persisted viz_schema failed validation`,
+                );
+                return [];
+            }
+            return [
+                {
+                    slug: row.slug,
+                    name: row.name,
+                    description: row.description || null,
+                    version: row.latest_ready_version,
+                    chartStudioUrl: `${this.lightdashConfig.siteUrl}/projects/${context.projectUuid}/chart-studio/${row.slug}`,
+                    vizSchema: toMcpCustomChartTypeVizSchema(parsed.data),
+                },
+            ];
+        });
+    }
+
     // Slug → the data needed to validate and persist an answer rendered
     // through a custom chart type. Null when the slug doesn't resolve.
     private async resolveCustomChartType(
@@ -1294,6 +1705,18 @@ export class AiAgentToolsService extends BaseService {
                         RequestMethod.BACKEND,
                     );
 
+                await logAgentContentWrite({
+                    model: this.agentActionLogModel,
+                    agentIdentity: getContentWriteAgentIdentity({
+                        userUuid: context.user.userUuid,
+                        organizationUuid: context.user.organizationUuid,
+                    }),
+                    projectUuid: context.projectUuid,
+                    objectType: 'project_compile',
+                    objectUuid: jobUuid,
+                    versionUuid: null,
+                    action: 'enqueue',
+                });
                 const timeoutMs = 90_000;
                 const pollIntervalMs = 2_000;
                 const deadline = Date.now() + timeoutMs;
@@ -1713,6 +2136,7 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         spaceSlug: string,
         notFoundMessage: string,
+        action: 'read' | 'create' | 'update',
     ) {
         if (!context.spaceAccess || context.spaceAccess.length === 0) {
             return;
@@ -1725,6 +2149,15 @@ export class AiAgentToolsService extends BaseService {
         });
 
         if (!hasSpaceAccess) {
+            await this.recordRefusal(
+                context,
+                'content',
+                action,
+                'agent_scope',
+                'content_outside_agent_scope',
+                undefined,
+                null,
+            );
             throw new NotFoundError(notFoundMessage);
         }
     }
@@ -1733,6 +2166,7 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         dashboardUuidOrSlug: string,
         notFoundMessage: string,
+        action: 'read' | 'update',
     ) {
         if (!context.spaceAccess || context.spaceAccess.length === 0) {
             return;
@@ -1750,6 +2184,15 @@ export class AiAgentToolsService extends BaseService {
                 dashboard.spaceUuid,
             )
         ) {
+            await this.recordRefusal(
+                context,
+                'dashboard',
+                action,
+                'agent_scope',
+                'content_outside_agent_scope',
+                undefined,
+                dashboard.uuid,
+            );
             throw new NotFoundError(notFoundMessage);
         }
     }
@@ -1758,6 +2201,7 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         chartUuid: string,
         notFoundMessage: string,
+        action: 'read' | 'update',
     ) {
         if (!context.spaceAccess || context.spaceAccess.length === 0) {
             return;
@@ -1775,6 +2219,15 @@ export class AiAgentToolsService extends BaseService {
                 savedChart.spaceUuid,
             )
         ) {
+            await this.recordRefusal(
+                context,
+                'chart',
+                action,
+                'agent_scope',
+                'content_outside_agent_scope',
+                undefined,
+                savedChart.uuid,
+            );
             throw new NotFoundError(notFoundMessage);
         }
     }
@@ -1829,7 +2282,7 @@ export class AiAgentToolsService extends BaseService {
         ).map((d) => d.slug);
         throw new NotFoundError(
             validSlugs.length === 0
-                ? `Theme "${themeSlug}" was not found: the organization has no themes`
+                ? `Theme "${themeSlug}" was not found: the organization has no themes. Omit themeSlug.`
                 : `Theme "${themeSlug}" was not found. Valid theme slugs: ${validSlugs.join(', ')}`,
         );
     }
@@ -1957,6 +2410,140 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
+    /** Starts a chart type build the way Chart Studio does; MCP-only. */
+    private createCustomChartType(
+        context: AiAgentToolsRuntimeContext,
+        {
+            name,
+            prompt,
+            themeSlug,
+            vizContext,
+        }: Parameters<CreateCustomChartTypeFn>[0],
+    ): ReturnType<CreateCustomChartTypeFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.createCustomChartType`,
+            { withTheme: themeSlug !== null },
+            async () => {
+                const designUuid =
+                    themeSlug === null
+                        ? undefined
+                        : await this.resolveDataAppThemeReference(
+                              context,
+                              themeSlug,
+                          );
+                return this.appGenerateService.generateApp(
+                    context.user,
+                    context.projectUuid,
+                    prompt,
+                    [],
+                    undefined,
+                    undefined,
+                    undefined,
+                    DATA_APP_VIZ_TEMPLATE,
+                    undefined,
+                    undefined,
+                    undefined,
+                    {
+                        name,
+                        creationExperience: 'mcp',
+                        ...(designUuid === undefined
+                            ? {}
+                            : { designUuidInput: designUuid }),
+                        ...(vizContext === null ? {} : { vizContext }),
+                    },
+                );
+            },
+        );
+    }
+
+    /** Adds a chart type version the way Chart Studio does, keeping its field contract; MCP-only. */
+    private iterateCustomChartType(
+        context: AiAgentToolsRuntimeContext,
+        {
+            slug,
+            prompt,
+            themeSlug,
+            vizContext,
+        }: Parameters<IterateCustomChartTypeFn>[0],
+    ): ReturnType<IterateCustomChartTypeFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.iterateCustomChartType`,
+            {
+                withSampleRows: vizContext !== null,
+                withTheme: themeSlug !== null,
+            },
+            async () => {
+                const app = await this.appModel.findAppBySlug(
+                    context.projectUuid,
+                    slug,
+                );
+                if (!app) {
+                    throw new NotFoundError(
+                        `Chart type "${slug}" was not found`,
+                    );
+                }
+                await this.assertDataAppInAgentScope(
+                    context,
+                    app.space_uuid,
+                    slug,
+                    'update',
+                    'Chart type',
+                );
+                await this.appGenerateService.assertCanIterateApp(
+                    context.user,
+                    context.projectUuid,
+                    app.app_id,
+                );
+                if (app.template !== DATA_APP_VIZ_TEMPLATE) {
+                    throw new ParameterError(
+                        `"${slug}" is a data app, not a custom chart type. Use iterate_data_app to change it`,
+                    );
+                }
+                const designUuid =
+                    themeSlug === null
+                        ? undefined
+                        : await this.resolveDataAppThemeReference(
+                              context,
+                              themeSlug,
+                          );
+                const readyVersion = await this.appModel.getLatestReadyVersion(
+                    app.app_id,
+                );
+                const schema = readyVersion?.viz_schema ?? null;
+                const buildContext: AppVizBuildContext = {
+                    ...(schema === null ? {} : { schema }),
+                    ...(vizContext ?? {}),
+                };
+                const build = await this.appGenerateService.iterateApp(
+                    context.user,
+                    context.projectUuid,
+                    app.app_id,
+                    prompt,
+                    [],
+                    undefined,
+                    undefined,
+                    undefined,
+                    {
+                        creationExperience: 'mcp',
+                        ...(Object.keys(buildContext).length === 0
+                            ? {}
+                            : { vizContext: buildContext }),
+                        ...(designUuid === undefined
+                            ? {}
+                            : {
+                                  designUuidInput: designUuid,
+                                  themeChangePrompt: 'append' as const,
+                              }),
+                    },
+                );
+                return {
+                    ...build,
+                    name: getAppDisplayName(app.name, app.app_id),
+                };
+            },
+        );
+    }
+
     private iterateDataApp(
         context: AiAgentToolsRuntimeContext,
         {
@@ -1982,13 +2569,6 @@ export class AiAgentToolsService extends BaseService {
                         toolCallId,
                         'iterateDataApp',
                     );
-                const designUuid =
-                    themeSlug === null
-                        ? undefined
-                        : await this.resolveDataAppThemeReference(
-                              context,
-                              themeSlug,
-                          );
                 const app = await this.appModel.findAppBySlug(
                     context.projectUuid,
                     appSlug,
@@ -1998,11 +2578,33 @@ export class AiAgentToolsService extends BaseService {
                         `Data app "${appSlug}" was not found`,
                     );
                 }
-                AiAgentToolsService.assertDataAppInAgentScope(
+                await this.assertDataAppInAgentScope(
                     context,
                     app.space_uuid,
                     appSlug,
+                    'update',
+                    'Data app',
                 );
+                await this.appGenerateService.assertCanIterateApp(
+                    context.user,
+                    context.projectUuid,
+                    app.app_id,
+                );
+                if (
+                    context.source === 'mcp' &&
+                    app.template === DATA_APP_VIZ_TEMPLATE
+                ) {
+                    throw new ParameterError(
+                        `"${appSlug}" is a custom chart type. Use iterate_custom_chart_type to change it`,
+                    );
+                }
+                const designUuid =
+                    themeSlug === null
+                        ? undefined
+                        : await this.resolveDataAppThemeReference(
+                              context,
+                              themeSlug,
+                          );
                 const dashboard =
                     dashboardSlug === null
                         ? undefined
@@ -2057,10 +2659,12 @@ export class AiAgentToolsService extends BaseService {
             appSlug,
             version,
         );
-        AiAgentToolsService.assertDataAppInAgentScope(
+        await this.assertDataAppInAgentScope(
             context,
             source.app.spaceUuid,
             appSlug,
+            'read',
+            'Data app',
         );
         return source;
     }
@@ -2145,10 +2749,12 @@ export class AiAgentToolsService extends BaseService {
                                 context.projectUuid,
                                 slug,
                             );
-                        AiAgentToolsService.assertDataAppInAgentScope(
+                        await this.assertDataAppInAgentScope(
                             context,
                             source.app.spaceUuid,
                             slug,
+                            'read',
+                            'Data app',
                         );
                         return {
                             type: 'data_app',
@@ -2169,6 +2775,7 @@ export class AiAgentToolsService extends BaseService {
     private async readContentAsCode(
         context: AiAgentToolsRuntimeContext,
         { slug, type }: { slug: string; type: ContentAsCodeType },
+        action: 'read' | 'update' = 'read',
     ): Promise<
         Extract<Awaited<ReturnType<ReadContentFn>>, { type: ContentAsCodeType }>
     > {
@@ -2190,6 +2797,7 @@ export class AiAgentToolsService extends BaseService {
                     context,
                     dashboard.spaceSlug,
                     `Dashboard "${slug}" was not found`,
+                    action,
                 );
                 const savedDashboard =
                     await this.dashboardService.getByIdOrSlug(
@@ -2221,6 +2829,7 @@ export class AiAgentToolsService extends BaseService {
                     context,
                     chart.spaceSlug,
                     `Chart "${slug}" was not found`,
+                    action,
                 );
                 const savedChart = await this.savedChartService.get(
                     chart.slug,
@@ -2253,6 +2862,7 @@ export class AiAgentToolsService extends BaseService {
                     context,
                     sqlChart.spaceSlug,
                     notFound,
+                    action,
                 );
                 await this.savedSqlService.assertCanViewSqlChartBySlug(
                     context.user,
@@ -2274,10 +2884,12 @@ export class AiAgentToolsService extends BaseService {
     }
 
     /** Same scoping as findContent: personal apps only under unrestricted search. */
-    private static assertDataAppInAgentScope(
+    private async assertDataAppInAgentScope(
         context: AiAgentToolsRuntimeContext,
         spaceUuid: string | null,
         slug: string,
+        action: 'read' | 'update',
+        noun: 'Data app' | 'Chart type',
     ) {
         const scoped =
             context.spaceAccess !== null && context.spaceAccess.length > 0;
@@ -2289,7 +2901,14 @@ export class AiAgentToolsService extends BaseService {
                       spaceUuid,
                   );
         if (!inScope) {
-            throw new NotFoundError(`Data app "${slug}" was not found`);
+            await this.recordRefusal(
+                context,
+                'app',
+                action,
+                'agent_scope',
+                'content_outside_agent_scope',
+            );
+            throw new NotFoundError(`${noun} "${slug}" was not found`);
         }
     }
 
@@ -2540,10 +3159,14 @@ export class AiAgentToolsService extends BaseService {
                 }
                 this.aiAgentContentValidation.validatePatch(type, patch);
 
-                const currentContent = await this.readContentAsCode(context, {
-                    slug,
-                    type,
-                });
+                const currentContent = await this.readContentAsCode(
+                    context,
+                    {
+                        slug,
+                        type,
+                    },
+                    'update',
+                );
                 // Charts can be persisted with a null `chartConfig.config` (e.g.
                 // table charts with no viz settings). The chart-as-code schema
                 // accepts an object or an absent config but rejects null, so
@@ -2579,6 +3202,7 @@ export class AiAgentToolsService extends BaseService {
                             `${AiAgentToolsService.getContentTypeLabel(
                                 type,
                             )} "${slug}" was not found`,
+                            'update',
                         );
                         patchedSlug =
                             patchedContent.slug.length > 0
@@ -2603,6 +3227,7 @@ export class AiAgentToolsService extends BaseService {
                             `${AiAgentToolsService.getContentTypeLabel(
                                 type,
                             )} "${slug}" was not found`,
+                            'update',
                         );
                         patchedSlug =
                             patchedContent.slug.length > 0
@@ -2691,6 +3316,7 @@ export class AiAgentToolsService extends BaseService {
                     context,
                     content.spaceSlug,
                     `Space "${content.spaceSlug}" was not found`,
+                    'create',
                 );
 
                 switch (type) {
@@ -2794,11 +3420,13 @@ export class AiAgentToolsService extends BaseService {
             approveSql: ApproveSqlFn;
         },
     ): Promise<string | undefined> {
+        await this.assertToolEffectAllowed(context, 'editContent.sql_chart');
         this.validateContentAsCode('sql_chart', patched);
         await this.assertContentSpaceInScope(
             context,
             patched.spaceSlug,
             `SQL chart "${slug}" was not found`,
+            'update',
         );
         this.assertCanSaveSqlCharts(context);
         const sqlChanged = patched.sql !== current.sql;
@@ -2837,6 +3465,7 @@ export class AiAgentToolsService extends BaseService {
         content: SqlChartAsCode,
         approveSql: ApproveSqlFn,
     ) {
+        await this.assertToolEffectAllowed(context, 'createContent.sql_chart');
         this.assertCanSaveSqlCharts(context);
         await approveSql({
             sql: content.sql,
@@ -2904,6 +3533,13 @@ export class AiAgentToolsService extends BaseService {
                                 chart.spaceUuid,
                             )
                         ) {
+                            await this.recordRefusal(
+                                context,
+                                'scheduler',
+                                'create',
+                                'agent_scope',
+                                'content_outside_agent_scope',
+                            );
                             throw new NotFoundError(notFoundMessage);
                         }
                         resourceUuid = chart.uuid;
@@ -2927,6 +3563,13 @@ export class AiAgentToolsService extends BaseService {
                                 dashboard.spaceUuid,
                             )
                         ) {
+                            await this.recordRefusal(
+                                context,
+                                'scheduler',
+                                'create',
+                                'agent_scope',
+                                'content_outside_agent_scope',
+                            );
                             throw new NotFoundError(notFoundMessage);
                         }
                         resourceUuid = dashboard.uuid;
@@ -2943,6 +3586,18 @@ export class AiAgentToolsService extends BaseService {
                             'Invalid resource type',
                         );
                 }
+                await logAgentContentWrite({
+                    model: this.agentActionLogModel,
+                    agentIdentity: getContentWriteAgentIdentity({
+                        userUuid: context.user.userUuid,
+                        organizationUuid: context.user.organizationUuid,
+                    }),
+                    projectUuid: context.projectUuid,
+                    objectType: 'scheduler',
+                    objectUuid: scheduler.schedulerUuid,
+                    versionUuid: null,
+                    action: 'create',
+                });
                 const href = AiAgentToolsService.getScheduledDeliveryUrl(
                     context,
                     args.resourceType,
@@ -2986,6 +3641,15 @@ export class AiAgentToolsService extends BaseService {
                         warnings: [],
                     };
                 } catch (error) {
+                    if (isAgentActionForbiddenError(error))
+                        await this.recordRefusal(
+                            context,
+                            'scheduler_ai_augmentation',
+                            'update',
+                            'casl',
+                            'scheduler_augmentation_forbidden',
+                            error,
+                        );
                     return {
                         scheduler,
                         resourceUuid,
@@ -3009,6 +3673,18 @@ export class AiAgentToolsService extends BaseService {
         await this.userService.updateUser(context.user, {
             firstName: args.firstName.trim(),
             lastName: args.lastName.trim(),
+        });
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: context.user.userUuid,
+                organizationUuid: context.user.organizationUuid,
+            }),
+            projectUuid: null,
+            objectType: 'user',
+            objectUuid: context.user.userUuid,
+            versionUuid: null,
+            action: 'update',
         });
     }
 
@@ -3159,6 +3835,7 @@ export class AiAgentToolsService extends BaseService {
                         context,
                         args.chartUuid,
                         `Chart not found: ${args.chartUuid}`,
+                        'read',
                     );
 
                     await context.onWarehouseQuery?.();
@@ -3301,6 +3978,11 @@ export class AiAgentToolsService extends BaseService {
                         // eslint-disable-next-line no-await-in-loop
                         await this.asyncQueryService.getAsyncQueryResults({
                             account: context.account,
+                            reader: buildResultReader(
+                                context.account,
+                                context.defaultQueryExecutionContext,
+                                context.querySurface ?? null,
+                            ),
                             projectUuid: context.projectUuid,
                             queryUuid,
                             page: 1,
@@ -3321,11 +4003,21 @@ export class AiAgentToolsService extends BaseService {
                                 ]),
                             ),
                         );
+                        const executionStats =
+                            // eslint-disable-next-line no-await-in-loop
+                            await this.asyncQueryService.getQueryExecutionStats(
+                                {
+                                    account: context.account,
+                                    projectUuid: context.projectUuid,
+                                    queryUuid,
+                                },
+                            );
                         return {
                             queryUuid,
                             rows,
                             columns: Object.keys(queryResults.columns),
                             rowCount: rows.length,
+                            executionStats,
                         };
                     }
 
@@ -3576,6 +4268,11 @@ export class AiAgentToolsService extends BaseService {
                 // eslint-disable-next-line no-await-in-loop
                 await this.asyncQueryService.getAsyncQueryResults({
                     account: context.account,
+                    reader: buildResultReader(
+                        context.account,
+                        context.defaultQueryExecutionContext,
+                        context.querySurface ?? null,
+                    ),
                     projectUuid: context.projectUuid,
                     queryUuid: terminalSubmission.queryUuid,
                     page: 1,
@@ -3649,7 +4346,10 @@ export class AiAgentToolsService extends BaseService {
                                           `"${nodeId}" (${error ?? 'Unknown error'})`,
                                   )
                                   .join(', ')}`
-                            : `: ${queryResults.error ?? 'Unknown error'}`
+                            : `: ${truncateMiddle(
+                                  queryResults.error ?? 'Unknown error',
+                                  COMPOSER_NODE_ERROR_MAX_CHARS,
+                              )}`
                     }`,
                 );
             }
@@ -3702,7 +4402,13 @@ export class AiAgentToolsService extends BaseService {
                             (submission) =>
                                 submission.queryUuid === status.queryUuid,
                         )?.nodeId ?? status.queryUuid,
-                    error: status.error,
+                    error:
+                        status.error === null
+                            ? null
+                            : truncateMiddle(
+                                  status.error,
+                                  COMPOSER_NODE_ERROR_MAX_CHARS,
+                              ),
                 }));
         } catch {
             return [];
@@ -3810,6 +4516,7 @@ export class AiAgentToolsService extends BaseService {
                     context,
                     args.dashboardUuid,
                     `Dashboard not found: ${args.dashboardUuid}`,
+                    'read',
                 );
 
                 return this.dashboardService.getDashboardCharts(
@@ -3900,7 +4607,7 @@ export class AiAgentToolsService extends BaseService {
                 const startedAt = Date.now();
                 const results =
                     await this.projectService.searchFieldUniqueValues(
-                        context.user,
+                        context.account,
                         context.projectUuid,
                         args.table,
                         args.fieldId,
@@ -4318,6 +5025,10 @@ export class AiAgentToolsService extends BaseService {
                     dbtConnectionType: dbtConnection.type,
                     dbtVersion: project.dbtVersion,
                     warehouseType: project.warehouseConnection?.type ?? null,
+                    connections:
+                        await this.projectModel.getWarehouseConnectionsMetadata(
+                            context.projectUuid,
+                        ),
                     git: isGitProjectType(dbtConnection)
                         ? {
                               repository: dbtConnection.repository,
@@ -4707,8 +5418,13 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         document: Document,
         chartId: string | null = null,
+        action: 'read' | 'create' | 'update' = 'read',
     ): Promise<DocumentContentResult> {
-        const spaceSlug = await this.getDocumentSpaceSlug(context, document);
+        const spaceSlug = await this.getDocumentSpaceSlug(
+            context,
+            document,
+            action,
+        );
         const project = await this.projectModel.getSummary(context.projectUuid);
         const metadata = {
             name: document.name,
@@ -4761,9 +5477,19 @@ export class AiAgentToolsService extends BaseService {
     private async getDocumentSpaceSlug(
         context: AiAgentToolsRuntimeContext,
         document: Document,
+        action: 'read' | 'create' | 'update',
     ): Promise<string | null> {
         if (document.spaceUuid === null) {
             if (document.createdByUserUuid !== context.user.userUuid) {
+                await this.recordRefusal(
+                    context,
+                    'document',
+                    action,
+                    'agent_scope',
+                    'personal_document_outside_agent_scope',
+                    undefined,
+                    document.documentUuid,
+                );
                 throw new NotFoundError('Document not found');
             }
             return null;
@@ -4774,6 +5500,15 @@ export class AiAgentToolsService extends BaseService {
                 document.spaceUuid,
             )
         ) {
+            await this.recordRefusal(
+                context,
+                'document',
+                action,
+                'agent_scope',
+                'document_outside_agent_scope',
+                undefined,
+                document.documentUuid,
+            );
             throw new NotFoundError('Document not found');
         }
         const [space] = await this.spaceModel.find({
@@ -4833,7 +5568,11 @@ export class AiAgentToolsService extends BaseService {
         const space =
             input.spaceSlug === null
                 ? null
-                : await this.resolveDocumentSpace(context, input.spaceSlug);
+                : await this.resolveDocumentSpace(
+                      context,
+                      input.spaceSlug,
+                      'create',
+                  );
         const document = await this.documentService.create(
             context.account,
             context.projectUuid,
@@ -4859,6 +5598,8 @@ export class AiAgentToolsService extends BaseService {
     private async resolveDocumentSpace(
         context: AiAgentToolsRuntimeContext,
         spaceSlugOrName: string,
+        action: 'create' | 'update',
+        documentUuid: string | null = null,
     ): Promise<{ uuid: string }> {
         const requested = spaceSlugOrName.trim();
         if (/^[\w-]+(\/[\w-]+)*$/u.test(requested)) {
@@ -4866,6 +5607,24 @@ export class AiAgentToolsService extends BaseService {
                 projectUuid: context.projectUuid,
                 path: getLtreePathFromContentAsCodePath(requested),
             });
+            if (
+                bySlug &&
+                !AiAgentToolsService.hasAgentSpaceAccess(
+                    context.spaceAccess,
+                    bySlug.uuid,
+                )
+            ) {
+                await this.recordRefusal(
+                    context,
+                    'document',
+                    action,
+                    'agent_scope',
+                    'document_destination_outside_agent_scope',
+                    undefined,
+                    documentUuid,
+                );
+                throw new NotFoundError('Space not found');
+            }
             if (
                 bySlug &&
                 AiAgentToolsService.hasAgentSpaceAccess(
@@ -4876,12 +5635,19 @@ export class AiAgentToolsService extends BaseService {
                 return bySlug;
             }
         }
-        const spaces = (
-            await this.projectService.getSpaces(
-                context.user,
-                context.projectUuid,
-            )
-        ).filter((space) =>
+        const allSpaces = await this.projectService.getSpaces(
+            context.user,
+            context.projectUuid,
+        );
+        const outsideNamed = allSpaces.find(
+            (space) =>
+                space.name.trim().toLowerCase() === requested.toLowerCase() &&
+                !AiAgentToolsService.hasAgentSpaceAccess(
+                    context.spaceAccess,
+                    space.uuid,
+                ),
+        );
+        const spaces = allSpaces.filter((space) =>
             AiAgentToolsService.hasAgentSpaceAccess(
                 context.spaceAccess,
                 space.uuid,
@@ -4892,6 +5658,18 @@ export class AiAgentToolsService extends BaseService {
             (space) => space.name.trim().toLowerCase() === wanted,
         );
         if (named.length === 1) return named[0];
+        if (named.length === 0 && outsideNamed) {
+            await this.recordRefusal(
+                context,
+                'document',
+                action,
+                'agent_scope',
+                'document_destination_outside_agent_scope',
+                undefined,
+                documentUuid,
+            );
+            throw new NotFoundError('Space not found');
+        }
         const describe = (list: typeof spaces) =>
             list
                 .slice(0, 5)
@@ -4932,7 +5710,12 @@ export class AiAgentToolsService extends BaseService {
             context.projectUuid,
             slug,
         );
-        const current = await this.documentContentResult(context, existing);
+        const current = await this.documentContentResult(
+            context,
+            existing,
+            null,
+            'update',
+        );
         if (edit.type === 'metadata') {
             const { type: _type, spaceSlug, ...metadata } = edit;
             const saved =
@@ -5030,7 +5813,12 @@ export class AiAgentToolsService extends BaseService {
                 'This Document is already in a Space. Only personal Documents can be saved to a Space.',
             );
         }
-        const space = await this.resolveDocumentSpace(context, spaceSlug);
+        const space = await this.resolveDocumentSpace(
+            context,
+            spaceSlug,
+            'update',
+            document.documentUuid,
+        );
         await this.documentService.moveToSpace(
             context.account,
             {

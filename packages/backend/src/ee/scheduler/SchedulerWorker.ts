@@ -475,9 +475,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 helpers,
             ) => {
                 await tryJobOrTimeout(
-                    this.aiAgentService.deliverSlackArtifactImages(
-                        payload.slackPromptUuid,
-                    ),
+                    this.aiAgentService.deliverSlackArtifactImages(payload),
                     helpers.job,
                     60_000,
                 );
@@ -647,6 +645,16 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         helpers.job.run_at,
                         payload,
                         async () => {
+                            if (payload.agentWork !== undefined) {
+                                await this.aiAgentService.executeReviewRemediationRun(
+                                    payload,
+                                    () =>
+                                        this.aiAgentAdminService.recordReviewRemediationVerified(
+                                            payload,
+                                        ),
+                                );
+                                return;
+                            }
                             await this.aiAgentService.executeReviewRemediationRun(
                                 payload,
                             );

@@ -1,5 +1,6 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    AgentActorSurface,
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     AiAccessRefusalReason,
@@ -19,6 +20,7 @@ import {
     type MemberAbility,
     type SessionUser,
 } from '@lightdash/common';
+import { fromSession } from '../../../auth/account';
 import { AiDeepResearchActiveRunError } from '../../models/AiDeepResearchRunModel';
 import {
     AiDeepResearchExecutorStageError,
@@ -364,7 +366,12 @@ const buildService = (
         track: vi.fn(),
     };
     const featureFlagService = {
-        get: vi.fn().mockResolvedValue({ id: 'documents', enabled: true }),
+        get: vi.fn(
+            async ({ featureFlagId }: { featureFlagId: FeatureFlags }) => ({
+                id: featureFlagId,
+                enabled: featureFlagId === FeatureFlags.Documents,
+            }),
+        ),
         ...overrides.featureFlagService,
     };
     const documentService = {
@@ -2747,7 +2754,7 @@ describe('AiDeepResearchService', () => {
                 });
 
                 const result = await service.refreshChart({
-                    account: {} as AnyType,
+                    account: fromSession(userWithProjectAccess()),
                     user: userWithProjectAccess(),
                     projectUuid: 'project-1',
                     aiDeepResearchRunUuid: 'run-1',
@@ -2757,7 +2764,9 @@ describe('AiDeepResearchService', () => {
                 expect(
                     asyncQueryService.executeAsyncMetricQuery,
                 ).toHaveBeenCalledWith({
-                    account: {},
+                    account: expect.objectContaining({
+                        user: expect.objectContaining({ id: 'user-1' }),
+                    }),
                     projectUuid: 'project-1',
                     metricQuery: refreshQueryHistory.metricQuery,
                     context: QueryExecutionContext.AI,
@@ -2843,7 +2852,7 @@ describe('AiDeepResearchService', () => {
             });
 
             await service.refreshChart({
-                account: {} as AnyType,
+                account: fromSession(userWithProjectAccess()),
                 user: userWithProjectAccess(),
                 projectUuid: 'project-1',
                 aiDeepResearchRunUuid: 'run-1',
@@ -2876,7 +2885,7 @@ describe('AiDeepResearchService', () => {
 
             await expect(
                 service.refreshChart({
-                    account: {} as AnyType,
+                    account: fromSession(userWithProjectAccess()),
                     user: userWithProjectAccess(),
                     projectUuid: 'project-1',
                     aiDeepResearchRunUuid: 'run-1',

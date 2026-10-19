@@ -1,4 +1,5 @@
 import {
+    AgentActorSurface,
     ApiKeyAccount,
     ForbiddenError,
     getErrorMessage,
@@ -18,6 +19,8 @@ import express, { type RequestHandler, type Router } from 'express';
 import { IncomingMessage } from 'http';
 import { validate as isValidUuid } from 'uuid';
 import { z } from 'zod';
+import { assertOAuthMcpToolAllowed } from '../auth/oauthScopes/mcpTools';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import { allowApiKeyAuthentication } from '../controllers/authentication';
 import {
     ExtraContext,
@@ -26,6 +29,10 @@ import {
     type McpServerToolOptions,
 } from '../ee/services/McpService/McpService';
 import Logger from '../logging/logger';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../services/AiAccessService/agentExecutionContext';
 import { userAttributeOverridesSchema } from '../services/UserAttributesService/UserAttributeUtils';
 import { aliasMcpBearerPersonalAccessToken } from './mcpAuthentication';
 
@@ -272,6 +279,7 @@ mcpRouter.all(
     ['/', '/projects/:projectUuid'],
     aliasMcpBearerPersonalAccessToken,
     authenticateOnlyWithCredentials,
+    requireOAuthScopeOperation('mcpRouter.handle'),
     returnHeaderIfUnauthenticated,
     async (req, res) => {
         try {
@@ -325,6 +333,12 @@ mcpRouter.all(
                 // See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
                 const pinnedProjectUuid = extractMcpProjectUuid(req);
                 const parsedToolCall = legacyToolCallSchema.safeParse(req.body);
+                if (parsedToolCall.success) {
+                    assertOAuthMcpToolAllowed(
+                        req.user!.ability,
+                        parsedToolCall.data.params.name,
+                    );
+                }
                 let legacyContextInjected = false;
                 if (
                     parsedToolCall.success &&
@@ -388,6 +402,7 @@ mcpRouter.all(
                     filterExpressionsEnabled,
                     documentsEnabled,
                     dataAppBuildsEnabled,
+                    customChartTypesEnabled,
                     agentIdentityEnabled,
                 ] = await Promise.all([
                     mcpService.isContentToolsEnabled(req.user!),
@@ -400,6 +415,10 @@ mcpRouter.all(
                     mcpService.isFilterExpressionsEnabled(req.user!),
                     mcpService.isDocumentsEnabled(req.user!),
                     mcpService.isDataAppBuildsEnabled(
+                        req.user!,
+                        pinnedProjectUuid,
+                    ),
+                    mcpService.isCustomChartTypesEnabled(
                         req.user!,
                         pinnedProjectUuid,
                     ),
@@ -419,6 +438,7 @@ mcpRouter.all(
                         filterExpressionsEnabled,
                         documentsEnabled,
                         dataAppBuildsEnabled,
+                        customChartTypesEnabled,
                         agentIdentityEnabled,
                     },
                 };
@@ -444,6 +464,8 @@ mcpRouter.all(
                     const extra: ExtraContext = {
                         user: req.user,
                         account: oauthAuth,
+                        getAgentPermissionService: () =>
+                            req.services.getAgentPermissionService(),
                         headerUserAttributes,
                         headerProjectUuid: pinnedProjectUuid,
                         legacyContextInjected,
@@ -501,7 +523,25 @@ mcpRouter.all(
                 }
 
                 const startedAt = Date.now();
-                await transport.handleRequest(authReq, res, req.body);
+                if (!req.account)
+                    throw new Error('Authenticated account not found');
+                await agentExecutionContext.run(
+                    createAgentExecutionContext({
+                        account: req.account,
+                        surface: AgentActorSurface.MCP,
+                        clientId: null,
+                        agentUuid: null,
+                        agentIdentityEnabled,
+                    }),
+                    async () => {
+                        await mcpService.recordDisabledToolRefusal(
+                            req.user!,
+                            req.body,
+                            toolOptions.featureAvailability,
+                        );
+                        return transport.handleRequest(authReq, res, req.body);
+                    },
+                );
                 if (authReq.auth && isToolsListRequest(req)) {
                     mcpService.recordToolList({
                         catalogue: toolOptions,

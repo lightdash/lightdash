@@ -1,11 +1,31 @@
-import { waitFor } from '@testing-library/react';
+import {
+    AgentCapability,
+    OrganizationMemberRole,
+    AthenaAuthenticationType,
+    DatabricksAuthenticationType,
+    SnowflakeAuthenticationType,
+    BigqueryAuthenticationType,
+    WarehouseTypes,
+    type AiServiceAccountSlot,
+    type AgentSystemRoleMatrix,
+    type AiServiceAccountCredentialInput,
+    type AiServiceAccountTestResult,
+    type ApiAiServiceAccountSaveResponse,
+} from '@lightdash/common';
+import { useQueryClient } from '@tanstack/react-query';
+import { act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sharedLightdashApi } from '../../api';
+import useApp from '../../providers/App/useApp';
 import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderHookWithProviders } from '../../testing/testUtils';
 import {
     aiAccessApi,
+    useAgentCapabilityPolicy,
+    useSaveAgentCapabilityCeiling,
     useAiServiceAccount,
+    useSaveAiServiceAccount,
+    useTestAiServiceAccount,
     useOrganizationAgentIdentitySettings,
 } from './api';
 
@@ -87,7 +107,10 @@ describe('AI service account status', () => {
         const status = {
             status: 'ok' as const,
             results: null,
+            credentialsReadable: false,
             parent: {
+                credentialsReadable: true,
+                identityUuid: 'generation',
                 projectUuid: 'parent',
                 projectName: null,
                 principal: 'agent@example.test',
@@ -104,5 +127,376 @@ describe('AI service account status', () => {
             method: 'GET',
             body: undefined,
         });
+    });
+});
+
+const credentialCases: {
+    name: string;
+    credentials: AiServiceAccountCredentialInput;
+    method: AiServiceAccountSlot['method'];
+    observed: AiServiceAccountTestResult['observed'];
+}[] = [
+    {
+        name: 'ClickHouse',
+        credentials: {
+            type: WarehouseTypes.CLICKHOUSE,
+            user: 'ai_agents',
+            password: 'secret-value',
+        },
+        method: 'password',
+        observed: {
+            currentUser: 'principal-id',
+            readonly: '2',
+            useQueryCache: '0',
+        },
+    },
+    {
+        name: 'Redshift',
+        credentials: {
+            type: WarehouseTypes.REDSHIFT,
+            user: 'ai_agents',
+            password: 'secret-value',
+        },
+        method: 'password',
+        observed: { currentUser: 'principal-id' },
+    },
+    {
+        name: 'Trino',
+        credentials: {
+            type: WarehouseTypes.TRINO,
+            user: 'ai_agents',
+            password: 'secret-value',
+        },
+        method: 'password',
+        observed: { currentUser: 'principal-id' },
+    },
+    {
+        name: 'Postgres',
+        credentials: {
+            type: WarehouseTypes.POSTGRES,
+            user: 'ai_agents',
+            password: 'secret-value',
+        },
+        method: 'password',
+        observed: { currentUser: 'principal-id' },
+    },
+    {
+        name: 'Databricks',
+        credentials: {
+            type: WarehouseTypes.DATABRICKS as const,
+            authenticationType: DatabricksAuthenticationType.OAUTH_M2M as const,
+            oauthClientId: 'application-id',
+            oauthClientSecret: 'secret-value',
+        },
+        method: 'oauth_m2m' as const,
+        observed: { currentUser: 'principal-id' },
+    },
+    {
+        name: 'Athena',
+        credentials: {
+            type: WarehouseTypes.ATHENA as const,
+            authenticationType: AthenaAuthenticationType.ACCESS_KEY as const,
+            accessKeyId: 'access-key-id',
+            secretAccessKey: 'secret-value',
+            sessionToken: 'session-token',
+            workGroup: 'agent-workgroup',
+            s3StagingDir: 's3://agent-results/',
+        },
+        method: 'access_key' as const,
+        observed: { principalArn: 'principal-id' },
+    },
+];
+
+describe.each(credentialCases)(
+    '$name AI service account credential mutations',
+    ({ name, credentials, method, observed }) => {
+        const verification = {
+            ok: true,
+            principal: 'principal-id',
+            observed,
+            message: 'Connection works.',
+            checkedAt: new Date(),
+        };
+        beforeEach(() => {
+            vi.clearAllMocks();
+            mockedLightdashApi.mockResolvedValue({});
+        });
+        it.each([verification, undefined])(
+            'retains optional save verification: %s',
+            async (resultVerification) => {
+                const slot: AiServiceAccountSlot = {
+                    uuid: 'slot',
+                    identityUuid: 'identity',
+                    projectUuid: 'project',
+                    warehouseConnectionUuid: null,
+                    kind: 'ai_service_account',
+                    scope: 'connection',
+                    warehouseType: credentials.type,
+                    method,
+                    createdByUserUuid: null,
+                    updatedByUserUuid: null,
+                    credentialSubjectUserUuid: null,
+                    createdAt: new Date('2026-10-09T12:00:00Z'),
+                    updatedAt: new Date('2026-10-09T12:00:00Z'),
+                };
+                const response: ApiAiServiceAccountSaveResponse = {
+                    status: 'ok',
+                    results: slot,
+                    verification: resultVerification,
+                };
+                mockedLightdashApi.response.mockResolvedValue(response);
+                const { result } = renderHookWithProviders(() => ({
+                    save: useSaveAiServiceAccount('project'),
+                    client: useQueryClient(),
+                }));
+                const invalidate = vi.spyOn(
+                    result.current.client,
+                    'invalidateQueries',
+                );
+                await act(async () => {
+                    await result.current.save.mutateAsync(credentials);
+                });
+                await waitFor(() =>
+                    expect(result.current.save.data).toEqual({
+                        slot,
+                        verification: resultVerification ?? null,
+                    }),
+                );
+                expect(invalidate).toHaveBeenCalledWith(['ai-access']);
+                expect(sharedLightdashApi.response).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        method: 'PUT',
+                        sensitive: true,
+                        body: JSON.stringify(credentials),
+                    }),
+                );
+            },
+        );
+        it.each([null, credentials])(
+            'refreshes recorded verification only for a saved Test: %s',
+            async (input) => {
+                mockedLightdashApi.mockResolvedValue(verification);
+                const { result } = renderHookWithProviders(() => ({
+                    test: useTestAiServiceAccount('project'),
+                    client: useQueryClient(),
+                }));
+                const invalidate = vi.spyOn(
+                    result.current.client,
+                    'invalidateQueries',
+                );
+                await act(async () => {
+                    await result.current.test.mutateAsync({
+                        credentials: input,
+                    });
+                });
+                expect(sharedLightdashApi).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        method: 'POST',
+                        sensitive: true,
+                        body: JSON.stringify({ credentials: input }),
+                    }),
+                );
+                if (input === null)
+                    expect(invalidate).toHaveBeenCalledWith(['ai-access']);
+                else expect(invalidate).not.toHaveBeenCalled();
+            },
+        );
+        it.each(['reset', 'unmount'])(
+            'removes secret-bearing Save and Test mutations on %s',
+            async (action) => {
+                mockedLightdashApi.response.mockResolvedValue({
+                    status: 'ok',
+                    results: null,
+                });
+                mockedLightdashApi.mockResolvedValue(verification);
+                const { result, unmount } = renderHookWithProviders(() => ({
+                    save: useSaveAiServiceAccount('project'),
+                    test: useTestAiServiceAccount('project'),
+                    client: useQueryClient(),
+                }));
+                const cache = result.current.client.getMutationCache();
+                await act(async () => {
+                    await result.current.test.mutateAsync({ credentials });
+                    await result.current.save.mutateAsync(credentials);
+                });
+                expect(
+                    cache
+                        .getAll()
+                        .some(
+                            (mutation) =>
+                                mutation.state.variables !== undefined,
+                        ),
+                ).toBe(true);
+                if (action === 'unmount') unmount();
+                else
+                    act(() => {
+                        result.current.save.reset();
+                        result.current.test.reset();
+                    });
+                expect(cache.getAll()).toHaveLength(0);
+            },
+        );
+        it.each([false, undefined])(
+            'does not load a slot when the flag is %s',
+            (enabled) => {
+                flagEnabled = enabled;
+                renderHookWithProviders(() =>
+                    useAiServiceAccount(`${name}-project`),
+                );
+                expect(sharedLightdashApi.response).not.toHaveBeenCalled();
+            },
+        );
+    },
+);
+
+describe('AI service account save', () => {
+    it.each([true, false])(
+        'retains Snowflake verification when present: %s',
+        async (verified) => {
+            const verification = verified
+                ? {
+                      ok: true,
+                      principal: 'USER',
+                      observed: { currentUser: 'USER', currentRole: 'ROLE' },
+                      message: 'Connection works.',
+                      checkedAt: new Date(),
+                  }
+                : null;
+            const slot = { identityUuid: 'generation' } as AiServiceAccountSlot;
+            mockedLightdashApi.response.mockResolvedValue({
+                status: 'ok',
+                results: slot,
+                ...(verified ? { verification } : {}),
+            });
+            const { result } = renderHookWithProviders(() =>
+                useSaveAiServiceAccount('project'),
+            );
+            const credentials = {
+                type: WarehouseTypes.SNOWFLAKE as const,
+                authenticationType:
+                    SnowflakeAuthenticationType.PRIVATE_KEY as const,
+                user: 'user',
+                privateKey: 'private-key',
+                privateKeyPass: null,
+                role: 'role',
+                warehouse: 'warehouse',
+            };
+            await act(async () => {
+                await result.current.mutateAsync(credentials);
+            });
+            await waitFor(() =>
+                expect(result.current.data).toEqual({ slot, verification }),
+            );
+            expect(sharedLightdashApi.response).toHaveBeenLastCalledWith({
+                version: 'v2',
+                url: '/projects/project/ai-access/service-account',
+                method: 'PUT',
+                body: JSON.stringify(credentials),
+                sensitive: true,
+            });
+            act(() => result.current.reset());
+            await waitFor(() =>
+                expect(result.current.variables).toBeUndefined(),
+            );
+        },
+    );
+    it('keeps the BigQuery payload and returns an explicit absent verification', async () => {
+        mockedLightdashApi.response.mockResolvedValue({
+            status: 'ok',
+            results: { identityUuid: 'bigquery' } as AiServiceAccountSlot,
+        });
+        const { result } = renderHookWithProviders(() =>
+            useSaveAiServiceAccount('project'),
+        );
+        const credentials = {
+            type: WarehouseTypes.BIGQUERY as const,
+            authenticationType: BigqueryAuthenticationType.PRIVATE_KEY as const,
+            keyfileContents: {
+                type: 'service_account',
+                client_email: 'agent@example.test',
+                private_key: 'key',
+            },
+        };
+        await act(async () => {
+            await result.current.mutateAsync(credentials);
+        });
+        await waitFor(() =>
+            expect(result.current.data).toEqual({
+                slot: { identityUuid: 'bigquery' },
+                verification: null,
+            }),
+        );
+        expect(sharedLightdashApi.response).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                body: JSON.stringify(credentials),
+                sensitive: true,
+            }),
+        );
+    });
+});
+
+describe('final policy contract', () => {
+    const matrix = Object.fromEntries(
+        Object.values(OrganizationMemberRole).map((role) => [
+            role,
+            [AgentCapability.Query],
+        ]),
+    ) as AgentSystemRoleMatrix;
+    const wire = {
+        mode: 'managed',
+        version: 2,
+        allowedCapabilities: [AgentCapability.Query],
+        allowedGroupUuids: null,
+        systemRoleMatrix: matrix,
+    };
+    beforeEach(() => {
+        vi.clearAllMocks();
+        flagEnabled = true;
+    });
+    it('returns the final GET shape without an adapter or extra request', async () => {
+        mockedLightdashApi.mockResolvedValue({
+            ...wire,
+            defaults: matrix,
+            groupsAvailable: true,
+        } as never);
+        flagEnabled = false;
+        const { result, rerender } = renderHookWithProviders(() => ({
+            policy: useAgentCapabilityPolicy(),
+            organizationUuid: useApp().user.data?.organizationUuid,
+        }));
+        await waitFor(() =>
+            expect(result.current.organizationUuid).toBeDefined(),
+        );
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
+        flagEnabled = true;
+        rerender();
+        await waitFor(() =>
+            expect(result.current.policy.data).toEqual({
+                ...wire,
+                defaults: matrix,
+                groupsAvailable: true,
+            }),
+        );
+        expect(
+            mockedLightdashApi.mock.calls.filter(
+                ([request]) => request.url === '/org/agent-permissions',
+            ),
+        ).toHaveLength(1);
+    });
+    it('returns the final save response', async () => {
+        mockedLightdashApi.mockResolvedValue(wire as never);
+        const onSaved = vi.fn();
+        const { result } = renderHookWithProviders(() =>
+            useSaveAgentCapabilityCeiling(onSaved),
+        );
+        await act(async () => {
+            await result.current.mutateAsync({
+                version: 1,
+                systemRoleMatrix: matrix,
+                mode: 'managed',
+                allowedCapabilities: [AgentCapability.Query],
+            });
+        });
+        expect(onSaved).toHaveBeenCalledWith(wire);
     });
 });

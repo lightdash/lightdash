@@ -1,3 +1,9 @@
+import { AgentCapability, OrganizationMemberRole } from '@lightdash/common';
+import { buildAccount } from '../../../auth/account/account.mock';
+import {
+    AgentPermissionService,
+    agentSystemRoleMatrix,
+} from '../../../services/AgentPermissionService/AgentPermissionService';
 import { McpService, McpToolName } from './McpService';
 
 type RegisteredToolCallback = (
@@ -47,19 +53,9 @@ const projectUuid = 'project-uuid';
 const organizationUuid = 'organization-uuid';
 const userUuid = 'user-uuid';
 
-const account = {
-    user: {
-        userUuid,
-        ability: {
-            can: vi.fn(() => true),
-            cannot: vi.fn(() => false),
-            relevantRuleFor: vi.fn(() => ({ inverted: false })),
-            rules: [],
-        },
-    },
-    organization: { organizationUuid },
-    authentication: { type: 'pat' },
-};
+const account = buildAccount();
+account.organization.organizationUuid = organizationUuid;
+account.user.id = userUuid;
 
 const user = {
     userUuid,
@@ -141,6 +137,7 @@ const makeMcpService = ({
     };
 
     const service = new McpService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiAgentService,
         aiAgentToolsService,
         aiOrganizationSettingsService,
@@ -187,118 +184,165 @@ const makeMcpService = ({
     };
 };
 
-describe('McpService with MCP agent access disabled', () => {
-    beforeEach(() => {
-        mockRegisteredMcpTools.clear();
-    });
-
-    it.each([
-        [McpToolName.LIST_AGENTS, { projectUuid }],
-        [McpToolName.ROUTE_AGENT, { prompt: 'show revenue', projectUuid }],
-        [McpToolName.SET_AGENT, { agentUuid: 'agent-uuid', projectUuid }],
-        [McpToolName.GET_CURRENT_AGENT, { projectUuid }],
-    ])('blocks %s', async (toolName, args) => {
-        const { aiAgentService, aiRouterService, mcpContextModel } =
-            makeMcpService({ mcpAgentsEnabled: false });
-
-        const tool = mockRegisteredMcpTools.get(toolName);
-        expect(tool).toBeDefined();
-
-        await expect(tool!(args, extra)).rejects.toThrow(disabledError);
-        expect(aiAgentService.listAgents).not.toHaveBeenCalled();
-        expect(aiRouterService.routePromptToAgent).not.toHaveBeenCalled();
-        expect(mcpContextModel.setContext).not.toHaveBeenCalled();
-    });
-
-    it('still allows clear_agent so users can un-stick their context', async () => {
-        const { mcpContextModel, storedContext } = makeMcpService({
-            mcpAgentsEnabled: false,
-        });
-        storedContext.agentUuid = 'agent-uuid';
-        storedContext.agentName = 'Finance';
-
-        const tool = mockRegisteredMcpTools.get(McpToolName.CLEAR_AGENT);
-        const result = (await tool!({ projectUuid }, extra)) as {
-            content: Array<{ text: string }>;
-        };
-
-        expect(result.content[0].text).toContain(
-            'Agent context cleared successfully',
-        );
-        expect(mcpContextModel.setContext).toHaveBeenCalledWith(
-            expect.objectContaining({
-                context: expect.objectContaining({
-                    agentUuid: null,
-                    agentName: null,
-                }),
-            }),
-        );
-    });
-
-    it('rejects a data tool called with an explicit agentUuid', async () => {
-        const { aiAgentService, aiAgentToolsService } = makeMcpService({
-            mcpAgentsEnabled: false,
-        });
-
-        const tool = mockRegisteredMcpTools.get(McpToolName.LIST_CONTENT);
-        await expect(
-            tool!(
-                {
-                    projectUuid,
-                    agentUuid: 'agent-uuid',
-                    spaceSlug: null,
-                    page: 1,
-                    pageSize: 25,
+describe.each(['off', 'legacy', 'managed'] as const)(
+    'McpService with MCP agent access disabled and %s policy',
+    (mode) => {
+        let permissions: AgentPermissionService;
+        beforeEach(() => {
+            const policy = {
+                mode: mode === 'off' ? ('managed' as const) : mode,
+                version: 1,
+                allowedCapabilities: Object.values(AgentCapability),
+                storedAllowedGroupUuids: null,
+                hasExistingAllowedGroup: null,
+                systemRoleMatrix: agentSystemRoleMatrix(
+                    Object.values(AgentCapability),
+                ),
+            };
+            permissions = new AgentPermissionService({
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: mode !== 'off' }),
                 },
+                agentCapabilityPolicyModel: {
+                    get: vi.fn(),
+                    getForEnforcement: vi.fn().mockResolvedValue(policy),
+                    save: vi.fn(),
+                },
+                groupsModel: { findUserInGroups: vi.fn() },
+                areGroupsAvailable: vi.fn(),
+                isCustomRolesLicensed: () => false,
+                userModel: {
+                    getAgentRoleAssignments: vi.fn().mockResolvedValue({
+                        systemRoles: [OrganizationMemberRole.VIEWER],
+                        customRoles: [],
+                    }),
+                },
+                projectModel: {
+                    getSummary: vi.fn().mockResolvedValue({ organizationUuid }),
+                },
+                resolveResourceProjectUuid: vi.fn(),
+                agentActionLogModel: { insert: vi.fn() },
+            });
+            Object.assign(extra.authInfo.extra, {
+                getAgentPermissionService: () => permissions,
+            });
+        });
+        beforeEach(() => {
+            mockRegisteredMcpTools.clear();
+        });
+
+        it.each([
+            [McpToolName.LIST_AGENTS, { projectUuid }],
+            [McpToolName.ROUTE_AGENT, { prompt: 'show revenue', projectUuid }],
+            [McpToolName.SET_AGENT, { agentUuid: 'agent-uuid', projectUuid }],
+            [McpToolName.GET_CURRENT_AGENT, { projectUuid }],
+        ])('blocks %s', async (toolName, args) => {
+            const { aiAgentService, aiRouterService, mcpContextModel } =
+                makeMcpService({ mcpAgentsEnabled: false });
+
+            const tool = mockRegisteredMcpTools.get(toolName);
+            expect(tool).toBeDefined();
+
+            await expect(tool!(args, extra)).rejects.toThrow(disabledError);
+            expect(aiAgentService.listAgents).not.toHaveBeenCalled();
+            expect(aiRouterService.routePromptToAgent).not.toHaveBeenCalled();
+            expect(mcpContextModel.setContext).not.toHaveBeenCalled();
+        });
+
+        it('still allows clear_agent so users can un-stick their context', async () => {
+            const { mcpContextModel, storedContext } = makeMcpService({
+                mcpAgentsEnabled: false,
+            });
+            storedContext.agentUuid = 'agent-uuid';
+            storedContext.agentName = 'Finance';
+
+            const tool = mockRegisteredMcpTools.get(McpToolName.CLEAR_AGENT);
+            const result = (await tool!({ projectUuid }, extra)) as {
+                content: Array<{ text: string }>;
+            };
+
+            expect(result.content[0].text).toContain(
+                'Agent context cleared successfully',
+            );
+            expect(mcpContextModel.setContext).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    context: expect.objectContaining({
+                        agentUuid: null,
+                        agentName: null,
+                    }),
+                }),
+            );
+        });
+
+        it('rejects a data tool called with an explicit agentUuid', async () => {
+            const { aiAgentService, aiAgentToolsService } = makeMcpService({
+                mcpAgentsEnabled: false,
+            });
+
+            const tool = mockRegisteredMcpTools.get(McpToolName.LIST_CONTENT);
+            await expect(
+                tool!(
+                    {
+                        projectUuid,
+                        agentUuid: 'agent-uuid',
+                        spaceSlug: null,
+                        page: 1,
+                        pageSize: 25,
+                    },
+                    extra,
+                ),
+            ).rejects.toThrow(disabledError);
+            expect(aiAgentService.getAgent).not.toHaveBeenCalled();
+            expect(aiAgentToolsService.createRuntime).not.toHaveBeenCalled();
+        });
+
+        it('still serves the same data tool without an agentUuid', async () => {
+            const { aiAgentToolsService } = makeMcpService({
+                mcpAgentsEnabled: false,
+            });
+
+            const tool = mockRegisteredMcpTools.get(McpToolName.LIST_CONTENT);
+            await tool!(
+                { projectUuid, spaceSlug: null, page: 1, pageSize: 25 },
                 extra,
-            ),
-        ).rejects.toThrow(disabledError);
-        expect(aiAgentService.getAgent).not.toHaveBeenCalled();
-        expect(aiAgentToolsService.createRuntime).not.toHaveBeenCalled();
-    });
+            );
 
-    it('still serves the same data tool without an agentUuid', async () => {
-        const { aiAgentToolsService } = makeMcpService({
-            mcpAgentsEnabled: false,
+            expect(aiAgentToolsService.createRuntime).toHaveBeenCalledWith(
+                expect.objectContaining({ agentUuid: undefined }),
+            );
         });
 
-        const tool = mockRegisteredMcpTools.get(McpToolName.LIST_CONTENT);
-        await tool!(
-            { projectUuid, spaceSlug: null, page: 1, pageSize: 25 },
-            extra,
-        );
+        it('withholds the stored agent from legacy scope injection but preserves the context', async () => {
+            const { service, storedContext, mcpContextModel } = makeMcpService({
+                mcpAgentsEnabled: false,
+            });
+            storedContext.agentUuid = 'agent-uuid';
+            storedContext.agentName = 'Finance';
 
-        expect(aiAgentToolsService.createRuntime).toHaveBeenCalledWith(
-            expect.objectContaining({ agentUuid: undefined }),
-        );
-    });
+            const scope = await service.getLegacyToolScope(
+                user as unknown as Parameters<
+                    McpService['getLegacyToolScope']
+                >[0],
+            );
 
-    it('withholds the stored agent from legacy scope injection but preserves the context', async () => {
-        const { service, storedContext, mcpContextModel } = makeMcpService({
-            mcpAgentsEnabled: false,
+            expect(scope).toEqual({ projectUuid, agentUuid: null });
+            expect(mcpContextModel.setContext).not.toHaveBeenCalled();
+            expect(storedContext.agentUuid).toBe('agent-uuid');
         });
-        storedContext.agentUuid = 'agent-uuid';
-        storedContext.agentName = 'Finance';
 
-        const scope = await service.getLegacyToolScope(
-            user as unknown as Parameters<McpService['getLegacyToolScope']>[0],
-        );
+        it('injects the stored agent into legacy scope when enabled', async () => {
+            const { service, storedContext } = makeMcpService({
+                mcpAgentsEnabled: true,
+            });
+            storedContext.agentUuid = 'agent-uuid';
 
-        expect(scope).toEqual({ projectUuid, agentUuid: null });
-        expect(mcpContextModel.setContext).not.toHaveBeenCalled();
-        expect(storedContext.agentUuid).toBe('agent-uuid');
-    });
+            const scope = await service.getLegacyToolScope(
+                user as unknown as Parameters<
+                    McpService['getLegacyToolScope']
+                >[0],
+            );
 
-    it('injects the stored agent into legacy scope when enabled', async () => {
-        const { service, storedContext } = makeMcpService({
-            mcpAgentsEnabled: true,
+            expect(scope).toEqual({ projectUuid, agentUuid: 'agent-uuid' });
         });
-        storedContext.agentUuid = 'agent-uuid';
-
-        const scope = await service.getLegacyToolScope(
-            user as unknown as Parameters<McpService['getLegacyToolScope']>[0],
-        );
-
-        expect(scope).toEqual({ projectUuid, agentUuid: 'agent-uuid' });
-    });
-});
+    },
+);

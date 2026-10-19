@@ -177,7 +177,13 @@ const setup = (
         ),
     };
     const analytics = { track: vi.fn() };
+    const featureFlagModel = {
+        get: vi.fn(async (_input: { featureFlagId: FeatureFlags }) => ({
+            enabled: false,
+        })),
+    };
     const service = new ProjectService({
+        refreshTokenRotation: { run: vi.fn() },
         lightdashConfig: {
             ...lightdashConfigMock,
             staticIp: '192.0.2.1',
@@ -199,7 +205,7 @@ const setup = (
         adminNotificationService: {
             notifyConnectionSettingsChange: vi.fn(async () => undefined),
         },
-        featureFlagModel: { get: vi.fn(async () => ({ enabled: false })) },
+        featureFlagModel,
     } as unknown as ProjectServiceArguments);
     const resolve = vi.spyOn(
         service.warehouseClientFactory,
@@ -213,6 +219,7 @@ const setup = (
         service,
         project,
         projectModel,
+        featureFlagModel,
         userWarehouseCredentialsModel,
         organizationWarehouseCredentialsModel,
         userOAuthGrantsModel,
@@ -314,9 +321,9 @@ beforeEach(() => {
         },
     );
     vi.mocked(projectAdapterFromConfig).mockImplementation(
-        async (_dbt, _client, credentials) =>
+        async (_dbt, client) =>
             ({
-                test: () => adapterTest(credentials),
+                test: () => adapterTest(client.credentials),
                 destroy,
                 getLightdashProjectConfig: vi.fn(async () => ({})),
             }) as unknown as ProjectAdapter,
@@ -326,6 +333,53 @@ afterEach(() => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
 });
+
+it.each([false, true])(
+    'test and compile uses the loaded project organization without a summary read when explicit credentials is %s',
+    async (enabled) => {
+        const f = setup(databricks());
+        f.featureFlagModel.get.mockImplementation(
+            async ({ featureFlagId }) => ({
+                enabled:
+                    featureFlagId === FeatureFlags.DbtExplicitCredentials &&
+                    enabled,
+            }),
+        );
+
+        await f.worker();
+
+        expect(
+            f.projectModel.getWithSensitiveFields,
+        ).toHaveBeenCalledExactlyOnceWith(f.project.projectUuid);
+        expect(f.projectModel.getSummary).not.toHaveBeenCalled();
+        expect(f.featureFlagModel.get).toHaveBeenCalledWith({
+            user: { organizationUuid: f.project.organizationUuid },
+            featureFlagId: FeatureFlags.DbtExplicitCredentials,
+        });
+    },
+);
+
+it.each([false, true])(
+    'creation uses the actor organization without a summary read when explicit credentials is %s',
+    async (enabled) => {
+        const f = setup(databricks());
+        f.featureFlagModel.get.mockImplementation(
+            async ({ featureFlagId }) => ({
+                enabled:
+                    featureFlagId === FeatureFlags.DbtExplicitCredentials &&
+                    enabled,
+            }),
+        );
+
+        await expect(f.create()).rejects.toThrow(createStop);
+
+        expect(f.projectModel.getSummary).not.toHaveBeenCalled();
+        expect(f.featureFlagModel.get).toHaveBeenCalledWith({
+            user: { organizationUuid: workerUser.organizationUuid },
+            featureFlagId: FeatureFlags.DbtExplicitCredentials,
+        });
+    },
+);
 
 const authCases = [
     {
@@ -402,6 +456,9 @@ describe('test-and-compile credential resolution', () => {
                     );
                     if (name.endsWith('user fallback')) setUserFallback(f);
                     await f.worker();
+                    expect(f.projectModel.getSummary).toHaveBeenCalledTimes(
+                        name.endsWith('user fallback') ? 1 : 0,
+                    );
                     expect(adapterTest).toHaveBeenCalledExactlyOnceWith(
                         expect.objectContaining({
                             token,
@@ -634,6 +691,7 @@ describe('test-and-compile credential resolution', () => {
                             f.project.projectUuid,
                             workerUser.userUuid,
                             WarehouseTypes.DATABRICKS,
+                            { strictPersonalOverlay: false },
                         ),
                     );
                 }
@@ -760,7 +818,8 @@ describe('test-and-compile credential resolution', () => {
                     );
                     expect(projectAdapterFromConfig).toHaveBeenCalledOnce();
                     expect(
-                        vi.mocked(projectAdapterFromConfig).mock.calls[0][2],
+                        vi.mocked(projectAdapterFromConfig).mock.calls[0][1]
+                            .credentials,
                     ).toMatchObject({
                         ...expected,
                         keyfileContents: {
@@ -801,6 +860,7 @@ describe('test-and-compile credential resolution', () => {
                         expect(updateIf).toHaveBeenCalledWith(
                             f.project.projectUuid,
                             expect.any(Function),
+                            'token_sync',
                         );
                         const update = updateIf.mock.calls[0][1];
                         expect(update(stale)).toEqual(expected);
@@ -944,5 +1004,54 @@ describe('test-and-compile credential resolution', () => {
             'worker-rotated-refresh',
         );
         expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
+    });
+});
+
+describe('strict personal overlay (agent-identity on)', () => {
+    test('shape B: Databricks U2M row without a host is refused on query, compile and test-and-compile', async () => {
+        const f = setup({
+            ...databricks(DatabricksAuthenticationType.OAUTH_U2M),
+            refreshToken: undefined,
+        });
+        vi.spyOn(f.service.featureFlagModel, 'get').mockImplementation(
+            async ({ featureFlagId }) =>
+                ({
+                    enabled: featureFlagId === FeatureFlags.AgentIdentity,
+                }) as never,
+        );
+        setUserFallback(f, '');
+        await expect(f.worker()).rejects.toThrow('Reconnect your credentials');
+        expect(refreshDatabricksOAuthToken).not.toHaveBeenCalled();
+        expect(f.service.featureFlagModel.get).toHaveBeenCalledWith({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: {
+                organizationUuid: f.project.organizationUuid,
+                userUuid: user.userUuid,
+            },
+        });
+    });
+
+    test('compile fallback keeps the legacy token selection with the flag off', async () => {
+        const f = setup({
+            ...databricks(DatabricksAuthenticationType.OAUTH_U2M),
+            refreshToken: undefined,
+        });
+        setUserFallback(f, '');
+        await f.worker();
+        expect(
+            f.userWarehouseCredentialsModel.findForProjectWithSecrets,
+        ).toHaveBeenCalledWith(
+            f.project.projectUuid,
+            user.userUuid,
+            WarehouseTypes.DATABRICKS,
+            { strictPersonalOverlay: false },
+        );
+        expect(f.service.featureFlagModel.get).toHaveBeenCalledWith({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: {
+                organizationUuid: f.project.organizationUuid,
+                userUuid: user.userUuid,
+            },
+        });
     });
 });

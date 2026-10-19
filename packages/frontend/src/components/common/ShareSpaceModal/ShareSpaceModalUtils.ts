@@ -42,20 +42,20 @@ export const NestedInheritanceOptions: AccessOption[] = [
 
 export const getAccessColor = (
     role: SpaceMemberRole | UserAccessAction,
-): [string, number] => {
+): string => {
     switch (role) {
         case SpaceMemberRole.ADMIN:
         case UserAccessAction.ADMIN:
-            return ['blue', 6];
+            return 'blue';
         case SpaceMemberRole.EDITOR:
         case UserAccessAction.EDITOR:
-            return ['green', 6];
+            return 'green';
         case SpaceMemberRole.VIEWER:
         case UserAccessAction.VIEWER:
-            return ['yellow', 8];
+            return 'gray';
         case UserAccessAction.DELETE:
-            return ['red', 6];
+            return 'red';
         default:
-            return ['gray', 6];
+            return 'gray';
     }
 };

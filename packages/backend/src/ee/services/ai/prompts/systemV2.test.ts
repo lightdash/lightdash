@@ -1198,6 +1198,13 @@ describe('getSystemPromptV2 Slack chart selection', () => {
         expect(content).toContain(
             'When the user requests a chart, select the best successful chart that answers the request',
         );
+        expect(content).toContain(
+            'Every selected chart card carries an "Explore in Lightdash" button',
+        );
+        expect(content).toContain('never claim you cannot provide a link');
+        expect(content).toContain(
+            'do not call the report incomplete or capped because of it',
+        );
         expect(content).not.toContain(
             'Slack result cards are attached automatically',
         );
@@ -1209,6 +1216,9 @@ describe('getSystemPromptV2 Slack chart selection', () => {
             enableDataAccess: true,
         });
         expect(content).not.toContain('<slack-chart');
+        expect(content).not.toContain(
+            'Every selected chart card carries an "Explore in Lightdash" button',
+        );
     });
 });
 
@@ -1225,9 +1235,6 @@ describe('getSystemPromptV2 Slack table selection', () => {
             expect(content).toContain('a summary is the default');
             expect(content).toContain(
                 '<slack-table queryUuid="<queryUuid>" />',
-            );
-            expect(content).toContain(
-                'exact queryUuid copied from a successful semantic table execution in the current turn',
             );
             expect(content).toContain('The marker is hidden from visible text');
             expect(content).toContain('on its own line in your final response');

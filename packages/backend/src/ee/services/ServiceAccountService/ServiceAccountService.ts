@@ -18,6 +18,7 @@ import {
     UpdateServiceAccount,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
+import { assertOAuthCredentialOperationAllowed } from '../../../auth/oauthScopes/credentials';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { createAuditLogEvent } from '../../../logging/auditLog';
 import { createActorFromUser } from '../../../logging/caslAuditWrapper';
@@ -189,6 +190,12 @@ export class ServiceAccountService extends BaseService {
         tokenDetails: CreateServiceAccount;
         prefix?: string;
     }): Promise<ServiceAccount> {
+        assertOAuthCredentialOperationAllowed(
+            user,
+            prefix === AuthTokenPrefix.SCIM
+                ? 'createScimToken'
+                : 'createServiceAccount',
+        );
         // Project-scope create: validate before touching the DB so a malformed
         // request can't half-create an SA. The invariant is "Member-scoped SA
         // must have ≥1 project from the moment it exists", so we refuse any
@@ -362,6 +369,12 @@ export class ServiceAccountService extends BaseService {
         update: { expiresAt: Date };
         prefix?: string;
     }): Promise<ServiceAccountWithToken> {
+        assertOAuthCredentialOperationAllowed(
+            user,
+            prefix === AuthTokenPrefix.SCIM
+                ? 'rotateScimToken'
+                : 'rotateServiceAccount',
+        );
         this.throwForbiddenErrorOnNoPermission(user);
 
         if (update.expiresAt.getTime() < Date.now()) {

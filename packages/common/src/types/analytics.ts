@@ -169,6 +169,7 @@ export enum QueryExecutionContext {
     METRICS_EXPLORER = 'metricsExplorer',
     PRE_AGGREGATE_MATERIALIZATION = 'preAggregateMaterialization',
     COMPOSE_SQL_RUNNER = 'composeSqlRunner',
+    PYTHON_RUNNER = 'pythonRunner',
     MULTI_SOURCE_QUERY = 'multiSourceQuery',
     DATA_APP_SAMPLE = 'dataAppSample',
     DESKTOP = 'desktop',
@@ -195,7 +196,12 @@ export const withAgentMarkerTag = <
 >(
     tags: T,
     agentIdentity: AgentIdentityClaim | null = null,
-): T & { agent?: 'true'; agent_surface?: string; agent_client?: string } => {
+): T & {
+    agent?: 'true';
+    agent_surface?: string;
+    agent_client?: string;
+    agent_uuid?: string;
+} => {
     const marked = isAiAccessQueryContext(tags.query_context)
         ? { ...tags, [AI_AGENT_TAG]: 'true' as const }
         : tags;
@@ -204,6 +210,9 @@ export const withAgentMarkerTag = <
               ...marked,
               agent_surface: agentIdentity.act.surface,
               agent_client: getAgentClientLabel(agentIdentity.act.client_id),
+              ...(agentIdentity.act.agent_uuid
+                  ? { agent_uuid: agentIdentity.act.agent_uuid }
+                  : {}),
           }
         : marked;
 };

@@ -1,9 +1,18 @@
 // eslint-disable @typescript-eslint/dot-notation
-import { AnyType } from '@lightdash/common';
+import { Ability } from '@casl/ability';
+import {
+    AnyType,
+    ParameterError,
+    type PossibleAbilities,
+} from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
+import { fromSession } from '../../auth/account/account';
+import { defaultSessionUser } from '../../auth/account/account.mock';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OAuth2Model } from '../../models/OAuth2Model';
 import { UserModel } from '../../models/UserModel';
+import { InvalidClientMetadataError } from './InvalidClientMetadataError';
+import { InvalidRedirectUriError } from './InvalidRedirectUriError';
 import { OAuthService } from './OAuthService';
 
 const JAVASCRIPT_REDIRECT_URI = ['javascript', 'alert(1)'].join(':');
@@ -26,12 +35,17 @@ describe('OAuthService edge cases', () => {
             getSessionUserFromCacheOrDB: vi.fn(),
         } as AnyType;
         mockOAuthModel = {
+            createClient: vi.fn().mockResolvedValue({ clientId: 'created' }),
+            updateClient: vi.fn().mockResolvedValue({ clientId: 'updated' }),
             getAccessToken: vi.fn(),
+            isSecurityStrict: vi.fn().mockResolvedValue(false),
+            isSecurityStrictForOAuthUser: vi.fn().mockResolvedValue(false),
             getClient: vi.fn(),
             getRefreshToken: vi.fn(),
             revokeToken: vi.fn(),
             revokeRefreshToken: vi.fn(),
             deleteRefreshToken: vi.fn(),
+            revokeUnboundRefreshFamily: vi.fn(),
             deleteAccessToken: vi.fn(),
             validateRedirectUri: vi.fn(),
         } as AnyType;
@@ -162,6 +176,85 @@ describe('OAuthService edge cases', () => {
                 client,
             );
         });
+
+        it('matches document client redirects strictly without the flag', async () => {
+            const documentClient: OAuth2Server.Client = {
+                id: 'https://claude.ai/oauth/client',
+                redirectUris: ['https://claude.ai/api/mcp/auth_callback'],
+                grants: ['authorization_code'],
+            };
+            vi.mocked(mockOAuthModel.getClient).mockResolvedValue(
+                documentClient,
+            );
+            mockOAuthModel.validateRedirectUriStrict = vi
+                .fn()
+                .mockResolvedValue(true);
+
+            await expect(
+                oauthService.validateRedirectUri(
+                    documentClient.id,
+                    'https://claude.ai/api/mcp/auth_callback',
+                ),
+            ).resolves.toBe(true);
+            expect(
+                mockOAuthModel.validateRedirectUriStrict,
+            ).toHaveBeenCalledWith(
+                'https://claude.ai/api/mcp/auth_callback',
+                documentClient,
+            );
+            expect(mockOAuthModel.validateRedirectUri).not.toHaveBeenCalled();
+            expect(mockOAuthModel.isSecurityStrict).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('getAuthorizationResource for document clients', () => {
+        const user = { userId: 1, organizationUuid: 'org' };
+        const request = (query: Record<string, string>) =>
+            ({ body: {}, query }) as unknown as OAuth2Server.Request;
+
+        it('requires PKCE without the strict flag', async () => {
+            await expect(
+                oauthService.getAuthorizationResource(
+                    request({ client_id: 'https://claude.ai/oauth/client' }),
+                    user,
+                ),
+            ).rejects.toThrow('Missing parameter: `code_challenge`');
+        });
+
+        it('requires S256 without the strict flag', async () => {
+            await expect(
+                oauthService.getAuthorizationResource(
+                    request({
+                        client_id: 'https://claude.ai/oauth/client',
+                        code_challenge: 'challenge',
+                        code_challenge_method: 'plain',
+                    }),
+                    user,
+                ),
+            ).rejects.toThrow('Invalid parameter: `code_challenge_method`');
+        });
+
+        it('keeps resource binding a strict-mode concern', async () => {
+            await expect(
+                oauthService.getAuthorizationResource(
+                    request({
+                        client_id: 'https://claude.ai/oauth/client',
+                        code_challenge: 'challenge',
+                        code_challenge_method: 'S256',
+                    }),
+                    user,
+                ),
+            ).resolves.toBeNull();
+        });
+
+        it('leaves stored clients on the lenient rules', async () => {
+            await expect(
+                oauthService.getAuthorizationResource(
+                    request({ client_id: 'mcp-stored' }),
+                    user,
+                ),
+            ).resolves.toBeNull();
+        });
     });
 
     describe('revokeToken', () => {
@@ -171,6 +264,115 @@ describe('OAuthService edge cases', () => {
             client: { id: 'oauth-mobile', grants: ['refresh_token'] },
             user: { userId: 42, organizationUuid: 'organization-uuid' },
         } as AnyType;
+
+        afterEach(() => {
+            expect(
+                mockOAuthModel.isSecurityStrictForOAuthUser,
+            ).not.toHaveBeenCalled();
+        });
+
+        it.each([true, false])(
+            'returns the family revoke result %s and only notifies on success',
+            async (revoked) => {
+                const familyUuid = '11111111-1111-4111-8111-111111111111';
+                const onGrantRevoked = vi.fn(async () => undefined);
+                const service = new TestOAuthService({
+                    userModel: mockUserModel,
+                    oauthModel: mockOAuthModel,
+                    lightdashConfig: mockLightdashConfig,
+                    onGrantRevoked,
+                });
+                mockOAuthModel.getRefreshToken.mockResolvedValue({
+                    ...refreshToken,
+                    familyUuid,
+                    agentConnectionGrantUuid: null,
+                    securityStrict: true,
+                });
+                mockOAuthModel.revokeUnboundRefreshFamily.mockResolvedValue(
+                    revoked,
+                );
+                mockOAuthModel.deleteRefreshToken.mockResolvedValue(true);
+
+                await expect(
+                    service.revokeToken('refresh-token'),
+                ).resolves.toBe(revoked);
+
+                expect(
+                    mockOAuthModel.revokeUnboundRefreshFamily,
+                ).toHaveBeenCalledExactlyOnceWith(familyUuid, 42);
+                expect(
+                    mockOAuthModel.deleteRefreshToken,
+                ).not.toHaveBeenCalled();
+                expect(
+                    mockOAuthModel.isSecurityStrictForOAuthUser,
+                ).not.toHaveBeenCalled();
+                if (revoked) {
+                    expect(onGrantRevoked).toHaveBeenCalledExactlyOnceWith({
+                        userId: 42,
+                        clientId: 'oauth-mobile',
+                    });
+                } else {
+                    expect(onGrantRevoked).not.toHaveBeenCalled();
+                }
+            },
+        );
+
+        it.each([false, undefined])(
+            'deletes only the refresh token with securityStrict=%s and a family present',
+            async (securityStrict) => {
+                mockOAuthModel.getRefreshToken.mockResolvedValue({
+                    ...refreshToken,
+                    familyUuid: '11111111-1111-4111-8111-111111111111',
+                    agentConnectionGrantUuid: null,
+                    ...(securityStrict === undefined ? {} : { securityStrict }),
+                });
+                mockOAuthModel.deleteRefreshToken.mockResolvedValue(true);
+
+                await expect(
+                    oauthService.revokeToken('refresh-token'),
+                ).resolves.toBe(true);
+
+                expect(
+                    mockOAuthModel.deleteRefreshToken,
+                ).toHaveBeenCalledExactlyOnceWith('refresh-token');
+                expect(
+                    mockOAuthModel.revokeUnboundRefreshFamily,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        it.each([
+            { familyUuid: null, agentConnectionGrantUuid: null },
+            {
+                familyUuid: '11111111-1111-4111-8111-111111111111',
+                agentConnectionGrantUuid:
+                    '22222222-2222-4222-8222-222222222222',
+            },
+        ])(
+            'skips the strictness check for $familyUuid and grant $agentConnectionGrantUuid',
+            async (binding) => {
+                mockOAuthModel.getRefreshToken.mockResolvedValue({
+                    ...refreshToken,
+                    ...binding,
+                    securityStrict: true,
+                });
+                mockOAuthModel.deleteRefreshToken.mockResolvedValue(true);
+
+                await expect(
+                    oauthService.revokeToken('refresh-token'),
+                ).resolves.toBe(true);
+
+                expect(
+                    mockOAuthModel.deleteRefreshToken,
+                ).toHaveBeenCalledExactlyOnceWith('refresh-token');
+                expect(
+                    mockOAuthModel.revokeUnboundRefreshFamily,
+                ).not.toHaveBeenCalled();
+                expect(
+                    mockOAuthModel.isSecurityStrictForOAuthUser,
+                ).not.toHaveBeenCalled();
+            },
+        );
 
         it('deletes a refresh token outright and never softly revokes it', async () => {
             vi.mocked(mockOAuthModel.getRefreshToken).mockResolvedValue(
@@ -246,7 +448,187 @@ describe('OAuthService edge cases', () => {
         });
     });
 
+    describe('registration redirect policy', () => {
+        const account = fromSession(
+            {
+                ...defaultSessionUser,
+                ability: new Ability<PossibleAbilities>([
+                    { action: 'manage', subject: 'all' },
+                ]),
+            },
+            'cookie',
+        );
+        const register = {
+            dcr: (redirectUris: string[]) =>
+                oauthService.registerClient({
+                    clientName: 'Client',
+                    redirectUris,
+                }),
+            'admin-create': (redirectUris: string[]) =>
+                oauthService.createAdminClient(account, {
+                    clientName: 'Client',
+                    redirectUris,
+                }),
+            'admin-update': (redirectUris: string[]) =>
+                oauthService.updateClient(account, 'client', {
+                    clientName: 'Client',
+                    redirectUris,
+                }),
+        };
+
+        describe.each(['dcr', 'admin-create', 'admin-update'] as const)(
+            '%s',
+            (operation) => {
+                it('accepts strict native and loopback registration', async () => {
+                    mockOAuthModel.isSecurityStrict.mockResolvedValue(true);
+                    await expect(
+                        register[operation]([
+                            'https://app.example.com/cb',
+                            'http://localhost:*/callback',
+                            'com.lightdash.mobile:/oauth/callback',
+                        ]),
+                    ).resolves.toMatchObject({ clientId: expect.any(String) });
+                });
+
+                describe.each([false, true])('strict=%s', (strict) => {
+                    it.each([
+                        'http://example.com/cb',
+                        'https://app.example.com/*',
+                    ])(
+                        'checks every redirect and flag identity for %s',
+                        async (uri) => {
+                            mockOAuthModel.isSecurityStrict.mockResolvedValue(
+                                strict,
+                            );
+                            const result = register[operation]([
+                                'https://app.example.com/cb',
+                                uri,
+                            ]);
+                            if (strict) {
+                                await expect(result).rejects.toThrow(
+                                    new ParameterError(
+                                        `Invalid redirect URI ${uri}`,
+                                    ),
+                                );
+                                expect(
+                                    mockOAuthModel.createClient,
+                                ).not.toHaveBeenCalled();
+                                expect(
+                                    mockOAuthModel.updateClient,
+                                ).not.toHaveBeenCalled();
+                            } else {
+                                await expect(result).resolves.toMatchObject({
+                                    clientId: expect.any(String),
+                                });
+                            }
+                            expect(
+                                mockOAuthModel.isSecurityStrict,
+                            ).toHaveBeenCalledWith(
+                                operation === 'dcr'
+                                    ? null
+                                    : {
+                                          userUuid: account.user.id,
+                                          organizationUuid:
+                                              account.organization
+                                                  .organizationUuid,
+                                      },
+                            );
+                        },
+                    );
+                });
+            },
+        );
+    });
+
     describe('registerClient', () => {
+        it.each(['22001', '22P05', '22021', '22P02', '23502'])(
+            'maps database data error %s to invalid client metadata',
+            async (code) => {
+                mockOAuthModel.createClient.mockRejectedValue(
+                    Object.assign(new Error('Private database details'), {
+                        code,
+                    }),
+                );
+
+                const result = oauthService.registerClient({
+                    clientName: 'Test client',
+                    redirectUris: ['https://example.com/callback'],
+                });
+
+                await expect(result).rejects.toBeInstanceOf(
+                    InvalidClientMetadataError,
+                );
+                await expect(result).rejects.toBeInstanceOf(ParameterError);
+                await expect(result).rejects.toThrow(
+                    'Client metadata is invalid',
+                );
+            },
+        );
+
+        it.each([
+            Object.assign(new Error('Duplicate client'), { code: '23505' }),
+            new Error('Database unavailable'),
+        ])(
+            'rethrows unexpected storage errors unchanged: %s',
+            async (error) => {
+                mockOAuthModel.createClient.mockRejectedValue(error);
+
+                await expect(
+                    oauthService.registerClient({
+                        clientName: 'Test client',
+                        redirectUris: ['https://example.com/callback'],
+                    }),
+                ).rejects.toBe(error);
+            },
+        );
+
+        it.each([
+            ['http://example.com/café', 'http://example.com/caf\\u00e9'],
+            [
+                'https://example.com/\ncallback',
+                'https://example.com/\\u000acallback',
+            ],
+        ])(
+            'escapes non-ASCII redirect descriptions for %j',
+            async (uri, escapedUri) => {
+                mockOAuthModel.isSecurityStrict.mockResolvedValue(true);
+
+                await expect(
+                    oauthService.registerClient({
+                        clientName: 'Test client',
+                        redirectUris: [uri],
+                    }),
+                ).rejects.toThrow(`Invalid redirect URI ${escapedUri}`);
+            },
+        );
+
+        it.each([
+            'http://example.com/callback',
+            'https://user@example.com/callback',
+            'https://example.com/\\callback',
+            'unknownscheme://callback',
+            'https://example.com/*',
+        ])(
+            'throws a dedicated redirect error for %s in strict mode',
+            async (uri) => {
+                mockOAuthModel.isSecurityStrict.mockResolvedValue(true);
+
+                const result = oauthService.registerClient({
+                    clientName: 'Test client',
+                    redirectUris: ['https://example.com/callback', uri],
+                });
+
+                await expect(result).rejects.toBeInstanceOf(
+                    InvalidRedirectUriError,
+                );
+                await expect(result).rejects.toBeInstanceOf(ParameterError);
+                await expect(result).rejects.toThrow(
+                    `Invalid redirect URI ${uri}`,
+                );
+                expect(mockOAuthModel.createClient).not.toHaveBeenCalled();
+            },
+        );
+
         it('rejects an unsafe redirect URI scheme', async () => {
             await expect(
                 oauthService.registerClient({

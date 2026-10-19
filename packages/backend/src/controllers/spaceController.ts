@@ -35,6 +35,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../auth/account';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -50,7 +51,13 @@ export class SpaceController extends BaseController {
      * List service accounts eligible for direct access to this space.
      * @summary List service account candidates
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'SpaceController.getSpaceServiceAccountCandidates',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('{spaceUuid}/share/service-accounts')
     @OperationId('GetSpaceServiceAccountCandidates')
@@ -103,7 +110,11 @@ export class SpaceController extends BaseController {
      * @param spaceUuid The uuid of the space to get
      * @param req
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('SpaceController.getSpace'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('{spaceUuid}')
     @OperationId('GetSpace')
@@ -130,7 +141,11 @@ export class SpaceController extends BaseController {
      * @param spaceUuid The uuid of the space
      * @param req
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('SpaceController.getSpaceAccessList'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('{spaceUuid}/access')
     @OperationId('GetSpaceAccessList')
@@ -176,7 +191,11 @@ export class SpaceController extends BaseController {
      * @param spaceUuid The uuid of the space to check
      * @param req
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('SpaceController.getDeleteImpact'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('{spaceUuid}/delete-impact')
     @OperationId('GetSpaceDeleteImpact')
@@ -238,6 +257,7 @@ export class SpaceController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('SpaceController.deleteSpace'),
     ])
     @SuccessResponse('204', 'Deleted')
     @Delete('{spaceUuid}')
@@ -270,6 +290,7 @@ export class SpaceController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('SpaceController.updateSpace'),
     ])
     @SuccessResponse('200', 'Updated')
     @Patch('{spaceUuid}')
@@ -304,6 +325,7 @@ export class SpaceController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('SpaceController.addSpaceUserAccess'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('{spaceUuid}/share')
@@ -343,6 +365,7 @@ export class SpaceController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('SpaceController.revokeSpaceAccessForUser'),
     ])
     @SuccessResponse('200', 'Success')
     @Delete('{spaceUuid}/share/{userUuid}')
@@ -382,6 +405,7 @@ export class SpaceController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('SpaceController.addSpaceGroupAccess'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('{spaceUuid}/group/share')
@@ -421,6 +445,7 @@ export class SpaceController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('SpaceController.revokeGroupSpaceAccess'),
     ])
     @SuccessResponse('200', 'Success')
     @Delete('{spaceUuid}/group/share/{groupUuid}')

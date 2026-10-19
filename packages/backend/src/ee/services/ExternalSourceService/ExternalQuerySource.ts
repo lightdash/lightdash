@@ -4,6 +4,7 @@ import {
     QuerySourceType,
     type ExternalSourceQuery,
     type ExternalSourceTableReference,
+    type FeatureFlags,
     type QuerySourceDefinition,
     type QuerySourceSchema,
     type QuerySourceSchemaTable,
@@ -35,6 +36,8 @@ export class ExternalQuerySource implements QuerySourceClient {
     };
 
     readonly supportsPivot = false;
+
+    readonly requiredFeatureFlags: FeatureFlags[] = [];
 
     private readonly asyncQueryService: AsyncQueryService;
 

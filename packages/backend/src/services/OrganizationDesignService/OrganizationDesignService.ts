@@ -5,10 +5,9 @@ import {
     NoSuchKey,
     NotFound,
     PutObjectCommand,
-    S3Client,
     type GetObjectCommandOutput,
     type ObjectIdentifier,
-    type S3ClientConfig,
+    type S3Client,
 } from '@aws-sdk/client-s3';
 import { subject } from '@casl/ability';
 import {
@@ -42,7 +41,7 @@ import createDOMPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
 import { Readable } from 'node:stream';
 import { v4 as uuidv4 } from 'uuid';
-import { resolveS3Credentials } from '../../clients/Aws/S3BaseClient';
+import { createS3ClientFromConfig } from '../../clients/Aws/S3BaseClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
     OrganizationDesignModel,
@@ -200,8 +199,10 @@ export class OrganizationDesignService extends BaseService {
     }
 
     /**
-     * Mirrors AppGenerateService.getS3Client — designs live in the same
-     * app-runtime S3 bucket as data app sources.
+     * Designs live in the same app-runtime S3 bucket as data app sources.
+     * The shared factory applies whatever the configured auth mode needs
+     * (for `gcp_oauth`, a bearer-token middleware); constructing the SDK
+     * client directly skips that and fails to find credentials.
      */
     private getS3Client(): { client: S3Client; bucket: string } {
         const s3Config = this.lightdashConfig.appRuntime.s3;
@@ -210,17 +211,8 @@ export class OrganizationDesignService extends BaseService {
                 'S3 is not configured for app runtime',
             );
         }
-        const config: S3ClientConfig = {
-            region: s3Config.region,
-            endpoint: s3Config.endpoint || undefined,
-            forcePathStyle: s3Config.forcePathStyle ?? false,
-        };
-        const credentials = resolveS3Credentials(s3Config);
-        if (credentials) {
-            config.credentials = credentials;
-        }
         return {
-            client: new S3Client(config),
+            client: createS3ClientFromConfig(s3Config),
             bucket: s3Config.bucket,
         };
     }

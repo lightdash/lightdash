@@ -64,6 +64,7 @@ export class OrganizationSettingsModel {
             corsAllowedDomains: row?.cors_allowed_domains ?? null,
             dataAppAutomaticThumbnailsEnabled:
                 row?.data_app_automatic_thumbnails_enabled ?? null,
+            dataAppCapturesEnabled: row?.data_app_captures_enabled ?? null,
         };
     }
 
@@ -105,6 +106,7 @@ export class OrganizationSettingsModel {
             cors_allowed_domains: patch.corsAllowedDomains,
             data_app_automatic_thumbnails_enabled:
                 patch.dataAppAutomaticThumbnailsEnabled,
+            data_app_captures_enabled: patch.dataAppCapturesEnabled,
         };
         const toWrite = omitBy(
             columns,

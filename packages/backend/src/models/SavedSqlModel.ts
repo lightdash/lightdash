@@ -1,9 +1,11 @@
+import { type AgentIdentityClaim } from '@lightdash/common';
 import {
     AllVizChartConfig,
     ConflictError,
     ContentReviewContentType,
     CreateSqlChart,
     generateSlug,
+    normalizeAgentIdentityClaim,
     NotFoundError,
     ParameterError,
     ResolvedProjectColorPalette,
@@ -34,6 +36,8 @@ import {
     generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
 import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel';
+import { storedVersionAgentIdentity } from './ContentVersionIdentity';
+import { type OnContentVersionCreated } from './OnContentVersionCreated';
 
 export type SqlChartConnectionBinding = {
     kind: 'connection';
@@ -64,7 +68,12 @@ type SelectSavedSql = Pick<
 > &
     Pick<
         DbSavedSqlVersion,
-        'saved_sql_version_uuid' | 'sql' | 'limit' | 'config' | 'chart_kind'
+        | 'saved_sql_version_uuid'
+        | 'sql'
+        | 'limit'
+        | 'config'
+        | 'chart_kind'
+        | 'agent_identity'
     > & {
         warehouse_connection_uuid: string | null;
     } & Pick<DbSpace, 'space_uuid' | 'path'> &
@@ -113,12 +122,16 @@ export class SavedSqlModel {
 
     static convertSelectSavedSql(row: SelectSavedSql): Omit<
         SqlChart,
-        'space' | 'resolvedColorPalette'
+        'space' | 'resolvedColorPalette' | 'agentIdentity'
     > & {
+        [storedVersionAgentIdentity]: AgentIdentityClaim | null;
         space: Pick<SpaceSummary, 'uuid' | 'name'>;
     } {
         return {
             savedSqlUuid: row.saved_sql_uuid,
+            [storedVersionAgentIdentity]: normalizeAgentIdentityClaim(
+                row.agent_identity,
+            ),
             name: row.name,
             description: row.description,
             slug: row.slug,
@@ -236,6 +249,7 @@ export class SavedSqlModel {
                 `${SavedSqlTableName}.last_viewed_at`,
                 `${DashboardsTableName}.name as dashboardName`,
                 `${SavedSqlVersionsTableName}.saved_sql_version_uuid`,
+                `${SavedSqlVersionsTableName}.agent_identity`,
                 `${SavedSqlVersionsTableName}.sql`,
                 `${SavedSqlVersionsTableName}.limit`,
                 `${SavedSqlVersionsTableName}.config`,
@@ -355,6 +369,7 @@ export class SavedSqlModel {
             sql: string;
             limit: number;
             binding?: SqlChartVersionBinding;
+            agentIdentity: AgentIdentityClaim | null;
         },
     ): Promise<string> {
         const warehouseConnectionUuid =
@@ -387,6 +402,7 @@ export class SavedSqlModel {
             SavedSqlVersionsTableName,
         ).insert(
             {
+                agent_identity: data.agentIdentity,
                 saved_sql_uuid: data.savedSqlUuid,
                 sql: data.sql,
                 limit: data.limit,
@@ -416,6 +432,8 @@ export class SavedSqlModel {
         binding?: SqlChartConnectionBinding,
         // 'unique' treats data.slug as a base and appends -1, -2… on conflict.
         { slugMode }: { slugMode: 'exact' | 'unique' } = { slugMode: 'exact' },
+        agentIdentity: AgentIdentityClaim | null = null,
+        onVersionCreated?: OnContentVersionCreated,
     ): Promise<{
         savedSqlUuid: string;
         slug: string;
@@ -462,7 +480,13 @@ export class SavedSqlModel {
                         sql: data.sql,
                         limit: data.limit,
                         binding,
+                        agentIdentity,
                     },
+                );
+                await onVersionCreated?.(
+                    trx,
+                    savedSqlVersionUuid,
+                    savedSqlUuid,
                 );
                 return { savedSqlUuid, slug, savedSqlVersionUuid };
             })
@@ -481,6 +505,8 @@ export class SavedSqlModel {
             sqlChart: UpdateSqlChart;
         },
         binding?: SqlChartVersionBinding,
+        agentIdentity: AgentIdentityClaim | null = null,
+        onVersionCreated?: OnContentVersionCreated,
     ): Promise<{ savedSqlUuid: string; savedSqlVersionUuid: string | null }> {
         return this.database.transaction(async (trx) => {
             if (data.sqlChart.unversionedData) {
@@ -502,9 +528,15 @@ export class SavedSqlModel {
                     sql: data.sqlChart.versionedData.sql,
                     limit: data.sqlChart.versionedData.limit,
                     binding,
+                    agentIdentity,
                 });
             }
 
+            await onVersionCreated?.(
+                trx,
+                savedSqlVersionUuid,
+                data.savedSqlUuid,
+            );
             return { savedSqlUuid: data.savedSqlUuid, savedSqlVersionUuid };
         });
     }

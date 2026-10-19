@@ -32,7 +32,7 @@ export const getSubmitWorkerFindings = (options: SubmitWorkerFindingsOptions) =>
                 return {
                     result,
                     metadata: { status: 'error' },
-                    structuredContent: { error: result, refusal: null },
+                    structuredContent: { error: result },
                 };
             }
             options.onFindings(parsed.data);

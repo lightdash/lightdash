@@ -28,6 +28,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -202,7 +203,13 @@ export class WarehouseConnectionController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'WarehouseConnectionController.updateWarehouseConnectionUserCredentials',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Patch(
         '/{warehouseConnectionUuid}/user-credentials/{userWarehouseCredentialsUuid}',

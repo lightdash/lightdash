@@ -12,9 +12,47 @@
 // See packages/frontend/src/components/common/Filters/CLAUDE.md for the full
 // mandate on adding strings to embed-reachable surfaces.
 export const DEFAULT_UI_STRINGS = {
+    'agentAttribution.changedBy':
+        'Changed by an agent for {person} · {surface}',
+    'agentAttribution.serviceAccount': 'a service account',
+    'agentAttribution.unknownPerson': 'an unknown person',
+    'agentAttribution.mcp': 'MCP',
+    'agentAttribution.inApp': 'In-app agent',
+    'agentAttribution.slack': 'Slack agent',
+    'agentAttribution.cli': 'CLI',
+    'agentAttribution.api': 'API',
+    'agentAttribution.dataApp': 'Data app',
+    'agentAttribution.aiSummary': 'AI summary',
+
+    'aiAccess.runAsMe': 'Run as me',
+    'aiAccess.alsoNeeded': 'Also needed: {requirements}',
+    'aiAccess.requirements.capabilities.read_discover': 'Read and discover',
+    'aiAccess.requirements.capabilities.query': 'Query data',
+    'aiAccess.requirements.capabilities.raw_sql': 'Raw SQL',
+    'aiAccess.requirements.capabilities.content_write':
+        'Create and edit content',
+    'aiAccess.requirements.capabilities.delete': 'Delete content',
+    'aiAccess.requirements.capabilities.publish': 'Publish and share',
+    'aiAccess.requirements.capabilities.deploy_upload': 'Deploy and upload',
+    'aiAccess.requirements.capabilities.dbt_writeback':
+        'Git repository changes (dbt)',
+    'aiAccess.requirements.capabilities.export': 'Export results',
+    'aiAccess.requirements.capabilities.administration': 'Administration',
+    'aiAccess.requirements.capabilities.external_tools': 'External tools',
+    'aiAccess.requirements.contentWrites': 'Agent content writes',
+    'aiAccess.requirements.warehouseConfirmation':
+        'warehouse confirmation for this project',
+    'aiAccess.requirements.agentAccess': 'access to agents',
+    'aiAccess.requirements.allowedProjects':
+        'this project in the allowed projects',
+    'aiAccess.requirements.agentAction': 'an action agents can perform',
+    'aiAccess.requirements.supportedAction': 'a supported agent action',
+    'aiAccess.requirements.agentPermissions': 'agent permissions',
+    'aiAccess.seeWhy': 'See why',
     'aiAccess.settings': 'Review agent identity',
-    'aiAccess.loadError': 'Could not load AI access',
-    'aiAccess.signInError': 'AI sign-in failed',
+    'aiAccess.projectSettings': 'Open project agent settings',
+    'aiAccess.loadError': 'Could not load agent identity',
+    'aiAccess.signInError': 'Agent sign-in failed',
 
     'skillMenu.header': 'Skills',
     'skillMenu.noneAvailable': 'No skills available for this agent',
@@ -341,6 +379,13 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.unavailable': "AI isn't available right now.",
     'aiAgent.modelSelector.retired': 'Retired',
     'aiAgent.modelSelector.agentDefault': 'Agent default',
+    'aiAgent.composer.loadingResult': 'Loading results...',
+    'aiAgent.composer.resultError': 'This result could not be loaded',
+    'aiAgent.composer.nodeStatus.pending': 'Queued',
+    'aiAgent.composer.nodeStatus.awaitingApproval': 'Awaiting approval',
+    'aiAgent.composer.nodeStatus.running': 'Running',
+    'aiAgent.composer.nodeStatus.success': 'Completed',
+    'aiAgent.composer.nodeStatus.error': 'Failed',
     'explorer.back': 'Back',
     'explorer.backToDashboard': 'Back to Dashboard',
     'explorer.backToChart': 'Back to Chart',

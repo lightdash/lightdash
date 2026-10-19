@@ -41,6 +41,7 @@ export type TableCalculationFieldContext = Pick<
 };
 
 export type GenerateTableCalculationRequest = {
+    exploreName: string;
     prompt: string;
     tableName: string;
     fieldsContext: TableCalculationFieldContext[];
@@ -68,6 +69,7 @@ export type CustomDimensionFieldContext = Pick<
 };
 
 export type GenerateCustomDimensionRequest = {
+    exploreName: string;
     prompt: string;
     tableName: string;
     fieldsContext: CustomDimensionFieldContext[];

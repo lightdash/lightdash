@@ -107,8 +107,15 @@ import {
 } from '../analytics/LightdashAnalytics';
 import { trackSafely } from '../analytics/trackSafely';
 import * as AccountFactory from '../auth/account';
+import {
+    requestOAuthRefreshWithDeadline,
+    type OAuthRefreshCallback,
+} from '../auth/oauthRequestDeadline';
+import { assertOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import EmailClient from '../clients/EmailClient/EmailClient';
+import { lightdashConfig as configuredLightdashConfig } from '../config/lightdashConfig';
 import { LightdashConfig } from '../config/parseConfig';
+import { createSnowflakePassportStrategy } from '../controllers/authentication/strategies/snowflakeStrategy';
 import { UserOAuthGrantProvider } from '../database/entities/userOAuthGrants';
 import {
     createAuditLogEvent,
@@ -145,6 +152,7 @@ import { UserOAuthGrantsModel } from '../models/UserOAuthGrantsModel';
 import { UserOnboardingModel } from '../models/UserOnboardingModel';
 import {
     UserWarehouseCredentialsModel,
+    type PersonalCredentialPersistencePolicy,
     type SnowflakeAiClientBinding,
 } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
@@ -154,12 +162,14 @@ import {
     validateOrganizationScopesCanBeGranted,
 } from '../utils/organizationRolePermissions';
 import { processAvatarImage } from '../utils/processAvatarImage';
+import { assertHumanManagedMutation } from './AgentPermissionService/assertHumanManagedMutation';
 import {
     type ResolvedSnowflakeAgentClient,
     type SnowflakeAgentClientResolver,
 } from './AiAccessService/SnowflakeAgentClientResolver';
 import { BaseService } from './BaseService';
 import { getOrganizationSettingsInstanceDefaults } from './OrganizationSettingsService/getInstanceDefaults';
+import { resolvePersonalCredentialPolicy } from './WarehouseClientFactory/personalCredentialPolicy';
 
 const AWS_SSO_DEVICE_GRANT_TYPE =
     'urn:ietf:params:oauth:grant-type:device_code';
@@ -775,6 +785,13 @@ export class UserService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        await assertHumanManagedMutation({
+            organizationUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagModel,
+        });
         const { email, role } = createInviteLink;
         const purpose = createInviteLink.purpose ?? InviteLinkPurpose.Member;
         const rawOrganizationSettings =
@@ -2714,6 +2731,7 @@ export class UserService extends BaseService {
     ): Promise<EmailStatusExpiring> {
         // Attempt to verify the passcode if it's provided
         if (passcode) {
+            assertOAuthScopeOperation(user, 'UserService.verifyEmail');
             const purpose = user.isSetupComplete
                 ? 'email_change'
                 : 'signup_verification';
@@ -2802,6 +2820,14 @@ export class UserService extends BaseService {
     }
 
     async joinOrg(user: SessionUser, orgUuid: string): Promise<void> {
+        await assertHumanManagedMutation({
+            organizationUuid: orgUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagModel,
+        });
+
         if (isUserWithOrg(user)) {
             throw new ForbiddenError('User already has an organization');
         }
@@ -3365,26 +3391,46 @@ export class UserService extends BaseService {
 
     static async generateSnowflakeAccessToken(
         refreshToken: string,
+        requestTimeoutMs?: number,
     ): Promise<{ accessToken: string; refreshToken: string }> {
         return new Promise((resolve, reject) => {
-            refresh.requestNewAccessToken(
-                'snowflake',
-                refreshToken,
-                (
-                    err: AnyType,
-                    accessToken: string,
-                    newRefreshToken: string | undefined,
-                ) => {
-                    if (err || !accessToken) {
-                        reject(err);
-                        return;
-                    }
-                    resolve({
-                        accessToken,
-                        refreshToken: newRefreshToken || refreshToken,
-                    });
-                },
-            );
+            const callback: OAuthRefreshCallback = (
+                err,
+                accessToken,
+                newRefreshToken,
+            ) => {
+                if (err || !accessToken) {
+                    reject(err);
+                    return;
+                }
+                resolve({
+                    accessToken,
+                    refreshToken: newRefreshToken || refreshToken,
+                });
+            };
+            if (requestTimeoutMs !== undefined) {
+                const strategy = createSnowflakePassportStrategy();
+                if (
+                    !strategy ||
+                    !configuredLightdashConfig.auth.snowflake.tokenEndpoint
+                ) {
+                    reject(new Error('Snowflake OAuth is not configured'));
+                    return;
+                }
+                requestOAuthRefreshWithDeadline(
+                    strategy,
+                    configuredLightdashConfig.auth.snowflake.tokenEndpoint,
+                    refreshToken,
+                    callback,
+                    requestTimeoutMs,
+                );
+            } else {
+                refresh.requestNewAccessToken(
+                    'snowflake',
+                    refreshToken,
+                    callback,
+                );
+            }
         });
     }
 
@@ -3590,6 +3636,10 @@ export class UserService extends BaseService {
             refreshToken,
             expiresAt,
             binding,
+            await resolvePersonalCredentialPolicy(this.featureFlagModel, {
+                organizationUuid: binding.organizationUuid,
+                userUuid: user.userUuid,
+            }),
         );
     }
 
@@ -3601,6 +3651,7 @@ export class UserService extends BaseService {
             await this.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets(
                 user.userUuid,
                 serverHostName,
+                { strictPersonalOverlay: false },
             );
         return credential !== undefined;
     }
@@ -3617,12 +3668,6 @@ export class UserService extends BaseService {
             );
         }
 
-        // Remove old BigQuery credentials to prevent duplicates on re-authentication
-        await this.userWarehouseCredentialsModel.deleteAllByUserAndWarehouseType(
-            user.userUuid,
-            WarehouseTypes.BIGQUERY,
-        );
-
         const bigqueryCredentials: UpsertUserWarehouseCredentials = {
             name: 'Default',
             credentials: {
@@ -3637,7 +3682,30 @@ export class UserService extends BaseService {
                 },
             },
         };
-        await this.createWarehouseCredentials(user, bigqueryCredentials);
+        const policy = await resolvePersonalCredentialPolicy(
+            this.featureFlagModel,
+            {
+                organizationUuid: user.organizationUuid ?? null,
+                userUuid: user.userUuid,
+            },
+        );
+        if (policy.strictPersonalOverlay) {
+            UserWarehouseCredentialsModel.normalizeCredentialsForPersistence(
+                bigqueryCredentials,
+                policy,
+            );
+        }
+        // Remove old BigQuery credentials to prevent duplicates on re-authentication
+        await this.userWarehouseCredentialsModel.deleteAllByUserAndWarehouseType(
+            user.userUuid,
+            WarehouseTypes.BIGQUERY,
+        );
+
+        await this.createWarehouseCredentialsWithPolicy(
+            user,
+            bigqueryCredentials,
+            policy,
+        );
     }
 
     async createSnowflakeWarehouseCredentials(
@@ -3727,6 +3795,7 @@ export class UserService extends BaseService {
                     await this.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets(
                         user.userUuid,
                         serverHostName,
+                        { strictPersonalOverlay: false },
                         {
                             projectUuid: options.projectUuid,
                         },
@@ -3766,6 +3835,7 @@ export class UserService extends BaseService {
                 await this.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets(
                     user.userUuid,
                     serverHostName,
+                    { strictPersonalOverlay: false },
                     {
                         includeProjectScoped: false,
                     },
@@ -4005,10 +4075,32 @@ export class UserService extends BaseService {
         data: UpsertUserWarehouseCredentials,
         projectUuid?: string,
     ) {
+        const policy = await resolvePersonalCredentialPolicy(
+            this.featureFlagModel,
+            {
+                organizationUuid: user.organizationUuid ?? null,
+                userUuid: user.userUuid,
+            },
+        );
+        return this.createWarehouseCredentialsWithPolicy(
+            user,
+            data,
+            policy,
+            projectUuid,
+        );
+    }
+
+    private async createWarehouseCredentialsWithPolicy(
+        user: SessionUser,
+        data: UpsertUserWarehouseCredentials,
+        policy: PersonalCredentialPersistencePolicy,
+        projectUuid?: string,
+    ) {
         const userWarehouseCredentialsUuid =
             await this.userWarehouseCredentialsModel.create(
                 user.userUuid,
                 data,
+                policy,
                 projectUuid,
             );
         this.analytics.track({
@@ -4033,6 +4125,10 @@ export class UserService extends BaseService {
             user.userUuid,
             userWarehouseCredentialsUuid,
             data,
+            await resolvePersonalCredentialPolicy(this.featureFlagModel, {
+                organizationUuid: user.organizationUuid ?? null,
+                userUuid: user.userUuid,
+            }),
         );
         this.analytics.track({
             userId: user.userUuid,

@@ -1,12 +1,15 @@
 import {
+    ApiGetAsyncQueryResults,
     CreateEmbedJwt,
     DashboardTileTypes,
     DateGranularity,
     DateZoomConfig,
+    QueryHistoryStatus,
     SEED_PROJECT,
     UpdateEmbed,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
+import { assert } from 'vitest';
 import { ApiClient, Body } from '../helpers/api-client';
 import { login } from '../helpers/auth';
 import { uniqueName } from '../helpers/test-isolation';
@@ -230,6 +233,78 @@ describe('Embed Dashboard JWT API', () => {
         // Refresh JWT before each test so it uses the current embed secret
         beforeEach(async () => {
             dashboardJwtToken = await freshDashboardJwt();
+        });
+
+        it('an embed viewer can run a dashboard tile and read its results', async () => {
+            const client = embedClient();
+            const options = {
+                headers: embedHeaders(dashboardJwtToken),
+                failOnStatusCode: false,
+            };
+            const dashboardResp = await client.post<
+                Body<{ tiles: { uuid: string; type: DashboardTileTypes }[] }>
+            >(`${EMBED_API_PREFIX}/dashboard`, {}, options);
+            assert.strictEqual(
+                dashboardResp.status,
+                200,
+                JSON.stringify(dashboardResp.body),
+            );
+            const tile = dashboardResp.body.results.tiles.find(
+                (candidate) =>
+                    candidate.type === DashboardTileTypes.SAVED_CHART,
+            );
+            expect(tile).toBeDefined();
+
+            const queryResp = await client.post<Body<{ queryUuid: string }>>(
+                `${EMBED_API_PREFIX}/query/dashboard-tile`,
+                {
+                    tileUuid: tile!.uuid,
+                    dashboardFilters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    dashboardSorts: [],
+                    invalidateCache: true,
+                },
+                options,
+            );
+            assert.strictEqual(
+                queryResp.status,
+                200,
+                JSON.stringify(queryResp.body),
+            );
+            const { queryUuid } = queryResp.body.results;
+            expect(queryUuid).toBeTruthy();
+
+            let results: ApiGetAsyncQueryResults | undefined;
+            for (let attempt = 0; attempt <= 60; attempt += 1) {
+                const resp = await client.get<Body<ApiGetAsyncQueryResults>>(
+                    `/api/v2/projects/${SEED_PROJECT.project_uuid}/query/${queryUuid}`,
+                    options,
+                );
+                assert.strictEqual(resp.status, 200, JSON.stringify(resp.body));
+                results = resp.body.results;
+                if (
+                    results.status !== QueryHistoryStatus.PENDING &&
+                    results.status !== QueryHistoryStatus.QUEUED &&
+                    results.status !== QueryHistoryStatus.EXECUTING
+                ) {
+                    break;
+                }
+                if (attempt < 60) await delay(1000);
+            }
+
+            const failureMessage = `Query ${queryUuid}: ${JSON.stringify(results)}`;
+            assert.strictEqual(
+                results?.status,
+                QueryHistoryStatus.READY,
+                failureMessage,
+            );
+            assert.notProperty(results, 'error', failureMessage);
+            if (results?.status === QueryHistoryStatus.READY) {
+                assert.isAbove(results.rows.length, 0, failureMessage);
+            }
         });
 
         describe('Explore Access (Regression Tests)', () => {

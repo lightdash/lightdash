@@ -27,6 +27,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -37,7 +38,13 @@ import { type AiOrganizationSettingsService } from '../services/AiOrganizationSe
 @Route('/api/v1')
 @Response<ApiErrorPayload>('default', 'Error')
 export class AiProviderCredentialController extends BaseController {
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiProviderCredentialController.listCredentials',
+        ),
+    ])
     @SuccessResponse('200', 'Retrieved AI provider credentials')
     @Get('/ai/provider-credentials')
     @OperationId('listAiProviderCredentials')
@@ -52,7 +59,13 @@ export class AiProviderCredentialController extends BaseController {
         return { status: 'ok', results };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiProviderCredentialController.createCredential',
+        ),
+    ])
     @SuccessResponse('201', 'Created AI provider credential')
     @Post('/ai/provider-credentials')
     @OperationId('createAiProviderCredential')
@@ -76,7 +89,13 @@ export class AiProviderCredentialController extends BaseController {
      * existed take ownership of that configuration so it can be edited or
      * removed, without having to add a second credential first.
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiProviderCredentialController.adoptLegacyCredential',
+        ),
+    ])
     @SuccessResponse('200', 'Converted the legacy Bedrock configuration')
     @Post('/ai/provider-credentials/adopt-legacy')
     @OperationId('adoptLegacyAiProviderCredential')
@@ -91,7 +110,13 @@ export class AiProviderCredentialController extends BaseController {
         return { status: 'ok', results: undefined };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiProviderCredentialController.updateCredential',
+        ),
+    ])
     @SuccessResponse('200', 'Updated AI provider credential')
     @Patch('/ai/provider-credentials/{credentialUuid}')
     @OperationId('updateAiProviderCredential')
@@ -117,7 +142,13 @@ export class AiProviderCredentialController extends BaseController {
      * it is how an administrator repairs a credential that can no longer be
      * decrypted. Every field is required.
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiProviderCredentialController.replaceCredential',
+        ),
+    ])
     @SuccessResponse('200', 'Replaced AI provider credential')
     @Put('/ai/provider-credentials/{credentialUuid}')
     @OperationId('replaceAiProviderCredential')
@@ -136,7 +167,13 @@ export class AiProviderCredentialController extends BaseController {
         return { status: 'ok', results: undefined };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiProviderCredentialController.deleteCredential',
+        ),
+    ])
     @SuccessResponse('200', 'Deleted AI provider credential')
     @Delete('/ai/provider-credentials/{credentialUuid}')
     @OperationId('deleteAiProviderCredential')
@@ -153,7 +190,13 @@ export class AiProviderCredentialController extends BaseController {
         return { status: 'ok', results: undefined };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiProviderCredentialController.setDefaultCredential',
+        ),
+    ])
     @SuccessResponse('200', 'Set default AI provider credential')
     @Put('/ai/provider-credentials/{credentialUuid}/default')
     @OperationId('setDefaultAiProviderCredential')
@@ -170,7 +213,13 @@ export class AiProviderCredentialController extends BaseController {
         return { status: 'ok', results: undefined };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiProviderCredentialController.getProjectCredential',
+        ),
+    ])
     @SuccessResponse('200', 'Retrieved project AI provider credential')
     @Get('/projects/{projectUuid}/ai/provider-credential')
     @OperationId('getProjectAiProviderCredential')
@@ -187,7 +236,13 @@ export class AiProviderCredentialController extends BaseController {
         return { status: 'ok', results };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiProviderCredentialController.setProjectCredential',
+        ),
+    ])
     @SuccessResponse('200', 'Updated project AI provider credential')
     @Put('/projects/{projectUuid}/ai/provider-credential')
     @OperationId('setProjectAiProviderCredential')

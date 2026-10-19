@@ -1,5 +1,6 @@
 import * as assert from 'assert';
 import * as fs from 'fs';
+import type { AdvisoryDeclaration } from './release-safety-declarations';
 import {
     COMMENT_MARKER,
     Marker,
@@ -37,11 +38,26 @@ const baseMarker = (overrides: Partial<Marker> = {}): Marker => ({
         recommendedStrategy: 'RollingUpdate',
     },
     api: {
-        rest: { checked: true, breaking: false, changes: [] },
-        mcp: { checked: true, breaking: false, changes: [] },
+        rest: {
+            checked: true,
+            breaking: false,
+            changes: [],
+            breakingCount: 0,
+            advisories: [],
+            advisoryCount: 0,
+        },
+        mcp: {
+            checked: true,
+            breaking: false,
+            changes: [],
+            breakingCount: 0,
+            advisories: [],
+            advisoryCount: 0,
+        },
     },
     config: { checked: true, breaking: false, changes: [] },
     upgrade: { minPreviousVersion: null, requiredStops: [] },
+    declaredAdvisories: [],
     declaredBreaks: [],
     ...overrides,
 });
@@ -219,11 +235,17 @@ test('REST and MCP breaking details remain visible', () => {
                     checked: true,
                     breaking: true,
                     changes: ['GET /legacy removed'],
+                    breakingCount: 1,
+                    advisories: [],
+                    advisoryCount: 0,
                 },
                 mcp: {
                     checked: true,
                     breaking: true,
                     changes: ['tool removed'],
+                    breakingCount: 1,
+                    advisories: [],
+                    advisoryCount: 0,
                 },
             },
         }),
@@ -238,6 +260,9 @@ test('failed REST generation replaces a false-safe headline', () => {
         checked: false,
         breaking: 'unknown',
         changes: [],
+        breakingCount: 0,
+        advisories: [],
+        advisoryCount: 0,
     };
     const body = renderPrComment(marker, { restStatus: 'failed' });
     assert.doesNotMatch(body, /✅ \*\*Safe to upgrade normally/);
@@ -255,7 +280,14 @@ const unknownMarker = (overrides: Partial<Marker> = {}): Marker =>
 
 test('an unknown verdict with no migrations never claims a database change', () => {
     const marker = unknownMarker();
-    marker.api.rest = { checked: false, breaking: 'unknown', changes: [] };
+    marker.api.rest = {
+        checked: false,
+        breaking: 'unknown',
+        changes: [],
+        breakingCount: 0,
+        advisories: [],
+        advisoryCount: 0,
+    };
     const body = renderPrComment(marker, { draft: true, restStatus: 'failed' });
     assert.doesNotMatch(body, /This changes the database/);
     assert.match(body, /No database changes here/);
@@ -300,6 +332,9 @@ test('an unknown verdict driven by an API break still names the API', () => {
         checked: true,
         breaking: true,
         changes: ['GET /legacy removed'],
+        breakingCount: 1,
+        advisories: [],
+        advisoryCount: 0,
     };
     const body = renderPrComment(marker, { draft: false });
     assert.match(body, /This changes the API/);
@@ -374,6 +409,62 @@ test('the stamp matches the regex the workflow reads it with', () => {
     assert.strictEqual(emitted[2], BASE);
     assert.strictEqual(emitted[3], 'pass');
     assert.strictEqual(emitted[4], RUN_ID);
+});
+
+const accepted: AdvisoryDeclaration = {
+    id: 'internal-operation',
+    reason: 'The flag is off by default on Cloud and self-hosted.',
+    requiredStop: false,
+    impact: {
+        kind: 'no-external-callers',
+        featureFlag: 'agent-identity',
+        covers: { rest: ['DELETE /api/v1/legacy'], mcp: ['legacy'] },
+    },
+};
+const acceptedClaim =
+    'No external callers is a claim the PR author and reviewer accepted; release-safety did not verify it.';
+test('advisory comment renders the accepted claim and suppresses covered external-caller warnings', () => {
+    const marker = baseMarker({
+        declaredAdvisories: [accepted],
+        api: {
+            rest: {
+                checked: true,
+                breaking: true,
+                changes: ['DELETE /api/v1/legacy — endpoint removed'],
+                breakingCount: 1,
+                advisories: [],
+                advisoryCount: 0,
+            },
+            mcp: {
+                checked: true,
+                breaking: true,
+                changes: ['MCP tool `legacy` removed'],
+                breakingCount: 1,
+                advisories: [],
+                advisoryCount: 0,
+            },
+        },
+    });
+    const body = renderPrComment(marker).split('<details>')[0];
+    assert.ok(body.includes(acceptedClaim));
+    assert.match(body, /No external callers \(accepted claim\)/);
+    assert.match(body, /internal-operation/);
+    assert.match(body, /agent-identity/);
+    assert.match(body, /REST `DELETE \/api\/v1\/legacy`/);
+    assert.match(body, /MCP `legacy`/);
+    assert.match(body, /Declared breaking changes \| none/);
+    assert.doesNotMatch(
+        body,
+        /anyone running their own scripts|AI agents or clients using them/,
+    );
+    marker.api.rest.changes.push('GET /other — endpoint removed');
+    marker.api.rest.breakingCount = 2;
+    assert.match(renderPrComment(marker), /anyone running their own scripts/);
+    const { declaredAdvisories: ignoredAdvisories, ...oldMarker } = marker;
+    assert.match(
+        renderPrComment(oldMarker as Marker),
+        /anyone running their own scripts/,
+    );
 });
 
 if (failures.length > 0) {

@@ -921,6 +921,18 @@ const PRIVATE_ROUTES: RouteObject[] = [
             ...MINIMAL_ROUTES,
             ...APP_ROUTES,
             {
+                path: '/agent/connection-approval',
+                lazy: async () => {
+                    const AgentConnectionApprovalPage =
+                        await loadLazyRouteDefault(
+                            './features/agentConnections/AgentConnectionApprovalPage',
+                            () =>
+                                import('./features/agentConnections/AgentConnectionApprovalPage'),
+                        );
+                    return { Component: AgentConnectionApprovalPage };
+                },
+            },
+            {
                 path: '/agent/connect',
                 lazy: async () => {
                     const AgentConnect = await loadLazyRouteDefault(

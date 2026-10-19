@@ -1,4 +1,22 @@
 import {
+    AgentActionLogTable,
+    AgentActionLogTableName,
+} from '../database/entities/agentActionLog';
+import {
+    AgentCapabilityPoliciesTable,
+    AgentCapabilityPoliciesTableName,
+    AgentSystemRoleCapabilitiesTable,
+    AgentSystemRoleCapabilitiesTableName,
+} from '../database/entities/agentCapabilityPolicies';
+import {
+    AgentConnectionApprovalRequestsTable,
+    AgentConnectionApprovalRequestsTableName,
+} from '../database/entities/agentConnectionApprovalRequests';
+import {
+    AgentConnectionGrantsTable,
+    AgentConnectionGrantsTableName,
+} from '../database/entities/agentConnectionGrants';
+import {
     AiAgentReasoningTable,
     AiAgentReasoningTableName,
 } from '../database/entities/aiAgentReasoning';
@@ -80,6 +98,18 @@ import {
     ContentVerificationTable,
     ContentVerificationTableName,
 } from '../database/entities/contentVerification';
+import {
+    CredentialBindingsTable,
+    CredentialBindingsTableName,
+} from '../database/entities/credentialBindings';
+import {
+    CredentialsTable,
+    CredentialsTableName,
+} from '../database/entities/credentials';
+import {
+    CredentialTokenStateTable,
+    CredentialTokenStateTableName,
+} from '../database/entities/credentialTokenState';
 import {
     DashboardGroupAccessTable,
     DashboardGroupAccessTableName,
@@ -704,6 +734,10 @@ import {
     ProjectHomepagesTable,
 } from '../ee/database/entities/projectHomepages';
 import {
+    ReleaseHighlightsTable,
+    ReleaseHighlightsTableName,
+} from '../ee/database/entities/releaseHighlights';
+import {
     SchedulerAiAugmentationTable,
     SchedulerAiAugmentationTableName,
 } from '../ee/database/entities/schedulerAiAugmentation';
@@ -722,6 +756,15 @@ import {
 
 declare module 'knex/types/tables' {
     interface Tables {
+        [ReleaseHighlightsTableName]: ReleaseHighlightsTable;
+        [AgentCapabilityPoliciesTableName]: AgentCapabilityPoliciesTable;
+        [AgentConnectionGrantsTableName]: AgentConnectionGrantsTable;
+        [AgentConnectionApprovalRequestsTableName]: AgentConnectionApprovalRequestsTable;
+        [AgentSystemRoleCapabilitiesTableName]: AgentSystemRoleCapabilitiesTable;
+        [AgentActionLogTableName]: AgentActionLogTable;
+        [CredentialBindingsTableName]: CredentialBindingsTable;
+        [CredentialTokenStateTableName]: CredentialTokenStateTable;
+        [CredentialsTableName]: CredentialsTable;
         [OrganizationAgentIdentityRulesTableName]: OrganizationAgentIdentityRulesTable;
         [AiServiceAccountCredentialsTableName]: AiServiceAccountCredentialsTable;
         [OrganizationSnowflakeAgentClientsTableName]: OrganizationSnowflakeAgentClientsTable;

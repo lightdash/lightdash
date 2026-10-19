@@ -96,6 +96,7 @@ const makeTool = ({
             rows: [{ answer: 1 }],
             columns: ['answer'],
             rowCount: 1,
+            executionStats: null,
         }),
         getPrompt: vi.fn().mockResolvedValue(prompt),
         sendFile: vi.fn().mockResolvedValue(undefined),
@@ -147,6 +148,34 @@ describe('getRunSql', () => {
         expect(dependencies.updateProgress).not.toHaveBeenCalledWith(
             'Awaiting approval to run SQL...',
         );
+        expect(output.metadata?.status).toBe('success');
+    });
+
+    it('skips the Slack approval card when the agent auto-approves SQL', async () => {
+        const { tool, dependencies } = makeTool({
+            prompt: makeSlackPrompt(),
+            useSlackStreamCard: true,
+            autoApproveSql: true,
+        });
+
+        const needsApproval =
+            typeof tool.needsApproval === 'function'
+                ? await tool.needsApproval(
+                      { sql: 'select 1 as answer', limit: 500 },
+                      { toolCallId: 'tool-call-1', messages: [], context: {} },
+                  )
+                : tool.needsApproval;
+        const output = await executeRunSql(tool);
+
+        expect(needsApproval).toBe(false);
+        expect(dependencies.recordSqlApproval).toHaveBeenCalledWith({
+            toolCallId: 'tool-call-1',
+            toolName: 'runSql',
+            decidedByUserUuid: null,
+            source: 'auto_approve',
+        });
+        expect(dependencies.updateSlackMessage).not.toHaveBeenCalled();
+        expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
         expect(output.metadata?.status).toBe('success');
     });
 
@@ -324,7 +353,34 @@ describe('getRunSql', () => {
             rows: [{ answer: 1 }],
             truncated: false,
             review: null,
+            executionStats: null,
         });
+    });
+
+    it('states the warehouse execution stats in the result and structured content', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        const executionStats = {
+            jobId: 'job-123',
+            bytesProcessed: 2048,
+            bytesBilled: 10485760,
+            executionTimeMs: 900,
+            cacheHit: false,
+        };
+        dependencies.runSqlJob.mockResolvedValueOnce({
+            queryUuid: 'query-uuid',
+            rows: [{ answer: 1 }],
+            columns: ['answer'],
+            rowCount: 1,
+            executionStats,
+        });
+
+        const output = await executeRunSql(tool);
+
+        expect(output.result).toContain(
+            "1 rows. Columns: answer. Warehouse execution stats: 2048 bytes (2.0 KiB) processed, 10485760 bytes (10.0 MiB) billed, ran for 900 ms, served from the warehouse's own result cache: no, warehouse job ID job-123.",
+        );
+        expect(output.structuredContent).toMatchObject({ executionStats });
+        expect(toolRunSqlOutputSchema.safeParse(output).success).toBe(true);
     });
 
     it('returns only a summary when data access is disabled', async () => {
@@ -344,6 +400,7 @@ describe('getRunSql', () => {
             rows: null,
             truncated: false,
             review: null,
+            executionStats: null,
         });
     });
 

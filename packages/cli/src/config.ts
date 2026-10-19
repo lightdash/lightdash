@@ -87,6 +87,10 @@ const getRawConfig = async (): Promise<Config> => {
         const raw = yaml.load(contents);
         return raw as Config;
     } catch (e: unknown) {
+        if (e instanceof yaml.YAMLException)
+            throw new yaml.YAMLException(
+                `Could not parse CLI configuration${e.mark ? ` at line ${e.mark.line + 1}, column ${e.mark.column + 1}` : ''}. Check the syntax of config.yaml.`,
+            );
         if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
             return {} as Config;
         }
@@ -107,9 +111,11 @@ const setAnonymousUuid = async (anonymousUuid: string): Promise<Config> => {
     return newConfig;
 };
 
-export const getConfig = async (): Promise<Config> => {
+export const getConfig = async ({
+    readOnly = false,
+}: { readOnly?: boolean } = {}): Promise<Config> => {
     let rawConfig = await getRawConfig();
-    if (rawConfig.user?.anonymousUuid === undefined) {
+    if (!readOnly && rawConfig.user?.anonymousUuid === undefined) {
         rawConfig = await setAnonymousUuid(uuidv4());
     }
     return {

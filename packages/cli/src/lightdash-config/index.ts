@@ -6,13 +6,16 @@ import fs from 'fs/promises';
 import path from 'path';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
+import { getAgentConnectionSelection } from '../credentials';
 import GlobalState from '../globalState';
 
 export const readAndLoadLightdashProjectConfig = async (
     projectDir: string,
     projectUuid?: string,
 ) => {
-    const { user, context } = await getConfig();
+    const { user, context } = await (getAgentConnectionSelection() === null
+        ? getConfig()
+        : getConfig({ readOnly: true }));
     const configPath = path.join(projectDir, 'lightdash.config.yml');
     try {
         const fileContents = await fs.readFile(configPath, 'utf8');

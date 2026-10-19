@@ -112,3 +112,80 @@ it('preserves dotted names that the app query parser treats as literal keys', ()
     });
     expect(sanitizeRequestUrl(url)).toBe(url);
 });
+
+it.each(['access_token', 'refresh_token'])(
+    'redacts OAuth %s query parameters',
+    (name) => {
+        const names = [
+            name,
+            name.toUpperCase(),
+            name.replace('token', 'ToKeN'),
+            `%${name.charCodeAt(0).toString(16)}${name.slice(1)}`,
+            `${name}[0]`,
+            `${name}[]`,
+            `${name}[a][b]`,
+            `${name.toUpperCase()}%5B%5D`,
+            `[${name}]`,
+            `%5B${name}%5D`,
+        ];
+        const query = names.map((key) => `${key}=secret`).join('&');
+        const expected = names.map((key) => `${key}=[REDACTED]`).join('&');
+        expect(
+            sanitizeRequestUrl(`/callback?${query}&next=value#fragment`),
+        ).toBe(`/callback?${expected}&next=value#fragment`);
+        expect(
+            sanitizeRequestUrl(
+                `/callback?${name}_hint=value&${name}.value=ordinary`,
+            ),
+        ).toBe(`/callback?${name}_hint=value&${name}.value=ordinary`);
+        expect(
+            JSON.stringify(
+                qs.parse(
+                    sanitizeRequestUrl(`/callback?${query}`).split('?')[1],
+                ),
+            ),
+        ).not.toContain('secret');
+    },
+);
+
+it.each(['', '/decision', '/completion', '/decision/'])(
+    'redacts only the approval request locator in path %s',
+    (suffix) => {
+        for (const prefix of ['', '/team']) {
+            const path = `${prefix}/api/v2/user/agent-connections/requests/11111111-1111-4111-8111-111111111111${suffix}`;
+            expect(sanitizeRequestUrl(path)).toBe(
+                `${prefix}/api/v2/user/agent-connections/requests/[REDACTED]${suffix}`,
+            );
+            expect(
+                sanitizeRequestUrl(
+                    `${path}?other=hello+world&state=secret#part`,
+                ),
+            ).toBe(
+                `${prefix}/api/v2/user/agent-connections/requests/[REDACTED]${suffix}?other=hello+world&state=[REDACTED]#part`,
+            );
+        }
+    },
+);
+
+it.each([
+    'agent_request',
+    'AGENT_REQUEST',
+    '%61gent_request',
+    'agent_request[]',
+    '[agent_request]',
+])('redacts approval query locator %s', (name) => {
+    expect(
+        sanitizeRequestUrl(
+            `/api/v1/oauth/authorize?${name}=request-secret&client_id=ordinary`,
+        ),
+    ).toBe(`/api/v1/oauth/authorize?${name}=[REDACTED]&client_id=ordinary`);
+});
+
+it.each([
+    '/api/v2/user/agent-connections/requests',
+    '/api/v2/user/agent-connections/grant-uuid/status',
+    '/api/v2/user/agent-connections/requests/request-uuid/unrelated',
+    '/other?agent_request_hint=value&agent_request.value=ordinary',
+])('preserves ordinary locator lookalike %s', (url) => {
+    expect(sanitizeRequestUrl(url)).toBe(url);
+});

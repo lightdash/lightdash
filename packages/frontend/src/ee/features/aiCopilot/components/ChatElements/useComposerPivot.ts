@@ -22,9 +22,6 @@ export type ComposerPivotResult = {
     originalColumns: ResultColumns;
 };
 
-/** The referenced node result is gone; any other failure is a chart error. */
-export class ComposerPivotExpiredError extends Error {}
-
 const toPivotConfiguration = (
     layout: PivotChartLayout,
 ): PivotConfiguration => ({
@@ -59,9 +56,6 @@ const executeComposerPivot = async (
         body: JSON.stringify(body),
     }).catch((error: unknown) => {
         if (!isApiError(error)) throw error;
-        // The referenced result expired or its file is gone.
-        if (error.error.statusCode === 404)
-            throw new ComposerPivotExpiredError(error.error.message);
         throw new Error(error.error.message);
     });
     const submission = queries[0];
@@ -73,7 +67,7 @@ const executeComposerPivot = async (
         submission.queryUuid,
     );
     if (query.status === QueryHistoryStatus.EXPIRED)
-        throw new ComposerPivotExpiredError(query.error ?? 'Results expired');
+        throw new Error(query.error ?? 'Results expired');
     const { originalColumns, ...pivotResults } = await readPivotQueryResults(
         lightdashApi,
         projectUuid,

@@ -185,6 +185,7 @@ export const dashboardEntry: DashboardTable['base'] = {
 };
 
 export const dashboardVersionEntry: DashboardVersionTable['base'] = {
+    agent_identity: null,
     dashboard_version_id: 0,
     dashboard_version_uuid: 'dashboard-version-uuid',
     dashboard_id: 0,

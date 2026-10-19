@@ -85,6 +85,11 @@ const snowflakeCredentials: CreateSnowflakeCredentials = {
     authenticationType: SnowflakeAuthenticationType.PASSWORD,
 };
 
+const redshiftCredentials = {
+    ...postgresCredentials,
+    type: WarehouseTypes.REDSHIFT,
+} as CreateWarehouseCredentials;
+
 const switchRequest = (
     overrides: Partial<ApiWarehouseConnectionSwitchRequest> = {},
 ): ApiWarehouseConnectionSwitchRequest => ({
@@ -139,13 +144,20 @@ describe('Enable multiple connections on the real schema', () => {
     let connectionModel: WarehouseConnectionModel;
     let projectService: ProjectService;
     const flag = { enabled: true };
+    const mixedTypes = { enabled: false };
     const testWarehouseConnectionCredentials = vi.fn();
+    const resolveTestedCredentials = vi.fn(
+        (credentials: CreateWarehouseCredentials) => credentials,
+    );
     const analytics = { track: vi.fn() };
 
     const featureFlagService = () => ({
-        get: vi.fn(async () => ({
-            id: FeatureFlags.MultiConnectionProjects,
-            enabled: flag.enabled,
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+            id: featureFlagId,
+            enabled:
+                featureFlagId === FeatureFlags.MultiConnectionProjects
+                    ? flag.enabled
+                    : mixedTypes.enabled,
         })),
     });
 
@@ -156,6 +168,14 @@ describe('Enable multiple connections on the real schema', () => {
             >
         ) => projectService.assertCanWriteWarehouseConnection(...args),
         testWarehouseConnectionCredentials,
+        testWarehouseConnectionCredentialsForSave: async (
+            ...args: Parameters<
+                ProjectService['testWarehouseConnectionCredentialsForSave']
+            >
+        ) => ({
+            credentials: resolveTestedCredentials(args[2]),
+            result: await testWarehouseConnectionCredentials(...args),
+        }),
     });
 
     const buildService = (licensed = true) =>
@@ -384,7 +404,11 @@ describe('Enable multiple connections on the real schema', () => {
             encryptionUtil,
             organizationWarehouseCredentialsModel,
         });
-        projectService = new ProjectService({} as never);
+        projectService = new ProjectService({
+            featureFlagModel: {
+                get: async () => ({ id: 'flag', enabled: false }),
+            },
+        } as never);
     }, 600000);
 
     afterAll(async () => {
@@ -394,9 +418,14 @@ describe('Enable multiple connections on the real schema', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
         flag.enabled = true;
+        mixedTypes.enabled = false;
         analytics.track.mockReset();
         vi.mocked(logAuditEvent).mockReset();
         testWarehouseConnectionCredentials.mockReset();
+        resolveTestedCredentials.mockClear();
+        resolveTestedCredentials.mockImplementation(
+            (credentials) => credentials,
+        );
         testWarehouseConnectionCredentials.mockResolvedValue({
             ok: true,
             hops: [{ stage: 'database', status: 'ok', message: null }],
@@ -485,6 +514,39 @@ describe('Enable multiple connections on the real schema', () => {
                     result.warehouseConnectionUuid,
                 ),
             ).toEqual(financeCredentials);
+        });
+
+        test('a Snowflake project switches with an extra connection on another warehouse', async () => {
+            const fixture = await createProject({
+                credentials: snowflakeCredentials,
+            });
+            const reportingCredentials: CreateSnowflakeCredentials = {
+                ...snowflakeCredentials,
+                warehouse: 'reporting',
+            };
+
+            const { result } = await switchProject(
+                fixture,
+                switchRequest({
+                    original: {
+                        name: 'Main warehouse',
+                        listAllDatabases: false,
+                        additionalDatabases: [],
+                    },
+                    connection: {
+                        name: 'Reporting',
+                        warehouseConnection: reportingCredentials,
+                    },
+                }),
+            );
+
+            expect(await route(fixture.projectUuid)).toBe('multi');
+            expect(
+                await connectionModel.getCredentials(
+                    await connectionModel.getProject(fixture.projectUuid),
+                    result.warehouseConnectionUuid,
+                ),
+            ).toEqual(reportingCredentials);
         });
 
         test('the switch never writes the original warehouse credentials', async () => {
@@ -863,6 +925,112 @@ describe('Enable multiple connections on the real schema', () => {
             });
         };
 
+        test('rejects Snowflake NONE in preview and execution unless the original requires personal credentials', async () => {
+            const request = switchRequest({
+                connection: {
+                    name: 'Personal',
+                    warehouseConnection: {
+                        ...snowflakeCredentials,
+                        authenticationType: SnowflakeAuthenticationType.NONE,
+                    },
+                },
+            });
+            const withoutPersonal = await createProject({
+                credentials: snowflakeCredentials,
+            });
+            await refusesBoth(
+                withoutPersonal,
+                new ParameterError(
+                    'A Snowflake connection without shared credentials requires users to provide their own credentials on the original connection.',
+                ),
+                withoutPersonal.admin,
+                request,
+            );
+            expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
+
+            const withPersonal = await createProject({
+                credentials: {
+                    ...snowflakeCredentials,
+                    requireUserCredentials: true,
+                },
+            });
+            await switchProject(withPersonal, request);
+            expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+            SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
+        ])(
+            'rejects Snowflake interactive authentication in preview and execution (%s)',
+            async (authenticationType) => {
+                mixedTypes.enabled =
+                    authenticationType ===
+                    SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE;
+                const fixture = await createProject({
+                    credentials: {
+                        ...snowflakeCredentials,
+                        requireUserCredentials: true,
+                    },
+                });
+                await refusesBoth(
+                    fixture,
+                    new ParameterError(
+                        'External browser authentication is not supported for an extra Snowflake connection.',
+                    ),
+                    fixture.admin,
+                    switchRequest({
+                        connection: {
+                            name: 'Browser',
+                            warehouseConnection: {
+                                ...snowflakeCredentials,
+                                authenticationType,
+                            },
+                        },
+                    }),
+                );
+                expect(
+                    testWarehouseConnectionCredentials,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        test('saves the resolved Snowflake SSO refresh token when switching', async () => {
+            const fixture = await createProject({
+                credentials: snowflakeCredentials,
+            });
+            const formCredentials: CreateSnowflakeCredentials = {
+                ...snowflakeCredentials,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                password: '',
+            };
+            expect(formCredentials).not.toHaveProperty('refreshToken');
+            resolveTestedCredentials.mockImplementation((credentials) => ({
+                ...credentials,
+                refreshToken: 'resolved-switch-token',
+            }));
+            const { result } = await switchProject(
+                fixture,
+                switchRequest({
+                    connection: {
+                        name: 'SSO',
+                        warehouseConnection: formCredentials,
+                    },
+                }),
+            );
+            const project = await connectionModel.getProject(
+                fixture.projectUuid,
+            );
+            expect(
+                (
+                    await connectionModel.getExtraCredentialSource(
+                        project,
+                        result.warehouseConnectionUuid,
+                    )
+                ).credentials,
+            ).toMatchObject({ refreshToken: 'resolved-switch-token' });
+        });
+
         test('requires permission to manage the project', async () => {
             const fixture = await createProject();
 
@@ -876,7 +1044,7 @@ describe('Enable multiple connections on the real schema', () => {
             expect(await state(fixture.projectUuid)).toEqual(singleState);
         });
 
-        test('requires the rollout flag, the licence and a supported warehouse type', async () => {
+        test('requires the rollout flag and the licence', async () => {
             const flagged = await createProject();
             flag.enabled = false;
             await refusesBoth(flagged, new ForbiddenError(ROLLOUT_REASON));
@@ -891,25 +1059,45 @@ describe('Enable multiple connections on the real schema', () => {
                 buildService(false),
             );
 
-            const snowflake = await createProject({
-                credentials: snowflakeCredentials,
-            });
-            await refusesBoth(
-                snowflake,
-                new ForbiddenError(WAREHOUSE_TYPE_REASON),
-                snowflake.admin,
-                switchRequest({
-                    connection: {
-                        name: 'Finance',
-                        warehouseConnection: snowflakeCredentials,
-                    },
-                }),
-            );
-            for (const fixture of [flagged, unlicensed, snowflake]) {
+            for (const fixture of [flagged, unlicensed]) {
                 // eslint-disable-next-line no-await-in-loop
                 expect(await state(fixture.projectUuid)).toEqual(singleState);
             }
         });
+
+        test.each([false, true])(
+            'gates a Redshift primary and same-type extra with mixed types %s',
+            async (enabled) => {
+                mixedTypes.enabled = enabled;
+                const fixture = await createProject({
+                    credentials: redshiftCredentials,
+                });
+                const request = switchRequest({
+                    original: {
+                        name: 'Main warehouse',
+                        listAllDatabases: false,
+                        additionalDatabases: [],
+                    },
+                    connection: {
+                        name: 'Extra',
+                        warehouseConnection: redshiftCredentials,
+                    },
+                });
+                const preview = buildService().preview(
+                    fixture.admin,
+                    fixture.projectUuid,
+                    request,
+                );
+                if (enabled) {
+                    await expect(preview).resolves.toBeDefined();
+                } else {
+                    await expect(preview).rejects.toThrow(
+                        WAREHOUSE_TYPE_REASON,
+                    );
+                }
+                expect(await state(fixture.projectUuid)).toEqual(singleState);
+            },
+        );
 
         test.each([
             { name: 'a preview', type: ProjectType.PREVIEW, source: null },
@@ -1005,6 +1193,27 @@ describe('Enable multiple connections on the real schema', () => {
                 }),
             );
             expect(await state(fixture.projectUuid)).toEqual(singleState);
+        });
+
+        test('previews an extra connection of another warehouse type when mixed types are enabled', async () => {
+            mixedTypes.enabled = true;
+            const fixture = await createProject();
+
+            const plan = await buildService().preview(
+                fixture.admin,
+                fixture.projectUuid,
+                switchRequest({
+                    connection: {
+                        name: 'Finance',
+                        warehouseConnection: snowflakeCredentials,
+                    },
+                }),
+            );
+
+            expect(plan.original.warehouseType).toBe(WarehouseTypes.POSTGRES);
+            expect(plan.connection.warehouseType).toBe(
+                WarehouseTypes.SNOWFLAKE,
+            );
         });
 
         test.each([
@@ -1428,6 +1637,9 @@ describe('Enable multiple connections on the real schema', () => {
             const fixture = await createProject();
             const credentialsService = new ProjectService({
                 lightdashConfig: lightdashConfigMock,
+                featureFlagModel: {
+                    get: async () => ({ id: 'flag', enabled: false }),
+                },
                 projectModel,
                 userWarehouseCredentialsModel:
                     new UserWarehouseCredentialsModel({
@@ -1446,14 +1658,7 @@ describe('Enable multiple connections on the real schema', () => {
                         warehouseConnectionUuid: null;
                     };
                 }) => Promise<CreateWarehouseCredentials>;
-                refreshCredentials: (
-                    credentials: CreateWarehouseCredentials,
-                ) => Promise<CreateWarehouseCredentials>;
             };
-            vi.spyOn(
-                credentialsService,
-                'refreshCredentials',
-            ).mockImplementation(async (credentials) => credentials);
             const read = () =>
                 credentialsService.getWarehouseCredentials({
                     projectUuid: fixture.projectUuid,

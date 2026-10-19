@@ -118,6 +118,12 @@ vi.mock('../../hooks/useProjectAiAgents', async (importOriginal) => ({
     useProjectAiAgent: () => ({ data: undefined }),
 }));
 
+// The org captures switch is read from GET /org; the picker must not be the
+// thing that fetches it here.
+vi.mock('../../../../../features/apps/hooks/useDataAppCapturesEnabled', () => ({
+    useDataAppCapturesEnabled: () => true,
+}));
+
 // eslint-disable-next-line import/first
 import { AgentChatInput } from './AgentChatInput';
 // eslint-disable-next-line import/first

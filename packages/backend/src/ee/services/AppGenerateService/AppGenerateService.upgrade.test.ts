@@ -110,6 +110,7 @@ function buildService(
     };
 
     const service = new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: lightdashConfig as never,
         analytics: analytics as never,

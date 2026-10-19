@@ -84,7 +84,7 @@ describe('agent connect redirects', () => {
         ],
         [
             new ForbiddenError(
-                'Enterprise license required for Snowflake AI sign-in',
+                'Enterprise license required for Snowflake agent sign-in',
             ),
             'license_required',
         ],

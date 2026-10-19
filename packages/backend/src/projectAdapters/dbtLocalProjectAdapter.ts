@@ -13,6 +13,7 @@ type DbtLocalProjectAdapterArgs = {
     profileName?: string | undefined;
     environment?: Record<string, string>;
     environmentVariableAllowlist: string[];
+    explicitCredentials: boolean;
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
     selector?: string;
@@ -32,6 +33,7 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
         profileName,
         environment,
         environmentVariableAllowlist,
+        explicitCredentials,
         cachedWarehouse,
         dbtVersion,
         selector,
@@ -44,6 +46,7 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
             dbtProfilesDirectory: profilesDir,
             environment: environment || {},
             environmentVariableAllowlist,
+            explicitCredentials,
             profileName,
             target,
             dbtVersion,

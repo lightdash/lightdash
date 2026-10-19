@@ -76,7 +76,7 @@ ALTER TABLE protected_data ADD ROW ACCESS POLICY agent_access ON (ai_allowed);`,
                         where: 'query history, "agent":"true"',
                     },
                 ],
-                note: 'Unity Catalog attribute-based policies (Beta) can branch on `request.client_id`, which is fixed by how the token was issued. To enforce on agents, register a separate OAuth app for agent connections and match its client id. Personal access tokens bypass it.',
+                note: 'Unity Catalog attribute-based policies (Beta) can branch on `request.client_id`, which is fixed by how the token was issued. To enforce on agents, register a separate OAuth app for agent sign-ins and match its client id. Personal access tokens bypass it.',
                 enforce: null,
             };
         case WarehouseTypes.BIGQUERY:

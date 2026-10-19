@@ -2,6 +2,7 @@ import {
     AiAccessRefusedError,
     BigqueryTokenError,
     DatabricksTokenError,
+    getAgentPermissionRefusalDetails,
     getErrorMessage,
     GoogleChatError,
     LightdashError,
@@ -71,9 +72,17 @@ export const toolErrorHandler = (
         });
     }
 
+    const refusalDetails =
+        error instanceof AiAccessRefusedError
+            ? getAgentPermissionRefusalDetails(error.refusal)
+            : '';
     const errorMessage =
         error instanceof AiAccessRefusedError
-            ? error.message
+            ? `${error.message}${refusalDetails ? `\n\n${refusalDetails}` : ''}${
+                  error.refusal.reason.startsWith('agent_')
+                      ? '\n\nDo not retry this operation or use another tool to bypass this refusal. Ask the user to resolve the access requirement first.'
+                      : ''
+              }`
             : `${message}
 
 ${serializeData(getErrorMessage(error), 'raw')}
@@ -98,11 +107,18 @@ export const toolErrorOutput = (
     const result = toolErrorHandler(error, message, options);
     return {
         result,
-        metadata: { status: 'error' },
+        metadata: {
+            status: 'error',
+            ...(error instanceof AiAccessRefusedError &&
+            error.refusal.reason.startsWith('agent_')
+                ? { refusal: error.refusal }
+                : {}),
+        },
         structuredContent: {
             error: result,
-            refusal:
-                error instanceof AiAccessRefusedError ? error.refusal : null,
+            ...(error instanceof AiAccessRefusedError
+                ? { refusal: error.refusal }
+                : {}),
         },
     };
 };

@@ -4,6 +4,7 @@ import {
     MAX_RETENTION_WINDOW_HOURS,
     MIN_RETENTION_WINDOW_HOURS,
     type AiAgentModelConfig,
+    type AiAgentUserAccessDetail,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -106,6 +107,7 @@ const formSchema = z.object({
     enableContentTools: z.boolean(),
     enableUserContext: z.boolean(),
     enableSqlMode: z.boolean(),
+    enableSqlAutoApproval: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     providerCredentialUuid: z.string().nullable(),
@@ -180,6 +182,7 @@ export const AiAgentFormSetup = ({
     isSavingAgent,
     onSubmit,
     persistedMcpServerUuids,
+    userAccessDetails,
     avatarMode,
     avatarFileName,
     onAvatarFileChange,
@@ -194,6 +197,9 @@ export const AiAgentFormSetup = ({
     isSavingAgent?: boolean;
     onSubmit: () => void;
     persistedMcpServerUuids?: string[];
+    // Names for the saved user access, so pills are labelled before the
+    // org user search has loaded them.
+    userAccessDetails?: AiAgentUserAccessDetail[];
     avatarMode: 'upload' | 'link';
     avatarFileName: string | null;
     onAvatarFileChange: (file: File | null) => void;
@@ -837,7 +843,7 @@ export const AiAgentFormSetup = ({
                                                 </>
                                             )
                                         ) : (
-                                            `Loading AI access information...`
+                                            `Loading agent access information...`
                                         )
                                     }
                                     {...form.getInputProps('tags')}
@@ -977,6 +983,23 @@ export const AiAgentFormSetup = ({
                                     type: 'checkbox',
                                 })}
                             />
+                            <Switch
+                                variant="subtle"
+                                label={
+                                    <SwitchLabel
+                                        text="Run SQL without approval"
+                                        help="Applies everywhere the agent runs, including Slack. Users still need SQL Runner access, and queries stay limited to the agent data scope."
+                                        badge={null}
+                                    />
+                                }
+                                description="Skip the approval step for SQL queries and SQL charts. Off by default."
+                                {...form.getInputProps(
+                                    'enableSqlAutoApproval',
+                                    {
+                                        type: 'checkbox',
+                                    },
+                                )}
+                            />
                         </Stack>
 
                         <Text size="xs" c="dimmed">
@@ -1076,6 +1099,9 @@ export const AiAgentFormSetup = ({
                                         <UserAccessMultiSelect
                                             projectUuid={projectUuid!}
                                             isGroupsEnabled={isGroupsEnabled}
+                                            selectedUserDetails={
+                                                userAccessDetails
+                                            }
                                             value={form.values.userAccess}
                                             onChange={(value) => {
                                                 form.setFieldValue(

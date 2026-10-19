@@ -3,6 +3,7 @@ import {
     type ApiGroupListResponse,
     type CreateGroup,
     type Group,
+    type GroupSort,
     type GroupWithMembers,
     type KnexPaginateArgs,
     type UpdateGroupWithMembers,
@@ -25,6 +26,7 @@ const getOrganizationGroupsQuery = async (
     includeMembers?: number,
     searchQuery?: string,
     paginateArgs?: KnexPaginateArgs,
+    sort?: GroupSort,
 ) => {
     const urlParams = new URLSearchParams({
         ...(paginateArgs
@@ -35,6 +37,9 @@ const getOrganizationGroupsQuery = async (
             : {}),
         ...(includeMembers ? { includeMembers: String(includeMembers) } : {}),
         ...(searchQuery ? { searchQuery } : {}),
+        ...(sort
+            ? { sortBy: sort.sortBy, sortDirection: sort.sortDirection }
+            : {}),
     }).toString();
 
     return lightdashApi<ApiGroupListResponse['results']>({
@@ -58,6 +63,7 @@ export const useOrganizationGroups = (
     >,
 ) => {
     const lightdashApi = useLightdashApi();
+
     const setErrorResponse = useQueryError();
     return useQuery<ApiGroupListResponse['results']['data'], ApiError>({
         queryKey: ['organization_groups', includeMembers, searchInput],
@@ -80,10 +86,12 @@ export const useInfiniteOrganizationGroups = (
         searchInput,
         includeMembers,
         pageSize,
+        sort,
     }: {
         searchInput?: string;
         includeMembers?: number;
         pageSize: number;
+        sort?: GroupSort;
     },
     infinityQueryOpts: UseInfiniteQueryOptions<
         ApiGroupListResponse['results'],
@@ -91,6 +99,7 @@ export const useInfiniteOrganizationGroups = (
     > = {},
 ) => {
     const lightdashApi = useLightdashApi();
+
     const setErrorResponse = useQueryError();
     return useInfiniteQuery<ApiGroupListResponse['results'], ApiError>({
         queryKey: [
@@ -98,6 +107,7 @@ export const useInfiniteOrganizationGroups = (
             includeMembers,
             pageSize,
             searchInput,
+            sort,
         ],
         queryFn: async ({ pageParam }) => {
             return getOrganizationGroupsQuery(
@@ -108,6 +118,7 @@ export const useInfiniteOrganizationGroups = (
                     pageSize: pageSize,
                     page: pageParam ?? 1,
                 },
+                sort,
             );
         },
         onError: (result) => setErrorResponse(result),
@@ -135,6 +146,7 @@ const createGroupQuery = async (
 
 export const useGroupCreateMutation = () => {
     const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<GroupWithMembers, ApiError, CreateGroup>(
@@ -174,6 +186,7 @@ const updateGroupQuery = async (
 
 export const useGroupUpdateMutation = () => {
     const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
@@ -207,6 +220,7 @@ const deleteGroupQuery = async (lightdashApi: LightdashApi, data: Group) =>
 
 export const useGroupDeleteMutation = () => {
     const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<Group, ApiError, Group>(

@@ -107,17 +107,6 @@ const createMcpServerFormSchema = z
         }
         if (
             values.authType === 'oauth' &&
-            values.clientId.trim().length > 0 &&
-            values.clientSecret.trim().length === 0
-        ) {
-            ctx.addIssue({
-                code: 'custom',
-                message: 'Client secret is required',
-                path: ['clientSecret'],
-            });
-        }
-        if (
-            values.authType === 'oauth' &&
             values.clientSecret.trim().length > 0 &&
             values.clientId.trim().length === 0
         ) {
@@ -369,6 +358,7 @@ const CreateMcpServerModal = ({
                                                     mt="sm"
                                                     variant="subtle"
                                                     label="OAuth client secret"
+                                                    description="Optional. Leave blank for a public client that authenticates with PKCE only."
                                                     placeholder="client_secret"
                                                     disabled={isLoading}
                                                     autoComplete="off"
@@ -1094,11 +1084,11 @@ export const AiAgentMcpServersInput = ({
                                   bearerToken: values.bearerToken.trim(),
                               }
                             : values.authType === 'oauth' &&
-                                values.clientId.trim() &&
-                                values.clientSecret.trim()
+                                values.clientId.trim()
                               ? {
                                     clientId: values.clientId.trim(),
-                                    clientSecret: values.clientSecret.trim(),
+                                    clientSecret:
+                                        values.clientSecret.trim() || undefined,
                                 }
                               : null,
                 });

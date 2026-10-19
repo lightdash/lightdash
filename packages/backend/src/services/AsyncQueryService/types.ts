@@ -25,6 +25,8 @@ import {
     type PreAggregateExecutionEngine,
     type QueryExecutionContext,
     type QueryHistory,
+    type QueryResultProducer,
+    type QueryResultReader,
     type QuerySourceTableName,
     type QuerySurface,
     type QueryUsageMetadata,
@@ -66,6 +68,7 @@ export type GetAsyncQueryResultsArgs = Omit<
     ResultsPaginationArgs & {
         queryUuid: string;
         aiAccessOnly?: boolean;
+        reader?: QueryResultReader;
     };
 
 export type DownloadAsyncQueryResultsArgs = Omit<
@@ -201,6 +204,27 @@ export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
     warehouseConnectionUuid?: string | null;
 };
 
+export type EstimateAsyncMetricQueryArgs = Pick<
+    ExecuteAsyncMetricQueryArgs,
+    | 'account'
+    | 'projectUuid'
+    | 'metricQuery'
+    | 'parameters'
+    | 'pivotConfiguration'
+    | 'dateZoom'
+    | 'usePreAggregateCache'
+>;
+
+export type EstimateAsyncSqlQueryArgs = Pick<
+    ExecuteAsyncSqlQueryArgs,
+    | 'account'
+    | 'projectUuid'
+    | 'sql'
+    | 'limit'
+    | 'parameters'
+    | 'warehouseConnectionUuid'
+>;
+
 export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
     sql: string;
     limit?: number;
@@ -208,6 +232,14 @@ export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
     references?: Record<string, UUID>;
     /** Pivots the result over the columns discovered from the SQL. */
     pivotConfiguration?: PivotConfiguration;
+};
+
+export type ExecuteAsyncPythonQueryArgs = CommonAsyncQueryArgs & {
+    /** Python source defining run(inputs, params) -> pandas.DataFrame. */
+    code: string;
+    limit?: number;
+    /** Input name -> queryUuid of a previous async query exposed as that DataFrame. */
+    references: Record<string, UUID>;
 };
 
 export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {
@@ -288,6 +320,8 @@ export const SCHEDULER_POLLING_OPTIONS: PollingOptions = {
 };
 
 export type RunAsyncWarehouseQueryArgs = {
+    authMethod?: QueryResultProducer['authMethod'];
+    resultEntitlementFingerprint?: string | null;
     agentIdentity?: AgentIdentityClaim | null;
     projectUuid: string;
     userUuid: string;
@@ -322,6 +356,7 @@ export type RunAsyncPreAggregateQueryArgs = Omit<
     RunAsyncWarehouseQueryArgs,
     'query'
 > & {
+    resultProducer?: QueryResultProducer;
     preAggregateQuery: string;
     warehouseQuery: string;
     preAggregateExecution: PreAggregateExecutionEngine;
@@ -443,6 +478,10 @@ export type BoundDuckdbQueryReferences = {
 };
 
 export type RunDuckdbQueryArgs = {
+    authMethod?: QueryResultProducer['authMethod'];
+    identityEnabled?: boolean | null;
+    resultEntitlementFingerprint?: string | null;
+    agentIdentity: AgentIdentityClaim | null;
     actor: QueryHistoryActor;
     /** Skip the lookup by result files and run regardless. */
     invalidateCache: boolean;

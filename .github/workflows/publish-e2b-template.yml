@@ -82,13 +82,20 @@ jobs:
           fi
           echo "action=$ACTION" >> "$GITHUB_OUTPUT"
 
-      - name: Read Node pin from checked-out revision
-        id: node-version
-        run: echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
+      # Install Node with actions/setup-node rather than pnpm's runtime
+      # manager. setup-node checks the runner tool cache and the
+      # actions/node-versions mirror first and retries transient 5xx
+      # responses from nodejs.org; pnpm's installer does neither, and one
+      # 502 fetching SHASUMS256.txt.sig failed the 2.574.0 US data-app
+      # publish, leaving every data-app build on that version without a
+      # template tag. The version matches devEngines in the root package.json,
+      # so pnpm reuses it instead of downloading its own copy.
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
 
       - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
-          runtime: node@${{ steps.node-version.outputs.version }}
           cache: true
           cache-dependency-path: |
             pnpm-lock.yaml

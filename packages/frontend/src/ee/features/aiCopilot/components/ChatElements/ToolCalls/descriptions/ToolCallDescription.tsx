@@ -38,12 +38,10 @@ import {
     type ToolSearchSemanticLayerArgs,
 } from '@lightdash/common';
 import type { FC } from 'react';
+import { type ComposerQueryNodeStatus } from '../../composerNodeStatus';
 import { type SqlApprovalTarget } from '../SqlApprovalActions';
 import type { ToolCallSummary } from '../utils/types';
-import {
-    ComposerQueriesToolCallDescription,
-    type ComposerQueryNodeStatus,
-} from './ComposerQueriesToolCallDescription';
+import { ComposerQueriesToolCallDescription } from './ComposerQueriesToolCallDescription';
 import { ContentEditorToolCallDescription } from './ContentEditorToolCallDescription';
 import { ContentSearchToolCallDescription } from './ContentSearchToolCallDescription';
 import { DashboardChartsToolCallDescription } from './DashboardChartsToolCallDescription';

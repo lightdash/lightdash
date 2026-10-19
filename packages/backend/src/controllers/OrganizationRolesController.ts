@@ -25,6 +25,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -59,7 +60,13 @@ export class OrganizationRolesController extends BaseController {
      * Get roles for organization
      * @summary Get organization roles
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'OrganizationRolesController.getOrganizationRoles',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get()
     @OperationId('GetOrganizationRoles')
@@ -88,7 +95,13 @@ export class OrganizationRolesController extends BaseController {
      * List organization role assignments
      * @summary List organization role assignments
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'OrganizationRolesController.getOrganizationRoleAssignments',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/assignments')
     @OperationId('GetOrganizationRoleAssignments')

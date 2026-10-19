@@ -6,6 +6,7 @@ import {
     type ApiUserDashboardsSummaryResponse,
     type ApiUserSchedulersSummaryResponse,
     type KnexPaginateArgs,
+    type OrganizationMemberSort,
 } from '@lightdash/common';
 import {
     useInfiniteQuery,
@@ -32,6 +33,7 @@ const getOrganizationUsersQuery = async (
         searchQuery?: string;
         projectUuid?: string;
         googleOidcOnly?: boolean;
+        sort?: OrganizationMemberSort;
     },
 ) => {
     const urlParams = new URLSearchParams({
@@ -48,6 +50,12 @@ const getOrganizationUsersQuery = async (
         ...(params?.projectUuid ? { projectUuid: params.projectUuid } : {}),
         ...(params?.googleOidcOnly
             ? { googleOidcOnly: String(params.googleOidcOnly) }
+            : {}),
+        ...(params?.sort
+            ? {
+                  sortBy: params.sort.sortBy,
+                  sortDirection: params.sort.sortDirection,
+              }
             : {}),
     }).toString();
 
@@ -73,6 +81,7 @@ export const useOrganizationUsers = (params?: {
     paginateArgs?: KnexPaginateArgs;
 }) => {
     const lightdashApi = useLightdashApi();
+
     const setErrorResponse = useQueryError();
     return useQuery<ApiOrganizationMemberProfiles['results']['data'], ApiError>(
         {
@@ -128,12 +137,14 @@ export const useInfiniteOrganizationUsers = (
         pageSize,
         projectUuid,
         googleOidcOnly,
+        sort,
     }: {
         searchInput?: string;
         includeGroups?: number;
         projectUuid?: string;
         pageSize: number;
         googleOidcOnly?: boolean;
+        sort?: OrganizationMemberSort;
     },
     infinityQueryOpts: UseInfiniteQueryOptions<
         ApiOrganizationMemberProfiles['results'],
@@ -141,6 +152,7 @@ export const useInfiniteOrganizationUsers = (
     > = {},
 ) => {
     const lightdashApi = useLightdashApi();
+
     const setErrorResponse = useQueryError();
     return useInfiniteQuery<ApiOrganizationMemberProfiles['results'], ApiError>(
         {
@@ -151,6 +163,7 @@ export const useInfiniteOrganizationUsers = (
                 searchInput,
                 projectUuid,
                 googleOidcOnly,
+                sort,
             ],
             queryFn: ({ pageParam }) => {
                 return getOrganizationUsersQuery(lightdashApi, {
@@ -162,6 +175,7 @@ export const useInfiniteOrganizationUsers = (
                     searchQuery: searchInput,
                     projectUuid,
                     googleOidcOnly,
+                    sort,
                 });
             },
             onError: (result) => setErrorResponse(result),
@@ -180,6 +194,7 @@ export const useInfiniteOrganizationUsers = (
 
 export const useDeleteOrganizationUserMutation = () => {
     const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(
@@ -217,6 +232,7 @@ export const useUserSchedulersSummary = (
     enabled: boolean = true,
 ) => {
     const lightdashApi = useLightdashApi();
+
     const setErrorResponse = useQueryError();
     return useQuery<ApiUserSchedulersSummaryResponse['results'], ApiError>({
         queryKey: ['user_schedulers_summary', userUuid],
@@ -258,6 +274,7 @@ export const useUserDashboardsSummary = (
     enabled: boolean = true,
 ) => {
     const lightdashApi = useLightdashApi();
+
     const setErrorResponse = useQueryError();
     return useQuery<ApiUserDashboardsSummaryResponse['results'], ApiError>({
         queryKey: ['user_dashboards_summary', userUuid],
@@ -286,6 +303,7 @@ const reassignUserDashboardsQuery = async (
 
 export const useReassignUserDashboardsMutation = () => {
     const lightdashApi = useLightdashApi();
+
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         ApiReassignUserDashboardsResponse['results'],
@@ -315,6 +333,7 @@ export const useReassignUserDashboardsMutation = () => {
 
 export const useReassignUserSchedulersMutation = () => {
     const lightdashApi = useLightdashApi();
+
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         ApiReassignUserSchedulersResponse['results'],

@@ -1,6 +1,7 @@
 import {
     RedshiftAuthenticationType,
     WarehouseDatabaseListingNotSupportedError,
+    WarehouseQueryError,
     WarehouseTableType,
     WarehouseTypes,
     type CreateRedshiftCredentials,
@@ -9,6 +10,7 @@ import {
 import * as pg from 'pg';
 import { PassThrough } from 'stream';
 import type { Mock } from 'vitest';
+import { warehouseClientFromCredentials } from '../warehouseClientFromCredentials';
 import {
     PostgresSqlBuilder,
     PostgresWarehouseClient,
@@ -609,6 +611,20 @@ describe('PostgresWarehouseClient statement timeout', () => {
         },
     );
 
+    it('does not apply Redshift cache settings to Postgres agent jobs', async () => {
+        const queryMock = respondingQueryMock();
+        mockPoolWithQuery(queryMock);
+        const warehouse = warehouseClientFromCredentials(credentials, {
+            agentJobControls: true,
+        });
+        await warehouse.runQuery('select 1', {});
+        expect(
+            queryMock.mock.calls
+                .filter(([arg]) => typeof arg === 'string')
+                .map(([arg]) => arg),
+        ).toEqual(['SET statement_timeout = 540000']);
+    });
+
     it('sets a server-side statement_timeout using the 9-minute default ceiling', async () => {
         const queryMock = respondingQueryMock();
         mockPoolWithQuery(queryMock);
@@ -705,3 +721,26 @@ describe('PostgresSqlBuilder escaping', () => {
         expect(anotherEscaped).toBe("'' OR ''1''=''1");
     });
 });
+
+it.each(['28P01', '28000', '42501'])(
+    'preserves driver SQLSTATE %s as the query error cause',
+    async (code) => {
+        const driverError = Object.assign(new Error('driver failure'), {
+            code,
+        });
+        vi.mocked(pg.Pool).mockImplementationOnce(function () {
+            return {
+                connect: vi.fn((callback) => callback(driverError)),
+                end: vi.fn(async () => undefined),
+                on: vi.fn(),
+            } as unknown as pg.Pool;
+        });
+        const client = new PostgresWarehouseClient(credentials);
+        const error = await client
+            .runQuery('SELECT 1')
+            .catch((caught: unknown) => caught);
+        expect(error).toBeInstanceOf(WarehouseQueryError);
+        expect(error).toHaveProperty('cause', driverError);
+        expect(error).toHaveProperty('cause.code', code);
+    },
+);

@@ -1,4 +1,6 @@
 import {
+    FeatureFlags,
+    supportsMultipleConnections,
     validateWarehouseConnectionName,
     WAREHOUSE_CONNECTION_NAME_MAX_LENGTH,
     type ApiWarehouseConnectionSwitchRequest,
@@ -21,6 +23,7 @@ import {
 } from '@mantine/core';
 import { IconAlertTriangle, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import {
     usePreviewWarehouseConnectionSwitch,
     useSwitchToMultipleConnections,
@@ -140,8 +143,18 @@ const SwitchPlanSummary: FC<{ plan: WarehouseConnectionSwitchPlan }> = ({
 const EnableMultipleConnectionsModal: FC<{
     projectUuid: string;
     warehouseType: WarehouseTypes;
+    primaryRequiresUserCredentials: boolean;
     onClose: () => void;
-}> = ({ projectUuid, warehouseType, onClose }) => {
+}> = ({
+    projectUuid,
+    warehouseType,
+    primaryRequiresUserCredentials,
+    onClose,
+}) => {
+    const mixedWarehouseFlag = useServerFeatureFlag(
+        FeatureFlags.MixedWarehouseConnections,
+    );
+    const mixedTypesEnabled = mixedWarehouseFlag.data?.enabled === true;
     const [originalName, setOriginalName] = useState(
         () => getWarehouseLabel(warehouseType) ?? 'Original',
     );
@@ -154,9 +167,22 @@ const EnableMultipleConnectionsModal: FC<{
             } as CreateWarehouseCredentials,
             ...unusedDbtFormValues,
         },
-        validate: {
-            name: validateWarehouseConnectionName,
-            warehouse: warehouseValueValidators[warehouseType],
+        validate: (values) => {
+            const errors: Record<string, string> = {};
+            const nameError = validateWarehouseConnectionName(
+                values.name ?? '',
+            );
+            if (nameError) errors.name = nameError;
+            Object.entries(
+                warehouseValueValidators[values.warehouse.type],
+            ).forEach(([field, validator]) => {
+                const error = validator(
+                    Reflect.get(values.warehouse, field),
+                    values,
+                );
+                if (error) errors[`warehouse.${field}`] = error;
+            });
+            return errors;
         },
         validateInputOnBlur: true,
     });
@@ -241,8 +267,16 @@ const EnableMultipleConnectionsModal: FC<{
                     form={form}
                     projectUuid={projectUuid}
                     warehouseType={warehouseType}
+                    primaryRequiresUserCredentials={
+                        primaryRequiresUserCredentials
+                    }
                     showName
-                    intro="Add the first extra connection. It uses the same warehouse type, and it is tested before the preview."
+                    allowMixedWarehouseTypes={mixedTypesEnabled}
+                    intro={
+                        mixedTypesEnabled
+                            ? 'Add the first extra connection. It is tested before the preview.'
+                            : 'Add the first extra connection. It uses the same warehouse type, and it is tested before the preview.'
+                    }
                 />
                 {previewMutation.error && (
                     <Text size="sm" c="red">
@@ -254,14 +288,22 @@ const EnableMultipleConnectionsModal: FC<{
     );
 };
 
-export const EnableMultipleConnectionsCard: FC<{ projectUuid: string }> = ({
-    projectUuid,
-}) => {
+export const EnableMultipleConnectionsCard: FC<{
+    projectUuid: string;
+    primaryRequiresUserCredentials: boolean;
+}> = ({ projectUuid, primaryRequiresUserCredentials }) => {
     const { data } = useWarehouseConnectionSwitchAvailability(
         projectUuid,
         true,
     );
     const [isOpen, setIsOpen] = useState(false);
+    const mixedWarehouseFlag = useServerFeatureFlag(
+        FeatureFlags.MixedWarehouseConnections,
+    );
+    const supportsExtras = supportsMultipleConnections(
+        data?.originalWarehouseType ?? null,
+        mixedWarehouseFlag.data?.enabled === true,
+    );
 
     if (!data) return null;
 
@@ -270,10 +312,12 @@ export const EnableMultipleConnectionsCard: FC<{ projectUuid: string }> = ({
             <Stack gap="md">
                 <Title order={5}>Connections</Title>
                 <Text size="sm" c="dimmed">
-                    This project uses one warehouse connection. Add more
-                    connections of the same warehouse type to query several
-                    warehouses from this project. Everything that exists today
-                    keeps using the current connection.
+                    This project uses one warehouse connection.{' '}
+                    {mixedWarehouseFlag.data?.enabled === true
+                        ? 'Add connections of any warehouse type to query several warehouses from this project.'
+                        : 'Add more connections of the same warehouse type to query several warehouses from this project.'}{' '}
+                    Everything that exists today keeps using the current
+                    connection.
                 </Text>
                 <Group justify="flex-end">
                     <Tooltip
@@ -287,6 +331,7 @@ export const EnableMultipleConnectionsCard: FC<{ projectUuid: string }> = ({
                                 leftSection={<MantineIcon icon={IconPlus} />}
                                 disabled={
                                     !data.canSwitch ||
+                                    !supportsExtras ||
                                     !data.originalWarehouseType
                                 }
                                 onClick={() => setIsOpen(true)}
@@ -301,6 +346,9 @@ export const EnableMultipleConnectionsCard: FC<{ projectUuid: string }> = ({
                 <EnableMultipleConnectionsModal
                     projectUuid={projectUuid}
                     warehouseType={data.originalWarehouseType}
+                    primaryRequiresUserCredentials={
+                        primaryRequiresUserCredentials
+                    }
                     onClose={() => setIsOpen(false)}
                 />
             )}

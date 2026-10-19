@@ -27,6 +27,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -72,6 +73,9 @@ export class UserActivityController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation(
+            'UserActivityController.exportUserActivityCsv',
+        ),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/{projectUuid}/download')

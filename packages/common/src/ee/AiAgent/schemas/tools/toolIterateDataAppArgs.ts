@@ -41,7 +41,7 @@ Response shape (MCP CallToolResult):
     version: number  // the version of the app this build produces
   }
 
-Errors: an unknown appSlug, themeSlug, dashboardSlug, or chartSlug returns an error and starts no build.
+Errors: an unknown appSlug, themeSlug, dashboardSlug, or chartSlug returns an error and starts no build. So does a custom chart type's slug: use iterate_custom_chart_type for those.
 `;
 
 export const toolIterateDataAppArgsSchema = z.object({

@@ -1,5 +1,10 @@
 import {
     FeatureFlags,
+    type AgentCapabilityPolicy,
+    type AgentCapabilityPolicyOverview,
+    type AgentCapabilityCeiling,
+    type ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse,
+    type WarehouseTypes,
     type ApiAiServiceAccountStatusResponse,
     type AiAccessForUser,
     type AiWarehouseCapabilities,
@@ -11,12 +16,12 @@ import {
     type OrganizationAgentIdentityOverview,
     type OrganizationAgentIdentityRule,
     type AiServiceAccountCredentialInput,
-    type AiServiceAccountSlot,
+    type ApiAiServiceAccountSaveResponse,
     type AiServiceAccountTestRequest,
     type AiServiceAccountTestResult,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useId } from 'react';
+import { useCallback, useEffect, useId } from 'react';
 import { type LightdashApi } from '../../api';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -128,6 +133,36 @@ export const useOrganizationAgentIdentitySettings = () => {
     });
 };
 
+export const useProjectsWithoutAiServiceAccount = (
+    warehouseType: WarehouseTypes,
+    enabled: boolean,
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<
+        ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse['results'],
+        ApiError
+    >({
+        queryKey: [
+            'ai-access',
+            'org',
+            'agent-identity',
+            warehouseType,
+            'projects-without-ai-service-account',
+        ],
+        queryFn: () =>
+            lightdashApi<
+                ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse['results']
+            >({
+                version: 'v2',
+                url: `/org/agent-identity/${warehouseType}/projects-without-ai-service-account`,
+                method: 'GET',
+                body: undefined,
+            }),
+        enabled,
+        retry: false,
+    });
+};
+
 export const useUpdateOrganizationAgentIdentityRule = () => {
     const lightdashApi = useLightdashApi();
 
@@ -176,34 +211,68 @@ export const useAiServiceAccount = (projectUuid: string) => {
     );
 };
 
+const useSensitiveMutationScope = () => {
+    const client = useQueryClient();
+    const id = useId();
+    const clear = useCallback(() => {
+        const cache = client.getMutationCache();
+        cache
+            .findAll({ mutationKey: [id], exact: true })
+            .forEach((mutation) => cache.remove(mutation));
+    }, [client, id]);
+    useEffect(() => clear, [clear]);
+    return { mutationKey: [id], clear };
+};
+
+export interface AiServiceAccountSaveOutcome {
+    slot: ApiAiServiceAccountSaveResponse['results'];
+    verification: AiServiceAccountTestResult | null;
+}
+
 export const useSaveAiServiceAccount = (projectUuid: string) => {
     const lightdashApi = useLightdashApi();
 
     const client = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
-    return useMutation<
-        AiServiceAccountSlot | null,
+    const sensitiveScope = useSensitiveMutationScope();
+    const mutation = useMutation<
+        AiServiceAccountSaveOutcome,
         ApiError,
         AiServiceAccountCredentialInput
     >({
-        mutationFn: (credentials) =>
-            lightdashApi<AiServiceAccountSlot | null>({
-                version: 'v2',
-                url: aiAccessUrl(projectUuid, 'service-account', null),
-                method: 'PUT',
-                body: JSON.stringify(credentials),
-                sensitive: true,
-            }),
+        mutationKey: sensitiveScope.mutationKey,
+        cacheTime: 0,
+        mutationFn: async (credentials) => {
+            const response =
+                await lightdashApi.response<ApiAiServiceAccountSaveResponse>({
+                    version: 'v2',
+                    url: aiAccessUrl(projectUuid, 'service-account', null),
+                    method: 'PUT',
+                    body: JSON.stringify(credentials),
+                    sensitive: true,
+                });
+            return {
+                slot: response.results,
+                verification: response.verification ?? null,
+            };
+        },
         onSuccess: async () => {
-            showToastSuccess({ title: 'AI service account saved.' });
+            showToastSuccess({ title: 'Shared agent account saved.' });
             await client.invalidateQueries(['ai-access']);
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Could not save the AI service account.',
+                title: 'Could not save the shared agent account.',
                 apiError: error,
             }),
     });
+    return {
+        ...mutation,
+        reset: () => {
+            mutation.reset();
+            sensitiveScope.clear();
+        },
+    };
 };
 
 export const useDeleteAiServiceAccount = (projectUuid: string) => {
@@ -220,12 +289,12 @@ export const useDeleteAiServiceAccount = (projectUuid: string) => {
                 body: undefined,
             }),
         onSuccess: async () => {
-            showToastSuccess({ title: 'AI service account removed.' });
+            showToastSuccess({ title: 'Shared agent account removed.' });
             await client.invalidateQueries(['ai-access']);
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Could not remove the AI service account.',
+                title: 'Could not remove the shared agent account.',
                 apiError: error,
             }),
     });
@@ -234,12 +303,16 @@ export const useDeleteAiServiceAccount = (projectUuid: string) => {
 export const useTestAiServiceAccount = (projectUuid: string) => {
     const lightdashApi = useLightdashApi();
 
+    const client = useQueryClient();
     const { showToastApiError } = useToaster();
-    return useMutation<
+    const sensitiveScope = useSensitiveMutationScope();
+    const mutation = useMutation<
         AiServiceAccountTestResult,
         ApiError,
         AiServiceAccountTestRequest
     >({
+        mutationKey: sensitiveScope.mutationKey,
+        cacheTime: 0,
         mutationFn: (request) =>
             lightdashApi<AiServiceAccountTestResult>({
                 version: 'v2',
@@ -248,12 +321,23 @@ export const useTestAiServiceAccount = (projectUuid: string) => {
                 body: JSON.stringify(request),
                 sensitive: true,
             }),
+        onSuccess: async (_result, request) => {
+            if (request.credentials === null)
+                await client.invalidateQueries(['ai-access']);
+        },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Could not test the AI service account.',
+                title: 'Could not test the shared agent account.',
                 apiError: error,
             }),
     });
+    return {
+        ...mutation,
+        reset: () => {
+            mutation.reset();
+            sensitiveScope.clear();
+        },
+    };
 };
 
 export const useSnowflakeAgentSetup = () => {
@@ -346,3 +430,74 @@ export const useSnowflakeAgentVerify = (enabled: boolean) => {
         refetchOnWindowFocus: false,
     });
 };
+
+const agentPolicyUrl = '/org/agent-permissions';
+
+export const useAgentCapabilityPolicy = () => {
+    const lightdashApi = useLightdashApi();
+
+    const { user } = useApp();
+    const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
+    return useQuery<AgentCapabilityPolicyOverview, ApiError>({
+        queryKey: [
+            'ai-access',
+            'org',
+            user.data?.organizationUuid,
+            'agent-permissions',
+        ],
+        queryFn: () =>
+            lightdashApi<AgentCapabilityPolicyOverview>({
+                version: 'v2',
+                url: agentPolicyUrl,
+                method: 'GET',
+                body: undefined,
+            }),
+        enabled: flag?.enabled === true,
+    });
+};
+
+const agentPolicyMutationKey = ['agent-permissions', 'policy-write'];
+
+const useAgentPermissionMutation = <
+    TResult extends ApiResponse['results'],
+    TRequest,
+>(
+    url: string,
+    method: 'PUT' | 'POST' | 'DELETE',
+    errorTitle: string,
+    onSaved?: (result: TResult) => void,
+    mutationKey?: string[],
+) => {
+    const lightdashApi = useLightdashApi();
+
+    const client = useQueryClient();
+    const { showToastApiError } = useToaster();
+    return useMutation<TResult, ApiError, TRequest>({
+        mutationKey,
+        mutationFn: (request) =>
+            lightdashApi<TResult>({
+                version: 'v2',
+                url,
+                method,
+                body:
+                    request === undefined ? undefined : JSON.stringify(request),
+            }),
+        onSuccess: async (result) => {
+            onSaved?.(result);
+            await client.invalidateQueries(['ai-access']);
+        },
+        onError: ({ error }) =>
+            showToastApiError({ title: errorTitle, apiError: error }),
+    });
+};
+
+export const useSaveAgentCapabilityCeiling = (
+    onSaved: (policy: AgentCapabilityPolicy) => void,
+) =>
+    useAgentPermissionMutation<AgentCapabilityPolicy, AgentCapabilityCeiling>(
+        agentPolicyUrl,
+        'PUT',
+        'Could not save agent permissions.',
+        onSaved,
+        agentPolicyMutationKey,
+    );

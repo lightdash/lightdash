@@ -1,4 +1,7 @@
-import { type AiServiceAccountCredentialInput } from '@lightdash/common';
+import {
+    WarehouseTypes,
+    type AiServiceAccountCredentialInput,
+} from '@lightdash/common';
 import {
     parseAiServiceAccountSecrets,
     type AiServiceAccountSecrets,
@@ -9,17 +12,29 @@ export const mergeAiServiceAccountCredentials = (
     input: AiServiceAccountCredentialInput,
     saved: AiServiceAccountSecrets | null,
 ): AiServiceAccountSecrets => {
+    if (
+        input.type === WarehouseTypes.TRINO ||
+        input.type === WarehouseTypes.CLICKHOUSE ||
+        input.type === WarehouseTypes.POSTGRES ||
+        input.type === WarehouseTypes.REDSHIFT ||
+        input.type === WarehouseTypes.DATABRICKS ||
+        input.type === WarehouseTypes.ATHENA
+    )
+        return parseAiServiceAccountSecrets(input);
     const previous =
         saved?.type === input.type &&
         saved.authenticationType === input.authenticationType
             ? saved
             : null;
-    return parseAiServiceAccountSecrets({
+    const merged = {
         ...previous,
         ...Object.fromEntries(
             Object.entries(input).filter(([, value]) => value !== undefined),
         ),
-    });
+    };
+    if ('privateKeyPass' in merged && merged.privateKeyPass === null)
+        delete merged.privateKeyPass;
+    return parseAiServiceAccountSecrets(merged);
 };
 
 export const applyAiServiceAccountCredentials =

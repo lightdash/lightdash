@@ -47,7 +47,7 @@ import {
     assertStagedPathsAllowed,
     collectDiffStat,
     commitLocal,
-    resolveDbtProjectPaths,
+    resolveConnectionPaths,
     stageChanges,
 } from './sandboxGit';
 
@@ -345,6 +345,7 @@ export class BitbucketProvider extends BaseService implements GitProvider {
         await args.sandbox.git.createBranch(CWD, branch);
         const landed = await this.landChanges(args, branch);
         args.setStage('pull_request');
+        if (args.assertPublishAllowed) await args.assertPublishAllowed();
         const pullRequest = await BitbucketClient.createPullRequest({
             ...asInstallation(args.installation),
             title: args.title,
@@ -372,6 +373,7 @@ export class BitbucketProvider extends BaseService implements GitProvider {
         }
         const landed = await this.landChanges(args, branch);
         args.setStage('pull_request');
+        if (args.assertPublishAllowed) await args.assertPublishAllowed();
         await BitbucketClient.updatePullRequest({
             ...asInstallation(args.installation),
             pullNumber: pullRequest.number,
@@ -431,15 +433,13 @@ export class BitbucketProvider extends BaseService implements GitProvider {
                 'Could not disable Bitbucket sandbox Git hooks',
             );
         }
-        const paths =
-            connection.semanticLayer === 'lightdash'
-                ? [connection.projectSubPath]
-                : await resolveDbtProjectPaths(
-                      args.sandbox,
-                      connection.projectSubPath,
-                      this.logger,
-                  );
+        const paths = await resolveConnectionPaths(
+            args.sandbox,
+            connection,
+            this.logger,
+        );
         await stageChanges(args.sandbox, paths, this.logger);
+        await args.assertStagedChangesAllowed?.();
         await assertStagedPathsAllowed(args.sandbox);
         const diffStat = await collectDiffStat(args.sandbox);
         const trailer = buildUserCoAuthorTrailer(args.user);
@@ -449,6 +449,7 @@ export class BitbucketProvider extends BaseService implements GitProvider {
             installation.commitAuthor,
         );
         args.setStage('push');
+        if (args.assertPublishAllowed) await args.assertPublishAllowed();
         try {
             const remote = quoteShellArgument(
                 this.getCloneTarget(connection, installation).url,
@@ -466,6 +467,7 @@ export class BitbucketProvider extends BaseService implements GitProvider {
                 username: 'x-bitbucket-api-token-auth',
                 password: installation.token,
             });
+            await args.onRemoteCommitted();
         } catch {
             throw new UnexpectedGitError(
                 'Could not push the Bitbucket writeback branch. Check repository access and branch restrictions.',

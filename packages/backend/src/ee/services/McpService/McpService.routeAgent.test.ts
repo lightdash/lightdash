@@ -98,12 +98,14 @@ const selectedAgent: AiAgentWithContext = {
     instruction: 'Prioritize revenue metrics.',
     groupAccess: [],
     userAccess: [],
+    userAccessDetails: [],
     spaceAccess: [allowedSpaceUuid],
     enableDataAccess: true,
     enableSelfImprovement: true,
     enableContentTools: true,
     enableUserContext: false,
     enableSqlMode: true,
+    enableSqlAutoApproval: false,
     adminOnly: false,
     modelConfig: null,
     providerCredentialUuid: null,
@@ -210,6 +212,7 @@ const makeMcpService = () => {
     };
 
     const service = new McpService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiAgentService,
         aiAgentToolsService,
         aiOrganizationSettingsService: {

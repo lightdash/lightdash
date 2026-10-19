@@ -1,6 +1,9 @@
 import { Ability } from '@casl/ability';
 import {
     FeatureFlags,
+    FeatureNotEnabledError,
+    ForbiddenError,
+    ParameterError,
     WarehouseTypes,
     type OrganizationAgentIdentityRule,
     type PossibleAbilities,
@@ -18,6 +21,12 @@ import { type ServiceRepository } from '../../services/ServiceRepository';
 import { OrganizationAgentIdentityController } from './OrganizationAgentIdentityController';
 
 const setup = () => {
+    vi.spyOn(analyticsMock, 'track').mockClear();
+    const slots = {
+        findProjectsMissingSlot: vi.fn(
+            async (): Promise<{ projectUuid: string; name: string }[]> => [],
+        ),
+    };
     const model = {
         get: vi.fn(async () => ({ requireVerifiedAgentSessions: false })),
         upsert: vi.fn(
@@ -54,31 +63,26 @@ const setup = () => {
     };
     const flags = { get: vi.fn(async () => ({ enabled: true })) };
     const service = new AiAccessService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         organizationSnowflakeAgentClientModel: {
-            getWithSecret: vi.fn().mockResolvedValue(null),
+            getWithSecret: vi.fn().mockResolvedValue({
+                organizationUuid: 'org',
+                accountUrl: 'https://test-account.snowflakecomputing.com',
+                accountIdentifier: 'test-account',
+                clientId: 'test-client',
+                clientSecret: 'test-secret',
+                clientVersion: 'version-1',
+                updatedAt: new Date(),
+            }),
         } as unknown as OrganizationSnowflakeAgentClientModel,
         analytics: analyticsMock,
-        aiServiceAccountCredentialsModel: {
-            findProjectsMissingSlot: vi.fn(async () => []),
-        },
+        aiServiceAccountCredentialsModel: slots,
         featureFlagModel: flags,
         lightdashConfig: {
             ...lightdashConfigMock,
             license: {
                 ...lightdashConfigMock.license,
                 licenseKey: 'test-license',
-            },
-            auth: {
-                ...lightdashConfigMock.auth,
-                snowflakeAi: {
-                    ...lightdashConfigMock.auth.snowflakeAi,
-                    clientId: 'test-client',
-                    clientSecret: 'test-secret',
-                    authorizationEndpoint:
-                        'https://snowflake.example/authorize',
-                    tokenEndpoint:
-                        'https://test-account.snowflakecomputing.com/token',
-                },
             },
         } as LightdashConfig,
         organizationAgentIdentityRulesModel:
@@ -91,7 +95,7 @@ const setup = () => {
     } as ServiceRepository);
     const account = buildAccount();
     const req = { account } as Request;
-    return { controller, model, rules, account, req, flags };
+    return { controller, model, rules, account, req, flags, slots };
 };
 
 test('allows an authenticated member to read their organization settings', async () => {
@@ -218,7 +222,14 @@ test.each(['get', 'put'])(
 
 test.each([
     [WarehouseTypes.SNOWFLAKE, 'agent_sign_in'],
+    [WarehouseTypes.SNOWFLAKE, 'ai_service_account'],
     [WarehouseTypes.BIGQUERY, 'ai_service_account'],
+    [WarehouseTypes.DATABRICKS, 'ai_service_account'],
+    [WarehouseTypes.POSTGRES, 'ai_service_account'],
+    [WarehouseTypes.REDSHIFT, 'ai_service_account'],
+    [WarehouseTypes.TRINO, 'ai_service_account'],
+    [WarehouseTypes.CLICKHOUSE, 'ai_service_account'],
+    [WarehouseTypes.ATHENA, 'ai_service_account'],
 ] as const)('returns the updated %s rule', async (warehouseType, source) => {
     const { controller, rules, account, req } = setup();
     account.user.ability = new Ability<PossibleAbilities>([
@@ -278,5 +289,113 @@ test('gates the per-warehouse PUT before writing', async () => {
         name: 'FeatureNotEnabledError',
         statusCode: 403,
     });
+    expect(rules.set).not.toHaveBeenCalled();
+});
+
+describe('projects without an AI service account', () => {
+    test.each([
+        WarehouseTypes.BIGQUERY,
+        WarehouseTypes.DATABRICKS,
+        WarehouseTypes.POSTGRES,
+        WarehouseTypes.REDSHIFT,
+        WarehouseTypes.TRINO,
+        WarehouseTypes.CLICKHOUSE,
+        WarehouseTypes.ATHENA,
+    ])(
+        'returns the missing projects for an admin on %s without saving',
+        async (warehouseType) => {
+            const { controller, rules, account, req, slots } = setup();
+            account.user.ability = new Ability<PossibleAbilities>([
+                {
+                    action: 'manage',
+                    subject: 'Organization',
+                    conditions: {
+                        organizationUuid: account.organization.organizationUuid,
+                    },
+                },
+            ]);
+            const missing = [{ projectUuid: 'project-uuid', name: 'Project' }];
+            slots.findProjectsMissingSlot.mockResolvedValue(missing);
+            expect(
+                await controller.getProjectsWithoutAiServiceAccount(
+                    req,
+                    warehouseType,
+                ),
+            ).toEqual({
+                status: 'ok',
+                results: missing,
+            });
+            expect(slots.findProjectsMissingSlot).toHaveBeenCalledWith(
+                account.organization.organizationUuid,
+                warehouseType,
+            );
+            expect(rules.set).not.toHaveBeenCalled();
+            expect(analyticsMock.track).not.toHaveBeenCalled();
+        },
+    );
+    test('rejects a non-admin', async () => {
+        const { controller, req, rules, slots } = setup();
+        await expect(
+            controller.getProjectsWithoutAiServiceAccount(
+                req,
+                WarehouseTypes.BIGQUERY,
+            ),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(slots.findProjectsMissingSlot).not.toHaveBeenCalled();
+        expect(rules.set).not.toHaveBeenCalled();
+        expect(analyticsMock.track).not.toHaveBeenCalled();
+    });
+    test('rejects an unsupported warehouse', async () => {
+        const { controller, req, account, rules, slots } = setup();
+        account.user.ability = new Ability<PossibleAbilities>([
+            {
+                action: 'manage',
+                subject: 'Organization',
+                conditions: {
+                    organizationUuid: account.organization.organizationUuid,
+                },
+            },
+        ]);
+        await expect(
+            controller.getProjectsWithoutAiServiceAccount(
+                req,
+                WarehouseTypes.DUCKDB,
+            ),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(slots.findProjectsMissingSlot).not.toHaveBeenCalled();
+        expect(rules.set).not.toHaveBeenCalled();
+        expect(analyticsMock.track).not.toHaveBeenCalled();
+    });
+    test('rejects the read when the feature flag is off', async () => {
+        const { controller, req, flags, rules, slots } = setup();
+        flags.get.mockResolvedValue({ enabled: false });
+        await expect(
+            controller.getProjectsWithoutAiServiceAccount(
+                req,
+                WarehouseTypes.BIGQUERY,
+            ),
+        ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+        expect(slots.findProjectsMissingSlot).not.toHaveBeenCalled();
+        expect(rules.set).not.toHaveBeenCalled();
+        expect(analyticsMock.track).not.toHaveBeenCalled();
+    });
+});
+
+test('rejects ClickHouse personal agent sign-in before writing', async () => {
+    const { controller, rules, account, req } = setup();
+    account.user.ability = new Ability<PossibleAbilities>([
+        {
+            action: 'manage',
+            subject: 'Organization',
+            conditions: {
+                organizationUuid: account.organization.organizationUuid,
+            },
+        },
+    ]);
+    await expect(
+        controller.updateRule(req, WarehouseTypes.CLICKHOUSE, {
+            source: 'agent_sign_in',
+        }),
+    ).rejects.toMatchObject({ name: 'ParameterError' });
     expect(rules.set).not.toHaveBeenCalled();
 });

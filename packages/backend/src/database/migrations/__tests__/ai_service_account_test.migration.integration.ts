@@ -198,7 +198,7 @@ test('returns a sanitized failure when testing unreadable saved credentials', as
         principal: null,
         observed: {},
         message:
-            'Could not verify the AI service account. Check the credentials and connection settings.',
+            'Could not verify the shared agent account. Check the credentials and connection settings.',
         checkedAt: expect.any(Date),
     });
     expect(f.withWarehouseClient).not.toHaveBeenCalled();
@@ -227,7 +227,7 @@ test('requires a complete submitted key when the saved ciphertext is unreadable'
         }),
     ).rejects.toEqual(
         new ParameterError(
-            'Provide complete AI service account credentials for the selected method.',
+            'Provide complete shared agent account credentials for the selected method.',
         ),
     );
     expect(f.withWarehouseClient).not.toHaveBeenCalled();

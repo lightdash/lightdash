@@ -10,6 +10,8 @@ import {
     ApiSuccessEmpty,
     assertRegisteredAccount,
     DownloadAsyncQueryResultsRequestParams,
+    EstimateAsyncMetricQueryRequestParams,
+    EstimateAsyncSqlQueryRequestParams,
     ExecuteAsyncSqlQueryRequestParams,
     ForbiddenError,
     isExecuteAsyncDashboardSqlChartByUuidParams,
@@ -33,6 +35,7 @@ import {
     type ApiExecuteAsyncMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiJobScheduledResponse,
+    type ApiQueryCostEstimateResponse,
     type ApiQueryHistoryListResponse,
     type ExecuteAsyncCalculateTotalRequestParams,
     type ExecuteAsyncComposeSqlQueryRequestParams,
@@ -40,6 +43,7 @@ import {
     type ExecuteAsyncDashboardSqlChartRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
+    type ExecuteAsyncPythonQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncSqlChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
@@ -64,6 +68,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { getContextFromHeader } from '../../analytics/LightdashAnalytics';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     getDeprecatedRouteMiddleware,
@@ -152,7 +157,11 @@ export class QueryController extends BaseController {
      * Retrieves paginated results from a previously executed async query using its UUID
      * @summary Get results
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('QueryController.getAsyncQueryResults'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{queryUuid}')
     @OperationId('getAsyncQueryResults')
@@ -192,7 +201,11 @@ export class QueryController extends BaseController {
      * Cancels a running async query and discards any partial results
      * @summary Cancel query
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('QueryController.cancelAsyncQuery'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{queryUuid}/cancel')
     @OperationId('cancelAsyncQuery')
@@ -256,7 +269,11 @@ export class QueryController extends BaseController {
      * Validates and executes a merge as one asynchronous query request.
      * @summary Execute merge query
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('QueryController.executeAsyncMergeQuery'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/merge-query')
     @OperationId('executeAsyncMergeQuery')
@@ -290,7 +307,13 @@ export class QueryController extends BaseController {
      * Validates and executes a merge on the compose engine as one asynchronous query request. Unlike Execute merge query, sources may reference existing query results by queryUuid; each referenced query is authorized with the same access checks as fetching its results.
      * @summary Execute compose merge query
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'QueryController.executeAsyncComposeMergeQuery',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/compose-merge-query')
     @OperationId('executeAsyncComposeMergeQuery')
@@ -324,7 +347,11 @@ export class QueryController extends BaseController {
      * Executes a metric query asynchronously against your data warehouse using dimensions, metrics, filters, and sorts
      * @summary Execute metric query
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('QueryController.executeAsyncMetricQuery'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/metric-query')
     @OperationId('executeAsyncMetricQuery')
@@ -388,10 +415,60 @@ export class QueryController extends BaseController {
     }
 
     /**
+     * Estimates the bytes a metric query would process with a free warehouse dry run, without running it. Only BigQuery connections with query estimates enabled return an estimate.
+     * @summary Estimate metric query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/metric-query/estimate')
+    @OperationId('estimateAsyncMetricQuery')
+    async estimateAsyncMetricQuery(
+        @Body()
+        body: EstimateAsyncMetricQueryRequestParams,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiQueryCostEstimateResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getAsyncQueryService()
+            .estimateAsyncMetricQuery({
+                account: req.account,
+                projectUuid,
+                metricQuery: {
+                    exploreName: body.query.exploreName,
+                    dimensions: body.query.dimensions,
+                    metrics: body.query.metrics,
+                    filters: body.query.filters,
+                    sorts: body.query.sorts,
+                    limit: body.query.limit,
+                    tableCalculations: body.query.tableCalculations,
+                    additionalMetrics: body.query.additionalMetrics,
+                    customDimensions: body.query.customDimensions,
+                    timezone: body.query.timezone,
+                    pivotDimensions: body.query.pivotDimensions,
+                    metricOverrides: body.query.metricOverrides,
+                    dimensionOverrides: body.query.dimensionOverrides,
+                },
+                dateZoom: body.dateZoom,
+                parameters: body.parameters,
+                pivotConfiguration: body.pivotConfiguration,
+                usePreAggregateCache: body.usePreAggregateCache,
+            });
+        return { status: 'ok', results };
+    }
+
+    /**
      * Searches for unique field values asynchronously, returning a query UUID to poll for results
      * @summary Search field values
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'QueryController.executeAsyncFieldValueSearch',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/field-values')
     @OperationId('executeAsyncFieldValueSearch')
@@ -429,7 +506,13 @@ export class QueryController extends BaseController {
      * Executes a saved chart query asynchronously with optional parameter overrides
      * @summary Execute saved chart
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'QueryController.executeAsyncSavedChartQuery',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/chart')
     @OperationId('executeAsyncSavedChartQuery')
@@ -482,7 +565,13 @@ export class QueryController extends BaseController {
      * Executes a chart within a dashboard context asynchronously with inherited dashboard filters
      * @summary Execute dashboard chart
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'QueryController.executeAsyncDashboardChartQuery',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/dashboard-chart')
     @OperationId('executeAsyncDashboardChartQuery')
@@ -527,7 +616,13 @@ export class QueryController extends BaseController {
      * Executes a query to retrieve underlying raw data for drilling down into aggregated values
      * @summary Execute underlying data
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'QueryController.executeAsyncUnderlyingDataQuery',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/underlying-data')
     @OperationId('executeAsyncUnderlyingDataQuery')
@@ -604,6 +699,35 @@ export class QueryController extends BaseController {
     }
 
     /**
+     * Estimates the bytes a SQL runner query would process with a free warehouse dry run, without running it. Only BigQuery connections with query estimates enabled return an estimate.
+     * @summary Estimate SQL query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/sql/estimate')
+    @OperationId('estimateAsyncSqlQuery')
+    async estimateAsyncSqlQuery(
+        @Body()
+        body: EstimateAsyncSqlQueryRequestParams,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiQueryCostEstimateResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getAsyncQueryService()
+            .estimateAsyncSqlQuery({
+                account: req.account,
+                projectUuid,
+                sql: body.sql,
+                limit: body.limit,
+                parameters: body.parameters,
+                warehouseConnectionUuid: body.warehouseConnectionUuid,
+            });
+        return { status: 'ok', results };
+    }
+
+    /**
      * Executes a DuckDB SQL query asynchronously on the pre-aggregate DuckDB engine. Requires run-queries access (interactive viewer and up) and the compose-sql-runner feature flag. The references map exposes other async queries' results as named tables the SQL can select from ({"orders": "queryUuid"} lets the SQL run SELECT * FROM orders); each referenced query is authorized with the same access checks as Get results, so you can reference any query you can already fetch by uuid. References to queries that are still running are waited on — this query executes once every referenced result is ready and fails if a referenced query fails. Direct file access in the SQL is rejected. Returns a queryUuid to poll for results via Get results.
      * @summary Execute compose SQL query
      */
@@ -629,6 +753,42 @@ export class QueryController extends BaseController {
                 limit: body.limit,
                 references: body.references,
                 context: context ?? QueryExecutionContext.COMPOSE_SQL_RUNNER,
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Executes python `run(inputs, params)` asynchronously in an isolated sandbox over other async queries' results. Requires run-queries access (interactive viewer and up) and the compose-sql-runner feature flag. The references map exposes other queries' results as pandas DataFrames in `inputs` ({"orders": "queryUuid"} is read as inputs["orders"]); each referenced query is authorized with the same access checks as Get results and still-running references are waited on. The returned DataFrame is validated, capped at `limit` rows and stored as a regular result. The sandbox has no network access and no credentials. Returns a queryUuid to poll for results via Get results.
+     * @summary Execute python query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/python')
+    @OperationId('executeAsyncPythonQuery')
+    async executeAsyncPythonQuery(
+        @Body()
+        body: ExecuteAsyncPythonQueryRequestParams,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiExecuteAsyncSqlQueryResults>> {
+        this.setStatus(200);
+        const context = body.context ?? getContextFromHeader(req);
+
+        const results = await this.services
+            .getAsyncQueryService()
+            .executeAsyncPythonQuery({
+                account: req.account!,
+                projectUuid,
+                code: body.code,
+                limit: body.limit,
+                references: body.references,
+                parameters: body.parameters,
+                invalidateCache: body.invalidateCache,
+                context: context ?? QueryExecutionContext.PYTHON_RUNNER,
             });
 
         return {
@@ -678,7 +838,13 @@ export class QueryController extends BaseController {
      * Executes a SQL chart within a dashboard context asynchronously with inherited filters
      * @summary Execute dashboard SQL chart
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'QueryController.executeAsyncDashboardSqlChartQuery',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/dashboard-sql-chart')
     @OperationId('executeAsyncDashboardSqlChartQuery')
@@ -719,7 +885,11 @@ export class QueryController extends BaseController {
      * Streams query results directly from storage as newline-delimited JSON for large result sets
      * @summary Stream results
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('QueryController.getResultsStream'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{queryUuid}/results')
     @Hidden() // This endpoint is temporary while we migrate SQL runner to use pagination. Should not be part of API docs.
@@ -765,6 +935,7 @@ export class QueryController extends BaseController {
             suffixMessage:
                 'Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/schedule-download instead.',
         }),
+        requireOAuthScopeOperation('QueryController.downloadResults'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/{queryUuid}/download')
@@ -815,7 +986,11 @@ export class QueryController extends BaseController {
      * Downloads query results in various formats with custom formatting options
      * @summary Download results
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('QueryController.scheduleDownloadResults'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{queryUuid}/schedule-download')
     @OperationId('scheduleDownloadResults')

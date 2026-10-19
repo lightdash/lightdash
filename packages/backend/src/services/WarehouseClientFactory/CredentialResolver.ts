@@ -1,9 +1,12 @@
 import type {
+    AiAssurance,
     AiExecutionPlan,
     CreateWarehouseCredentials,
     UserWarehouseCredentialPurpose,
+    UserWarehouseCredentialsWithSecrets,
 } from '@lightdash/common';
 import type { WarehouseClientOptions } from '@lightdash/warehouses';
+import type { PersonalCredentialPersistencePolicy } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import type { WarehouseCredentialKind } from './ConnectionContext';
 import type { WarehouseCredentialResolutionContext } from './WarehouseCredentialSource';
 
@@ -19,10 +22,27 @@ export type CredentialOwner =
           sourceProjectUuid: string;
       };
 
-export type CredentialSelection<C, S = C> = {
+export type CredentialRefreshSource = {
+    credentials:
+        | CreateWarehouseCredentials
+        | UserWarehouseCredentialsWithSecrets['credentials'];
+    fallback: CreateWarehouseCredentials;
+    personalCredentialPolicy: PersonalCredentialPersistencePolicy;
+};
+
+export type CredentialSelectionSource =
+    | {
+          owner: CredentialOwner | null;
+          refreshSource: CredentialRefreshSource;
+      }
+    | {
+          owner: Exclude<CredentialOwner, { kind: 'user' }> | null;
+          refreshSource?: CredentialRefreshSource;
+      };
+
+export type CredentialSelection<C, S = C> = CredentialSelectionSource & {
     connection: C;
     stored: S;
-    owner: CredentialOwner | null;
     context: WarehouseCredentialResolutionContext;
     projectUuid: string | null;
     warehouseConnectionUuid: string | null;
@@ -39,7 +59,15 @@ export type CredentialSaveInput<C, S = C> = CredentialSelection<C, S> & {
     intent: SaveIntent;
 };
 export type ValidatedCredential<C, S = C> = { connection: C; stored: S };
+export type AgentSignInResolutionMetadata = {
+    credentialUuid: string;
+    assurances: AiAssurance[];
+    expiresAt: Date | null;
+    clientVersion: string | null;
+};
+
 export type CredentialResolution<C> = {
+    agentSignIn: AgentSignInResolutionMetadata | null;
     clientCredentials: C;
     clientOptions: Partial<WarehouseClientOptions>;
     cacheable: boolean;
@@ -57,10 +85,20 @@ export interface CredentialResolver<
         input: CredentialSelection<C, S>,
         resolved: CredentialResolution<C>,
     ): readonly (string | null)[];
+    toDbtTarget(
+        resolved: CredentialResolution<C>,
+        finalConnection: C,
+        policy: DbtTargetPolicy,
+    ): DbtTargetResult;
     dispose(resolved: CredentialResolution<C>): Promise<void>;
 }
 
 export type MaterializedCredential = {
+    toDbtTarget: (
+        finalConnection: CreateWarehouseCredentials,
+        policy: DbtTargetPolicy,
+    ) => DbtTargetResult;
+    agentSignIn: AgentSignInResolutionMetadata | null;
     clientOptions: Partial<WarehouseClientOptions>;
     cacheable: boolean;
     cacheKeyIdentity: readonly (string | null)[];
@@ -71,3 +109,20 @@ export const credentialResolution = Symbol('credentialResolution');
 export type MaterializedCredentials = CreateWarehouseCredentials & {
     [credentialResolution]?: MaterializedCredential;
 };
+
+export const preparedCredentials = Symbol('preparedCredentials');
+export type PreparedCredentials = CreateWarehouseCredentials & {
+    [preparedCredentials]?: true;
+};
+
+export interface DbtTargetPolicy {
+    explicitCredentials: boolean;
+}
+
+export type DbtTargetResult =
+    | {
+          kind: 'target';
+          target: Record<string, unknown>;
+          environment: Record<string, string>;
+      }
+    | { kind: 'none'; reason: string };

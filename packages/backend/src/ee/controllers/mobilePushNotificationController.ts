@@ -24,6 +24,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -39,7 +40,13 @@ export class MobilePushNotificationController extends BaseController {
         return this.services.getMobilePushNotificationService<MobilePushNotificationService>();
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'MobilePushNotificationController.getMobilePushNotificationStatus',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/status')
     @OperationId('getMobilePushNotificationStatus')
@@ -54,7 +61,13 @@ export class MobilePushNotificationController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'MobilePushNotificationController.registerInstallation',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Put('/installations/{installationUuid}')
     @OperationId('registerMobilePushInstallation')
@@ -80,7 +93,13 @@ export class MobilePushNotificationController extends BaseController {
         return { status: 'ok', results: undefined };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'MobilePushNotificationController.registerLiveActivityPushToStartToken',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Put('/installations/{installationUuid}/live-activity-push-to-start-token')
     @OperationId('registerMobilePushLiveActivityPushToStartToken')
@@ -99,7 +118,13 @@ export class MobilePushNotificationController extends BaseController {
         return { status: 'ok', results: undefined };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'MobilePushNotificationController.revokeInstallation',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Delete('/installations/{installationUuid}')
     @OperationId('revokeMobilePushInstallation')
