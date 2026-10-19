@@ -590,6 +590,25 @@ export class DirectAccessService extends BaseService {
     }
 
     /**
+     * Authorization-only probe used by content-as-code imports to fail a
+     * bundle before any content write. Same rules as `replacePolicy`,
+     * no side effects.
+     */
+    async assertCanManage(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        resourceType: DirectAccessResourceType,
+        resourceUuid: UUID,
+    ): Promise<void> {
+        await this.authorizeManage(
+            account,
+            projectUuid,
+            resourceType,
+            resourceUuid,
+        );
+    }
+
+    /**
      * Atomically replace a resource's whole direct policy. Backs the
      * content-as-code import: authorization and locking are identical to the
      * single-assignment mutations, and any invalid principal aborts the
