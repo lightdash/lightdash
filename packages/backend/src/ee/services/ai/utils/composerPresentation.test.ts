@@ -161,9 +161,23 @@ describe('resolveComposerPresentations', () => {
     it('strips markers leaving clean prose', () => {
         expect(
             resolve(
-                'Revenue grew <show node="revenue"/> as shown.\n\n<show node="a"/>\n\n\nNext steps.\n<show node="unfinished',
+                'Revenue grew <show node="revenue"/> as shown.\n\n<show node="a"/>\n\n\nNext steps.',
                 [],
             ).response,
         ).toBe('Revenue grew as shown.\n\nNext steps.');
+    });
+
+    it('leaves prose intact around a malformed marker', () => {
+        const response =
+            'Revenue <show node="revenue"\ngrew 10%.\n\nSee > for details. <show node="x" and more';
+        expect(resolve(response, []).response).toBe(response);
+    });
+
+    it('keeps markers quoted in code fences', () => {
+        const response =
+            'Write this:\n```\n<show node="revenue"/>\n\n\n\nend\n```\nDone <show node="revenue"/>';
+        expect(resolve(response, []).response).toBe(
+            'Write this:\n```\n<show node="revenue"/>\n\n\n\nend\n```\nDone',
+        );
     });
 });

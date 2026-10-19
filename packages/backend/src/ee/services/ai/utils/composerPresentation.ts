@@ -4,9 +4,19 @@ import {
     type ToolComposerQueriesSuccessMetadata,
 } from '@lightdash/common';
 
-const SHOW_MARKER_REGEX = /<show\s+node\s*=\s*"([^"<>\s]+)"\s*\/?>/g;
-const SHOW_TAG_REGEX = / ?<\/?show\b[^>]*(?:>|$)/gi;
-const FENCED_CODE_BLOCK_REGEX = /```[\s\S]*?```|~~~[\s\S]*?~~~/g;
+const SHOW_MARKER_REGEX =
+    /<show[ \t]+node[ \t]*=[ \t]*"([^"<>\s]+)"[ \t]*\/?>/g;
+const SHOW_MARKER_STRIP_REGEX =
+    /[ \t]?<show[ \t]+node[ \t]*=[ \t]*"[^"<>\s]+"[ \t]*\/?>/g;
+// An unclosed fence runs to the end, as in markdown.
+const FENCED_CODE_BLOCK_REGEX = /(```[\s\S]*?(?:```|$)|~~~[\s\S]*?(?:~~~|$))/;
+
+const mapProse = (text: string, fn: (prose: string) => string): string =>
+    text
+        .split(FENCED_CODE_BLOCK_REGEX)
+        // split with a capture group puts fenced blocks at odd indexes
+        .map((segment, index) => (index % 2 === 0 ? fn(segment) : segment))
+        .join('');
 
 export type ComposerToolResult = {
     promptUuid: string;
@@ -21,10 +31,11 @@ export type ComposerPresentation = {
 };
 
 export const stripComposerPresentationMarkers = (response: string): string =>
-    response
-        .replace(SHOW_TAG_REGEX, '')
-        .replace(/\n(?:[ \t]*\n){2,}/g, '\n\n')
-        .trim();
+    mapProse(response, (prose) =>
+        prose
+            .replace(SHOW_MARKER_STRIP_REGEX, '')
+            .replace(/\n(?:[ \t]*\n){2,}/g, '\n\n'),
+    ).trim();
 
 /** Resolves `<show node="..."/>` markers against this prompt's successful
  * composer terminal nodes; anything else is ignored. */
@@ -54,7 +65,10 @@ export const resolveComposerPresentations = ({
                 : [];
         }),
     );
-    const prose = response.replace(FENCED_CODE_BLOCK_REGEX, '');
+    const prose = response
+        .split(FENCED_CODE_BLOCK_REGEX)
+        .filter((_, index) => index % 2 === 0)
+        .join('\n');
     const nodeIds = [
         ...new Set([...prose.matchAll(SHOW_MARKER_REGEX)].map((m) => m[1])),
     ];
