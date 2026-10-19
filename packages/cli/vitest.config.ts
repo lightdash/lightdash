@@ -1,11 +1,14 @@
 import * as path from 'node:path';
 import { defineConfig } from 'vitest/config';
 
+// Process tests spawn the real CLI per case; they run in their own CI job.
+export const processTestPattern = 'src/**/*.process.test.ts';
+
 export default defineConfig({
     test: {
         name: 'cli-unit-tests',
         include: ['src/**/*.test.ts'],
-        exclude: ['**/node_modules/**', '**/dist/**'],
+        exclude: ['**/node_modules/**', '**/dist/**', processTestPattern],
         environment: 'node',
         globals: true,
         env: {

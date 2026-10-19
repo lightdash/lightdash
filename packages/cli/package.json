@@ -20,6 +20,7 @@
   ],
   "scripts": {
     "test": "vitest run --config vitest.config.ts",
+    "test:process": "vitest run --config vitest.process.config.ts",
     "test:dev": "vitest watch --config vitest.config.ts --changed",
     "dev": "tsx src/index.ts",
     "build": "tsc --build tsconfig.build.json",
