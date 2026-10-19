@@ -1,16 +1,20 @@
 import {
     DimensionType,
+    FilterOperator,
+    getTotalFilterRules,
     FieldType,
     MergeJoinType,
     MetricType,
     SupportedDbtAdapter,
     TimeFrames,
     buildSavedMergeDefinition,
+    isMergeMetricSource,
     type Explore,
+    type Filters,
     type MetricQuery,
 } from '@lightdash/common';
 import { emptyMergeSource, PRIMARY_SOURCE_ID } from '../constants';
-import { type MergeEditorSource } from '../context/context';
+import { type MergeEditorSource, type MergeJoinPart } from '../context/context';
 import { parseMergeState, serializeMergeState } from '../context/mergeUrlState';
 import { restoreSavedMerge } from '../context/restoreSavedMerge';
 import { getMergeSetup } from './getMergeSetup';
@@ -385,5 +389,66 @@ describe('join field suggestion per source', () => {
             [null, null],
             [null, null],
         ]);
+    });
+
+    describe('shared join-key filters', () => {
+        const dateFilter = (fieldId: string): Filters => ({
+            dimensions: {
+                id: 'root',
+                and: [
+                    {
+                        id: 'shared',
+                        target: { fieldId },
+                        operator: FilterOperator.IN_BETWEEN,
+                        values: ['2025-01-01', '2025-02-28'],
+                    },
+                ],
+            },
+        });
+        const filteredFields = (
+            setup: ReturnType<typeof getMergeSetup>,
+            index: number,
+        ) =>
+            required(setup.mergeQuery)
+                .sources.filter(isMergeMetricSource)
+                .map((source) =>
+                    getTotalFilterRules(source.metricQuery.filters).map(
+                        (rule) => rule.target.fieldId,
+                    ),
+                )[index];
+        const dateKeyed = () => {
+            const input = fixture(3);
+            input.metricQuery.filters = dateFilter('domain_0_date');
+            input.additionalSources[0].filters = dateFilter('domain_1_date');
+            input.joinParts = [input.joinParts[0]];
+            input.repeatValuesSourceIds = ['b', 'source_2'];
+            return input;
+        };
+
+        it('gives a source whose join field is filled in by default the shared filter', () => {
+            const input = dateKeyed();
+            const joinParts: MergeJoinPart[] = [
+                {
+                    fieldIdBySourceId: {
+                        ...input.joinParts[0].fieldIdBySourceId,
+                        source_2: null,
+                    },
+                },
+            ];
+
+            const setup = getMergeSetup({ ...input, joinParts });
+
+            expect(setup.effectiveParts[0].fieldIdBySourceId.source_2).toBe(
+                'domain_2_date',
+            );
+            expect(filteredFields(setup, 2)).toEqual(['domain_2_date']);
+            expect(filteredFields(setup, 1)).toEqual(['domain_1_date']);
+        });
+
+        it('leaves a chosen join field with its own filters, as a saved chart stores them', () => {
+            const setup = getMergeSetup(dateKeyed());
+
+            expect(filteredFields(setup, 2)).toEqual([]);
+        });
     });
 });

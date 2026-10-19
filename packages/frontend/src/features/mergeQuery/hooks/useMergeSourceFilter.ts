@@ -52,7 +52,8 @@ export const useMergeSourceFilter = () => {
     const merge = useMerge();
     const dispatch = useExplorerDispatch();
     const store = useExplorerStore();
-    const { effectiveParts } = useMergeSetup();
+    const { effectiveParts, filtersBySourceId: sourceFilters } =
+        useMergeSetup();
 
     return useCallback(
         (sourceId: string, field: FilterableField) => {
@@ -62,7 +63,7 @@ export const useMergeSourceFilter = () => {
                     [PRIMARY_SOURCE_ID, primaryFiltersBefore],
                     ...merge.additionalSources.map((source) => [
                         source.id,
-                        source.filters,
+                        sourceFilters[source.id] ?? source.filters,
                     ]),
                 ]);
             const nextFilters = addMergeSourceFilter({
@@ -94,6 +95,6 @@ export const useMergeSourceFilter = () => {
             }
             window.scrollTo({ top: 0, behavior: 'smooth' });
         },
-        [dispatch, merge, store, effectiveParts],
+        [dispatch, merge, store, effectiveParts, sourceFilters],
     );
 };

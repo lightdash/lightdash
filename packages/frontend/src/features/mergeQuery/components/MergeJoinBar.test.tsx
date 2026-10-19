@@ -141,6 +141,7 @@ vi.mock('../hooks/useMergeSetup', () => ({
                   )
                 : `${state.setup.primaryExploreLabel} · ${state.setup.labelFor(state.setup.effectiveParts[0].fieldIdBySourceId.a ?? '')} = ${state.setup.additionalExploreLabel} · ${state.setup.labelFor(state.setup.effectiveParts[0].fieldIdBySourceId.b ?? '')}`,
         joinTypeLabel: 'All rows',
+        filtersBySourceId: {},
     }),
 }));
 

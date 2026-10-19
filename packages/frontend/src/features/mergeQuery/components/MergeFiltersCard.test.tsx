@@ -47,6 +47,13 @@ vi.mock('../context/useMerge', () => ({
 vi.mock('../hooks/useMergeSetup', () => ({
     useMergeSetup: () => ({
         sourceLabels: ['Orders', 'Payments'],
+        filtersBySourceId: Object.fromEntries([
+            ['a', {}],
+            ...merge.additionalSources.map((source) => [
+                source.id,
+                source.filters,
+            ]),
+        ]),
         effectiveParts: [
             {
                 fieldIdBySourceId: {

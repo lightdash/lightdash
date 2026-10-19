@@ -27,6 +27,7 @@ vi.mock('../context/useMerge', () => ({
 }));
 vi.mock('./useMergeSetup', () => ({
     useMergeSetup: () => ({
+        filtersBySourceId: { a: {}, b: {} },
         effectiveParts: [
             {
                 fieldIdBySourceId: {

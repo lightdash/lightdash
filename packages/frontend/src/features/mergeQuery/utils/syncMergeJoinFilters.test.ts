@@ -7,7 +7,8 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
-    applySharedJoinFilters,
+    deriveSharedJoinFilters,
+    moveJoinFieldFilters,
     syncMergeJoinFilters,
 } from './syncMergeJoinFilters';
 
@@ -111,19 +112,25 @@ describe('syncMergeJoinFilters', () => {
     });
 });
 
-describe('applySharedJoinFilters', () => {
-    const shared = filters(rule('shared-a', 'a_date'));
-    const sharedB = filters(rule('shared-b', 'b_date'));
-    const parts = (c: string | null) => [
+describe('deriveSharedJoinFilters', () => {
+    const shared = filters(rule('shared', 'a_date'));
+    const chosen = (c: string | null) => [
         { fieldIdBySourceId: { a: 'a_date', b: 'b_date', c } },
     ];
+    const effective = [
+        { fieldIdBySourceId: { a: 'a_date', b: 'b_date', c: 'c_date' } },
+    ];
 
-    it('applies the shared join-key filters to a source once it is mapped', () => {
-        const before = { a: shared, b: sharedB, c: {} };
-        const result = applySharedJoinFilters({
+    it('gives a source whose join field is filled in by default the shared filters', () => {
+        const before = {
+            a: shared,
+            b: filters(rule('shared', 'b_date')),
+            c: {},
+        };
+        const result = deriveSharedJoinFilters({
             filtersBySourceId: before,
-            previousParts: parts(null),
-            joinParts: parts('c_date'),
+            joinParts: chosen(null),
+            effectiveParts: effective,
         });
 
         expect(fieldIds(result.c)).toEqual(['c_date']);
@@ -131,56 +138,38 @@ describe('applySharedJoinFilters', () => {
         expect(result.b).toBe(before.b);
     });
 
-    it('moves the shared filters to a source new key field and keeps its own', () => {
-        const before = {
-            a: shared,
-            b: sharedB,
-            c: filters(rule('copy', 'c_date'), rule('own', 'c_status')),
-        };
-        const result = applySharedJoinFilters({
-            filtersBySourceId: before,
-            previousParts: parts('c_date'),
-            joinParts: parts('c_created'),
+    it('replaces a copy left on the field a default moved away from', () => {
+        const result = deriveSharedJoinFilters({
+            filtersBySourceId: {
+                a: shared,
+                c: filters(
+                    rule('shared', 'c_old_date'),
+                    rule('own', 'c_status'),
+                ),
+            },
+            joinParts: chosen(null),
+            effectiveParts: effective,
         });
 
-        expect(fieldIds(result.c).sort()).toEqual(['c_created', 'c_status']);
-    });
-
-    it('keeps every source filters when a key part is removed', () => {
-        const before = {
-            a: filters(rule('date', 'a_date'), rule('status', 'a_status')),
-            b: filters(rule('date', 'b_date'), rule('status', 'b_status')),
-        };
-        const result = applySharedJoinFilters({
-            filtersBySourceId: before,
-            previousParts: [
-                { fieldIdBySourceId: { a: 'a_date', b: 'b_date' } },
-                { fieldIdBySourceId: { a: 'a_status', b: 'b_status' } },
-            ],
-            joinParts: [{ fieldIdBySourceId: { a: 'a_date', b: 'b_date' } }],
-        });
-
-        expect(result).toBe(before);
+        expect(fieldIds(result.c).sort()).toEqual(['c_date', 'c_status']);
     });
 
     it('applies the shared filters across sources of the same explore', () => {
-        const repeated = (c: string | null) => [
+        const parts = [
             {
                 fieldIdBySourceId: {
                     a: 'payments_date',
-                    b: 'payments_date',
-                    c,
+                    c: 'payments_date',
                 },
             },
         ];
-        const result = applySharedJoinFilters({
+        const result = deriveSharedJoinFilters({
             filtersBySourceId: {
                 a: filters(rule('shared', 'payments_date')),
-                b: filters(rule('shared', 'payments_date')),
                 c: filters(rule('own', 'payments_status')),
             },
-            previousParts: repeated(null),
-            joinParts: repeated('payments_date'),
+            joinParts: [{ fieldIdBySourceId: { a: 'payments_date', c: null } }],
+            effectiveParts: parts,
         });
 
         expect(fieldIds(result.c).sort()).toEqual([
@@ -189,18 +178,88 @@ describe('applySharedJoinFilters', () => {
         ]);
     });
 
-    it('leaves a newly mapped source alone when nothing is shared yet', () => {
+    it('leaves a defaulted source alone when nothing is shared', () => {
         const before = {
             a: filters(rule('own', 'a_status')),
-            b: {},
-            c: filters(rule('own', 'c_date')),
+            c: filters(rule('own', 'c_status')),
         };
-        const result = applySharedJoinFilters({
+        const result = deriveSharedJoinFilters({
             filtersBySourceId: before,
-            previousParts: parts(null),
-            joinParts: parts('c_date'),
+            joinParts: chosen(null),
+            effectiveParts: effective,
         });
 
         expect(result).toBe(before);
+    });
+
+    it('keeps the filters it gave once they are stored and the key part is removed', () => {
+        const parts = [
+            ...effective,
+            {
+                fieldIdBySourceId: {
+                    a: 'a_status',
+                    b: 'b_status',
+                    c: 'c_status',
+                },
+            },
+        ];
+        const stored = deriveSharedJoinFilters({
+            filtersBySourceId: {
+                a: shared,
+                b: filters(rule('shared', 'b_date')),
+                c: {},
+            },
+            joinParts: [chosen(null)[0], parts[1]],
+            effectiveParts: parts,
+        });
+        const result = deriveSharedJoinFilters({
+            filtersBySourceId: stored,
+            joinParts: [parts[1]],
+            effectiveParts: [parts[1]],
+        });
+
+        expect(result).toBe(stored);
+        expect(fieldIds(result.c)).toEqual(['c_date']);
+    });
+});
+
+describe('moveJoinFieldFilters', () => {
+    const effective = [
+        { fieldIdBySourceId: { a: 'a_date', b: 'b_date', c: 'c_date' } },
+    ];
+
+    it('moves the shared filters to a source new join field and keeps its own', () => {
+        const result = moveJoinFieldFilters({
+            filtersBySourceId: {
+                a: filters(rule('shared', 'a_date')),
+                b: filters(rule('shared', 'b_date')),
+                c: filters(rule('shared', 'c_date'), rule('own', 'c_status')),
+            },
+            effectiveParts: effective,
+            index: 0,
+            sourceId: 'c',
+            fieldId: 'c_created',
+        });
+
+        expect(fieldIds(result.c).sort()).toEqual(['c_created', 'c_status']);
+        expect(fieldIds(result.a)).toEqual(['a_date']);
+    });
+
+    it('moves the first source filters when its own join field changes', () => {
+        const result = moveJoinFieldFilters({
+            filtersBySourceId: {
+                a: filters(rule('shared', 'a_date')),
+                b: filters(rule('shared', 'b_date')),
+            },
+            effectiveParts: [
+                { fieldIdBySourceId: { a: 'a_date', b: 'b_date' } },
+            ],
+            index: 0,
+            sourceId: 'a',
+            fieldId: 'a_created',
+        });
+
+        expect(fieldIds(result.a)).toEqual(['a_created']);
+        expect(fieldIds(result.b)).toEqual(['b_date']);
     });
 });

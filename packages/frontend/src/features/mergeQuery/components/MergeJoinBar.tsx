@@ -22,6 +22,7 @@ import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFla
 import { selectTableName, useExplorerSelector } from '../../explorer/store';
 import { EMPTY_MERGE, PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
+import { useMergeJoinKeyActions } from '../hooks/useMergeJoinKeyActions';
 import { useMergeSetup } from '../hooks/useMergeSetup';
 import { useMergeSourceNames } from '../hooks/useMergeSourceNames';
 import { getMergeJoinTypeLabel } from '../utils/getMergeSetup';
@@ -127,13 +128,12 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
         readOnly,
         joinType,
         repeatValuesSourceIds,
-        setJoinField,
         addJoinPart,
-        removeJoinPart,
         setJoinType,
         setRepeatValues,
     } = mergeContext ?? EMPTY_MERGE;
     const { runErrors, mergeResults } = mergeContext ?? {};
+    const { setJoinField, removeJoinPart } = useMergeJoinKeyActions();
 
     const {
         sourceSetups,
