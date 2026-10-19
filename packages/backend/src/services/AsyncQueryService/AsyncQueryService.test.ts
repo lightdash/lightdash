@@ -15762,6 +15762,8 @@ describe('runDuckdbQuery', () => {
             markDuckdbCacheHit,
             findCachedResultsFile,
             update: service.queryHistoryModel.update as import('vitest').Mock,
+            getByQueryUuid: service.queryHistoryModel
+                .getByQueryUuid as import('vitest').Mock,
         };
     };
 
@@ -16343,6 +16345,248 @@ describe('runDuckdbQuery', () => {
             expect.objectContaining({ status: QueryHistoryStatus.ERROR }),
             expect.anything(),
         );
+    });
+
+    describe('a cancelled query', () => {
+        const queryReferences: RunDuckdbQueryArgs['references'] = {
+            kind: 'queries',
+            references: { merge_source_0: 'leg-uuid' },
+            guard: null,
+            labelByTable: { merge_source_0: 'Query A' },
+        };
+        const cancelledRow = {
+            queryUuid: 'duckdb-query-uuid',
+            status: QueryHistoryStatus.CANCELLED,
+        } as QueryHistory;
+
+        it('never runs once its references complete', async () => {
+            const {
+                run,
+                runWarehouseQuery,
+                findCachedResultsFile,
+                update,
+                getByQueryUuid,
+            } = buildService(cachedResults);
+            getByQueryUuid.mockResolvedValue(cancelledRow);
+
+            await run(baseArgs({ references: queryReferences }));
+
+            expect(findCachedResultsFile).not.toHaveBeenCalled();
+            expect(runWarehouseQuery).not.toHaveBeenCalled();
+            expect(update).not.toHaveBeenCalled();
+        });
+    });
+});
+
+// Single-row stand-in that applies the status guard from the model's WHERE
+const respondWithStatusGuard = (
+    tracker: ReturnType<typeof getTracker>,
+    row: { status: QueryHistoryStatus },
+) => {
+    tracker.on.update('query_history').response(({ sql, bindings }) => {
+        const guard = bindings.slice(
+            bindings.indexOf(sessionAccount.user.id) + 1,
+        );
+        const allowed = sql.includes('not "status" =')
+            ? !guard.includes(row.status)
+            : guard.length === 0 || guard.includes(row.status);
+        if (!allowed) return 0;
+        Object.assign(row, { status: bindings[0] });
+        return 1;
+    });
+};
+
+describe('cancelling a merge', () => {
+    const joinUuid = 'join-uuid';
+    const legA = 'leg-a-uuid';
+    const legB = 'leg-b-uuid';
+    const resultSourceUuid = 'result-source-uuid';
+    const mergeSpec: DuckdbExecutionSpec = {
+        references: {
+            merge_source_0: legA,
+            merge_source_1: legB,
+            merge_source_2: resultSourceUuid,
+        },
+        engine: 'scopedToReferencedResults',
+        columns: { mode: 'supplied' },
+        guard: {
+            legLabelByReferenceTable: {
+                merge_source_0: 'Query A',
+                merge_source_1: 'Query B',
+            },
+            sourceRowCap: 5000,
+        },
+        storedCompiledSql: null,
+        referenceLabels: {
+            merge_source_0: 'Query A',
+            merge_source_1: 'Query B',
+        },
+        invalidateCache: false,
+        cacheHit: false,
+        refusal: null,
+    };
+    const legCreatedAt = new Date();
+    const cancelledLeg = (queryUuid: string) => ({
+        queryUuid,
+        previousStatus: QueryHistoryStatus.QUEUED,
+        context: QueryExecutionContext.SQL_RUNNER,
+        createdAt: legCreatedAt,
+    });
+
+    const setup = ({
+        spec = mergeSpec,
+        joinStatus = QueryHistoryStatus.EXECUTING,
+        cancelledLegs = [],
+    }: {
+        spec?: DuckdbExecutionSpec | null;
+        joinStatus?: QueryHistoryStatus;
+        cancelledLegs?: ReturnType<typeof cancelledLeg>[];
+    }) => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        const join = { status: joinStatus };
+        respondWithStatusGuard(tracker, join);
+        const model = new QueryHistoryModel({ database });
+        const cancelRunningQueriesReadOnlyBy = vi.fn(async () => cancelledLegs);
+        Object.assign(service.queryHistoryModel, {
+            get: vi.fn(async () => ({
+                queryUuid: joinUuid,
+                status: join.status,
+                context: QueryExecutionContext.EXPLORE,
+                createdAt: new Date(),
+                metricQuery: { exploreName: 'merge' },
+            })),
+            update: model.update.bind(model),
+            getDuckdbExecution: vi.fn(async () => spec),
+            cancelRunningQueriesReadOnlyBy,
+        });
+        const prometheusMetrics = {
+            trackQueryStateTransition: vi.fn(),
+            incrementQueryStatus: vi.fn(),
+            observeQueryTotalDuration: vi.fn(),
+        };
+        Object.assign(service, { prometheusMetrics });
+        return {
+            cancel: () =>
+                service.cancelAsyncQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid: joinUuid,
+                }),
+            join,
+            cancelRunningQueriesReadOnlyBy,
+            prometheusMetrics,
+            teardown: async () => {
+                tracker.reset();
+                await database.destroy();
+            },
+        };
+    };
+
+    it('cancels the legs the merge ran in one guarded write, as the cancelling account', async () => {
+        const { cancel, join, cancelRunningQueriesReadOnlyBy, ...rest } = setup(
+            { cancelledLegs: [cancelledLeg(legA), cancelledLeg(legB)] },
+        );
+        try {
+            await cancel();
+
+            expect(join.status).toBe(QueryHistoryStatus.CANCELLED);
+            // A result the merge references is not a leg it ran
+            expect(cancelRunningQueriesReadOnlyBy).toHaveBeenCalledWith(
+                [legA, legB],
+                projectUuid,
+                joinUuid,
+                sessionAccount,
+            );
+            expect(
+                rest.prometheusMetrics.incrementQueryStatus.mock.calls,
+            ).toEqual([
+                [QueryHistoryStatus.CANCELLED, QueryExecutionContext.EXPLORE],
+                [
+                    QueryHistoryStatus.CANCELLED,
+                    QueryExecutionContext.SQL_RUNNER,
+                ],
+                [
+                    QueryHistoryStatus.CANCELLED,
+                    QueryExecutionContext.SQL_RUNNER,
+                ],
+            ]);
+            expect(
+                rest.prometheusMetrics.trackQueryStateTransition,
+            ).toHaveBeenCalledWith(
+                QueryHistoryStatus.QUEUED,
+                QueryHistoryStatus.CANCELLED,
+                QueryExecutionContext.SQL_RUNNER,
+            );
+        } finally {
+            await rest.teardown();
+        }
+    });
+
+    it('a retry after a partial cancel still cancels the remaining legs', async () => {
+        const { cancel, join, cancelRunningQueriesReadOnlyBy, ...rest } = setup(
+            {
+                joinStatus: QueryHistoryStatus.CANCELLED,
+                cancelledLegs: [cancelledLeg(legB)],
+            },
+        );
+        try {
+            await cancel();
+
+            expect(join.status).toBe(QueryHistoryStatus.CANCELLED);
+            expect(cancelRunningQueriesReadOnlyBy).toHaveBeenCalledTimes(1);
+            // Only the leg counts as newly cancelled
+            expect(
+                rest.prometheusMetrics.incrementQueryStatus.mock.calls,
+            ).toEqual([
+                [
+                    QueryHistoryStatus.CANCELLED,
+                    QueryExecutionContext.SQL_RUNNER,
+                ],
+            ]);
+        } finally {
+            await rest.teardown();
+        }
+    });
+
+    it.each([
+        QueryHistoryStatus.READY,
+        QueryHistoryStatus.ERROR,
+        QueryHistoryStatus.EXPIRED,
+    ])('leaves the legs of a merge that is already %s', async (status) => {
+        const { cancel, join, cancelRunningQueriesReadOnlyBy, ...rest } = setup(
+            {
+                joinStatus: status,
+                cancelledLegs: [cancelledLeg(legA)],
+            },
+        );
+        try {
+            await cancel();
+
+            expect(join.status).toBe(status);
+            expect(cancelRunningQueriesReadOnlyBy).not.toHaveBeenCalled();
+            expect(
+                rest.prometheusMetrics.incrementQueryStatus,
+            ).not.toHaveBeenCalled();
+        } finally {
+            await rest.teardown();
+        }
+    });
+
+    it('cancels only the query itself when it ran no legs', async () => {
+        const { cancel, join, cancelRunningQueriesReadOnlyBy, ...rest } = setup(
+            { spec: { ...mergeSpec, guard: null } },
+        );
+        try {
+            await cancel();
+
+            expect(join.status).toBe(QueryHistoryStatus.CANCELLED);
+            expect(cancelRunningQueriesReadOnlyBy).not.toHaveBeenCalled();
+        } finally {
+            await rest.teardown();
+        }
     });
 });
 
@@ -28366,18 +28610,7 @@ describe('late query status writes', () => {
         const tracker = getTracker();
         tracker.reset();
         const row = { status: initialStatus };
-        // Single-row stand-in that applies the status guard from the model's WHERE
-        tracker.on.update('query_history').response(({ sql, bindings }) => {
-            const guard = bindings.slice(
-                bindings.indexOf(sessionAccount.user.id) + 1,
-            );
-            const allowed = sql.includes('not "status" =')
-                ? !guard.includes(row.status)
-                : guard.length === 0 || guard.includes(row.status);
-            if (!allowed) return 0;
-            row.status = bindings[0] as QueryHistoryStatus;
-            return 1;
-        });
+        respondWithStatusGuard(tracker, row);
         const model = new QueryHistoryModel({ database });
         Object.assign(service.queryHistoryModel, {
             get: vi.fn(async () => ({

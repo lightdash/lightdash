@@ -967,3 +967,66 @@ describe('status transition guards', () => {
         expect(query.sql).not.toContain('"status"');
     });
 });
+
+describe('cancelRunningQueriesReadOnlyBy', () => {
+    test('checks and cancels in one guarded, account-scoped write', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on.any(/update "?query_history"?/i).response([]);
+        const account = buildAccount();
+        try {
+            await new QueryHistoryModel({
+                database,
+            }).cancelRunningQueriesReadOnlyBy(
+                ['leg'],
+                'project',
+                'consumer',
+                account,
+            );
+            expect(tracker.history.all).toHaveLength(1);
+            const [{ sql, bindings }] = tracker.history.all;
+            expect(sql).toMatch(
+                /^with "legs" as \(select .* for update\) update "query_history" set "status" = \$\d+ from "legs" where/,
+            );
+            expect(sql).toContain('"query"."created_by_user_uuid" = ');
+            expect(sql).toContain(
+                'not exists (select 1 from "query_history" as "reader"',
+            );
+            expect(bindings).toEqual(
+                expect.arrayContaining([
+                    QueryHistoryStatus.CANCELLED,
+                    'leg',
+                    'project',
+                    'consumer',
+                    account.user.id,
+                ]),
+            );
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+
+    test('writes nothing without legs', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        try {
+            expect(
+                await new QueryHistoryModel({
+                    database,
+                }).cancelRunningQueriesReadOnlyBy(
+                    [],
+                    'project',
+                    'consumer',
+                    buildAccount(),
+                ),
+            ).toEqual([]);
+            expect(tracker.history.all).toHaveLength(0);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+});

@@ -1496,8 +1496,6 @@ export class AsyncQueryService extends ProjectService {
             queryHistory,
         );
 
-        const previousStatus = queryHistory.status;
-
         const cancelled = await this.queryHistoryModel.update(
             queryHistory.queryUuid,
             projectUuid,
@@ -1506,10 +1504,25 @@ export class AsyncQueryService extends ProjectService {
             },
             account,
         );
-        if (cancelled === 0) return;
+        if (cancelled === 0) {
+            // A retry of an already-cancelled merge still finishes a partial cascade
+            if (queryHistory.status !== QueryHistoryStatus.CANCELLED) return;
+        } else {
+            this.trackQueryCancelled(
+                queryHistory.status,
+                queryHistory.context,
+                queryHistory.createdAt,
+            );
+        }
+        await this.cancelMergeLegs(account, projectUuid, queryUuid);
+    }
 
-        // Track state transition to cancelled
-        const queryContext = queryHistory.context || 'unknown';
+    private trackQueryCancelled(
+        previousStatus: QueryHistoryStatus,
+        context: QueryExecutionContext,
+        createdAt: Date,
+    ) {
+        const queryContext = context || 'unknown';
         if (
             previousStatus === QueryHistoryStatus.PENDING ||
             previousStatus === QueryHistoryStatus.QUEUED ||
@@ -1521,12 +1534,38 @@ export class AsyncQueryService extends ProjectService {
                 queryContext,
             );
         }
-
-        // Track cancelled query in Prometheus
         this.trackQueryTerminalStatus(
             QueryHistoryStatus.CANCELLED,
-            queryHistory.createdAt,
+            createdAt,
             queryContext,
+        );
+    }
+
+    /** Cancels a merge's running legs; a leg another running query reads is left to finish. */
+    private async cancelMergeLegs(
+        account: Account,
+        projectUuid: string,
+        queryUuid: string,
+    ): Promise<void> {
+        const spec = await this.queryHistoryModel.getDuckdbExecution(queryUuid);
+        if (!spec?.guard) return;
+        // The guard names exactly the legs the merge ran, not the results it references
+        const legUuids = Object.keys(spec.guard.legLabelByReferenceTable)
+            .map((tableName) => spec.references[tableName])
+            .filter((legUuid): legUuid is string => legUuid !== undefined);
+        const cancelledLegs =
+            await this.queryHistoryModel.cancelRunningQueriesReadOnlyBy(
+                legUuids,
+                projectUuid,
+                queryUuid,
+                account,
+            );
+        cancelledLegs.forEach((leg) =>
+            this.trackQueryCancelled(
+                leg.previousStatus,
+                leg.context,
+                leg.createdAt,
+            ),
         );
     }
 
@@ -12351,6 +12390,12 @@ export class AsyncQueryService extends ProjectService {
                     resolvedIdentityEnabled = enabled;
                 },
             });
+            // A query cancelled while it waited on its references never runs
+            if (
+                references.kind === 'queries' &&
+                (await this.isQueryCancelled(queryUuid))
+            )
+                return;
             if (bound.aiSignInCredentialUuid) {
                 await this.queryHistoryModel.recordAiSignInCredential(
                     queryUuid,
@@ -12557,6 +12602,11 @@ export class AsyncQueryService extends ProjectService {
                 account,
             );
         }
+    }
+
+    private async isQueryCancelled(queryUuid: string): Promise<boolean> {
+        const query = await this.queryHistoryModel.getByQueryUuid(queryUuid);
+        return query?.status === QueryHistoryStatus.CANCELLED;
     }
 
     /** Lands a python query on another run's results over the same files. */
@@ -13630,6 +13680,7 @@ export class AsyncQueryService extends ProjectService {
                     }),
                 );
                 return;
+            case 'cancelled':
             case 'error':
                 this.analytics.trackAccount(
                     account,
@@ -13637,7 +13688,7 @@ export class AsyncQueryService extends ProjectService {
                         submission,
                         queryId: queryUuid,
                         engine: 'compose',
-                        status: 'error',
+                        status: outcome.kind,
                         cacheHit: false,
                         legCacheHits,
                         rowCount: null,
