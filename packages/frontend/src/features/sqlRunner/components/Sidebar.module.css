@@ -1,11 +1,15 @@
+/* Bleeds to the sidebar edges so the tables/fields divider spans full width */
 .root {
     flex: 1;
     overflow: hidden;
+    margin-inline: calc(-1 * var(--sidebar-padding, 0px));
+    padding-inline: var(--sidebar-padding, 0px);
 }
 
 .panel {
     flex: 1;
-    overflow: hidden;
+    min-height: 0;
+    overflow: clip visible;
 }
 
 .panel[data-active='false'] {
