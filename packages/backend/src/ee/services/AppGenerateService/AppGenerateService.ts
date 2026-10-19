@@ -14613,12 +14613,22 @@ export class AppGenerateService extends BaseService {
             );
             return;
         }
-        const { client, bucket } = this.getS3Client();
-        const copilot = await this.getCodingAgentConfig(organizationUuid);
-
-        // Look up the version's custom dependency set once — null means the
-        // build uses the template set only (no install step).
-        const versionRow = await this.appModel.getVersion(appUuid, version);
+        let client: S3Client;
+        let bucket: string;
+        let copilot: CodingAgentConfig;
+        let versionRow: Awaited<ReturnType<AppModel['getVersion']>>;
+        try {
+            ({ client, bucket } = this.getS3Client());
+            copilot = await this.getCodingAgentConfig(organizationUuid);
+            // Look up the version's custom dependency set once — null means
+            // the build uses the template set only (no install step).
+            versionRow = await this.appModel.getVersion(appUuid, version);
+        } catch (error) {
+            // Nothing has started yet, but the version is already pending
+            // and holding a build slot — never leave it there.
+            await this.markError(appUuid, version, error, 'Build failed');
+            return;
+        }
         const versionDeps = versionRow?.dependencies ?? null;
         const registryHosts =
             versionDeps !== null
