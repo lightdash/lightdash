@@ -54,7 +54,7 @@
         "repl-dev": "nodemon --exec tsx src/ee/repl/index.ts"
     },
     "dependencies": {
-        "@ai-sdk/amazon-bedrock": "5.0.87",
+        "@ai-sdk/amazon-bedrock": "5.0.114",
         "@ai-sdk/anthropic": "4.0.57",
         "@ai-sdk/azure": "4.0.74",
         "@ai-sdk/google": "4.0.75",
