@@ -113,7 +113,7 @@ export class ToolDefinitionWithoutMcpOutputImpl<
                 toolName: mcpName,
             }),
             inputSchema: createMcpCompatibleInputSchema(this.inputSchema),
-            annotations: this.mcpConfig.annotations,
+            annotations: { title: this.title, ...this.mcpConfig.annotations },
             meta: this.mcpConfig.meta,
             result: createMcpToolResultBuilders(),
         };

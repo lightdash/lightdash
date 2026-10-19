@@ -20,6 +20,7 @@ import type { Route, WebSocketRoute } from 'playwright';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { setupGrantAuthentication } from '../../controllers/authentication/agentConnectionGrants.mock';
 import { allowApiKeyAuthentication } from '../../controllers/authentication/middlewares';
@@ -114,6 +115,8 @@ function createService(
         documentService: Partial<DocumentService>;
         userModel: Partial<UserModel>;
         headlessBrowser: Record<string, unknown>;
+        lightdashConfig: Record<string, unknown>;
+        organizationSettingsModel: { get: () => Promise<unknown> };
     }> = {},
 ) {
     return new UnfurlService({
@@ -124,6 +127,7 @@ function createService(
                 screenshotTimeoutMs: 45_000,
                 ...(overrides.headlessBrowser ?? {}),
             },
+            ...(overrides.lightdashConfig ?? {}),
         } as unknown as LightdashConfig,
         dashboardModel: (overrides.dashboardModel ??
             {}) as unknown as DashboardModel,
@@ -152,6 +156,10 @@ function createService(
         documentService: (overrides.documentService ??
             {}) as unknown as DocumentService,
         userModel: (overrides.userModel ?? {}) as unknown as UserModel,
+        // Nothing stored: every org setting inherits the instance default.
+        organizationSettingsModel: (overrides.organizationSettingsModel ?? {
+            get: async () => ({}),
+        }) as never,
     });
 }
 
@@ -1166,6 +1174,120 @@ describe('UnfurlService', () => {
             );
 
             expect(result.isValid).toBe(false);
+        });
+    });
+
+    describe('unfurlSlackUrls - data apps', () => {
+        const ORGANIZATION_UUID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+        const PROJECT_UUID = '21eef0b9-5bae-40f3-851e-9554588e71a6';
+        const APP_UUID = '44444444-5555-4666-8777-888888888888';
+        const APP_URL = `https://app.lightdash.cloud/projects/${PROJECT_UUID}/apps/${APP_UUID}`;
+
+        const setup = (storedCapturesChoice: boolean | null) => {
+            const getInstallationFromOrganizationUuid = vi
+                .fn()
+                .mockResolvedValue(undefined);
+            const service = createService({
+                headlessBrowser: { host: undefined },
+                lightdashConfig: {
+                    auth: lightdashConfigMock.auth,
+                    persistentDownloadUrls:
+                        lightdashConfigMock.persistentDownloadUrls,
+                    query: lightdashConfigMock.query,
+                    appRuntime: { capturesEnabled: true },
+                    slack: { linkShareImagePreviewEnabled: true },
+                },
+                organizationSettingsModel: {
+                    get: async () => ({
+                        dataAppCapturesEnabled: storedCapturesChoice,
+                    }),
+                },
+                slackAuthenticationModel: {
+                    getUnfurlsEnabled: vi.fn().mockResolvedValue(true),
+                    getOrganizationUuidFromTeamId: vi
+                        .fn()
+                        .mockResolvedValue(ORGANIZATION_UUID),
+                    getUserUuid: vi.fn().mockResolvedValue('installer-uuid'),
+                    getInstallationFromOrganizationUuid,
+                },
+            });
+            service.appModel = {
+                findAppByUuid: vi.fn().mockResolvedValue({
+                    app_id: APP_UUID,
+                    name: 'Revenue app',
+                    description: null,
+                    organization_uuid: ORGANIZATION_UUID,
+                    project_uuid: PROJECT_UUID,
+                }),
+            } as unknown as AppModel;
+            const unfurl = vi.fn().mockResolvedValue({ ok: true });
+            const message = {
+                event: {
+                    channel: 'C1',
+                    message_ts: '1.0',
+                    links: [{ url: APP_URL, domain: 'lightdash.cloud' }],
+                },
+                client: { chat: { unfurl } },
+                context: { teamId: 'T1', botUserId: 'B1' },
+            };
+            return {
+                service,
+                unfurl,
+                message,
+                getInstallationFromOrganizationUuid,
+            };
+        };
+
+        const unfurlAndSettle = async (
+            service: UnfurlService,
+            message: unknown,
+        ) => {
+            await service.unfurlSlackUrls(
+                message as Parameters<UnfurlService['unfurlSlackUrls']>[0],
+            );
+            await new Promise((resolve) => {
+                setTimeout(resolve, 0);
+            });
+        };
+
+        it('posts the text unfurl only, without rendering, while the organization has captures off', async () => {
+            const {
+                service,
+                unfurl,
+                message,
+                getInstallationFromOrganizationUuid,
+            } = setup(false);
+
+            await unfurlAndSettle(service, message);
+
+            expect(unfurl).toHaveBeenCalledTimes(1);
+            expect(unfurl).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    unfurls: {
+                        [APP_URL]: expect.not.objectContaining({
+                            image_url: expect.anything(),
+                        }),
+                    },
+                }),
+            );
+            // The image path starts by looking the installation up.
+            expect(getInstallationFromOrganizationUuid).not.toHaveBeenCalled();
+        });
+
+        it('goes on to render the preview image while captures are on', async () => {
+            const {
+                service,
+                unfurl,
+                message,
+                getInstallationFromOrganizationUuid,
+            } = setup(null);
+
+            await unfurlAndSettle(service, message);
+
+            expect(unfurl).toHaveBeenCalled();
+            expect(getInstallationFromOrganizationUuid).toHaveBeenCalledWith(
+                ORGANIZATION_UUID,
+            );
         });
     });
 

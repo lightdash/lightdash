@@ -1,8 +1,12 @@
 import {
+    APP_SDK_EXPLORE_BASE_TABLE_PATH,
     extractAppSdkRouteProjectUuid,
+    extractExploreBaseTable,
     isAllowedAppSdkRoute,
     isAppSdkScheduleDownloadRoute,
     LightdashSignedDownloadHeader,
+    parseAppSdkExploreBaseTableRequest,
+    type AppSdkExploreBaseTableResult,
 } from '@lightdash/common';
 import { timingSafeEqual } from 'crypto';
 import * as http from 'http';
@@ -71,6 +75,22 @@ const sendJsonError = (
     res.end(JSON.stringify({ status: 'error', results: null, message }));
 };
 
+const readBody = (req: http.IncomingMessage): Promise<string> =>
+    new Promise((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        req.on('data', (chunk: Buffer) => chunks.push(chunk));
+        req.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
+        req.on('error', reject);
+    });
+
+const parseJson = (text: string): unknown => {
+    try {
+        return JSON.parse(text);
+    } catch {
+        return null;
+    }
+};
+
 const secretsMatch = (
     actual: string | string[] | undefined,
     expected: string,
@@ -104,6 +124,75 @@ export const startPreviewProxy = (args: {
     const requestFn =
         upstream.protocol === 'https:' ? https.request : http.request;
 
+    const withUpstreamCredentials = (
+        headers: http.OutgoingHttpHeaders,
+    ): http.OutgoingHttpHeaders => ({
+        ...headers,
+        authorization: args.authorization,
+        ...(args.proxyAuthorization
+            ? { 'proxy-authorization': args.proxyAuthorization }
+            : {}),
+    });
+
+    // Resolves the parsed body of a successful upstream GET, or null.
+    const getUpstreamJson = (path: string): Promise<unknown> =>
+        new Promise((resolve) => {
+            const upstreamReq = requestFn(
+                {
+                    protocol: upstream.protocol,
+                    hostname: upstream.hostname,
+                    port: upstream.port || undefined,
+                    path,
+                    method: 'GET',
+                    headers: withUpstreamCredentials({
+                        accept: 'application/json',
+                    }),
+                },
+                (upstreamRes) => {
+                    readBody(upstreamRes).then(
+                        (text) => {
+                            const status = upstreamRes.statusCode ?? 502;
+                            resolve(
+                                status >= 200 && status < 300
+                                    ? parseJson(text)
+                                    : null,
+                            );
+                        },
+                        () => resolve(null),
+                    );
+                },
+            );
+            upstreamReq.on('error', () => resolve(null));
+            upstreamReq.end();
+        });
+
+    // Host-answered virtual route: replies with only the explore's base
+    // table, never the explore itself.
+    const answerExploreBaseTable = async (
+        req: http.IncomingMessage,
+        res: http.ServerResponse,
+    ): Promise<void> => {
+        const request = parseAppSdkExploreBaseTableRequest(
+            parseJson(await readBody(req)),
+        );
+        if (request === null) {
+            sendJsonError(
+                res,
+                400,
+                'Preview proxy: invalid explore base-table request',
+            );
+            return;
+        }
+        const explore = await getUpstreamJson(
+            `/api/v1/projects/${encodeURIComponent(args.projectUuid)}/explores/${encodeURIComponent(request.exploreName)}`,
+        );
+        const results: AppSdkExploreBaseTableResult = {
+            baseTable: extractExploreBaseTable(explore),
+        };
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok', results }));
+    };
+
     const server = http.createServer((req, res) => {
         const method = req.method ?? 'GET';
         const nonceHeader = req.headers[PREVIEW_PROXY_NONCE_HEADER];
@@ -121,6 +210,19 @@ export const startPreviewProxy = (args: {
             pathname = new URL(req.url ?? '/', 'http://localhost').pathname;
         } catch {
             sendJsonError(res, 400, 'Preview proxy: malformed request URL');
+            return;
+        }
+
+        if (pathname === APP_SDK_EXPLORE_BASE_TABLE_PATH) {
+            answerExploreBaseTable(req, res).catch(() => {
+                if (!res.headersSent) {
+                    sendJsonError(
+                        res,
+                        400,
+                        'Preview proxy: invalid explore base-table request',
+                    );
+                }
+            });
             return;
         }
 
@@ -148,11 +250,9 @@ export const startPreviewProxy = (args: {
             return;
         }
 
-        const headers = filterHeaders(req.headers, DROPPED_REQUEST_HEADERS);
-        headers.authorization = args.authorization;
-        if (args.proxyAuthorization) {
-            headers['proxy-authorization'] = args.proxyAuthorization;
-        }
+        const headers = withUpstreamCredentials(
+            filterHeaders(req.headers, DROPPED_REQUEST_HEADERS),
+        );
         // The previewed app fetches the export's fileUrl directly from the
         // local dev page, which carries no instance credentials — ask the
         // backend for a SIGNED URL, same as the deployed app's bridge.

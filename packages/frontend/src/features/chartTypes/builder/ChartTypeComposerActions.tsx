@@ -27,6 +27,8 @@ type Props = {
     onPanelChange: (panel: ComposerPanel) => void;
     disabled: boolean;
     onAttach: () => void;
+    /** False hides "Attach an image or file" (the org turned captures off). */
+    canAttach?: boolean;
     selectedConnections: SelectedConnection[];
     onSelectConnection: (connection: SelectedConnection) => void;
     onDeselectConnection: (uuid: string) => void;
@@ -38,6 +40,7 @@ const ChartTypeComposerActions: FC<Props> = ({
     onPanelChange,
     disabled,
     onAttach,
+    canAttach = true,
     selectedConnections,
     onSelectConnection,
     onDeselectConnection,
@@ -74,15 +77,19 @@ const ChartTypeComposerActions: FC<Props> = ({
             <Popover.Dropdown p="xs">
                 {panel === 'options' ? (
                     <Stack gap={0}>
-                        <NavLink
-                            component="button"
-                            label="Attach an image or file"
-                            leftSection={<MantineIcon icon={IconPaperclip} />}
-                            onClick={() => {
-                                onPanelChange(null);
-                                onAttach();
-                            }}
-                        />
+                        {canAttach && (
+                            <NavLink
+                                component="button"
+                                label="Attach an image or file"
+                                leftSection={
+                                    <MantineIcon icon={IconPaperclip} />
+                                }
+                                onClick={() => {
+                                    onPanelChange(null);
+                                    onAttach();
+                                }}
+                            />
+                        )}
                         <NavLink
                             component="button"
                             label="Add external connections"

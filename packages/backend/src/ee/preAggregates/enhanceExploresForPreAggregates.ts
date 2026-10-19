@@ -11,10 +11,12 @@ export const enhanceExploresForPreAggregates = ({
     explores,
     enabled,
     startOfWeek,
+    startOfWeekByExplore,
 }: {
     explores: (Explore | ExploreError)[];
     enabled: boolean;
     startOfWeek: WeekDay | null;
+    startOfWeekByExplore?: ReadonlyMap<string, WeekDay | null>;
 }): (Explore | ExploreError)[] => {
     if (!enabled) {
         return explores;
@@ -39,7 +41,9 @@ export const enhanceExploresForPreAggregates = ({
         const generatedExplores = generatePreAggregateExplores({
             compiledExplores: [explore],
             parsedPreAggregates: explore.preAggregates,
-            startOfWeek,
+            startOfWeek: startOfWeekByExplore?.has(explore.name)
+                ? (startOfWeekByExplore.get(explore.name) ?? null)
+                : startOfWeek,
         });
 
         const enhancedSourceExplore =

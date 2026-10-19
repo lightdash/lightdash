@@ -455,6 +455,35 @@ export class WarehouseConnectionModel {
                 .forUpdate()
                 .first();
             if (!existing) return;
+            let warehouseType: string;
+            if (source.kind === 'project') {
+                warehouseType = source.credentials.type;
+            } else {
+                const credential = await transaction(
+                    'organization_warehouse_credentials',
+                )
+                    .select('warehouse_type', 'organization_uuid')
+                    .where(
+                        'organization_warehouse_credentials_uuid',
+                        source.organizationWarehouseCredentialsUuid,
+                    )
+                    .forUpdate()
+                    .first();
+                if (
+                    !credential ||
+                    credential.organization_uuid !== project.organizationUuid
+                ) {
+                    throw new NotFoundError(
+                        'Organization warehouse credentials not found',
+                    );
+                }
+                warehouseType = credential.warehouse_type;
+            }
+            if (warehouseType !== existing.warehouse_type) {
+                throw new ParameterError(
+                    "A connection's warehouse type cannot be changed. Add a new connection instead.",
+                );
+            }
             let current: CreateWarehouseCredentials | null = null;
             if (existing.encrypted_credentials) {
                 try {
@@ -478,7 +507,6 @@ export class WarehouseConnectionModel {
                 source.kind === 'project'
                     ? existing.organization_warehouse_credentials_uuid !=
                           null ||
-                      existing.warehouse_type !== source.credentials.type ||
                       !warehouseCredentialsEqual(
                           current,
                           normalizeWarehouseCredentials(source.credentials),

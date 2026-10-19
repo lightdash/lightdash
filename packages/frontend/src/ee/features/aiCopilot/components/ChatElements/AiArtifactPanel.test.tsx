@@ -17,8 +17,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { type ComponentProps, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../../../api';
+import { sharedLightdashApi } from '../../../../../api';
 import type * as QueryResultsHooks from '../../../../../hooks/useQueryResults';
+import { mockedLightdashApi } from '../../../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { AiArtifactPanel } from './AiArtifactPanel';
 import { AiChartVisualization } from './AiChartVisualization';
@@ -35,7 +36,7 @@ const mocks = vi.hoisted(() => ({
     retry: vi.fn(),
     saveVizConfig: vi.fn(),
 }));
-vi.mock('../../../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../../../api');
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: mocks.fastDecisions,
 }));
@@ -335,11 +336,7 @@ const nodeStatusesResponse = (
         error?: string;
     }[],
 ) =>
-    vi.mocked(lightdashApi).mockImplementation((async ({
-        url,
-    }: {
-        url: string;
-    }) =>
+    mockedLightdashApi.mockImplementation((async ({ url }: { url: string }) =>
         url.includes('/query-sources/queries/status')
             ? {
                   statuses: statuses.map(({ error, ...status }) => ({
@@ -347,7 +344,7 @@ const nodeStatusesResponse = (
                       error: error ?? null,
                   })),
               }
-            : undefined) as unknown as typeof lightdashApi);
+            : undefined) as unknown as typeof sharedLightdashApi);
 
 const resultsOf = (
     columns: Record<string, { reference: string; type: string }>,
@@ -1087,6 +1084,7 @@ describe('alternate artifact visualization identity recovery', () => {
                 projectUuid="project"
                 queryUuid="query"
                 runError={null}
+                onRerun={vi.fn()}
                 results={{ ...mocks.rows(), error }}
                 vizConfig={
                     { type: ChartKind.TABLE } as ComponentProps<
@@ -1160,7 +1158,7 @@ describe('inline artifact result routing', () => {
                     ? { data: undefined, isLoading: true }
                     : { data: { enabled: true }, isLoading: false },
             );
-            vi.mocked(lightdashApi).mockResolvedValue({
+            mockedLightdashApi.mockResolvedValue({
                 queryUuid: 'query',
                 status: QueryHistoryStatus.READY,
                 rows: [],
@@ -1191,9 +1189,11 @@ describe('inline artifact result routing', () => {
             );
             const { rerender } = renderWithProviders(panel);
             if (isEmbed) {
-                await waitFor(() => expect(lightdashApi).toHaveBeenCalled());
+                await waitFor(() =>
+                    expect(sharedLightdashApi).toHaveBeenCalled(),
+                );
             } else {
-                expect(lightdashApi).not.toHaveBeenCalled();
+                expect(sharedLightdashApi).not.toHaveBeenCalled();
             }
             mocks.fastDecisions.mockImplementation((flag: FeatureFlags) => ({
                 data: {
@@ -1207,8 +1207,8 @@ describe('inline artifact result routing', () => {
                     <AiArtifactPanel artifact={artifact} variant="inline" />
                 </QueryClientProvider>,
             );
-            await waitFor(() => expect(lightdashApi).toHaveBeenCalled());
-            for (const [request] of vi.mocked(lightdashApi).mock.calls) {
+            await waitFor(() => expect(sharedLightdashApi).toHaveBeenCalled());
+            for (const [request] of mockedLightdashApi.mock.calls) {
                 expect(request).toMatchObject({
                     method: 'GET',
                     url:

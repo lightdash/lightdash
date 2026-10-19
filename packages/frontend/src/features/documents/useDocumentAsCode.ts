@@ -1,5 +1,5 @@
 import { type DocumentAsCode, type UuidOrSlug } from '@lightdash/common';
-import { lightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { useContentAsCode } from '../contentAsCode/hooks/useContentAsCode';
 
 const selectDocument = (document: DocumentAsCode) => document;
@@ -8,8 +8,9 @@ export const useDocumentAsCode = (
     projectUuid: string,
     documentUuidOrSlug: UuidOrSlug,
     enabled: boolean,
-) =>
-    useContentAsCode({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useContentAsCode({
         queryKey: ['document-as-code', projectUuid, documentUuidOrSlug],
         queryFn: () =>
             lightdashApi<DocumentAsCode>({
@@ -20,3 +21,4 @@ export const useDocumentAsCode = (
         selectDocument,
         enabled,
     });
+};

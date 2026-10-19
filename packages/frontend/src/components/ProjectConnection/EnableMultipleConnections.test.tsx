@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     ProjectType,
     WarehouseTypes,
     type Project,
@@ -7,21 +8,26 @@ import {
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import { renderWithProviders } from '../../testing/testUtils';
 import ConnectionsPanel from './ConnectionsPanel';
 
-const flag = vi.hoisted(() => ({ enabled: true }));
+const flag = vi.hoisted(() => ({ enabled: true, mixedTypesEnabled: true }));
 
-vi.mock('../../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../../api');
 
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: flag.enabled } }),
+    useServerFeatureFlag: (id: FeatureFlags) => ({
+        data: {
+            enabled:
+                id === FeatureFlags.MixedWarehouseConnections
+                    ? flag.mixedTypesEnabled
+                    : flag.enabled,
+        },
+    }),
 }));
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 
 const organizationUuid = 'organization-uuid';
 const connectionsUrl = '/projects/project-uuid/warehouse-connections';
@@ -70,8 +76,10 @@ type Call = { url: string; method: string; body?: string };
 const routeApi = ({
     availability,
     switchResponses = [],
+    originalWarehouseType = WarehouseTypes.POSTGRES,
 }: {
     availability: { canSwitch: boolean; reason: string | null };
+    originalWarehouseType?: WarehouseTypes;
     switchResponses?: (() => Promise<unknown>)[];
 }) => {
     const pendingSwitches = [...switchResponses];
@@ -82,7 +90,7 @@ const routeApi = ({
         if (url === switchUrl && method === 'GET') {
             return {
                 ...availability,
-                originalWarehouseType: WarehouseTypes.POSTGRES,
+                originalWarehouseType,
             };
         }
         if (url === `${switchUrl}/preview`) return plan;
@@ -143,6 +151,37 @@ describe('Enable multiple connections', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         flag.enabled = true;
+        flag.mixedTypesEnabled = true;
+    });
+
+    it.each([false, true])(
+        'gates a Trino original with the resolved mixed flag %s',
+        async (enabled) => {
+            flag.mixedTypesEnabled = enabled;
+            routeApi({
+                availability: { canSwitch: true, reason: null },
+                originalWarehouseType: WarehouseTypes.TRINO,
+            });
+            renderPanel();
+            const button = await screen.findByRole('button', {
+                name: 'Enable multiple connections',
+            });
+            await waitFor(() =>
+                expect(button).toHaveProperty('disabled', !enabled),
+            );
+        },
+    );
+    it('keeps a Postgres original available with the mixed flag off', async () => {
+        flag.mixedTypesEnabled = false;
+        routeApi({ availability: { canSwitch: true, reason: null } });
+        renderPanel();
+        await waitFor(() =>
+            expect(
+                screen.getByRole('button', {
+                    name: 'Enable multiple connections',
+                }),
+            ).toBeEnabled(),
+        );
     });
 
     it('offers the switch on a single-connection project', async () => {

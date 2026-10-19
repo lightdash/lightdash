@@ -54,6 +54,7 @@ import {
     ToolListContentArgs,
     UpdateSlackResponse,
     UpdateWebAppResponse,
+    WarehouseExecutionStats,
     WarehouseTablesCatalog,
     WarehouseTypes,
     type SqlApprovalToolName,
@@ -524,6 +525,7 @@ export type RunAsyncQueryFn = (
     rows: Record<string, AnyType>[];
     cacheMetadata: CacheMetadata;
     fields: ItemsMap;
+    executionStats: WarehouseExecutionStats | null;
 }>;
 
 export type RunAsyncMergeQueryFn = (
@@ -556,6 +558,7 @@ export type RunSavedChartQueryFn = (args: {
     rows: Record<string, AnyType>[];
     cacheMetadata: CacheMetadata;
     fields: ItemsMap;
+    executionStats: WarehouseExecutionStats | null;
 }>;
 
 export type GetSavedChartFn = (chartUuidOrSlug: string) => Promise<SavedChart>;
@@ -711,6 +714,7 @@ export type RunSqlJobFn = (args: { sql: string; limit: number }) => Promise<{
     rows: Record<string, AnyType>[];
     columns: string[];
     rowCount: number;
+    executionStats: WarehouseExecutionStats | null;
 }>;
 
 /**
@@ -957,6 +961,12 @@ export type GetProjectInfoFn = () => Promise<{
     dbtConnectionType: DbtProjectType;
     dbtVersion: string;
     warehouseType: WarehouseTypes | null;
+    connections: {
+        name: string;
+        warehouseConnectionUuid: string | null;
+        warehouseType: WarehouseTypes;
+        isOriginal: boolean;
+    }[];
     git: {
         repository: string;
         branch: string;

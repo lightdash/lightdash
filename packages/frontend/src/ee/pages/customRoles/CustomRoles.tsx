@@ -25,29 +25,18 @@ export const CustomRoles = () => {
         deleteRole.mutate(uuid);
     };
 
-    // Sort roles alphabetically (case-insensitive) so the table stays
-    // stable as new roles get added — the API returns insertion order
-    // by default which gets noisy with many roles.
-    const sortedRoles = useMemo(
-        () =>
-            (listRoles.data ?? []).slice().sort((a, b) =>
-                a.name.localeCompare(b.name, undefined, {
-                    sensitivity: 'base',
-                }),
-            ),
-        [listRoles.data],
-    );
+    const roles = useMemo(() => listRoles.data ?? [], [listRoles.data]);
 
     const projectRoles = useMemo(
-        () => sortedRoles.filter((role) => role.level === 'project'),
-        [sortedRoles],
+        () => roles.filter((role) => role.level === 'project'),
+        [roles],
     );
     const organizationRoles = useMemo(
-        () => sortedRoles.filter((role) => role.level === 'organization'),
-        [sortedRoles],
+        () => roles.filter((role) => role.level === 'organization'),
+        [roles],
     );
 
-    const hasRoles = sortedRoles.length > 0;
+    const hasRoles = roles.length > 0;
 
     const renderRolesTable = (roles: RoleWithScopes[], level: RoleLevel) =>
         roles.length > 0 ? (

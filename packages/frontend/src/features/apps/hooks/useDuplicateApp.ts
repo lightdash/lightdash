@@ -1,7 +1,8 @@
 import { type ApiDuplicateAppResponse, type ApiError } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { captureChartTypeError } from '../../chartTypes/utils/captureChartTypeError';
 
 type DuplicateAppParams = {
@@ -12,7 +13,10 @@ type DuplicateAppParams = {
 
 type DuplicateAppResult = ApiDuplicateAppResponse['results'];
 
-const duplicateApp = ({ projectUuid, appUuid, name }: DuplicateAppParams) =>
+const duplicateApp = (
+    lightdashApi: LightdashApi,
+    { projectUuid, appUuid, name }: DuplicateAppParams,
+) =>
     lightdashApi<DuplicateAppResult>({
         method: 'POST',
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/duplicate`,
@@ -20,10 +24,12 @@ const duplicateApp = ({ projectUuid, appUuid, name }: DuplicateAppParams) =>
     });
 
 export const useDuplicateApp = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<DuplicateAppResult, ApiError, DuplicateAppParams>({
-        mutationFn: duplicateApp,
+        mutationFn: (args: DuplicateAppParams) =>
+            duplicateApp(lightdashApi, args),
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ['myApps'] });
             void queryClient.invalidateQueries({ queryKey: ['content'] });

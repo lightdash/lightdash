@@ -1,16 +1,17 @@
 import { type ApiMetricsWithAssociatedTimeDimensionResponse } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type GetMetricsWithTimeDimensionArgs = {
     projectUuid?: string;
     tableName?: string;
 };
 
-const getMetricsWithTimeDimensions = async ({
-    projectUuid,
-    tableName,
-}: UseMetricsWithTimeDimensionArgs) => {
+const getMetricsWithTimeDimensions = async (
+    lightdashApi: LightdashApi,
+    { projectUuid, tableName }: UseMetricsWithTimeDimensionArgs,
+) => {
     const params = new URLSearchParams(
         Object.entries({
             ...(tableName ? { tableName } : {}),
@@ -38,6 +39,7 @@ export const useCatalogMetricsWithTimeDimensions = ({
     tableName,
     options,
 }: UseMetricsWithTimeDimensionArgs) => {
+    const lightdashApi = useLightdashApi();
     return useQuery({
         queryKey: [
             projectUuid,
@@ -45,7 +47,11 @@ export const useCatalogMetricsWithTimeDimensions = ({
             'metricsWithTimeDimensions',
             tableName,
         ],
-        queryFn: () => getMetricsWithTimeDimensions({ projectUuid, tableName }),
+        queryFn: () =>
+            getMetricsWithTimeDimensions(lightdashApi, {
+                projectUuid,
+                tableName,
+            }),
         ...options,
     });
 };

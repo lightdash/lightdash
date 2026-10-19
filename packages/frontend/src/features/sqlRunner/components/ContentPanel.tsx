@@ -42,6 +42,7 @@ import {
     IconCode,
     IconIndentIncrease,
 } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
     useCallback,
     useEffect,
@@ -63,11 +64,19 @@ import {
 import { ChartDataTable } from '../../../components/DataViz/visualizations/ChartDataTable';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import type { EChartsInstance } from '../../../components/EChartsReactWrapper';
+import { QueryCostConfirmModal } from '../../../components/QueryCostEstimate/QueryCostConfirmModal';
+import { QueryCostEstimateBadge } from '../../../components/QueryCostEstimate/QueryCostEstimateBadge';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
+import {
+    fetchSqlQueryCostEstimate,
+    useQueryCostEstimateSettings,
+    useSqlQueryCostEstimate,
+} from '../../../hooks/useQueryCostEstimate';
 import { SHARED_SIGN_IN_RECONNECTED } from '../../../hooks/useReconnectSharedSignIn';
 import useApp from '../../../providers/App/useApp';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { Parameters, useParameters } from '../../parameters';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useRunQueryOnLoad } from '../hooks/useRunQueryOnLoad';
@@ -222,6 +231,8 @@ const QueryErrorBlock: FC<{
 export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     toolbarActions,
 }) => {
+    const lightdashApi = useLightdashApi();
+
     // State we need from redux
     const savedSqlChart = useAppSelector(selectSavedSqlChart);
     const projectUuid = useAppSelector(selectProjectUuid);
@@ -322,7 +333,34 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     const queryResults = useAppSelector(selectSqlQueryResults);
     const hasQueryResults = useMemo(() => !!queryResults, [queryResults]);
 
-    const handleRunQuery = useCallback(
+    const warehouseConnectionUuid = useAppSelector(selectConnectionUuid);
+    const queryClient = useQueryClient();
+    const costEstimateSettings = useQueryCostEstimateSettings(projectUuid);
+    const [pendingCostConfirmation, setPendingCostConfirmation] = useState<{
+        sql: string;
+        totalBytesProcessed: number;
+        confirmEstimatedBytesAbove: number;
+    } | null>(null);
+    const costEstimateBody = useMemo(
+        () =>
+            sql && limit
+                ? {
+                      sql,
+                      limit,
+                      parameters: parameterValues,
+                      warehouseConnectionUuid:
+                          warehouseConnectionUuid ?? undefined,
+                  }
+                : null,
+        [sql, limit, parameterValues, warehouseConnectionUuid],
+    );
+    const costEstimate = useSqlQueryCostEstimate(
+        projectUuid,
+        costEstimateBody,
+        costEstimateSettings !== null,
+    );
+
+    const executeRunQuery = useCallback(
         async (sqlToUse: string) => {
             if (!sqlToUse || !limit) return;
 
@@ -380,6 +418,56 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
         ],
     );
 
+    // Above the connection's threshold, ask before running; a failed
+    // estimate never blocks, since maximum bytes billed is the backstop.
+    const handleRunQuery = useCallback(
+        async (sqlToUse: string) => {
+            if (!sqlToUse || !limit) return;
+            if (costEstimateSettings?.confirmEstimatedBytesAbove) {
+                try {
+                    const estimate = await fetchSqlQueryCostEstimate(
+                        lightdashApi,
+                        queryClient,
+                        projectUuid,
+                        {
+                            sql: sqlToUse,
+                            limit,
+                            parameters: parameterValues,
+                            warehouseConnectionUuid:
+                                warehouseConnectionUuid ?? undefined,
+                        },
+                    );
+                    if (
+                        estimate.status === 'estimated' &&
+                        estimate.requiresConfirmation &&
+                        estimate.confirmEstimatedBytesAbove !== null
+                    ) {
+                        setPendingCostConfirmation({
+                            sql: sqlToUse,
+                            totalBytesProcessed: estimate.totalBytesProcessed,
+                            confirmEstimatedBytesAbove:
+                                estimate.confirmEstimatedBytesAbove,
+                        });
+                        return;
+                    }
+                } catch {
+                    // Fall through and run the query.
+                }
+            }
+            await executeRunQuery(sqlToUse);
+        },
+        [
+            costEstimateSettings,
+            executeRunQuery,
+            limit,
+            parameterValues,
+            projectUuid,
+            queryClient,
+            warehouseConnectionUuid,
+            lightdashApi,
+        ],
+    );
+
     useEffect(() => {
         const retryFailedRun = (event: Event) => {
             const failedRun = lastFailedRun.current;
@@ -434,7 +522,6 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
         ],
     ]);
 
-    const warehouseConnectionUuid = useAppSelector(selectConnectionUuid);
     useRunQueryOnLoad({ runQuery: handleRunQuery, hasQueryResults });
 
     const activeConfigs = useAppSelector((state) => {
@@ -617,7 +704,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
             // 2. limit is different from current query
             // 3. there is no fallback query uuid (in theory, never happens)
             if (!queryUuid || limit === null || limit !== downloadLimit) {
-                return executeSqlDownloadQuery({
+                return executeSqlDownloadQuery(lightdashApi, {
                     projectUuid,
                     sql,
                     limit: downloadLimit,
@@ -634,6 +721,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
             queryUuid,
             parameterValues,
             warehouseConnectionUuid,
+            lightdashApi,
         ],
     );
 
@@ -652,6 +740,22 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
 
     return (
         <Stack gap={0} className={styles.root}>
+            {pendingCostConfirmation && (
+                <QueryCostConfirmModal
+                    opened
+                    totalBytesProcessed={
+                        pendingCostConfirmation.totalBytesProcessed
+                    }
+                    confirmEstimatedBytesAbove={
+                        pendingCostConfirmation.confirmEstimatedBytesAbove
+                    }
+                    onConfirm={() => {
+                        setPendingCostConfirmation(null);
+                        void executeRunQuery(pendingCostConfirmation.sql);
+                    }}
+                    onClose={() => setPendingCostConfirmation(null)}
+                />
+            )}
             <Tooltip.Group>
                 <ResizableSplitter
                     orientation="vertical"
@@ -863,6 +967,12 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                             />
                                             {toolbarActions}
                                         </>
+                                    )}
+                                    {costEstimateSettings !== null && (
+                                        <QueryCostEstimateBadge
+                                            estimate={costEstimate.data}
+                                            isFetching={costEstimate.isFetching}
+                                        />
                                     )}
                                     <RunSqlQueryButton
                                         isLoading={isLoadingSqlQuery}

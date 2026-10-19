@@ -48,6 +48,10 @@ import {
     ClientProviderMap,
     ClientRepository,
 } from './clients/ClientRepository';
+import {
+    startDockerHubVersionPolling,
+    stopDockerHubVersionPolling,
+} from './clients/DockerHub/DockerHub';
 import { setGithubRateLimitObserver } from './clients/github/Github';
 import { SlackClient } from './clients/Slack/SlackClient';
 import { createStaticAssetsFallbackHandler } from './clients/StaticAssets/staticAssetsFallbackMiddleware';
@@ -274,7 +278,6 @@ export default class App {
         this.eventStreamWriter = createEventStreamWriter(
             this.lightdashConfig,
             this.prometheusMetrics,
-            () => this.models.getFeatureFlagModel(),
         );
         this.analytics = new LightdashAnalytics({
             lightdashConfig: this.lightdashConfig,
@@ -300,6 +303,12 @@ export default class App {
             this.environment === 'production'
                 ? args.knexConfig.production
                 : args.knexConfig.development,
+            {
+                logRollbacks:
+                    this.lightdashConfig.database.logTransactionRollbacks,
+                slowTransactionThresholdMs:
+                    this.lightdashConfig.database.slowTransactionThresholdMs,
+            },
         );
         this.utils = new UtilRepository({
             utilProviders: args.utilProviders,
@@ -362,6 +371,9 @@ export default class App {
         this.featureFlagCheckFlushInterval.unref();
 
         this.prometheusMetrics.start();
+        if (this.lightdashConfig.updateCheck.enabled) {
+            startDockerHubVersionPolling();
+        }
         MotherduckInstanceCache.configure(
             this.lightdashConfig.motherduckInstanceCache,
         );
@@ -668,10 +680,18 @@ export default class App {
 
         expressApp.use(helmet(helmetConfig));
 
-        // Allow MCP-related icons to be embedded cross-origin so MCP hosts
-        // (e.g. claude.ai) can display them in connector listings.
+        // Allow site icons to be embedded cross-origin so MCP hosts
+        // (e.g. claude.ai) can display them in connector listings. Claude
+        // reads /favicon.ico from the server origin; the rest are the icons
+        // the MCP server advertises in its initialize response.
         expressApp.use(
-            ['/logo-icon.svg', '/favicon-32x32.png', '/apple-touch-icon.png'],
+            [
+                '/favicon.ico',
+                '/favicon-16x16.png',
+                '/favicon-32x32.png',
+                '/apple-touch-icon.png',
+                '/logo-icon.svg',
+            ],
             helmet.crossOriginResourcePolicy({ policy: 'cross-origin' }),
         );
 
@@ -1180,6 +1200,7 @@ export default class App {
             clearInterval(this.featureFlagCheckFlushInterval);
             this.featureFlagCheckFlushInterval = undefined;
         }
+        stopDockerHubVersionPolling();
         try {
             this.analytics.trackFeatureFlagChecks(
                 flushFeatureFlagChecks(),

@@ -25,6 +25,7 @@ type SqlApprovalDecidedProperties =
 // Tools whose Slack runs suspend on the AI SDK's native approval.
 export const NATIVE_SQL_APPROVAL_TOOL_NAMES = [
     'runSql',
+    'runComposerQueries',
     'createContent',
     'editContent',
 ] as const satisfies readonly SqlApprovalToolName[];
@@ -42,6 +43,9 @@ export const isNativeSqlApprovalToolCall = (
 export const RUN_SQL_REJECTED_RESULT =
     'User rejected this SQL execution. Do not retry the same query; ask the user what they would like instead.';
 
+export const COMPOSER_SQL_REJECTED_RESULT =
+    'User rejected this SQL execution. Do not retry the same pipeline; ask the user what they would like instead.';
+
 export const SQL_CHART_REJECTED_RESULT =
     'User rejected the SQL for this SQL chart, so nothing was saved. Do not retry the same SQL; ask the user what they would like instead.';
 
@@ -53,6 +57,11 @@ export const getRejectedOutput = (
         case 'runSql':
             return {
                 result: RUN_SQL_REJECTED_RESULT,
+                metadata: { status: 'rejected' },
+            };
+        case 'runComposerQueries':
+            return {
+                result: COMPOSER_SQL_REJECTED_RESULT,
                 metadata: { status: 'rejected' },
             };
         case 'createContent':
@@ -72,6 +81,7 @@ export const getSqlApprovalHeading = (
 ): string => {
     switch (toolName) {
         case 'runSql':
+        case 'runComposerQueries':
             return 'Awaiting approval to run SQL';
         case 'createContent':
         case 'editContent':
@@ -101,7 +111,6 @@ export const findSameTurnSqlApproval = (
         return null;
     }
     const match = decisions.find((decision) => {
-        // Composer approvals cover several queries at once, so never count.
         if (
             decision.decision !== 'approved' ||
             !isNativeSqlApprovalToolCall(decision.toolName, decision.toolArgs)

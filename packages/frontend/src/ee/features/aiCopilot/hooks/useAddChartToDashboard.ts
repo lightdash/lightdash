@@ -14,6 +14,7 @@ import {
     updateDashboardApi,
 } from '../../../../hooks/dashboard/useDashboard';
 import { createSavedQuery } from '../../../../hooks/useSavedQuery';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 type AddChartArgs = {
     savedData: CreateSavedChartVersion;
@@ -24,6 +25,7 @@ type AddChartArgs = {
 };
 
 export const useAddChartToDashboard = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     return useCallback(
         async ({
             savedData,
@@ -32,14 +34,22 @@ export const useAddChartToDashboard = (projectUuid: string) => {
             dashboardUuid,
             activeTabUuid,
         }: AddChartArgs): Promise<SavedChart> => {
-            const dashboard = await getDashboard(dashboardUuid, projectUuid);
-
-            const savedChart = await createSavedQuery(projectUuid, {
-                ...savedData,
-                name,
-                description: description ?? undefined,
+            const dashboard = await getDashboard(
+                lightdashApi,
                 dashboardUuid,
-            });
+                projectUuid,
+            );
+
+            const savedChart = await createSavedQuery(
+                lightdashApi,
+                projectUuid,
+                {
+                    ...savedData,
+                    name,
+                    description: description ?? undefined,
+                    dashboardUuid,
+                },
+            );
 
             const tabUuid = activeTabUuid ?? dashboard.tabs?.[0]?.uuid;
             const newTile: DashboardChartTile = {
@@ -59,6 +69,7 @@ export const useAddChartToDashboard = (projectUuid: string) => {
             };
 
             await updateDashboardApi(
+                lightdashApi,
                 dashboardUuid,
                 {
                     filters: dashboard.filters,
@@ -70,6 +81,6 @@ export const useAddChartToDashboard = (projectUuid: string) => {
 
             return savedChart;
         },
-        [projectUuid],
+        [projectUuid, lightdashApi],
     );
 };

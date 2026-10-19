@@ -162,4 +162,5 @@ packageExtensions:
       ai:
         optional: true
 patchedDependencies:
+  '@modelcontextprotocol/sdk@1.31.0': patches/@modelcontextprotocol__sdk@1.31.0.patch
   scim-patch@0.9.3: patches/scim-patch@0.9.3.patch

@@ -8847,6 +8847,51 @@ Parameters:
             "structuredContent": {
               "additionalProperties": false,
               "properties": {
+                "connections": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "isOriginal": {
+                        "type": "boolean",
+                      },
+                      "name": {
+                        "type": "string",
+                      },
+                      "warehouseConnectionUuid": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                      },
+                      "warehouseType": {
+                        "enum": [
+                          "bigquery",
+                          "postgres",
+                          "redshift",
+                          "snowflake",
+                          "databricks",
+                          "trino",
+                          "clickhouse",
+                          "athena",
+                          "duckdb",
+                        ],
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "name",
+                      "warehouseConnectionUuid",
+                      "warehouseType",
+                      "isOriginal",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
                 "dbtConnectionLabel": {
                   "description": "Human-readable name of the dbt connection type.",
                   "type": "string",
@@ -8991,6 +9036,7 @@ Parameters:
                 "dbtConnectionLabel",
                 "dbtVersion",
                 "warehouseType",
+                "connections",
                 "git",
                 "previewDeployCi",
               ],
@@ -19384,6 +19430,78 @@ Use them whenever the question needs math the metric query alone can't express: 
                       ],
                       "description": "The raw warehouse values behind the CSV cells in the shown slice; null when the agent has no data access and no rows were shown.",
                     },
+                    "executionStats": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "description": "The warehouse's own report for the query job, as stated in the result.",
+                          "properties": {
+                            "bytesBilled": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                            },
+                            "bytesProcessed": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                            },
+                            "cacheHit": {
+                              "anyOf": [
+                                {
+                                  "type": "boolean",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                            },
+                            "executionTimeMs": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                            },
+                            "jobId": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                            },
+                          },
+                          "required": [
+                            "jobId",
+                            "bytesProcessed",
+                            "bytesBilled",
+                            "executionTimeMs",
+                            "cacheHit",
+                          ],
+                          "type": "object",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "Warehouse execution stats, when the warehouse reported them; null when it did not or the results came from the results cache.",
+                    },
                     "limit": {
                       "additionalProperties": false,
                       "description": "The row limit behind rowCount.",
@@ -20542,6 +20660,78 @@ Do not invent SQL Runner links.",
                     "type": "string",
                   },
                   "type": "array",
+                },
+                "executionStats": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "description": "The warehouse's own report for the query job, as stated in the result.",
+                      "properties": {
+                        "bytesBilled": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "bytesProcessed": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "cacheHit": {
+                          "anyOf": [
+                            {
+                              "type": "boolean",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "executionTimeMs": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "jobId": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "jobId",
+                        "bytesProcessed",
+                        "bytesBilled",
+                        "executionTimeMs",
+                        "cacheHit",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Warehouse execution stats, when the warehouse reported them; null when it did not or the results came from the results cache.",
                 },
                 "review": {
                   "anyOf": [
@@ -24440,6 +24630,78 @@ Use them whenever the question needs math the metric query alone can't express: 
                       },
                     ],
                     "description": "The raw warehouse values behind the CSV cells in the shown slice; null when the agent has no data access and no rows were shown.",
+                  },
+                  "executionStats": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "description": "The warehouse's own report for the query job, as stated in the result.",
+                        "properties": {
+                          "bytesBilled": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "bytesProcessed": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "cacheHit": {
+                            "anyOf": [
+                              {
+                                "type": "boolean",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "executionTimeMs": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "jobId": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                        },
+                        "required": [
+                          "jobId",
+                          "bytesProcessed",
+                          "bytesBilled",
+                          "executionTimeMs",
+                          "cacheHit",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                    "description": "Warehouse execution stats, when the warehouse reported them; null when it did not or the results came from the results cache.",
                   },
                   "limit": {
                     "additionalProperties": false,

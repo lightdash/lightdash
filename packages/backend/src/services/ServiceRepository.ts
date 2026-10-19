@@ -29,7 +29,10 @@ import { AdminNotificationService } from './AdminNotificationService/AdminNotifi
 import { AgentConnectionApprovalService } from './AgentConnectionApprovalService/AgentConnectionApprovalService';
 import { AgentPermissionService } from './AgentPermissionService/AgentPermissionService';
 import { areOrganizationGroupsAvailable } from './AgentPermissionService/groupsAvailable';
-import { AiAccessService } from './AiAccessService/AiAccessService';
+import {
+    AiAccessService,
+    type AgentResultReadAccess,
+} from './AiAccessService/AiAccessService';
 import { SnowflakeAgentClientResolver } from './AiAccessService/SnowflakeAgentClientResolver';
 import { AiServiceAccountService } from './AiServiceAccountService/AiServiceAccountService';
 import { AnalyticsProjectService } from './AnalyticsProjectService/AnalyticsProjectService';
@@ -241,6 +244,7 @@ interface ServiceManifest {
     projectContextService: unknown;
     roadmapService: unknown;
     scimService: unknown;
+    releaseHighlightsService: unknown;
     supportService: unknown;
     cacheService: unknown;
     serviceAccountService: unknown;
@@ -800,6 +804,8 @@ export class ServiceRepository
                     groupsModel: this.models.getGroupsModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     rolesModel: this.models.getRolesModel(),
+                    organizationSettingsModel:
+                        this.models.getOrganizationSettingsModel(),
                 }),
         );
     }
@@ -1102,6 +1108,10 @@ export class ServiceRepository
             'aiAccessService',
             () =>
                 new AiAccessService({
+                    getAgentResultReadAccess: () =>
+                        this.providers.aiAgentService != null
+                            ? this.getAiAgentService<AgentResultReadAccess>()
+                            : null,
                     getAgentConnectionGrantService: () =>
                         this.getAgentConnectionGrantService(),
                     agentActionLogModel: this.models.getAgentActionLogModel(),
@@ -1646,6 +1656,8 @@ export class ServiceRepository
                     documentModel: this.models.getDocumentModel(),
                     documentService: this.getDocumentService(),
                     userModel: this.models.getUserModel(),
+                    organizationSettingsModel:
+                        this.models.getOrganizationSettingsModel(),
                 }),
         );
     }
@@ -2226,6 +2238,10 @@ export class ServiceRepository
         return this.getService('scimService');
     }
 
+    public getReleaseHighlightsService<ServiceImplT>(): ServiceImplT {
+        return this.getService('releaseHighlightsService');
+    }
+
     public getSupportService<SupportServiceImptT>(): SupportServiceImptT {
         return this.getService('supportService');
     }
@@ -2354,6 +2370,7 @@ export class ServiceRepository
                         this.models.getProjectDbtSourcesModel(),
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
+                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }

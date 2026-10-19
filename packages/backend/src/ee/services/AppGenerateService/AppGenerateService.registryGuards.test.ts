@@ -296,6 +296,9 @@ describe('read-only invariant for registry-managed apps', () => {
         await expect(
             service.importAppCode(makeUser(), PROJECT_UUID, body),
         ).rejects.toThrow(ForbiddenError);
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, body),
+        ).rejects.toThrow(/Change the slug in lightdash-app.yml/);
     });
 
     it('importAppCode identical-bundle upload targeting a registry app throws ForbiddenError before any metadata patch', async () => {

@@ -11,16 +11,14 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
-vi.mock('../../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../../api');
 
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import ActiveJobProvider from '../../providers/ActiveJob/ActiveJobProvider';
 import { renderWithProviders } from '../../testing/testUtils';
 import CreateProjectConnection from './CreateProjectconnection';
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 
 const ACTIVE_JOB_URL = '/org/jobs/create-project/active';
 const CREATE_PROJECT_URL = '/org/projects/precompiled';

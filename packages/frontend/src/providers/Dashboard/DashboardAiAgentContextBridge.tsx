@@ -27,6 +27,7 @@ import { useAiAgentProjectStreamParts } from '../../ee/features/aiCopilot/stream
 import { getDashboard } from '../../hooks/dashboard/useDashboard';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { getSavedQuery } from '../../hooks/useSavedQuery';
+import { useLightdashApi } from '../LightdashApi/useLightdashApi';
 import {
     type DashboardAiAgentChartRef,
     type DashboardAiAgentChartTiles,
@@ -55,6 +56,7 @@ const isSameChartRef = (
 ) => a?.type === b?.type && a?.slug === b?.slug;
 
 const DashboardAiAgentContextBridge = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     // useDashboardQuery/saved_dashboard_query use UUID-or-slug; useDashboardChartReadyQuery/dashboard_chart_ready_query uses dashboard.uuid.
     const { dashboardUuid: dashboardUuidOrSlug, mode } = useParams();
@@ -196,6 +198,7 @@ const DashboardAiAgentContextBridge = () => {
                             queryKey,
                             queryFn: () =>
                                 getSavedQuery(
+                                    lightdashApi,
                                     savedChartUuid,
                                     projectUuid,
                                     includeUnpublishedDraft,
@@ -221,6 +224,7 @@ const DashboardAiAgentContextBridge = () => {
         },
         [
             currentDashboardUuid,
+            lightdashApi,
             projectUuid,
             queryClient,
             includeUnpublishedDraft,
@@ -303,6 +307,7 @@ const DashboardAiAgentContextBridge = () => {
                     queryKey: dashboardQueryKey,
                     queryFn: () =>
                         getDashboard(
+                            lightdashApi,
                             dashboardUuidOrSlug,
                             projectUuid,
                             includeUnpublishedDraft,
@@ -345,6 +350,7 @@ const DashboardAiAgentContextBridge = () => {
         [
             dashboardQueryKey,
             dashboardUuidOrSlug,
+            lightdashApi,
             projectUuid,
             includeUnpublishedDraft,
             queryClient,

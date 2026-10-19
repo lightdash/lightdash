@@ -4,10 +4,14 @@ import {
     type PasswordReset,
 } from '@lightdash/common';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useToaster from './toaster/useToaster';
 
-const getPasswordResetLinkQuery = async (code: string): Promise<null> =>
+const getPasswordResetLinkQuery = async (
+    lightdashApi: LightdashApi,
+    code: string,
+): Promise<null> =>
     lightdashApi<null>({
         url: `/password-reset/${code}`,
         method: 'GET',
@@ -15,6 +19,7 @@ const getPasswordResetLinkQuery = async (code: string): Promise<null> =>
     });
 
 const sendPasswordResetLinkQuery = async (
+    lightdashApi: LightdashApi,
     data: CreatePasswordResetLink,
 ): Promise<null> =>
     lightdashApi<null>({
@@ -23,7 +28,10 @@ const sendPasswordResetLinkQuery = async (
         body: JSON.stringify(data),
     });
 
-const resetPasswordQuery = async (data: PasswordReset): Promise<null> =>
+const resetPasswordQuery = async (
+    lightdashApi: LightdashApi,
+    data: PasswordReset,
+): Promise<null> =>
     lightdashApi<null>({
         url: `/user/password/reset`,
         method: 'POST',
@@ -31,17 +39,21 @@ const resetPasswordQuery = async (data: PasswordReset): Promise<null> =>
         sensitive: true,
     });
 
-export const usePasswordResetLink = (code: string | undefined) =>
-    useQuery<null, ApiError>({
+export const usePasswordResetLink = (code: string | undefined) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<null, ApiError>({
         queryKey: ['password_reset_link'],
-        queryFn: () => getPasswordResetLinkQuery(code!),
+        queryFn: () => getPasswordResetLinkQuery(lightdashApi, code!),
         enabled: code !== undefined,
     });
+};
 
 export const usePasswordResetLinkMutation = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<null, ApiError, CreatePasswordResetLink>(
-        sendPasswordResetLinkQuery,
+        (data: CreatePasswordResetLink) =>
+            sendPasswordResetLinkQuery(lightdashApi, data),
         {
             mutationKey: ['send_password_reset_email'],
             onSuccess: async () => {
@@ -60,19 +72,23 @@ export const usePasswordResetLinkMutation = () => {
 };
 
 export const usePasswordResetMutation = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError, showToastSuccess } = useToaster();
-    return useMutation<null, ApiError, PasswordReset>(resetPasswordQuery, {
-        mutationKey: ['reset_password'],
-        onSuccess: async () => {
-            showToastSuccess({
-                title: 'Password updated successfully',
-            });
+    return useMutation<null, ApiError, PasswordReset>(
+        (data: PasswordReset) => resetPasswordQuery(lightdashApi, data),
+        {
+            mutationKey: ['reset_password'],
+            onSuccess: async () => {
+                showToastSuccess({
+                    title: 'Password updated successfully',
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to reset password`,
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: `Failed to reset password`,
-                apiError: error,
-            });
-        },
-    });
+    );
 };

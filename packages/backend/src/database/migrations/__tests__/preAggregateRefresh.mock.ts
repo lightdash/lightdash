@@ -93,6 +93,12 @@ export const refreshFixture = async (database: Knex) => {
             projectDbtSourcesModel: {
                 hasSources: vi.fn().mockResolvedValue(false),
             },
+            featureFlagModel: {
+                get: vi.fn(async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled: false,
+                })),
+            },
             multiConnectionCompiler: {
                 save: async (
                     projectUuid: string,

@@ -60,6 +60,7 @@ const fixture = (
     factory: boolean,
     multi = false,
     credentials?: CreateWarehouseCredentials,
+    extraCredentials?: CreateWarehouseCredentials,
 ) =>
     compileCredentialGateFixture(
         migrated.database,
@@ -67,7 +68,22 @@ const fixture = (
         factory,
         multi,
         credentials,
+        extraCredentials,
     );
+const extraSnowflakeSso = (
+    token: string,
+    refreshToken: string,
+): CreateWarehouseCredentials => ({
+    type: WarehouseTypes.SNOWFLAKE,
+    authenticationType: SnowflakeAuthenticationType.SSO,
+    account: 'account',
+    user: 'user',
+    database: 'database',
+    warehouse: 'warehouse',
+    schema: 'schema',
+    token,
+    refreshToken,
+});
 const reasons = [
     'revoked',
     'expired',
@@ -383,28 +399,15 @@ const internals = (f: Awaited<ReturnType<typeof fixture>>) =>
                 label: `extra acquisition refuses ${reason} during credential load`,
             })),
         ])('$label', async ({ reason }) => {
-            const f = await fixture(factory, true);
+            const f = await fixture(
+                factory,
+                true,
+                undefined,
+                extraSnowflakeSso('extra-access', 'extra-refresh'),
+            );
             if (!f.extraUuid) throw new Error('Missing extra connection');
             const project = await f.warehouseConnectionModel.getProject(
                 f.projectUuid,
-            );
-            await f.warehouseConnectionModel.updateExtraCredentials(
-                project,
-                f.extraUuid,
-                {
-                    kind: 'project',
-                    credentials: {
-                        type: WarehouseTypes.SNOWFLAKE,
-                        authenticationType: SnowflakeAuthenticationType.SSO,
-                        account: 'account',
-                        user: 'user',
-                        database: 'database',
-                        warehouse: 'warehouse',
-                        schema: 'schema',
-                        token: 'extra-access',
-                        refreshToken: 'extra-refresh',
-                    },
-                },
             );
             const exchange = vi
                 .spyOn(UserService, 'generateSnowflakeAccessToken')

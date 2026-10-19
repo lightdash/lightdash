@@ -3,11 +3,12 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import LightdashAnalyticsPanel from './LightdashAnalyticsPanel';
 
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 vi.mock('../../hooks/organization/useOrganization', () => ({
     useOrganization: () => ({ data: { organizationUuid: 'org' } }),
 }));
@@ -37,21 +38,21 @@ const renderPanel = () =>
 describe('LightdashAnalyticsPanel', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(lightdashApi).mockImplementation(async ({ url }) =>
+        mockedLightdashApi.mockImplementation(async ({ url }) =>
             url.includes('/dashboards?') ? [] : { project },
         );
     });
 
     it('creates only on click and stays in settings with dashboards and an Explore link', async () => {
-        vi.mocked(lightdashApi).mockResolvedValue({ project: null });
+        mockedLightdashApi.mockResolvedValue({ project: null });
         renderPanel();
         const create = await screen.findByRole('button', {
             name: 'Create',
         });
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'POST' }),
         );
-        vi.mocked(lightdashApi).mockImplementation(async ({ method, url }) =>
+        mockedLightdashApi.mockImplementation(async ({ method, url }) =>
             url.includes('/dashboards?')
                 ? [
                       {
@@ -87,7 +88,7 @@ describe('LightdashAnalyticsPanel', () => {
         expect(
             screen.queryByRole('button', { name: 'Create' }),
         ).not.toBeInTheDocument();
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(sharedLightdashApi).toHaveBeenCalledWith({
             url: '/org/analytics-project',
             method: 'POST',
             body: undefined,
@@ -102,13 +103,13 @@ describe('LightdashAnalyticsPanel', () => {
         expect(
             screen.queryByRole('button', { name: 'Create' }),
         ).not.toBeInTheDocument();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'POST' }),
         );
     });
 
     it('does not show Create when status fails and allows retry', async () => {
-        vi.mocked(lightdashApi).mockRejectedValue({
+        mockedLightdashApi.mockRejectedValue({
             error: { message: 'Unavailable' },
         });
         renderPanel();
@@ -118,7 +119,7 @@ describe('LightdashAnalyticsPanel', () => {
         expect(
             screen.queryByRole('button', { name: 'Create' }),
         ).not.toBeInTheDocument();
-        vi.mocked(lightdashApi).mockResolvedValue({ project: null });
+        mockedLightdashApi.mockResolvedValue({ project: null });
         await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
         expect(
             await screen.findByRole('button', { name: 'Create' }),
@@ -126,7 +127,7 @@ describe('LightdashAnalyticsPanel', () => {
     });
 
     it('loads dashboard shortcuts without a separate Refresh action', async () => {
-        vi.mocked(lightdashApi).mockImplementation(async ({ url }) =>
+        mockedLightdashApi.mockImplementation(async ({ url }) =>
             url.includes('/dashboards?')
                 ? [
                       {
@@ -143,7 +144,7 @@ describe('LightdashAnalyticsPanel', () => {
         expect(
             await screen.findByRole('link', { name: 'AI usage overview' }),
         ).toBeVisible();
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(sharedLightdashApi).toHaveBeenCalledWith({
             url: '/projects/analytics-project/dashboards?includePrivate=true',
             method: 'GET',
             body: undefined,
@@ -151,7 +152,7 @@ describe('LightdashAnalyticsPanel', () => {
         expect(
             screen.queryByRole('button', { name: 'Refresh' }),
         ).not.toBeInTheDocument();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'POST' }),
         );
         expect(
@@ -168,7 +169,7 @@ describe('LightdashAnalyticsPanel', () => {
     });
 
     it('syncs managed content without deleting or recreating the project', async () => {
-        vi.mocked(lightdashApi).mockImplementation(async ({ url }) =>
+        mockedLightdashApi.mockImplementation(async ({ url }) =>
             url.includes('/dashboards?')
                 ? []
                 : { project: { ...project, hasContentUpdates: true } },
@@ -180,16 +181,16 @@ describe('LightdashAnalyticsPanel', () => {
             }),
         );
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 url: '/org/analytics-project/sample-content',
                 method: 'POST',
                 body: undefined,
             }),
         );
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'DELETE' }),
         );
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/org/analytics-project',
                 method: 'POST',
@@ -203,7 +204,7 @@ describe('LightdashAnalyticsPanel', () => {
 
     it('shows available content in the tooltip and hides sync after updating', async () => {
         let hasContentUpdates = true;
-        vi.mocked(lightdashApi).mockImplementation(async ({ url, method }) => {
+        mockedLightdashApi.mockImplementation(async ({ url, method }) => {
             if (url.includes('/dashboards?')) return [];
             if (method === 'POST') {
                 hasContentUpdates = false;
@@ -240,7 +241,7 @@ describe('LightdashAnalyticsPanel', () => {
         expect(
             screen.queryByRole('button', { name: /Sync content/ }),
         ).not.toBeInTheDocument();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'POST' }),
         );
         expect(
@@ -253,7 +254,7 @@ describe('LightdashAnalyticsPanel', () => {
     it('keeps sync available when update status is unknown', async () => {
         const legacyProject = { ...project };
         Reflect.deleteProperty(legacyProject, 'hasContentUpdates');
-        vi.mocked(lightdashApi).mockImplementation(async ({ url }) =>
+        mockedLightdashApi.mockImplementation(async ({ url }) =>
             url.includes('/dashboards?') ? [] : { project: legacyProject },
         );
         renderPanel();
@@ -272,10 +273,10 @@ describe('LightdashAnalyticsPanel', () => {
                 name: 'Delete analytics project?',
             }),
         ).toBeVisible();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'DELETE' }),
         );
-        vi.mocked(lightdashApi).mockResolvedValue({ project: null });
+        mockedLightdashApi.mockResolvedValue({ project: null });
         await userEvent.click(
             within(
                 screen.getByRole('dialog', {
@@ -286,7 +287,7 @@ describe('LightdashAnalyticsPanel', () => {
             }),
         );
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 url: '/org/analytics-project/analytics-project',
                 method: 'DELETE',
                 body: undefined,

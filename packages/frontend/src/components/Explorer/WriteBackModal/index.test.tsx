@@ -11,11 +11,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { screen, waitFor, fireEvent, renderHook } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
+import { sharedLightdashApi } from '../../../api';
 import {
     createExplorerStore,
     explorerActions,
 } from '../../../features/explorer/store';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { useIsGitProject, useSupportsCustomFieldWriteBack } from './hooks';
 import { SingleItemModalContent, WriteBackModal } from './index';
@@ -34,7 +35,7 @@ vi.mock('../../../hooks/toaster/useToaster', () => ({
 vi.mock('../../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project',
 }));
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../api');
 vi.mock('../../common/CodeBlock/CodeBlock', () => ({
     default: ({ code }: { code: string }) => <pre>{code}</pre>,
 }));
@@ -77,7 +78,7 @@ describe('custom field writeback modal', () => {
         expect(
             screen.getByRole('button', { name: 'Open Pull Request' }),
         ).toBeEnabled();
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
         expect(
             screen.queryByText('Generating warehouse-aware preview...'),
         ).not.toBeInTheDocument();
@@ -125,7 +126,7 @@ describe('custom field writeback modal', () => {
     it('submits a Bitbucket metric and displays the returned pull request link', async () => {
         project.type = DbtProjectType.BITBUCKET;
         const prUrl = 'https://bitbucket.org/workspace/jaffle/pull-requests/7';
-        vi.mocked(lightdashApi).mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             prUrl,
             prTitle: 'Add metric',
         });
@@ -140,7 +141,7 @@ describe('custom field writeback modal', () => {
                 prUrl,
             ),
         );
-        expect(lightdashApi).toHaveBeenCalledWith(
+        expect(sharedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/projects/project/git-integration/pull-requests/custom-metrics',
                 method: 'POST',
@@ -160,7 +161,7 @@ describe('custom field writeback modal', () => {
             dimensionType: DimensionType.NUMBER,
             sql: '${orders.amount}',
         };
-        vi.mocked(lightdashApi).mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             yaml: 'amount: test-preview',
         });
         renderModal(dimension);
@@ -172,7 +173,7 @@ describe('custom field writeback modal', () => {
                 screen.getByRole('button', { name: 'Open Pull Request' }),
             ).toBeEnabled(),
         );
-        expect(lightdashApi).toHaveBeenCalledWith(
+        expect(sharedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/projects/project/git-integration/pull-requests/custom-dimensions/preview',
                 body: JSON.stringify({ customDimensions: [dimension] }),
@@ -206,7 +207,7 @@ describe('custom field writeback modal', () => {
         expect(
             screen.getByRole('button', { name: 'Open Pull Request' }),
         ).toBeEnabled();
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
     });
 
     it('keeps unsupported fixed-number bins disabled without requesting a preview', () => {
@@ -223,6 +224,6 @@ describe('custom field writeback modal', () => {
         expect(
             screen.getByRole('button', { name: 'Open Pull Request' }),
         ).toBeDisabled();
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
     });
 });

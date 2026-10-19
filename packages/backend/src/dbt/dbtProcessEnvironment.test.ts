@@ -353,3 +353,35 @@ describe('dbt explicit credential child environment', () => {
         },
     );
 });
+
+it('keeps generated plugin paths above project variables and does not inherit host PYTHONPATH', () => {
+    const environment = getDbtProcessEnvironment({
+        processEnvironment: { PYTHONPATH: '/host' },
+        explicitCredentials: false,
+        environmentVariableAllowlist: [],
+        projectEnvironment: {
+            PYTHONPATH: '/project',
+            LIGHTDASH_DBT_EXTERNAL_NODES: '/project.json',
+        },
+        pluginEnvironment: {
+            PYTHONPATH: '/generated',
+            LIGHTDASH_DBT_EXTERNAL_NODES: '/generated/nodes.json',
+        },
+        targetPath: '/target',
+        partialParse: false,
+    });
+    expect(environment).toMatchObject({
+        PYTHONPATH: '/generated',
+        LIGHTDASH_DBT_EXTERNAL_NODES: '/generated/nodes.json',
+    });
+    expect(
+        getDbtProcessEnvironment({
+            processEnvironment: { PYTHONPATH: '/host' },
+            explicitCredentials: false,
+            environmentVariableAllowlist: [],
+            projectEnvironment: {},
+            targetPath: '/target',
+            partialParse: false,
+        }),
+    ).not.toHaveProperty('PYTHONPATH');
+});

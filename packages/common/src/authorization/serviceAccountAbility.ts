@@ -398,6 +398,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('view', 'Analytics', {
             organizationUuid,
         });
+        can('view', 'SystemAnalytics', {
+            organizationUuid,
+        });
         can('manage', 'OrganizationMemberProfile', {
             organizationUuid,
         });

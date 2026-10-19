@@ -7,6 +7,7 @@ import {
     type MetricQuery,
     type ParametersValuesMap,
 } from '@lightdash/common';
+import { type LightdashApi } from '../../../../api';
 import { executeMergeQuery } from '../../../../features/mergeQuery/hooks/useMergeQuery';
 import { executeQueryAndWaitForResults } from '../../../../hooks/useQueryResults';
 
@@ -22,23 +23,27 @@ type ExecuteAiChartDownloadQueryArgs = {
     exportPivotedData: boolean;
 };
 
-export const executeAiChartDownloadQuery = async ({
-    projectUuid,
-    metricQuery,
-    parameters,
-    chartConfig,
-    pivotDimensions,
-    fields,
-    mergeQuery,
-    limit,
-    exportPivotedData,
-}: ExecuteAiChartDownloadQueryArgs): Promise<string> => {
+export const executeAiChartDownloadQuery = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        metricQuery,
+        parameters,
+        chartConfig,
+        pivotDimensions,
+        fields,
+        mergeQuery,
+        limit,
+        exportPivotedData,
+    }: ExecuteAiChartDownloadQueryArgs,
+): Promise<string> => {
     const pivotConfig = pivotDimensions?.length
         ? { columns: pivotDimensions }
         : undefined;
 
     if (mergeQuery) {
         const result = await executeMergeQuery(
+            lightdashApi,
             projectUuid,
             mergeQuery,
             parameters,
@@ -55,7 +60,7 @@ export const executeAiChartDownloadQuery = async ({
         return result.query.queryUuid;
     }
 
-    const result = await executeQueryAndWaitForResults({
+    const result = await executeQueryAndWaitForResults(lightdashApi, {
         projectUuid,
         tableId: metricQuery.exploreName,
         query: metricQuery,

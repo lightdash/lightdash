@@ -75,6 +75,7 @@ import {
     ApiUpdateAiMcpServerCredentialBody,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
+    assertRegisteredAccount,
     assertUnreachable,
     buildAgentIdentityClaim,
     CatalogType,
@@ -105,6 +106,7 @@ import {
     formatAiThreadFileSize,
     formatMergeQueryRefusal,
     GenerateArtifactQuestionJobPayload,
+    getAgentConnectionGrantRef,
     getAiAgentSkillListingText,
     getAppDisplayName,
     getDataAppVizChartFromArtifact,
@@ -177,6 +179,7 @@ import {
     UserAttributeValueMap,
     validateAgentSuggestion,
     validateAiAgentSkill,
+    type AgentIdentityClaim,
     type AgentSuggestionTool,
     type AgentToolName,
     type AgentWorkMarker,
@@ -326,6 +329,7 @@ import {
     buildResultReader,
     createAgentExecutionContext,
 } from '../../../services/AiAccessService/agentExecutionContext';
+import { type AgentResultReadDecision } from '../../../services/AiAccessService/AiAccessService';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
@@ -501,7 +505,12 @@ import { RepoFs } from '../ai/repoFs/RepoFs';
 import type { AiAgentSkill as ServedSkill } from '../ai/skills/types';
 import { executeEditContent } from '../ai/tools/editContent';
 import { formatSkillResult } from '../ai/tools/loadSkill';
-import { renderBlocks as renderSqlApprovalBlocks } from '../ai/tools/slackSqlAggregate';
+import {
+    getAgentThreadUrl,
+    getSqlApprovalDisplay,
+    getSqlApprovalSteps,
+    renderBlocks as renderSqlApprovalBlocks,
+} from '../ai/tools/slackSqlAggregate';
 import {
     buildSqlApprovalDecidedEvent,
     getRejectedOutput,
@@ -585,6 +594,10 @@ import {
     splitMarkdownIntoMessages,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
+import {
+    normalizeAiMcpOAuthClientCredentials,
+    type AiMcpOAuthClientCredentials,
+} from '../ai/utils/mcpServerCredentials';
 import {
     parseMemoryCitations,
     stripMemoryCitations,
@@ -884,7 +897,7 @@ type AiAgentServiceDependencies = {
     >;
     appGenerateService: Pick<
         AppGenerateService,
-        'canViewApp' | 'restoreVersion'
+        'canViewApp' | 'restoreVersion' | 'areDataAppCapturesEnabled'
     >;
     aiAgentMemoryModel: AiAgentMemoryModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
@@ -1201,7 +1214,7 @@ export class AiAgentService extends BaseService {
 
     private readonly appGenerateService: Pick<
         AppGenerateService,
-        'canViewApp' | 'restoreVersion'
+        'canViewApp' | 'restoreVersion' | 'areDataAppCapturesEnabled'
     >;
 
     private readonly inFlightStreamPrompts = new Map<
@@ -2965,6 +2978,23 @@ export class AiAgentService extends BaseService {
         };
     }
 
+    /**
+     * Shapes an agent for an embedded viewer. They are external, so the
+     * names and emails of the org users with access are withheld; the uuid
+     * list stays so the shape matches what logged-in users receive.
+     */
+    private forEmbedViewer<
+        T extends Pick<
+            AiAgent,
+            'imageUrl' | 'imageUrlSource' | 'userAccessDetails'
+        >,
+    >(agent: T): T {
+        return this.withEmbedViewableAvatar({
+            ...agent,
+            userAccessDetails: [],
+        });
+    }
+
     async listEmbedAgents(account: AnonymousAccount, projectUuid: string) {
         const { user, spaceUuid, tokenAgentUuid } =
             AiAgentService.getEmbedAiAgentContext(account, projectUuid);
@@ -2975,7 +3005,7 @@ export class AiAgentService extends BaseService {
                     agent.uuid === tokenAgentUuid &&
                     hasAiAgentAccessToSpace(agent, spaceUuid),
             )
-            .map((agent) => this.withEmbedViewableAvatar(agent));
+            .map((agent) => this.forEmbedViewer(agent));
     }
 
     async getEmbedAgentDetails(
@@ -2988,7 +3018,7 @@ export class AiAgentService extends BaseService {
             projectUuid,
             agentUuid,
         );
-        return this.withEmbedViewableAvatar(agent);
+        return this.forEmbedViewer(agent);
     }
 
     async getAvailableExplores(
@@ -5467,6 +5497,7 @@ export class AiAgentService extends BaseService {
                 body.enableDataAccess && (body.enableContentTools ?? false),
             enableUserContext: body.enableUserContext ?? false,
             enableSqlMode: body.enableSqlMode ?? true,
+            enableSqlAutoApproval: body.enableSqlAutoApproval ?? false,
             adminOnly: body.adminOnly ?? false,
             modelConfig: body.modelConfig ?? null,
             providerCredentialUuid: body.providerCredentialUuid ?? null,
@@ -6290,6 +6321,7 @@ export class AiAgentService extends BaseService {
         // already gated by assertCanManageMcpServers above.
         const allowOAuthCredentialSharing =
             body.allowOAuthCredentialSharing ?? false;
+        let oauthClientCredentials: AiMcpOAuthClientCredentials | null = null;
 
         switch (body.authType) {
             case 'none':
@@ -6351,23 +6383,12 @@ export class AiAgentService extends BaseService {
                         'Bearer credentials are not allowed for auth type "oauth"',
                     );
                 }
-                if (
-                    (body.credentials?.clientId?.trim() &&
-                        !body.credentials?.clientSecret?.trim()) ||
-                    (!body.credentials?.clientId?.trim() &&
-                        body.credentials?.clientSecret?.trim())
-                ) {
+                oauthClientCredentials = normalizeAiMcpOAuthClientCredentials(
+                    body.credentials,
+                );
+                if (allowOAuthCredentialSharing && oauthClientCredentials) {
                     throw new ParameterError(
-                        'OAuth client ID and secret must be provided together',
-                    );
-                }
-                if (
-                    allowOAuthCredentialSharing &&
-                    (body.credentials?.clientId?.trim() ||
-                        body.credentials?.clientSecret?.trim())
-                ) {
-                    throw new ParameterError(
-                        'OAuth client ID and secret are only supported for personal OAuth credentials',
+                        'OAuth client credentials are only supported for personal OAuth credentials',
                     );
                 }
                 if (body.credentialScope !== undefined) {
@@ -6389,15 +6410,8 @@ export class AiAgentService extends BaseService {
                 bearerToken: body.credentials!.bearerToken!.trim(),
             };
         }
-        if (
-            body.authType === 'oauth' &&
-            body.credentials?.clientId?.trim() &&
-            body.credentials?.clientSecret?.trim()
-        ) {
-            credentials = {
-                clientId: body.credentials.clientId.trim(),
-                clientSecret: body.credentials.clientSecret.trim(),
-            };
+        if (body.authType === 'oauth' && oauthClientCredentials) {
+            credentials = oauthClientCredentials;
         }
 
         let mcpConnectionMetadata: { iconUrl: string | null } | null = null;
@@ -7243,6 +7257,7 @@ export class AiAgentService extends BaseService {
                 : false,
             enableUserContext: body.enableUserContext,
             enableSqlMode: body.enableSqlMode,
+            enableSqlAutoApproval: body.enableSqlAutoApproval,
             adminOnly: body.adminOnly,
             modelConfig: body.modelConfig,
             providerCredentialUuid: body.providerCredentialUuid,
@@ -9376,6 +9391,45 @@ export class AiAgentService extends BaseService {
             throw new NotFoundError('Original chart results are unavailable');
         }
         return { history, reader };
+    }
+
+    async canPersonReadAgentResult({
+        account,
+        projectUuid,
+        claim,
+    }: {
+        account: Account;
+        projectUuid: string;
+        claim: AgentIdentityClaim;
+    }): Promise<AgentResultReadDecision> {
+        if (
+            !account.isRegisteredUser() ||
+            claim.subject.type !== 'user' ||
+            (claim.act.surface !== AgentActorSurface.IN_APP_AGENT &&
+                claim.act.surface !== AgentActorSurface.SLACK_AGENT) ||
+            claim.act.agent_uuid == null ||
+            getAgentConnectionGrantRef(claim) !== null ||
+            !account.organization.organizationUuid
+        )
+            return 'not_applicable';
+        if (claim.subject.uuid !== account.user.id) return 'other_person';
+        assertRegisteredAccount(account);
+        const { organizationUuid } = account.organization;
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid: claim.act.agent_uuid,
+        });
+        const user = toSessionUser(account);
+        if (
+            agent === null ||
+            agent.projectUuid !== projectUuid ||
+            !(await canAccessAiAgent(user, agent, {
+                auditedAbility: this.createAuditedAbility(user),
+                groupsModel: this.groupsModel,
+            }))
+        )
+            return 'agent_unavailable';
+        return 'allowed';
     }
 
     private async getArtifactOwnerResultReader(
@@ -12874,6 +12928,15 @@ Use your existing tools to inspect them when relevant to the user's question (re
         deliveryGuard: AgentDeliveryGuard,
     ): Promise<KnownBlock | undefined> {
         const capture = async (): Promise<KnownBlock | undefined> => {
+            // The org's captures switch covers this image too: the outcome
+            // then posts text and a link only.
+            if (
+                !(await this.appGenerateService.areDataAppCapturesEnabled(
+                    prompt.organizationUuid,
+                ))
+            ) {
+                return undefined;
+            }
             const { imageBuffer, imageUrl } =
                 await this.unfurlService.exportDataApp({
                     projectUuid: prompt.projectUuid,
@@ -15946,6 +16009,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                           { kind: 'connection', warehouseConnectionUuid: null },
                       )
                     : null;
+                const warehouseConnections = canRunSql
+                    ? await this.projectModel.getWarehouseConnectionsMetadata(
+                          prompt.projectUuid,
+                      )
+                    : [];
                 const warehouseType = warehouseCredentials?.type ?? null;
                 const warehouseSchema = warehouseCredentials
                     ? ('schema' in warehouseCredentials &&
@@ -16590,7 +16658,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     enableComposerQueries,
                     enableComposerPythonNodes,
                     canCreateDashboards,
-                    autoApproveSql: options.autoApproveSql ?? false,
+                    autoApproveSql:
+                        (options.autoApproveSql ?? false) ||
+                        agentSettings.enableSqlAutoApproval,
                     autoApproveSqlUserUuid: options.autoApproveSql
                         ? user.userUuid
                         : null,
@@ -16601,6 +16671,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     slackLinksOnly,
                     warehouseType,
                     warehouseSchema,
+                    warehouseConnections,
                     sqlScope: agentSqlScope,
                     hyphenatedIdentifiers,
                     availableSkills,
@@ -17786,6 +17857,42 @@ Use your existing tools to inspect them when relevant to the user's question (re
         };
     }
 
+    private static readonly SLACK_PROMPT_RETRY_ACTION_ID = 'ai_prompt_retry';
+
+    // Generation failures already store their error; this covers failures
+    // outside generation so the retry button can claim the prompt.
+    private async persistSlackPromptError(
+        promptUuid: string,
+        errorMessage: string,
+    ): Promise<boolean> {
+        try {
+            await this.aiAgentModel.updateModelResponse(
+                { promptUuid, errorMessage },
+                { onlyIfPending: true },
+            );
+            return true;
+        } catch (error) {
+            Logger.warn(
+                `Failed to persist Slack prompt error for ${promptUuid}: ${getErrorMessage(error)}`,
+            );
+            return false;
+        }
+    }
+
+    private static slackRetryActionsBlock(promptUuid: string): KnownBlock {
+        return {
+            type: 'actions',
+            elements: [
+                {
+                    type: 'button',
+                    action_id: AiAgentService.SLACK_PROMPT_RETRY_ACTION_ID,
+                    text: { type: 'plain_text', text: 'Retry' },
+                    value: promptUuid,
+                },
+            ],
+        };
+    }
+
     // Delivers a finished answer across one or more Slack messages (first
     // finalizes the stream, rest post as replies), falling back to a Lightdash
     // link if too large — the answer is already persisted, so this never fails.
@@ -18122,6 +18229,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         threadTs: string;
         toolCallId: string;
         toolName: NativeSqlApprovalToolName;
+        toolArgs: unknown;
         sql: string;
         agentName?: string;
     }): Promise<void> {
@@ -18136,7 +18244,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
             blocks: renderSqlApprovalBlocks(
                 {
                     kind: 'pending',
-                    sql: input.sql,
+                    display: getSqlApprovalDisplay({
+                        sql: input.sql,
+                        steps: getSqlApprovalSteps(
+                            input.toolName,
+                            input.toolArgs,
+                        ),
+                        threadUrl: getAgentThreadUrl(
+                            this.lightdashConfig.siteUrl,
+                            input.slackPrompt,
+                        ),
+                    }),
                     toolCallId: input.toolCallId,
                     threadUuid: input.slackPrompt.threadUuid,
                     heading,
@@ -18742,6 +18860,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     threadTs,
                     toolCallId: pendingApproval.toolCallId,
                     toolName: pendingApproval.toolName,
+                    toolArgs: pendingApproval.toolArgs,
                     sql: pendingApproval.sql,
                     agentName: agent?.name,
                 });
@@ -19033,6 +19152,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 AiAgentService.agentFailedMessage(agent?.name),
                 agent?.providerCredentialUuid ?? null,
             );
+            const canRetry =
+                !answerPublished &&
+                (await this.persistSlackPromptError(
+                    slackPrompt.promptUuid,
+                    userFacingMessage,
+                ));
             queueReasoningTaskUpdate({
                 status: 'error',
                 output: userFacingMessage,
@@ -19057,6 +19182,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                 },
                             },
                             ...getAccessRefusalBlocks(),
+                            ...(canRetry
+                                ? [
+                                      AiAgentService.slackRetryActionsBlock(
+                                          slackPrompt.promptUuid,
+                                      ),
+                                  ]
+                                : []),
                         ],
                     },
                 ],
@@ -19308,6 +19440,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 AiAgentService.agentFailedMessage(agent?.name),
                 agent?.providerCredentialUuid ?? null,
             );
+            const canRetry = await this.persistSlackPromptError(
+                promptUuid,
+                userFacingMessage,
+            );
             await this.slackClient.postMessage({
                 organizationUuid: slackPrompt.organizationUuid,
                 text: `🔴 ${userFacingMessage}`,
@@ -19325,6 +19461,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             : accessRefusalState.selected,
                         this.lightdashConfig.siteUrl,
                     ),
+                    ...(canRetry
+                        ? [AiAgentService.slackRetryActionsBlock(promptUuid)]
+                        : []),
                     {
                         type: 'context',
                         elements: [
@@ -19584,6 +19723,118 @@ Use your existing tools to inspect them when relevant to the user's question (re
             await ack();
             // TODO :: track analytics
         });
+    }
+
+    public handleSlackPromptRetryButton(app: App) {
+        app.action(
+            AiAgentService.SLACK_PROMPT_RETRY_ACTION_ID,
+            async ({ ack, body, action, respond }) => {
+                await ack();
+                if (body.type !== 'block_actions' || action.type !== 'button') {
+                    return;
+                }
+                const reply = (text: string) =>
+                    respond({
+                        text,
+                        replace_original: false,
+                        response_type: 'ephemeral',
+                    });
+
+                try {
+                    const result = await this.retrySlackPrompt({
+                        promptUuid: action.value ?? null,
+                        slackUserId: body.user.id,
+                        slackAppId: body.api_app_id ?? null,
+                    });
+                    if (!result.started) {
+                        await reply(result.message);
+                    }
+                } catch (error) {
+                    Logger.error('Failed to retry Slack AI prompt', error);
+                    await reply(
+                        ':warning: Could not start the retry. Please try again.',
+                    ).catch(() => undefined);
+                }
+            },
+        );
+    }
+
+    private async retrySlackPrompt({
+        promptUuid,
+        slackUserId,
+        slackAppId,
+    }: {
+        promptUuid: string | null;
+        slackUserId: string;
+        slackAppId: string | null;
+    }): Promise<{ started: true } | { started: false; message: string }> {
+        const slackPrompt = promptUuid
+            ? await this.aiAgentModel.findSlackPrompt(promptUuid)
+            : undefined;
+        if (!slackPrompt) {
+            return {
+                started: false,
+                message: 'This request is no longer available.',
+            };
+        }
+        // The retry runs as the original asker, so only they may trigger it.
+        if (slackPrompt.slackUserId !== slackUserId) {
+            return {
+                started: false,
+                message:
+                    'Only the person who asked this question can retry it.',
+            };
+        }
+        const threadMessages = await this.aiAgentModel.getThreadMessages(
+            slackPrompt.organizationUuid,
+            slackPrompt.projectUuid,
+            slackPrompt.threadUuid,
+        );
+        if (threadMessages.at(-1)?.ai_prompt_uuid !== slackPrompt.promptUuid) {
+            return {
+                started: false,
+                message:
+                    'Only the latest question in a thread can be retried. Mention me again to ask it.',
+            };
+        }
+        const claimed = await this.aiAgentModel.resetFailedPromptForRetry(
+            slackPrompt.promptUuid,
+        );
+        if (!claimed) {
+            return {
+                started: false,
+                message:
+                    'This request is already being retried or has been answered.',
+            };
+        }
+        try {
+            await this.aiAgentModel.deleteAiPromptInterrupt(
+                slackPrompt.promptUuid,
+            );
+            await this.schedulerClient.slackAiPrompt({
+                slackAppId,
+                slackPromptUuid: slackPrompt.promptUuid,
+                userUuid: slackPrompt.createdByUserUuid,
+                projectUuid: slackPrompt.projectUuid,
+                organizationUuid: slackPrompt.organizationUuid,
+            });
+        } catch (error) {
+            // Restore the failed state so the Retry button works again.
+            await this.persistSlackPromptError(
+                slackPrompt.promptUuid,
+                slackPrompt.errorMessage ??
+                    AiAgentService.agentFailedMessage(undefined),
+            );
+            throw error;
+        }
+        this.trackAgentRequestLifecycle('ai_agent_request.retry_started', {
+            organizationUuid: slackPrompt.organizationUuid,
+            projectUuid: slackPrompt.projectUuid,
+            agentUuid: slackPrompt.agentUuid,
+            threadUuid: slackPrompt.threadUuid,
+            promptUuid: slackPrompt.promptUuid,
+        });
+        return { started: true };
     }
 
     // eslint-disable-next-line class-methods-use-this

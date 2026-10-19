@@ -17,6 +17,13 @@ export interface AgentUserAccessOption {
 
 const CUSTOM_ROLE_LABEL = 'Custom role';
 
+/** How a user is named in the picker: full name, or email when unnamed. */
+export const getAgentUserLabel = (user: {
+    firstName: string;
+    lastName: string;
+    email: string;
+}): string => `${user.firstName} ${user.lastName}`.trim() || user.email;
+
 /**
  * Decides whether a project user is offered in the agent's user-access
  * picker, and how their role is labelled. Admins and developers are left out
@@ -47,7 +54,7 @@ export const getAgentUserAccessOption = (
 
     return {
         userUuid: user.userUuid,
-        label: `${user.firstName} ${user.lastName}`.trim() || user.email,
+        label: getAgentUserLabel(user),
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,

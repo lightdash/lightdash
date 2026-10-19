@@ -204,6 +204,27 @@ export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
     warehouseConnectionUuid?: string | null;
 };
 
+export type EstimateAsyncMetricQueryArgs = Pick<
+    ExecuteAsyncMetricQueryArgs,
+    | 'account'
+    | 'projectUuid'
+    | 'metricQuery'
+    | 'parameters'
+    | 'pivotConfiguration'
+    | 'dateZoom'
+    | 'usePreAggregateCache'
+>;
+
+export type EstimateAsyncSqlQueryArgs = Pick<
+    ExecuteAsyncSqlQueryArgs,
+    | 'account'
+    | 'projectUuid'
+    | 'sql'
+    | 'limit'
+    | 'parameters'
+    | 'warehouseConnectionUuid'
+>;
+
 export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
     sql: string;
     limit?: number;

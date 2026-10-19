@@ -11,5 +11,9 @@ egress and no credentials.
 - Local: `SANDBOX_PROVIDER=docker`, image `SANDBOX_PYTHON_DOCKER_IMAGE` (default
   `lightdash-python-runner:local`), built with `./build-local-image.sh`.
 
-E2B publishing (`build-sandbox.ts`, `assign-tag.ts`, `post-release.yml` entry) is
-not wired yet; see `sandboxes/CLAUDE.md` for the required files.
+Preinstalled libraries: pandas, numpy, scipy, pyarrow, scikit-learn, polars
+(pinned in `e2b.Dockerfile`). `run()` must still return a pandas DataFrame.
+
+Publishing: `post-release.yml` builds `lightdash-python-runner:<version>` in both
+E2B regions on every release where this directory changed, and retags `:latest`
+otherwise. Local builds use `pnpm run build` (`build-sandbox.ts`).

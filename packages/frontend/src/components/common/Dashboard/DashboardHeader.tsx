@@ -1381,21 +1381,34 @@ const DashboardHeader = memo(
                                                 </Menu.Item>
                                             )}
                                             {canAuthorDashboard && (
-                                                <Menu.Item
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={IconLink}
-                                                        />
-                                                    }
+                                                <Tooltip
+                                                    label="Save or discard your dashboard changes before changing the URL slug. Reset any unsaved filters or parameters."
                                                     disabled={
-                                                        hasDashboardChanged
+                                                        !hasDashboardChanged
                                                     }
-                                                    onClick={
-                                                        slugRenameModalHandlers.open
-                                                    }
+                                                    multiline
+                                                    maw={320}
                                                 >
-                                                    Change URL slug
-                                                </Menu.Item>
+                                                    <Box>
+                                                        <Menu.Item
+                                                            leftSection={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconLink
+                                                                    }
+                                                                />
+                                                            }
+                                                            disabled={
+                                                                hasDashboardChanged
+                                                            }
+                                                            onClick={
+                                                                slugRenameModalHandlers.open
+                                                            }
+                                                        >
+                                                            Change URL slug
+                                                        </Menu.Item>
+                                                    </Box>
+                                                </Tooltip>
                                             )}
                                         </>
                                     )}

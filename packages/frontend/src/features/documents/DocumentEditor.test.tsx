@@ -20,6 +20,7 @@ import {
     RouterProvider,
     type InitialEntry,
 } from 'react-router';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { LEAVING_COPY_STATE } from '../scopeTours/trainingCopy';
 import DocumentEditor from './DocumentEditor';
 
@@ -129,7 +130,7 @@ vi.mock('./DocumentChart', () => ({
         );
     },
 }));
-vi.mock('../../api', () => ({ lightdashApi: mocks.api }));
+vi.mock('../../api');
 vi.mock('../../hooks/useContent', () => ({ invalidateContent: vi.fn() }));
 vi.mock('./DocumentPageLayout', () => ({
     default: ({
@@ -257,13 +258,13 @@ const renderEditor = (
 };
 
 const savedContent = (): DocumentContent =>
-    JSON.parse(mocks.api.mock.calls[0][0].body).content;
+    JSON.parse(mockedLightdashApi.mock.calls[0][0].body).content;
 const savedBlocks = () => getDocumentChartBlocks(savedContent());
 
 beforeEach(() => {
     vi.clearAllMocks();
     mocks.canAuthorCharts = true;
-    mocks.api.mockResolvedValue({
+    mockedLightdashApi.mockResolvedValue({
         ...report,
         version: { ...report.version, versionUuid: 'saved' },
     });
@@ -311,9 +312,9 @@ it('applies chart edits in place, keeps the surrounding text and chart id, and s
             mode: 'edit',
         },
     });
-    expect(mocks.api).not.toHaveBeenCalled();
+    expect(mockedLightdashApi).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
-    await waitFor(() => expect(mocks.api).toHaveBeenCalledOnce());
+    await waitFor(() => expect(mockedLightdashApi).toHaveBeenCalledOnce());
     const [findings, edited, recommendations] = savedBlocks();
     expect(findings.type === 'markdown' && findings.markdown).toContain(
         '# Findings',
@@ -329,9 +330,9 @@ it('applies chart edits in place, keeps the surrounding text and chart id, and s
         type: 'markdown',
         markdown: '# Recommendations\n\nShip it.',
     });
-    expect(JSON.parse(mocks.api.mock.calls[0][0].body).baseVersionUuid).toBe(
-        'version',
-    );
+    expect(
+        JSON.parse(mockedLightdashApi.mock.calls[0][0].body).baseVersionUuid,
+    ).toBe('version');
     await waitFor(() => expect(mocks.close).toHaveBeenCalledOnce());
 });
 
@@ -375,7 +376,7 @@ it('adds a chart as a draft node without touching saved charts', async () => {
     });
     expect(screen.getByText('Live chart: Orders')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
-    await waitFor(() => expect(mocks.api).toHaveBeenCalledOnce());
+    await waitFor(() => expect(mockedLightdashApi).toHaveBeenCalledOnce());
     expect(Object.keys(savedContent().charts)).toStrictEqual(['c1', 'new-1']);
 });
 
@@ -390,7 +391,7 @@ it('links a saved chart and saves it as a tag', async () => {
         await screen.findByText(`Linked chart: ${LINKED_CHART_UUID}`),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
-    await waitFor(() => expect(mocks.api).toHaveBeenCalledOnce());
+    await waitFor(() => expect(mockedLightdashApi).toHaveBeenCalledOnce());
     expect(savedContent().markdown).toContain(
         `<saved-chart uuid="${LINKED_CHART_UUID}">`,
     );
@@ -419,7 +420,7 @@ it('removes a chart from the body and the saved content', async () => {
         ).not.toBeInTheDocument(),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
-    await waitFor(() => expect(mocks.api).toHaveBeenCalledOnce());
+    await waitFor(() => expect(mockedLightdashApi).toHaveBeenCalledOnce());
     expect(savedContent()).toStrictEqual({
         markdown:
             '# Findings\n\n| Metric | Value |\n| --- | --- |\n| Orders | 10 |\n\n# Recommendations\n\nShip it.',
@@ -458,7 +459,7 @@ it('shows no newer-version warning while the draft is current', async () => {
 });
 
 it('keeps the draft on a stale save and explains the conflict', async () => {
-    mocks.api.mockRejectedValue({
+    mockedLightdashApi.mockRejectedValue({
         error: { statusCode: 409, message: 'Stale version' },
     });
     renderEditor();
@@ -520,7 +521,7 @@ describe('title', () => {
         fireEvent.change(titleInput(), { target: { value: '  Renamed ' } });
         fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
         await waitFor(() => expect(mocks.close).toHaveBeenCalledOnce());
-        expect(mocks.api).toHaveBeenCalledExactlyOnceWith(
+        expect(mockedLightdashApi).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
                 url: '/projects/project/documents/document',
                 method: 'PATCH',
@@ -539,12 +540,12 @@ describe('title', () => {
         fireEvent.change(titleInput(), { target: { value: 'Renamed' } });
         fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
         await waitFor(() => expect(mocks.close).toHaveBeenCalledOnce());
-        expect(mocks.api.mock.calls.map(([call]) => call.method)).toEqual([
-            'PATCH',
-            'POST',
-        ]);
         expect(
-            JSON.parse(mocks.api.mock.calls[1][0].body).baseVersionUuid,
+            mockedLightdashApi.mock.calls.map(([call]) => call.method),
+        ).toEqual(['PATCH', 'POST']);
+        expect(
+            JSON.parse(mockedLightdashApi.mock.calls[1][0].body)
+                .baseVersionUuid,
         ).toBe('version');
     });
 
@@ -558,7 +559,7 @@ describe('title', () => {
     });
 
     it('keeps editing and skips the content write when the rename fails', async () => {
-        mocks.api.mockRejectedValueOnce({
+        mockedLightdashApi.mockRejectedValueOnce({
             error: {
                 statusCode: 400,
                 message: 'Document name must contain 1–255 characters',
@@ -577,7 +578,7 @@ describe('title', () => {
                 'Document name must contain 1–255 characters',
             ),
         ).toBeInTheDocument();
-        expect(mocks.api).toHaveBeenCalledOnce();
+        expect(mockedLightdashApi).toHaveBeenCalledOnce();
         expect(mocks.close).not.toHaveBeenCalled();
     });
 

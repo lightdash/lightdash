@@ -72,8 +72,8 @@ export const PillTagsInput: FC<PillTagsInputProps> = ({
 
     const pillSize: TagPillSize = size === 'xs' ? 'xs' : 'sm';
 
-    const handleAddTags = (raw: string) => {
-        const escaped = splitChars
+    const handleAddTags = (raw: string, separators = splitChars) => {
+        const escaped = separators
             .map((char) => char.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&'))
             .join('');
         let tags = raw
@@ -191,6 +191,13 @@ export const PillTagsInput: FC<PillTagsInputProps> = ({
                     onChange={(event) =>
                         handleSearchChange(event.currentTarget.value)
                     }
+                    onPaste={(event) => {
+                        const text = event.clipboardData.getData('text/plain');
+                        if (disabled || !/[\r\n\t]/.test(text)) return;
+                        event.preventDefault();
+                        setSearch(text);
+                        handleAddTags(text, [...splitChars, '\r', '\n', '\t']);
+                    }}
                     onKeyDown={handleKeyDown}
                     onBlur={handleBlur}
                 />

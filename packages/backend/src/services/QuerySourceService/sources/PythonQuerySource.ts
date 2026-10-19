@@ -30,7 +30,7 @@ export class PythonQuerySource implements QuerySourceClient {
         sourceType: QuerySourceType.PYTHON,
         label: 'Python',
         description:
-            'Python over other query results, run in a sandbox with pandas, numpy, scipy and pyarrow and no network access. The code defines run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame. References expose results as inputs: an array of node ids (each inputs[nodeId]) or an {inputName: nodeIdOrQueryUuid} map. The returned DataFrame needs identifier-safe column names (letters, digits, underscores) and is capped at limit rows. References to still-running queries are waited on. At least one reference is required.',
+            'Python over other query results, run in a sandbox with pandas, numpy, scipy, pyarrow, scikit-learn and polars and no network access. The code defines run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame. References expose results as inputs: an array of node ids (each inputs[nodeId]) or an {inputName: nodeIdOrQueryUuid} map. The returned DataFrame needs identifier-safe column names (letters, digits, underscores) and is capped at limit rows. References to still-running queries are waited on. At least one reference is required.',
     };
 
     readonly supportsPivot = false;

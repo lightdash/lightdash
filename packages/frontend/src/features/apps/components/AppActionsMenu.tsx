@@ -66,6 +66,7 @@ import {
 } from '../hooks/useAppThumbnail';
 import { useCanCreateDataApp } from '../hooks/useCanCreateDataApp';
 import { useCanEditVerifiedDataApp } from '../hooks/useCanEditDataApp';
+import { useDataAppCapturesEnabled } from '../hooks/useDataAppCapturesEnabled';
 import { useDuplicateApp } from '../hooks/useDuplicateApp';
 import { type SdkUpgradeOffer } from '../hooks/useSdkUpgradeStatus';
 import { useUpdateApp } from '../hooks/useUpdateApp';
@@ -247,11 +248,20 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     // is deferred until the menu first opens; invalidations from captures
     // keep it current afterwards. The error guard matters because
     // react-query keeps stale data when a refetch fails.
+    //
+    // While the org has captures off, "Capture thumbnail" is hidden and the
+    // thumbnail URLs answer 404 whether or not an image is stored, so the
+    // existence check is skipped and removal stays available: deleting is
+    // the one thumbnail action that must still work with captures off.
+    const capturesEnabled = useDataAppCapturesEnabled();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     const [menuOpened, setMenuOpened] = useState(false);
     const checksThumbnail =
-        menuOpened && canEditVerified && captureThumbnail !== null;
+        menuOpened &&
+        canEditVerified &&
+        captureThumbnail !== null &&
+        capturesEnabled;
     // The app's thumbnail is its latest ready version's, so any other version
     // on screen is asked about directly.
     const isViewingAnotherVersion =
@@ -558,20 +568,28 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                     )}
                     {canEditVerified && captureThumbnail && (
                         <>
-                            <Menu.Item
-                                leftSection={
-                                    <MantineIcon icon={IconCamera} size={14} />
-                                }
-                                disabled={captureThumbnail.disabled}
-                                onClick={captureThumbnail.onCapture}
-                            >
-                                Capture thumbnail
-                            </Menu.Item>
+                            {capturesEnabled && (
+                                <Menu.Item
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconCamera}
+                                            size={14}
+                                        />
+                                    }
+                                    disabled={captureThumbnail.disabled}
+                                    onClick={captureThumbnail.onCapture}
+                                >
+                                    Capture thumbnail
+                                </Menu.Item>
+                            )}
                             <Menu.Item
                                 leftSection={
                                     <MantineIcon icon={IconPhotoX} size={14} />
                                 }
-                                disabled={!hasThumbnail || isDeletingThumbnail}
+                                disabled={
+                                    (capturesEnabled && !hasThumbnail) ||
+                                    isDeletingThumbnail
+                                }
                                 onClick={() => void handleRemoveThumbnail()}
                             >
                                 Remove thumbnail

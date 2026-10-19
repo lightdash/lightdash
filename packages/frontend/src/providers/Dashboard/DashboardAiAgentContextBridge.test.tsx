@@ -11,7 +11,7 @@ import { useEffect, type PropsWithChildren } from 'react';
 import { Provider } from 'react-redux';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
 import { aiAgentLauncherSlice } from '../../ee/features/aiCopilot/store/aiAgentLauncherSlice';
 import {
     aiAgentThreadStreamSlice,
@@ -22,13 +22,14 @@ import {
 } from '../../ee/features/aiCopilot/store/aiAgentThreadStreamSlice';
 import { resetHandledAgentToolCallIds } from '../../ee/features/aiCopilot/streaming/handledAgentToolCalls';
 import { useDashboardChartReadyQuery } from '../../hooks/dashboard/useDashboardChartReadyQuery';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { mockSavedChartResponse } from '../../testing/savedChartResponse.mock';
 import AppProvider from '../App/AppProvider';
 import DashboardAiAgentContextBridge from './DashboardAiAgentContextBridge';
 import DashboardProvider from './DashboardProvider';
 import useDashboardContext from './useDashboardContext';
 
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 
 const projectUuid = '9a0b7a3c-0000-4000-8000-000000000001';
 const chart = mockSavedChartResponse({
@@ -159,7 +160,7 @@ beforeEach(() => {
     savedDashboard = dashboard;
     publishedChart = chart;
     publishedDashboard = dashboard;
-    vi.mocked(lightdashApi).mockImplementation((async ({ url, body }) => {
+    mockedLightdashApi.mockImplementation((async ({ url, body }) => {
         if (url.startsWith(`/projects/${projectUuid}/dashboards/`)) {
             return url.endsWith('?includeUnpublishedDraft=true')
                 ? savedDashboard
@@ -182,7 +183,7 @@ beforeEach(() => {
             return { queryUuid: `results-${queriedChart.chartConfig.type}` };
         }
         return new Promise(() => {});
-    }) as typeof lightdashApi);
+    }) as LightdashApi);
 });
 
 const createAgentStore = () => {
@@ -279,9 +280,7 @@ describe('agent dashboard chart refresh', () => {
                     resolveOld = resolve;
                 },
             );
-            vi.mocked(lightdashApi).mockImplementationOnce(
-                (() => oldResponse) as typeof lightdashApi,
-            );
+            mockedLightdashApi.mockImplementationOnce(() => oldResponse);
             const queryKey =
                 type === 'chart'
                     ? ['saved_query', chart.uuid, projectUuid, true]
@@ -443,11 +442,9 @@ describe('agent dashboard chart refresh', () => {
 
     describe('across remounts', () => {
         const dashboardFetchCount = () =>
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.filter(([{ url }]) =>
-                    url.startsWith(`/projects/${projectUuid}/dashboards/`),
-                ).length;
+            mockedLightdashApi.mock.calls.filter(([{ url }]) =>
+                url.startsWith(`/projects/${projectUuid}/dashboards/`),
+            ).length;
 
         const completeDashboardEdit = (
             agentStore: ReturnType<typeof createAgentStore>,
@@ -472,7 +469,7 @@ describe('agent dashboard chart refresh', () => {
                 ),
             );
             first.unmount();
-            vi.mocked(lightdashApi).mockClear();
+            mockedLightdashApi.mockClear();
 
             const second = renderDashboard(dashboard.slug, true, agentStore);
             await waitFor(() =>
@@ -484,7 +481,7 @@ describe('agent dashboard chart refresh', () => {
         it('applies an edit that completed before mount once', async () => {
             const agentStore = createAgentStore();
             completeDashboardEdit(agentStore);
-            vi.mocked(lightdashApi).mockClear();
+            mockedLightdashApi.mockClear();
 
             const first = renderDashboard(dashboard.slug, true, agentStore);
             await waitFor(() => expect(dashboardFetchCount()).toBe(2));
@@ -492,7 +489,7 @@ describe('agent dashboard chart refresh', () => {
                 expect(first.result.current.data).toBeDefined(),
             );
             first.unmount();
-            vi.mocked(lightdashApi).mockClear();
+            mockedLightdashApi.mockClear();
 
             const second = renderDashboard(dashboard.slug, true, agentStore);
             await waitFor(() =>
@@ -508,14 +505,14 @@ describe('agent dashboard chart refresh', () => {
             staleTime: 0,
         });
         await waitFor(() => expect(result.current.data).toBeDefined());
-        vi.mocked(lightdashApi).mockClear();
+        mockedLightdashApi.mockClear();
 
         let resolveRenamed: (value: SavedChart) => void = () => {};
-        vi.mocked(lightdashApi).mockImplementationOnce(
-            (() =>
+        mockedLightdashApi.mockImplementationOnce(
+            () =>
                 new Promise<SavedChart>((resolve) => {
                     resolveRenamed = resolve;
-                })) as typeof lightdashApi,
+                }),
         );
         const queryKey = ['saved_query', chart.uuid, projectUuid, true];
         let refetch: Promise<void> = Promise.resolve();
@@ -532,13 +529,10 @@ describe('agent dashboard chart refresh', () => {
         // Let the observer notify and the tile re-render.
         await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.some(
-                    ([{ url }]) =>
-                        url ===
-                        `/projects/${projectUuid}/query/dashboard-chart`,
-                ),
+            mockedLightdashApi.mock.calls.some(
+                ([{ url }]) =>
+                    url === `/projects/${projectUuid}/query/dashboard-chart`,
+            ),
         ).toBe(false);
     });
 });

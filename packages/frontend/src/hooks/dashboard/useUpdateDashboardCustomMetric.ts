@@ -4,9 +4,11 @@ import {
     type UpdateDashboardCustomMetric,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
 const updateDashboardCustomMetric = (
+    lightdashApi: LightdashApi,
     dashboardUuid: string,
     payload: UpdateDashboardCustomMetric,
 ) =>
@@ -18,8 +20,9 @@ const updateDashboardCustomMetric = (
 
 export const useUpdateDashboardCustomMetric = (
     dashboardUuid: string | undefined,
-) =>
-    useMutation<
+) => {
+    const lightdashApi = useLightdashApi();
+    return useMutation<
         DashboardCustomMetricUpdateResult,
         ApiError,
         UpdateDashboardCustomMetric
@@ -27,8 +30,13 @@ export const useUpdateDashboardCustomMetric = (
         if (!dashboardUuid) {
             throw new Error('Missing dashboard uuid');
         }
-        return updateDashboardCustomMetric(dashboardUuid, payload);
+        return updateDashboardCustomMetric(
+            lightdashApi,
+            dashboardUuid,
+            payload,
+        );
     });
+};
 
 type DeleteDashboardCustomMetricArgs = {
     metricTable: string;
@@ -37,6 +45,7 @@ type DeleteDashboardCustomMetricArgs = {
 };
 
 const deleteDashboardCustomMetric = (
+    lightdashApi: LightdashApi,
     dashboardUuid: string,
     { metricTable, metricName, dryRun }: DeleteDashboardCustomMetricArgs,
 ) =>
@@ -50,8 +59,9 @@ const deleteDashboardCustomMetric = (
 
 export const useDeleteDashboardCustomMetric = (
     dashboardUuid: string | undefined,
-) =>
-    useMutation<
+) => {
+    const lightdashApi = useLightdashApi();
+    return useMutation<
         DashboardCustomMetricUpdateResult,
         ApiError,
         DeleteDashboardCustomMetricArgs
@@ -59,5 +69,6 @@ export const useDeleteDashboardCustomMetric = (
         if (!dashboardUuid) {
             throw new Error('Missing dashboard uuid');
         }
-        return deleteDashboardCustomMetric(dashboardUuid, args);
+        return deleteDashboardCustomMetric(lightdashApi, dashboardUuid, args);
     });
+};

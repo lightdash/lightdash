@@ -6,7 +6,7 @@ import {
     type DocumentQueryReference,
 } from '@lightdash/common';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import {
     getPreviewTokenRefetchInterval,
     previewTokenQueryOptions,
@@ -109,8 +109,9 @@ export const useDataAppVizRenderMetadata = (
     dataAppVizUuid: string | null,
     target: DataAppVizRenderTarget,
     pinnedVersion?: number,
-) =>
-    useQuery<DataAppVizRenderMetadata, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<DataAppVizRenderMetadata, ApiError>({
         queryKey: getRenderMetadataQueryKey(
             projectUuid,
             dataAppVizUuid,
@@ -136,6 +137,7 @@ export const useDataAppVizRenderMetadata = (
                 ? DATA_APP_VIZ_RENDER_POLL_INTERVAL_MS
                 : false,
     });
+};
 
 export const useDataAppVizPreviewToken = (
     projectUuid: string | undefined,
@@ -144,6 +146,7 @@ export const useDataAppVizPreviewToken = (
     target: DataAppVizRenderTarget,
     pinnedVersion?: number,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useQuery<string, ApiError>({
         queryKey: [

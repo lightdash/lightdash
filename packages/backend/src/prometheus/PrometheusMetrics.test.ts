@@ -1,7 +1,10 @@
 import express from 'express';
+import knex from 'knex';
+import { MockClient } from 'knex-mock-client';
 import http from 'node:http';
 import prometheus from 'prom-client';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
+import { attachTransactionObservability } from '../database/transactionObservability';
 import Logger from '../logging/logger';
 import PrometheusMetrics, { getHttpUriLabel } from './PrometheusMetrics';
 
@@ -414,5 +417,61 @@ describe('MotherDuck instance cache metrics', () => {
                 }),
             ]),
         });
+    });
+});
+
+describe('database transaction metrics', () => {
+    beforeEach(() => {
+        prometheus.register.clear();
+    });
+
+    afterEach(() => {
+        prometheus.register.clear();
+    });
+
+    it('counts rollbacks by caller and observes duration by outcome', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        attachTransactionObservability(
+            database,
+            { logRollbacks: true, slowTransactionThresholdMs: null },
+            { getCaller: () => 'scheduler:compileProject', log: () => {} },
+        );
+        const metrics = new PrometheusMetrics({
+            ...lightdashConfigMock.prometheus,
+            enabled: true,
+        });
+        metrics.monitorDatabase(database);
+
+        await database.transaction(async () => 'ok');
+        await expect(
+            database.transaction(async () => {
+                throw new Error('boom');
+            }),
+        ).rejects.toThrow('boom');
+
+        const rollbacks = prometheus.register.getSingleMetric(
+            'pg_transaction_rollbacks_total',
+        );
+        const duration = prometheus.register.getSingleMetric(
+            'pg_transaction_duration',
+        );
+        expect((await rollbacks!.get()).values).toEqual([
+            { labels: { caller: 'scheduler:compileProject' }, value: 1 },
+        ]);
+        expect((await duration!.get()).values).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    metricName: 'pg_transaction_duration_count',
+                    labels: { outcome: 'commit' },
+                    value: 1,
+                }),
+                expect.objectContaining({
+                    metricName: 'pg_transaction_duration_count',
+                    labels: { outcome: 'rollback' },
+                    value: 1,
+                }),
+            ]),
+        );
+        await database.destroy();
     });
 });

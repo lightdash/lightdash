@@ -195,7 +195,10 @@ export class UsageEventsCompactor extends S3BaseClient {
         this.usageDimensionsModel = args.usageDimensionsModel;
     }
 
-    async run(now: Date = new Date()): Promise<
+    async run(
+        now: Date = new Date(),
+        organizationUuid?: string,
+    ): Promise<
         CompactionRunSummary & {
             dimensions: DimensionRefreshSummary;
             users: UserActivitySummary;
@@ -211,7 +214,9 @@ export class UsageEventsCompactor extends S3BaseClient {
                         organization_id: number;
                         organization_uuid: string;
                     }[] = [];
-                    for await (const organization of this.usageDimensionsModel.getOrganizations()) {
+                    for await (const organization of this.usageDimensionsModel.getOrganizations(
+                        organizationUuid,
+                    )) {
                         const { enabled } = await this.featureFlagModel.get({
                             featureFlagId: FeatureFlags.AnalyticsProject,
                             user: {

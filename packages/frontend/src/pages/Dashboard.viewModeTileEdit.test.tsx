@@ -7,12 +7,12 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
 import { AbilityContext } from '../providers/Ability/context';
 import { manageChartRule } from '../testing/savedChartResponse.mock';
 import { renderWithProviders } from '../testing/testUtils';
 
-const mockedApi = vi.mocked(lightdashApi);
+const mockedApi = mockedLightdashApi;
 
 // Mock factories are hoisted above module scope, so the fixtures they share
 // with the tests are hoisted too.
@@ -76,7 +76,7 @@ const state = vi.hoisted(() => ({
     setHaveTilesChanged: vi.fn(),
 }));
 
-vi.mock('../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../api');
 vi.mock('../hooks/useContentAuthoringEnabled', () => ({
     useContentAuthoringEnabled: () => true,
 }));
@@ -295,6 +295,7 @@ vi.mock(
     () => ({ AskAiAgentMenuItem: () => null }),
 );
 
+import { mockedLightdashApi } from '../testing/mockedLightdashApi';
 // eslint-disable-next-line import/first
 import DashboardPage from './Dashboard';
 
@@ -356,7 +357,7 @@ describe('Dashboard tile edits from view mode', () => {
                 };
             }
             return new Promise(() => {});
-        }) as typeof lightdashApi);
+        }) as LightdashApi);
     });
 
     it('saves the edited tile against the stored dashboard without staging it', async () => {

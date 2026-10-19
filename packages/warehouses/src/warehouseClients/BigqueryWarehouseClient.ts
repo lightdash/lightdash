@@ -44,7 +44,9 @@ import {
     WarehouseTypes,
     type ResultNumericKind,
     type TimestampDomain,
+    type WarehouseExecutionStats,
     type WarehouseNestedColumnShape,
+    type WarehouseQueryEstimate,
 } from '@lightdash/common';
 import { pipeline, Transform } from 'stream';
 import {
@@ -434,6 +436,19 @@ export const getGoogleOauthTokenError = (
 export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryCredentials> {
     private static readonly MAX_LABELS = 64;
 
+    private static readonly AGENT_IDENTITY_LABEL_KEYS = [
+        'agent_surface',
+        'agent_client',
+        'agent_uuid',
+        'user_uuid',
+    ];
+
+    // Kept ahead of other labels so attribution survives the label limit.
+    private static readonly PRIORITY_LABEL_KEYS = [
+        'agent',
+        ...BigqueryWarehouseClient.AGENT_IDENTITY_LABEL_KEYS,
+    ];
+
     client: BigQuery;
 
     private readonly agentJobControls: boolean;
@@ -534,8 +549,14 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     ): Record<string, string> | undefined {
         if (!labels) return undefined;
         const entries = Object.entries(labels);
+        const isPriority = (key: string) =>
+            BigqueryWarehouseClient.PRIORITY_LABEL_KEYS.includes(key);
         const orderedEntries = [
-            ...entries.filter(([key]) => !key.startsWith('user_attribute_')),
+            ...entries.filter(([key]) => isPriority(key)),
+            ...entries.filter(
+                ([key]) =>
+                    !isPriority(key) && !key.startsWith('user_attribute_'),
+            ),
             ...entries.filter(([key]) => key.startsWith('user_attribute_')),
         ];
         return Object.fromEntries(
@@ -577,17 +598,21 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             values?: AnyType[];
             tags?: Record<string, string>;
             timezone?: string;
+            maximumBytesBilled?: number;
+            dryRun?: boolean;
         },
     ) {
+        const maximumBytesBilled =
+            options.maximumBytesBilled ?? this.credentials.maximumBytesBilled;
         const tags = options?.tags;
         const labels = BigqueryWarehouseClient.sanitizeLabelsWithValues(tags);
         const identityLabels =
             this.agentJobControls && tags
                 ? (BigqueryWarehouseClient.sanitizeLabelsWithValues(
                       Object.fromEntries(
-                          ['agent_surface', 'agent_client']
-                              .filter((key) => tags[key] !== undefined)
-                              .map((key) => [key, tags[key]]),
+                          BigqueryWarehouseClient.AGENT_IDENTITY_LABEL_KEYS.filter(
+                              (key) => tags[key] !== undefined,
+                          ).map((key) => [key, tags[key]]),
                       ),
                   ) ?? {})
                 : {};
@@ -595,15 +620,18 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             query,
             params: options?.values,
             useLegacySql: false,
-            ...(this.agentJobControls ? { useQueryCache: false } : {}),
+            ...(this.agentJobControls || options.dryRun
+                ? { useQueryCache: false }
+                : {}),
+            ...(options.dryRun ? { dryRun: true } : {}),
             // BigQuery has no session timezone; the `time_zone` connection
             // property is the per-job equivalent — naive DATETIME coercions
             // and offset-less literals are read in this zone.
             connectionProperties: options?.timezone
                 ? [{ key: 'time_zone', value: options.timezone }]
                 : undefined,
-            maximumBytesBilled: this.credentials.maximumBytesBilled
-                ? `${this.credentials.maximumBytesBilled}`
+            maximumBytesBilled: maximumBytesBilled
+                ? `${maximumBytesBilled}`
                 : undefined,
             priority: this.credentials.priority,
             jobTimeoutMs:
@@ -641,6 +669,32 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 autoCreate: false,
             });
         return job;
+    }
+
+    static getExecutionStats(
+        jobId: string | null,
+        statistics: bigquery.IJobStatistics | undefined,
+    ): WarehouseExecutionStats {
+        const toNumber = (value: string | undefined): number | null => {
+            if (value === undefined) return null;
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? parsed : null;
+        };
+        const startTime = toNumber(statistics?.startTime);
+        const endTime = toNumber(statistics?.endTime);
+        return {
+            jobId,
+            bytesProcessed: toNumber(
+                statistics?.query?.totalBytesProcessed ??
+                    statistics?.totalBytesProcessed,
+            ),
+            bytesBilled: toNumber(statistics?.query?.totalBytesBilled),
+            executionTimeMs:
+                startTime !== null && endTime !== null
+                    ? endTime - startTime
+                    : null,
+            cacheHit: statistics?.query?.cacheHit ?? null,
+        };
     }
 
     private async getJobResultsMetadata(job: Job) {
@@ -696,6 +750,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             values?: AnyType[];
             tags?: Record<string, string>;
             timezone?: string;
+            maximumBytesBilled?: number;
         },
     ): Promise<void> {
         try {
@@ -756,7 +811,24 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                     table,
                 ).catch((e) => {
                     this.throwIfGoogleOauthTokenError(e);
+                    // BigQuery reports a table the credentials can't read as
+                    // "denied (or it may not exist)", so treat it like 404:
+                    // the model compiles without warehouse types instead of
+                    // failing the whole project. Other 403s (rate limit,
+                    // quota, API disabled) still fail the refresh.
                     if (e?.code === 404) {
+                        return undefined;
+                    }
+                    if (
+                        e?.code === 403 &&
+                        BigqueryWarehouseClient.isBigqueryError(e) &&
+                        e.errors.some(({ reason }) => reason === 'accessDenied')
+                    ) {
+                        console.warn(
+                            `Skipping table metadata for '${database}.${schema}.${table}': ${getErrorMessage(
+                                e,
+                            )}`,
+                        );
                         return undefined;
                     }
                     throw new WarehouseConnectionError(
@@ -1012,8 +1084,48 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         );
     }
 
+    async estimateQuery({
+        sql,
+        values,
+        tags,
+        timezone,
+    }: WarehouseExecuteAsyncQueryArgs): Promise<WarehouseQueryEstimate> {
+        try {
+            const [job] = await this.createJob(sql, {
+                values,
+                tags,
+                timezone,
+                dryRun: true,
+            });
+            const totalBytesProcessed = Number(
+                job.metadata?.statistics?.totalBytesProcessed ?? 0,
+            );
+            return {
+                totalBytesProcessed: Number.isFinite(totalBytesProcessed)
+                    ? totalBytesProcessed
+                    : 0,
+            };
+        } catch (e: unknown) {
+            this.throwIfGoogleOauthTokenError(e);
+            if (BigqueryWarehouseClient.isBigqueryError(e)) {
+                const responseError: bigquery.IErrorProto | undefined =
+                    e?.errors[0];
+                if (responseError) {
+                    throw this.parseError(responseError, sql);
+                }
+            }
+            throw e;
+        }
+    }
+
     async executeAsyncQuery(
-        { sql, values, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
+        {
+            sql,
+            values,
+            tags,
+            timezone,
+            maximumBytesBilled,
+        }: WarehouseExecuteAsyncQueryArgs,
         resultsStreamCallback?: (
             rows: WarehouseResults['rows'],
             fields: WarehouseResults['fields'],
@@ -1024,6 +1136,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             const [job] = await this.createJob(sql, {
                 tags,
                 timezone,
+                maximumBytesBilled,
             });
 
             if (!job.id) {
@@ -1069,6 +1182,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 totalRows,
                 durationMs: startTime && endTime ? endTime - startTime : 0,
                 phaseTimings: { query: queryMs, fetch: fetchMs },
+                executionStats: BigqueryWarehouseClient.getExecutionStats(
+                    job.id,
+                    job.metadata?.statistics,
+                ),
             };
         } catch (e: unknown) {
             this.throwIfGoogleOauthTokenError(e);

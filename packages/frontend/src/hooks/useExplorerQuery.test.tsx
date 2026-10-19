@@ -217,6 +217,7 @@ describe('useExplorerQuery', () => {
                 result.current.getDownloadQueryUuid(2, false, Limit.CUSTOM),
             ).resolves.toBe('download-uuid');
             expect(executeQueryAndWaitForResults).toHaveBeenCalledWith(
+                expect.anything(),
                 expect.objectContaining({
                     csvLimit: 2,
                     pivotResults: false,
@@ -250,7 +251,7 @@ describe('useExplorerQuery', () => {
 
             expect(executeQueryAndWaitForResults).toHaveBeenCalledTimes(1);
             const callArg = vi.mocked(executeQueryAndWaitForResults).mock
-                .calls[0][0];
+                .calls[0][1];
             expect(callArg).not.toBeNull();
 
             // The leak prevention: pivotConfiguration must be explicitly
@@ -284,7 +285,7 @@ describe('useExplorerQuery', () => {
 
             expect(executeQueryAndWaitForResults).toHaveBeenCalledTimes(1);
             const callArg = vi.mocked(executeQueryAndWaitForResults).mock
-                .calls[0][0];
+                .calls[0][1];
             expect(callArg).toMatchObject({
                 pivotResults: true,
                 pivotConfiguration,

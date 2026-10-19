@@ -21,8 +21,9 @@ import {
 import { type PropsWithChildren } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import UpdateProjectConnection from '../../components/ProjectConnection/UpdateProjectConnection';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { AiServiceAccountCard } from './AiServiceAccountCard';
 import { formatAiServiceAccountDate } from './formatAiServiceAccountDate';
@@ -69,10 +70,11 @@ const expectReadOnly = () => {
 vi.mock('../../components/common/CodeBlock/CodeBlock', () => ({
     default: ({ code }: { code: string }) => <pre>{code}</pre>,
 }));
-vi.mock('../../api', () => {
-    const request = vi.fn();
-    return { lightdashApi: request, lightdashApiResponse: request };
-});
+vi.mock('../../api');
+// One handler answers both result and full-envelope requests
+mockedLightdashApi.response.mockImplementation((props) =>
+    mockedLightdashApi(props),
+);
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: mocks.enabled } }),
 }));
@@ -228,7 +230,7 @@ describe('AI service account card', () => {
         credentialsReadable = true;
         slot = null;
         parent = null;
-        vi.mocked(lightdashApi).mockImplementation(async ({ url, method }) => {
+        mockedLightdashApi.mockImplementation(async ({ url, method }) => {
             if (url === '/org/agent-identity')
                 return {
                     requireVerifiedAgentSessions: false,
@@ -499,7 +501,7 @@ describe('AI service account card', () => {
                 expect(container).not.toHaveTextContent(' · ');
                 expect(container).not.toHaveTextContent('M2M');
                 expect(container).not.toHaveTextContent('agent-active');
-                expect(lightdashApi).not.toHaveBeenCalledWith(
+                expect(sharedLightdashApi).not.toHaveBeenCalledWith(
                     expect.objectContaining({ method: 'POST' }),
                 );
             },
@@ -512,14 +514,14 @@ describe('AI service account card', () => {
                 await screen.findByRole('button', { name: 'Test' });
                 expectSteps(false, name);
                 if (failure === 'failure')
-                    vi.mocked(lightdashApi).mockResolvedValueOnce({
+                    mockedLightdashApi.mockResolvedValueOnce({
                         ...snowflakeVerification,
                         ok: false,
                         principal: null,
                         message: 'Test failed.',
                     });
                 else
-                    vi.mocked(lightdashApi).mockRejectedValueOnce({
+                    mockedLightdashApi.mockRejectedValueOnce({
                         error: { message: 'Test failed.' },
                     });
                 fireEvent.click(screen.getByRole('button', { name: 'Test' }));
@@ -533,7 +535,7 @@ describe('AI service account card', () => {
                 expect(screen.getByText(/^Tested /)).toHaveTextContent(
                     `Tested ${formatAiServiceAccountDate(type === WarehouseTypes.SNOWFLAKE ? snowflakeVerification.checkedAt : new Date())}. Added ${formatAiServiceAccountDate(savedSlot.updatedAt)}.`,
                 );
-                expect(lightdashApi).toHaveBeenCalledWith(
+                expect(sharedLightdashApi).toHaveBeenCalledWith(
                     expect.objectContaining({
                         method: 'POST',
                         body: JSON.stringify({ credentials: null }),
@@ -608,7 +610,7 @@ describe('AI service account card', () => {
                 screen.queryByText('Shared agent account'),
             ).not.toBeInTheDocument();
             expect(screen.queryByRole('button')).not.toBeInTheDocument();
-            expect(lightdashApi).not.toHaveBeenCalled();
+            expect(sharedLightdashApi).not.toHaveBeenCalled();
         });
         it.each(scenarios)('derives the pure status for %s', (scenario) => {
             const required = ![
@@ -700,7 +702,7 @@ describe('AI service account card', () => {
         await screen.findByRole('button', { name: 'Replace' });
         expectSteps(false, 'BigQuery');
         expect(screen.queryByText(/^Tested /)).not.toBeInTheDocument();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'POST' }),
         );
     });
@@ -828,7 +830,7 @@ describe('AI service account card', () => {
         it('marks the recorded observation as historical after a failed Test', async () => {
             setup(databricksProject);
             const button = await screen.findByRole('button', { name: 'Test' });
-            vi.mocked(lightdashApi).mockResolvedValueOnce({
+            mockedLightdashApi.mockResolvedValueOnce({
                 ...recorded,
                 ok: false,
                 principal: null,
@@ -919,7 +921,7 @@ describe('AI service account card', () => {
                 expect(
                     screen.queryByText('Shared agent account'),
                 ).not.toBeInTheDocument();
-                expect(lightdashApi).not.toHaveBeenCalled();
+                expect(sharedLightdashApi).not.toHaveBeenCalled();
             },
         );
     });
@@ -985,7 +987,7 @@ describe('AI service account card', () => {
         it('marks the recorded observation as historical after a failed Test', async () => {
             setup(athenaProject);
             const button = await screen.findByRole('button', { name: 'Test' });
-            vi.mocked(lightdashApi).mockResolvedValueOnce({
+            mockedLightdashApi.mockResolvedValueOnce({
                 ...recorded,
                 ok: false,
                 principal: null,
@@ -1059,7 +1061,7 @@ describe('AI service account card', () => {
             expectReadOnly();
         });
         it('replaces credentials without prefill and removes them only after confirmation', async () => {
-            const handler = vi.mocked(lightdashApi).getMockImplementation()!;
+            const handler = mockedLightdashApi.getMockImplementation()!;
             const replacement = {
                 ...recorded,
                 principal: 'arn:aws:iam::123456789012:user/replacement-agent',
@@ -1068,7 +1070,7 @@ describe('AI service account card', () => {
                         'arn:aws:iam::123456789012:user/replacement-agent',
                 },
             };
-            vi.mocked(lightdashApi).mockImplementation(async (request) => {
+            mockedLightdashApi.mockImplementation(async (request) => {
                 if (request.method === 'PUT') {
                     slot = {
                         ...savedSlot,
@@ -1111,7 +1113,7 @@ describe('AI service account card', () => {
             const confirmation = await screen.findByRole('dialog', {
                 name: 'Remove shared agent account',
             });
-            expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect(sharedLightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'DELETE' }),
             );
             fireEvent.click(
@@ -1144,7 +1146,7 @@ describe('AI service account card', () => {
                 expect(
                     screen.queryByText('Shared agent account'),
                 ).not.toBeInTheDocument();
-                expect(lightdashApi).not.toHaveBeenCalled();
+                expect(sharedLightdashApi).not.toHaveBeenCalled();
             },
         );
     });
@@ -1204,7 +1206,7 @@ describe('AI service account card', () => {
         it('marks the recorded observation as historical after a failed Test', async () => {
             setup(postgresProject);
             const button = await screen.findByRole('button', { name: 'Test' });
-            vi.mocked(lightdashApi).mockResolvedValueOnce({
+            mockedLightdashApi.mockResolvedValueOnce({
                 ...recorded,
                 ok: false,
                 principal: null,
@@ -1272,7 +1274,7 @@ describe('AI service account card', () => {
             expectReadOnly();
         });
         it('replaces credentials without prefill and removes them only after confirmation', async () => {
-            const handler = vi.mocked(lightdashApi).getMockImplementation()!;
+            const handler = mockedLightdashApi.getMockImplementation()!;
             const replacement = {
                 ...recorded,
                 principal: 'replacement_user',
@@ -1280,7 +1282,7 @@ describe('AI service account card', () => {
                     currentUser: 'replacement_user',
                 },
             };
-            vi.mocked(lightdashApi).mockImplementation(async (request) => {
+            mockedLightdashApi.mockImplementation(async (request) => {
                 if (request.method === 'PUT') {
                     slot = {
                         ...savedSlot,
@@ -1321,7 +1323,7 @@ describe('AI service account card', () => {
             const confirmation = await screen.findByRole('dialog', {
                 name: 'Remove shared agent account',
             });
-            expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect(sharedLightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'DELETE' }),
             );
             fireEvent.click(
@@ -1354,7 +1356,7 @@ describe('AI service account card', () => {
                 expect(
                     screen.queryByText('Shared agent account'),
                 ).not.toBeInTheDocument();
-                expect(lightdashApi).not.toHaveBeenCalled();
+                expect(sharedLightdashApi).not.toHaveBeenCalled();
             },
         );
     });
@@ -1414,7 +1416,7 @@ describe('AI service account card', () => {
         it('marks the recorded observation as historical after a failed Test', async () => {
             setup(redshiftProject);
             const button = await screen.findByRole('button', { name: 'Test' });
-            vi.mocked(lightdashApi).mockResolvedValueOnce({
+            mockedLightdashApi.mockResolvedValueOnce({
                 ...recorded,
                 ok: false,
                 principal: null,
@@ -1482,7 +1484,7 @@ describe('AI service account card', () => {
             expectReadOnly();
         });
         it('replaces credentials without prefill and removes them only after confirmation', async () => {
-            const handler = vi.mocked(lightdashApi).getMockImplementation()!;
+            const handler = mockedLightdashApi.getMockImplementation()!;
             const replacement = {
                 ...recorded,
                 principal: 'replacement_user',
@@ -1490,7 +1492,7 @@ describe('AI service account card', () => {
                     currentUser: 'replacement_user',
                 },
             };
-            vi.mocked(lightdashApi).mockImplementation(async (request) => {
+            mockedLightdashApi.mockImplementation(async (request) => {
                 if (request.method === 'PUT') {
                     slot = {
                         ...savedSlot,
@@ -1531,7 +1533,7 @@ describe('AI service account card', () => {
             const confirmation = await screen.findByRole('dialog', {
                 name: 'Remove shared agent account',
             });
-            expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect(sharedLightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'DELETE' }),
             );
             fireEvent.click(
@@ -1564,7 +1566,7 @@ describe('AI service account card', () => {
                 expect(
                     screen.queryByText('Shared agent account'),
                 ).not.toBeInTheDocument();
-                expect(lightdashApi).not.toHaveBeenCalled();
+                expect(sharedLightdashApi).not.toHaveBeenCalled();
             },
         );
     });
@@ -1627,7 +1629,7 @@ describe('AI service account card', () => {
         it('marks the recorded observation as historical after a failed Test', async () => {
             setup(trinoProject);
             const button = await screen.findByRole('button', { name: 'Test' });
-            vi.mocked(lightdashApi).mockResolvedValueOnce({
+            mockedLightdashApi.mockResolvedValueOnce({
                 ...recorded,
                 ok: false,
                 principal: null,
@@ -1699,7 +1701,7 @@ describe('AI service account card', () => {
             expectReadOnly();
         });
         it('replaces credentials without prefill and removes them only after confirmation', async () => {
-            const handler = vi.mocked(lightdashApi).getMockImplementation()!;
+            const handler = mockedLightdashApi.getMockImplementation()!;
             const replacement = {
                 ...recorded,
                 principal: 'replacement_user',
@@ -1707,7 +1709,7 @@ describe('AI service account card', () => {
                     currentUser: 'replacement_user',
                 },
             };
-            vi.mocked(lightdashApi).mockImplementation(async (request) => {
+            mockedLightdashApi.mockImplementation(async (request) => {
                 if (request.method === 'PUT') {
                     slot = {
                         ...savedSlot,
@@ -1748,7 +1750,7 @@ describe('AI service account card', () => {
             const confirmation = await screen.findByRole('dialog', {
                 name: 'Remove shared agent account',
             });
-            expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect(sharedLightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'DELETE' }),
             );
             fireEvent.click(
@@ -1781,7 +1783,7 @@ describe('AI service account card', () => {
                 expect(
                     screen.queryByText('Shared agent account'),
                 ).not.toBeInTheDocument();
-                expect(lightdashApi).not.toHaveBeenCalled();
+                expect(sharedLightdashApi).not.toHaveBeenCalled();
             },
         );
     });
@@ -1857,7 +1859,7 @@ describe('AI service account card', () => {
         it('marks the recorded observation as historical after a failed Test', async () => {
             setup(clickhouseProject);
             const button = await screen.findByRole('button', { name: 'Test' });
-            vi.mocked(lightdashApi).mockResolvedValueOnce({
+            mockedLightdashApi.mockResolvedValueOnce({
                 ...recorded,
                 ok: false,
                 principal: null,
@@ -1925,7 +1927,7 @@ describe('AI service account card', () => {
             expectReadOnly();
         });
         it('replaces credentials without prefill and removes them only after confirmation', async () => {
-            const handler = vi.mocked(lightdashApi).getMockImplementation()!;
+            const handler = mockedLightdashApi.getMockImplementation()!;
             const replacement = {
                 ...recorded,
                 principal: 'replacement_user',
@@ -1933,7 +1935,7 @@ describe('AI service account card', () => {
                     currentUser: 'replacement_user',
                 },
             };
-            vi.mocked(lightdashApi).mockImplementation(async (request) => {
+            mockedLightdashApi.mockImplementation(async (request) => {
                 if (request.method === 'PUT') {
                     slot = {
                         ...savedSlot,
@@ -1974,7 +1976,7 @@ describe('AI service account card', () => {
             const confirmation = await screen.findByRole('dialog', {
                 name: 'Remove shared agent account',
             });
-            expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect(sharedLightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'DELETE' }),
             );
             fireEvent.click(
@@ -2007,7 +2009,7 @@ describe('AI service account card', () => {
                 expect(
                     screen.queryByText('Shared agent account'),
                 ).not.toBeInTheDocument();
-                expect(lightdashApi).not.toHaveBeenCalled();
+                expect(sharedLightdashApi).not.toHaveBeenCalled();
             },
         );
     });
@@ -2104,7 +2106,7 @@ describe('AI service account card', () => {
         expect(
             await screen.findByText('Signs in as tested-principal'),
         ).toBeVisible();
-        expect(lightdashApi).toHaveBeenCalledWith(
+        expect(sharedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/projects/project/ai-access/service-account/test',
                 method: 'POST',
@@ -2245,7 +2247,7 @@ describe('AI service account card', () => {
             expect(
                 screen.queryByText('Shared agent account'),
             ).not.toBeInTheDocument();
-            expect(lightdashApi).not.toHaveBeenCalled();
+            expect(sharedLightdashApi).not.toHaveBeenCalled();
         },
     );
     it('renders setup commands from the connection, including its execution project and dataset', async () => {
@@ -2346,7 +2348,7 @@ describe('AI service account card', () => {
         expect(
             await screen.findByText('Signs in as tested-principal'),
         ).toBeInTheDocument();
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(sharedLightdashApi).toHaveBeenCalledWith({
             version: 'v2',
             url: '/projects/project/ai-access/service-account/test',
             method: 'POST',
@@ -2369,7 +2371,7 @@ describe('AI service account card', () => {
         expect(
             await within(dialog).findByText('Signs in as tested-principal'),
         ).toBeInTheDocument();
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(sharedLightdashApi).toHaveBeenCalledWith({
             version: 'v2',
             url: '/projects/project/ai-access/service-account/test',
             method: 'POST',
@@ -2404,7 +2406,7 @@ describe('AI service account card', () => {
         expect(
             screen.queryByText('Signs in as tested-principal'),
         ).not.toBeInTheDocument();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
     });
@@ -2467,13 +2469,13 @@ describe('AI service account card', () => {
                     await waitFor(() => expect(testButton).toBeEnabled());
                 } else {
                     if (scenario === 'failed retest')
-                        vi.mocked(lightdashApi).mockResolvedValueOnce({
+                        mockedLightdashApi.mockResolvedValueOnce({
                             ok: false,
                             principal: null,
                             message: 'Access denied.',
                         });
                     else
-                        vi.mocked(lightdashApi).mockRejectedValueOnce({
+                        mockedLightdashApi.mockRejectedValueOnce({
                             error: { message: 'Access denied.' },
                         });
                     fireEvent.click(testButton);
@@ -2530,7 +2532,7 @@ describe('AI service account card', () => {
         upload();
         const testButton = within(dialog).getByRole('button', { name: 'Test' });
         await waitFor(() => expect(testButton).toBeEnabled());
-        vi.mocked(lightdashApi).mockResolvedValueOnce({
+        mockedLightdashApi.mockResolvedValueOnce({
             ok: true,
             principal: 'replacement-principal',
             message: 'Connection works.',
@@ -2577,7 +2579,7 @@ describe('AI service account card', () => {
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
         );
         expectSteps(false, 'BigQuery');
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(sharedLightdashApi).toHaveBeenCalledWith({
             version: 'v2',
             url: '/projects/project/ai-access/service-account',
             method: 'PUT',
@@ -2604,7 +2606,7 @@ describe('AI service account card', () => {
             name: 'Remove shared agent account',
         });
         expectSteps(false, 'BigQuery');
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'DELETE' }),
         );
         fireEvent.click(
@@ -2616,7 +2618,7 @@ describe('AI service account card', () => {
             }),
         ).toBeInTheDocument();
         expectSteps(true, 'BigQuery');
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(sharedLightdashApi).toHaveBeenCalledWith({
             version: 'v2',
             url: '/projects/project/ai-access/service-account',
             method: 'DELETE',
@@ -2643,7 +2645,7 @@ describe('AI service account card', () => {
         upload();
         const testButton = within(dialog).getByRole('button', { name: 'Test' });
         await waitFor(() => expect(testButton).toBeEnabled());
-        vi.mocked(lightdashApi).mockResolvedValueOnce({
+        mockedLightdashApi.mockResolvedValueOnce({
             ok: false,
             principal: null,
             message: 'Access denied.',
@@ -2666,7 +2668,7 @@ describe('AI service account card', () => {
             expect(
                 screen.queryByRole('link', { name: 'Agent identity' }),
             ).not.toBeInTheDocument();
-            expect(lightdashApi).not.toHaveBeenCalled();
+            expect(sharedLightdashApi).not.toHaveBeenCalled();
         },
     );
     describe('identity page loading', () => {
@@ -2676,20 +2678,20 @@ describe('AI service account card', () => {
         const statusKey = ['ai-access', 'project', null, 'service-account'];
         const deferResponse = () => {
             let resolve!: (
-                value: Awaited<ReturnType<typeof lightdashApi>>,
+                value: Awaited<ReturnType<typeof mockedLightdashApi>>,
             ) => void;
             const promise = new Promise<
-                Awaited<ReturnType<typeof lightdashApi>>
+                Awaited<ReturnType<typeof mockedLightdashApi>>
             >((resolvePromise) => {
                 resolve = resolvePromise;
             });
             return { promise, resolve };
         };
         const deferRequests = () => {
-            const request = vi.mocked(lightdashApi).getMockImplementation()!;
+            const request = mockedLightdashApi.getMockImplementation()!;
             const settings = deferResponse();
             const status = deferResponse();
-            vi.mocked(lightdashApi).mockImplementation((args) => {
+            mockedLightdashApi.mockImplementation((args) => {
                 if (args.url === settingsUrl) return settings.promise;
                 if (args.url === statusUrl) return status.promise;
                 return request(args);
@@ -2735,7 +2737,7 @@ describe('AI service account card', () => {
                 const { container, client } = setup(project, false, true);
                 await waitFor(() => {
                     for (const url of [settingsUrl, statusUrl])
-                        expect(lightdashApi).toHaveBeenCalledWith(
+                        expect(sharedLightdashApi).toHaveBeenCalledWith(
                             expect.objectContaining({ url, method: 'GET' }),
                         );
                     expectLoading(container);
@@ -2772,10 +2774,8 @@ describe('AI service account card', () => {
         it.each(['settings', 'status', 'missing rule'] as const)(
             'shows a retryable account error for %s and retries both requests',
             async (failure) => {
-                const request = vi
-                    .mocked(lightdashApi)
-                    .getMockImplementation()!;
-                vi.mocked(lightdashApi).mockImplementation(async (args) => {
+                const request = mockedLightdashApi.getMockImplementation()!;
+                mockedLightdashApi.mockImplementation(async (args) => {
                     if (failure === 'missing rule' && args.url === settingsUrl)
                         return {
                             requireVerifiedAgentSessions: false,
@@ -2800,8 +2800,8 @@ describe('AI service account card', () => {
                 expect(
                     container.querySelectorAll('.mantine-Loader-root'),
                 ).toHaveLength(0);
-                vi.mocked(lightdashApi).mockImplementation(request);
-                vi.mocked(lightdashApi).mockClear();
+                mockedLightdashApi.mockImplementation(request);
+                mockedLightdashApi.mockClear();
                 fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
                 expect(
                     await screen.findByRole('heading', {
@@ -2809,7 +2809,7 @@ describe('AI service account card', () => {
                     }),
                 ).toBeVisible();
                 for (const url of [settingsUrl, statusUrl])
-                    expect(lightdashApi).toHaveBeenCalledWith(
+                    expect(sharedLightdashApi).toHaveBeenCalledWith(
                         expect.objectContaining({ url, method: 'GET' }),
                     );
             },
@@ -2901,7 +2901,7 @@ describe('AI service account card', () => {
                     ':scope > :not(style):not(.mantine-Notifications-root)',
                 ),
             ).toBeNull();
-            expect(lightdashApi).not.toHaveBeenCalled();
+            expect(sharedLightdashApi).not.toHaveBeenCalled();
             expect(
                 screen.queryByText('Organization rule for this warehouse'),
             ).not.toBeInTheDocument();
@@ -2921,10 +2921,10 @@ describe('AI service account card', () => {
                 'Agent identity is not available for this warehouse.',
             ),
         ).toBeVisible();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ url: '/org/agent-identity' }),
         );
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/projects/project/ai-access/service-account',
             }),
@@ -2937,7 +2937,7 @@ describe('AI service account card', () => {
         const button = within(dialog).getByRole('button', { name: 'Save' });
         await waitFor(() => expect(button).toBeEnabled());
         const error = { message: 'Could not save credentials.' };
-        vi.mocked(lightdashApi).mockRejectedValueOnce({ error });
+        mockedLightdashApi.mockRejectedValueOnce({ error });
         fireEvent.click(button);
         await waitFor(() =>
             expect(mocks.errorToast).toHaveBeenCalledWith({
@@ -2956,7 +2956,7 @@ describe('AI service account card', () => {
             name: 'Remove shared agent account',
         });
         const error = { message: 'Could not remove credentials.' };
-        vi.mocked(lightdashApi).mockRejectedValueOnce({ error });
+        mockedLightdashApi.mockRejectedValueOnce({ error });
         fireEvent.click(within(dialog).getByRole('button', { name: 'Remove' }));
         await waitFor(() =>
             expect(mocks.errorToast).toHaveBeenCalledWith({
@@ -2971,7 +2971,7 @@ describe('AI service account card', () => {
         slot = savedSlot;
         setup();
         const button = await screen.findByRole('button', { name: 'Test' });
-        vi.mocked(lightdashApi).mockRejectedValueOnce({
+        mockedLightdashApi.mockRejectedValueOnce({
             error: { message: 'The connection is unavailable.' },
         });
         fireEvent.click(button);
@@ -2985,7 +2985,7 @@ describe('AI service account card', () => {
         ).toBeInTheDocument();
     });
     it('reports a load failure instead of offering to overwrite an unknown slot', async () => {
-        vi.mocked(lightdashApi).mockRejectedValue({
+        mockedLightdashApi.mockRejectedValue({
             error: { message: 'Unavailable' },
         });
         setup();
@@ -3066,14 +3066,14 @@ describe('AI service account card', () => {
                     ).toBeVisible();
                 fireEvent.click(screen.getByRole('button', { name: 'Test' }));
                 await waitFor(() =>
-                    expect(lightdashApi).toHaveBeenCalledWith(
+                    expect(sharedLightdashApi).toHaveBeenCalledWith(
                         expect.objectContaining({
                             url: '/projects/project/ai-access/service-account/test',
                             body: JSON.stringify({ credentials: null }),
                         }),
                     ),
                 );
-                expect(lightdashApi).not.toHaveBeenCalledWith(
+                expect(sharedLightdashApi).not.toHaveBeenCalledWith(
                     expect.objectContaining({
                         url: '/projects/project/ai-access/service-account/test-access',
                     }),
@@ -3124,7 +3124,7 @@ describe('AI service account card', () => {
                         screen.getByRole('button', { name: 'Replace' }),
                     ).toBeEnabled();
                 else expectReadOnly();
-                expect(lightdashApi).not.toHaveBeenCalledWith(
+                expect(sharedLightdashApi).not.toHaveBeenCalledWith(
                     expect.objectContaining({ method: 'POST' }),
                 );
             },
@@ -3162,7 +3162,7 @@ describe('AI service account card', () => {
                         screen.getByRole('button', { name: 'Replace' }),
                     ).toBeEnabled();
                 else expectReadOnly();
-                vi.mocked(lightdashApi).mockResolvedValueOnce({
+                mockedLightdashApi.mockResolvedValueOnce({
                     ...snowflakeVerification,
                     ok: false,
                     principal: null,
@@ -3181,7 +3181,7 @@ describe('AI service account card', () => {
             await screen.findByText(
                 'Signs in as OBSERVED_USER with role OBSERVED_ROLE',
             );
-            vi.mocked(lightdashApi).mockRejectedValueOnce({
+            mockedLightdashApi.mockRejectedValueOnce({
                 error: { message: 'Sign-in failed.' },
             });
             fireEvent.click(screen.getByRole('button', { name: 'Test' }));
@@ -3201,7 +3201,7 @@ describe('AI service account card', () => {
                 await screen.findByRole('button', { name: 'Test' }),
             );
             await waitFor(() =>
-                expect(lightdashApi).toHaveBeenCalledWith(
+                expect(sharedLightdashApi).toHaveBeenCalledWith(
                     expect.objectContaining({ method: 'POST' }),
                 ),
             );
@@ -3254,7 +3254,7 @@ describe('AI service account card', () => {
                     { target: { value } },
                 );
             }
-            vi.mocked(lightdashApi).mockRejectedValueOnce({
+            mockedLightdashApi.mockRejectedValueOnce({
                 error: { message: 'Sign-in failed.' },
             });
             fireEvent.click(
@@ -3308,7 +3308,7 @@ describe('AI service account card', () => {
                         /Use TYPE = SERVICE_AGENT so Snowflake marks these sessions as agent sessions./,
                     ),
                 ).not.toBeInTheDocument();
-                expect(lightdashApi).not.toHaveBeenCalled();
+                expect(sharedLightdashApi).not.toHaveBeenCalled();
             },
         );
     });

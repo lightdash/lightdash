@@ -46,6 +46,8 @@ const buildService = (
             | { source: 'slackFile'; fileId: string }
             | { source: 'url'; url: string }
             | null;
+        /** The org's data app captures switch; on unless a test turns it off. */
+        capturesEnabled?: boolean;
     },
 ) => {
     const updateToolResultIfPending = vi
@@ -103,6 +105,11 @@ const buildService = (
         },
         slackClient: { postMessage, tryUploadingImageToSlack },
         unfurlService: { exportDataApp },
+        appGenerateService: {
+            areDataAppCapturesEnabled: vi
+                .fn()
+                .mockResolvedValue(options?.capturesEnabled ?? true),
+        },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
     return {
@@ -269,6 +276,29 @@ describe('AiAgentService.recordDataAppBuildOutcome', () => {
 
         await service.recordDataAppBuildOutcome(PAYLOAD);
 
+        expect(postMessage).toHaveBeenCalledTimes(1);
+        expect(postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                blocks: [
+                    expect.objectContaining({
+                        text: expect.stringContaining(
+                            '[Open it in the builder](https://ld.example.com/projects/proj-1/apps/app-1)',
+                        ),
+                    }),
+                ],
+            }),
+        );
+    });
+
+    it('posts the text-only outcome, without rendering, when the organization has captures off', async () => {
+        const { service, postMessage, exportDataApp } = buildService(
+            { status: 'ready' },
+            { isSlack: true, capturesEnabled: false },
+        );
+
+        await service.recordDataAppBuildOutcome(PAYLOAD);
+
+        expect(exportDataApp).not.toHaveBeenCalled();
         expect(postMessage).toHaveBeenCalledTimes(1);
         expect(postMessage).toHaveBeenCalledWith(
             expect.objectContaining({

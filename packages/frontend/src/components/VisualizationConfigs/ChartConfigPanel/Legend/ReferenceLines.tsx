@@ -10,9 +10,9 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { Accordion } from '@mantine/core';
-import { useCallback, useMemo, type FC } from 'react';
+import { useCallback, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useProject } from '../../../../hooks/useProject';
+import { useExploreWarehouseConnection } from '../../../../hooks/useExploreWarehouseConnection';
 import { type ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
@@ -31,14 +31,13 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
     const { openItems, handleAccordionChange, addNewItem, removeItem } =
         useControlledAccordion();
 
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig, resultsData } = useVisualizationContext();
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
 
-    const project = useProject(projectUuid);
-    const startOfWeek = useMemo(
-        () => project.data?.warehouseConnection?.startOfWeek,
-        [project],
+    const { startOfWeek } = useExploreWarehouseConnection(
+        resultsData?.metricQuery?.exploreName ?? null,
+        projectUuid,
     );
     const updateReferenceLine: ReferenceLineProps['updateReferenceLine'] =
         useCallback(

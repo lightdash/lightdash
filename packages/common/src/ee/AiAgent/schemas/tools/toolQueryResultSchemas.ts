@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { WarehouseExecutionStats } from '../../../../types/warehouse';
 
 const createMcpAsyncQueryUuidSchema = () => z.string().uuid();
 
@@ -132,3 +133,23 @@ export const mcpGetQueryResultStructuredOutputSchema =
 
 export const mcpRenderChartStructuredOutputSchema =
     createMcpStructuredOutputSchema(mcpRenderChartResultSchema);
+
+export const warehouseExecutionStatsSchema = z
+    .object({
+        jobId: z.string().nullable(),
+        bytesProcessed: z.number().nullable(),
+        bytesBilled: z.number().nullable(),
+        executionTimeMs: z.number().nullable(),
+        cacheHit: z.boolean().nullable(),
+    })
+    .describe(
+        "The warehouse's own report for the query job, as stated in the result.",
+    ) satisfies z.ZodType<WarehouseExecutionStats>;
+
+// Optional: results recorded before execution stats existed lack the field.
+export const executionStatsContentSchema = warehouseExecutionStatsSchema
+    .nullable()
+    .optional()
+    .describe(
+        'Warehouse execution stats, when the warehouse reported them; null when it did not or the results came from the results cache.',
+    );

@@ -94,6 +94,7 @@ const createMcpService = (documentsEnabled: boolean) =>
         isFilterExpressionsEnabled: vi.fn().mockResolvedValue(true),
         isRunMetricQueryEnabled: vi.fn().mockResolvedValue(false),
         isDataAppBuildsEnabled: vi.fn().mockResolvedValue(false),
+        isCustomChartTypesEnabled: vi.fn().mockResolvedValue(false),
         isAgentIdentityEnabled: vi.fn().mockResolvedValue(false),
         isRunSqlEnabled: vi.fn().mockResolvedValue(false),
         recordToolList: vi.fn(),
@@ -415,6 +416,10 @@ describe('project-scoped MCP route', () => {
             expect.objectContaining({ userUuid: 'user-uuid' }),
             PROJECT_UUID,
         );
+        expect(mcpService.isCustomChartTypesEnabled).toHaveBeenCalledWith(
+            expect.objectContaining({ userUuid: 'user-uuid' }),
+            PROJECT_UUID,
+        );
         expect(mcpService.isFilterExpressionsEnabled).toHaveBeenCalledWith(
             expect.objectContaining({ userUuid: 'user-uuid' }),
         );
@@ -586,6 +591,8 @@ describe.each([true, false])(
             test.each([
                 ['generate_data_app', 'create'],
                 ['iterate_data_app', 'update'],
+                ['create_custom_chart_type', 'create'],
+                ['iterate_custom_chart_type', 'update'],
             ])('%s is recorded before SDK dispatch', async (name, action) => {
                 const insert = vi.fn().mockResolvedValue(undefined);
                 transport.handleRequest.mockImplementationOnce(

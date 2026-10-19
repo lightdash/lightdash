@@ -1,5 +1,6 @@
 import { getMissingRequiredParameters, type FieldId } from '@lightdash/common';
-import { useCallback, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'react-router';
 import useEmbed from '../ee/providers/Embed/useEmbed';
 import {
@@ -21,11 +22,17 @@ import {
 } from '../features/explorer/store';
 import { useMergeSafe } from '../features/mergeQuery/context/useMerge';
 import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExploreByProjectUuid } from './useExplore';
 import { useDateZoomGranularitySearch } from './useExplorerRoute';
 import { usePreAggregateCacheEnabled } from './usePreAggregateCacheEnabled';
 import { useProjectUuid } from './useProjectUuid';
+import {
+    fetchMetricQueryCostEstimate,
+    getMetricQueryEstimateBody,
+    useQueryCostEstimateSettings,
+} from './useQueryCostEstimate';
 
 type ExplorerQueryManagerArgs = {
     projectUuid?: string;
@@ -49,6 +56,8 @@ export const useExplorerQueryManager = ({
     projectUuid: explicitProjectUuid,
     savedQueryUuid: explicitSavedQueryUuid,
 }: ExplorerQueryManagerArgs = {}) => {
+    const lightdashApi = useLightdashApi();
+
     // Get state from Redux selectors
     const dispatch = useExplorerDispatch();
     const metricQuery = useExplorerSelector(selectMetricQuery);
@@ -177,43 +186,99 @@ export const useExplorerQueryManager = ({
     const { query: unpivotedQuery, queryResults: unpivotedQueryResults } =
         unpivotedQueryExecutor;
 
-    const runQuery = useCallback((): boolean => {
-        const mainQueryArgs = buildQueryArgs({
+    const queryClient = useQueryClient();
+    const costEstimateSettings = useQueryCostEstimateSettings(projectUuid);
+    const confirmEstimatedBytesAbove =
+        costEstimateSettings?.confirmEstimatedBytesAbove ?? null;
+    const latestCostCheck = useRef(0);
+
+    const currentQueryArgs = useMemo(
+        () =>
+            buildQueryArgs({
+                activeFields,
+                tableName,
+                projectUuid,
+                explore,
+                computedMetricQuery: metricQuery,
+                parameters,
+                isEditMode,
+                viewModeQueryArgs,
+                dateZoomGranularity,
+                minimal,
+                usePreAggregateCache: preAggCacheEnabled,
+                customSqlProvenanceChartUuid,
+                savedChart: chartConfigForQuery,
+            }),
+        [
             activeFields,
             tableName,
             projectUuid,
             explore,
-            computedMetricQuery: metricQuery,
+            metricQuery,
             parameters,
             isEditMode,
             viewModeQueryArgs,
             dateZoomGranularity,
             minimal,
-            usePreAggregateCache: preAggCacheEnabled,
+            preAggCacheEnabled,
             customSqlProvenanceChartUuid,
-            savedChart: chartConfigForQuery,
-        });
+            chartConfigForQuery,
+        ],
+    );
 
-        if (mainQueryArgs) {
+    const runQuery = useCallback((): boolean => {
+        const mainQueryArgs = currentQueryArgs;
+        if (!mainQueryArgs) return false;
+
+        const estimateBody =
+            confirmEstimatedBytesAbove !== null
+                ? getMetricQueryEstimateBody(mainQueryArgs)
+                : null;
+        if (!estimateBody) {
             dispatch(explorerActions.setValidQueryArgs(mainQueryArgs));
             return true;
         }
-        return false;
+
+        // Hold the query until its dry-run estimate is known; a failed
+        // estimate never blocks, since maximum bytes billed is the backstop.
+        latestCostCheck.current += 1;
+        const costCheck = latestCostCheck.current;
+        void fetchMetricQueryCostEstimate(
+            lightdashApi,
+            queryClient,
+            mainQueryArgs.projectUuid,
+            estimateBody,
+        )
+            .then((estimate) => {
+                if (costCheck !== latestCostCheck.current) return;
+                if (
+                    estimate.status === 'estimated' &&
+                    estimate.requiresConfirmation &&
+                    estimate.confirmEstimatedBytesAbove !== null
+                ) {
+                    dispatch(
+                        explorerActions.requestQueryCostConfirmation({
+                            args: mainQueryArgs,
+                            totalBytesProcessed: estimate.totalBytesProcessed,
+                            confirmEstimatedBytesAbove:
+                                estimate.confirmEstimatedBytesAbove,
+                        }),
+                    );
+                    return;
+                }
+                dispatch(explorerActions.setValidQueryArgs(mainQueryArgs));
+            })
+            .catch(() => {
+                if (costCheck !== latestCostCheck.current) return;
+                dispatch(explorerActions.setValidQueryArgs(mainQueryArgs));
+            });
+        return true;
     }, [
-        activeFields,
-        tableName,
-        projectUuid,
-        explore,
-        metricQuery,
-        parameters,
-        isEditMode,
-        viewModeQueryArgs,
-        dateZoomGranularity,
-        minimal,
-        preAggCacheEnabled,
-        customSqlProvenanceChartUuid,
-        chartConfigForQuery,
+        currentQueryArgs,
+        confirmEstimatedBytesAbove,
+        queryClient,
         dispatch,
+        lightdashApi,
     ]);
 
     // Compute loading state
@@ -234,6 +299,8 @@ export const useExplorerQueryManager = ({
     ]);
 
     return {
+        currentQueryArgs,
+        costEstimateSettings,
         // Query state
         query,
         queryResults,

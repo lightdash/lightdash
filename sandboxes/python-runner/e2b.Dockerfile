@@ -8,7 +8,9 @@ RUN pip install --no-cache-dir \
     "pandas==2.2.3" \
     "numpy==2.2.4" \
     "scipy==1.15.2" \
-    "pyarrow==19.0.1"
+    "pyarrow==19.0.1" \
+    "scikit-learn==1.9.1" \
+    "polars==1.44.2"
 
 # Runtime workdir the backend writes to (see pythonQueryHarness.ts).
 RUN mkdir -p /work/in /work/out

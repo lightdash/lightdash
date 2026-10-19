@@ -1,3 +1,4 @@
+import type { Explore } from '@lightdash/common';
 import chalk from 'chalk';
 import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
@@ -127,6 +128,125 @@ const yamlExplores = [
         },
     },
 ];
+it('deploys timestamp SQL using the named source extra Snowflake connection setting', async () => {
+    await fs.mkdir(path.join(location.home, 'models'));
+    await fs.writeFile(
+        path.join(location.home, 'models/orders.yml'),
+        `type: model\nname: orders\nsql_from: public.orders\ndimensions:\n  - name: created_at\n    type: timestamp\n    sql: \${TABLE}.created_at\n    time_intervals: []\n`,
+    );
+    await fs.writeFile(
+        path.join(location.home, 'lightdash.config.yml'),
+        'warehouse:\n  type: snowflake\nspotlight:\n  default_visibility: show\n',
+    );
+    const { CLI_VERSION } = await import('../../env');
+    const { deployHandler } = await import('../deploy');
+    const project = personalConfig(server.url).context!.project!;
+    const projectUrl = `/api/v1/projects/${project}`;
+    const trace = [
+        request('GET', '/api/v1/health?skipMigrationCheck=true'),
+        request('GET', `${projectUrl}/dbt-sources`),
+        request('GET', projectUrl),
+        request(
+            'GET',
+            `${projectUrl}/warehouse-connections/dbt-sources/bindings`,
+        ),
+        request('GET', `${projectUrl}/warehouse-connections/extra-connection`),
+        request('PUT', `${projectUrl}/tags/yaml`, '[]'),
+        request('PUT', `/api/v2/projects/${project}/parameters`, '{}'),
+    ];
+    server.replies.push(
+        { ...trace[0], results: { version: CLI_VERSION } },
+        {
+            ...trace[1],
+            results: [
+                { name: 'finance', projectDbtSourceUuid: 'finance-source' },
+            ],
+        },
+        {
+            ...trace[2],
+            results: {
+                projectUuid: project,
+                connectionRoute: 'multi',
+                warehouseConnection: {
+                    type: 'snowflake',
+                    disableTimestampConversion: false,
+                },
+            },
+        },
+        {
+            ...trace[3],
+            results: {
+                connections: [
+                    {
+                        warehouseConnectionUuid: 'original-connection',
+                        name: 'Original',
+                        isOriginal: true,
+                    },
+                    {
+                        warehouseConnectionUuid: 'extra-connection',
+                        name: 'Finance',
+                        isOriginal: false,
+                    },
+                ],
+                sources: [
+                    {
+                        projectDbtSourceUuid: 'finance-source',
+                        warehouseConnectionUuid: 'extra-connection',
+                    },
+                ],
+            },
+        },
+        {
+            ...trace[4],
+            results: {
+                name: 'Finance',
+                warehouseConnection: {
+                    type: 'snowflake',
+                    disableTimestampConversion: true,
+                },
+            },
+        },
+        { ...trace[5], results: {} },
+        { ...trace[6], results: {} },
+        {
+            method: 'PUT',
+            path: `${projectUrl}/explores?complete=true&sourceUuid=finance-source`,
+            results: { exploreCount: 1 },
+        },
+    );
+
+    await deployHandler({
+        ...deployOptions,
+        projectDir: location.home,
+        profilesDir: location.home,
+        source: 'finance',
+        batchedDeploy: false,
+    });
+
+    const deployed = server.requests.at(-1)!;
+    let explores: Explore[];
+    try {
+        explores = JSON.parse(deployed.body);
+    } catch {
+        throw new Error('Expected a JSON deploy payload');
+    }
+    expect(explores).toHaveLength(1);
+    expect(explores[0].tables.orders.dimensions.created_at).toMatchObject({
+        sql: `\${TABLE}.created_at`,
+        compiledSql: '"orders".created_at',
+    });
+    expect(server.requests).toEqual([
+        ...trace,
+        request(
+            'PUT',
+            `${projectUrl}/explores?complete=true&sourceUuid=finance-source`,
+            deployed.body,
+        ),
+    ]);
+    server.expectComplete();
+    expect(await fs.readFile(file, 'utf8')).toBe(before);
+}, 20_000);
+
 it.each([false, true])(
     'pins the YAML-only deploy handler with create=%s',
     async (create) => {

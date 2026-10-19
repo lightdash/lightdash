@@ -1,21 +1,77 @@
 import {
+    DuckdbConnectionType,
     WarehouseTypes,
     type CreateWarehouseCredentials,
     type CreateWarehouseCredentialsWithOptionalSecrets,
+    type DuckdbAnalyticsCredentials,
     type WarehouseCredentials,
 } from './projects';
 import { type UserWarehouseCredentials } from './userWarehouseCredentials';
 
-export const MULTI_CONNECTION_WAREHOUSE_TYPES: WarehouseTypes[] = [
+const MULTI_CONNECTION_SUPPORT: Record<WarehouseTypes, boolean> = {
+    [WarehouseTypes.BIGQUERY]: false,
+    [WarehouseTypes.POSTGRES]: true,
+    [WarehouseTypes.REDSHIFT]: false,
+    [WarehouseTypes.SNOWFLAKE]: true,
+    [WarehouseTypes.DATABRICKS]: false,
+    [WarehouseTypes.TRINO]: false,
+    [WarehouseTypes.CLICKHOUSE]: false,
+    [WarehouseTypes.ATHENA]: true,
+    [WarehouseTypes.DUCKDB]: false,
+};
+
+const USER_CONNECTABLE_DUCKDB_TYPES: Record<DuckdbConnectionType, boolean> = {
+    [DuckdbConnectionType.MOTHERDUCK]: true,
+    [DuckdbConnectionType.DUCKLAKE]: true,
+    [DuckdbConnectionType.EMBEDDED]: false,
+    [DuckdbConnectionType.ANALYTICS]: false,
+};
+
+export const isUserConnectableWarehouseConnection = <
+    T extends WarehouseCredentials | CreateWarehouseCredentials,
+>(
+    credentials: T,
+): credentials is Exclude<T, DuckdbAnalyticsCredentials> =>
+    credentials.type !== WarehouseTypes.DUCKDB ||
+    USER_CONNECTABLE_DUCKDB_TYPES[credentials.connectionType];
+
+export const MULTI_CONNECTION_WAREHOUSE_TYPES = Object.values(
+    WarehouseTypes,
+).filter((type) => MULTI_CONNECTION_SUPPORT[type]);
+
+export const MIXED_TYPE_EXTRA_CONNECTION_WAREHOUSE_TYPES =
+    Object.values(WarehouseTypes);
+
+export const supportsMultipleConnections = (
+    warehouseType: WarehouseTypes | null,
+    mixedTypesEnabled: boolean,
+): boolean =>
+    warehouseType !== null &&
+    (mixedTypesEnabled
+        ? MIXED_TYPE_EXTRA_CONNECTION_WAREHOUSE_TYPES.includes(warehouseType)
+        : MULTI_CONNECTION_SUPPORT[warehouseType]);
+
+export const canUseExtraConnectionWarehouseType = ({
+    originalWarehouseType,
+    extraWarehouseType,
+    mixedTypesEnabled,
+}: {
+    originalWarehouseType: WarehouseTypes | null;
+    extraWarehouseType: WarehouseTypes;
+    mixedTypesEnabled: boolean;
+}): boolean =>
+    supportsMultipleConnections(originalWarehouseType, mixedTypesEnabled) &&
+    (mixedTypesEnabled || originalWarehouseType === extraWarehouseType) &&
+    supportsMultipleConnections(extraWarehouseType, mixedTypesEnabled);
+
+const DATABASE_LISTING_WAREHOUSE_TYPES: WarehouseTypes[] = [
     WarehouseTypes.POSTGRES,
     WarehouseTypes.ATHENA,
 ];
 
-export const supportsMultipleConnections = (
-    warehouseType: WarehouseTypes | null,
-): boolean =>
-    warehouseType !== null &&
-    MULTI_CONNECTION_WAREHOUSE_TYPES.includes(warehouseType);
+export const supportsConnectionDatabaseListing = (
+    warehouseType: WarehouseTypes,
+): boolean => DATABASE_LISTING_WAREHOUSE_TYPES.includes(warehouseType);
 
 export const WAREHOUSE_CONNECTION_NAME_MAX_LENGTH = 100;
 

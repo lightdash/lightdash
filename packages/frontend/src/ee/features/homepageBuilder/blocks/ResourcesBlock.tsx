@@ -36,6 +36,7 @@ import {
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useAppThumbnailUrl } from '../../../../features/apps/hooks/useAppThumbnail';
 import { dataAppHref } from '../../../../features/apps/utils/appUrls';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import { BlockHeader, IconSquare, MiniPill } from './BlockShell';
 import classes from './blockStyles.module.css';
 import { ContentLayoutControl } from './ContentLayoutControl';
@@ -524,6 +525,7 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
     itemSpan,
     standalone = false,
 }) => {
+    const lightdashApi = useLightdashApi();
     const [pasteValue, setPasteValue] = useState('');
     const [batch, setBatch] = useState<BatchEntry[]>([]);
     const [isAppPickerOpen, setIsAppPickerOpen] = useState(false);
@@ -592,10 +594,13 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
         });
         setBatch((prev) => [...prev, ...entries]);
         entries.forEach((entry) => {
-            void resolveResourceUrl(projectUuid, entry.url).then((item) =>
-                setBatch((prev) =>
-                    prev.map((e) => (e.key === entry.key ? { ...e, item } : e)),
-                ),
+            void resolveResourceUrl(lightdashApi, projectUuid, entry.url).then(
+                (item) =>
+                    setBatch((prev) =>
+                        prev.map((e) =>
+                            e.key === entry.key ? { ...e, item } : e,
+                        ),
+                    ),
             );
         });
     };

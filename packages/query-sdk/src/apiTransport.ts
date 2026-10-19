@@ -43,6 +43,9 @@ import {
     VIZ_UNDERLYING_DATA_OPEN_PATH,
     VIZ_UNDERLYING_DATA_PATH,
     VIZ_SUBTOTALS_PATH,
+    EXPLORE_BASE_TABLE_PATH,
+    type ExploreBaseTableRequest,
+    type ExploreBaseTableResult,
 } from './types';
 
 // Mirrors the explorer's `useInfiniteQueryResults` polling rhythm so the
@@ -185,19 +188,81 @@ function buildApiFilters(
     };
 }
 
-const createFieldQualifier =
-    (table: string) =>
-    (fieldId: string): string => {
+/**
+ * Field ids are `<table>_<field>`. The table is the explore's base table,
+ * which differs from the explore name for explores defined under
+ * `meta.explores`; without it, the explore name is the best guess.
+ */
+export const createFieldQualifier = (
+    exploreName: string,
+    baseTable: string | null,
+    customDimensionIds: string[],
+) => {
+    // Custom dimensions are sent with the id the app wrote, so a selection
+    // naming one (in full or without its table prefix) must resolve to it.
+    const prefixes = [...new Set([baseTable ?? exploreName, exploreName])];
+    const customDimensionIdByName = new Map<string, string>();
+    for (const id of customDimensionIds) {
+        for (const prefix of prefixes) {
+            if (id.startsWith(`${prefix}_`)) {
+                customDimensionIdByName.set(id.slice(prefix.length + 1), id);
+            }
+        }
+    }
+    for (const id of customDimensionIds) customDimensionIdByName.set(id, id);
+
+    return (fieldId: string): string => {
+        const customDimensionId = customDimensionIdByName.get(fieldId);
+        if (customDimensionId !== undefined) return customDimensionId;
         // Dot notation: 'customers.name' -> 'customers_name'
         if (fieldId.includes('.')) {
             return fieldId.replace('.', '_');
         }
-        // Already qualified with explore name
-        if (fieldId.startsWith(`${table}_`)) {
+        if (baseTable !== null) {
+            return fieldId.startsWith(`${baseTable}_`)
+                ? fieldId
+                : `${baseTable}_${fieldId}`;
+        }
+        if (fieldId.startsWith(`${exploreName}_`)) {
             return fieldId;
         }
-        // Short name -> qualify with explore name
-        return `${table}_${fieldId}`;
+        return `${exploreName}_${fieldId}`;
+    };
+};
+
+/** Resolves an explore's base table, or `null` when it can't be learned. */
+export type ExploreBaseTableResolver = (
+    exploreName: string,
+) => Promise<string | null>;
+
+export type ApiTransportOptions = {
+    resolveExploreBaseTable: ExploreBaseTableResolver | null;
+};
+
+const toBaseTable = (value: unknown): string | null =>
+    typeof value === 'string' && value.length > 0 ? value : null;
+
+export const createApiExploreBaseTableResolver =
+    (fetchFn: FetchAdapter, projectUuid: string): ExploreBaseTableResolver =>
+    async (exploreName) => {
+        const explore = await fetchFn<{ baseTable?: unknown } | null>(
+            'GET',
+            `/api/v1/projects/${projectUuid}/explores/${encodeURIComponent(exploreName)}`,
+        );
+        return toBaseTable(explore?.baseTable);
+    };
+
+/** Asks the host (app bridge or CLI preview proxy) via its virtual route. */
+export const createHostExploreBaseTableResolver =
+    (fetchFn: FetchAdapter): ExploreBaseTableResolver =>
+    async (exploreName) => {
+        const body: ExploreBaseTableRequest = { exploreName };
+        const result = await fetchFn<Partial<ExploreBaseTableResult> | null>(
+            'POST',
+            EXPLORE_BASE_TABLE_PATH,
+            body,
+        );
+        return toBaseTable(result?.baseTable);
     };
 
 function buildUnderlyingDataFilters(
@@ -811,13 +876,53 @@ function mapApiRowsToQueryResult({
 export function createApiTransport(
     config: LightdashClientConfig,
     adapter?: FetchAdapter,
+    options?: ApiTransportOptions,
 ): Transport {
     const fetchFn = adapter ?? createDefaultFetchAdapter(config);
+    // Custom adapters may proxy through a route allowlist without the explore
+    // endpoint, so only the default adapter looks base tables up by default.
+    // Behind a dev proxy (CLI preview) the proxy answers the host route.
+    let defaultResolver: ExploreBaseTableResolver | null = null;
+    if (adapter === undefined) {
+        defaultResolver = config.useProxy
+            ? createHostExploreBaseTableResolver(fetchFn)
+            : createApiExploreBaseTableResolver(fetchFn, config.projectUuid);
+    }
+    const resolveExploreBaseTable =
+        options === undefined
+            ? defaultResolver
+            : options.resolveExploreBaseTable;
+    const baseTableByExplore = new Map<string, Promise<string | null>>();
+
+    const getFieldQualifier = async (query: QueryDefinition) => {
+        const { exploreName } = query;
+        const customDimensionIds = query.customDimensions.map((d) => d.id);
+        if (resolveExploreBaseTable === null) {
+            return createFieldQualifier(exploreName, null, customDimensionIds);
+        }
+        let baseTable = baseTableByExplore.get(exploreName);
+        if (baseTable === undefined) {
+            baseTable = resolveExploreBaseTable(exploreName)
+                .catch(() => null)
+                .then((resolved) => {
+                    // Keep only answers, so a failed lookup is retried.
+                    if (resolved === null) {
+                        baseTableByExplore.delete(exploreName);
+                    }
+                    return resolved;
+                });
+            baseTableByExplore.set(exploreName, baseTable);
+        }
+        return createFieldQualifier(
+            exploreName,
+            await baseTable,
+            customDimensionIds,
+        );
+    };
 
     return {
         async executeQuery(query: QueryDefinition): Promise<QueryResult> {
-            const table = query.exploreName;
-            const qualify = createFieldQualifier(table);
+            const qualify = await getFieldQualifier(query);
 
             const qualifiedDims = query.dimensions.map(qualify);
             const qualifiedMetrics = query.metrics.map(qualify);

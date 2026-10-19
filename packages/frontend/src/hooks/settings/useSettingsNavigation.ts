@@ -99,7 +99,6 @@ export const useSettingsNavigation = (
         embeddingEnabled,
         dataAppsFlag,
         dataAppAnalysisFlag,
-        isDataAppGeneralSettingsEnabled,
         externalSourcesFlag,
         isResultsCacheEnabled,
         isGitProject,
@@ -328,10 +327,7 @@ export const useSettingsNavigation = (
         if (isDataAppsEnabled) {
             const dataAppChildren: SettingsNavigationItem[] = [];
 
-            if (
-                isDataAppGeneralSettingsEnabled &&
-                ability?.can('manage', 'Organization')
-            ) {
+            if (ability?.can('manage', 'Organization')) {
                 dataAppChildren.push({
                     label: 'General',
                     to: '/generalSettings/dataApps/general',
@@ -341,6 +337,10 @@ export const useSettingsNavigation = (
                         'thumbnails',
                         'automatic capture',
                         'card image',
+                        'screenshot',
+                        'screenshots',
+                        'attachments',
+                        'captures',
                     ],
                     children: [],
                     exact: true,
@@ -1315,7 +1315,14 @@ export const useSettingsNavigation = (
                 id: 'current-project',
                 title: 'Current project',
                 subtitle: project.name,
-                items: projectItems,
+                items:
+                    project.provisioningSource === 'analytics'
+                        ? projectItems.filter(
+                              ({ to }) =>
+                                  to === `${base}/projectAccess` ||
+                                  to === `${base}/recentlyDeleted`,
+                          )
+                        : projectItems,
             });
         }
 
@@ -1347,7 +1354,6 @@ export const useSettingsNavigation = (
         isEmbeddingEnabled,
         isDataAppsEnabled,
         isDataAppAnalysisEnabled,
-        isDataAppGeneralSettingsEnabled,
         isExternalSourcesEnabled,
         isResultsCacheEnabled,
         isGitProject,

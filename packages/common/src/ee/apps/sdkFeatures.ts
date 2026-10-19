@@ -276,6 +276,13 @@ export const SDK_FIXES: SdkFix[] = [
             'Includes table calculation values and formatted results in data app tables and charts instead of showing them as missing.',
         appliesTo: ['data_app'],
     },
+    {
+        key: 'renamed-explore-field-ids',
+        label: 'Field names on custom explores',
+        description:
+            'Queries on explores defined under meta.explores use the right field names instead of failing with an unknown field id error.',
+        appliesTo: ['data_app'],
+    },
 ];
 
 export const SDK_FIX_KEYS: string[] = SDK_FIXES.map((fix) => fix.key);

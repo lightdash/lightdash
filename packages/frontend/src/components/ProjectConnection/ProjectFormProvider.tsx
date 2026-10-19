@@ -7,8 +7,11 @@ export const ProjectFormProvider: FC<
     savedProject,
     isDbtSource,
     isProjectExtraConnection,
+    inheritsPrimaryCredentialRequirement,
+    primaryRequiresUserCredentials,
     projectUuid,
     warehouseConnectionUuid,
+    dbtSourceWarehouseConnectionUuid,
     children,
 }) => {
     const value = useMemo(
@@ -16,15 +19,21 @@ export const ProjectFormProvider: FC<
             savedProject,
             isDbtSource,
             isProjectExtraConnection,
+            inheritsPrimaryCredentialRequirement,
+            primaryRequiresUserCredentials,
             projectUuid,
             warehouseConnectionUuid,
+            dbtSourceWarehouseConnectionUuid,
         }),
         [
             savedProject,
             isDbtSource,
             isProjectExtraConnection,
+            inheritsPrimaryCredentialRequirement,
+            primaryRequiresUserCredentials,
             projectUuid,
             warehouseConnectionUuid,
+            dbtSourceWarehouseConnectionUuid,
         ],
     );
     return <Context.Provider value={value}>{children}</Context.Provider>;

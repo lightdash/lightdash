@@ -18,6 +18,7 @@ import { describe, expect, it } from 'vitest';
 import {
     buildNewAdditionalMetric,
     getCustomMetricLabelError,
+    getCustomMetricSourceDimension,
     getFilterRulesFromMetricBaseFilters,
     getFormatFromBaseField,
     getInheritedCustomMetricFormat,
@@ -409,5 +410,71 @@ describe('buildNewAdditionalMetric', () => {
                 } as unknown as Explore,
             }),
         ).toContain('matches a model dimension');
+    });
+});
+
+describe('getCustomMetricSourceDimension', () => {
+    const dimension: CustomSqlDimension = {
+        id: 'adjusted_amount',
+        name: 'Adjusted amount',
+        table: 'orders',
+        type: CustomDimensionType.SQL,
+        dimensionType: DimensionType.NUMBER,
+        sql: '${orders.amount} * 2',
+    };
+
+    it('resolves the source during creation and after saving a formatted metric', () => {
+        expect(getCustomMetricSourceDimension(dimension, [])).toBe(dimension);
+        const metric = buildNewAdditionalMetric({
+            item: dimension,
+            type: MetricType.SUM,
+            customMetricLabel: 'Adjusted total',
+            customMetricFiltersWithIds: [],
+            formatOptions: { type: CustomFormatType.CURRENCY, currency: 'USD' },
+        });
+        expect(getCustomMetricSourceDimension(metric, [dimension])).toBe(
+            dimension,
+        );
+        expect(formatItemValue(metric, 123)).toContain('$');
+        expect(getCustomMetricSourceDimension(metric, [])).toBeUndefined();
+        expect(
+            getCustomMetricSourceDimension(metric, [
+                { ...dimension, table: 'other' },
+            ]),
+        ).toBeUndefined();
+    });
+
+    it('preserves percentage formatting when editing a custom dimension metric', () => {
+        const metric = buildNewAdditionalMetric({
+            item: dimension,
+            type: MetricType.AVERAGE,
+            customMetricLabel: 'Adjusted average',
+            customMetricFiltersWithIds: [],
+            formatOptions: { type: CustomFormatType.PERCENT },
+        });
+        const editedMetric = prepareCustomMetricData({
+            item: metric,
+            type: MetricType.AVERAGE,
+            customMetricLabel: 'Edited average',
+            customMetricFiltersWithIds: [],
+            isEditingCustomMetric: true,
+            formatOptions: metric.formatOptions,
+        });
+        expect(getCustomMetricSourceDimension(editedMetric, [dimension])).toBe(
+            dimension,
+        );
+        expect(formatItemValue(editedMetric, 0.5)).toContain('50%');
+    });
+
+    it('does not treat model dimensions or cloned metrics as custom dimension sources', () => {
+        expect(
+            getCustomMetricSourceDimension(usdDimension, [dimension]),
+        ).toBeUndefined();
+        expect(
+            getCustomMetricSourceDimension(baseMetric, [dimension]),
+        ).toBeUndefined();
+        expect(
+            getCustomMetricSourceDimension(undefined, [dimension]),
+        ).toBeUndefined();
     });
 });

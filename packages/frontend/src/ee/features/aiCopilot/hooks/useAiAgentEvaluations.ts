@@ -21,18 +21,20 @@ import {
 } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import {
     getAiAccessRefusal,
     isAiAgentAuthorizationError,
 } from '../../../../features/aiAccess/errors';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 const AI_AGENT_EVALUATIONS_KEY = 'aiAgentEvaluations';
 const AI_AGENT_EVALUATION_RUNS_KEY = 'aiAgentEvaluationRuns';
 const POLLING_INTERVAL = 4000;
 
 const getEvaluations = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
 ): Promise<ApiAiAgentEvaluationSummaryListResponse['results']> => {
@@ -45,6 +47,7 @@ const getEvaluations = async (
 };
 
 const getEvaluation = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     evalUuid: string,
@@ -58,6 +61,7 @@ const getEvaluation = async (
 };
 
 const getEvaluationRuns = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     evalUuid: string,
@@ -72,6 +76,7 @@ const getEvaluationRuns = async (
 };
 
 const getEvaluationRunResults = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     evalUuid: string,
@@ -118,6 +123,7 @@ export const useAiAgentEvaluations = (
         ApiError
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
     const handleError = useEvaluationErrorHandler(
         projectUuid,
         'Failed to fetch evaluations',
@@ -128,7 +134,7 @@ export const useAiAgentEvaluations = (
         ApiError
     >({
         queryKey: [AI_AGENT_EVALUATIONS_KEY, projectUuid, agentUuid],
-        queryFn: () => getEvaluations(projectUuid!, agentUuid!),
+        queryFn: () => getEvaluations(lightdashApi, projectUuid!, agentUuid!),
         onError: (error) => {
             handleError(error);
             options?.onError?.(error);
@@ -147,6 +153,7 @@ export const useAiAgentEvaluation = (
         ApiError
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
     const handleError = useEvaluationErrorHandler(
         projectUuid,
         'Failed to fetch evaluation',
@@ -154,7 +161,8 @@ export const useAiAgentEvaluation = (
 
     return useQuery<ApiAiAgentEvaluationResponse['results'], ApiError>({
         queryKey: [AI_AGENT_EVALUATIONS_KEY, projectUuid, agentUuid, evalUuid],
-        queryFn: () => getEvaluation(projectUuid!, agentUuid!, evalUuid!),
+        queryFn: () =>
+            getEvaluation(lightdashApi, projectUuid!, agentUuid!, evalUuid!),
         onError: (error) => {
             handleError(error);
             options?.onError?.(error);
@@ -177,6 +185,7 @@ export const useAiAgentEvaluationRuns = (
         ApiError
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
     const handleError = useEvaluationErrorHandler(
         projectUuid,
         'Failed to fetch evaluation runs',
@@ -192,7 +201,13 @@ export const useAiAgentEvaluationRuns = (
             agentUuid,
             evalUuid,
         ],
-        queryFn: () => getEvaluationRuns(projectUuid!, agentUuid!, evalUuid!),
+        queryFn: () =>
+            getEvaluationRuns(
+                lightdashApi,
+                projectUuid!,
+                agentUuid!,
+                evalUuid!,
+            ),
         onError: (error) => {
             handleError(error);
             options?.onError?.(error);
@@ -216,6 +231,7 @@ export const useAiAgentEvaluationRunResults = (
         ApiError
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
     const handleError = useEvaluationErrorHandler(
         projectUuid,
         'Failed to fetch evaluation run results',
@@ -234,6 +250,7 @@ export const useAiAgentEvaluationRunResults = (
         ],
         queryFn: () =>
             getEvaluationRunResults(
+                lightdashApi,
                 projectUuid!,
                 agentUuid!,
                 evalUuid!,
@@ -254,6 +271,7 @@ export const useAiAgentEvaluationRunResults = (
 };
 
 const createEvaluation = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     data: ApiCreateEvaluationRequest,
@@ -266,6 +284,7 @@ const createEvaluation = async (
     });
 
 const runEvaluation = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     evalUuid: string,
@@ -278,6 +297,7 @@ const runEvaluation = async (
     });
 
 const updateEvaluation = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     evalUuid: string,
@@ -291,6 +311,7 @@ const updateEvaluation = async (
     });
 
 const appendToEvaluation = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     evalUuid: string,
@@ -304,6 +325,7 @@ const appendToEvaluation = async (
     });
 
 const deleteEvaluation = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     evalUuid: string,
@@ -320,6 +342,7 @@ export const useCreateEvaluation = (
     agentUuid: string | undefined,
     { showToastButton = false }: { showToastButton?: boolean } = {},
 ) => {
+    const lightdashApi = useLightdashApi();
     const handleError = useEvaluationErrorHandler(
         projectUuid,
         'Failed to create evaluation',
@@ -330,7 +353,7 @@ export const useCreateEvaluation = (
 
     return useMutation({
         mutationFn: (data: ApiCreateEvaluationRequest) =>
-            createEvaluation(projectUuid!, agentUuid!, data),
+            createEvaluation(lightdashApi, projectUuid!, agentUuid!, data),
         onSuccess: (result) => {
             showToastSuccess({
                 title: 'Evaluation created successfully',
@@ -358,6 +381,7 @@ export const useRunEvaluation = (
     projectUuid: string | undefined,
     agentUuid: string | undefined,
 ) => {
+    const lightdashApi = useLightdashApi();
     const handleError = useEvaluationErrorHandler(
         projectUuid,
         'Failed to run evaluation',
@@ -367,7 +391,7 @@ export const useRunEvaluation = (
 
     return useMutation({
         mutationFn: (evalUuid: string) =>
-            runEvaluation(projectUuid!, agentUuid!, evalUuid),
+            runEvaluation(lightdashApi, projectUuid!, agentUuid!, evalUuid),
         onSuccess: (_, evalUuid) => {
             showToastSuccess({
                 title: 'Evaluation run started successfully',
@@ -389,6 +413,7 @@ export const useUpdateEvaluation = (
     projectUuid: string | undefined,
     agentUuid: string | undefined,
 ) => {
+    const lightdashApi = useLightdashApi();
     const handleError = useEvaluationErrorHandler(
         projectUuid,
         'Failed to update evaluation',
@@ -403,7 +428,14 @@ export const useUpdateEvaluation = (
         }: {
             evalUuid: string;
             data: ApiUpdateEvaluationRequest;
-        }) => updateEvaluation(projectUuid!, agentUuid!, evalUuid, data),
+        }) =>
+            updateEvaluation(
+                lightdashApi,
+                projectUuid!,
+                agentUuid!,
+                evalUuid,
+                data,
+            ),
         onSuccess: (_, { evalUuid }) => {
             showToastSuccess({
                 title: 'Evaluation updated successfully',
@@ -428,6 +460,7 @@ export const useAppendToEvaluation = (
     projectUuid: string | undefined,
     agentUuid: string | undefined,
 ) => {
+    const lightdashApi = useLightdashApi();
     const handleError = useEvaluationErrorHandler(
         projectUuid,
         'Failed to add to evaluation',
@@ -443,7 +476,14 @@ export const useAppendToEvaluation = (
         }: {
             evalUuid: string;
             data: ApiAppendEvaluationRequest;
-        }) => appendToEvaluation(projectUuid!, agentUuid!, evalUuid, data),
+        }) =>
+            appendToEvaluation(
+                lightdashApi,
+                projectUuid!,
+                agentUuid!,
+                evalUuid,
+                data,
+            ),
         onSuccess: (_, { evalUuid }) => {
             showToastSuccess({
                 title: 'Prompt added to evaluation successfully',
@@ -477,6 +517,7 @@ export const useDeleteEvaluation = (
     projectUuid: string | undefined,
     agentUuid: string | undefined,
 ) => {
+    const lightdashApi = useLightdashApi();
     const handleError = useEvaluationErrorHandler(
         projectUuid,
         'Failed to delete evaluation',
@@ -486,7 +527,7 @@ export const useDeleteEvaluation = (
 
     return useMutation({
         mutationFn: (evalUuid: string) =>
-            deleteEvaluation(projectUuid!, agentUuid!, evalUuid),
+            deleteEvaluation(lightdashApi, projectUuid!, agentUuid!, evalUuid),
         onSuccess: () => {
             showToastSuccess({
                 title: 'Evaluation deleted successfully',
@@ -507,6 +548,7 @@ export const useEvaluationRunPolling = (
         | Pick<AiAgentEvaluationRunSummary, 'status' | 'runUuid'>
         | undefined,
 ) => {
+    const lightdashApi = useLightdashApi();
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const queryClient = useQueryClient();
 
@@ -528,6 +570,7 @@ export const useEvaluationRunPolling = (
         const pollStatus = async () => {
             try {
                 const currentRunData = await getEvaluationRunResults(
+                    lightdashApi,
                     projectUuid,
                     agentUuid,
                     evalUuid,
@@ -586,5 +629,6 @@ export const useEvaluationRunPolling = (
         runUuid,
         queryClient,
         isPollingNeeded,
+        lightdashApi,
     ]);
 };

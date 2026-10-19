@@ -4,9 +4,7 @@ import { renderHook } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
-vi.mock('../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../api');
 
 vi.mock('./toaster/useToaster', () => ({
     default: () => ({
@@ -28,7 +26,7 @@ vi.mock('../providers/Tracking/useTracking', () => ({
     default: () => ({ track: vi.fn() }),
 }));
 
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
 import { useServiceAccounts } from '../ee/features/serviceAccounts/useServiceAccounts';
 import { useTestConnection } from '../features/externalConnections/hooks/useTestConnection';
 import { useTestConnectionConfig } from '../features/externalConnections/hooks/useTestConnectionConfig';
@@ -48,7 +46,7 @@ import {
     useUserWarehouseCredentialsUpdateMutation,
 } from './userWarehouseCredentials/useUserWarehouseCredentials';
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 
 function createWrapper(
     queryClient = new QueryClient({
@@ -303,7 +301,7 @@ describe('credential-bearing requests are marked sensitive', () => {
     });
 
     it('gdrive access token', async () => {
-        await getGdriveAccessToken();
+        await getGdriveAccessToken(sharedLightdashApi);
 
         expect(mockApi).toHaveBeenCalledWith(
             expect.objectContaining({

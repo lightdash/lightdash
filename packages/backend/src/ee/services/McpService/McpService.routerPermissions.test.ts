@@ -81,6 +81,7 @@ test.each(['oauth', 'pat', 'service-account'] as const)(
             isFilterExpressionsEnabled: vi.fn().mockResolvedValue(false),
             isDocumentsEnabled: vi.fn().mockResolvedValue(false),
             isDataAppBuildsEnabled: vi.fn().mockResolvedValue(false),
+            isCustomChartTypesEnabled: vi.fn().mockResolvedValue(false),
             isAgentIdentityEnabled: vi.fn().mockResolvedValue(true),
         }) as McpService;
         const handler = vi.fn().mockResolvedValue({ content: [] });

@@ -19,6 +19,7 @@ type Props = {
     queryUuid: string | null;
     /** The run itself failed to start, so no node has a result. */
     runError: ApiError | null;
+    onRerun: () => void;
     vizConfig: AllVizChartConfig;
     headerContent: ReactNode;
     flush?: boolean;
@@ -30,6 +31,7 @@ export const AiComposerArtifactVisualization: FC<Props> = ({
     results,
     queryUuid,
     runError,
+    onRerun,
     vizConfig,
     headerContent,
     flush = false,
@@ -42,6 +44,7 @@ export const AiComposerArtifactVisualization: FC<Props> = ({
             <AiAccessCallout
                 projectUuid={projectUuid}
                 refusal={refusal}
+                onRerun={onRerun}
                 variant="inline"
             />
         );

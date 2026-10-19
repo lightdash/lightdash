@@ -185,6 +185,7 @@ describe('useSavedChartBindingPreview', () => {
             expect(executeSavedChartPreviewQuery).toHaveBeenCalledOnce(),
         );
         expect(executeSavedChartPreviewQuery).toHaveBeenCalledWith(
+            expect.anything(),
             expect.objectContaining({
                 pivotResults: false,
                 pivotConfiguration: expect.objectContaining({
@@ -215,6 +216,7 @@ describe('useSavedChartBindingPreview', () => {
             expect(executeSavedChartPreviewQuery).toHaveBeenCalledOnce(),
         );
         expect(executeSavedChartPreviewQuery).toHaveBeenCalledWith(
+            expect.anything(),
             expect.objectContaining({
                 pivotResults: false,
                 pivotConfiguration: undefined,

@@ -130,6 +130,7 @@ export type AiAgentThreadDumpAgent = Pick<
     | 'enableContentTools'
     | 'enableUserContext'
     | 'enableSqlMode'
+    | 'enableSqlAutoApproval'
     | 'adminOnly'
     | 'version'
 >;

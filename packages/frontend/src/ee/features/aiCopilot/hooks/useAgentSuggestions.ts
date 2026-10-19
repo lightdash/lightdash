@@ -1,11 +1,13 @@
 import type { ApiAgentSuggestionsResponse, ApiError } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import { getAiAgentApiBase } from './aiAgentRouting';
 
 const AGENT_SUGGESTIONS_KEY = 'agentSuggestions';
 
 const getAgentSuggestions = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     enableSqlMode: boolean,
@@ -41,8 +43,9 @@ export const useAgentSuggestions = ({
     threadUuid?: string;
     afterMessageUuid?: string;
     enabled: boolean;
-}) =>
-    useQuery<ApiAgentSuggestionsResponse['results'], ApiError>({
+}) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiAgentSuggestionsResponse['results'], ApiError>({
         queryKey: [
             AGENT_SUGGESTIONS_KEY,
             projectUuid,
@@ -53,6 +56,7 @@ export const useAgentSuggestions = ({
         ],
         queryFn: () =>
             getAgentSuggestions(
+                lightdashApi,
                 projectUuid!,
                 agentUuid!,
                 enableSqlMode,
@@ -64,3 +68,4 @@ export const useAgentSuggestions = ({
         cacheTime: 1000 * 60 * 60,
         retry: 1,
     });
+};

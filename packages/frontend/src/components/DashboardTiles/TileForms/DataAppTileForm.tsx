@@ -10,8 +10,9 @@ import { type UseFormReturnType } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 interface DataAppTileFormProps {
     form: UseFormReturnType<DashboardDataAppTileProperties['properties']>;
@@ -19,7 +20,11 @@ interface DataAppTileFormProps {
 
 const DATA_APP_PICKER_PAGE_SIZE = 100;
 
-const fetchDataAppContent = (projectUuid: string, search: string) => {
+const fetchDataAppContent = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    search: string,
+) => {
     const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
     return lightdashApi<ApiContentResponse['results']>({
         version: 'v2',
@@ -29,13 +34,18 @@ const fetchDataAppContent = (projectUuid: string, search: string) => {
     });
 };
 
-const useProjectDataApps = (projectUuid: string | undefined, search: string) =>
-    useQuery<ApiContentResponse['results'], ApiError>({
+const useProjectDataApps = (
+    projectUuid: string | undefined,
+    search: string,
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiContentResponse['results'], ApiError>({
         queryKey: ['data-app-picker', projectUuid, search],
-        queryFn: () => fetchDataAppContent(projectUuid!, search),
+        queryFn: () => fetchDataAppContent(lightdashApi, projectUuid!, search),
         enabled: !!projectUuid,
         keepPreviousData: true,
     });
+};
 
 const DataAppTileForm = ({ form }: DataAppTileFormProps) => {
     const projectUuid = useProjectUuid();

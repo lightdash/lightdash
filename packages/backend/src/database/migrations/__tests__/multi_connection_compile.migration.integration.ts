@@ -161,7 +161,10 @@ describe('Multi-connection compile on the real schema', () => {
             source: source.name,
             dbname: 'dbname' in credentials ? String(credentials.dbname) : '',
         });
-        return { manifest: sourceManifests[source.name] };
+        return {
+            manifest: sourceManifests[source.name],
+            timings: { gitRefreshMs: null, depsMs: null, manifestMs: 0 },
+        };
     };
 
     const createWarehouseDatabase = async (name: string, tables: string[]) => {
@@ -306,11 +309,19 @@ describe('Multi-connection compile on the real schema', () => {
             context,
             async (connection) => {
                 const compilation = await compiler.compile({
+                    concurrency: 1,
                     context,
                     projectUuid: fixture.projectUuid,
                     primary: {
                         connection,
-                        manifest: dbtManifest('primary', primary),
+                        fetchManifest: async () => ({
+                            manifest: dbtManifest('primary', primary),
+                            timings: {
+                                gitRefreshMs: null,
+                                depsMs: null,
+                                manifestMs: 0,
+                            },
+                        }),
                         dbtProjectDir: undefined,
                         warehouseCredentials: originalCredentials,
                         cachedWarehouse: {
@@ -328,6 +339,8 @@ describe('Multi-connection compile on the real schema', () => {
                     },
                     dbtVersion: SupportedDbtVersions.V1_8,
                     includeUnboundSources,
+                    crossSourceRefsEnabled: false,
+                    mixedWarehouseConnectionsEnabled: false,
                     fetchSourceManifest,
                     loadExtraCredentials: loadExtraCredentials(
                         fixture.projectUuid,
@@ -733,6 +746,10 @@ describe('Multi-connection compile on the real schema', () => {
                                 : '',
                     });
                     return {
+                        prepareDbtSource: async () => ({
+                            projectDir: null,
+                            timings: { gitRefreshMs: null, depsMs: null },
+                        }),
                         getDbtManifest: async () => ({
                             manifest: sourceManifests[name],
                             timings: {
@@ -3321,6 +3338,12 @@ describe('Multi-connection compile on the real schema', () => {
                     database,
                     encryptionUtil,
                 }),
+                featureFlagService: {
+                    get: async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: false,
+                    }),
+                },
             });
 
         const salesConnection = {

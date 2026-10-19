@@ -4,15 +4,31 @@ import {
 } from '@lightdash/common';
 import { Group, Stack, Text, TextInput } from '@mantine/core';
 import { type FC } from 'react';
+import { useMixedWarehouseConnectionsEnabled } from '../../hooks/useExploreWarehouseConnection';
 import { useProject } from '../../hooks/useProject';
+import { useWarehouseConnection } from '../../hooks/useWarehouseConnections';
 import { useFormContext } from './formContext';
+import { useProjectFormContext } from './useProjectFormContext';
 
 const WarehouseLocationInputs: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
     const form = useFormContext();
+    const { dbtSourceWarehouseConnectionUuid } = useProjectFormContext();
+    const mixedWarehouseConnectionsEnabled =
+        useMixedWarehouseConnectionsEnabled();
+    const boundConnectionUuid = mixedWarehouseConnectionsEnabled
+        ? (dbtSourceWarehouseConnectionUuid ?? null)
+        : null;
     const { data: project } = useProject(projectUuid);
-    const warehouseConnection = project?.warehouseConnection;
+    const { data: boundConnection } = useWarehouseConnection(
+        projectUuid,
+        boundConnectionUuid,
+    );
+    const warehouseConnection =
+        boundConnectionUuid === null
+            ? project?.warehouseConnection
+            : boundConnection?.warehouseConnection;
     if (!warehouseConnection) {
         return null;
     }

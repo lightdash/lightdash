@@ -308,6 +308,12 @@ export type AiAgentArgs = AnyAiModel & {
     slackLinksOnly: boolean;
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
+    warehouseConnections?: {
+        name: string;
+        warehouseConnectionUuid: string | null;
+        warehouseType: WarehouseTypes;
+        isOriginal: boolean;
+    }[];
     availableSkills: AiAgentSkillReference[];
     modelReasoningEnabled: boolean | null;
 

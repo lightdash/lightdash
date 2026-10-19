@@ -1,16 +1,15 @@
 import { waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../../api';
+import { sharedLightdashApi } from '../../../../api';
+import { mockedLightdashApi } from '../../../../testing/mockedLightdashApi';
 import { renderHookWithProviders } from '../../../../testing/testUtils';
 import { useUploadAnnouncementImage } from './useAnnouncements';
 
-vi.mock('../../../../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../../../../api');
 
 describe('useUploadAnnouncementImage', () => {
     it('POSTs the file body with its content-type header and returns the url', async () => {
-        vi.mocked(lightdashApi).mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             url: 'https://x/file/abc',
         } as never);
 
@@ -23,7 +22,7 @@ describe('useUploadAnnouncementImage', () => {
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(sharedLightdashApi).toHaveBeenCalledWith({
             url: '/projects/project-1/announcements/images',
             method: 'POST',
             headers: { 'Content-Type': 'image/png' },

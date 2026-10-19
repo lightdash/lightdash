@@ -121,6 +121,30 @@ const setup = (
 afterEach(() => vi.restoreAllMocks());
 
 describe('ProjectService Snowflake resolver entry points', () => {
+    test('resolves a Snowflake SSO form payload from the current person grant for saving', async () => {
+        const f = setup(true);
+        const formCredentials: CreateSnowflakeCredentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            authenticationType: SnowflakeAuthenticationType.SSO,
+            account: 'account',
+            user: 'person',
+            database: 'database',
+            warehouse: 'warehouse',
+            schema: 'schema',
+        };
+        const resolved = await f.probe._resolveWarehouseClientCredentials(
+            { warehouseConnection: formCredentials },
+            actor.userUuid,
+            actor.organizationUuid,
+            'ignore',
+        );
+        expect(resolved.warehouseConnection).toMatchObject({
+            refreshToken: 'grant-refresh',
+            token: 'fresh-access',
+        });
+        expect(f.userOAuthGrantsModel.getRefreshToken).toHaveBeenCalled();
+    });
+
     test.each([true, false])(
         'organisation ignore policy with lock %s',
         async (enabled) => {

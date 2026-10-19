@@ -7,10 +7,25 @@ import {
     isSqlApprovalToolCall,
 } from './sqlApprovalToolCalls';
 
+const composerSqlNode = (nodeId: string, sql: string) => ({
+    nodeId,
+    sourceType: 'sql',
+    sql,
+});
+
 describe('isSqlApprovalToolCall', () => {
     it('gates raw SQL tools and SQL chart saves only', () => {
         expect(isSqlApprovalToolCall('runSql', { sql: 'select 1' })).toBe(true);
-        expect(isSqlApprovalToolCall('runComposerQueries', {})).toBe(true);
+        expect(
+            isSqlApprovalToolCall('runComposerQueries', {
+                queries: [composerSqlNode('raw', 'select 1')],
+            }),
+        ).toBe(true);
+        expect(
+            isSqlApprovalToolCall('runComposerQueries', {
+                queries: [{ nodeId: 'merge', sourceType: 'duckdb', sql: 'x' }],
+            }),
+        ).toBe(false);
         expect(
             isSqlApprovalToolCall('createContent', { type: 'sql_chart' }),
         ).toBe(true);
@@ -73,6 +88,23 @@ describe('getSqlApprovalSql', () => {
                 patch: [{ op: 'replace', path: '/sql', value: 'select 3' }],
             }),
         ).toBe('select 3');
+    });
+
+    it('labels and joins every warehouse SQL node of a composer pipeline', () => {
+        expect(
+            getSqlApprovalSql({
+                queries: [
+                    composerSqlNode('orders', 'select 1'),
+                    { nodeId: 'merge', sourceType: 'duckdb', sql: 'select 2' },
+                    composerSqlNode('payments', 'select 3'),
+                ],
+            }),
+        ).toBe('-- orders\nselect 1\n\n-- payments\nselect 3');
+        expect(
+            getSqlApprovalSql({
+                queries: [{ nodeId: 'merge', sourceType: 'duckdb', sql: 'x' }],
+            }),
+        ).toBeNull();
     });
 
     it('returns null when the arguments carry no SQL', () => {

@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
 import {
     aiAgentThreadStreamSlice,
     setParts,
@@ -14,10 +14,11 @@ import {
     type StreamPart,
 } from '../ee/features/aiCopilot/store/aiAgentThreadStreamSlice';
 import { resetHandledAgentToolCallIds } from '../ee/features/aiCopilot/streaming/handledAgentToolCalls';
+import { mockedLightdashApi } from '../testing/mockedLightdashApi';
 import { renderWithProviders } from '../testing/testUtils';
 import SavedExplorer from './SavedExplorer';
 
-vi.mock('../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../api');
 
 const featureFlagState = vi.hoisted(() => ({
     inDashboardChartEditorEnabled: true,
@@ -289,7 +290,7 @@ describe('SavedExplorer', () => {
         featureFlagState.isLoading = false;
         featureFlagState.handoverSearch =
             searchWithChartVersion(urlChartVersion);
-        vi.mocked(lightdashApi).mockImplementation((async ({ url, method }) => {
+        mockedLightdashApi.mockImplementation((async ({ url, method }) => {
             if (
                 method === 'GET' &&
                 typeof url === 'string' &&
@@ -305,7 +306,7 @@ describe('SavedExplorer', () => {
                 return currentSavedChart;
             }
             return new Promise(() => {});
-        }) as typeof lightdashApi);
+        }) as LightdashApi);
     });
 
     it.each([savedChart.slug, savedChart.uuid])(
@@ -336,15 +337,13 @@ describe('SavedExplorer', () => {
 
     describe('across remounts', () => {
         const savedChartFetchCount = () =>
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.filter(
-                    ([{ url, method }]) =>
-                        method === 'GET' && url.includes('/saved/'),
-                ).length;
+            mockedLightdashApi.mock.calls.filter(
+                ([{ url, method }]) =>
+                    method === 'GET' && url.includes('/saved/'),
+            ).length;
 
         const remountAndCountFetches = async () => {
-            vi.mocked(lightdashApi).mockClear();
+            mockedLightdashApi.mockClear();
             renderWithProviders(savedExplorerRouter('', 'view'));
             await waitFor(() =>
                 expect(screen.getByTestId('session')).toHaveTextContent(
@@ -382,7 +381,7 @@ describe('SavedExplorer', () => {
         it('refetches once for an edit that completed before mount', async () => {
             currentSavedChart = editedChart;
             publishAgentEdit(true);
-            vi.mocked(lightdashApi).mockClear();
+            mockedLightdashApi.mockClear();
             const view = renderWithProviders(savedExplorerRouter('', 'view'));
             await waitFor(() => expect(savedChartFetchCount()).toBe(2));
             view.unmount();

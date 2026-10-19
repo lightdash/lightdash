@@ -13,8 +13,9 @@ import {
     useQueryClient,
     type QueryKey,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 const HOMEPAGE_RECOMMENDED_ACTION_SKIPS_QUERY_KEY = [
     'homepage-recommended-action-skips',
@@ -28,7 +29,7 @@ const homepageRecommendedActionSkipsQueryKey = (projectUuid: string | null) => [
 const scopeQuery = (projectUuid: string | null) =>
     projectUuid ? `?${new URLSearchParams({ projectUuid }).toString()}` : '';
 
-const listSkips = (projectUuid: string | null) =>
+const listSkips = (lightdashApi: LightdashApi, projectUuid: string | null) =>
     lightdashApi<ApiHomepageRecommendedActionSkipsResponse['results']>({
         url: `/ee/homepage/recommended-action-skips${scopeQuery(projectUuid)}`,
         method: 'GET',
@@ -36,6 +37,7 @@ const listSkips = (projectUuid: string | null) =>
     });
 
 const skipAction = (
+    lightdashApi: LightdashApi,
     projectUuid: string | null,
     actionKey: HomepageRecommendedActionKey,
 ) =>
@@ -48,6 +50,7 @@ const skipAction = (
     });
 
 const unskipAction = (
+    lightdashApi: LightdashApi,
     projectUuid: string | null,
     actionKey: HomepageRecommendedActionKey,
 ) =>
@@ -75,6 +78,7 @@ export const useHomepageRecommendedActionSkips = (
     projectUuid: string | null,
     { enabled }: { enabled: boolean },
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     const queryKey = homepageRecommendedActionSkipsQueryKey(projectUuid);
@@ -83,7 +87,7 @@ export const useHomepageRecommendedActionSkips = (
         ApiError
     >({
         queryKey,
-        queryFn: () => listSkips(projectUuid),
+        queryFn: () => listSkips(lightdashApi, projectUuid),
         enabled,
     });
     const mutation = useMutation<
@@ -94,8 +98,8 @@ export const useHomepageRecommendedActionSkips = (
     >({
         mutationFn: ({ actionKey, skipped }) =>
             skipped
-                ? skipAction(projectUuid, actionKey)
-                : unskipAction(projectUuid, actionKey),
+                ? skipAction(lightdashApi, projectUuid, actionKey)
+                : unskipAction(lightdashApi, projectUuid, actionKey),
         onMutate: async ({ actionKey, skipped }) => {
             const queryFilter =
                 HOMEPAGE_RECOMMENDED_ACTION_SCOPES[actionKey] === 'organization'

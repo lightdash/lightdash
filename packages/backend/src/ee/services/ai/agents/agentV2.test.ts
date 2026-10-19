@@ -706,6 +706,14 @@ describe('empty finishes and interrupts', () => {
                 }),
             ).resolves.toBe(autoApproved ? 'The answer is 1.' : '');
             expect(runSqlJob).toHaveBeenCalledTimes(autoApproved ? 1 : 0);
+            // Only the final answer is persisted; step updates would mark the
+            // prompt responded mid-run.
+            expect(
+                updatePrompt.mock.calls
+                    .map(([update]) => update)
+                    .filter((update) => 'response' in update)
+                    .map((update) => update.response),
+            ).toEqual([autoApproved ? 'The answer is 1.' : '']);
             expect(updatePrompt).not.toHaveBeenCalledWith(
                 expect.objectContaining({ errorMessage: expect.any(String) }),
             );

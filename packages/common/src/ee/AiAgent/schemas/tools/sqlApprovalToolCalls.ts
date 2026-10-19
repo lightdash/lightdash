@@ -1,3 +1,4 @@
+import { QuerySourceType } from '../../../../types/querySources';
 import assertUnreachable from '../../../../utils/assertUnreachable';
 
 /** Agent tools whose SQL waits on the user's approval. */
@@ -85,9 +86,22 @@ export const getPatchedSql = (patch: unknown): string | null => {
 export const doesPatchTouchSqlChartSql = (patch: unknown): boolean =>
     getPatchedSql(patch) !== null;
 
+/** A composer pipeline's warehouse SQL nodes, labelled and joined; null when it has none. */
+const getComposerApprovalSql = (queries: unknown[]): string | null => {
+    const sqlNodes = queries.flatMap((node) =>
+        isRecord(node) &&
+        node.sourceType === QuerySourceType.SQL &&
+        typeof node.sql === 'string'
+            ? [`-- ${String(node.nodeId)}\n${node.sql}`]
+            : [],
+    );
+    return sqlNodes.length > 0 ? sqlNodes.join('\n\n') : null;
+};
+
 /**
- * Content tools only gate on approval when they save new SQL: creating a SQL
- * chart, or editing one with a patch that can change its sql.
+ * Composer gates only with warehouse SQL nodes; content tools only when they
+ * save new SQL: creating a SQL chart, or editing one with a patch that can
+ * change its sql.
  */
 export const isSqlApprovalToolCall = (
     toolName: string,
@@ -96,8 +110,13 @@ export const isSqlApprovalToolCall = (
     if (!isSqlApprovalToolName(toolName)) return false;
     switch (toolName) {
         case 'runSql':
-        case 'runComposerQueries':
             return true;
+        case 'runComposerQueries':
+            return (
+                isRecord(toolArgs) &&
+                Array.isArray(toolArgs.queries) &&
+                getComposerApprovalSql(toolArgs.queries) !== null
+            );
         case 'createContent':
             return isSqlChartContentArgs(toolArgs);
         case 'editContent':
@@ -114,6 +133,9 @@ export const isSqlApprovalToolCall = (
 export const getSqlApprovalSql = (toolArgs: unknown): string | null => {
     if (!isRecord(toolArgs)) return null;
     if (typeof toolArgs.sql === 'string') return toolArgs.sql;
+    if (Array.isArray(toolArgs.queries)) {
+        return getComposerApprovalSql(toolArgs.queries);
+    }
     if (
         isRecord(toolArgs.content) &&
         typeof toolArgs.content.sql === 'string'

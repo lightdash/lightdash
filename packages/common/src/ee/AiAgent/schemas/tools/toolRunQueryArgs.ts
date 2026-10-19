@@ -26,7 +26,10 @@ import {
     MCP_QUERY_ERROR_NOTE,
     MCP_QUERY_RESULT_USAGE_NOTE,
 } from './toolMcpQueryResultDescription';
-import { mcpAsyncQueryUuidSchema } from './toolQueryResultSchemas';
+import {
+    executionStatsContentSchema,
+    mcpAsyncQueryUuidSchema,
+} from './toolQueryResultSchemas';
 
 const parameterValueSchema = z.union([
     z.string(),
@@ -576,7 +579,7 @@ Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel.
 - For single values or detailed data: use \`table\`.
 - Always provide axis labels.
 
-The full chart payload is app metadata; structuredContent contains only a lightweight placeholder. Custom artifacts should build visuals from query data instead.
+The full chart payload is app metadata, drawn only by MCP App-capable clients. In structuredContent, \`echartsOption: {}\` is a placeholder for that payload, not a failed render. If your client cannot display MCP Apps, the user has not seen the chart: build the visual from the query rows. Custom artifacts should build visuals from query data instead.
 
 ${MCP_ARTIFACT_INTEGRATION_NOTE}`;
 
@@ -772,6 +775,7 @@ export const toolRunQueryStructuredContentSchema = z.discriminatedUnion(
                     'null when the explore references no parameters or the query was a merge.',
                 ),
             data: shownResultsSchema,
+            executionStats: executionStatsContentSchema,
         }),
     ],
 );

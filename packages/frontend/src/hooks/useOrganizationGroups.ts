@@ -3,6 +3,7 @@ import {
     type ApiGroupListResponse,
     type CreateGroup,
     type Group,
+    type GroupSort,
     type GroupWithMembers,
     type KnexPaginateArgs,
     type UpdateGroupWithMembers,
@@ -15,14 +16,17 @@ import {
     type UseInfiniteQueryOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
 const getOrganizationGroupsQuery = async (
+    lightdashApi: LightdashApi,
     includeMembers?: number,
     searchQuery?: string,
     paginateArgs?: KnexPaginateArgs,
+    sort?: GroupSort,
 ) => {
     const urlParams = new URLSearchParams({
         ...(paginateArgs
@@ -33,6 +37,9 @@ const getOrganizationGroupsQuery = async (
             : {}),
         ...(includeMembers ? { includeMembers: String(includeMembers) } : {}),
         ...(searchQuery ? { searchQuery } : {}),
+        ...(sort
+            ? { sortBy: sort.sortBy, sortDirection: sort.sortDirection }
+            : {}),
     }).toString();
 
     return lightdashApi<ApiGroupListResponse['results']>({
@@ -55,12 +62,18 @@ export const useOrganizationGroups = (
         ApiError
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const setErrorResponse = useQueryError();
     return useQuery<ApiGroupListResponse['results']['data'], ApiError>({
         queryKey: ['organization_groups', includeMembers, searchInput],
         queryFn: async () => {
             return (
-                await getOrganizationGroupsQuery(includeMembers, searchInput)
+                await getOrganizationGroupsQuery(
+                    lightdashApi,
+                    includeMembers,
+                    searchInput,
+                )
             ).data;
         },
         onError: (result) => setErrorResponse(result),
@@ -73,16 +86,20 @@ export const useInfiniteOrganizationGroups = (
         searchInput,
         includeMembers,
         pageSize,
+        sort,
     }: {
         searchInput?: string;
         includeMembers?: number;
         pageSize: number;
+        sort?: GroupSort;
     },
     infinityQueryOpts: UseInfiniteQueryOptions<
         ApiGroupListResponse['results'],
         ApiError
     > = {},
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const setErrorResponse = useQueryError();
     return useInfiniteQuery<ApiGroupListResponse['results'], ApiError>({
         queryKey: [
@@ -90,12 +107,19 @@ export const useInfiniteOrganizationGroups = (
             includeMembers,
             pageSize,
             searchInput,
+            sort,
         ],
         queryFn: async ({ pageParam }) => {
-            return getOrganizationGroupsQuery(includeMembers, searchInput, {
-                pageSize: pageSize,
-                page: pageParam ?? 1,
-            });
+            return getOrganizationGroupsQuery(
+                lightdashApi,
+                includeMembers,
+                searchInput,
+                {
+                    pageSize: pageSize,
+                    page: pageParam ?? 1,
+                },
+                sort,
+            );
         },
         onError: (result) => setErrorResponse(result),
         getNextPageParam: (lastPage) => {
@@ -110,7 +134,10 @@ export const useInfiniteOrganizationGroups = (
     });
 };
 
-const createGroupQuery = async (data: CreateGroup) =>
+const createGroupQuery = async (
+    lightdashApi: LightdashApi,
+    data: CreateGroup,
+) =>
     lightdashApi<GroupWithMembers>({
         url: `/org/groups`,
         method: 'POST',
@@ -118,10 +145,12 @@ const createGroupQuery = async (data: CreateGroup) =>
     });
 
 export const useGroupCreateMutation = () => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<GroupWithMembers, ApiError, CreateGroup>(
-        (data) => createGroupQuery(data),
+        (data) => createGroupQuery(lightdashApi, data),
         {
             mutationKey: ['create_group'],
             onSuccess: async (_) => {
@@ -143,6 +172,7 @@ export const useGroupCreateMutation = () => {
 };
 
 const updateGroupQuery = async (
+    lightdashApi: LightdashApi,
     data: UpdateGroupWithMembers & { uuid: string },
 ) =>
     lightdashApi<GroupWithMembers>({
@@ -155,13 +185,15 @@ const updateGroupQuery = async (
     });
 
 export const useGroupUpdateMutation = () => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         Group,
         ApiError,
         UpdateGroupWithMembers & { uuid: string }
-    >((data) => updateGroupQuery(data), {
+    >((data) => updateGroupQuery(lightdashApi, data), {
         mutationKey: ['update_group'],
         onSuccess: async (group) => {
             await queryClient.invalidateQueries(['organization_groups']);
@@ -179,7 +211,7 @@ export const useGroupUpdateMutation = () => {
     });
 };
 
-const deleteGroupQuery = async (data: Group) =>
+const deleteGroupQuery = async (lightdashApi: LightdashApi, data: Group) =>
     lightdashApi<Group>({
         url: `/groups/${data.uuid}`,
         method: 'DELETE',
@@ -187,10 +219,12 @@ const deleteGroupQuery = async (data: Group) =>
     });
 
 export const useGroupDeleteMutation = () => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<Group, ApiError, Group>(
-        (data) => deleteGroupQuery(data),
+        (data) => deleteGroupQuery(lightdashApi, data),
         {
             mutationKey: ['delete_group'],
             onSuccess: async (_, deletedGroup) => {

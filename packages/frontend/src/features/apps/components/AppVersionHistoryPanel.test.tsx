@@ -2,13 +2,14 @@ import { type ApiAppVersionSummary } from '@lightdash/common';
 import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { appVersion } from '../testing/appVersionHistory';
 import AppVersionHistoryPanel from './AppVersionHistoryPanel';
 
-const lightdashApi = vi.hoisted(() => vi.fn());
+const lightdashApi = mockedLightdashApi;
 
-vi.mock('../../../api', () => ({ lightdashApi }));
+vi.mock('../../../api');
 
 const entry = (
     version: number,

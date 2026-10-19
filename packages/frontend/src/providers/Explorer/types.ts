@@ -34,6 +34,12 @@ import {
 } from '@lightdash/common';
 import { type QueryResultsProps } from '../../hooks/useQueryResults';
 
+export type PendingQueryCostConfirmation = {
+    args: QueryResultsProps;
+    totalBytesProcessed: number;
+    confirmEstimatedBytesAbove: number;
+};
+
 export enum ExplorerSection {
     FILTERS = 'FILTERS',
     VISUALIZATION = 'VISUALIZATION',
@@ -348,6 +354,8 @@ export interface ExplorerReduceState {
         unpivotedQueryUuidHistory: string[];
         // Flag to trigger a query execution from components (works regardless of auto-fetch setting)
         pendingFetch: boolean;
+        // A query held back because its dry-run estimate needs confirming
+        pendingCostConfirmation: PendingQueryCostConfirmation | null;
     };
     fromDashboard?: string;
     isExploreFromHere?: boolean;

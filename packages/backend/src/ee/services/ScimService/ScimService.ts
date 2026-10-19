@@ -432,10 +432,7 @@ export class ScimService extends BaseService {
                         organizationUuid,
                         exactMatchFilter,
                         paginateArgs,
-                        sort: {
-                            column: 'users.updated_at',
-                            direction: 'asc',
-                        },
+                        sort: { sortBy: 'updatedAt', sortDirection: 'asc' },
                     },
                 );
 

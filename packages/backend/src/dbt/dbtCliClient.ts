@@ -4,11 +4,13 @@ import {
     DbtError,
     DbtLog,
     DbtPackages,
+    DbtRawModelNode,
     DbtRpcGetManifestResults,
     getErrorMessage,
     isDbtLog,
     isDbtPackages,
     isDbtRpcManifestResults,
+    isExternalDbtNode,
     ParseError,
     SupportedDbtVersions,
     validateDbtSelector,
@@ -21,7 +23,11 @@ import os from 'os';
 import path from 'path';
 import Logger from '../logging/logger';
 import { traceSpan } from '../tracing/tracing';
-import { DbtClient } from '../types';
+import { DbtClient, DbtManifestFetchOptions } from '../types';
+import {
+    dbtSupportsExternalNodes,
+    writeDbtExternalNodesPlugin,
+} from './dbtExternalNodes';
 import {
     saveDbtPartialParse,
     seedDbtPartialParse,
@@ -229,7 +235,10 @@ export class DbtCliClient implements DbtClient {
         }
     }
 
-    private async _runDbtCommand(...command: string[]): Promise<{
+    private async _runDbtCommand(
+        command: string[],
+        pluginEnvironment: Record<string, string> = {},
+    ): Promise<{
         logs: DbtLog[];
         stdout: string;
     }> {
@@ -271,6 +280,7 @@ export class DbtCliClient implements DbtClient {
                     environmentVariableAllowlist:
                         this.environmentVariableAllowlist,
                     projectEnvironment: this.environment,
+                    pluginEnvironment,
                     targetPath,
                     partialParse: this.partialParseBaselinePath !== null,
                     gitConfigGlobalPath: this.gitConfigGlobalPath,
@@ -318,7 +328,7 @@ export class DbtCliClient implements DbtClient {
             async () => {
                 const startTime = Date.now();
                 try {
-                    await this._runDbtCommand('deps');
+                    await this._runDbtCommand(['deps']);
                 } catch (error) {
                     if (error instanceof DbtError && this.dbtDepsErrorHint) {
                         throw new DbtError(
@@ -390,7 +400,9 @@ export class DbtCliClient implements DbtClient {
         return modelIds;
     }
 
-    async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
+    async getDbtManifest(
+        options?: DbtManifestFetchOptions,
+    ): Promise<DbtRpcGetManifestResults> {
         return traceSpan(
             {
                 op: 'dbt',
@@ -412,9 +424,22 @@ export class DbtCliClient implements DbtClient {
                     }
                     dbtCommand.push('--select', selector);
                 }
+                let pluginEnvironment: Record<string, string> = {};
+                if (options && options.externalNodes.length > 0) {
+                    if (!dbtSupportsExternalNodes(this.dbtVersion)) {
+                        throw new DbtError(
+                            'Cross-source dbt refs require dbt 1.6 or newer.',
+                        );
+                    }
+                    pluginEnvironment = await writeDbtExternalNodesPlugin(
+                        await this._getTargetDirectory(),
+                        options.externalNodes,
+                    );
+                }
                 const startTime = Date.now();
                 const { logs, stdout } = await this._runDbtCommand(
-                    ...dbtCommand,
+                    dbtCommand,
+                    pluginEnvironment,
                 );
                 const elapsed = Date.now() - startTime;
                 const selectedModelIds =
@@ -429,7 +454,25 @@ export class DbtCliClient implements DbtClient {
                 if (isDbtRpcManifestResults(rawManifest)) {
                     return {
                         ...rawManifest,
-                        ...(selector ? { selectedModelIds } : {}),
+                        ...(selector
+                            ? {
+                                  selectedModelIds: selectedModelIds.filter(
+                                      (id) => {
+                                          const node =
+                                              rawManifest.manifest.nodes[id];
+                                          return (
+                                              !node ||
+                                              !['model', 'seed'].includes(
+                                                  node.resource_type,
+                                              ) ||
+                                              !isExternalDbtNode(
+                                                  node as DbtRawModelNode,
+                                              )
+                                          );
+                                      },
+                                  ),
+                              }
+                            : {}),
                     };
                 }
                 throw new DbtError(
@@ -495,7 +538,9 @@ export class DbtCliClient implements DbtClient {
         }
     }
 
-    async test(): Promise<void> {
+    async test(
+        prepareDependencies: () => Promise<void> = () => this.installDeps(),
+    ): Promise<void> {
         return traceSpan(
             {
                 op: 'dbt',
@@ -503,8 +548,8 @@ export class DbtCliClient implements DbtClient {
             },
             async () => {
                 await this.ensureDbtProjectDir();
-                await this.installDeps();
-                const { logs } = await this._runDbtCommand('parse');
+                await prepareDependencies();
+                const { logs } = await this._runDbtCommand(['parse']);
                 await this.keepPartialParse('parse', logs);
             },
         );

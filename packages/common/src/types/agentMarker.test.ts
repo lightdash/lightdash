@@ -58,6 +58,26 @@ describe('agent identity query tags', () => {
             });
         },
     );
+    test('adds the agent uuid when the claim names an agent', () => {
+        const identity = buildAgentIdentityClaim({
+            subject: { type: 'user', uuid: 'private-user' },
+            surface: AgentActorSurface.MCP,
+            clientId: 'oauth-client',
+            agentUuid: 'agent-uuid',
+        });
+        expect(
+            withAgentMarkerTag(
+                { query_context: QueryExecutionContext.MCP_RUN_SQL },
+                identity,
+            ),
+        ).toEqual({
+            query_context: QueryExecutionContext.MCP_RUN_SQL,
+            agent: 'true',
+            agent_surface: 'mcp',
+            agent_client: getAgentClientLabel('oauth-client'),
+            agent_uuid: 'agent-uuid',
+        });
+    });
     test.each(Object.values(QueryExecutionContext))(
         'keeps flag-off tags byte-identical for %s',
         (context) => {

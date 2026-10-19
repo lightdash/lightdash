@@ -186,7 +186,9 @@ it.each([marker, 1, null])(
             },
         });
         await expect(
-            selected(() => getProjectDeploySettings(undefined, 'project')),
+            selected(() =>
+                getProjectDeploySettings(undefined, 'project', undefined),
+            ),
         ).rejects.toThrow(invalid);
         expect(
             JSON.stringify(vi.mocked(GlobalState.debug).mock.calls),
@@ -205,7 +207,7 @@ it.each([true, false, undefined])(
         expect(
             (
                 await selected(() =>
-                    getProjectDeploySettings(undefined, 'project'),
+                    getProjectDeploySettings(undefined, 'project', undefined),
                 )
             ).disableTimestampConversion,
         ).toBe(value);

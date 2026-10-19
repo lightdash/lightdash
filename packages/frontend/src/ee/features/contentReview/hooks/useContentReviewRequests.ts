@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import {
     approveContentReviewRequest,
     cancelContentReviewRequest,
@@ -34,8 +35,9 @@ export const usePendingContentReviewRequest = (
     contentType: ContentReviewContentType,
     contentUuid: string | undefined,
     enabled: boolean,
-) =>
-    useQuery<ContentReviewRequest | null, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ContentReviewRequest | null, ApiError>({
         queryKey: [
             CONTENT_REVIEW_QUERY_KEY,
             projectUuid,
@@ -45,6 +47,7 @@ export const usePendingContentReviewRequest = (
         ],
         queryFn: () =>
             getPendingContentReviewRequest(
+                lightdashApi,
                 projectUuid!,
                 contentType,
                 contentUuid!,
@@ -52,6 +55,7 @@ export const usePendingContentReviewRequest = (
         enabled: enabled && !!projectUuid && !!contentUuid,
         retry: (_, error) => error.error.statusCode !== 403,
     });
+};
 
 const useInvalidateContentReview = () => {
     const queryClient = useQueryClient();
@@ -64,13 +68,14 @@ const useInvalidateContentReview = () => {
 };
 
 export const useCreateContentReviewRequest = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const invalidate = useInvalidateContentReview();
     return useMutation<
         ContentReviewRequestDetail,
         ApiError,
         CreateContentReviewRequestBody
-    >((body) => createContentReviewRequest(projectUuid, body), {
+    >((body) => createContentReviewRequest(lightdashApi, projectUuid, body), {
         mutationKey: ['content-review-request-create'],
         onSuccess: async (detail) => {
             await invalidate(projectUuid);
@@ -91,10 +96,12 @@ export const useCreateContentReviewRequest = (projectUuid: string) => {
 };
 
 export const useCancelContentReviewRequest = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const invalidate = useInvalidateContentReview();
     return useMutation<ContentReviewRequestDetail, ApiError, string>(
-        (requestUuid) => cancelContentReviewRequest(projectUuid, requestUuid),
+        (requestUuid) =>
+            cancelContentReviewRequest(lightdashApi, projectUuid, requestUuid),
         {
             mutationKey: ['content-review-request-cancel'],
             onSuccess: async () => {
@@ -120,30 +127,40 @@ export const useContentReviewRequests = (
         pageSize: number;
     },
     enabled: boolean,
-) =>
-    useQuery<KnexPaginatedData<ContentReviewRequestListItem[]>, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<
+        KnexPaginatedData<ContentReviewRequestListItem[]>,
+        ApiError
+    >({
         queryKey: [CONTENT_REVIEW_QUERY_KEY, projectUuid, 'list', params],
-        queryFn: () => listContentReviewRequests(projectUuid, params),
+        queryFn: () =>
+            listContentReviewRequests(lightdashApi, projectUuid, params),
         enabled,
         keepPreviousData: true,
     });
+};
 
 export const useContentReviewRequest = (
     projectUuid: string,
     requestUuid: string | undefined,
-) =>
-    useQuery<ContentReviewRequestDetail, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ContentReviewRequestDetail, ApiError>({
         queryKey: [
             CONTENT_REVIEW_QUERY_KEY,
             projectUuid,
             'request',
             requestUuid,
         ],
-        queryFn: () => getContentReviewRequest(projectUuid, requestUuid!),
+        queryFn: () =>
+            getContentReviewRequest(lightdashApi, projectUuid, requestUuid!),
         enabled: !!requestUuid,
     });
+};
 
 export const useApproveContentReviewRequest = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const invalidate = useInvalidateContentReview();
     const queryClient = useQueryClient();
@@ -153,7 +170,12 @@ export const useApproveContentReviewRequest = (projectUuid: string) => {
         { requestUuid: string; body: ApproveContentReviewRequestBody }
     >(
         ({ requestUuid, body }) =>
-            approveContentReviewRequest(projectUuid, requestUuid, body),
+            approveContentReviewRequest(
+                lightdashApi,
+                projectUuid,
+                requestUuid,
+                body,
+            ),
         {
             mutationKey: ['content-review-request-approve'],
             onSuccess: async (detail) => {
@@ -182,6 +204,7 @@ export const useApproveContentReviewRequest = (projectUuid: string) => {
 };
 
 export const useRejectContentReviewRequest = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const invalidate = useInvalidateContentReview();
     return useMutation<
@@ -190,7 +213,12 @@ export const useRejectContentReviewRequest = (projectUuid: string) => {
         { requestUuid: string; body: RejectContentReviewRequestBody }
     >(
         ({ requestUuid, body }) =>
-            rejectContentReviewRequest(projectUuid, requestUuid, body),
+            rejectContentReviewRequest(
+                lightdashApi,
+                projectUuid,
+                requestUuid,
+                body,
+            ),
         {
             mutationKey: ['content-review-request-reject'],
             onSuccess: async () => {
@@ -210,21 +238,24 @@ export const useRejectContentReviewRequest = (projectUuid: string) => {
 export const useContentReviewSettings = (
     projectUuid: string,
     enabled: boolean,
-) =>
-    useQuery<ContentReviewSettings, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ContentReviewSettings, ApiError>({
         queryKey: [CONTENT_REVIEW_QUERY_KEY, projectUuid, 'settings'],
-        queryFn: () => getContentReviewSettings(projectUuid),
+        queryFn: () => getContentReviewSettings(lightdashApi, projectUuid),
         enabled,
     });
+};
 
 export const useUpdateContentReviewSettings = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const invalidate = useInvalidateContentReview();
     return useMutation<
         ContentReviewSettings,
         ApiError,
         UpdateContentReviewSettings
-    >((body) => updateContentReviewSettings(projectUuid, body), {
+    >((body) => updateContentReviewSettings(lightdashApi, projectUuid, body), {
         mutationKey: ['content-review-settings-update'],
         onSuccess: async () => {
             await invalidate(projectUuid);
@@ -243,15 +274,16 @@ export const useUpdateContentReviewSettings = (projectUuid: string) => {
 export const usePendingContentReviewCount = (
     projectUuid: string,
     enabled: boolean,
-) =>
-    useQuery<
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<
         KnexPaginatedData<ContentReviewRequestListItem[]>,
         ApiError,
         number
     >({
         queryKey: [CONTENT_REVIEW_QUERY_KEY, projectUuid, 'pending-count'],
         queryFn: () =>
-            listContentReviewRequests(projectUuid, {
+            listContentReviewRequests(lightdashApi, projectUuid, {
                 view: ContentReviewRequestView.TO_REVIEW,
                 status: ContentReviewRequestStatus.PENDING,
                 page: 1,
@@ -261,3 +293,4 @@ export const usePendingContentReviewCount = (
         enabled,
         staleTime: 60_000,
     });
+};

@@ -34,7 +34,9 @@ type Dependencies = {
     >;
     projectService: Pick<
         ProjectService,
-        'assertAnalyticsProjectAccess' | 'ensureAnalyticsProject' | 'delete'
+        | 'assertAnalyticsProjectAdministration'
+        | 'ensureAnalyticsProject'
+        | 'delete'
     >;
     userModel: Pick<UserModel, 'invalidateSessionUserCache'>;
 };
@@ -63,12 +65,8 @@ export class AnalyticsProjectService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        await this.dependencies.projectService.assertAnalyticsProjectAccess(
+        await this.dependencies.projectService.assertAnalyticsProjectAdministration(
             user,
-            {
-                organizationUuid: user.organizationUuid,
-                provisioningSource: 'analytics',
-            },
         );
         return user.organizationUuid;
     }

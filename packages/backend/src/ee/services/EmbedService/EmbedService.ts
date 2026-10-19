@@ -1119,6 +1119,7 @@ export class EmbedService extends BaseService {
             Required<RunQueryTags>,
             | 'ai_principal'
             | 'agent'
+            | 'agent_uuid'
             | 'user_uuid'
             | 'app_uuid'
             | 'chart_uuid'

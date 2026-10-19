@@ -465,6 +465,7 @@ export * from './utils/externalSourceExplore';
 export * from './utils/virtualView';
 export * from './utils/warehouse';
 export * from './utils/warehouseLocation';
+export * from './utils/queryCostEstimate';
 export * from './utils/warehouseResourceLimits';
 export * from './utils/zodJsonSchema';
 export * from './visualizations/BigNumberDataModel';
@@ -1288,3 +1289,5 @@ export * from './utils/savedMerge';
 export * from './types/sharedSignIn';
 export * from './utils/agentIdentitySetup';
 export * from './types/credentials';
+
+export * from './types/releaseHighlights';

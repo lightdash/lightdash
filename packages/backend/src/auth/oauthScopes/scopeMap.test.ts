@@ -17,6 +17,10 @@ import {
 describe('OAuth scope operation map', () => {
     it.each([
         [['read'], 'view', 'Project', true],
+        [['read'], 'view', 'SystemAnalytics', true],
+        [['mcp:read'], 'view', 'SystemAnalytics', true],
+        [[], 'view', 'SystemAnalytics', false],
+        [['write'], 'manage', 'SystemAnalytics', false],
         [['read'], 'create', 'SavedChart', false],
         [['write'], 'view', 'Project', true],
         [['write'], 'create', 'SavedChart', true],

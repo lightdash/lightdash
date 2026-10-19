@@ -171,6 +171,7 @@ const makeTool = ({
     waitForSqlApproval = vi.fn().mockResolvedValue('approved'),
     prompt = makePrompt(),
     agentContext = new AgentContext([]),
+    useSlackStreamCard = false,
 }: {
     reviewQuery?: QueryReviewer;
     planViz?: PlanComposerViz;
@@ -182,6 +183,7 @@ const makeTool = ({
     waitForSqlApproval?: import('vitest').Mock;
     prompt?: AiWebAppPrompt | SlackPrompt;
     agentContext?: AgentContext;
+    useSlackStreamCard?: boolean;
 } = {}) => {
     const dependencies = {
         agentContext,
@@ -217,9 +219,14 @@ const makeTool = ({
             },
         }),
         getPrompt: vi.fn().mockResolvedValue(prompt),
+        updateSlackMessage: vi.fn().mockResolvedValue(undefined),
+        siteUrl: 'https://lightdash.example',
         waitForSqlApproval,
         recordSqlApproval: vi.fn().mockResolvedValue(true),
+        isThreadSqlAutoApproved: vi.fn().mockResolvedValue(false),
+        listSqlApprovalDecisions: vi.fn().mockResolvedValue([]),
         trackSqlApprovalTimeout: vi.fn(),
+        storeToolResults: vi.fn().mockResolvedValue(undefined),
         createOrUpdateArtifact: vi.fn(storeArtifact),
         listThreadComposerPipelines: vi.fn().mockResolvedValue([]),
         maxQueryLimit: 5000,
@@ -228,6 +235,7 @@ const makeTool = ({
         enablePythonNodes,
         autoApproveSql,
         autoApproveSqlUserUuid,
+        useSlackStreamCard,
     };
 
     return {
@@ -584,6 +592,59 @@ describe('getRunComposerQueries', () => {
             source: 'web',
         });
         expect(dependencies.recordSqlApproval).not.toHaveBeenCalled();
+    });
+
+    describe('native Slack approval', () => {
+        const needsApproval = async (
+            tool: ComposerTool,
+            args: ToolComposerQueriesArgs,
+        ) =>
+            typeof tool.needsApproval === 'function'
+                ? tool.needsApproval(args, {
+                      toolCallId: 'tool-call-1',
+                      messages: [],
+                      context: {},
+                  })
+                : tool.needsApproval;
+
+        it('suspends for approval only when the pipeline submits sql nodes', async () => {
+            const { tool } = makeTool({
+                prompt: makeSlackPrompt(),
+                useSlackStreamCard: true,
+            });
+
+            expect(await needsApproval(tool, makeArgs())).toBe(true);
+            expect(
+                await needsApproval(
+                    tool,
+                    makeArgs({
+                        queries: [
+                            semanticNode,
+                            { ...duckdbNode, references: ['revenue'] },
+                        ],
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        it('runs an approved resume without waiting and stores its result', async () => {
+            const { tool, dependencies } = makeTool({
+                prompt: makeSlackPrompt(),
+                useSlackStreamCard: true,
+            });
+
+            const output = await executeTool(tool, makeArgs());
+
+            expect(output.metadata?.status).toBe('success');
+            expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
+            expect(dependencies.storeToolResults).toHaveBeenCalledWith([
+                expect.objectContaining({
+                    toolCallId: 'tool-call-1',
+                    toolName: 'runComposerQueries',
+                    result: output.result,
+                }),
+            ]);
+        });
     });
 
     it('rejects non-SELECT sql nodes before approval', async () => {

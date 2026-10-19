@@ -5,6 +5,7 @@ import {
     OrganizationMemberRoleLabels,
     type OrganizationMemberProfile,
     type OrganizationMemberProfileWithGroups,
+    type OrganizationMemberSort,
     type OrganizationRoleSet,
     type Role,
 } from '@lightdash/common';
@@ -47,6 +48,7 @@ import {
     ContentTable,
     useContentTable,
     type ContentTableColumnDef,
+    type ContentTableSortingState,
     type ContentTableVirtualizer,
 } from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
@@ -75,6 +77,7 @@ const UsersTable: FC = () => {
         );
 
     const [search, setSearch] = useState('');
+    const [sorting, setSorting] = useState<ContentTableSortingState>([]);
     const inviteLink = useCreateInviteLinkMutation();
     const [inviteSuccessFor, setInviteSuccessFor] = useState<string | null>(
         null,
@@ -102,12 +105,24 @@ const UsersTable: FC = () => {
 
     const [debouncedSearchValue] = useDebouncedValue(debouncedSearch, 300);
 
+    const sort = useMemo<OrganizationMemberSort | undefined>(
+        () =>
+            sorting[0]?.id === 'name'
+                ? {
+                      sortBy: 'name',
+                      sortDirection: sorting[0].desc ? 'desc' : 'asc',
+                  }
+                : undefined,
+        [sorting],
+    );
+
     // Use infinite query for pagination
     const { data, fetchNextPage, hasNextPage, isError, isFetching, isLoading } =
         useInfiniteOrganizationUsers({
             searchInput: debouncedSearchValue.search,
             includeGroups: isGroupManagementEnabled ? 10000 : undefined,
             pageSize: fetchSize,
+            sort,
         });
 
     const flatData = useMemo<
@@ -128,10 +143,10 @@ const UsersTable: FC = () => {
         threshold: 400,
     });
 
-    // Scroll to top when search changes
+    // Scroll to top when search or sorting changes
     useEffect(() => {
         scrollToTop();
-    }, [debouncedSearchValue, scrollToTop]);
+    }, [debouncedSearchValue, sort, scrollToTop]);
 
     const updateUserRole = useUpsertOrganizationUserRoleAssignmentMutation();
     const replaceRoleSet = useReplaceOrganizationUserRoleSetMutation();
@@ -240,9 +255,10 @@ const UsersTable: FC = () => {
             OrganizationMemberProfile | OrganizationMemberProfileWithGroups
         >[] = [
             {
+                id: 'name',
                 accessorKey: 'email',
                 header: 'User',
-                enableSorting: false,
+                enableSorting: true,
                 size: isCompact ? 180 : 300,
                 Header: ({ column }) => (
                     <Group gap="two">
@@ -455,7 +471,9 @@ const UsersTable: FC = () => {
         data: flatData,
         enableColumnResizing: false,
         enablePagination: false,
-        enableSorting: false,
+        enableSorting: true,
+        manualSorting: true,
+        onSortingChange: setSorting,
         enableRowVirtualization: true,
         enableTopToolbar: true,
         mantineTableContainerProps: {
@@ -543,6 +561,7 @@ const UsersTable: FC = () => {
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 72, overscan: 10 },
         state: {
+            sorting,
             isLoading,
             showAlertBanner: isError,
             showProgressBars: isFetching,

@@ -1,6 +1,7 @@
 import { ContentType } from '@lightdash/common';
 import { type Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { type Editor } from '@tiptap/react';
+import { type LightdashApi } from '../../../../../api';
 import { createContentMentionExtension } from '../../../aiCopilot/components/ChatElements/contentMentions';
 
 // Matches `CONTENT_MENTION_NAME` in contentMentions.tsx (not exported there).
@@ -32,8 +33,11 @@ const escapeLinkLabel = (label: string): string =>
  * so `@`-mentions round-trip to markdown links. On the read side those links
  * are hydrated back into chips via `hydrateContentMentions`.
  */
-export const createMentionMarkdownExtension = (projectUuid: string) =>
-    createContentMentionExtension({
+export const createMentionMarkdownExtension = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
+    createContentMentionExtension(lightdashApi, {
         getProjectUuid: () => projectUuid,
         getPriorityItems: () => [],
         includeFilesAndRepositories: false,

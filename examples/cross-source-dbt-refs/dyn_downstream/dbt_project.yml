@@ -1,0 +1,11 @@
+name: dyn_downstream
+version: '1.0.0'
+config-version: 2
+profile: cross_source_refs
+model-paths: ['models']
+macro-paths: ['macros']
+vars:
+  upstream_project: dyn_upstream
+models:
+  dyn_downstream:
+    +materialized: table

@@ -1,8 +1,11 @@
 import { type ApiError, type UserAllowedOrganization } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
-const getAllowedOrganizations = async (): Promise<UserAllowedOrganization[]> =>
+const getAllowedOrganizations = async (
+    lightdashApi: LightdashApi,
+): Promise<UserAllowedOrganization[]> =>
     lightdashApi<UserAllowedOrganization[]>({
         url: `/user/me/allowedOrganizations`,
         method: 'GET',
@@ -10,9 +13,10 @@ const getAllowedOrganizations = async (): Promise<UserAllowedOrganization[]> =>
     });
 
 const useAllowedOrganizations = () => {
+    const lightdashApi = useLightdashApi();
     return useQuery<UserAllowedOrganization[], ApiError>({
         queryKey: ['user-allowed-organizations'],
-        queryFn: getAllowedOrganizations,
+        queryFn: () => getAllowedOrganizations(lightdashApi),
     });
 };
 
