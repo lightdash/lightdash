@@ -20836,7 +20836,7 @@ Do not invent SQL Runner links.",
     },
   },
   {
-    "description": "Run a pipeline: one or more queries submitted together, where duckdb queries join or transform the others' results. The terminal node's table is shown in the thread as a chart artifact and its rows are returned to you.
+    "description": "Run a pipeline: one or more queries submitted together, where duckdb queries join or transform the others' results. The terminal node's rows are returned to you; the result is not shown to the user until you present it.
 
 Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
@@ -20846,7 +20846,9 @@ Node kinds:
 
 Every node has a "nodeId" (for references) and a "title" (what users see). The terminal node is the unique sink by default, or "terminalNodeId".
 
-Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id. Every call lists its nodes' ids and titles. The artifact always shows your latest call's terminal result, so end with the pipeline that produces the table the user should see.",
+Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id. Every call lists its nodes' ids and titles.
+
+Presenting results: results are hidden by default. To show one, write <show node="<terminal node id>"/> in your final answer; every successful call's result names its terminal node id.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -21180,7 +21182,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
               "type": "null",
             },
           ],
-          "description": "Which node's result the artifact shows and this tool returns. Pass null to default to the unique sink among the submitted nodes (the one node no other submitted node reads); required when there are multiple sinks.",
+          "description": "Which node's result this tool returns and you can present. Pass null to default to the unique sink among the submitted nodes (the one node no other submitted node reads); required when there are multiple sinks.",
         },
         "title": {
           "anyOf": [
@@ -21212,28 +21214,118 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
             "metadata": {
               "allOf": [
                 {
-                  "additionalProperties": false,
-                  "properties": {
-                    "artifactVersionUuid": {
-                      "type": "string",
-                    },
-                    "queryUuid": {
-                      "type": "string",
-                    },
-                    "status": {
-                      "enum": [
-                        "success",
-                        "error",
-                        "rejected",
-                        "timeout",
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "artifactVersionUuid": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "description": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "queryUuid": {
+                          "type": "string",
+                        },
+                        "snapshot": {
+                          "description": "The full built pipeline, every node self-contained.",
+                          "items": {
+                            "additionalProperties": {},
+                            "properties": {
+                              "sourceType": {
+                                "enum": [
+                                  "semanticLayer",
+                                  "sql",
+                                  "duckdb",
+                                  "external",
+                                  "python",
+                                ],
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "sourceType",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "status": {
+                          "const": "success",
+                          "type": "string",
+                        },
+                        "terminalNodeId": {
+                          "description": "The node a presentation shows.",
+                          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
+                          "type": "string",
+                        },
+                        "title": {
+                          "type": "string",
+                        },
+                        "vizConfig": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": {},
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "type",
+                              ],
+                              "type": "object",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "status",
+                        "queryUuid",
+                        "terminalNodeId",
+                        "snapshot",
+                        "vizConfig",
+                        "title",
+                        "description",
+                        "artifactVersionUuid",
                       ],
-                      "type": "string",
+                      "type": "object",
                     },
-                  },
-                  "required": [
-                    "status",
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "status": {
+                          "enum": [
+                            "error",
+                            "rejected",
+                            "timeout",
+                          ],
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "status",
+                      ],
+                      "type": "object",
+                    },
                   ],
-                  "type": "object",
                 },
                 {
                   "additionalProperties": false,
@@ -21377,7 +21469,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                   "type": "integer",
                 },
                 "terminalNodeId": {
-                  "description": "Node whose result the artifact shows and whose rows are returned.",
+                  "description": "Node whose rows are returned and which a presentation can show.",
                   "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
                   "type": "string",
                 },
@@ -21417,28 +21509,118 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
             "metadata": {
               "allOf": [
                 {
-                  "additionalProperties": false,
-                  "properties": {
-                    "artifactVersionUuid": {
-                      "type": "string",
-                    },
-                    "queryUuid": {
-                      "type": "string",
-                    },
-                    "status": {
-                      "enum": [
-                        "success",
-                        "error",
-                        "rejected",
-                        "timeout",
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "artifactVersionUuid": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "description": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "queryUuid": {
+                          "type": "string",
+                        },
+                        "snapshot": {
+                          "description": "The full built pipeline, every node self-contained.",
+                          "items": {
+                            "additionalProperties": {},
+                            "properties": {
+                              "sourceType": {
+                                "enum": [
+                                  "semanticLayer",
+                                  "sql",
+                                  "duckdb",
+                                  "external",
+                                  "python",
+                                ],
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "sourceType",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "status": {
+                          "const": "success",
+                          "type": "string",
+                        },
+                        "terminalNodeId": {
+                          "description": "The node a presentation shows.",
+                          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
+                          "type": "string",
+                        },
+                        "title": {
+                          "type": "string",
+                        },
+                        "vizConfig": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": {},
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "type",
+                              ],
+                              "type": "object",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "status",
+                        "queryUuid",
+                        "terminalNodeId",
+                        "snapshot",
+                        "vizConfig",
+                        "title",
+                        "description",
+                        "artifactVersionUuid",
                       ],
-                      "type": "string",
+                      "type": "object",
                     },
-                  },
-                  "required": [
-                    "status",
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "status": {
+                          "enum": [
+                            "error",
+                            "rejected",
+                            "timeout",
+                          ],
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "status",
+                      ],
+                      "type": "object",
+                    },
                   ],
-                  "type": "object",
                 },
                 {
                   "additionalProperties": false,

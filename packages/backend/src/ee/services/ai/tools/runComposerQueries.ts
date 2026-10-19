@@ -14,6 +14,7 @@ import {
     type SourceQuery,
     type ToolComposerQueriesArgs,
     type ToolComposerQueriesStructuredContent,
+    type ToolComposerQueriesSuccessMetadata,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
@@ -99,16 +100,10 @@ const COMPOSER_SQL_APPROVAL_COPY: SqlApprovalCopy = {
         'A previous SQL approval timed out in this response. Do not call runComposerQueries again in this response; tell the user the SQL was not approved and ask them to retry when ready.',
 };
 
-type ComposerQueriesSuccessMetadata = {
-    status: 'success';
-    queryUuid: string;
-    artifactVersionUuid: string;
-};
-
 type ComposerQueriesOutput =
     | ExecuteStructuredToolResult<
           ToolComposerQueriesStructuredContent,
-          ComposerQueriesSuccessMetadata
+          ToolComposerQueriesSuccessMetadata
       >
     | ExecuteToolErrorResult<{ status: 'error' | 'rejected' | 'timeout' }>;
 
@@ -421,30 +416,40 @@ export const getRunComposerQueries = ({
                               }),
                           );
                 }
-                const artifact = await createOrUpdateArtifact({
-                    threadUuid: prompt.threadUuid,
-                    promptUuid: prompt.promptUuid,
-                    artifactType: 'chart',
-                    title: title ?? 'Composer query results',
-                    ...(description ? { description } : {}),
-                    vizConfig: {
-                        source: 'composer',
-                        schemaVersion: 1,
-                        queries,
-                        terminalNodeId: resolvedTerminalNodeId,
-                        vizConfig,
-                    } satisfies AiComposerChartArtifactConfig,
-                });
+                const artifactTitle = title ?? 'Composer query results';
+                // Web saves an artifact version only when the answer presents
+                // the terminal node; Slack tables still need one per call.
+                const slackArtifact = isSlack
+                    ? await createOrUpdateArtifact({
+                          threadUuid: prompt.threadUuid,
+                          promptUuid: prompt.promptUuid,
+                          artifactType: 'chart',
+                          title: artifactTitle,
+                          ...(description ? { description } : {}),
+                          vizConfig: {
+                              source: 'composer',
+                              schemaVersion: 1,
+                              queries,
+                              terminalNodeId: resolvedTerminalNodeId,
+                              vizConfig,
+                          } satisfies AiComposerChartArtifactConfig,
+                      })
+                    : null;
                 if (isSlack && enableDataAccess) {
                     agentContext.registerSlackTableResults(terminal.queryUuid, {
                         rows: terminal.rows,
                         fields: {},
                     });
                 }
-                const metadata: ComposerQueriesSuccessMetadata = {
+                const metadata: ToolComposerQueriesSuccessMetadata = {
                     status: 'success',
                     queryUuid: terminal.queryUuid,
-                    artifactVersionUuid: artifact.versionUuid,
+                    terminalNodeId: resolvedTerminalNodeId,
+                    snapshot: queries,
+                    vizConfig,
+                    title: artifactTitle,
+                    description: description ?? null,
+                    artifactVersionUuid: slackArtifact?.versionUuid ?? null,
                 };
 
                 const nodes = queries.map((node) => ({
@@ -483,11 +488,9 @@ export const getRunComposerQueries = ({
                     `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows.`,
                     `Nodes in this pipeline (a later call can read any of them by node id without resubmitting it):\n${nodeSummary}`,
                     `Terminal columns: ${columnSummary}.`,
-                    ...(isSlack
-                        ? [
-                              `This execution's queryUuid is ${terminal.queryUuid}; use exactly this value to reference it.`,
-                          ]
-                        : []),
+                    isSlack
+                        ? `This execution's queryUuid is ${terminal.queryUuid}; use exactly this value to reference it.`
+                        : `Not shown to the user yet. To show this result, write <show node="${resolvedTerminalNodeId}"/> in your final answer.`,
                     ...(review && terminal.rowCount !== 0 ? [review] : []),
                     ...(emptyReview !== null ? [emptyReview] : []),
                 ].join('\n');
