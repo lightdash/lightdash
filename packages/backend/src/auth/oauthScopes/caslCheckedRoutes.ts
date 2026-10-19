@@ -8,7 +8,6 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'AiAgentAdminController.addReviewItemComment',
     'AiAgentAdminController.backfillReviewJiraIssues',
     'AiAgentAdminController.backfillReviewLinearIssues',
-    'AiAgentAdminController.captureReviewReplayInputs',
     'AiAgentAdminController.createReviewItem',
     'AiAgentAdminController.createReviewItemWriteback',
     'AiAgentAdminController.getEmbedToken',
