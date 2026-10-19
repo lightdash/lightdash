@@ -1,3 +1,11 @@
+## [2.610.1](https://github.com/lightdash/lightdash/compare/2.610.0...2.610.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* **mcp:** draw grouped render_chart series from a warehouse pivot ([#31160](https://github.com/lightdash/lightdash/issues/31160)) ([695cf83](https://github.com/lightdash/lightdash/commit/695cf83a94644a9f41e4f36f3f2303342326d1df))
+* **mcp:** show category axis labels in the render_chart view ([#31172](https://github.com/lightdash/lightdash/issues/31172)) ([ffd2284](https://github.com/lightdash/lightdash/commit/ffd22842d2532abcd228ed08d4e01b30a9b70463))
+
 # [2.610.0](https://github.com/lightdash/lightdash/compare/2.609.0...2.610.0) (2026-10-19)
 
 
