@@ -195,7 +195,10 @@ export class UsageEventsCompactor extends S3BaseClient {
         this.usageDimensionsModel = args.usageDimensionsModel;
     }
 
-    async run(now: Date = new Date()): Promise<
+    async run(
+        now: Date = new Date(),
+        organizationUuid?: string,
+    ): Promise<
         CompactionRunSummary & {
             dimensions: DimensionRefreshSummary;
             users: UserActivitySummary;
@@ -211,15 +214,25 @@ export class UsageEventsCompactor extends S3BaseClient {
                         organization_id: number;
                         organization_uuid: string;
                     }[] = [];
-                    for await (const organization of this.usageDimensionsModel.getOrganizations()) {
-                        const { enabled } = await this.featureFlagModel.get({
-                            featureFlagId: FeatureFlags.AnalyticsProject,
-                            user: {
-                                organizationUuid:
-                                    organization.organization_uuid,
-                            },
-                        });
-                        if (enabled) organizations.push(organization);
+                    for await (const organization of this.usageDimensionsModel.getOrganizations(
+                        organizationUuid,
+                    )) {
+                        if (
+                            !organizationUuid ||
+                            organization.organization_uuid === organizationUuid
+                        ) {
+                            const { enabled } = await this.featureFlagModel.get(
+                                {
+                                    featureFlagId:
+                                        FeatureFlags.AnalyticsProject,
+                                    user: {
+                                        organizationUuid:
+                                            organization.organization_uuid,
+                                    },
+                                },
+                            );
+                            if (enabled) organizations.push(organization);
+                        }
                     }
                     const orgIds = organizations.map(
                         (organization) => organization.organization_uuid,
