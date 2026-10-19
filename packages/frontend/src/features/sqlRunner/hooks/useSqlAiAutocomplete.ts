@@ -27,6 +27,7 @@ const AI_GENERIC_ERROR =
 const PREVIEW_DEBOUNCE_MS = 800;
 const PREVIEW_MIN_LENGTH = 5;
 const PREVIEW_MAX_LINES = 12;
+const PROVENANCE_VISIBLE_MS = 5000;
 const PROMPT_CONTEXT_KEY = 'lightdashSqlAiPromptActive';
 const HINT_WIDGET_ID = 'lightdash.sqlAi.inlineHint';
 const TAB_CONTEXT = `${PROMPT_CONTEXT_KEY} && !suggestWidgetVisible && !editorHasSelection && !inSnippetMode && !editorTabMovesFocus`;
@@ -227,6 +228,16 @@ export const useSqlAiAutocomplete = ({
         ];
         return () => subscriptions.forEach((s) => s.dispose());
     }, [codeEditor, enabled]);
+
+    // Show provenance briefly after the query lands
+    useEffect(() => {
+        if (!provenance) return;
+        const timer = setTimeout(
+            () => setProvenance(null),
+            PROVENANCE_VISIBLE_MS,
+        );
+        return () => clearTimeout(timer);
+    }, [provenance]);
 
     // Hide provenance as soon as the generated query is edited
     useEffect(() => {
