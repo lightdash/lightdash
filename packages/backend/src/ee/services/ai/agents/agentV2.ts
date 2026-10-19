@@ -2030,9 +2030,14 @@ export const getAgentTools = (
               updateProgress: dependencies.updateProgress,
               runComposerQueries: queryDependencies.runComposerQueries,
               getPrompt: dependencies.getPrompt,
+              updateSlackMessage: dependencies.updateSlackMessage,
+              siteUrl: args.siteUrl,
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
+              isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+              listSqlApprovalDecisions: dependencies.listSqlApprovalDecisions,
               trackSqlApprovalTimeout,
+              storeToolResults: dependencies.storeToolResults,
               createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
               listThreadComposerPipelines:
                   dependencies.listThreadComposerPipelines,
@@ -2042,6 +2047,7 @@ export const getAgentTools = (
               enablePythonNodes: args.enableComposerPythonNodes,
               autoApproveSql: args.autoApproveSql,
               autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
+              useSlackStreamCard: args.useSlackStreamCard,
           })
         : null;
 
