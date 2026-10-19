@@ -485,7 +485,7 @@ export const getRunComposerQueries = ({
                     `Terminal columns: ${columnSummary}.`,
                     isSlack
                         ? `This execution's queryUuid is ${terminal.queryUuid}; use exactly this value to reference it.`
-                        : `Not shown to the user yet. To show this result, write <show node="${resolvedTerminalNodeId}"/> in your final answer.`,
+                        : `Not presented to the user yet. To present it, write <show node="${resolvedTerminalNodeId}"/> in your final answer.`,
                     ...(review && terminal.rowCount !== 0 ? [review] : []),
                     ...(emptyReview !== null ? [emptyReview] : []),
                 ].join('\n');

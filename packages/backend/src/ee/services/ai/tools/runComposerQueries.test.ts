@@ -380,7 +380,7 @@ describe('getRunComposerQueries', () => {
         ]);
     });
 
-    it('runs the pipeline and returns the terminal snapshot without showing it', async () => {
+    it('runs the pipeline and returns the terminal snapshot without presenting it', async () => {
         const { tool, dependencies, artifacts } = makeTool({
             autoApproveSql: true,
         });
@@ -422,7 +422,7 @@ describe('getRunComposerQueries', () => {
             artifactVersionUuid: null,
         });
         expect(output.result).toContain(
-            'Not shown to the user yet. To show this result, write <show node="joined"/> in your final answer.',
+            'Not presented to the user yet. To present it, write <show node="joined"/> in your final answer.',
         );
         expect(output.result).toContain(
             [
@@ -1111,7 +1111,7 @@ describe('composer artifact with reused nodes', () => {
         ]);
     });
 
-    it('shows a reused node when it is named as the terminal node', async () => {
+    it('can present a reused node named as the terminal node', async () => {
         const { stored } = await runReuse({
             queries: [readerNode({ o: 'enriched' })],
             threadNodes: enrichedPipeline,
