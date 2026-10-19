@@ -1,3 +1,15 @@
+# [2.609.0](https://github.com/lightdash/lightdash/compare/2.608.0...2.609.0) (2026-10-19)
+
+
+### Bug Fixes
+
+* **data-apps:** rejected upload releases its build slot ([#31154](https://github.com/lightdash/lightdash/issues/31154)) ([2511983](https://github.com/lightdash/lightdash/commit/25119836f7e7c145a11d26de1d22b937228d0494))
+
+
+### Features
+
+* **skills:** add fortnightly Lightdash release reviews ([#31168](https://github.com/lightdash/lightdash/issues/31168)) ([b0dff2b](https://github.com/lightdash/lightdash/commit/b0dff2b8721582b025719e47d1fbe441f752e4e0))
+
 # [2.608.0](https://github.com/lightdash/lightdash/compare/2.607.0...2.608.0) (2026-10-19)
 
 
