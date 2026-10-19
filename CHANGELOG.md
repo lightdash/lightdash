@@ -1,3 +1,10 @@
+# [2.614.0](https://github.com/lightdash/lightdash/compare/2.613.0...2.614.0) (2026-10-19)
+
+
+### Features
+
+* **merge-queries:** merge more than two sources ([#31136](https://github.com/lightdash/lightdash/issues/31136)) ([27c6829](https://github.com/lightdash/lightdash/commit/27c68294404bc2981e1d8376a50ee341b9b57017))
+
 # [2.613.0](https://github.com/lightdash/lightdash/compare/2.612.0...2.613.0) (2026-10-19)
 
 
