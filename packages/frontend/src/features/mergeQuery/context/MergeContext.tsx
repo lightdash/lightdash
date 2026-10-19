@@ -18,7 +18,7 @@ import {
 import { extractColumnRefs, parse } from '@lightdash/formula';
 import {
     useCallback,
-    useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
     useState,
@@ -424,7 +424,8 @@ export const MergeProvider: FC<
 
     // Mirror the relationship into the URL. Replace rather than push, so
     // building a merge does not fill the back button with every keystroke.
-    useEffect(() => {
+    // A layout effect so this lands before a child's URL write in the same commit.
+    useLayoutEffect(() => {
         // The URL carries a merge so a *modified* one can be shared. A saved
         // chart in view mode is not being modified; its merge lives in the
         // chart, and echoing it into the URL says otherwise.
