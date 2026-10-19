@@ -112,6 +112,7 @@ export const TableFieldsList: FC<Props> = ({
                 copiedLabel="Copied to clipboard"
                 tooltipPosition="left"
                 ml="auto"
+                className={styles.headerCopy}
             />
         </Group>
         <Box px="xs" pb="xs">

@@ -41,7 +41,7 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
     }, [isLoading, start, clear]);
 
     return (
-        <Box pos="relative" flex={1} mih={0}>
+        <Box pos="relative" flex={1} mih={0} className={styles.root}>
             <LoadingOverlay visible={isLoading} />
 
             {error && (
