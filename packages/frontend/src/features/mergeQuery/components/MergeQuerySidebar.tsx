@@ -19,6 +19,7 @@ import {
 } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import ExploreTree from '../../../components/Explorer/ExploreTree';
+import { type FieldFilterTarget } from '../../../components/Explorer/ExploreTree/FieldFilterTargetContext';
 import SelectedFieldsSection, {
     type SelectedField,
 } from '../../../components/Explorer/ExploreTree/SelectedFieldsSection';
@@ -138,6 +139,14 @@ export const MergeQuerySidebar: FC<{
                 ]),
             ),
         [merge.additionalSources, primaryFilters],
+    );
+    const primaryFilterTarget = useMemo<FieldFilterTarget>(
+        () => ({
+            filteredFieldIds:
+                filteredFieldIds[PRIMARY_SOURCE_ID] ?? new Set<string>(),
+            addFilter: (field) => addSourceFilter(PRIMARY_SOURCE_ID, field),
+        }),
+        [addSourceFilter, filteredFieldIds],
     );
     const selectedFields = useMemo<SelectedField[]>(() => {
         const selectedPrimary = [
@@ -313,6 +322,7 @@ export const MergeQuerySidebar: FC<{
                         <ItemDetailProvider>
                             <ExploreTree
                                 explore={primaryExplore}
+                                filterTarget={primaryFilterTarget}
                                 onSelectedFieldChange={onPrimaryFieldChange}
                                 hideSelectedFields
                             />
