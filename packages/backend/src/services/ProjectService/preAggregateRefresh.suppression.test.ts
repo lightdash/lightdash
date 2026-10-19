@@ -35,6 +35,7 @@ test.each([
                         preAggregateDefinitionUuid: 'definition',
                         materializationMetricQuery: {},
                         refreshCron: '',
+                        materializeOnCompile: true,
                     },
                 ],
             },

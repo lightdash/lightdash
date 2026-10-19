@@ -374,6 +374,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'PreAggregateController.getDashboardPreAggregateAudit',
     'PreAggregateController.getPreAggregateMaterializations',
     'PreAggregateController.getPreAggregateStats',
+    'PreAggregateController.setPreAggregateCompileTrigger',
     'ProjectAnnouncementsController.create',
     'ProjectAnnouncementsController.delete',
     'ProjectAnnouncementsController.list',

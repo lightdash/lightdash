@@ -1326,6 +1326,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'PreAggregateController.runDashboardPreAggregateAudit': [
         AgentCapability.Query,
     ],
+    'PreAggregateController.setPreAggregateCompileTrigger': [
+        AgentCapability.Query,
+    ],
     'ProjectAnnouncementsController.create': [AgentCapability.ContentWrite],
     'ProjectAnnouncementsController.delete': [AgentCapability.Delete],
     'ProjectAnnouncementsController.list': [AgentCapability.ReadDiscover],
