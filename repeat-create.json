@@ -1,0 +1,24 @@
+[
+  {
+    "seconds": 9.079,
+    "response": {
+      "status": "ok",
+      "results": {
+        "projectUuid": "26d74061-4c4c-468f-8f9e-2caaea9d9893",
+        "url": "/projects/lightdash-analytics/tables",
+        "created": false
+      }
+    }
+  },
+  {
+    "seconds": 4.628,
+    "response": {
+      "status": "ok",
+      "results": {
+        "projectUuid": "26d74061-4c4c-468f-8f9e-2caaea9d9893",
+        "url": "/projects/lightdash-analytics/tables",
+        "created": false
+      }
+    }
+  }
+]

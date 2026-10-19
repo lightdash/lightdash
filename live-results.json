@@ -1,0 +1,27 @@
+{
+  "expected": [
+    {
+      "label": "eligible",
+      "retained": false
+    },
+    {
+      "label": "open",
+      "retained": true
+    },
+    {
+      "label": "old",
+      "retained": true
+    },
+    {
+      "label": "other",
+      "retained": true
+    }
+  ],
+  "counts": {
+    "queryEvents": 7,
+    "userActivity": 7
+  },
+  "otherOrganizationOutputs": 0,
+  "targetOutputs": 9,
+  "dimensionSnapshots": 6
+}
