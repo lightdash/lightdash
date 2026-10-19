@@ -43,8 +43,8 @@ const MergeCalculationFormatForm: FC<{
 }> = ({ form }) => (
     <FormatForm
         format={form.values}
-        formatInputProps={(path) => form.getInputProps(path)}
-        setFormatFieldValue={(path, value) => form.setFieldValue(path, value)}
+        formatInputProps={form.getInputProps}
+        setFormatFieldValue={form.setFieldValue}
         itemType={MetricType.NUMBER}
     />
 );
