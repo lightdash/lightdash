@@ -9934,14 +9934,6 @@ export class AiAgentService extends BaseService {
         }
 
         if (isAiMergeChartArtifactConfig(artifact.chartConfig)) {
-            const { enabled: mergeQueriesEnabled } =
-                await this.featureFlagService.get({
-                    user,
-                    featureFlagId: FeatureFlags.MergeQueries,
-                });
-            if (!mergeQueriesEnabled) {
-                throw new ForbiddenError('Merge queries are not enabled');
-            }
             const parsed = parsePersistedRunQueryPayload(
                 artifact.chartConfig.config,
             );

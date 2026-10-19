@@ -1,4 +1,4 @@
-import { FeatureFlags, getItemId, MergeJoinType } from '@lightdash/common';
+import { getItemId, MergeJoinType } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -18,7 +18,6 @@ import {
 import { useMemo, useState, type FC, type ReactNode } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { selectTableName, useExplorerSelector } from '../../explorer/store';
 import { EMPTY_MERGE, PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
@@ -118,7 +117,6 @@ const compactSourceList = (labels: string[]): string => {
  * error is not chrome.
  */
 export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
-    const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
     const tableName = useExplorerSelector(selectTableName);
     const mergeContext = useMergeSafe();
     const { handleByName } = useMergeSourceNames();
@@ -176,7 +174,7 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
         [mergeResults],
     );
 
-    if (!mergeContext || !tableName || mergeFlag?.enabled !== true) return null;
+    if (!mergeContext || !tableName) return null;
     if (!isMerging) return null;
     if (configuredSourceSetups.length === 0) return null;
 

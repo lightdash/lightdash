@@ -311,11 +311,6 @@ export enum FeatureFlags {
      */
     AiFilterExpressions = 'ai-filter-expressions',
 
-    /* Merge two or more queries into one warehouse statement from the
-       explorer. Gated because it compiles novel SQL shapes (multi-CTE joins,
-       conditional-aggregation widening) that no other path exercises. */
-    MergeQueries = 'merge-queries',
-
     /**
      * Enable the async compose SQL endpoint
      * (POST /api/v2/projects/{projectUuid}/query/compose-sql), which runs

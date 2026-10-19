@@ -125,8 +125,9 @@ node (there are none in the saved definition)
   same engine but belongs to the external sources context.
 - The Explorer is the surface. The composed-query API is a separate developer
   surface with its own flag; a merge must not require it.
-- The `merge-queries` flag gates the feature. Composition itself is not
-  flagged: it is the plumbing under merges and external sources both.
+- Merges are not flagged; the Explorer marks the entry point as beta.
+  Composition is not flagged either: it is the plumbing under merges and
+  external sources both.
 
 ## Dashboards
 

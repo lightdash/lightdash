@@ -3,7 +3,7 @@ import {
     FeatureFlags,
     type ApiExploreResults,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
@@ -267,14 +267,13 @@ describe('ExplorePanel query options', () => {
             screen.getByRole('menuitem', { name: 'View source code' }),
         ).toBeInTheDocument();
         expect(
-            screen.queryByRole('menuitem', { name: 'Merge another query' }),
+            screen.queryByRole('menuitem', { name: /Merge another query/ }),
         ).not.toBeInTheDocument();
     });
 
-    it('shows only merge when only its feature is available', async () => {
+    it('offers merge, marked beta, with no feature flag enabled', async () => {
         const user = userEvent.setup();
         const addSource = vi.fn();
-        testState.enabledFlags.add(FeatureFlags.MergeQueries);
         testState.merge = {
             isMerging: false,
             readOnly: false,
@@ -287,9 +286,11 @@ describe('ExplorePanel query options', () => {
             screen.queryByRole('button', { name: 'Merge' }),
         ).not.toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Query options' }));
-        await user.click(
-            screen.getByRole('menuitem', { name: 'Merge another query' }),
-        );
+        const mergeItem = screen.getByRole('menuitem', {
+            name: /Merge another query/,
+        });
+        expect(within(mergeItem).getByText('Beta')).toBeInTheDocument();
+        await user.click(mergeItem);
 
         expect(
             screen.queryByRole('menuitem', { name: 'View source code' }),
@@ -300,7 +301,6 @@ describe('ExplorePanel query options', () => {
     it('shows both actions in one menu when both features are available', async () => {
         const user = userEvent.setup();
         testState.enabledFlags.add(FeatureFlags.EditYamlInUi);
-        testState.enabledFlags.add(FeatureFlags.MergeQueries);
         testState.isGitProject = true;
         testState.merge = {
             isMerging: false,
@@ -316,7 +316,7 @@ describe('ExplorePanel query options', () => {
             screen.getByRole('menuitem', { name: 'View source code' }),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('menuitem', { name: 'Merge another query' }),
+            screen.getByRole('menuitem', { name: /Merge another query/ }),
         ).toBeInTheDocument();
         expect(screen.getAllByRole('menu')).toHaveLength(1);
     });

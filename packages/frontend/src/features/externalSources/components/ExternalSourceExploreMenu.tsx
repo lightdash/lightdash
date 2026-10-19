@@ -18,6 +18,7 @@ import {
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import { BetaBadge } from '../../../components/common/BetaBadge';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useApp from '../../../providers/App/useApp';
 import {
@@ -81,6 +82,7 @@ export const ExternalSourceExploreMenu: FC<Props> = ({
                     {canMergeAnotherQuery && (
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconGitMerge} />}
+                            rightSection={<BetaBadge />}
                             onClick={onAddMergeSource}
                         >
                             <Text fz="xs" fw={500}>
