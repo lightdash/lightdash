@@ -11,8 +11,5 @@ export const getExtraConnectionRequireUserCredentials = (
     if (originalCredentials.type !== source.credentials.type) {
         return source.credentials.requireUserCredentials === true;
     }
-    return source.organizationWarehouseCredentialsUuid !== null &&
-        source.credentials.requireUserCredentials === true
-        ? true
-        : originalCredentials.requireUserCredentials;
+    return originalCredentials.requireUserCredentials;
 };

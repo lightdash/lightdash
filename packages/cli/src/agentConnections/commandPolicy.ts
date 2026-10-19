@@ -85,7 +85,7 @@ export const COMMAND_POLICY: Readonly<Record<string, CommandPolicy>> = {
 };
 
 const refusedModes: Readonly<Record<string, readonly string[]>> = {
-    deploy: ['create', 'source', 'target', 'organizationCredentials'],
+    deploy: ['create', 'source', 'target'],
     download: ['organization', 'skills', 'includeSkills', 'includeAll'],
     upload: [
         'validate',

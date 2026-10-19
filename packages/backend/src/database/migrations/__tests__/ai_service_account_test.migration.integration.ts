@@ -9,7 +9,6 @@ import { buildAccount } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { AiServiceAccountCredentialsModel } from '../../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
-import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { AiServiceAccountService } from '../../../services/AiServiceAccountService/AiServiceAccountService';
@@ -129,11 +128,6 @@ const fixture = async () => {
         warehouseConnectionModel: new WarehouseConnectionModel({
             database,
             encryptionUtil,
-            organizationWarehouseCredentialsModel:
-                new OrganizationWarehouseCredentialsModel({
-                    database,
-                    encryptionUtil,
-                }),
         }),
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: true }),

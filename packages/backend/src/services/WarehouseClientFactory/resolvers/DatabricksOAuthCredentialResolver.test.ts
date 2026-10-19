@@ -99,13 +99,7 @@ const setup = (
                 .mockResolvedValue(current),
             rotateRefreshToken: vi.fn().mockResolvedValue(true),
         },
-        organizationWarehouseCredentialsModel: {
-            getByUuidWithSensitiveData: vi.fn().mockResolvedValue({
-                organizationUuid: 'org',
-                credentials: current,
-            }),
-            rotateRefreshToken: vi.fn().mockResolvedValue(true),
-        },
+
         userWarehouseCredentialsModel: {
             getByUuidWithSecrets: vi
                 .fn()
@@ -233,7 +227,7 @@ describe.each(modes)('Databricks OAuth %s', (mode) => {
 
     test.each([
         'project',
-        'organization',
+
         'user',
         'warehouseConnection',
     ] as const)('rereads and writes the exact %s row', async (kind) => {
@@ -252,16 +246,14 @@ describe.each(modes)('Databricks OAuth %s', (mode) => {
         };
         const models = {
             project: f.deps.projectModel,
-            organization: f.deps.organizationWarehouseCredentialsModel,
+
             user: f.deps.userWarehouseCredentialsModel,
             warehouseConnection: f.deps.warehouseConnectionModel,
         };
         f.deps.projectModel.getOwnWarehouseCredentialsForProject.mockResolvedValue(
             current,
         );
-        f.deps.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData.mockResolvedValue(
-            { organizationUuid: 'org', credentials: current },
-        );
+
         f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets.mockResolvedValue(
             { credentials: current },
         );
@@ -293,9 +285,7 @@ describe.each(modes)('Databricks OAuth %s', (mode) => {
         );
         const read = {
             project: f.deps.projectModel.getOwnWarehouseCredentialsForProject,
-            organization:
-                f.deps.organizationWarehouseCredentialsModel
-                    .getByUuidWithSensitiveData,
+
             user: f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets,
             warehouseConnection:
                 f.deps.warehouseConnectionModel.getOwnCredentials,
@@ -465,7 +455,7 @@ describe.each(modes)('Databricks OAuth %s', (mode) => {
 
     test.each([
         'project',
-        'organization',
+
         'user',
         'warehouseConnection',
     ] as const)(
@@ -491,9 +481,7 @@ describe.each(modes)('Databricks OAuth %s', (mode) => {
             });
             const rotate = {
                 project: f.deps.projectModel.rotateRefreshToken,
-                organization:
-                    f.deps.organizationWarehouseCredentialsModel
-                        .rotateRefreshToken,
+
                 user: f.deps.userWarehouseCredentialsModel.rotateRefreshToken,
                 warehouseConnection:
                     f.deps.warehouseConnectionModel.rotateRefreshToken,
@@ -509,10 +497,7 @@ describe.each(modes)('Databricks OAuth %s', (mode) => {
             expect(
                 f.deps.projectModel.getOwnWarehouseCredentialsForProject,
             ).not.toHaveBeenCalled();
-            expect(
-                f.deps.organizationWarehouseCredentialsModel
-                    .getByUuidWithSensitiveData,
-            ).not.toHaveBeenCalled();
+
             expect(
                 f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets,
             ).not.toHaveBeenCalled();
@@ -638,7 +623,7 @@ describe.each(modes)('Databricks OAuth %s', (mode) => {
         expect(
             f.resolver.cacheKeyIdentity({
                 ...input,
-                owner: { kind: 'organization', uuid: 'row' },
+                owner: { kind: 'warehouseConnection', uuid: 'row' },
             }),
         ).not.toEqual(f.resolver.cacheKeyIdentity(input));
     });

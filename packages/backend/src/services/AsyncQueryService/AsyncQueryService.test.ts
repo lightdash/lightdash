@@ -174,7 +174,6 @@ import type { JobModel } from '../../models/JobModel/JobModel';
 import type { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import type { OrganizationModel } from '../../models/OrganizationModel';
 import type { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
-import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import type { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import type { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -399,7 +398,6 @@ const projectModel = {
     getQueryTimezone: vi.fn(async () => 'UTC'),
     getExploreFromCache: vi.fn(async () => validExplore),
     getProjectWarehouseConfig: vi.fn(async () => ({
-        organizationWarehouseCredentialsUuid: null,
         queryTimezone: null,
     })),
     findExploresFromCache: vi.fn(async () => allExplores),
@@ -675,8 +673,6 @@ const getMockedAsyncQueryService = (
         projectParametersModel: {
             find: vi.fn(async () => []),
         } as unknown as ProjectParametersModel,
-        organizationWarehouseCredentialsModel:
-            {} as OrganizationWarehouseCredentialsModel,
         organizationModel: {} as OrganizationModel,
         pivotTableService: new PivotTableService({
             lightdashConfig,
@@ -11493,7 +11489,6 @@ describe('AsyncQueryService', () => {
                 ...projectModel,
                 ...singleRouteProjectModelMethods,
                 getProjectWarehouseConfig: vi.fn(async () => ({
-                    organizationWarehouseCredentialsUuid: null,
                     queryTimezone: null,
                 })),
                 getWarehouseCredentialsForProject: vi.fn(async (uuid: string) =>
@@ -17045,16 +17040,18 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
                 agentUuid: 'trusted-artifact-agent',
                 agentIdentityEnabled: enabled,
             });
-            const executeQuery = () =>
-                service.executeAsyncMergeQuery({
-                    ...{ agentActor },
+            const executeQuery = () => {
+                const args = {
+                    agentActor,
                     account: sessionAccount,
                     projectUuid,
                     mergeQuery,
                     context: QueryExecutionContext.AI,
                     querySurface: QuerySurface.APP,
-                    mode: { type: 'interactive' },
-                });
+                    mode: { type: 'interactive' as const },
+                };
+                return service.executeAsyncMergeQuery(args);
+            };
             await agentExecutionContext.run(scope, executeQuery);
             expect(service.executeAsyncMetricQuery).toHaveBeenCalledTimes(2);
             for (const [args] of vi.mocked(service.executeAsyncMetricQuery).mock
@@ -19378,15 +19375,11 @@ describe('fresh stored result read boundary', () => {
             ).toHaveBeenCalledTimes(allowed ? 1 : 0);
         },
     );
-    test.each(['project', 'organization'] as const)(
+    test.each(['project'] as const)(
         '%s primary credentials keep producer compatibility across real cache loads and edits',
         async (kind) => {
             const f = setupRead();
             const fixtureProjectUuid = `round8-cache-${kind}`;
-            const organizationCredentialUuid =
-                kind === 'organization'
-                    ? 'round8-organization-credential'
-                    : null;
             const database = knex({ client: MockClient, dialect: 'pg' });
             const tracker = getTracker();
             tracker.reset();
@@ -19417,29 +19410,12 @@ describe('fresh stored result read boundary', () => {
                 project_id: 1,
                 warehouse_credentials_id: 8,
                 encrypted_credentials: Buffer.from(JSON.stringify(stored)),
-                organization_warehouse_credentials_uuid:
-                    organizationCredentialUuid,
                 organization_uuid: projectSummary.organizationUuid,
                 playground_bundle_version: null,
             });
             tracker.on
                 .select(/from "warehouse_credentials"/)
                 .response(() => [row()]);
-            tracker.on
-                .select('organization_warehouse_credentials')
-                .response(() => [
-                    {
-                        organization_warehouse_credentials_uuid:
-                            organizationCredentialUuid,
-                        organization_uuid: projectSummary.organizationUuid,
-                        warehouse_type: WarehouseTypes.POSTGRES,
-                        warehouse_connection: Buffer.from(
-                            JSON.stringify(stored),
-                        ),
-                        name: 'Fixture',
-                        description: null,
-                    },
-                ]);
             tracker.on.select('warehouse_connections').response([]);
             tracker.on.update('projects').response([{ project_id: 1 }]);
             tracker.on
@@ -19449,13 +19425,6 @@ describe('fresh stored result read boundary', () => {
                     if (encrypted && kind === 'project')
                         stored = decode(encrypted);
                     return [];
-                });
-            tracker.on
-                .update('organization_warehouse_credentials')
-                .response(({ bindings }) => {
-                    const encrypted = bindings.find(Buffer.isBuffer);
-                    if (encrypted) stored = decode(encrypted);
-                    return 1;
                 });
             const model = new ProjectModel({
                 database,
@@ -19481,8 +19450,7 @@ describe('fresh stored result read boundary', () => {
             const config = vi
                 .spyOn(f.service.projectModel, 'getProjectWarehouseConfig')
                 .mockResolvedValue({
-                    organizationWarehouseCredentialsUuid:
-                        organizationCredentialUuid,
+                    organizationWarehouseCredentialsUuid: null,
                     queryTimezone: null,
                 });
             vi.mocked(
@@ -19557,7 +19525,7 @@ describe('fresh stored result read boundary', () => {
                     tracker.history.select.filter(({ sql }) =>
                         sql.includes('"organization_warehouse_credentials"'),
                     ),
-                ).toHaveLength(kind === 'organization' ? 1 : 0);
+                ).toHaveLength(0);
                 expect(f.page).toHaveBeenCalledTimes(2);
                 expect(
                     f.service.resultsStorageClient.getDownloadStream,
@@ -19607,38 +19575,17 @@ describe('fresh stored result read boundary', () => {
                     ...stored,
                     password: 'replacement',
                 } as CreateWarehouseCredentials;
-                let changed: Awaited<ReturnType<typeof resolve>>;
-                if (organizationCredentialUuid) {
-                    const organizationModel =
-                        new OrganizationWarehouseCredentialsModel({
-                            database,
-                            encryptionUtil: encryption,
-                        });
-                    await organizationModel.update(organizationCredentialUuid, {
-                        credentials: edited,
-                    });
-                    expect(producer(await resolve())).toEqual(producer(cold));
-                    const time = vi
-                        .spyOn(Date, 'now')
-                        .mockReturnValue(Date.now() + 31_000);
-                    try {
-                        changed = await resolve();
-                    } finally {
-                        time.mockRestore();
-                    }
-                } else {
-                    await model.update(
-                        fixtureProjectUuid,
-                        {
-                            name: 'Fixture',
-                            dbtVersion: projectWithSensitiveFields.dbtVersion,
-                            dbtConnection: { type: DbtProjectType.NONE },
-                            warehouseConnection: edited,
-                        },
-                        null,
-                    );
-                    changed = await resolve();
-                }
+                await model.update(
+                    fixtureProjectUuid,
+                    {
+                        name: 'Fixture',
+                        dbtVersion: projectWithSensitiveFields.dbtVersion,
+                        dbtConnection: { type: DbtProjectType.NONE },
+                        warehouseConnection: edited,
+                    },
+                    null,
+                );
+                const changed = await resolve();
                 expect(producer(await resolve())).toEqual(producer(changed));
                 expect(
                     getWarehouseCredentialVersions(
@@ -20411,7 +20358,6 @@ describe('fresh stored result read boundary', () => {
                 projectUuid,
                 organizationUuid: projectSummary.organizationUuid,
                 credentials: preview,
-                organizationWarehouseCredentialsUuid: null,
                 warehouseConnectionUuid: null,
                 connectionRoute: null,
             },
@@ -24135,7 +24081,6 @@ describe('fresh execution producer to result reader', () => {
                 warehouse_type: WarehouseTypes.POSTGRES,
                 encrypted_credentials: Buffer.from(JSON.stringify(stored)),
                 credential_subject_user_uuid: null,
-                organization_warehouse_credentials_uuid: null,
                 playground_bundle_version: null,
             });
             tracker.on.select('warehouse_credentials').response(() => [row()]);
@@ -25377,7 +25322,6 @@ describe('fresh execution producer to result reader', () => {
             projectUuid,
             organizationUuid: projectSummary.organizationUuid,
             warehouseConnectionUuid: null,
-            organizationWarehouseCredentialsUuid: null,
             connectionRoute: null,
             credentials: f.client.credentials,
         });

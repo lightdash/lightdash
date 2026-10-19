@@ -32,7 +32,6 @@ import { trackSafely } from '../../analytics/trackSafely';
 import { createAuditLogEvent } from '../../logging/auditLog';
 import { createActorFromAccount } from '../../logging/caslAuditWrapper';
 import { logAuditEvent } from '../../logging/winston';
-import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import {
     type WarehouseConnectionCredentialSource,
@@ -42,6 +41,7 @@ import {
     type WarehouseConnectionSwitchModel,
     type WarehouseConnectionSwitchProject,
 } from '../../models/WarehouseConnectionSwitchModel/WarehouseConnectionSwitchModel';
+import { stripSensitiveWarehouseCredentials } from '../../utils/stripSensitiveWarehouseCredentials';
 import { BaseService } from '../BaseService';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
@@ -62,8 +62,6 @@ import { type WarehouseCredentialPolicy } from '../WarehouseConnectionService/Wa
 
 export const DEFAULT_PROJECT_ONLY_REASON =
     'Only a default project can have multiple connections.';
-export const ORIGINAL_ORGANIZATION_CREDENTIALS_REASON =
-    'A project whose warehouse uses organisation credentials cannot have multiple connections yet.';
 export const EXTRA_CONNECTION_WAREHOUSE_TYPE_MISMATCH_MESSAGE =
     'An extra connection must use the same warehouse type as the original connection.';
 const IDEMPOTENCY_KEY_USED_MESSAGE =
@@ -162,13 +160,12 @@ export class WarehouseConnectionSwitchService extends BaseService {
         projectUuid: string,
         operation: 'switch_preview' | 'switch',
         error: unknown,
-        credentialSource: 'project' | 'organization' | null = null,
+        credentialSource: 'project' | null = null,
     ): Promise<boolean> {
         const message = error instanceof Error ? error.message : null;
         let reason:
             | 'already_multi'
             | 'unsupported_project'
-            | 'organization_credentials'
             | 'license_required'
             | 'feature_disabled'
             | 'warehouse_type_mismatch'
@@ -178,8 +175,6 @@ export class WarehouseConnectionSwitchService extends BaseService {
             reason = 'already_multi';
         } else if (message === DEFAULT_PROJECT_ONLY_REASON) {
             reason = 'unsupported_project';
-        } else if (message === ORIGINAL_ORGANIZATION_CREDENTIALS_REASON) {
-            reason = 'organization_credentials';
         } else if (message === ENTITLEMENT_REASON) {
             reason = 'license_required';
         } else if (message === ROLLOUT_REASON) {
@@ -239,7 +234,6 @@ export class WarehouseConnectionSwitchService extends BaseService {
                 this.trackedTestErrors.has(error)) ||
             message === WAREHOUSE_CONNECTION_ALREADY_MULTI_MESSAGE ||
             message === DEFAULT_PROJECT_ONLY_REASON ||
-            message === ORIGINAL_ORGANIZATION_CREDENTIALS_REASON ||
             message === ENTITLEMENT_REASON ||
             message === ROLLOUT_REASON ||
             message === WAREHOUSE_TYPE_REASON ||
@@ -347,9 +341,7 @@ export class WarehouseConnectionSwitchService extends BaseService {
             project,
         );
         if (gateReason !== null) return gateReason;
-        return project.originalOrganizationWarehouseCredentialsUuid === null
-            ? null
-            : ORIGINAL_ORGANIZATION_CREDENTIALS_REASON;
+        return null;
     }
 
     private async assertCanSwitch(
@@ -376,29 +368,18 @@ export class WarehouseConnectionSwitchService extends BaseService {
     private static toSource(
         request: ApiCreateWarehouseConnectionRequest,
     ): WarehouseConnectionCredentialSource {
-        if (
-            (request.warehouseConnection === undefined) ===
-            (request.organizationWarehouseCredentialsUuid === undefined)
-        ) {
+        if (request.organizationWarehouseCredentialsUuid != null)
             throw new ParameterError(
-                'Provide either warehouse credentials or an organization warehouse credential.',
+                'Organization warehouse credentials are no longer supported.',
             );
-        }
-        return request.organizationWarehouseCredentialsUuid !== undefined
-            ? {
-                  kind: 'organization',
-                  organizationWarehouseCredentialsUuid:
-                      request.organizationWarehouseCredentialsUuid,
-              }
-            : { kind: 'project', credentials: request.warehouseConnection! };
+        if (!request.warehouseConnection)
+            throw new ParameterError('Provide warehouse credentials.');
+        return { kind: 'project', credentials: request.warehouseConnection };
     }
 
     private static credentialSourceFromRequest(
         request: ApiCreateWarehouseConnectionRequest,
-    ): 'project' | 'organization' | null {
-        if (request.organizationWarehouseCredentialsUuid !== undefined) {
-            return 'organization';
-        }
+    ): 'project' | null {
         if (request.warehouseConnection !== undefined) {
             return 'project';
         }
@@ -420,10 +401,6 @@ export class WarehouseConnectionSwitchService extends BaseService {
             summary,
             {
                 warehouseConnection: credentials ?? undefined,
-                organizationWarehouseCredentialsUuid:
-                    source.kind === 'organization'
-                        ? source.organizationWarehouseCredentialsUuid
-                        : undefined,
             },
         );
     }
@@ -434,7 +411,7 @@ export class WarehouseConnectionSwitchService extends BaseService {
         projectUuid: string,
         credentials: CreateWarehouseCredentials,
         operation: 'switch_preview' | 'switch',
-        credentialSource: 'project' | 'organization',
+        credentialSource: 'project',
     ): Promise<CreateWarehouseCredentials> {
         let result: WarehouseConnectionTestResults;
         let resolvedCredentials: CreateWarehouseCredentials;
@@ -533,18 +510,11 @@ export class WarehouseConnectionSwitchService extends BaseService {
             connection: {
                 name: connectionName,
                 warehouseType: credentials.type,
-                source:
-                    source.kind === 'organization'
-                        ? {
-                              organizationWarehouseCredentialsUuid:
-                                  source.organizationWarehouseCredentialsUuid,
-                          }
-                        : {
-                              credentials:
-                                  OrganizationWarehouseCredentialsModel.stripSensitiveCredentials(
-                                      source.credentials,
-                                  ),
-                          },
+                source: {
+                    credentials: stripSensitiveWarehouseCredentials(
+                        source.credentials,
+                    ),
+                },
                 database: databaseOf(credentials),
                 listAllDatabases: request.connection.listAllDatabases ?? false,
                 additionalDatabases:
@@ -578,7 +548,6 @@ export class WarehouseConnectionSwitchService extends BaseService {
             });
         if (
             !mixedTypesEnabled &&
-            source.kind === 'project' &&
             source.credentials.type === WarehouseTypes.SNOWFLAKE &&
             source.credentials.authenticationType ===
                 SnowflakeAuthenticationType.EXTERNAL_BROWSER
@@ -589,7 +558,7 @@ export class WarehouseConnectionSwitchService extends BaseService {
             account,
             summary,
             source,
-            source.kind === 'project' ? source.credentials : null,
+            source.credentials,
             mixedTypesEnabled,
         );
         const originalName = WarehouseConnectionSwitchService.parseName(
@@ -603,13 +572,7 @@ export class WarehouseConnectionSwitchService extends BaseService {
         }
         const project = await this.switchModel.getProject(projectUuid);
         await this.assertCanSwitch(account, project);
-        const credentials =
-            source.kind === 'project'
-                ? source.credentials
-                : await this.connectionModel.loadOrganizationCredentials(
-                      project.organizationUuid,
-                      source.organizationWarehouseCredentialsUuid,
-                  );
+        const { credentials } = source;
         this.assertCanWrite(
             account,
             summary,
@@ -637,16 +600,13 @@ export class WarehouseConnectionSwitchService extends BaseService {
             request.connection,
             mixedTypesEnabled,
         );
-        const effectiveCredentials: CreateWarehouseCredentials =
-            source.kind === 'project'
-                ? {
-                      ...credentials,
-                      requireUserCredentials:
-                          credentials.type === original.type
-                              ? original.requireUserCredentials
-                              : (credentials.requireUserCredentials ?? false),
-                  }
-                : credentials;
+        const effectiveCredentials: CreateWarehouseCredentials = {
+            ...credentials,
+            requireUserCredentials:
+                credentials.type === original.type
+                    ? original.requireUserCredentials
+                    : (credentials.requireUserCredentials ?? false),
+        };
         const needsTest = shouldTestExtraCredentials(
             effectiveCredentials,
             project.originalWarehouseType,
@@ -662,10 +622,10 @@ export class WarehouseConnectionSwitchService extends BaseService {
                   source.kind,
               )
             : effectiveCredentials;
-        const persistedSource: WarehouseConnectionCredentialSource =
-            source.kind === 'project'
-                ? { kind: 'project', credentials: resolvedCredentials }
-                : source;
+        const persistedSource: WarehouseConnectionCredentialSource = {
+            kind: 'project',
+            credentials: resolvedCredentials,
+        };
         const [staysOnOriginal, usersWithPersonalCredentials] =
             await Promise.all([
                 this.switchModel.getContentCounts(project),
@@ -700,7 +660,7 @@ export class WarehouseConnectionSwitchService extends BaseService {
                     name: connectionName,
                     warehouseType: credentials.type,
                     database: databaseOf(effectiveCredentials),
-                    usesOrganizationCredentials: source.kind === 'organization',
+                    usesOrganizationCredentials: false,
                 },
                 staysOnOriginal,
                 personalCredentials: {

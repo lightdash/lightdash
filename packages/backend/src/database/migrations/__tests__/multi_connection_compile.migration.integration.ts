@@ -39,7 +39,6 @@ import { DbtSourceRefCatalogModel } from '../../../models/DbtSourceRefCatalogMod
 import { DeploySessionModel } from '../../../models/DeploySessionModel';
 import { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { JobModel } from '../../../models/JobModel/JobModel';
-import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -463,15 +462,9 @@ describe('Multi-connection compile on the real schema', () => {
             database,
             encryptionUtil,
         });
-        const organizationWarehouseCredentialsModel =
-            new OrganizationWarehouseCredentialsModel({
-                database,
-                encryptionUtil,
-            });
         warehouseConnectionModel = new WarehouseConnectionModel({
             database,
             encryptionUtil,
-            organizationWarehouseCredentialsModel,
         });
         compileCredentials = new ProjectService({
             lightdashConfig: lightdashConfigMock,
@@ -483,7 +476,6 @@ describe('Multi-connection compile on the real schema', () => {
                 database,
                 encryptionUtil,
             }),
-            organizationWarehouseCredentialsModel,
             warehouseConnectionModel,
         } as never) as unknown as CompileCredentials;
         warehouseConnectionCompileModel = new WarehouseConnectionCompileModel({
@@ -877,11 +869,6 @@ describe('Multi-connection compile on the real schema', () => {
                 warehouseConnectionCompileModel,
                 userWarehouseCredentialsModel:
                     new UserWarehouseCredentialsModel({
-                        database,
-                        encryptionUtil,
-                    }),
-                organizationWarehouseCredentialsModel:
-                    new OrganizationWarehouseCredentialsModel({
                         database,
                         encryptionUtil,
                     }),

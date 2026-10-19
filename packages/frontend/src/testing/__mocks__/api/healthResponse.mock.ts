@@ -125,7 +125,6 @@ export default function mockHealthResponse(
         },
         hasBrandfetch: false,
         isServiceAccountEnabled: false,
-        isOrganizationWarehouseCredentialsEnabled: false,
         isAthenaWarehouseIamRoleAuthEnabled: false,
         isSaveCredentialsFormEnabled: false,
         isCustomRolesEnabled: false,

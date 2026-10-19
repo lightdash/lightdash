@@ -1886,9 +1886,6 @@ export type LightdashConfig = {
     serviceAccount: {
         enabled: boolean;
     };
-    organizationWarehouseCredentials: {
-        enabled: boolean;
-    };
     athenaWarehouseIamRoleAuth: {
         enabled: boolean;
     };
@@ -3013,13 +3010,6 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     // the unified allowlist for the flag system.
     ['SERVICE_ACCOUNT_ENABLED', 'service-accounts'],
     ['SCIM_ENABLED', 'scim-token-management'],
-    // ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED is also read by HealthService
-    // (exposed via the health endpoint). Keep the config field, but translate
-    // the env var to the unified allowlist for the flag system.
-    [
-        'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',
-        'organization-warehouse-credentials',
-    ],
     ['METRIC_DASHBOARD_FILTERS_ENABLED', 'metric-dashboard-filters'],
     // Self-hosted switch for data apps; forces the flag on.
     ['APPS_RUNTIME_ENABLED', 'enable-data-apps'],
@@ -4076,11 +4066,6 @@ export const parseConfig = (): LightdashConfig => {
         },
         serviceAccount: {
             enabled: process.env.SERVICE_ACCOUNT_ENABLED === 'true',
-        },
-        organizationWarehouseCredentials: {
-            enabled:
-                process.env.ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED ===
-                'true',
         },
         athenaWarehouseIamRoleAuth: {
             enabled: process.env.ATHENA_WAREHOUSE_IAM_ROLE_AUTH === 'true',

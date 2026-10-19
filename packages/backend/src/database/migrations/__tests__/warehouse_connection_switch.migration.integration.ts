@@ -25,7 +25,6 @@ import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { EnterpriseLicenseService } from '../../../ee/services/LicenseService/LicenseService';
 import { logAuditEvent } from '../../../logging/winston';
-import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -42,7 +41,6 @@ import {
 } from '../../../services/WarehouseConnectionService/WarehouseConnectionService';
 import {
     DEFAULT_PROJECT_ONLY_REASON,
-    ORIGINAL_ORGANIZATION_CREDENTIALS_REASON,
     WarehouseConnectionSwitchService,
 } from '../../../services/WarehouseConnectionSwitchService/WarehouseConnectionSwitchService';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
@@ -138,7 +136,6 @@ describe('Enable multiple connections on the real schema', () => {
     let migrated: MigratedTestDatabase;
     let database: Knex;
     let encryptionUtil: EncryptionUtil;
-    let organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
     let projectModel: ProjectModel;
     let switchModel: WarehouseConnectionSwitchModel;
     let connectionModel: WarehouseConnectionModel;
@@ -272,34 +269,13 @@ describe('Enable multiple connections on the real schema', () => {
             credentialsAdmin: account(
                 user.user_uuid,
                 organization.organization_uuid,
-                [
-                    { subject: 'Project', action: 'manage' },
-                    {
-                        subject: 'OrganizationWarehouseCredentials',
-                        action: 'view',
-                    },
-                ],
+                [{ subject: 'Project', action: 'manage' }],
             ),
             viewer: account(user.user_uuid, organization.organization_uuid, [
                 { subject: 'Project', action: 'view' },
             ]),
         };
     };
-
-    const createOrganizationCredential = async (
-        organizationUuid: string,
-        credentials: CreateWarehouseCredentials = financeCredentials,
-    ) =>
-        (
-            await database('organization_warehouse_credentials')
-                .insert({
-                    organization_uuid: organizationUuid,
-                    name: `Shared ${randomUUID()}`,
-                    warehouse_type: credentials.type,
-                    warehouse_connection: encrypt(credentials),
-                } as never)
-                .returning('organization_warehouse_credentials_uuid')
-        )[0].organization_warehouse_credentials_uuid as string;
 
     const state = async (projectUuid: string) => ({
         mode: (
@@ -385,11 +361,6 @@ describe('Enable multiple connections on the real schema', () => {
                 },
             },
         } as never);
-        organizationWarehouseCredentialsModel =
-            new OrganizationWarehouseCredentialsModel({
-                database,
-                encryptionUtil,
-            });
         projectModel = new ProjectModel({
             database,
             lightdashConfig: lightdashConfigMock,
@@ -398,12 +369,10 @@ describe('Enable multiple connections on the real schema', () => {
         switchModel = new WarehouseConnectionSwitchModel({
             database,
             encryptionUtil,
-            organizationWarehouseCredentialsModel,
         });
         connectionModel = new WarehouseConnectionModel({
             database,
             encryptionUtil,
-            organizationWarehouseCredentialsModel,
         });
         projectService = new ProjectService({
             featureFlagModel: {
@@ -1159,24 +1128,6 @@ describe('Enable multiple connections on the real schema', () => {
             expect(await state(fixture.projectUuid)).toEqual(singleState);
         });
 
-        test('refuses a project whose original uses an organisation credential', async () => {
-            const fixture = await createProject();
-            await database('projects')
-                .where('project_uuid', fixture.projectUuid)
-                .update({
-                    organization_warehouse_credentials_uuid:
-                        await createOrganizationCredential(
-                            fixture.organizationUuid,
-                            postgresCredentials,
-                        ),
-                } as never);
-
-            await refusesBoth(
-                fixture,
-                new ForbiddenError(ORIGINAL_ORGANIZATION_CREDENTIALS_REASON),
-            );
-        });
-
         test('refuses an extra connection of another warehouse type', async () => {
             const fixture = await createProject();
 
@@ -1283,78 +1234,6 @@ describe('Enable multiple connections on the real schema', () => {
                 },
             });
             expect(await state(fixture.projectUuid)).toEqual(singleState);
-        });
-
-        test('refuses an organisation credential for the extra connection without permission to view it', async () => {
-            const fixture = await createProject();
-            const organizationCredential = await createOrganizationCredential(
-                fixture.organizationUuid,
-            );
-
-            await refusesBoth(
-                fixture,
-                new ForbiddenError(
-                    'You do not have permission to use these organization warehouse credentials',
-                ),
-                fixture.admin,
-                switchRequest({
-                    connection: {
-                        name: 'Finance',
-                        organizationWarehouseCredentialsUuid:
-                            organizationCredential,
-                    },
-                }),
-            );
-            expect(await state(fixture.projectUuid)).toEqual(singleState);
-        });
-
-        test('switches with an organisation credential for the extra connection when the actor may view it', async () => {
-            const fixture = await createProject();
-            const organizationCredential = await createOrganizationCredential(
-                fixture.organizationUuid,
-            );
-            const request = switchRequest({
-                connection: {
-                    name: 'Finance',
-                    organizationWarehouseCredentialsUuid:
-                        organizationCredential,
-                },
-            });
-            const service = buildService();
-            const plan = await service.preview(
-                fixture.credentialsAdmin,
-                fixture.projectUuid,
-                request,
-            );
-
-            await service.execute(
-                fixture.credentialsAdmin,
-                fixture.projectUuid,
-                {
-                    ...request,
-                    planHash: plan.planHash,
-                    idempotencyKey: randomUUID(),
-                },
-            );
-
-            expect(plan.connection).toEqual({
-                name: 'Finance',
-                warehouseType: WarehouseTypes.POSTGRES,
-                database: 'finance',
-                usesOrganizationCredentials: true,
-            });
-            expect(
-                await database('warehouse_connections')
-                    .where('project_uuid', fixture.projectUuid)
-                    .where('is_original', false)
-                    .first(
-                        'organization_warehouse_credentials_uuid',
-                        'encrypted_credentials',
-                    ),
-            ).toEqual({
-                organization_warehouse_credentials_uuid: organizationCredential,
-                encrypted_credentials: null,
-            });
         });
 
         test('reports whether the switch is available and why not', async () => {
@@ -1647,7 +1526,6 @@ describe('Enable multiple connections on the real schema', () => {
                         database,
                         encryptionUtil,
                     }),
-                organizationWarehouseCredentialsModel,
                 warehouseConnectionModel: connectionModel,
             } as never) as unknown as {
                 getWarehouseCredentials: (args: {

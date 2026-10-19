@@ -39,7 +39,7 @@ const credentials = {
 };
 const owners: OAuthCredentialOwner[] = [
     { kind: 'project', uuid: 'project-owner' },
-    { kind: 'organization', uuid: 'organization-owner' },
+
     {
         kind: 'user',
         uuid: 'user-owner',
@@ -64,12 +64,7 @@ const setup = () => {
                 .mockResolvedValue(credentials),
             rotateRefreshToken: vi.fn().mockResolvedValue(true),
         },
-        organizationWarehouseCredentialsModel: {
-            getByUuidWithSensitiveData: vi
-                .fn()
-                .mockResolvedValue({ organizationUuid: 'org', credentials }),
-            rotateRefreshToken: vi.fn().mockResolvedValue(true),
-        },
+
         userWarehouseCredentialsModel: {
             getByUuidWithSecrets: vi.fn().mockResolvedValue({ credentials }),
             rotateRefreshToken: vi.fn().mockResolvedValue(true),
@@ -128,7 +123,7 @@ describe.each(owners)('$kind source', (owner) => {
                   ];
         const writeArgs = {
             project: [owner.uuid, 'current', 'rotated', trx],
-            organization: [owner.uuid, 'current', 'rotated', trx],
+
             user: [owner.uuid, 'current', 'rotated', undefined, trx],
             warehouseConnection: [
                 f.project,
@@ -140,17 +135,14 @@ describe.each(owners)('$kind source', (owner) => {
         }[owner.kind];
         const reader = {
             project: f.deps.projectModel.getOwnWarehouseCredentialsForProject,
-            organization:
-                f.deps.organizationWarehouseCredentialsModel
-                    .getByUuidWithSensitiveData,
+
             user: f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets,
             warehouseConnection:
                 f.deps.warehouseConnectionModel.getOwnCredentials,
         }[owner.kind];
         const writer = {
             project: f.deps.projectModel.rotateRefreshToken,
-            organization:
-                f.deps.organizationWarehouseCredentialsModel.rotateRefreshToken,
+
             user: f.deps.userWarehouseCredentialsModel.rotateRefreshToken,
             warehouseConnection:
                 f.deps.warehouseConnectionModel.rotateRefreshToken,
@@ -168,8 +160,7 @@ describe.each(owners)('$kind source', (owner) => {
         await f.source.persist(f.input, owner, 'current', 'rotated');
         const writer = {
             project: f.deps.projectModel.rotateRefreshToken,
-            organization:
-                f.deps.organizationWarehouseCredentialsModel.rotateRefreshToken,
+
             user: f.deps.userWarehouseCredentialsModel.rotateRefreshToken,
             warehouseConnection:
                 f.deps.warehouseConnectionModel.rotateRefreshToken,
@@ -244,7 +235,7 @@ test.each([null, 'another-org'])(
             });
         await expect(
             f.source.readCurrentRefreshToken(
-                { ...f.input, owner: owners[3] },
+                { ...f.input, owner: owners[2] },
                 trx,
             ),
         ).rejects.toBeInstanceOf(ForbiddenError);
@@ -284,17 +275,9 @@ test.each(owners)(
             user: { organizationUuid: 'org' },
             featureFlagId: FeatureFlags.WarehouseOAuthRefreshLock,
         });
-        if (owner.kind === 'organization')
-            expect(
-                f.deps.organizationWarehouseCredentialsModel
-                    .getByUuidWithSensitiveData,
-            ).toHaveBeenCalledExactlyOnceWith(owner.uuid);
-        else
-            expect(
-                f.deps.projectModel.getSummary,
-            ).toHaveBeenCalledExactlyOnceWith(
-                owner.kind === 'project' ? owner.uuid : 'project',
-            );
+        expect(f.deps.projectModel.getSummary).toHaveBeenCalledExactlyOnceWith(
+            owner.kind === 'project' ? owner.uuid : 'project',
+        );
     },
 );
 
@@ -308,7 +291,7 @@ test('uses the context organization without owner reads and falls back to the gl
     });
     f.input.context.organizationUuid = null;
     f.input.projectUuid = null;
-    await f.source.isLockEnabled(f.input, owners[2]);
+    await f.source.isLockEnabled(f.input, owners[1]);
     expect(f.deps.featureFlagModel.get).toHaveBeenLastCalledWith({
         featureFlagId: FeatureFlags.WarehouseOAuthRefreshLock,
     });
@@ -515,7 +498,7 @@ describe('strict personal overlay (agent-identity on)', () => {
             );
             await expect(
                 f.source.readCurrentRefreshToken(
-                    { ...f.input, owner: owners[2] },
+                    { ...f.input, owner: owners[1] },
                     trx,
                 ),
             ).resolves.toBe('current');
@@ -535,7 +518,7 @@ describe('strict personal overlay (agent-identity on)', () => {
             );
             await expect(
                 f.source.readCurrentRefreshToken(
-                    { ...f.input, owner: owners[2] },
+                    { ...f.input, owner: owners[1] },
                     trx,
                 ),
             ).rejects.toThrow('Reconnect your credentials');

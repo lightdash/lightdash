@@ -43,10 +43,7 @@ import {
     hasBlockingCompileError,
     stripWarehouseColumnErrors,
 } from './compile';
-import {
-    createProject,
-    resolveOrganizationCredentialsName,
-} from './createProject';
+import { createProject } from './createProject';
 import {
     checkLightdashVersion,
     lightdashApi,
@@ -73,7 +70,6 @@ type DeployHandlerOptions = DbtCompileOptions & {
     ignoreErrors: boolean;
     startOfWeek?: number;
     warehouseCredentials?: boolean;
-    organizationCredentials?: string;
     assumeYes?: boolean;
     batchedDeploy?: boolean;
     batchSize?: string;
@@ -176,9 +172,7 @@ const logDeployWarnings = (
     warningResults.exploresWithWarnings.forEach((explore) => {
         explore.warnings.forEach((warning) => {
             console.error(
-                `- ${styles.warning(explore.name)}: ${styles.warning(
-                    warning.message,
-                )}`,
+                `- ${styles.warning(explore.name)}: ${styles.warning(warning.message)}`,
             );
         });
     });
@@ -541,9 +535,7 @@ export const deploy = async (
     } catch (e) {
         console.error(
             styles.warning(
-                `\nError replacing project table groups: ${getErrorMessage(
-                    e,
-                )}\n`,
+                `\nError replacing project table groups: ${getErrorMessage(e)}\n`,
             ),
         );
     }
@@ -788,22 +780,6 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
             GlobalState.debug(
                 `> Could not detect adapter type: ${getErrorMessage(e)}`,
             );
-        }
-    }
-
-    // Resolve organization credentials early before doing any heavy work
-    if (options.organizationCredentials) {
-        try {
-            await resolveOrganizationCredentialsName(
-                options.organizationCredentials,
-            );
-        } catch (error) {
-            console.error(
-                styles.error(
-                    error instanceof Error ? error.message : 'Unknown error',
-                ),
-            );
-            process.exit(1);
         }
     }
 

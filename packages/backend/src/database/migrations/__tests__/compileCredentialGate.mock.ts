@@ -13,7 +13,6 @@ import {
 import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 import { JobModel } from '../../../models/JobModel/JobModel';
-import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
@@ -101,11 +100,6 @@ export const compileCredentialGateFixture = async (
     const warehouseConnectionModel = new WarehouseConnectionModel({
         database,
         encryptionUtil,
-        organizationWarehouseCredentialsModel:
-            new OrganizationWarehouseCredentialsModel({
-                database,
-                encryptionUtil,
-            }),
     });
     const projectDbtSourcesModel = new ProjectDbtSourcesModel({
         database,
@@ -187,11 +181,6 @@ export const compileCredentialGateFixture = async (
             database,
             encryptionUtil,
         }),
-        organizationWarehouseCredentialsModel:
-            new OrganizationWarehouseCredentialsModel({
-                database,
-                encryptionUtil,
-            }),
         jobModel,
         projectCompileLogModel: new ProjectCompileLogModel({ database }),
         featureFlagModel: { get: async () => ({ id: 'flag', enabled: false }) },
