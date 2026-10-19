@@ -1,5 +1,6 @@
 import { JSDOM } from 'jsdom';
 import {
+    fetchMcpCustomChartFrameHtml,
     prepareMcpCustomChartTypeHtml,
     toMetaContentSecurityPolicy,
 } from './mcpCustomChartFrameHtml';
@@ -117,5 +118,66 @@ describe('prepareMcpCustomChartTypeHtml', () => {
         expect(html).toContain(
             '<base href="https://preview.example/?a=&quot;b&quot;&amp;c=&lt;d&gt;">',
         );
+    });
+});
+
+describe('fetchMcpCustomChartFrameHtml', () => {
+    const indexUrl = 'https://preview.example/api/apps/a/versions/1/t/x.y.z/';
+    const contentSecurityPolicy = "default-src 'none'";
+    const { signal } = new AbortController();
+    const respond = (body: string, status = 200) =>
+        vi.fn().mockResolvedValue(new Response(body, { status }));
+
+    it('fetches the bundle without credentials or caching and prepares it', async () => {
+        const fetchFn = respond('<!doctype html><head></head>');
+
+        await expect(
+            fetchMcpCustomChartFrameHtml(
+                { indexUrl, contentSecurityPolicy },
+                { fetchFn, signal },
+            ),
+        ).resolves.toEqual({
+            kind: 'html',
+            html: `<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src 'none'"><base href="${indexUrl}"><head></head>`,
+        });
+        expect(fetchFn).toHaveBeenCalledWith(indexUrl, {
+            credentials: 'omit',
+            cache: 'no-store',
+            signal,
+        });
+    });
+
+    it.each([
+        ['a refused token', respond('{"status":"error"}', 403)],
+        ['a missing bundle', respond('', 404)],
+        [
+            'a network error',
+            vi.fn().mockRejectedValue(new TypeError('Failed to fetch')),
+        ],
+        [
+            'an aborted request',
+            vi
+                .fn()
+                .mockRejectedValue(new DOMException('Aborted', 'AbortError')),
+        ],
+    ])('reports %s as unavailable', async (_case, fetchFn) => {
+        await expect(
+            fetchMcpCustomChartFrameHtml(
+                { indexUrl, contentSecurityPolicy },
+                { fetchFn, signal },
+            ),
+        ).resolves.toEqual({ kind: 'unavailable' });
+    });
+
+    it('does not fetch without a policy to run the bundle under', async () => {
+        const fetchFn = respond('<head></head>');
+
+        await expect(
+            fetchMcpCustomChartFrameHtml(
+                { indexUrl, contentSecurityPolicy: null },
+                { fetchFn, signal },
+            ),
+        ).resolves.toEqual({ kind: 'unavailable' });
+        expect(fetchFn).not.toHaveBeenCalled();
     });
 });

@@ -48,3 +48,41 @@ export const prepareMcpCustomChartTypeHtml = (
         contentSecurityPolicy,
     )}"><base href="${escapeHtmlAttribute(baseUrl)}">${withAbsoluteAssets}`;
 };
+
+export type McpCustomChartFrameHtmlResult =
+    | { kind: 'html'; html: string }
+    | { kind: 'unavailable' };
+
+/** The view fetches the bundle from the user's browser; any failure means the rows table. */
+export const fetchMcpCustomChartFrameHtml = async (
+    {
+        indexUrl,
+        contentSecurityPolicy,
+    }: { indexUrl: string; contentSecurityPolicy: string | null },
+    {
+        fetchFn,
+        signal,
+    }: {
+        fetchFn: (url: string, init: RequestInit) => Promise<Response>;
+        signal: AbortSignal;
+    },
+): Promise<McpCustomChartFrameHtmlResult> => {
+    if (contentSecurityPolicy === null) return { kind: 'unavailable' };
+    try {
+        const response = await fetchFn(indexUrl, {
+            credentials: 'omit',
+            cache: 'no-store',
+            signal,
+        });
+        if (!response.ok) return { kind: 'unavailable' };
+        return {
+            kind: 'html',
+            html: prepareMcpCustomChartTypeHtml(await response.text(), {
+                contentSecurityPolicy,
+                baseUrl: indexUrl,
+            }),
+        };
+    } catch {
+        return { kind: 'unavailable' };
+    }
+};
