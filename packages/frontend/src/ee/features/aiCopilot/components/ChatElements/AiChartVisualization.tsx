@@ -244,7 +244,10 @@ export const AiChartVisualization: FC<Props> = ({
                 </Text>
             </Stack>
             <Group gap="sm" display={isMobile ? 'none' : 'flex'}>
-                <ViewSqlButton sql={compiledSqlQuery} />
+                <ViewSqlButton
+                    sql={compiledSqlQuery}
+                    isFormatted={isMergeArtifact}
+                />
                 <AiChartQuickOptions
                     message={message}
                     projectUuid={projectUuid}
