@@ -131,8 +131,32 @@ export const mcpGetQueryResultStructuredOutputSchema =
         ]),
     );
 
+export const mcpRenderChartRunningResultSchema = z
+    .object({
+        status: z
+            .literal('running')
+            .describe(
+                'Present while the grouped query for the chart is still running. Call render_chart again with the same arguments.',
+            ),
+        queryUuid: createMcpAsyncQueryUuidSchema().describe(
+            'The queryUuid render_chart was called with.',
+        ),
+        nextPollAfterMs: mcpNextPollAfterMsSchema.describe(
+            'Suggested delay before calling render_chart again.',
+        ),
+        heartbeatAt: mcpHeartbeatAtSchema,
+    })
+    .describe(
+        'The chart is not drawn yet because its grouped query is running.',
+    );
+
 export const mcpRenderChartStructuredOutputSchema =
-    createMcpStructuredOutputSchema(mcpRenderChartResultSchema);
+    createMcpStructuredOutputSchema(
+        z.union([
+            mcpRenderChartResultSchema,
+            mcpRenderChartRunningResultSchema,
+        ]),
+    );
 
 export const warehouseExecutionStatsSchema = z
     .object({
