@@ -12,6 +12,7 @@ import { ItemDetailProvider } from '../../../components/Explorer/ExploreTree/Tab
 import { useExplore } from '../../../hooks/useExplore';
 import { useMerge } from '../context/useMerge';
 import { useMergeSourceFilter } from '../hooks/useMergeSourceFilter';
+import { useMergeSourceNames } from '../hooks/useMergeSourceNames';
 
 /** Field picker for a source owned by the merge editor. */
 export const MergeSourceTree: FC<{
@@ -28,6 +29,7 @@ export const MergeSourceTree: FC<{
     hideSelectedFields = false,
 }) => {
     const merge = useMerge();
+    const { nameByHandle } = useMergeSourceNames();
     const source = merge.additionalSources.find(({ id }) => id === sourceId);
     const { data: explore, isInitialLoading } = useExplore(
         source?.exploreName ?? undefined,
@@ -57,18 +59,23 @@ export const MergeSourceTree: FC<{
     );
     if (!source) return null;
 
-    if (isChoosingExplore) {
+    if (isChoosingExplore || !source.exploreName) {
         return (
             <Stack gap="xs" h="100%" mih={0}>
-                <Button
-                    variant="subtle"
-                    size="compact-xs"
-                    w="fit-content"
-                    leftSection={<MantineIcon icon={IconArrowLeft} size={13} />}
-                    onClick={() => setIsChoosingExplore(false)}
-                >
-                    Back to fields
-                </Button>
+                {/* A source without a table has no fields to go back to */}
+                {source.exploreName && (
+                    <Button
+                        variant="subtle"
+                        size="compact-xs"
+                        w="fit-content"
+                        leftSection={
+                            <MantineIcon icon={IconArrowLeft} size={13} />
+                        }
+                        onClick={() => setIsChoosingExplore(false)}
+                    >
+                        Back to fields
+                    </Button>
+                )}
                 <Box style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
                     <BasePanel
                         onExploreClick={(selectedExplore) => {
@@ -76,12 +83,17 @@ export const MergeSourceTree: FC<{
                                 merge.setSourceExplore(
                                     source.id,
                                     selectedExplore.name,
+                                    nameByHandle,
                                 );
                             }
                             setIsChoosingExplore(false);
                         }}
                         onExploreCreated={(exploreName) => {
-                            merge.setSourceExplore(source.id, exploreName);
+                            merge.setSourceExplore(
+                                source.id,
+                                exploreName,
+                                nameByHandle,
+                            );
                             setIsChoosingExplore(false);
                         }}
                     />

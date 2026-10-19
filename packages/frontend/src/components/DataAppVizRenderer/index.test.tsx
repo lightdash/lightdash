@@ -176,6 +176,7 @@ vi.mock('../../hooks/useExplore', () => ({
         mocks.exploreHook(...args);
         return { data: mocks.explore.current };
     },
+    useExploreQueries: (names: unknown[]) => names.map(() => undefined),
 }));
 vi.mock('../../features/mergeQuery/context/useMerge', () => ({
     useMergeSafe: () => mocks.merge.current,

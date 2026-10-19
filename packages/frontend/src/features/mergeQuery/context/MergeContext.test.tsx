@@ -12,8 +12,9 @@ import {
     type SavedChartDAO,
 } from '@lightdash/common';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { type PropsWithChildren } from 'react';
+import { useEffect, useRef, type PropsWithChildren } from 'react';
 import { PRIMARY_SOURCE_ID } from '../constants';
+import { getMergeSourceNames } from '../utils/getMergeSourceNames';
 import { MergeProvider } from './MergeContext';
 import { MERGE_URL_PARAM, serializeMergeState } from './mergeUrlState';
 import { useMerge } from './useMerge';
@@ -252,7 +253,7 @@ describe('MergeProvider', () => {
         const { result } = renderHook(() => useMerge(), { wrapper });
 
         act(() => result.current.addSource('b'));
-        act(() => result.current.setSourceExplore('b', 'payments'));
+        act(() => result.current.setSourceExplore('b', 'payments', {}));
         act(() => {
             result.current.toggleSourceField('b', 'orders_status', true);
             result.current.toggleSourceField(
@@ -302,7 +303,7 @@ describe('MergeProvider', () => {
         };
 
         act(() => result.current.addSource('b'));
-        act(() => result.current.setSourceExplore('b', 'payments'));
+        act(() => result.current.setSourceExplore('b', 'payments', {}));
         act(() => result.current.addSourceAdditionalMetric('b', metric));
         act(() => result.current.addSourceAdditionalMetric('b', metric));
 
@@ -312,6 +313,185 @@ describe('MergeProvider', () => {
             additionalMetrics: [metric],
             metrics: ['payments_amount_sum'],
         });
+    });
+
+    it('removes a middle source without changing the remaining keys, names or repeat flags', () => {
+        const { result } = renderHook(() => useMerge(), { wrapper });
+        act(() => {
+            result.current.addSource('b');
+            result.current.addSource('c');
+            result.current.addSource('d');
+        });
+        act(() => {
+            result.current.setSourceExplore('b', 'payments', {});
+            result.current.setSourceExplore('c', 'payments', {});
+            result.current.setSourceExplore('d', 'payments', {});
+            result.current.setJoinField(0, 'a', 'orders_week');
+            result.current.setJoinField(0, 'b', 'payments_week');
+            result.current.setJoinField(0, 'c', 'payments_week');
+            result.current.setJoinField(0, 'd', 'payments_week');
+            result.current.setRepeatValues('b', true);
+            result.current.setRepeatValues('d', true);
+            result.current.addTableCalculation({
+                name: 'keep_ratio',
+                displayName: 'Keep ratio',
+                sql: '${payments.payments_total} / ${payments_3.payments_total}',
+            });
+            result.current.addTableCalculation({
+                name: 'remove_ratio',
+                displayName: 'Remove ratio',
+                sql: '${payments_2.payments_total} / ${payments.payments_total}',
+            });
+        });
+        act(() =>
+            result.current.removeSource('c', {
+                a: 'orders',
+                b: 'payments',
+                c: 'payments_2',
+                d: 'payments_3',
+            }),
+        );
+        expect(
+            result.current.additionalSources.map(({ id, name }) => ({
+                id,
+                name,
+            })),
+        ).toEqual([
+            { id: 'b', name: 'payments' },
+            { id: 'd', name: 'payments_3' },
+        ]);
+        expect(result.current.joinParts[0].fieldIdBySourceId).toEqual({
+            a: 'orders_week',
+            b: 'payments_week',
+            d: 'payments_week',
+        });
+        expect(result.current.repeatValuesSourceIds).toEqual(['b', 'd']);
+        expect(
+            result.current.tableCalculations.map(({ name }) => name),
+        ).toEqual(['keep_ratio']);
+        act(() => result.current.addSource('d'));
+        expect(result.current.additionalSources).toHaveLength(2);
+    });
+
+    it('drops only formula calculations that reference a removed middle source', () => {
+        const { result } = renderHook(() => useMerge(), { wrapper });
+        act(() => {
+            result.current.addSource('b');
+            result.current.addSource('c');
+            result.current.addSource('d');
+        });
+        act(() => {
+            ['b', 'c', 'd'].forEach((id) => {
+                result.current.setSourceExplore(id, 'payments', {});
+            });
+        });
+        act(() => {
+            ['b', 'c', 'd'].forEach((id) => {
+                result.current.toggleSourceField(id, 'payments_total', false);
+            });
+            result.current.addTableCalculation({
+                name: 'keep_sum',
+                displayName: 'Keep sum',
+                sql: '',
+                formula: '=payments_payments_total + payments_3_payments_total',
+            });
+            result.current.addTableCalculation({
+                name: 'remove_sum',
+                displayName: 'Remove sum',
+                sql: '',
+                formula: '=payments_payments_total + payments_2_payments_total',
+            });
+        });
+        act(() =>
+            result.current.removeSource('c', {
+                a: 'orders',
+                b: 'payments',
+                c: 'payments_2',
+                d: 'payments_3',
+            }),
+        );
+        expect(
+            result.current.tableCalculations.map(({ name }) => name),
+        ).toEqual(['keep_sum']);
+    });
+
+    it('keeps the other sources names when a middle source changes explore', () => {
+        const { result } = renderHook(() => useMerge(), { wrapper });
+        const names = () =>
+            getMergeSourceNames({
+                tableName: 'payments',
+                primarySourceName: null,
+                additionalSources: result.current.additionalSources,
+            }).nameByHandle;
+        act(() => {
+            result.current.addSource('b');
+            result.current.addSource('c');
+        });
+        act(() => {
+            result.current.setSourceExplore('b', 'payments', names());
+        });
+        act(() => {
+            result.current.setSourceExplore('c', 'payments', names());
+        });
+        act(() => {
+            ['b', 'c'].forEach((id) => {
+                result.current.toggleSourceField(id, 'payments_total', false);
+            });
+            result.current.addTableCalculation({
+                name: 'keep_sum',
+                displayName: 'Keep sum',
+                sql: '',
+                formula: '=payments_payments_total + payments_3_payments_total',
+            });
+            result.current.addTableCalculation({
+                name: 'remove_sum',
+                displayName: 'Remove sum',
+                sql: '',
+                formula: '=payments_payments_total + payments_2_payments_total',
+            });
+        });
+        expect(names()).toEqual({
+            a: 'payments',
+            b: 'payments_2',
+            c: 'payments_3',
+        });
+        act(() => result.current.setSourceExplore('b', 'refunds', names()));
+        expect(names()).toEqual({
+            a: 'payments',
+            b: 'refunds',
+            c: 'payments_3',
+        });
+        expect(
+            result.current.tableCalculations.map(({ name }) => name),
+        ).toEqual(['keep_sum']);
+    });
+
+    it('finishes a run started on mount under StrictMode', async () => {
+        executeMergeQuery.mockResolvedValueOnce(startedResult('mount-query'));
+        const RunOnMount = () => {
+            const merge = useMerge();
+            const hasRun = useRef(false);
+            useEffect(() => {
+                if (hasRun.current) return;
+                hasRun.current = true;
+                merge.run(mergeQuery);
+            }, [merge]);
+            return null;
+        };
+        const { result } = renderHook(() => useMerge(), {
+            wrapper: ({ children }: PropsWithChildren) => (
+                <MergeProvider>
+                    <RunOnMount />
+                    {children}
+                </MergeProvider>
+            ),
+            reactStrictMode: true,
+        });
+
+        await waitFor(() =>
+            expect(result.current.mergeResults?.queryUuid).toBe('mount-query'),
+        );
+        expect(result.current.isRunning).toBe(false);
     });
 
     it('keeps the parameter values used by the merged run', async () => {

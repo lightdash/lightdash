@@ -1,6 +1,7 @@
 import {
     derivePivotConfigurationFromChart,
     getItemId,
+    mergeCalculationReferencePattern,
     MergeJoinType,
     type AdditionalMetric,
     type ApiCompiledMergeQueryResults,
@@ -14,9 +15,10 @@ import {
     type SavedChartDAO,
     type SavedMergeDefinition,
 } from '@lightdash/common';
+import { extractColumnRefs, parse } from '@lightdash/formula';
 import {
     useCallback,
-    useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
     useState,
@@ -30,17 +32,48 @@ import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi
 import {
     DEFAULT_ADDITIONAL_SOURCE_ID,
     emptyMergeSource,
-    MAX_MERGE_SOURCES,
     PRIMARY_SOURCE_ID,
 } from '../constants';
 import { executeMergeQuery } from '../hooks/useMergeQuery';
-import { MergeContext, type MergeFocus, type MergeJoinPart } from './context';
+import {
+    MergeContext,
+    type MergeEditorSource,
+    type MergeFocus,
+    type MergeJoinPart,
+} from './context';
 import {
     MERGE_URL_PARAM,
     parseMergeState,
     serializeMergeState,
 } from './mergeUrlState';
 import { restoreSavedMerge } from './restoreSavedMerge';
+
+/** Formulas reference merged ids (`<source name>_<column>`); legacy SQL uses `${source.column}`. */
+const referencesSource = (
+    calculation: MergeTableCalculation,
+    sourceName: string,
+    source: MergeEditorSource,
+): boolean => {
+    if (!calculation.formula) {
+        return Array.from(
+            calculation.sql.matchAll(mergeCalculationReferencePattern),
+        ).some(([, reference]) => reference.startsWith(`${sourceName}.`));
+    }
+    const columns = new Set(
+        [
+            ...source.dimensions,
+            ...source.metrics,
+            ...(source.tableCalculations ?? []).map(({ name }) => name),
+        ].map((name) => getItemId({ table: sourceName, name })),
+    );
+    try {
+        return extractColumnRefs(parse(calculation.formula)).some((reference) =>
+            columns.has(reference),
+        );
+    } catch {
+        return false;
+    }
+};
 
 /**
  * Merge state lives above the explorer page because the field picker and the
@@ -145,14 +178,15 @@ export const MergeProvider: FC<
         ) => {
             if (
                 additionalSources.some((source) => source.id === sourceId) ||
-                additionalSources.length + 1 >= MAX_MERGE_SOURCES
+                sourceId === PRIMARY_SOURCE_ID
             ) {
                 return;
             }
-            setAdditionalSources((current) => [
-                ...current,
-                emptyMergeSource(sourceId),
-            ]);
+            setAdditionalSources((current) =>
+                current.some((source) => source.id === sourceId)
+                    ? current
+                    : [...current, emptyMergeSource(sourceId)],
+            );
             setJoinParts((current) =>
                 current.map((part) => ({
                     ...part,
@@ -167,52 +201,101 @@ export const MergeProvider: FC<
         [additionalSources],
     );
 
-    const removeSource = useCallback((sourceId: string) => {
-        activeRun.current += 1;
-        setFocus({ kind: 'source', sourceId: PRIMARY_SOURCE_ID });
-        setAdditionalSources((current) =>
-            current.filter((source) => source.id !== sourceId),
-        );
-        setJoinParts((current) =>
-            current.map((part) => {
-                const { [sourceId]: _, ...fieldIdBySourceId } =
-                    part.fieldIdBySourceId;
-                return { fieldIdBySourceId };
-            }),
-        );
-        // Repeating was a relationship between two sources; with one gone the
-        // other's flag has nothing to repeat across.
-        setRepeatValuesSourceIds([]);
-        setTableCalculations([]);
-        setRunState({
-            isRunning: false,
-            errors: [],
-            started: null,
-            unpivotedStarted: null,
-            error: null,
-            unpivotedErrors: [],
-            unpivotedError: null,
-            parameterReferences: [],
-            fieldOrigins: {},
-            ranMergeQuery: null,
-            lastRunMergeQuery: null,
-        });
-    }, []);
+    const removeSource = useCallback(
+        (sourceId: string, namesByHandle?: Record<string, string>) => {
+            activeRun.current += 1;
+            setFocus({ kind: 'source', sourceId: PRIMARY_SOURCE_ID });
+            setAdditionalSources((current) =>
+                current
+                    .filter((source) => source.id !== sourceId)
+                    .map((source) =>
+                        namesByHandle?.[source.id]
+                            ? { ...source, name: namesByHandle[source.id] }
+                            : source,
+                    ),
+            );
+            setJoinParts((current) =>
+                current.map((part) => {
+                    const { [sourceId]: _, ...fieldIdBySourceId } =
+                        part.fieldIdBySourceId;
+                    return { ...part, fieldIdBySourceId };
+                }),
+            );
+            setRepeatValuesSourceIds((current) =>
+                additionalSources.length <= 1
+                    ? []
+                    : current.filter((id) => id !== sourceId),
+            );
+            const removedSourceName = namesByHandle?.[sourceId];
+            const removedSource = additionalSources.find(
+                (source) => source.id === sourceId,
+            );
+            setTableCalculations((current) =>
+                additionalSources.length <= 1 ||
+                !removedSourceName ||
+                !removedSource
+                    ? []
+                    : current.filter(
+                          (calculation) =>
+                              !referencesSource(
+                                  calculation,
+                                  removedSourceName,
+                                  removedSource,
+                              ),
+                      ),
+            );
+            setRunState({
+                isRunning: false,
+                errors: [],
+                started: null,
+                unpivotedStarted: null,
+                error: null,
+                unpivotedErrors: [],
+                unpivotedError: null,
+                parameterReferences: [],
+                fieldOrigins: {},
+                ranMergeQuery: null,
+                lastRunMergeQuery: null,
+            });
+        },
+        [additionalSources],
+    );
 
     const setSourceExplore = useCallback(
-        (sourceId: string, exploreName: string | null) => {
+        (
+            sourceId: string,
+            exploreName: string | null,
+            namesByHandle: Record<string, string>,
+        ) => {
             // Fields belong to an explore, so changing it clears what was picked
-            // rather than leaving ids that no longer resolve.
+            // rather than leaving ids that no longer resolve. The other sources
+            // keep their names so calculations over them still read the same columns.
             setAdditionalSources((current) =>
-                current.map((source) =>
-                    source.id === sourceId
-                        ? {
-                              ...emptyMergeSource(sourceId),
-                              exploreName,
-                          }
-                        : source,
-                ),
+                current.map((source) => {
+                    if (source.id === sourceId) {
+                        return { ...emptyMergeSource(sourceId), exploreName };
+                    }
+                    return namesByHandle[source.id]
+                        ? { ...source, name: namesByHandle[source.id] }
+                        : source;
+                }),
             );
+            const changedSourceName = namesByHandle[sourceId];
+            const changedSource = additionalSources.find(
+                (source) => source.id === sourceId,
+            );
+            if (changedSourceName && changedSource?.exploreName) {
+                setTableCalculations((current) =>
+                    current.filter(
+                        (calculation) =>
+                            !referencesSource(
+                                calculation,
+                                changedSourceName,
+                                changedSource,
+                            ),
+                    ),
+                );
+            }
             setJoinParts((current) =>
                 current.map((part) => ({
                     ...part,
@@ -223,7 +306,7 @@ export const MergeProvider: FC<
                 })),
             );
         },
-        [],
+        [additionalSources],
     );
 
     const setJoinField = useCallback(
@@ -362,7 +445,8 @@ export const MergeProvider: FC<
 
     // Mirror the relationship into the URL. Replace rather than push, so
     // building a merge does not fill the back button with every keystroke.
-    useEffect(() => {
+    // A layout effect so this lands before a child's URL write in the same commit.
+    useLayoutEffect(() => {
         // The URL carries a merge so a *modified* one can be shared. A saved
         // chart in view mode is not being modified; its merge lives in the
         // chart, and echoing it into the URL says otherwise.
@@ -408,13 +492,6 @@ export const MergeProvider: FC<
         searchParams,
         setSearchParams,
     ]);
-
-    useEffect(
-        () => () => {
-            activeRun.current += 1;
-        },
-        [],
-    );
 
     const run = useCallback(
         (

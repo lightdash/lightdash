@@ -46,6 +46,7 @@ type Props = {
     filters: Filters;
     setFilters: (value: Filters) => void;
     isEditMode: boolean;
+    compact?: boolean;
 };
 
 type InvalidFilterRule =
@@ -173,7 +174,12 @@ const AddFilterSection: FC<AddFilterSectionProps> = ({
     );
 };
 
-const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
+const FiltersFormComponent: FC<Props> = ({
+    filters,
+    setFilters,
+    isEditMode,
+    compact = false,
+}) => {
     // const theme = useMantineTheme();
     const { itemsMap, baseTable } = useFiltersContext<FieldsWithSuggestions>();
     const [isOpen, toggleFieldInput] = useToggle(false);
@@ -283,7 +289,7 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
     }, [andRootFilterGroupItems, orRootFilterGroups]);
 
     return (
-        <Stack gap="xs" pos="relative" m="sm" flex={1}>
+        <Stack gap="xs" pos="relative" m={compact ? 'xs' : 'sm'} flex={1}>
             {totalFilterRules.length >= 1 &&
                 (showSimplifiedForm ? (
                     <SimplifiedFilterGroupForm
@@ -394,7 +400,9 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
             )}
         </Stack>
     );
-});
+};
+
+const FiltersForm = memo(FiltersFormComponent);
 
 FiltersForm.displayName = 'FiltersForm';
 

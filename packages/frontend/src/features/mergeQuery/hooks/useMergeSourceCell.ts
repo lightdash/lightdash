@@ -14,12 +14,13 @@ import { useCallback, useMemo } from 'react';
 import { type LightdashApi } from '../../../api';
 import { type MetricQueryDataSource } from '../../../components/MetricQueryData/types';
 import { useMetricQueryDataContext } from '../../../components/MetricQueryData/useMetricQueryDataContext';
-import { useExplore } from '../../../hooks/useExplore';
+import { useExploreQueries } from '../../../hooks/useExplore';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { convertDateFilters } from '../../../utils/dateFilter';
-import { PRIMARY_SOURCE_ID } from '../constants';
+import { EMPTY_MERGE, PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
+import { getMergeSourceMetricQuery } from '../utils/getMergeSourceMetricQuery';
 import { getMergeSourceNames } from '../utils/getMergeSourceNames';
 
 export const getMergeSourceFieldValues = (
@@ -83,86 +84,69 @@ export const useMergeSourceCell = () => {
     const primaryMetricQuery = metricQueryData?.metricQuery;
     const parameters = metricQueryData?.parameters;
     const resolvedTimezone = metricQueryData?.resolvedTimezone;
+    const additionalSources =
+        merge?.additionalSources ?? EMPTY_MERGE.additionalSources;
     // Not useMergeSourceNames: it reads the explorer store, absent outside the explorer
     const { handleByName } = useMemo(
         () =>
             getMergeSourceNames({
                 tableName,
                 primarySourceName: merge?.primarySourceName ?? null,
-                additionalSources: merge?.additionalSources ?? [],
+                additionalSources,
             }),
-        [tableName, merge?.primarySourceName, merge?.additionalSources],
+        [tableName, merge?.primarySourceName, additionalSources],
     );
-    const additionalSource = merge?.additionalSources[0];
-    const { data: primaryExplore } = useExplore(
-        merge?.mergeResults ? tableName : undefined,
-        {
-            refetchOnMount: false,
-        },
-    );
-    const { data: additionalExplore } = useExplore(
-        additionalSource?.exploreName ?? undefined,
-        { refetchOnMount: false },
-    );
-
-    const additionalMetricQuery = useMemo<MetricQuery | null>(() => {
-        if (!additionalSource?.exploreName || !primaryMetricQuery) return null;
-        return {
-            exploreName: additionalSource.exploreName,
-            dimensions: additionalSource.dimensions,
-            metrics: additionalSource.metrics,
-            filters: additionalSource.filters,
-            sorts: [],
-            limit: primaryMetricQuery.limit,
-            tableCalculations: [],
-            additionalMetrics: additionalSource.additionalMetrics,
-            customDimensions: additionalSource.customDimensions,
-        };
-    }, [additionalSource, primaryMetricQuery]);
-
-    const primaryItemMap = useMemo(
-        () =>
-            primaryExplore && primaryMetricQuery
-                ? getItemMap(
-                      primaryExplore,
-                      primaryMetricQuery.additionalMetrics,
-                      primaryMetricQuery.tableCalculations,
-                      primaryMetricQuery.customDimensions,
-                  )
-                : {},
-        [primaryExplore, primaryMetricQuery],
-    );
-    const additionalItemMap = useMemo(
-        () =>
-            additionalExplore && additionalMetricQuery
-                ? getItemMap(
-                      additionalExplore,
-                      additionalMetricQuery.additionalMetrics,
-                      additionalMetricQuery.tableCalculations,
-                      additionalMetricQuery.customDimensions,
-                  )
-                : {},
-        [additionalExplore, additionalMetricQuery],
+    // Only a merged result needs the sources' explores
+    const hasMergeResults = !!merge?.mergeResults;
+    const explores = useExploreQueries(
+        hasMergeResults
+            ? [
+                  tableName,
+                  ...additionalSources.map(
+                      (source) => source.exploreName ?? undefined,
+                  ),
+              ]
+            : [],
     );
     const metricQueryBySourceId = useMemo<Record<string, MetricQuery>>(
-        () => ({
-            ...(primaryMetricQuery
-                ? { [PRIMARY_SOURCE_ID]: primaryMetricQuery }
-                : {}),
-            ...(additionalSource && additionalMetricQuery
-                ? { [additionalSource.id]: additionalMetricQuery }
-                : {}),
-        }),
-        [additionalMetricQuery, additionalSource, primaryMetricQuery],
+        () =>
+            primaryMetricQuery
+                ? Object.fromEntries([
+                      [PRIMARY_SOURCE_ID, primaryMetricQuery],
+                      ...additionalSources.map((source) => [
+                          source.id,
+                          getMergeSourceMetricQuery(
+                              source,
+                              primaryMetricQuery.limit,
+                          ),
+                      ]),
+                  ])
+                : {},
+        [additionalSources, primaryMetricQuery],
     );
     const itemMapBySourceId = useMemo<Record<string, ItemsMap>>(
-        () => ({
-            [PRIMARY_SOURCE_ID]: primaryItemMap,
-            ...(additionalSource
-                ? { [additionalSource.id]: additionalItemMap }
-                : {}),
-        }),
-        [additionalItemMap, additionalSource, primaryItemMap],
+        () =>
+            Object.fromEntries(
+                [
+                    PRIMARY_SOURCE_ID,
+                    ...additionalSources.map((source) => source.id),
+                ].map((id, index) => {
+                    const explore = explores[index];
+                    const query = metricQueryBySourceId[id];
+                    return [
+                        id,
+                        explore && query
+                            ? getItemMap(
+                                  explore,
+                                  query.additionalMetrics,
+                                  query.tableCalculations,
+                                  query.customDimensions,
+                              )
+                            : {},
+                    ];
+                }),
+            ),
+        [additionalSources, explores, metricQueryBySourceId],
     );
 
     const resolve = useCallback(
