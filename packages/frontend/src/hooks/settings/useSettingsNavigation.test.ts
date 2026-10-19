@@ -45,7 +45,6 @@ const settingsContext = (
     allowPasswordAuthentication: false,
     hasSocialLogin: false,
     isGroupManagementEnabled: false,
-    isWarehouseCredentialsEnabled: false,
     isAgentIdentityEnabled: false,
     isAgentIdentityFlagLoading: false,
     isGitProject: false,

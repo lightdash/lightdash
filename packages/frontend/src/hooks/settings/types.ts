@@ -95,7 +95,6 @@ export type SettingsContext = {
     allowPasswordAuthentication: boolean;
     hasSocialLogin: boolean | undefined;
     isGroupManagementEnabled: boolean;
-    isWarehouseCredentialsEnabled: boolean;
     isAgentIdentityEnabled: boolean;
     isAgentIdentityFlagLoading: boolean;
     isGitProject: boolean;

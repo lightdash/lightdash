@@ -87,7 +87,6 @@ export const useSettingsNavigation = (
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
-        isWarehouseCredentialsEnabled,
         showMyAgentConnections,
         isAgentIdentityEnabled,
         isScimTokenManagementEnabled,
@@ -482,25 +481,6 @@ export const useSettingsNavigation = (
                     'onelogin',
                     'google',
                 ],
-                children: [],
-                exact: true,
-            });
-        }
-
-        if (
-            ability?.can(
-                'manage',
-                subject('OrganizationWarehouseCredentials', {
-                    organizationUuid: organization?.organizationUuid,
-                }),
-            ) &&
-            isWarehouseCredentialsEnabled
-        ) {
-            organizationItems.push({
-                label: 'Warehouse credentials',
-                to: '/generalSettings/warehouseCredentials',
-                icon: IconDatabaseCog,
-                keywords: ['database', 'credentials'],
                 children: [],
                 exact: true,
             });
@@ -1342,7 +1322,6 @@ export const useSettingsNavigation = (
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
-        isWarehouseCredentialsEnabled,
         showMyAgentConnections,
         isAgentIdentityEnabled,
         isScimEnabled,

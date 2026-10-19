@@ -10,7 +10,6 @@ import {
     Button,
     FileInput,
     Group,
-    Radio,
     Stack,
     Text,
     Select,
@@ -27,7 +26,6 @@ import {
     type ReactNode,
 } from 'react';
 import { useToggle } from 'react-use';
-import { useOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
     useIsSnowflakeAuthenticated,
@@ -174,16 +172,6 @@ const SnowflakeForm: FC<{
             refetchDatasets();
         },
     });
-
-    const { data: orgCredentials } = useOrganizationWarehouseCredentials();
-    const snowflakeOrgCredentials =
-        orgCredentials?.filter(
-            (cred) => cred.warehouseType === WarehouseTypes.SNOWFLAKE,
-        ) || [];
-
-    const [useOrgCredentials, setUseOrgCredentials] = useState(
-        !!savedProject?.organizationWarehouseCredentialsUuid,
-    );
 
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE;
@@ -332,493 +320,405 @@ const SnowflakeForm: FC<{
                             connection={warehouseConnectionUuid ?? null}
                         />
                     )}
-                {snowflakeOrgCredentials?.length > 0 && (
-                    <Radio.Group
-                        value={useOrgCredentials ? 'org' : 'manual'}
-                        name="useOrgCredentials"
-                        onChange={(value) => {
-                            const useOrg = value === 'org';
-                            setUseOrgCredentials(useOrg);
-                            if (useOrg) {
-                                // Clear manual fields when switching to org credentials
-                                form.setFieldValue(
-                                    'organizationWarehouseCredentialsUuid',
-                                    snowflakeOrgCredentials[0]
-                                        ?.organizationWarehouseCredentialsUuid,
-                                );
-                            } else {
-                                form.setFieldValue(
-                                    'organizationWarehouseCredentialsUuid',
-                                    undefined,
-                                );
-                            }
-                        }}
-                        label="Credentials source"
-                        description="Choose whether to use organization-level credentials or configure new credentials"
-                    >
-                        <Stack mt="xs">
-                            <Radio
-                                value="org"
-                                label="Use organization credentials"
-                                disabled={disabled}
-                            />
-                            <Radio
-                                value="manual"
-                                label="Configure new credentials"
-                                disabled={disabled}
-                            />
-                        </Stack>
-                    </Radio.Group>
-                )}
-                {useOrgCredentials && snowflakeOrgCredentials.length > 0 && (
+                <TextInput
+                    name="warehouse.account"
+                    label="Account"
+                    placeholder="xy12345.eu-west-2.aws"
+                    description={
+                        isCliSsoMode && cliSsoCredentials !== null
+                            ? 'Your CLI SSO connection is bound to this account.'
+                            : 'This is the account to connect to.'
+                    }
+                    required
+                    {...form.getInputProps('warehouse.account')}
+                    disabled={
+                        disabled || (isCliSsoMode && cliSsoCredentials !== null)
+                    }
+                    labelProps={{ style: { marginTop: '8px' } }}
+                />
+
+                <Group gap="sm">
                     <Select
                         allowDeselect={false}
-                        label="Organization credentials"
-                        description="Select which organization credentials to use for this project"
-                        placeholder="Select credentials"
-                        data={snowflakeOrgCredentials.map((cred) => ({
-                            value: cred.organizationWarehouseCredentialsUuid,
-                            label: cred.name,
-                        }))}
+                        name="warehouse.authenticationType"
                         value={
-                            form.values.organizationWarehouseCredentialsUuid ||
-                            savedProject?.organizationWarehouseCredentialsUuid
+                            isCliSsoMode
+                                ? CLI_SSO_OPTION_VALUE
+                                : authenticationType
                         }
                         onChange={(value) => {
+                            userSelectedAuthType.current = true;
+                            if (value === CLI_SSO_OPTION_VALUE) {
+                                track({
+                                    name: EventName.CREATE_PROJECT_CLI_SSO_OPTION_CLICKED,
+                                });
+                                setIsCliSsoMode(true);
+                                return;
+                            }
+                            setIsCliSsoMode(false);
+                            setCliSsoCredentials(null);
                             form.setFieldValue(
-                                'organizationWarehouseCredentialsUuid',
-                                value || undefined,
+                                'warehouse.authenticationType',
+                                value as SnowflakeAuthenticationType,
                             );
                         }}
-                        disabled={disabled}
+                        label="Authentication Type"
+                        description={
+                            isSsoEnabled &&
+                            isLoadingAuth ? null : isAuthenticated ? (
+                                <Text mt="0" c="gray" fs="xs">
+                                    You are connected to Snowflake,{' '}
+                                    <Anchor
+                                        inherit
+                                        href="#"
+                                        onClick={() => {
+                                            openLoginPopup();
+                                        }}
+                                    >
+                                        Click here to reauthenticate.
+                                    </Anchor>
+                                </Text>
+                            ) : (
+                                'Choose how to authenticate with your data warehouse.'
+                            )
+                        }
+                        data={authOptions}
                         required
+                        disabled={disabled}
+                        w={isAuthenticated ? '90%' : '100%'}
                     />
-                )}
-                {!useOrgCredentials && (
-                    <>
-                        <TextInput
-                            name="warehouse.account"
-                            label="Account"
-                            placeholder="xy12345.eu-west-2.aws"
-                            description={
-                                isCliSsoMode && cliSsoCredentials !== null
-                                    ? 'Your CLI SSO connection is bound to this account.'
-                                    : 'This is the account to connect to.'
-                            }
-                            required
-                            {...form.getInputProps('warehouse.account')}
-                            disabled={
-                                disabled ||
-                                (isCliSsoMode && cliSsoCredentials !== null)
-                            }
-                            labelProps={{ style: { marginTop: '8px' } }}
-                        />
+                    {isAuthenticated && (
+                        <Tooltip label="You are connected to Snowflake">
+                            <Group mt="40px">
+                                <MantineIcon icon={IconCheck} color="green" />
+                            </Group>
+                        </Tooltip>
+                    )}
+                </Group>
 
-                        <Group gap="sm">
-                            <Select
-                                allowDeselect={false}
-                                name="warehouse.authenticationType"
-                                value={
-                                    isCliSsoMode
-                                        ? CLI_SSO_OPTION_VALUE
-                                        : authenticationType
-                                }
-                                onChange={(value) => {
-                                    userSelectedAuthType.current = true;
-                                    if (value === CLI_SSO_OPTION_VALUE) {
-                                        track({
-                                            name: EventName.CREATE_PROJECT_CLI_SSO_OPTION_CLICKED,
-                                        });
-                                        setIsCliSsoMode(true);
-                                        return;
+                {isCliSsoMode ? (
+                    <SnowflakeCliSsoPanel
+                        account={form.values.warehouse.account}
+                        disabled={disabled}
+                        connectedCredentials={cliSsoCredentials}
+                        onDeposited={handleCliSsoDeposited}
+                    />
+                ) : (
+                    <>
+                        {!isNoneAuth &&
+                            authenticationType !==
+                                SnowflakeAuthenticationType.SSO &&
+                            authenticationType !==
+                                SnowflakeAuthenticationType.EXTERNAL_BROWSER && (
+                                <>
+                                    <TextInput
+                                        name="warehouse.user"
+                                        label="User"
+                                        description="This is the database user name."
+                                        required={requireSecrets}
+                                        {...form.getInputProps(
+                                            'warehouse.user',
+                                        )}
+                                        placeholder={
+                                            disabled || !requireSecrets
+                                                ? '**************'
+                                                : undefined
+                                        }
+                                        disabled={disabled}
+                                    />
+                                    <TextInput
+                                        name="warehouse.role"
+                                        label="Role"
+                                        description="This is the role to assume when running queries as the specified user."
+                                        {...form.getInputProps(
+                                            'warehouse.role',
+                                        )}
+                                        disabled={disabled}
+                                    />
+                                </>
+                            )}
+
+                        {isNoneAuth ? (
+                            <>
+                                <Text size="sm" c="dimmed">
+                                    No project-level credentials will be used.
+                                    Users must provide their own credentials to
+                                    connect.
+                                </Text>
+                                <RequireUserCredentialsField
+                                    disabled={disabled}
+                                />
+                            </>
+                        ) : authenticationType ===
+                          SnowflakeAuthenticationType.PRIVATE_KEY ? (
+                            <>
+                                <FileInput
+                                    name="warehouse.privateKey"
+                                    {...form.getInputProps(
+                                        'warehouse.privateKey',
+                                    )}
+                                    label="Private Key File"
+                                    placeholder={
+                                        !requireSecrets
+                                            ? '**************'
+                                            : 'Choose file...'
                                     }
-                                    setIsCliSsoMode(false);
-                                    setCliSsoCredentials(null);
-                                    form.setFieldValue(
-                                        'warehouse.authenticationType',
-                                        value as SnowflakeAuthenticationType,
-                                    );
-                                }}
-                                label="Authentication Type"
-                                description={
-                                    isSsoEnabled &&
-                                    isLoadingAuth ? null : isAuthenticated ? (
-                                        <Text mt="0" c="gray" fs="xs">
-                                            You are connected to Snowflake,{' '}
+                                    description={
+                                        <>
+                                            This is the .p8 private key file.
+                                            You can see{' '}
                                             <Anchor
                                                 inherit
-                                                href="#"
-                                                onClick={() => {
-                                                    openLoginPopup();
-                                                }}
+                                                target="_blank"
+                                                href="https://docs.snowflake.com/en/user-guide/key-pair-auth#generate-the-private-key"
+                                                rel="noreferrer"
                                             >
-                                                Click here to reauthenticate.
+                                                how to create a key here
                                             </Anchor>
-                                        </Text>
-                                    ) : (
-                                        'Choose how to authenticate with your data warehouse.'
-                                    )
-                                }
-                                data={authOptions}
-                                required
-                                disabled={disabled}
-                                w={isAuthenticated ? '90%' : '100%'}
-                            />
-                            {isAuthenticated && (
-                                <Tooltip label="You are connected to Snowflake">
-                                    <Group mt="40px">
-                                        <MantineIcon
-                                            icon={IconCheck}
-                                            color="green"
-                                        />
-                                    </Group>
-                                </Tooltip>
-                            )}
-                        </Group>
+                                            .
+                                        </>
+                                    }
+                                    required={requireSecrets}
+                                    accept=".p8"
+                                    value={temporaryFile}
+                                    onChange={(file) => {
+                                        if (!file) {
+                                            setTemporaryFile(undefined);
+                                            form.setFieldValue(
+                                                'warehouse.privateKey',
+                                                undefined,
+                                            );
+                                            return;
+                                        }
 
-                        {isCliSsoMode ? (
-                            <SnowflakeCliSsoPanel
-                                account={form.values.warehouse.account}
-                                disabled={disabled}
-                                connectedCredentials={cliSsoCredentials}
-                                onDeposited={handleCliSsoDeposited}
-                            />
+                                        const fileReader = new FileReader();
+                                        fileReader.onload = function (event) {
+                                            const contents =
+                                                event.target?.result;
+                                            setTemporaryFile(file);
+
+                                            if (typeof contents === 'string') {
+                                                form.setFieldValue(
+                                                    'warehouse.privateKey',
+                                                    contents,
+                                                );
+                                            } else {
+                                                form.setFieldValue(
+                                                    'warehouse.privateKey',
+                                                    undefined,
+                                                );
+                                            }
+                                        };
+                                        fileReader.onerror = () => {
+                                            setTemporaryFile(undefined);
+                                            form.setFieldValue(
+                                                'warehouse.privateKey',
+                                                undefined,
+                                            );
+                                        };
+                                        fileReader.readAsText(file);
+                                    }}
+                                    disabled={disabled}
+                                />
+
+                                <PasswordInput
+                                    name="warehouse.privateKeyPass"
+                                    label="Private Key Passphrase"
+                                    description="Optional passphrase for encrypted private keys"
+                                    {...form.getInputProps(
+                                        'warehouse.privateKeyPass',
+                                    )}
+                                    placeholder={
+                                        disabled || !requireSecrets
+                                            ? '**************'
+                                            : undefined
+                                    }
+                                    disabled={disabled}
+                                />
+                            </>
+                        ) : authenticationType ===
+                          SnowflakeAuthenticationType.SSO ? (
+                            !isLoadingAuth && (
+                                <SnowflakeSSOInput
+                                    isAuthenticated={isAuthenticated}
+                                    disabled={disabled}
+                                    openLoginPopup={openLoginPopup}
+                                />
+                            )
+                        ) : authenticationType ===
+                          SnowflakeAuthenticationType.EXTERNAL_BROWSER ? (
+                            <Text size="sm" c="dimmed">
+                                External browser authentication is configured.
+                                Authentication will occur through your default
+                                browser when connecting to Snowflake.
+                            </Text>
                         ) : (
                             <>
-                                {!isNoneAuth &&
-                                    authenticationType !==
-                                        SnowflakeAuthenticationType.SSO &&
-                                    authenticationType !==
-                                        SnowflakeAuthenticationType.EXTERNAL_BROWSER && (
-                                        <>
-                                            <TextInput
-                                                name="warehouse.user"
-                                                label="User"
-                                                description="This is the database user name."
-                                                required={requireSecrets}
-                                                {...form.getInputProps(
-                                                    'warehouse.user',
-                                                )}
-                                                placeholder={
-                                                    disabled || !requireSecrets
-                                                        ? '**************'
-                                                        : undefined
-                                                }
-                                                disabled={disabled}
-                                            />
-                                            <TextInput
-                                                name="warehouse.role"
-                                                label="Role"
-                                                description="This is the role to assume when running queries as the specified user."
-                                                {...form.getInputProps(
-                                                    'warehouse.role',
-                                                )}
-                                                disabled={disabled}
-                                            />
-                                        </>
+                                <PasswordInput
+                                    name="warehouse.password"
+                                    label="Password"
+                                    description="This is the database user password."
+                                    required={requireSecrets}
+                                    placeholder={
+                                        disabled || !requireSecrets
+                                            ? '**************'
+                                            : undefined
+                                    }
+                                    {...form.getInputProps(
+                                        'warehouse.password',
                                     )}
+                                    disabled={disabled}
+                                />
+                            </>
+                        )}
 
-                                {isNoneAuth ? (
-                                    <>
-                                        <Text size="sm" c="dimmed">
-                                            No project-level credentials will be
-                                            used. Users must provide their own
-                                            credentials to connect.
-                                        </Text>
-                                        <RequireUserCredentialsField
-                                            disabled={disabled}
-                                        />
-                                    </>
-                                ) : authenticationType ===
-                                  SnowflakeAuthenticationType.PRIVATE_KEY ? (
-                                    <>
-                                        <FileInput
-                                            name="warehouse.privateKey"
-                                            {...form.getInputProps(
-                                                'warehouse.privateKey',
-                                            )}
-                                            label="Private Key File"
-                                            placeholder={
-                                                !requireSecrets
-                                                    ? '**************'
-                                                    : 'Choose file...'
-                                            }
-                                            description={
-                                                <>
-                                                    This is the .p8 private key
-                                                    file. You can see{' '}
-                                                    <Anchor
-                                                        inherit
-                                                        target="_blank"
-                                                        href="https://docs.snowflake.com/en/user-guide/key-pair-auth#generate-the-private-key"
-                                                        rel="noreferrer"
-                                                    >
-                                                        how to create a key here
-                                                    </Anchor>
-                                                    .
-                                                </>
-                                            }
-                                            required={requireSecrets}
-                                            accept=".p8"
-                                            value={temporaryFile}
-                                            onChange={(file) => {
-                                                if (!file) {
-                                                    setTemporaryFile(undefined);
-                                                    form.setFieldValue(
-                                                        'warehouse.privateKey',
-                                                        undefined,
-                                                    );
-                                                    return;
-                                                }
+                        <TextInput
+                            name="warehouse.database"
+                            label="Database"
+                            description="This is the database name."
+                            required
+                            {...form.getInputProps('warehouse.database')}
+                            disabled={disabled}
+                        />
+                        <TextInput
+                            name="warehouse.warehouse"
+                            label="Warehouse"
+                            description="This is the warehouse name."
+                            required
+                            {...form.getInputProps('warehouse.warehouse')}
+                            disabled={disabled}
+                        />
+                        <BooleanSwitch
+                            name="warehouse.override"
+                            {...form.getInputProps('warehouse.override', {
+                                type: 'checkbox',
+                            })}
+                            documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse"
+                            label="Always use this warehouse"
+                            onLabel="Yes"
+                            offLabel="No"
+                            disabled={disabled}
+                        />
 
-                                                const fileReader =
-                                                    new FileReader();
-                                                fileReader.onload = function (
-                                                    event,
-                                                ) {
-                                                    const contents =
-                                                        event.target?.result;
-                                                    setTemporaryFile(file);
-
-                                                    if (
-                                                        typeof contents ===
-                                                        'string'
-                                                    ) {
-                                                        form.setFieldValue(
-                                                            'warehouse.privateKey',
-                                                            contents,
-                                                        );
-                                                    } else {
-                                                        form.setFieldValue(
-                                                            'warehouse.privateKey',
-                                                            undefined,
-                                                        );
-                                                    }
-                                                };
-                                                fileReader.onerror = () => {
-                                                    setTemporaryFile(undefined);
-                                                    form.setFieldValue(
-                                                        'warehouse.privateKey',
-                                                        undefined,
-                                                    );
-                                                };
-                                                fileReader.readAsText(file);
-                                            }}
-                                            disabled={disabled}
-                                        />
-
-                                        <PasswordInput
-                                            name="warehouse.privateKeyPass"
-                                            label="Private Key Passphrase"
-                                            description="Optional passphrase for encrypted private keys"
-                                            {...form.getInputProps(
-                                                'warehouse.privateKeyPass',
-                                            )}
-                                            placeholder={
-                                                disabled || !requireSecrets
-                                                    ? '**************'
-                                                    : undefined
-                                            }
-                                            disabled={disabled}
-                                        />
-                                    </>
-                                ) : authenticationType ===
-                                  SnowflakeAuthenticationType.SSO ? (
-                                    !isLoadingAuth && (
-                                        <SnowflakeSSOInput
-                                            isAuthenticated={isAuthenticated}
-                                            disabled={disabled}
-                                            openLoginPopup={openLoginPopup}
-                                        />
-                                    )
-                                ) : authenticationType ===
-                                  SnowflakeAuthenticationType.EXTERNAL_BROWSER ? (
-                                    <Text size="sm" c="dimmed">
-                                        External browser authentication is
-                                        configured. Authentication will occur
-                                        through your default browser when
-                                        connecting to Snowflake.
-                                    </Text>
-                                ) : (
-                                    <>
-                                        <PasswordInput
-                                            name="warehouse.password"
-                                            label="Password"
-                                            description="This is the database user password."
-                                            required={requireSecrets}
-                                            placeholder={
-                                                disabled || !requireSecrets
-                                                    ? '**************'
-                                                    : undefined
-                                            }
-                                            {...form.getInputProps(
-                                                'warehouse.password',
-                                            )}
-                                            disabled={disabled}
-                                        />
-                                    </>
+                        <FormSection isOpen={isOpen} name="advanced">
+                            <Stack mt="xs">
+                                {!isNoneAuth && (
+                                    <RequireUserCredentialsField
+                                        disabled={disabled}
+                                    />
                                 )}
 
-                                <TextInput
-                                    name="warehouse.database"
-                                    label="Database"
-                                    description="This is the database name."
-                                    required
-                                    {...form.getInputProps(
-                                        'warehouse.database',
-                                    )}
-                                    disabled={disabled}
-                                />
-                                <TextInput
-                                    name="warehouse.warehouse"
-                                    label="Warehouse"
-                                    description="This is the warehouse name."
-                                    required
-                                    {...form.getInputProps(
-                                        'warehouse.warehouse',
-                                    )}
-                                    disabled={disabled}
-                                />
                                 <BooleanSwitch
-                                    name="warehouse.override"
+                                    name="warehouse.clientSessionKeepAlive"
+                                    label="Keep client session alive"
+                                    description={
+                                        <>
+                                            This is intended to keep Snowflake
+                                            sessions alive beyond the typical 4
+                                            hour timeout limit You can see more
+                                            details in{' '}
+                                            <Anchor
+                                                inherit
+                                                target="_blank"
+                                                href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive"
+                                                rel="noreferrer"
+                                            >
+                                                dbt documentation
+                                            </Anchor>
+                                            .
+                                        </>
+                                    }
+                                    onLabel="Yes"
+                                    offLabel="No"
+                                    disabled={disabled}
                                     {...form.getInputProps(
-                                        'warehouse.override',
+                                        'warehouse.clientSessionKeepAlive',
                                         {
                                             type: 'checkbox',
                                         },
                                     )}
-                                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse"
-                                    label="Always use this warehouse"
-                                    onLabel="Yes"
-                                    offLabel="No"
+                                />
+
+                                <TextInput
+                                    name="warehouse.queryTag"
+                                    {...form.getInputProps(
+                                        'warehouse.queryTag',
+                                    )}
+                                    label="Query tag"
+                                    description={
+                                        <>
+                                            This is Snowflake query tags
+                                            parameter. You can see more details
+                                            in{' '}
+                                            <Anchor
+                                                inherit
+                                                target="_blank"
+                                                href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#query_tag"
+                                                rel="noreferrer"
+                                            >
+                                                dbt documentation
+                                            </Anchor>
+                                            .
+                                        </>
+                                    }
                                     disabled={disabled}
                                 />
 
-                                <FormSection isOpen={isOpen} name="advanced">
-                                    <Stack mt="xs">
-                                        {!isNoneAuth && (
-                                            <RequireUserCredentialsField
-                                                disabled={disabled}
-                                            />
-                                        )}
-
-                                        <BooleanSwitch
-                                            name="warehouse.clientSessionKeepAlive"
-                                            label="Keep client session alive"
-                                            description={
-                                                <>
-                                                    This is intended to keep
-                                                    Snowflake sessions alive
-                                                    beyond the typical 4 hour
-                                                    timeout limit You can see
-                                                    more details in{' '}
-                                                    <Anchor
-                                                        inherit
-                                                        target="_blank"
-                                                        href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive"
-                                                        rel="noreferrer"
-                                                    >
-                                                        dbt documentation
-                                                    </Anchor>
-                                                    .
-                                                </>
-                                            }
-                                            onLabel="Yes"
-                                            offLabel="No"
-                                            disabled={disabled}
-                                            {...form.getInputProps(
-                                                'warehouse.clientSessionKeepAlive',
-                                                {
-                                                    type: 'checkbox',
-                                                },
-                                            )}
-                                        />
-
-                                        <TextInput
-                                            name="warehouse.queryTag"
-                                            {...form.getInputProps(
-                                                'warehouse.queryTag',
-                                            )}
-                                            label="Query tag"
-                                            description={
-                                                <>
-                                                    This is Snowflake query tags
-                                                    parameter. You can see more
-                                                    details in{' '}
-                                                    <Anchor
-                                                        inherit
-                                                        target="_blank"
-                                                        href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#query_tag"
-                                                        rel="noreferrer"
-                                                    >
-                                                        dbt documentation
-                                                    </Anchor>
-                                                    .
-                                                </>
-                                            }
-                                            disabled={disabled}
-                                        />
-
-                                        <TextInput
-                                            name="warehouse.accessUrl"
-                                            label="Snowflake URL override"
-                                            description={
-                                                <>
-                                                    Usually this instance would
-                                                    connect to a default url:
-                                                    account.snowflakecomputing.com.
-                                                    If you'd like to override
-                                                    this (e.g. for the dbt
-                                                    server) you can specify a
-                                                    full custom URL here.
-                                                </>
-                                            }
-                                            disabled={disabled}
-                                            {...form.getInputProps(
-                                                'warehouse.accessUrl',
-                                            )}
-                                        />
-                                        <DataTimezoneField
-                                            disabled={disabled}
-                                        />
-                                        <StartOfWeekSelect
-                                            disabled={disabled}
-                                            isRedeployRequired={false}
-                                        />
-                                        <BooleanSwitch
-                                            name="warehouse.disableTimestampConversion"
-                                            label="Disable timestamp conversion to UTC"
-                                            description="When disabled, the connection will skip converting timestamps to UTC. This can improve performance but requires your data to already be in UTC format."
-                                            onLabel="Yes"
-                                            offLabel="No"
-                                            disabled={disabled}
-                                            {...form.getInputProps(
-                                                'warehouse.disableTimestampConversion',
-                                                { type: 'checkbox' },
-                                            )}
-                                        />
-                                        <NumberInput
-                                            name="warehouse.timeoutSeconds"
-                                            {...form.getInputProps(
-                                                'warehouse.timeoutSeconds',
-                                            )}
-                                            label="Timeout in seconds"
-                                            defaultValue={
-                                                SnowflakeDefaultValues.timeoutSeconds
-                                            }
-                                            description="Sets the maximum execution time for queries. If a query takes longer than this timeout, Snowflake will cancel it. This uses Snowflake's STATEMENT_TIMEOUT_IN_SECONDS session parameter."
-                                            disabled={disabled}
-                                        />
-                                    </Stack>
-                                </FormSection>
-                                <FormCollapseButton
-                                    isSectionOpen={isOpen}
-                                    onClick={toggleOpen}
-                                >
-                                    Advanced configuration options
-                                </FormCollapseButton>
-                            </>
-                        )}
+                                <TextInput
+                                    name="warehouse.accessUrl"
+                                    label="Snowflake URL override"
+                                    description={
+                                        <>
+                                            Usually this instance would connect
+                                            to a default url:
+                                            account.snowflakecomputing.com. If
+                                            you'd like to override this (e.g.
+                                            for the dbt server) you can specify
+                                            a full custom URL here.
+                                        </>
+                                    }
+                                    disabled={disabled}
+                                    {...form.getInputProps(
+                                        'warehouse.accessUrl',
+                                    )}
+                                />
+                                <DataTimezoneField disabled={disabled} />
+                                <StartOfWeekSelect
+                                    disabled={disabled}
+                                    isRedeployRequired={false}
+                                />
+                                <BooleanSwitch
+                                    name="warehouse.disableTimestampConversion"
+                                    label="Disable timestamp conversion to UTC"
+                                    description="When disabled, the connection will skip converting timestamps to UTC. This can improve performance but requires your data to already be in UTC format."
+                                    onLabel="Yes"
+                                    offLabel="No"
+                                    disabled={disabled}
+                                    {...form.getInputProps(
+                                        'warehouse.disableTimestampConversion',
+                                        { type: 'checkbox' },
+                                    )}
+                                />
+                                <NumberInput
+                                    name="warehouse.timeoutSeconds"
+                                    {...form.getInputProps(
+                                        'warehouse.timeoutSeconds',
+                                    )}
+                                    label="Timeout in seconds"
+                                    defaultValue={
+                                        SnowflakeDefaultValues.timeoutSeconds
+                                    }
+                                    description="Sets the maximum execution time for queries. If a query takes longer than this timeout, Snowflake will cancel it. This uses Snowflake's STATEMENT_TIMEOUT_IN_SECONDS session parameter."
+                                    disabled={disabled}
+                                />
+                            </Stack>
+                        </FormSection>
+                        <FormCollapseButton
+                            isSectionOpen={isOpen}
+                            onClick={toggleOpen}
+                        >
+                            Advanced configuration options
+                        </FormCollapseButton>
                     </>
                 )}
             </Stack>

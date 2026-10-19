@@ -51,10 +51,6 @@ vi.mock('../../../features/aiAccess/api', () => ({
         return { data: { requirementSource: mocks.requirementSource } };
     },
 }));
-vi.mock(
-    '../../../hooks/organization/useOrganizationWarehouseCredentials',
-    () => ({ useOrganizationWarehouseCredentials: () => ({ data: [] }) }),
-);
 vi.mock('../../../hooks/useSnowflake', () => ({
     useIsSnowflakeAuthenticated: () => ({ data: undefined, error: null }),
     useSnowflakeDatasets: () => ({ refetch: vi.fn() }),
