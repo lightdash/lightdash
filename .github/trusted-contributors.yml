@@ -7,4 +7,5 @@
 #
 # trusted:
 #     - some-username
-trusted: []
+trusted:
+    - vijaybandari
