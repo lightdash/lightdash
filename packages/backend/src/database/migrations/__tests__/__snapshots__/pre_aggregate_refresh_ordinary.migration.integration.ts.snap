@@ -6,8 +6,8 @@ exports[`ordinary array matches main SQL 1`] = `
   "insert into "cached_explores" ("explores", "project_uuid") values ($1, $2) on conflict ("project_uuid") do nothing",
   "select * from "cached_explores" where "project_uuid" = $1 limit $2 for update",
   "select "explore" from "cached_explore" where "project_uuid" = $1 and explore->>'type' = ANY($2)",
-  "delete from "cached_explore" where "project_uuid" = $1",
-  "insert into "cached_explore" ("explore", "name", "project_uuid", "table_names") values ($1, $2, $3, $4) returning "cached_explore_uuid"",
+  "delete from "cached_explore" where "project_uuid" = $1 and "name" not in ($2)",
+  "insert into "cached_explore" ("explore", "name", "project_uuid", "table_names") values ($1, $2, $3, $4) on conflict ("name", "project_uuid") do update set "table_names" = excluded."table_names", "explore" = excluded."explore", "warehouse_connection_uuid" = excluded."warehouse_connection_uuid" returning "cached_explore_uuid"",
   "COMMIT;",
 ]
 `;
@@ -29,11 +29,15 @@ exports[`ordinary multi matches main SQL 1`] = `
                                      warehouse_connection_uuid = EXCLUDED.warehouse_connection_uuid
                                  RETURNING name",
   "select "name" from "cached_explore_staging" where "save_uuid" = $1 and "project_uuid" = $2 for update",
-  "delete from "cached_explore" where "project_uuid" = $1",
+  "delete from "cached_explore" where "project_uuid" = $1 and not exists (select 1 from "cached_explore_staging" where "save_uuid" = $2 and "project_uuid" = $3 and "cached_explore_staging".name = "cached_explore".name)",
   "INSERT INTO "cached_explore" (cached_explore_uuid, project_uuid, name, table_names, explore, warehouse_connection_uuid)
                                  SELECT cached_explore_uuid, project_uuid, name, table_names, explore, warehouse_connection_uuid
                                  FROM "cached_explore_staging"
                                  WHERE save_uuid = $1 AND project_uuid = $2
+                                 ON CONFLICT (name, project_uuid) DO UPDATE
+                                 SET table_names = EXCLUDED.table_names,
+                                     explore = EXCLUDED.explore,
+                                     warehouse_connection_uuid = EXCLUDED.warehouse_connection_uuid
                                  RETURNING name, cached_explore_uuid",
   "COMMIT;",
   "delete from "cached_explore_staging" where "save_uuid" = $1",
@@ -66,11 +70,15 @@ exports[`ordinary stream matches main SQL 1`] = `
                                      explore = EXCLUDED.explore
                                  RETURNING name, cached_explore_uuid",
   "select "name" from "cached_explore_staging" where "save_uuid" = $1 and "project_uuid" = $2 for update",
-  "delete from "cached_explore" where "project_uuid" = $1",
+  "delete from "cached_explore" where "project_uuid" = $1 and not exists (select 1 from "cached_explore_staging" where "save_uuid" = $2 and "project_uuid" = $3 and "cached_explore_staging".name = "cached_explore".name)",
   "INSERT INTO "cached_explore" (cached_explore_uuid, project_uuid, name, table_names, explore)
                                  SELECT cached_explore_uuid, project_uuid, name, table_names, explore
                                  FROM "cached_explore_staging"
                                  WHERE save_uuid = $1 AND project_uuid = $2
+                                 ON CONFLICT (name, project_uuid) DO UPDATE
+                                 SET table_names = EXCLUDED.table_names,
+                                     explore = EXCLUDED.explore,
+                                     warehouse_connection_uuid = NULL
                                  RETURNING name, cached_explore_uuid",
   "COMMIT;",
   "delete from "cached_explore_staging" where "save_uuid" = $1",
