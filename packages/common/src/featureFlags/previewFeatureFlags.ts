@@ -21,9 +21,8 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     FeatureFlags.NewOnboarding,
     // Acts outside the environment: opens pull requests on real repos.
     FeatureFlags.AiPreviewDeploySetup,
-    // Off pending a security review, or only meaningful for eval orgs.
+    // Off pending a security review.
     FeatureFlags.SsoOrganizationSettings,
-    FeatureFlags.AiReviewReplayCapture,
     // Security hardening: previews must not accept long-lived GitHub PATs.
     FeatureFlags.AiMcpGithubPat,
     // Same reason: the dashboard E2E specs drive the navigate-away "New chart"

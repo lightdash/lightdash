@@ -18,8 +18,6 @@ import {
     AiAgentReviewRemediationCompileJobPayload,
     AiAgentReviewRemediationPreviewJobPayload,
     AiAgentReviewRemediationRunJobPayload,
-    AiAgentReviewReplayCaptureEntry,
-    AiAgentReviewReplayCaptureRequest,
     AiAgentReviewSignalSummary,
     AiAgentReviewWritebackJobPayload,
     AiAgentSummary,
@@ -124,7 +122,6 @@ import {
     PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION,
 } from './ai/reviewWriteback/buildReviewWritebackPrompt';
 import { sanitizeToolResultForDump } from './ai/utils/threadDumpSanitizer';
-import { type AiAgentReviewClassifierService } from './AiAgentReviewClassifierService';
 import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
 import { type AiAgentService } from './AiAgentService/AiAgentService';
 import { isBitbucketCloudConnection } from './AiAgentService/writebackConnection';
@@ -139,10 +136,6 @@ type AiAgentAdminServiceDependencies = {
     aiAgentModel: AiAgentModel;
     aiAgentMemoryModel: Pick<AiAgentMemoryModel, 'findAdminMemoriesPaginated'>;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
-    aiAgentReviewClassifierService: Pick<
-        AiAgentReviewClassifierService,
-        'captureJudgeReplayInput'
-    >;
     aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
     aiAgentReviewNotificationService: AiAgentReviewNotificationService;
     aiAgentService: AiAgentService;
@@ -405,11 +398,6 @@ export class AiAgentAdminService extends BaseService {
 
     private readonly aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
 
-    private readonly aiAgentReviewClassifierService: Pick<
-        AiAgentReviewClassifierService,
-        'captureJudgeReplayInput'
-    >;
-
     private readonly aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
 
     private readonly aiAgentReviewNotificationService: AiAgentReviewNotificationService;
@@ -453,8 +441,6 @@ export class AiAgentAdminService extends BaseService {
         this.aiAgentMemoryModel = dependencies.aiAgentMemoryModel;
         this.aiAgentReviewClassifierModel =
             dependencies.aiAgentReviewClassifierModel;
-        this.aiAgentReviewClassifierService =
-            dependencies.aiAgentReviewClassifierService;
         this.aiAgentReviewNotificationModel =
             dependencies.aiAgentReviewNotificationModel;
         this.aiAgentReviewNotificationService =
@@ -1983,124 +1969,6 @@ export class AiAgentAdminService extends BaseService {
         return this.aiAgentReviewClassifierModel.listReviewSignals({
             organizationUuid,
         });
-    }
-
-    /**
-     * Rebuilds the judge inputs (candidate + evidence packet) for historical
-     * turn signals so the eval scoreboard can replay the judge offline.
-     * Read-only; gated behind the AiReviewReplayCapture feature flag.
-     */
-    async captureReviewReplayInputs(
-        user: SessionUser,
-        body: AiAgentReviewReplayCaptureRequest,
-    ): Promise<AiAgentReviewReplayCaptureEntry[]> {
-        const { organizationUuid } = user;
-        if (!organizationUuid) {
-            throw new ForbiddenError('Organization not found');
-        }
-        this.checkOrganizationAdminAccess(user);
-        const { enabled } = await this.featureFlagService.get({
-            featureFlagId: FeatureFlags.AiReviewReplayCapture,
-            user,
-        });
-        if (!enabled) {
-            throw new ForbiddenError('Review replay capture is not enabled');
-        }
-        if (body.signalUuids.length === 0) {
-            return [];
-        }
-        if (body.signalUuids.length > 20) {
-            throw new ParameterError(
-                'Capture at most 20 signals per request; batch larger sets',
-            );
-        }
-
-        const uuidPattern =
-            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        const validSignalUuids = body.signalUuids.filter((signalUuid) =>
-            uuidPattern.test(signalUuid),
-        );
-        const subjects =
-            validSignalUuids.length > 0
-                ? await this.aiAgentReviewClassifierModel.findTurnSignalSubjects(
-                      {
-                          organizationUuid,
-                          signalUuids: validSignalUuids,
-                      },
-                  )
-                : [];
-        const subjectsBySignalUuid = new Map(
-            subjects.map((subjectRow) => [subjectRow.signalUuid, subjectRow]),
-        );
-
-        const captureEntry = async (
-            signalUuid: string,
-        ): Promise<AiAgentReviewReplayCaptureEntry> => {
-            if (!uuidPattern.test(signalUuid)) {
-                return {
-                    signalUuid,
-                    promptUuid: null,
-                    threadUuid: null,
-                    captureError: 'invalid signal uuid',
-                    input: null,
-                };
-            }
-            const subjectRow = subjectsBySignalUuid.get(signalUuid);
-            if (!subjectRow) {
-                return {
-                    signalUuid,
-                    promptUuid: null,
-                    threadUuid: null,
-                    captureError: 'signal not found',
-                    input: null,
-                };
-            }
-            try {
-                const input =
-                    await this.aiAgentReviewClassifierService.captureJudgeReplayInput(
-                        {
-                            organizationUuid,
-                            promptUuid: subjectRow.promptUuid,
-                        },
-                    );
-                return {
-                    signalUuid,
-                    promptUuid: subjectRow.promptUuid,
-                    threadUuid: subjectRow.threadUuid,
-                    captureError: input ? null : 'candidate not found',
-                    input,
-                };
-            } catch (error) {
-                return {
-                    signalUuid,
-                    promptUuid: subjectRow.promptUuid,
-                    threadUuid: subjectRow.threadUuid,
-                    captureError:
-                        error instanceof Error ? error.message : String(error),
-                    input: null,
-                };
-            }
-        };
-
-        // Bounded concurrency — each capture loads the explore cache and full
-        // catalog; an unbounded fan-out would starve the API pod's DB pool.
-        const results: AiAgentReviewReplayCaptureEntry[] = new Array(
-            body.signalUuids.length,
-        );
-        let nextIndex = 0;
-        await Promise.all(
-            Array.from({ length: 3 }, async () => {
-                while (nextIndex < body.signalUuids.length) {
-                    const index = nextIndex;
-                    nextIndex += 1;
-                    // eslint-disable-next-line no-await-in-loop
-                    results[index] = await captureEntry(
-                        body.signalUuids[index],
-                    );
-                }
-            }),
-        );
-        return results;
     }
 
     async updateReviewItemStatus(

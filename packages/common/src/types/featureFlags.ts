@@ -205,13 +205,6 @@ export enum FeatureFlags {
     OrganizationTrialBlock = 'organization-trial-block',
 
     /**
-     * Enable the admin API endpoint that captures AI review judge replay
-     * inputs (candidate + evidence packet) for the offline eval scoreboard.
-     * Off by default — intended only for orgs running classifier evals.
-     */
-    AiReviewReplayCapture = 'ai-review-replay-capture',
-
-    /**
      * Enable the AI writeback sandbox agent's preview-deploy secondary task:
      * detecting whether a repo deploys Lightdash preview projects via GitHub
      * Actions, offering to set it up during a writeback, and the
