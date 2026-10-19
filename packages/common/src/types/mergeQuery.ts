@@ -1495,16 +1495,19 @@ export const parseSavedMergeDefinition = (
     ) {
         return null;
     }
-    const parsedQueries = queryNames.map((name) => [
-        name,
-        parseMergeDefinitionQuery(rawQueries[name]),
-    ]);
+    const keys = parseMergeDefinitionKeys(value.keys, queryNames);
+    if (keys === null) return null;
+    // jsonb reorders object keys; a key's references keep the source order
+    const sourceOrder = Object.values(keys)[0].map(
+        (reference) => parseMergeDefinitionReference(reference).query,
+    );
+    const parsedQueries = [...queryNames]
+        .sort((a, b) => sourceOrder.indexOf(a) - sourceOrder.indexOf(b))
+        .map((name) => [name, parseMergeDefinitionQuery(rawQueries[name])]);
     if (parsedQueries.some(([, query]) => query === null)) return null;
     if (!(Object.values(MergeJoinType) as unknown[]).includes(value.join)) {
         return null;
     }
-    const keys = parseMergeDefinitionKeys(value.keys, queryNames);
-    if (keys === null) return null;
     if (
         value.keyNames !== undefined &&
         (!isRecord(value.keyNames) ||

@@ -789,6 +789,15 @@ describe('saved merge schemas', () => {
             buildMergeQueryFromMergeDefinition(chartSource.metricQuery, merge),
         ).toEqual(runnable);
         expect(validateMergeQuery(runnable)).toEqual([]);
+
+        const { calls, complaints, calls_2: calls2 } = merge.queries;
+        const jsonbOrdered = {
+            ...merge,
+            queries: { calls, calls_2: calls2, complaints },
+        };
+        expect(
+            Object.keys(parseSavedMergeDefinition(jsonbOrdered)?.queries ?? {}),
+        ).toEqual(['calls', 'complaints', 'calls_2']);
     });
 
     it('refuses to save a merge over an existing result or without the chart query', () => {
