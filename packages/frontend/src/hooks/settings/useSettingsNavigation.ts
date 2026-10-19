@@ -817,7 +817,10 @@ export const useSettingsNavigation = (
         ];
 
         const hasProjectSettings =
-            !!organization && !organization.needsProject && !!project;
+            !!organization &&
+            !organization.needsProject &&
+            !!project &&
+            project.provisioningSource !== 'analytics';
         const canUpdateCurrentProject =
             hasProjectSettings && projectSettingsAccess.type === 'full';
         const base = `/generalSettings/projectManagement/${project?.projectUuid}`;
