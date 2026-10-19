@@ -1,3 +1,10 @@
+## [2.605.4](https://github.com/lightdash/lightdash/compare/2.605.3...2.605.4) (2026-10-19)
+
+
+### Bug Fixes
+
+* **ai-agents:** Slack SQL approval for runComposerQueries ([#31126](https://github.com/lightdash/lightdash/issues/31126)) ([0bfcf3e](https://github.com/lightdash/lightdash/commit/0bfcf3e137de09f52d578e1c8552d9345eb43c2f))
+
 ## [2.605.3](https://github.com/lightdash/lightdash/compare/2.605.2...2.605.3) (2026-10-19)
 
 
