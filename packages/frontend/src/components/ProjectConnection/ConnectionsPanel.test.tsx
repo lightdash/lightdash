@@ -298,6 +298,7 @@ describe('ConnectionsPanel', () => {
         );
     });
 
+    // Full panel render plus a multi-step form; the default 5 s is not enough on a shared CI runner.
     it('saves manual credentials after changing the warehouse type', async () => {
         mockApi.mockImplementation(
             async ({ url, method }: { url: string; method: string }) => {
@@ -365,7 +366,7 @@ describe('ConnectionsPanel', () => {
                 }),
             ),
         );
-    });
+    }, 20_000);
 
     it('disables adding a connection when the project cannot hold another', async () => {
         mockApi.mockResolvedValue({
