@@ -1,3 +1,10 @@
+## [2.606.5](https://github.com/lightdash/lightdash/compare/2.606.4...2.606.5) (2026-10-19)
+
+
+### Bug Fixes
+
+* refresh saved charts and dashboard tiles after agent edits ([#31015](https://github.com/lightdash/lightdash/issues/31015)) ([9a9c8b5](https://github.com/lightdash/lightdash/commit/9a9c8b590b4e108584f49531f78a97d801a5d677))
+
 ## [2.606.4](https://github.com/lightdash/lightdash/compare/2.606.3...2.606.4) (2026-10-19)
 
 
