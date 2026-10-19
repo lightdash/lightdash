@@ -3,6 +3,7 @@ import {
     friendlyName,
     getErrorMessage,
     getSlackErrorCode,
+    getSlackErrorMessages,
     getSlackFeatureAvailability,
     getSlackInstallScopes,
     getSlackInvalidBlockIndices,
@@ -1018,7 +1019,33 @@ export class SlackClient {
                 ...slackMessageArgs,
             })
             .catch(async (e) => {
-                if (getSlackErrorCode(e) === 'invalid_blocks') {
+                const errorCode = getSlackErrorCode(e);
+                // Slack rejects the whole message when it dislikes the custom
+                // icon URL (e.g. a signed or expired CDN link). The icon is
+                // cosmetic, so deliver with the default icon rather than fail.
+                if (
+                    errorCode === 'invalid_arguments' &&
+                    'icon_url' in customIconArgs
+                ) {
+                    Logger.warn(
+                        `Slack rejected the custom app icon for organization ${organizationUuid}, retrying with the default icon: ${getSlackErrorMessages(
+                            e,
+                        ).join('; ')}`,
+                    );
+                    return webClient.chat
+                        .postMessage({
+                            channel: resolvedChannel,
+                            ...slackMessageArgs,
+                        })
+                        .catch((retryError) => {
+                            slackErrorHandler(
+                                retryError,
+                                'Unable to post message on Slack without custom icon',
+                            );
+                            throw retryError;
+                        });
+                }
+                if (errorCode === 'invalid_blocks') {
                     const { blocks } = slackMessageArgs;
                     const rejectedIndices = getSlackInvalidBlockIndices(e);
                     Logger.error(
