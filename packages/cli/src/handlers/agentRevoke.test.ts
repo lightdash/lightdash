@@ -535,3 +535,20 @@ it.each([401, 403, 500])(
         );
     },
 );
+
+it('retains local-slot guidance with status without an unknown code on an error envelope', async () => {
+    server.removeAllListeners('request');
+    server.on('request', (_req, res) => {
+        res.setHeader('content-type', 'application/json');
+        res.end(
+            JSON.stringify({
+                status: 'error',
+                error: { code: 'test_code', message: 'server text!' },
+            }),
+        );
+    });
+    await agentRevokeHandler({ name: slot.name, json: true });
+    expect(output().error).toBe(
+        'Revocation was not confirmed. The local slot was kept. The server rejected the agent connection request (status 200).',
+    );
+});

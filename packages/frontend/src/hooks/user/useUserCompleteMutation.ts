@@ -4,11 +4,15 @@ import {
     type LightdashUser,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useToaster from '../toaster/useToaster';
 import { type UserWithAbility } from './useUser';
 
-const completeUserQuery = async (data: CompleteUserArgs) =>
+const completeUserQuery = async (
+    lightdashApi: LightdashApi,
+    data: CompleteUserArgs,
+) =>
     lightdashApi<LightdashUser>({
         url: `/user/me/complete`,
         method: 'PATCH',
@@ -22,10 +26,11 @@ type UserCompleteMutationOptions = {
 export const useUserCompleteMutation = (
     options?: UserCompleteMutationOptions,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<LightdashUser, ApiError, CompleteUserArgs>(
-        completeUserQuery,
+        (data: CompleteUserArgs) => completeUserQuery(lightdashApi, data),
         {
             mutationKey: ['user_complete'],
             onSuccess: async (completedUser) => {

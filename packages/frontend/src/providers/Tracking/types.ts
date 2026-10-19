@@ -14,6 +14,7 @@ import {
 } from '@lightdash/common';
 import type * as rudderSDK from 'rudder-sdk-js';
 import { type PlaygroundSetupFailure } from '../../components/ProjectConnection/ProjectConnectFlow/playgroundSetupFailure';
+import { type AgentSuggestionsDisplayedProperties } from '../../ee/features/aiCopilot/hooks/agentSuggestionsTelemetry';
 import {
     type CategoryName,
     type EventName,
@@ -635,6 +636,11 @@ type AiDeepResearchReportEngagedEvent = {
     };
 };
 
+type AiAgentSuggestionsDisplayedEvent = {
+    name: EventName.AI_AGENT_SUGGESTIONS_DISPLAYED;
+    properties: AgentSuggestionsDisplayedProperties;
+};
+
 type AiAgentSuggestionImpressionEvent = {
     name: EventName.AI_AGENT_SUGGESTION_IMPRESSION;
     properties: {
@@ -1254,6 +1260,7 @@ export type EventData =
     | AiDeepResearchReportEngagedEvent
     | AiAgentBattleStartedEvent
     | ContentReviewSimilarContentClickedEvent
+    | AiAgentSuggestionsDisplayedEvent
     | AiAgentSuggestionImpressionEvent
     | AiAgentSuggestionClickEvent
     | DataAppRecentSuggestionClickEvent

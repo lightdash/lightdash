@@ -16,7 +16,11 @@ import { Box, Button, Divider, Group, Popover } from '@mantine/core';
 import { IconShare2, IconStack, IconTelescope } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import { MERGE_URL_PARAM } from '../../features/mergeQuery/context/mergeUrlState';
+import { useMergeSafe } from '../../features/mergeQuery/context/useMerge';
+import { useMergeUnderlyingDataConfig } from '../../features/mergeQuery/hooks/useMergeUnderlyingDataConfig';
 import { useOrganization } from '../../hooks/organization/useOrganization';
+import useToaster from '../../hooks/toaster/useToaster';
 import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
@@ -29,11 +33,13 @@ import {
 import { Can } from '../../providers/Ability';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { convertDateFilters } from '../../utils/dateFilter';
 import ErrorState from '../common/ErrorState';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import ExportResults from '../ExportResults';
+import { type UnderlyingDataConfig } from './types';
 import UnderlyingDataFilterBadges from './UnderlyingDataFilterBadges';
 import {
     combineUnderlyingDataFilters,
@@ -43,7 +49,10 @@ import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 import { getUnderlyingDataColumnOrder } from './utils';
 
-const UnderlyingDataModalContent: FC = () => {
+const UnderlyingDataModalContent: FC<{
+    underlyingDataConfig: UnderlyingDataConfig | undefined;
+}> = ({ underlyingDataConfig }) => {
+    const lightdashApi = useLightdashApi();
     const authoringEnabled = useContentAuthoringEnabled();
     const projectUuid = useProjectUuid();
     const {
@@ -51,7 +60,6 @@ const UnderlyingDataModalContent: FC = () => {
         closeUnderlyingDataModal,
         tableName,
         metricQuery,
-        underlyingDataConfig,
         queryUuid,
         parameters,
         resolvedTimezone,
@@ -195,11 +203,15 @@ const UnderlyingDataModalContent: FC = () => {
                 config: { layout: {}, eChartsConfig: {} },
             },
         };
-        return getExplorerUrlFromCreateSavedChartVersion(
+        const url = getExplorerUrlFromCreateSavedChartVersion(
             projectUuid,
             createSavedChartVersion,
             true,
         );
+        // Underlying rows are a new single-source chart, not the merge open on this page
+        const params = new URLSearchParams(url.search);
+        params.delete(MERGE_URL_PARAM);
+        return { pathname: url.pathname, search: params.toString() };
     }, [resultsData, projectUuid]);
 
     const navigate = useNavigate();
@@ -220,6 +232,7 @@ const UnderlyingDataModalContent: FC = () => {
             if (limit === null || limit !== resultsData?.rows.length) {
                 // Get new query uuid with new limit
                 const newQuery = await getUnderlyingDataResults(
+                    lightdashApi,
                     projectUuid!,
                     {
                         context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
@@ -250,6 +263,7 @@ const UnderlyingDataModalContent: FC = () => {
             underlyingDataItemId,
             parameters,
             sorts,
+            lightdashApi,
         ],
     );
 
@@ -381,16 +395,37 @@ const UnderlyingDataModalContent: FC = () => {
     );
 };
 
+const MergedUnderlyingDataModalContent: FC = () => {
+    const { underlyingDataConfig, closeUnderlyingDataModal } =
+        useMetricQueryDataContext();
+    const { showToastError } = useToaster();
+    const config = useMergeUnderlyingDataConfig(underlyingDataConfig, () => {
+        showToastError({ title: 'Could not open underlying data' });
+        closeUnderlyingDataModal();
+    });
+
+    if (!config) return null;
+    return <UnderlyingDataModalContent underlyingDataConfig={config} />;
+};
+
 // Only mounts the content when the modal is open
 // This prevents the underlying data query from running on every mount
 const UnderlyingDataModal: FC = () => {
-    const { isUnderlyingDataModalOpen } = useMetricQueryDataContext();
+    const { isUnderlyingDataModalOpen, underlyingDataConfig } =
+        useMetricQueryDataContext();
+    const isMerged = !!useMergeSafe()?.mergeResults;
 
     if (!isUnderlyingDataModalOpen) {
         return null;
     }
 
-    return <UnderlyingDataModalContent />;
+    return isMerged ? (
+        <MergedUnderlyingDataModalContent />
+    ) : (
+        <UnderlyingDataModalContent
+            underlyingDataConfig={underlyingDataConfig}
+        />
+    );
 };
 
 export default UnderlyingDataModal;

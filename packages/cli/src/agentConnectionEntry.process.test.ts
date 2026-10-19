@@ -1,4 +1,3 @@
-import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import { createServer, type Server } from 'http';
 import * as yaml from 'js-yaml';
@@ -7,6 +6,7 @@ import path from 'path';
 import { slotFixture } from './agentConnections/fixtures';
 import { AgentConnectionStore } from './agentConnections/store';
 import { agentCommandUnavailable, personalLoginRequired } from './credentials';
+import { compiledCliEntry, runCliProcess } from './testing/cliProcess';
 
 let directory: string;
 let server: Server;
@@ -48,40 +48,25 @@ afterEach(async () => {
     });
     await fs.rm(directory, { recursive: true, force: true });
 });
-const runCli = (
+const runCli = async (
     args: string[],
     selection: string | null,
     humanEnv: boolean,
-    entry = path.join(__dirname, 'index.ts'),
-) =>
-    new Promise<{ code: number | null; output: string }>((resolve, reject) => {
-        const env: NodeJS.ProcessEnv = {
-            ...process.env,
-            HOME: directory,
-            LIGHTDASH_URL: instance,
-            NO_COLOR: '1',
-        };
-        delete env.LIGHTDASH_AGENT_CONNECTION;
-        delete env.LIGHTDASH_API_KEY;
-        if (selection !== null) env.LIGHTDASH_AGENT_CONNECTION = selection;
-        if (humanEnv) env.LIGHTDASH_API_KEY = 'env-human-key';
-        const child = spawn(
-            process.execPath,
-            ['--import', 'tsx', entry, ...args],
-            { env, stdio: ['ignore', 'pipe', 'pipe'] },
-        );
-        let output = '';
-        child.stdout.on('data', (data) => {
-            output += String(data);
-        });
-        child.stderr.on('data', (data) => {
-            output += String(data);
-        });
-        child.on('error', reject);
-        child.on('close', (code) => {
-            resolve({ code, output });
-        });
-    });
+    entry = compiledCliEntry,
+) => {
+    const env: NodeJS.ProcessEnv = {
+        ...process.env,
+        HOME: directory,
+        LIGHTDASH_URL: instance,
+        NO_COLOR: '1',
+    };
+    delete env.LIGHTDASH_AGENT_CONNECTION;
+    delete env.LIGHTDASH_API_KEY;
+    if (selection !== null) env.LIGHTDASH_AGENT_CONNECTION = selection;
+    if (humanEnv) env.LIGHTDASH_API_KEY = 'env-human-key';
+    const { code, stdout, stderr } = await runCliProcess({ args, env, entry });
+    return { code, output: stdout + stderr };
+};
 it('refuses selected login in the real entry point before network or config writes', async () => {
     const result = await runCli(
         ['--agent-connection', 'x', 'login', instance],
@@ -494,8 +479,10 @@ it.each(['warehouse-catalog', 'sql', 'download'] as const)(
                 results = { projectUuid, name: 'Approved', slug: 'approved' };
             else if (req.url?.endsWith('/sqlRunner/tables')) results = {};
             else if (req.url?.endsWith('/query/sql'))
-                results = { queryUuid: 'query' };
-            else if (req.url?.includes('/query/query'))
+                results = { queryUuid: '55555555-5555-4555-8555-555555555555' };
+            else if (
+                req.url?.includes('/query/55555555-5555-4555-8555-555555555555')
+            )
                 results = { status: 'ready', columns: {}, rows: [] };
             else {
                 res.writeHead(500);

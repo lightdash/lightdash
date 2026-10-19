@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     getItemMap,
     hasCustomBinDimension,
+    isField,
     type ApiExploreResults,
     type EChartsSeries,
 } from '@lightdash/common';
@@ -16,6 +17,8 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
+import { useMergeSourceCell } from '../../../features/mergeQuery/hooks/useMergeSourceCell';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useAccount } from '../../../hooks/user/useAccount';
@@ -47,7 +50,8 @@ export const SeriesContextMenu: FC<{
     const projectUuid = useProjectUuid();
 
     const context = useVisualizationContext();
-    const { resultsData: { metricQuery } = {} } = context;
+    const { resultsData: { metricQuery } = {}, itemsMap } = context;
+    const isMerged = !!useMergeSafe()?.mergeResults;
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const { openUnderlyingDataModal, tableName } = useMetricQueryDataContext();
@@ -84,11 +88,15 @@ export const SeriesContextMenu: FC<{
 
     const underlyingData = useMemo(() => {
         if (explore !== undefined && echartsSeriesClickEvent !== undefined) {
-            const allItemsMap = getItemMap(
-                explore,
-                metricQuery?.additionalMetrics,
-                metricQuery?.tableCalculations,
-            );
+            // Merged columns only exist in the merged result's fields
+            const allItemsMap =
+                isMerged && itemsMap
+                    ? itemsMap
+                    : getItemMap(
+                          explore,
+                          metricQuery?.additionalMetrics,
+                          metricQuery?.tableCalculations,
+                      );
 
             return getDataFromChartClick(
                 echartsSeriesClickEvent,
@@ -96,7 +104,26 @@ export const SeriesContextMenu: FC<{
                 series || [],
             );
         }
-    }, [echartsSeriesClickEvent, explore, metricQuery, series]);
+    }, [
+        echartsSeriesClickEvent,
+        explore,
+        isMerged,
+        itemsMap,
+        metricQuery,
+        series,
+    ]);
+
+    const { resolve: resolveMergeSourceCell } = useMergeSourceCell();
+    // Merged columns no source owns (merge table calculations) have no rows to show
+    const hasSourceActions = useMemo(() => {
+        if (!isMerged) return true;
+        const item = underlyingData?.item;
+        return (
+            !!item &&
+            isField(item) &&
+            resolveMergeSourceCell(item, underlyingData.fieldValues) !== null
+        );
+    }, [isMerged, resolveMergeSourceCell, underlyingData]);
 
     const handleCopyToClipboard = useCallback(() => {
         if (underlyingData === undefined) return;
@@ -181,25 +208,28 @@ export const SeriesContextMenu: FC<{
                         projectUuid: projectUuid,
                     })}
                 >
-                    {!hasCustomBinDimension(metricQuery) && (
-                        <Menu.Item
-                            leftSection={<MantineIcon icon={IconStack} />}
-                            onClick={handleViewUnderlyingData}
-                        >
-                            View underlying data
-                        </Menu.Item>
-                    )}
+                    {hasSourceActions &&
+                        !hasCustomBinDimension(metricQuery) && (
+                            <Menu.Item
+                                leftSection={<MantineIcon icon={IconStack} />}
+                                onClick={handleViewUnderlyingData}
+                            >
+                                View underlying data
+                            </Menu.Item>
+                        )}
                 </Can>
 
                 <Can I="view" this={drillDownPermission}>
-                    <DrillDownMenuItem
-                        {...underlyingData}
-                        trackingData={{
-                            organizationId: organizationUuid,
-                            userId: user?.data?.userUuid,
-                            projectId: projectUuid,
-                        }}
-                    />
+                    {hasSourceActions && (
+                        <DrillDownMenuItem
+                            {...underlyingData}
+                            trackingData={{
+                                organizationId: organizationUuid,
+                                userId: user?.data?.userUuid,
+                                projectId: projectUuid,
+                            }}
+                        />
+                    )}
                 </Can>
             </Menu.Dropdown>
         </Menu>

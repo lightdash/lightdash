@@ -734,6 +734,10 @@ import {
     ProjectHomepagesTable,
 } from '../ee/database/entities/projectHomepages';
 import {
+    ReleaseHighlightsTable,
+    ReleaseHighlightsTableName,
+} from '../ee/database/entities/releaseHighlights';
+import {
     SchedulerAiAugmentationTable,
     SchedulerAiAugmentationTableName,
 } from '../ee/database/entities/schedulerAiAugmentation';
@@ -752,6 +756,7 @@ import {
 
 declare module 'knex/types/tables' {
     interface Tables {
+        [ReleaseHighlightsTableName]: ReleaseHighlightsTable;
         [AgentCapabilityPoliciesTableName]: AgentCapabilityPoliciesTable;
         [AgentConnectionGrantsTableName]: AgentConnectionGrantsTable;
         [AgentConnectionApprovalRequestsTableName]: AgentConnectionApprovalRequestsTable;

@@ -1,6 +1,10 @@
 import {
+    getErrorMessage,
+    isSemverVersion,
+    isValidDataAppSlug,
     ParameterError,
     parseChartRegistryIndexTolerant,
+    parseChartRegistryVersionSnapshot,
     type ChartRegistryEntry,
     type ChartRegistryIndex,
 } from '@lightdash/common';
@@ -408,6 +412,49 @@ export class ChartRegistryClient {
     ): Promise<ChartRegistryEntry | undefined> {
         const index = await this.getIndex(options);
         return index.charts.find((chart) => chart.slug === slug);
+    }
+
+    /**
+     * Resolves one published version from its immutable
+     * `charts/<slug>/<version>/entry.json` snapshot. `undefined` when the
+     * registry has no such version. Not cached: snapshots never change.
+     */
+    async getVersionEntry(
+        slug: string,
+        version: string,
+    ): Promise<ChartRegistryEntry | undefined> {
+        if (!isValidDataAppSlug(slug)) {
+            throw new ParameterError(`Invalid chart type slug "${slug}"`);
+        }
+        if (!isSemverVersion(version)) {
+            throw new ParameterError(`Invalid chart type version "${version}"`);
+        }
+        const url = this.resolveUrl(
+            `charts/${slug}/${version}/entry.json`,
+        ).toString();
+        const response = await this.fetchImpl(url, MAX_INDEX_BYTES);
+        if (response.status === 404) return undefined;
+        if (response.status < 200 || response.status >= 300) {
+            throw new ParameterError(
+                `Chart registry version request failed with status ${response.status}`,
+            );
+        }
+        let parsed: unknown;
+        try {
+            parsed = JSON.parse(response.body.toString('utf-8'));
+        } catch {
+            throw new ParameterError(
+                'Chart registry version entry is not valid JSON',
+            );
+        }
+        try {
+            return parseChartRegistryVersionSnapshot(parsed, {
+                slug,
+                version,
+            });
+        } catch (e) {
+            throw new ParameterError(getErrorMessage(e));
+        }
     }
 
     async downloadArtifact(

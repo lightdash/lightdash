@@ -7,6 +7,7 @@ import { fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
+import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
 import { AiComposerPipelinePanel } from './AiComposerPipelinePanel';
 
 vi.mock('../../../../../../hooks/useCompiledSql', () => ({
@@ -43,6 +44,7 @@ const renderPanel = (props: {
     displayedNodeId?: string;
     displayableNodeIds?: Set<string>;
     onDisplayNode?: (nodeId: string) => void;
+    nodeStatuses?: Record<string, ComposerRunNodeStatus>;
 }) =>
     renderWithProviders(
         <AiComposerPipelinePanel
@@ -52,6 +54,7 @@ const renderPanel = (props: {
             displayedNodeId="joined"
             displayableNodeIds={new Set(['orders', 'amounts', 'joined'])}
             onDisplayNode={() => {}}
+            nodeStatuses={{}}
             {...props}
         >
             <div>results</div>
@@ -119,6 +122,39 @@ describe('AiComposerPipelinePanel graph mode', () => {
 });
 
 describe('AiComposerPipelinePanel list mode', () => {
+    it("shows each node's status in the run and a failed node's error on its row", () => {
+        renderPanel({
+            defaultExpanded: true,
+            nodeStatuses: {
+                orders: { status: 'success', error: null },
+                amounts: {
+                    status: 'error',
+                    error: 'column "amount" does not exist',
+                },
+                joined: { status: 'pending', error: null },
+            },
+        });
+        const row = (nodeId: string) =>
+            within(
+                document.getElementById(`composer-pipeline-node-${nodeId}`)!,
+            );
+        expect(row('orders').getByLabelText('Completed')).toBeInTheDocument();
+        expect(row('amounts').getByLabelText('Failed')).toBeInTheDocument();
+        expect(
+            row('amounts').getByText('column "amount" does not exist'),
+        ).toBeInTheDocument();
+        expect(row('joined').getByLabelText('Queued')).toBeInTheDocument();
+        expect(
+            row('orders').queryByText('column "amount" does not exist'),
+        ).toBeNull();
+    });
+
+    it('shows no status before the run has node results', () => {
+        renderPanel({ defaultExpanded: true });
+        expect(screen.queryByLabelText('Queued')).toBeNull();
+        expect(screen.queryByLabelText('Completed')).toBeNull();
+    });
+
     it('displays a node when its title is clicked', () => {
         const onDisplayNode = vi.fn();
         renderPanel({ defaultExpanded: true, onDisplayNode });
@@ -144,38 +180,6 @@ describe('AiComposerPipelinePanel list mode', () => {
             screen.queryByRole('button', { name: 'Display Orders by status' }),
         ).not.toBeInTheDocument();
         expect(screen.getByText('Orders by status')).toBeInTheDocument();
-    });
-});
-
-describe('AiComposerPipelinePanel earlier result placeholder', () => {
-    it('lists the placeholder by alias without counting it or showing the uuid', () => {
-        const uuid = 'bcf89bb4-c964-4c1e-9a55-0d6a3f1a2b3c';
-        renderWithProviders(
-            <AiComposerPipelinePanel
-                projectUuid="project"
-                queries={[
-                    {
-                        sourceType: QuerySourceType.DUCKDB,
-                        nodeId: 'ranked',
-                        title: 'Ranked orders',
-                        sql: 'select 1',
-                        references: { prev: uuid },
-                    },
-                ]}
-                terminalNodeId="ranked"
-                displayedNodeId="ranked"
-                displayableNodeIds={new Set(['ranked'])}
-                onDisplayNode={() => {}}
-                defaultExpanded
-            >
-                <div>results</div>
-            </AiComposerPipelinePanel>,
-        );
-        expect(screen.getByText('1 step')).toBeInTheDocument();
-        expect(screen.getByText('prev')).toBeInTheDocument();
-        expect(screen.getByText('Earlier result')).toBeInTheDocument();
-        expect(screen.getByText('Reads prev')).toBeInTheDocument();
-        expect(document.body.textContent).not.toContain(uuid);
     });
 });
 
@@ -264,5 +268,84 @@ describe('AiComposerPipelinePanel query details', () => {
         expect(row.querySelector('code')).toHaveTextContent(
             /select\s+status\s+from\s+orders/i,
         );
+    });
+});
+
+describe('AiComposerPipelinePanel python nodes', () => {
+    const pythonQueries: SourceQuery[] = [
+        queries[0],
+        {
+            sourceType: QuerySourceType.PYTHON,
+            nodeId: 'simulated',
+            title: 'Simulated amounts',
+            description: 'Monte Carlo draws per status.',
+            code: 'def run(inputs, params):\n    return inputs["orders"]',
+            references: ['orders'],
+        },
+        {
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: 'summary',
+            title: 'Simulation summary',
+            sql: 'select * from simulated',
+            references: ['simulated'],
+        },
+    ];
+
+    it('lists a python node as a transformation with its code behind View code', () => {
+        renderWithProviders(
+            <AiComposerPipelinePanel
+                projectUuid="project"
+                queries={pythonQueries}
+                terminalNodeId="summary"
+                displayedNodeId="summary"
+                displayableNodeIds={new Set(['orders', 'simulated', 'summary'])}
+                onDisplayNode={() => {}}
+                nodeStatuses={{}}
+                defaultExpanded
+            >
+                <div>results</div>
+            </AiComposerPipelinePanel>,
+        );
+        expect(screen.getByText('Transformation')).toBeInTheDocument();
+        const row = document.getElementById(
+            'composer-pipeline-node-simulated',
+        )!;
+        expect(within(row).getByText('Python')).toBeInTheDocument();
+        expect(
+            within(row).getByText('Monte Carlo draws per status.'),
+        ).toBeInTheDocument();
+        expect(within(row).getByText('Reads Orders by status')).toBeVisible();
+        fireEvent.click(within(row).getByRole('button', { name: 'View code' }));
+        expect(row.querySelector('code')).toHaveTextContent(
+            /def run\(inputs, params\):/,
+        );
+        expect(
+            within(
+                document.getElementById('composer-pipeline-node-summary')!,
+            ).getByText('Reads Simulated amounts'),
+        ).toBeInTheDocument();
+    });
+
+    it('labels a python node in graph mode', () => {
+        renderWithProviders(
+            <AiComposerPipelinePanel
+                projectUuid="project"
+                queries={pythonQueries}
+                terminalNodeId="simulated"
+                displayedNodeId="simulated"
+                displayableNodeIds={new Set(['simulated'])}
+                onDisplayNode={() => {}}
+                nodeStatuses={{}}
+                defaultExpanded
+                defaultMode="graph"
+            >
+                <div>results</div>
+            </AiComposerPipelinePanel>,
+        );
+        expect(
+            within(
+                screen.getByLabelText('Display Simulated amounts'),
+            ).getByText('Python'),
+        ).toBeInTheDocument();
     });
 });

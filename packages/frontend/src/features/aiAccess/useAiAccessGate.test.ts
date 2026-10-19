@@ -214,11 +214,19 @@ describe('useAiAccessGate', () => {
         rerender({ project: 'project-1' });
         expect(result.current.isLoading).toBe(true);
         await waitFor(() => expect(result.current.isLoading).toBe(false));
-        expect(me).toHaveBeenLastCalledWith('project-1', null);
+        expect(me).toHaveBeenLastCalledWith(
+            expect.anything(),
+            'project-1',
+            null,
+        );
         rerender({ project: 'project-2' });
         expect(result.current.isLoading).toBe(true);
         await waitFor(() => expect(result.current.isLoading).toBe(false));
-        expect(me).toHaveBeenLastCalledWith('project-2', null);
+        expect(me).toHaveBeenLastCalledWith(
+            expect.anything(),
+            'project-2',
+            null,
+        );
     });
     it.each([
         AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,

@@ -116,6 +116,11 @@ export type PreviewChartVizBindingMapping = {
     previewAppVersion: number;
 };
 
+export type DbDataAppVizWithLatestReadyVersion = DbApp & {
+    viz_schema: DataAppVizSchema;
+    latest_ready_version: number;
+};
+
 const AppSlugSequence = 'apps_slug_sequence';
 
 type AppWithOrgAndPin = DbApp & {
@@ -1462,9 +1467,7 @@ export class AppModel {
         paginateArgs?: KnexPaginateArgs,
         search?: string,
         sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
-    ): Promise<
-        KnexPaginatedData<(DbApp & { viz_schema: DataAppVizSchema })[]>
-    > {
+    ): Promise<KnexPaginatedData<DbDataAppVizWithLatestReadyVersion[]>> {
         const query = this.joinLatestReadyVersion(this.database(AppsTableName))
             .where({
                 [`${AppsTableName}.project_uuid`]: projectUuid,
@@ -1472,9 +1475,10 @@ export class AppModel {
             })
             .whereNull(`${AppsTableName}.deleted_at`)
             .whereNotNull(`${AppVersionsTableName}.viz_schema`)
-            .select<(DbApp & { viz_schema: DataAppVizSchema })[]>(
+            .select<DbDataAppVizWithLatestReadyVersion[]>(
                 `${AppsTableName}.*`,
                 `${AppVersionsTableName}.viz_schema`,
+                this.database.ref('lrv.version').as('latest_ready_version'),
             );
         const sortColumn: Record<DataAppVizListSort['sortBy'], string> = {
             createdAt: 'created_at',
@@ -1579,7 +1583,7 @@ export class AppModel {
     async findDataAppVisualizationBySlug(
         projectUuid: string,
         slug: string,
-    ): Promise<(DbApp & { viz_schema: DataAppVizSchema }) | undefined> {
+    ): Promise<DbDataAppVizWithLatestReadyVersion | undefined> {
         return this.joinLatestReadyVersion(this.database(AppsTableName))
             .where({
                 [`${AppsTableName}.project_uuid`]: projectUuid,
@@ -1588,9 +1592,10 @@ export class AppModel {
             })
             .whereNull(`${AppsTableName}.deleted_at`)
             .whereNotNull(`${AppVersionsTableName}.viz_schema`)
-            .select<(DbApp & { viz_schema: DataAppVizSchema })[]>(
+            .select<DbDataAppVizWithLatestReadyVersion[]>(
                 `${AppsTableName}.*`,
                 `${AppVersionsTableName}.viz_schema`,
+                this.database.ref('lrv.version').as('latest_ready_version'),
             )
             .first();
     }
@@ -2369,6 +2374,43 @@ export class AppModel {
                AND v.status <> ALL(?::text[])
                AND v.status_updated_at < now() - ?::interval`,
             [[...terminalStatuses], threshold],
+        );
+        return result.rowCount ?? 0;
+    }
+
+    /**
+     * Error out `pending` versions that have sat past `threshold` with no
+     * live graphile job behind them. A version only reaches `pending`
+     * legitimately for the milliseconds between its insert and its job's
+     * insert; anything older with no job (or only an exhausted one) was
+     * orphaned by a failed request and would otherwise hold a build slot
+     * forever. A job is live when it is locked by a worker or has attempts
+     * remaining: graphile-worker bumps `attempts` at lock time, so a job on
+     * its final attempt has attempts == max_attempts while it runs. Queued-
+     * but-waiting builds have a live job and are left alone.
+     */
+    async failOrphanedPendingVersions(threshold: string): Promise<number> {
+        const result = await this.database.raw<{ rowCount: number }>(
+            `UPDATE app_versions v
+             SET status = 'error',
+                 error = ?,
+                 status_message = ?,
+                 status_updated_at = now()
+             WHERE v.status = 'pending'
+               AND COALESCE(v.status_updated_at, v.created_at) < now() - ?::interval
+               AND NOT EXISTS (
+                   SELECT 1
+                   FROM graphile_worker.jobs j
+                   WHERE j.task_identifier IN ('appGeneratePipeline', 'appBuildFromSource')
+                     AND (j.locked_at IS NOT NULL OR j.attempts < j.max_attempts)
+                     AND (j.payload->>'appUuid')::uuid = v.app_id
+                     AND (j.payload->>'version')::int = v.version
+               )`,
+            [
+                'No build job was queued for this version; released by the stale-version sweep.',
+                'Build never started',
+                threshold,
+            ],
         );
         return result.rowCount ?? 0;
     }

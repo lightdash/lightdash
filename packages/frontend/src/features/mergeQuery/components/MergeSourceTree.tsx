@@ -1,14 +1,17 @@
+import { getTotalFilterRules } from '@lightdash/common';
 import { Box, Button, Stack } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useMemo, type Dispatch, type FC, type SetStateAction } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import BasePanel from '../../../components/Explorer/ExploreSideBar/BasePanel';
 import ExploreTree from '../../../components/Explorer/ExploreTree';
+import { type FieldFilterTarget } from '../../../components/Explorer/ExploreTree/FieldFilterTargetContext';
 import LoadingSkeleton from '../../../components/Explorer/ExploreTree/LoadingSkeleton';
 import { type SelectedField } from '../../../components/Explorer/ExploreTree/SelectedFieldsSection';
 import { ItemDetailProvider } from '../../../components/Explorer/ExploreTree/TableTree/ItemDetailProvider';
 import { useExplore } from '../../../hooks/useExplore';
 import { useMerge } from '../context/useMerge';
+import { useMergeSourceFilter } from '../hooks/useMergeSourceFilter';
 
 /** Field picker for a source owned by the merge editor. */
 export const MergeSourceTree: FC<{
@@ -39,6 +42,18 @@ export const MergeSourceTree: FC<{
             selectedDimensions: source?.dimensions ?? [],
         }),
         [source?.dimensions, source?.metrics],
+    );
+    const addSourceFilter = useMergeSourceFilter();
+    const filterTarget = useMemo<FieldFilterTarget>(
+        () => ({
+            filteredFieldIds: new Set(
+                getTotalFilterRules(source?.filters ?? {}).flatMap((rule) =>
+                    'fieldId' in rule.target ? [rule.target.fieldId] : [],
+                ),
+            ),
+            addFilter: (field) => addSourceFilter(sourceId, field),
+        }),
+        [addSourceFilter, source?.filters, sourceId],
     );
     if (!source) return null;
 
@@ -95,6 +110,7 @@ export const MergeSourceTree: FC<{
                         <ExploreTree
                             explore={explore}
                             customMetricSourceId={source.id}
+                            filterTarget={filterTarget}
                             selection={selection}
                             onSelectedFieldChange={(fieldId, isDimension) =>
                                 merge.toggleSourceField(

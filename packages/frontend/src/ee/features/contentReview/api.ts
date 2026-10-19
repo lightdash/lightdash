@@ -13,12 +13,13 @@ import {
     type RejectContentReviewRequestBody,
     type UpdateContentReviewSettings,
 } from '@lightdash/common';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 
 const contentReviewBasePath = (projectUuid: string) =>
     `/projects/${projectUuid}/review-requests`;
 
 export const getPendingContentReviewRequest = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     contentType: ContentReviewContentType,
     contentUuid: string,
@@ -32,6 +33,7 @@ export const getPendingContentReviewRequest = (
     });
 
 export const createContentReviewRequest = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     body: CreateContentReviewRequestBody,
 ) =>
@@ -42,6 +44,7 @@ export const createContentReviewRequest = (
     });
 
 export const cancelContentReviewRequest = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     requestUuid: string,
 ) =>
@@ -52,6 +55,7 @@ export const cancelContentReviewRequest = (
     });
 
 export const listContentReviewRequests = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     params: {
         view: ContentReviewRequestView;
@@ -74,6 +78,7 @@ export const listContentReviewRequests = (
 };
 
 export const getContentReviewRequest = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     requestUuid: string,
 ) =>
@@ -84,6 +89,7 @@ export const getContentReviewRequest = (
     });
 
 export const approveContentReviewRequest = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     requestUuid: string,
     body: ApproveContentReviewRequestBody,
@@ -95,6 +101,7 @@ export const approveContentReviewRequest = (
     });
 
 export const rejectContentReviewRequest = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     requestUuid: string,
     body: RejectContentReviewRequestBody,
@@ -105,7 +112,10 @@ export const rejectContentReviewRequest = (
         body: JSON.stringify(body),
     });
 
-export const getContentReviewSettings = (projectUuid: string) =>
+export const getContentReviewSettings = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<ApiContentReviewSettingsResponse['results']>({
         url: `${contentReviewBasePath(projectUuid)}/settings`,
         method: 'GET',
@@ -113,6 +123,7 @@ export const getContentReviewSettings = (projectUuid: string) =>
     });
 
 export const updateContentReviewSettings = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     body: UpdateContentReviewSettings,
 ) =>
@@ -123,6 +134,7 @@ export const updateContentReviewSettings = (
     });
 
 export const getSimilarContentForReview = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     params: FindSimilarContentBody,
     signal?: AbortSignal,

@@ -6,14 +6,17 @@ import {
     SandboxNotFoundError,
     TimeoutError,
 } from 'e2b';
+import { readBoundedStream } from './boundedOutput';
 import {
     SandboxCommandError,
     SandboxConnectionError,
     SandboxNotRunningError,
+    SandboxOutputLimitError,
     SandboxTimeoutError,
 } from './errors';
 import {
     type CommandResult,
+    type FileReadOptions,
     type GitAddTarget,
     type GitCloneOptions,
     type GitCommitOptions,
@@ -78,6 +81,38 @@ class E2bSandboxHandle implements SandboxHandle {
             options?: RunOptions,
         ): Promise<CommandResult> => {
             try {
+                if (options?.maxOutputBytes !== undefined) {
+                    const { maxOutputBytes } = options;
+                    let bytes = 0;
+                    const capture = (
+                        chunk: string,
+                        callback?: (value: string) => void,
+                    ) => {
+                        bytes += Buffer.byteLength(chunk, 'utf8');
+                        // Throw synchronously: E2B stops its event iterator and
+                        // cannot keep accumulating output in CommandHandle.
+                        if (bytes > maxOutputBytes) {
+                            throw new SandboxOutputLimitError(maxOutputBytes);
+                        }
+                        callback?.(chunk);
+                    };
+                    const handle = await this.sandbox.commands.run(command, {
+                        background: true,
+                        cwd: options.cwd,
+                        envs: options.envs,
+                        timeoutMs: options.timeoutMs,
+                        onStdout: (chunk) => capture(chunk, options.onStdout),
+                        onStderr: (chunk) => capture(chunk, options.onStderr),
+                    });
+                    try {
+                        return await handle.wait();
+                    } catch (error) {
+                        await handle.kill().catch(() => {});
+                        throw error;
+                    } finally {
+                        await handle.disconnect().catch(() => {});
+                    }
+                }
                 const result = await this.sandbox.commands.run(command, {
                     cwd: options?.cwd,
                     envs: options?.envs,
@@ -97,15 +132,35 @@ class E2bSandboxHandle implements SandboxHandle {
     };
 
     readonly files = {
-        read: async (path: string): Promise<string> => {
+        read: async (
+            path: string,
+            options?: FileReadOptions,
+        ): Promise<string> => {
             try {
+                if (options) {
+                    return (await this.files.readBytes(path, options)).toString(
+                        'utf8',
+                    );
+                }
                 return await this.sandbox.files.read(path);
             } catch (error) {
                 return normalizeError(error);
             }
         },
-        readBytes: async (path: string): Promise<Buffer> => {
+        readBytes: async (
+            path: string,
+            options?: FileReadOptions,
+        ): Promise<Buffer> => {
             try {
+                if (options) {
+                    const stream = await this.sandbox.files.read(path, {
+                        format: 'stream',
+                    });
+                    // E2B returns an empty string for Content-Length: 0 even
+                    // when the requested format is stream.
+                    if (typeof stream === 'string') return Buffer.alloc(0);
+                    return await readBoundedStream(stream, options.maxBytes);
+                }
                 const bytes = await this.sandbox.files.read(path, {
                     format: 'bytes',
                 });

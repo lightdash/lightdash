@@ -7,6 +7,7 @@ import {
     BigqueryAuthenticationType,
     CompiledTable,
     ConflictError,
+    convertOrganizationRoleToProjectRole,
     CreateProject,
     CreateProjectOptionalCredentials,
     CreateSnowflakeCredentials,
@@ -27,6 +28,7 @@ import {
     generateSlug,
     getErrorMessage,
     getExploreSplitCandidates,
+    getHighestProjectRole,
     getLtreePathFromSlug,
     getPersonSignIn,
     GroupType,
@@ -80,6 +82,7 @@ import {
     type StoredSignInSubject,
     type SummaryExplore,
     type WarehouseSqlBuilder,
+    type WeekDay,
 } from '@lightdash/common';
 import {
     buildMotherduckConnectionString,
@@ -203,6 +206,7 @@ import {
 } from '../../logging/exploreCacheReadMetrics';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
+import { type StoredPreAggregateRefresh } from '../../services/ProjectService/preAggregateRefresh';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
 import { AwsWebIdentityResolver } from '../../utils/awsWebIdentity/AwsWebIdentityResolver';
 import {
@@ -234,12 +238,14 @@ import {
 } from '../../utils/warehouseCredentialVersion';
 import { AwsWebIdentityAudienceModel } from '../AwsWebIdentityAudienceModel';
 import { FeatureFlagModel } from '../FeatureFlagModel/FeatureFlagModel';
+import { OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
 import { RefreshTokenSourceChangedError } from '../RefreshTokenRotation/RefreshTokenRotation';
 import { clearProjectExtraRoles } from '../roleSetUtils';
 import {
     remapRowBinding,
     type WarehouseConnectionMap,
 } from '../WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
+import { WarehouseConnectionModel } from '../WarehouseConnectionModel/WarehouseConnectionModel';
 import {
     WarehouseConnectionRouter,
     type ConnectionBinding,
@@ -272,6 +278,16 @@ export type MultiConnectionCarry =
           dbtSourceUuid: string;
           warehouseConnectionUuid: string | null;
       };
+
+export type ExploreWriteCheck = (
+    trx: Knex.Transaction,
+    explores: (Explore | ExploreError)[],
+) => Promise<void>;
+
+export type StagedExploreWriteCheck = (
+    trx: Knex.Transaction,
+    saveUuid: string,
+) => Promise<void>;
 
 export type ProjectModelArguments = {
     database: Knex;
@@ -1701,13 +1717,21 @@ export class ProjectModel {
             }
             const [project] = projects;
 
-            const extraOfAnotherType = await trx('warehouse_connections')
+            const extra = await trx('warehouse_connections')
                 .where('project_uuid', projectUuid)
                 .where('is_original', false)
-                .whereNot('warehouse_type', data.warehouseConnection.type)
-                .first('warehouse_connection_uuid');
-            if (extraOfAnotherType) {
-                throw new ConflictError(ORIGINAL_TYPE_LOCKED_MESSAGE);
+                .first('warehouse_type');
+            if (extra) {
+                const storedOriginal = await trx(WarehouseCredentialTableName)
+                    .where('project_id', project.project_id)
+                    .forUpdate()
+                    .first('warehouse_type');
+                if (
+                    (storedOriginal?.warehouse_type ?? extra.warehouse_type) !==
+                    data.warehouseConnection.type
+                ) {
+                    throw new ConflictError(ORIGINAL_TYPE_LOCKED_MESSAGE);
+                }
             }
 
             await this.upsertWarehouseConnection(
@@ -3109,6 +3133,75 @@ export class ProjectModel {
         );
     }
 
+    async getPreAggregateRefreshSummary(
+        projectUuid: string,
+        trx?: Knex.Transaction,
+    ): Promise<StoredPreAggregateRefresh> {
+        const database = trx ?? this.database;
+        return ProjectModel.queryPreAggregateRefreshSummary(
+            database,
+            database(CachedExploreTableName)
+                .select('explore')
+                .where('project_uuid', projectUuid),
+            database.raw(
+                `EXISTS (
+                SELECT 1 FROM pre_aggregate_definitions
+                WHERE project_uuid = ? AND refresh_cron IS NOT NULL
+            )`,
+                [projectUuid],
+            ),
+        );
+    }
+
+    async getStagedPreAggregateRefreshSummary(
+        projectUuid: string,
+        saveUuid: string,
+        trx: Knex.Transaction,
+    ): Promise<StoredPreAggregateRefresh> {
+        return ProjectModel.queryPreAggregateRefreshSummary(
+            trx,
+            trx(CachedExploreStagingTableName).select('explore').where({
+                project_uuid: projectUuid,
+                save_uuid: saveUuid,
+            }),
+            trx.raw('false'),
+        );
+    }
+
+    private static async queryPreAggregateRefreshSummary(
+        database: Knex,
+        source: Knex.QueryBuilder,
+        scheduledDefinition: Knex.Raw,
+    ): Promise<StoredPreAggregateRefresh> {
+        const result = await database.raw<{
+            rows: StoredPreAggregateRefresh[];
+        }>(
+            `WITH stored AS MATERIALIZED (
+                SELECT explore -> 'preAggregates' AS definitions,
+                       jsonb_typeof(explore) AS explore_type
+                FROM (?) AS explores
+            )
+            SELECT ? AS "hasScheduledDefinition",
+            COALESCE(bool_or(
+                definition -> 'refresh' -> 'cron' IS NOT NULL
+                AND definition -> 'refresh' -> 'cron' <> 'null'::jsonb
+            ), false) AS "hasScheduledRefresh",
+            COALESCE(bool_or(
+                explore_type NOT IN ('object', 'array')
+                OR (definitions IS NOT NULL AND definitions <> 'null'::jsonb
+                    AND jsonb_typeof(definitions) <> 'array')
+                OR jsonb_typeof(definition) = 'null'
+            ), false) AS "hasMalformedPreAggregates"
+            FROM stored
+            LEFT JOIN LATERAL jsonb_array_elements(
+                CASE WHEN jsonb_typeof(definitions) = 'array'
+                     THEN definitions ELSE '[]'::jsonb END
+            ) AS elements(definition) ON true`,
+            [source, scheduledDefinition],
+        );
+        return result.rows[0];
+    }
+
     async getAllExploresFromCache(
         projectUuid: string,
     ): Promise<{ [exploreUuid: string]: Explore | ExploreError }> {
@@ -3433,6 +3526,8 @@ export class ProjectModel {
         complete = false,
         dbtModelNames?: string[],
         playgroundBundleVersion?: string,
+        // Use only statements on the given transaction; no other I/O or connection.
+        beforeWrite?: ExploreWriteCheck,
     ) {
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
@@ -3443,6 +3538,7 @@ export class ProjectModel {
                         trx,
                         projectUuid,
                     );
+                    if (beforeWrite) await beforeWrite(trx, explores);
                     const cachedExploresQuery = trx(CachedExploreTableName)
                         .select<{ explore: Explore | ExploreError }[]>(
                             'explore',
@@ -3636,6 +3732,8 @@ export class ProjectModel {
     async saveExploreStreamToCache(
         projectUuid: string,
         explores: AsyncIterable<Explore | ExploreError>,
+        // Use only statements on the given transaction; no other I/O or connection.
+        beforeWrite?: StagedExploreWriteCheck,
     ): Promise<{ cachedExploreUuids: string[] }> {
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
@@ -3724,6 +3822,7 @@ export class ProjectModel {
                                     [...USER_MANAGED_EXPLORE_TYPES],
                                 ],
                             );
+                            if (beforeWrite) await beforeWrite(trx, saveUuid);
                             const expectedNames = new Set(stagedNames);
                             managedResult.rows.forEach(({ name }) =>
                                 expectedNames.add(name),
@@ -3874,6 +3973,8 @@ export class ProjectModel {
         projectUuid: string,
         explores: AsyncIterable<BoundExplore>,
         carry: MultiConnectionCarry,
+        // Use only statements on the given transaction; no other I/O or connection.
+        beforeWrite?: StagedExploreWriteCheck,
     ): Promise<{ cachedExploreUuids: string[] }> {
         return wrapSentryTransaction(
             'ProjectModel.saveMultiConnectionExplores',
@@ -3972,6 +4073,7 @@ export class ProjectModel {
                                     [...USER_MANAGED_EXPLORE_TYPES],
                                 ],
                             );
+                            if (beforeWrite) await beforeWrite(trx, saveUuid);
                             const expectedNames = new Set(
                                 stagedBindings.keys(),
                             );
@@ -4220,6 +4322,86 @@ export class ProjectModel {
         return cachedWarehouse;
     }
 
+    /**
+     * The person's highest system role on the project, from their organization
+     * role, direct membership and group access. Custom roles are ignored.
+     */
+    async getHighestSystemProjectRole(
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<ProjectMemberRole | null> {
+        const [organizationRows, projectRows, groupRows] = await Promise.all([
+            this.database(OrganizationMembershipsTableName)
+                .innerJoin(
+                    UserTableName,
+                    `${UserTableName}.user_id`,
+                    `${OrganizationMembershipsTableName}.user_id`,
+                )
+                .innerJoin(
+                    ProjectTableName,
+                    `${ProjectTableName}.organization_id`,
+                    `${OrganizationMembershipsTableName}.organization_id`,
+                )
+                .where(`${UserTableName}.user_uuid`, userUuid)
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .select<{ role: OrganizationMemberRole }[]>(
+                    `${OrganizationMembershipsTableName}.role`,
+                ),
+            this.database(ProjectMembershipsTableName)
+                .innerJoin(
+                    UserTableName,
+                    `${UserTableName}.user_id`,
+                    `${ProjectMembershipsTableName}.user_id`,
+                )
+                .innerJoin(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_id`,
+                    `${ProjectMembershipsTableName}.project_id`,
+                )
+                .where(`${UserTableName}.user_uuid`, userUuid)
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .whereNull(`${ProjectMembershipsTableName}.role_uuid`)
+                .select<{ role: ProjectMemberRole | null }[]>(
+                    `${ProjectMembershipsTableName}.role`,
+                ),
+            this.database(ProjectGroupAccessTableName)
+                .innerJoin(
+                    GroupMembershipTableName,
+                    `${GroupMembershipTableName}.group_uuid`,
+                    `${ProjectGroupAccessTableName}.group_uuid`,
+                )
+                .innerJoin(
+                    UserTableName,
+                    `${UserTableName}.user_id`,
+                    `${GroupMembershipTableName}.user_id`,
+                )
+                .where(`${UserTableName}.user_uuid`, userUuid)
+                .where(
+                    `${ProjectGroupAccessTableName}.project_uuid`,
+                    projectUuid,
+                )
+                .whereNull(`${ProjectGroupAccessTableName}.role_uuid`)
+                .select<{ role: ProjectMemberRole }[]>(
+                    `${ProjectGroupAccessTableName}.role`,
+                ),
+        ]);
+        const highest = getHighestProjectRole([
+            ...organizationRows.map(({ role }) => ({
+                type: 'organization' as const,
+                role: convertOrganizationRoleToProjectRole(role),
+            })),
+            ...projectRows.map(({ role }) => ({
+                type: 'project' as const,
+                role: role ?? undefined,
+            })),
+            ...groupRows.map(({ role }) => ({
+                type: 'group' as const,
+                role,
+            })),
+        ]);
+        return highest?.role ?? null;
+    }
+
     async getProjectMemberAccess(
         projectUuid: string,
         userUuid: string,
@@ -4342,9 +4524,17 @@ export class ProjectModel {
                 .select<
                     Pick<
                         DbProject,
-                        'project_id' | 'project_uuid' | 'organization_id'
+                        | 'project_id'
+                        | 'project_uuid'
+                        | 'organization_id'
+                        | 'created_by_user_uuid'
                     >[]
-                >('project_id', 'project_uuid', 'organization_id')
+                >(
+                    'project_id',
+                    'project_uuid',
+                    'organization_id',
+                    'created_by_user_uuid',
+                )
                 .whereIn('project_uuid', [
                     upstreamProjectUuid,
                     previewProjectUuid,
@@ -4374,6 +4564,7 @@ export class ProjectModel {
                 DbProjectMembership,
                 'user_id' | 'role' | 'role_uuid'
             > & {
+                user_uuid: string;
                 is_internal: boolean;
                 organization_id: number | null;
             };
@@ -4400,6 +4591,7 @@ export class ProjectModel {
                     user_id: `${ProjectMembershipsTableName}.user_id`,
                     role: `${ProjectMembershipsTableName}.role`,
                     role_uuid: `${ProjectMembershipsTableName}.role_uuid`,
+                    user_uuid: `${UserTableName}.user_uuid`,
                     is_internal: `${UserTableName}.is_internal`,
                     organization_id: `${OrganizationMembershipsTableName}.organization_id`,
                 })
@@ -4407,9 +4599,11 @@ export class ProjectModel {
                     `${ProjectMembershipsTableName}.project_id`,
                     upstreamProject.project_id,
                 );
+            // Service accounts only follow their access into previews they created.
             const eligibleProjectAccesses = projectAccesses.filter(
-                ({ is_internal, organization_id }) =>
-                    !is_internal &&
+                ({ user_uuid, is_internal, organization_id }) =>
+                    (!is_internal ||
+                        user_uuid === previewProject.created_by_user_uuid) &&
                     organization_id === previewProject.organization_id,
             );
             const groupAccesses = await trx(ProjectGroupAccessTableName)
@@ -5199,6 +5393,147 @@ export class ProjectModel {
         return this.connectionRouter.resolveCredentialReadWithRoute(
             projectUuid,
             binding,
+        );
+    }
+
+    private getWarehouseConnectionModel(): WarehouseConnectionModel {
+        return new WarehouseConnectionModel({
+            database: this.database,
+            encryptionUtil: this.encryptionUtil,
+            organizationWarehouseCredentialsModel:
+                new OrganizationWarehouseCredentialsModel({
+                    database: this.database,
+                    encryptionUtil: this.encryptionUtil,
+                }),
+        });
+    }
+
+    async getWarehouseConnectionForBinding(
+        projectUuid: string,
+        binding: ConnectionBinding,
+    ): Promise<WarehouseCredentials> {
+        const target = await this.resolveWarehouseCredentialRead(
+            projectUuid,
+            binding,
+        );
+        const model = this.getWarehouseConnectionModel();
+        const credentials =
+            target.kind === 'original'
+                ? await this.getWarehouseCredentialsForBinding(
+                      projectUuid,
+                      binding,
+                  )
+                : await model.getCredentials(
+                      await model.getProject(projectUuid),
+                      target.warehouseConnectionUuid,
+                  );
+        return OrganizationWarehouseCredentialsModel.stripSensitiveCredentials(
+            credentials,
+        );
+    }
+
+    private async getDbtSourceWarehouseConnectionUuid(
+        projectUuid: string,
+        sourceUuid: string,
+    ): Promise<string | null> {
+        if (
+            sourceUuid ===
+            (await this.getDbtSourceIdentity(projectUuid)).dbtSourceUuid
+        ) {
+            return null;
+        }
+        const source = await this.database('project_dbt_sources')
+            .select<{ warehouse_connection_uuid: string | null }>(
+                'warehouse_connection_uuid',
+            )
+            .where('project_uuid', projectUuid)
+            .where('project_dbt_source_uuid', sourceUuid)
+            .first();
+        if (!source)
+            throw new ParameterError(
+                'The selected dbt source does not belong to this project.',
+            );
+        return source.warehouse_connection_uuid;
+    }
+
+    async getDbtSourceWarehouseType(
+        projectUuid: string,
+        sourceUuid: string,
+    ): Promise<WarehouseTypes | null> {
+        const warehouseConnectionUuid =
+            await this.getDbtSourceWarehouseConnectionUuid(
+                projectUuid,
+                sourceUuid,
+            );
+        const connections =
+            await this.getWarehouseConnectionsMetadata(projectUuid);
+        return (
+            connections.find(
+                (connection) =>
+                    connection.warehouseConnectionUuid ===
+                    warehouseConnectionUuid,
+            )?.warehouseType ?? null
+        );
+    }
+
+    async getDeployStartOfWeek(
+        projectUuid: string,
+        exploreName: string,
+        sourceUuid: string | null,
+    ): Promise<
+        { kind: 'original' } | { kind: 'extra'; startOfWeek: WeekDay | null }
+    > {
+        const warehouseConnectionUuid =
+            sourceUuid === null
+                ? await this.getExploreWarehouseConnectionUuid(
+                      projectUuid,
+                      exploreName,
+                  )
+                : await this.getDbtSourceWarehouseConnectionUuid(
+                      projectUuid,
+                      sourceUuid,
+                  );
+        if (warehouseConnectionUuid === null) return { kind: 'original' };
+        const credentials = await this.getWarehouseConnectionForBinding(
+            projectUuid,
+            { kind: 'connection', warehouseConnectionUuid },
+        );
+        return { kind: 'extra', startOfWeek: credentials.startOfWeek ?? null };
+    }
+
+    async getWarehouseConnectionsMetadata(projectUuid: string): Promise<
+        {
+            name: string;
+            warehouseConnectionUuid: string | null;
+            warehouseType: WarehouseTypes;
+            isOriginal: boolean;
+        }[]
+    > {
+        const route = await this.getConnectionRoute(projectUuid, {
+            kind: 'original',
+        });
+        if (route === 'single') {
+            const project = await this.get(projectUuid);
+            if (!project.warehouseConnection) return [];
+            return [
+                {
+                    name: project.name,
+                    warehouseConnectionUuid: null,
+                    warehouseType: project.warehouseConnection.type,
+                    isOriginal: true,
+                },
+            ];
+        }
+        const model = this.getWarehouseConnectionModel();
+        return (await model.list(await model.getProject(projectUuid))).map(
+            (connection) => ({
+                name: connection.name,
+                warehouseConnectionUuid: connection.isOriginal
+                    ? null
+                    : connection.warehouseConnectionUuid,
+                warehouseType: connection.warehouseType,
+                isOriginal: connection.isOriginal,
+            }),
         );
     }
 
@@ -7633,6 +7968,8 @@ export class ProjectModel {
         }: CreateVirtualViewPayload,
         warehouseSqlBuilder: WarehouseSqlBuilder,
         warehouseConnectionUuid: string | null = null,
+        // Use only statements on the given transaction; no other I/O or connection.
+        beforeWrite?: ExploreWriteCheck,
     ): Promise<Explore> {
         const virtualView = createVirtualView(
             name,
@@ -7645,6 +7982,7 @@ export class ProjectModel {
 
         await this.database.transaction(async (trx) => {
             await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
+            if (beforeWrite) await beforeWrite(trx, [virtualView]);
             const existing = await trx(CachedExploreTableName)
                 .select('name')
                 .where('project_uuid', projectUuid)
@@ -7673,6 +8011,8 @@ export class ProjectModel {
         payload: UpdateVirtualViewPayload,
         warehouseSqlBuilder: WarehouseSqlBuilder,
         expectedExplore?: Explore,
+        // Use only statements on the given transaction; no other I/O or connection.
+        beforeWrite?: ExploreWriteCheck,
     ) {
         const translatedToExplore = createVirtualView(
             exploreName,
@@ -7685,6 +8025,7 @@ export class ProjectModel {
 
         await this.database.transaction(async (trx) => {
             await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
+            if (beforeWrite) await beforeWrite(trx, [translatedToExplore]);
             const existing = await trx(CachedExploreTableName)
                 .select<{ explore: Explore | ExploreError }[]>('explore')
                 .where('project_uuid', projectUuid)
@@ -7786,7 +8127,7 @@ export class ProjectModel {
         });
     }
 
-    private static async lockAndEnsureCachedExplores(
+    static async lockAndEnsureCachedExplores(
         trx: Transaction,
         projectUuid: string,
     ): Promise<void> {

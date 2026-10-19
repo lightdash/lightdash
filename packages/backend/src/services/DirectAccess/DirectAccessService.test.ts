@@ -344,6 +344,41 @@ describe('DirectAccessService', () => {
         ).rejects.toThrowError(ForbiddenError);
     });
 
+    describe('assertCanManage', () => {
+        it('rejects a member whose only standing is an editor grant', async () => {
+            const { service } = buildService({
+                context: spaceContext([
+                    { userUuid: USER_UUID, role: SpaceMemberRole.EDITOR },
+                ]),
+            });
+            await expect(
+                service.assertCanManage(
+                    buildAccount(OrganizationMemberRole.INTERACTIVE_VIEWER),
+                    PROJECT_UUID,
+                    DirectAccessResourceType.DASHBOARD,
+                    DASHBOARD_UUID,
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+        });
+
+        it('resolves for an admin grant and writes nothing', async () => {
+            const { service, directAccessModel } = buildService({
+                context: spaceContext([
+                    { userUuid: USER_UUID, role: SpaceMemberRole.ADMIN },
+                ]),
+            });
+            await expect(
+                service.assertCanManage(
+                    buildAccount(OrganizationMemberRole.INTERACTIVE_VIEWER),
+                    PROJECT_UUID,
+                    DirectAccessResourceType.DASHBOARD,
+                    DASHBOARD_UUID,
+                ),
+            ).resolves.toBeUndefined();
+            expect(directAccessModel.replacePolicy).not.toHaveBeenCalled();
+        });
+    });
+
     it('authorizes admin-role access rows in the resolved context', async () => {
         const { service, directAccessModel, spacePermissionService } =
             buildService({

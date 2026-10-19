@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     getUserAvatarUrl,
     isUserAvatarColorValue,
     KnexPaginateArgs,
@@ -9,6 +10,7 @@ import {
     OrganizationMemberProfileUpdate,
     OrganizationMemberProfileWithGroups,
     OrganizationMemberRole,
+    OrganizationMemberSort,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { EmailTableName } from '../database/entities/emails';
@@ -26,6 +28,7 @@ import {
     DbOrganization,
     OrganizationTableName,
 } from '../database/entities/organizations';
+import { RolesTableName } from '../database/entities/roles';
 import { UserAvatarsTableName } from '../database/entities/userAvatars';
 import { UserOAuthGrantsTableName } from '../database/entities/userOAuthGrants';
 import { DbUser, UserTableName } from '../database/entities/users';
@@ -34,7 +37,6 @@ import {
     assertAdminDemotionAllowed,
     clearOrganizationExtraRoles,
 } from './roleSetUtils';
-import { getColumnMatchRegexQuery } from './SearchModel/utils/search';
 import { UserModel } from './UserModel';
 
 type DbOrganizationMemberProfile = {
@@ -157,6 +159,85 @@ export class OrganizationMemberProfileModel {
         };
     }
 
+    private applyUserSearch(query: Knex.QueryBuilder, searchQuery: string) {
+        const normalizedQuery = searchQuery.trim().replace(/\s+/g, ' ');
+        if (!normalizedQuery) return query;
+
+        const pattern = `%${normalizedQuery.replace(/[\\%_]/g, '\\$&')}%`;
+        return query.where((builder) => {
+            builder
+                .whereRaw(
+                    "concat_ws(' ', ??.first_name, ??.last_name) ILIKE ?",
+                    [UserTableName, UserTableName, pattern],
+                )
+                .orWhere(`${EmailTableName}.email`, 'ILIKE', pattern)
+                .orWhere(
+                    `${OrganizationMembershipsTableName}.role`,
+                    'ILIKE',
+                    pattern,
+                )
+                .orWhereExists(
+                    this.database(RolesTableName)
+                        .select(this.database.raw('1'))
+                        .where(`${RolesTableName}.name`, 'ILIKE', pattern)
+                        .whereRaw('?? = ??', [
+                            `${RolesTableName}.organization_uuid`,
+                            `${OrganizationTableName}.organization_uuid`,
+                        ])
+                        .where((roles) => {
+                            roles
+                                .whereRaw('?? = ??', [
+                                    `${RolesTableName}.role_uuid`,
+                                    `${OrganizationMembershipsTableName}.role_uuid`,
+                                ])
+                                .orWhereExists(
+                                    this.database(
+                                        OrganizationMembershipCustomRolesTableName,
+                                    )
+                                        .select(this.database.raw('1'))
+                                        .whereRaw('?? = ??', [
+                                            `${OrganizationMembershipCustomRolesTableName}.role_uuid`,
+                                            `${RolesTableName}.role_uuid`,
+                                        ])
+                                        .whereRaw('?? = ??', [
+                                            `${OrganizationMembershipCustomRolesTableName}.user_id`,
+                                            `${OrganizationMembershipsTableName}.user_id`,
+                                        ])
+                                        .whereRaw('?? = ??', [
+                                            `${OrganizationMembershipCustomRolesTableName}.organization_id`,
+                                            `${OrganizationMembershipsTableName}.organization_id`,
+                                        ]),
+                                );
+                        }),
+                );
+        });
+    }
+
+    private static applySort(
+        query: Knex.QueryBuilder,
+        { sortBy, sortDirection }: OrganizationMemberSort,
+    ) {
+        const direction = sortDirection === 'desc' ? 'desc' : 'asc';
+        switch (sortBy) {
+            case 'name':
+                // Full name, falling back to email (e.g. pending invites);
+                // user_uuid keeps the order stable across pages.
+                return query.orderByRaw(
+                    `lower(coalesce(nullif(trim(concat_ws(' ', ??, ??)), ''), ??)) ${direction}, ?? ${direction}`,
+                    [
+                        `${UserTableName}.first_name`,
+                        `${UserTableName}.last_name`,
+                        `${EmailTableName}.email`,
+                        `${UserTableName}.user_uuid`,
+                    ],
+                );
+            case 'updatedAt':
+                return query.orderBy(`${UserTableName}.updated_at`, direction);
+            default:
+                return assertUnreachable(sortBy, `Unknown sort ${sortBy}`);
+        }
+    }
+
     async getOrganizationMembers({
         organizationUuid,
         paginateArgs,
@@ -168,7 +249,7 @@ export class OrganizationMemberProfileModel {
         organizationUuid: string;
         paginateArgs?: KnexPaginateArgs;
         searchQuery?: string;
-        sort?: { column: string; direction: 'asc' | 'desc' };
+        sort?: OrganizationMemberSort;
         exactMatchFilter?: { column: string; value: string };
         googleOidcOnly?: boolean;
     }): Promise<KnexPaginatedData<OrganizationMemberProfile[]>> {
@@ -191,12 +272,7 @@ export class OrganizationMemberProfileModel {
 
         // Apply search query if present
         if (searchQuery) {
-            query = getColumnMatchRegexQuery(query, searchQuery, [
-                'first_name',
-                'last_name',
-                'email',
-                'role',
-            ]);
+            query = this.applyUserSearch(query, searchQuery);
         }
 
         // Filter by users with Google Drive refresh token (using subquery to avoid duplicates)
@@ -233,9 +309,8 @@ export class OrganizationMemberProfileModel {
             );
         }
 
-        // Apply sorting if present
-        if (sort && sort.column && sort.direction) {
-            query = query.orderBy(sort.column, sort.direction);
+        if (sort) {
+            query = OrganizationMemberProfileModel.applySort(query, sort);
         }
 
         // Paginate the results
@@ -358,13 +433,21 @@ export class OrganizationMemberProfileModel {
         );
     }
 
-    async getOrganizationMembersAndGroups(
-        organizationUuid: string,
-        includeGroups?: number,
-        paginateArgs?: KnexPaginateArgs,
-        searchQuery?: string,
-        googleOidcOnly?: boolean,
-    ): Promise<KnexPaginatedData<OrganizationMemberProfileWithGroups[]>> {
+    async getOrganizationMembersAndGroups({
+        organizationUuid,
+        includeGroups,
+        paginateArgs,
+        searchQuery,
+        googleOidcOnly,
+        sort,
+    }: {
+        organizationUuid: string;
+        includeGroups?: number;
+        paginateArgs?: KnexPaginateArgs;
+        searchQuery?: string;
+        googleOidcOnly?: boolean;
+        sort?: OrganizationMemberSort;
+    }): Promise<KnexPaginatedData<OrganizationMemberProfileWithGroups[]>> {
         let orgMembersAndGroupsQuery = this.database(UserTableName)
             // See queryBuilder above — exclude internal (non-human) user
             // records like service accounts.
@@ -454,10 +537,9 @@ export class OrganizationMemberProfileModel {
         }
 
         if (searchQuery) {
-            orgMembersAndGroupsQuery = getColumnMatchRegexQuery(
+            orgMembersAndGroupsQuery = this.applyUserSearch(
                 orgMembersAndGroupsQuery,
                 searchQuery,
-                ['first_name', 'last_name', 'email', 'role'],
             );
         }
 
@@ -493,6 +575,13 @@ export class OrganizationMemberProfileModel {
                                     `${OpenIdIdentitiesTableName}.refresh_token`,
                                 ),
                         ),
+            );
+        }
+
+        if (sort) {
+            orgMembersAndGroupsQuery = OrganizationMemberProfileModel.applySort(
+                orgMembersAndGroupsQuery,
+                sort,
             );
         }
 

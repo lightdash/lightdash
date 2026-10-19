@@ -37,6 +37,7 @@ import {
     useLocation,
     useNavigate,
 } from 'react-router';
+import { createLightdashApi } from '../src/api';
 import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
 import { AiAgentsCoreProvider } from '../src/ee/features/aiCopilot/components/Launcher/AiAgentsCoreProvider';
 import { AgentContainerWidthContext } from '../src/ee/features/aiCopilot/hooks/useAgentMaxWidth';
@@ -60,6 +61,7 @@ import {
     type EmbedAiAgentThreadChange,
     type EmbedExploreChart,
     type EmbedExploreOptions,
+    type InMemoryEmbed,
 } from '../src/ee/providers/Embed/types';
 import useEmbed from '../src/ee/providers/Embed/useEmbed';
 import ErrorBoundary from '../src/features/errorBoundary/ErrorBoundary';
@@ -72,6 +74,7 @@ import AbilityProvider from '../src/providers/Ability/AbilityProvider';
 import ActiveJobProvider from '../src/providers/ActiveJob/ActiveJobProvider';
 import AppProvider from '../src/providers/App/AppProvider';
 import FullscreenProvider from '../src/providers/Fullscreen/FullscreenProvider';
+import { LightdashApiContext } from '../src/providers/LightdashApi/LightdashApiContext';
 import MantineProvider from '../src/providers/MantineProvider';
 import { PortalTargetContext } from '../src/providers/PortalTarget/PortalTargetContext';
 import ReactQueryProvider from '../src/providers/ReactQuery/ReactQueryProvider';
@@ -409,13 +412,29 @@ const SdkProviders: FC<
     PropsWithChildren<{
         styles?: { backgroundColor?: string; fontFamily?: string };
         theme?: 'light' | 'dark';
+        token: string;
         projectUuid?: string;
         // Starts the router here and leaves routing to the children
         initialEntry?: string;
         onError?: SdkErrorHandler;
     }>
-> = ({ children, styles, theme, projectUuid, initialEntry, onError }) => {
+> = ({
+    children,
+    styles,
+    theme,
+    token,
+    projectUuid,
+    initialEntry,
+    onError,
+}) => {
     const colorScheme = theme ?? 'light';
+    // Each SDK component sends its own token, so components with different
+    // tokens can share a page. The ref picks up token rotation.
+    const embedRef = useRef<InMemoryEmbed>({ token, projectUuid });
+    embedRef.current = { token, projectUuid };
+    const [lightdashApi] = useState(() =>
+        createLightdashApi(() => embedRef.current),
+    );
     const onErrorRef = useRef(onError);
     onErrorRef.current = onError;
     const [reportError] = useState(() =>
@@ -482,71 +501,75 @@ const SdkProviders: FC<
                 />,
                 document.body,
             )}
-            <ReactQueryProvider
-                onError={(error, key) =>
-                    reportError(toSdkRequestError(error, key))
-                }
-            >
-                <MantineProvider
-                    themeOverride={themeOverride}
-                    notificationsLimit={0}
-                    forceColorScheme={colorScheme}
-                    cssVariablesSelector={`.${instanceClass}`}
-                    getRootElement={getRootElement}
-                    syncBodyColorMode={false}
+            <LightdashApiContext.Provider value={lightdashApi}>
+                <ReactQueryProvider
+                    onError={(error, key) =>
+                        reportError(toSdkRequestError(error, key))
+                    }
                 >
-                    <div
-                        ref={rootRef}
-                        className={embedContractClass(
-                            'ld-sdk-root',
-                            SDK_SCOPE_CLASS,
-                            instanceClass,
-                        )}
+                    <MantineProvider
+                        themeOverride={themeOverride}
+                        notificationsLimit={0}
+                        forceColorScheme={colorScheme}
+                        cssVariablesSelector={`.${instanceClass}`}
+                        getRootElement={getRootElement}
+                        syncBodyColorMode={false}
                     >
-                        <PortalTargetContext.Provider value={`#${portalId}`}>
-                            <ModalsProvider>
-                                <AppProvider>
-                                    <FullscreenProvider enabled={false}>
-                                        <ThirdPartyServicesProvider
-                                            enabled={false}
-                                        >
-                                            <ErrorBoundary
-                                                wrapper={{ mt: '4xl' }}
-                                                onError={(error) =>
-                                                    reportError(
-                                                        toSdkError(error, {
-                                                            fatal: true,
-                                                            kind: 'render',
-                                                        }),
-                                                    )
-                                                }
+                        <div
+                            ref={rootRef}
+                            className={embedContractClass(
+                                'ld-sdk-root',
+                                SDK_SCOPE_CLASS,
+                                instanceClass,
+                            )}
+                        >
+                            <PortalTargetContext.Provider
+                                value={`#${portalId}`}
+                            >
+                                <ModalsProvider>
+                                    <AppProvider>
+                                        <FullscreenProvider enabled={false}>
+                                            <ThirdPartyServicesProvider
+                                                enabled={false}
                                             >
-                                                <MemoryRouter
-                                                    initialEntries={[route]}
+                                                <ErrorBoundary
+                                                    wrapper={{ mt: '4xl' }}
+                                                    onError={(error) =>
+                                                        reportError(
+                                                            toSdkError(error, {
+                                                                fatal: true,
+                                                                kind: 'render',
+                                                            }),
+                                                        )
+                                                    }
                                                 >
-                                                    <TrackingProvider
-                                                        enabled={true}
+                                                    <MemoryRouter
+                                                        initialEntries={[route]}
                                                     >
-                                                        <AbilityProvider>
-                                                            <ChartColorMappingContextProvider>
-                                                                <ActiveJobProvider>
-                                                                    {
-                                                                        routedChildren
-                                                                    }
-                                                                </ActiveJobProvider>
-                                                            </ChartColorMappingContextProvider>
-                                                        </AbilityProvider>
-                                                    </TrackingProvider>
-                                                </MemoryRouter>
-                                            </ErrorBoundary>
-                                        </ThirdPartyServicesProvider>
-                                    </FullscreenProvider>
-                                </AppProvider>
-                            </ModalsProvider>
-                        </PortalTargetContext.Provider>
-                    </div>
-                </MantineProvider>
-            </ReactQueryProvider>
+                                                        <TrackingProvider
+                                                            enabled={true}
+                                                        >
+                                                            <AbilityProvider>
+                                                                <ChartColorMappingContextProvider>
+                                                                    <ActiveJobProvider>
+                                                                        {
+                                                                            routedChildren
+                                                                        }
+                                                                    </ActiveJobProvider>
+                                                                </ChartColorMappingContextProvider>
+                                                            </AbilityProvider>
+                                                        </TrackingProvider>
+                                                    </MemoryRouter>
+                                                </ErrorBoundary>
+                                            </ThirdPartyServicesProvider>
+                                        </FullscreenProvider>
+                                    </AppProvider>
+                                </ModalsProvider>
+                            </PortalTargetContext.Provider>
+                        </div>
+                    </MantineProvider>
+                </ReactQueryProvider>
+            </LightdashApiContext.Provider>
         </>
     );
 };
@@ -580,6 +603,7 @@ const Dashboard: FC<DashboardProps> = ({
 
     return (
         <SdkProviders
+            token={tokenContext.token}
             projectUuid={tokenContext.projectUuid}
             styles={styles}
             theme={theme}
@@ -753,6 +777,7 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
 
     return (
         <SdkProviders
+            token={tokenContext.token}
             projectUuid={tokenContext.projectUuid}
             styles={styles}
             theme={theme}
@@ -829,6 +854,7 @@ const Explore: FC<
 
     return (
         <SdkProviders
+            token={tokenContext.token}
             projectUuid={tokenContext.projectUuid}
             styles={styles}
             theme={theme}
@@ -958,6 +984,7 @@ const Chart: FC<ChartProps> = ({
 
     return (
         <SdkProviders
+            token={tokenContext.token}
             projectUuid={tokenContext.projectUuid}
             styles={styles}
             theme={theme}
@@ -1186,6 +1213,8 @@ const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
                 value={containerWidth > 0 ? containerWidth : null}
             >
                 <SdkProviders
+                    token={tokenContext.token}
+                    projectUuid={tokenContext.projectUuid}
                     initialEntry={path}
                     styles={styles}
                     theme={theme}
@@ -1290,6 +1319,7 @@ const MetricsCatalog: FC<MetricsCatalogProps> = ({
 
     return (
         <SdkProviders
+            token={tokenContext.token}
             projectUuid={tokenContext.projectUuid}
             styles={styles}
             theme={theme}

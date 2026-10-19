@@ -302,6 +302,8 @@ export class OrganizationController extends BaseController {
      * @summary List organization members
      * @param req express request
      * @param projectUuid filter users who can view this project
+     * @param sortBy column to sort by (name sorts by full name, falling back to email)
+     * @param sortDirection sort direction (asc or desc)
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/users')
@@ -314,6 +316,8 @@ export class OrganizationController extends BaseController {
         @Query() searchQuery?: string,
         @Query() projectUuid?: string,
         @Query() googleOidcOnly?: boolean,
+        @Query() sortBy?: 'name',
+        @Query() sortDirection?: 'asc' | 'desc',
     ): Promise<ApiOrganizationMemberProfiles> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -337,6 +341,9 @@ export class OrganizationController extends BaseController {
                     searchQuery,
                     projectUuid,
                     googleOidcOnly,
+                    sortBy && sortDirection
+                        ? { sortBy, sortDirection }
+                        : undefined,
                 ),
         };
     }
@@ -675,6 +682,8 @@ export class OrganizationController extends BaseController {
      * @summary List organization groups
      * @param req
      * @param includeMembers number of members to include
+     * @param sortBy column to sort by
+     * @param sortDirection sort direction (asc or desc)
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -691,6 +700,8 @@ export class OrganizationController extends BaseController {
         @Query() pageSize?: number,
         @Query() includeMembers?: number,
         @Query() searchQuery?: string,
+        @Query() sortBy?: 'name',
+        @Query() sortDirection?: 'asc' | 'desc',
     ): Promise<ApiGroupListResponse> {
         assertRegisteredAccount(req.account);
         let paginateArgs: KnexPaginateArgs | undefined;
@@ -709,6 +720,7 @@ export class OrganizationController extends BaseController {
                 includeMembers,
                 paginateArgs,
                 searchQuery,
+                sortBy && sortDirection ? { sortBy, sortDirection } : undefined,
             );
 
         this.setStatus(200);

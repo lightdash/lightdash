@@ -73,7 +73,7 @@ node ./packages/cli/dist/index.js preview --project-dir ./examples/full-jaffle-s
 **Main Commands:**
 - `login` - Authenticate with Lightdash instance
 - `agent connect` - Connect your agent to the warehouse through browser sign-in
-- `agent status` - Show your agent connection status
+- `agent status` without a name or selected connection - Show warehouse sign-in status
 - `compile` - Compile dbt models and generate Lightdash config
 - `generate` - Generate Lightdash YAML files
 - `validate` - Validate dbt project structure
@@ -94,12 +94,20 @@ Each command has a corresponding handler in `src/handlers/` that:
 **Key Config Files:**
 - `lightdash.yml` - Project configuration
 - `profiles.yml` - dbt profiles (warehouse connections)
-- `.lightdash/` - Local CLI state and auth tokens
+- `~/.config/lightdash/config.yaml` - CLI configuration and saved personal API key
+- `~/.config/lightdash/agent-connections.yaml` - Saved agent connections and tokens
 
 **Environment Variables:**
 - `LIGHTDASH_API_KEY` - API authentication
 - `DBT_PROJECT_DIR` - Default dbt project directory
 - `DBT_PROFILES_DIR` - Default dbt profiles directory
+
+### Agent connection credentials
+
+A selected agent connection supplies the credential for CLI API requests, with
+no personal-key fallback if that connection is missing or invalid. Programs the
+CLI starts still run as the same computer user. For environment filtering and
+credential file access, read [Scoped CLI credentials](README.md#scoped-cli-credentials).
 
 ## dbt Integration & Warehouse Support
 
@@ -194,6 +202,6 @@ The CLI is installed globally by end users (`npm i -g @lightdash/cli`), so trans
 - Version detection in `src/handlers/dbt/getDbtVersion.ts`
 
 **Authentication:**
-- Tokens stored in `~/.lightdash/`
+- Credentials use the files listed under Configuration
 - Login required before most operations
 - API key can be set via environment variable

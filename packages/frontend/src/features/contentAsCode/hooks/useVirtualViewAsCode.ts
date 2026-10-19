@@ -1,5 +1,5 @@
 import { type ApiVirtualViewAsCodeListResponse } from '@lightdash/common';
-import { lightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { useContentAsCode } from './useContentAsCode';
 
 const selectVirtualView = (
@@ -15,6 +15,7 @@ export const useVirtualViewAsCode = ({
     virtualViewSlug: string;
     enabled: boolean;
 }) => {
+    const lightdashApi = useLightdashApi();
     return useContentAsCode<ApiVirtualViewAsCodeListResponse['results']>({
         queryKey: ['virtual-view-as-code', projectUuid, virtualViewSlug],
         queryFn: () =>

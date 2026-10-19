@@ -79,6 +79,68 @@ describe('parseStreamRawToolCall', () => {
     });
 });
 
+const pythonComposerArgs = {
+    title: 'Simulated revenue',
+    description: null,
+    terminalNodeId: null,
+    queries: [
+        {
+            sourceType: 'sql',
+            nodeId: 'orders',
+            title: 'Orders',
+            description: null,
+            sql: 'select amount from orders',
+            limit: 500,
+        },
+        {
+            sourceType: 'python',
+            nodeId: 'sim',
+            title: 'Simulation',
+            description: null,
+            code: 'def run(inputs, params):\n    return inputs["orders"]',
+            references: ['orders'],
+            limit: 20000,
+        },
+    ],
+};
+
+describe('runComposerQueries with python nodes', () => {
+    it('keeps a complete python pipeline call', () => {
+        expect(
+            parseStreamRawToolCall({
+                toolName: 'runComposerQueries',
+                toolArgs: pythonComposerArgs,
+            }),
+        ).toMatchObject({
+            toolName: 'runComposerQueries',
+            toolArgs: {
+                queries: [
+                    { sourceType: 'sql' },
+                    { sourceType: 'python', code: expect.any(String) },
+                ],
+            },
+        });
+    });
+
+    it('keeps the failed result of a python pipeline', () => {
+        const error = 'Composer query failed on node(s): "sim"';
+        expect(
+            parseStreamRawToolResult({
+                toolName: 'runComposerQueries',
+                toolArgs: pythonComposerArgs,
+                toolOutput: {
+                    result: error,
+                    metadata: { status: 'error' },
+                    structuredContent: { error },
+                },
+            }),
+        ).toMatchObject({
+            toolName: 'runComposerQueries',
+            toolResult: { metadata: { status: 'error' } },
+        });
+    });
+});
+
 describe('parseStreamRawToolResult', () => {
     it('keeps a Document edit so the open Document can refresh', () => {
         const parsed = parseStreamRawToolResult({

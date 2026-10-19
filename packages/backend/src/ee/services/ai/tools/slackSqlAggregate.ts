@@ -7,13 +7,96 @@
 // pending state is the one exception — it's a prominent section + buttons
 // because we need user action before going further.
 
-import type { AnyType } from '@lightdash/common';
+import {
+    assertUnreachable,
+    QuerySourceType,
+    type AiPrompt,
+    type AnyType,
+} from '@lightdash/common';
 import { getThinkingBlocks } from '../utils/getSlackBlocks';
+import { type NativeSqlApprovalToolName } from './sqlApprovals';
+
+export type SqlApprovalStep = {
+    title: string;
+    description: string | null;
+    sql: string;
+};
+
+/** What the approval card shows: one SQL block, or one block per pipeline step. */
+export type SqlApprovalDisplay =
+    | { kind: 'sql'; sql: string }
+    | { kind: 'steps'; steps: SqlApprovalStep[]; threadUrl: string };
+
+export const getAgentThreadUrl = (
+    siteUrl: string,
+    prompt: Pick<AiPrompt, 'projectUuid' | 'agentUuid' | 'threadUuid'>,
+): string =>
+    prompt.agentUuid
+        ? `${siteUrl}/projects/${prompt.projectUuid}/ai-agents/${prompt.agentUuid}/threads/${prompt.threadUuid}`
+        : siteUrl;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null;
+
+/** The warehouse `sql` steps a composer call submits, as the approval card shows them. */
+const getComposerSqlApprovalSteps = (toolArgs: unknown): SqlApprovalStep[] => {
+    const queries =
+        isRecord(toolArgs) && Array.isArray(toolArgs.queries)
+            ? toolArgs.queries
+            : [];
+    return queries
+        .filter(
+            (node): node is Record<string, unknown> & { sql: string } =>
+                isRecord(node) &&
+                node.sourceType === QuerySourceType.SQL &&
+                typeof node.sql === 'string',
+        )
+        .map((node, index) => ({
+            title:
+                typeof node.title === 'string' && node.title.trim()
+                    ? node.title
+                    : `SQL step ${index + 1}`,
+            description:
+                typeof node.description === 'string' && node.description.trim()
+                    ? node.description
+                    : null,
+            sql: node.sql,
+        }));
+};
+
+/** Steps the card lists one by one; null shows the call's SQL as one block. */
+export const getSqlApprovalSteps = (
+    toolName: NativeSqlApprovalToolName,
+    toolArgs: unknown,
+): SqlApprovalStep[] | null => {
+    switch (toolName) {
+        case 'runComposerQueries':
+            return getComposerSqlApprovalSteps(toolArgs);
+        case 'runSql':
+        case 'runContentQuery':
+        case 'createContent':
+        case 'editContent':
+            return null;
+        default:
+            return assertUnreachable(toolName, 'Unknown SQL approval tool');
+    }
+};
+
+export const getSqlApprovalDisplay = ({
+    sql,
+    steps,
+    threadUrl,
+}: {
+    sql: string;
+    steps: SqlApprovalStep[] | null;
+    threadUrl: string;
+}): SqlApprovalDisplay =>
+    steps === null ? { kind: 'sql', sql } : { kind: 'steps', steps, threadUrl };
 
 export type SectionState =
     | {
           kind: 'pending';
-          sql: string;
+          display: SqlApprovalDisplay;
           toolCallId: string;
           threadUuid: string;
           heading: string;
@@ -38,6 +121,56 @@ const truncateSql = (sql: string, maxLength = 2500) =>
     sql.length > maxLength
         ? `${sql.slice(0, maxLength)}\n... (truncated)`
         : sql;
+
+// Keeps the card within Slack's 50-block limit.
+export const MAX_SQL_APPROVAL_STEPS = 15;
+
+const escapeMrkdwn = (text: string) =>
+    text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+const sqlCodeBlock = (sql: string): AnyType => ({
+    type: 'section',
+    text: {
+        type: 'mrkdwn',
+        text: `\`\`\`sql\n${truncateSql(sql)}\n\`\`\``,
+    },
+});
+
+const renderSqlDisplay = (display: SqlApprovalDisplay): AnyType[] => {
+    if (display.kind === 'sql') return [sqlCodeBlock(display.sql)];
+    const shown = display.steps.slice(0, MAX_SQL_APPROVAL_STEPS);
+    const hiddenCount = display.steps.length - shown.length;
+    return [
+        ...shown.flatMap((step) => [
+            {
+                type: 'section',
+                text: {
+                    type: 'mrkdwn',
+                    text: [
+                        `*${escapeMrkdwn(step.title)}*`,
+                        ...(step.description === null
+                            ? []
+                            : [escapeMrkdwn(step.description)]),
+                    ].join('\n'),
+                },
+            },
+            sqlCodeBlock(step.sql),
+        ]),
+        ...(hiddenCount > 0
+            ? [
+                  {
+                      type: 'section',
+                      text: {
+                          type: 'mrkdwn',
+                          text: `+${hiddenCount} more SQL step${
+                              hiddenCount === 1 ? '' : 's'
+                          } — <${display.threadUrl}|view in app>`,
+                      },
+                  },
+              ]
+            : []),
+    ];
+};
 
 const oneLineSql = (sql: string, maxLength = 140) => {
     const flat = sql.replace(/\s+/g, ' ').trim();
@@ -81,13 +214,7 @@ export const renderBlocks = (
                     text: `:lock: *${state.heading}*`,
                 },
             },
-            {
-                type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: `\`\`\`sql\n${truncateSql(state.sql)}\n\`\`\``,
-                },
-            },
+            ...renderSqlDisplay(state.display),
             {
                 type: 'actions',
                 elements: [

@@ -231,6 +231,31 @@ describe('QueryComposer', () => {
                 },
             );
 
+            it('restricts a metric-only source without emitting an empty SELECT DISTINCT', () => {
+                const composer = new QueryComposer(
+                    {
+                        metricQuery: {
+                            ...METRIC_FILTERED_TOTALS_SOURCE,
+                            dimensions: [],
+                            sorts: [],
+                        },
+                        pivotConfiguration: undefined,
+                        totalConfiguration: {
+                            kind: 'grandTotal',
+                            subtotalDimensions: undefined,
+                        },
+                    },
+                    CONTEXT,
+                );
+
+                const sql = composer.getSql({ columnLimit: 100 });
+                // No dimensions to group by: the semi-join still has to
+                // gate on whether the single source row passed the filter.
+                expect(sql).toContain('source_dimension_groups');
+                expect(sql).not.toMatch(/SELECT DISTINCT\s+FROM/);
+                expect(sql).toMatchSnapshot();
+            });
+
             it('sums sum-of-rows table calcs over the shared filtered-groups CTE', () => {
                 const composer = new QueryComposer(
                     {

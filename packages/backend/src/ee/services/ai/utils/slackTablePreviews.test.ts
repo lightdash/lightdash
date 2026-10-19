@@ -1,4 +1,8 @@
-import { parseAiArtifactChartConfig, type AiArtifact } from '@lightdash/common';
+import {
+    parseAiArtifactChartConfig,
+    QuerySourceType,
+    type AiArtifact,
+} from '@lightdash/common';
 import {
     getSlackTableBlocks,
     type SlackTableQueryResults,
@@ -113,7 +117,98 @@ const artifact = (
     };
 };
 
+const composerArtifact = (versionUuid: string): AiArtifact => {
+    const chartConfig = parseAiArtifactChartConfig({
+        source: 'composer',
+        schemaVersion: 1,
+        queries: [
+            {
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                nodeId: 'revenue',
+                exploreName: 'payments',
+                dimensions: ['payments_month'],
+                metrics: ['payments_total_revenue'],
+            },
+            {
+                sourceType: QuerySourceType.DUCKDB,
+                nodeId: 'joined',
+                sql: 'SELECT * FROM revenue',
+                references: ['revenue'],
+            },
+        ],
+        terminalNodeId: 'joined',
+        vizConfig: null,
+    });
+    if (!chartConfig) throw new Error('Invalid fixture');
+    return {
+        ...artifact(versionUuid, 'table'),
+        title: 'Revenue pipeline',
+        chartConfig,
+    };
+};
+
 describe('getSlackTablePreviews', () => {
+    it('hides a composer result from users who cannot access one of its semantic explores', async () => {
+        const composerCall = {
+            selectedQueryUuids: ['query-composer'],
+            toolCalls: [
+                {
+                    tool_call_id: 'composer',
+                    tool_name: 'runComposerQueries',
+                    tool_args: {},
+                },
+            ],
+            toolResults: [
+                {
+                    toolCallId: 'composer',
+                    toolType: 'built-in' as const,
+                    toolName: 'runComposerQueries',
+                    metadata: {
+                        status: 'success',
+                        queryUuid: 'query-composer',
+                        artifactVersionUuid: 'composer-version',
+                    },
+                },
+            ],
+            artifacts: [composerArtifact('composer-version')],
+        };
+        const authorizeExplores =
+            (allowed: string[]) =>
+            async ({ exploreNames }: { exploreNames: string[] }) => {
+                if (exploreNames.some((name) => !allowed.includes(name))) {
+                    throw new Error('Forbidden');
+                }
+            };
+
+        const [allowed] = await getSlackTablePreviews({
+            ...setup(),
+            ...composerCall,
+            authorize: authorizeExplores(['payments']),
+        });
+        const [denied] = await getSlackTablePreviews({
+            ...setup(),
+            ...composerCall,
+            authorize: authorizeExplores(['orders']),
+        });
+
+        expect(allowed).toEqual(
+            expect.objectContaining({
+                status: 'ready',
+                title: 'Revenue pipeline',
+                queryResults: expect.objectContaining({
+                    rows: [{ month: 'September', customers: 100 }],
+                }),
+            }),
+        );
+        expect(denied).toEqual(
+            expect.objectContaining({
+                status: 'unavailable',
+                url: 'https://lightdash.test/threads/thread',
+            }),
+        );
+        expect(denied).not.toHaveProperty('queryResults');
+    });
+
     it('omits all table results when the final answer selects none', async () => {
         const input = { ...setup(), selectedQueryUuids: [] };
         expect(await getSlackTablePreviews(input)).toEqual([]);

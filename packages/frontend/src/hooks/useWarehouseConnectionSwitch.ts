@@ -7,7 +7,7 @@ import {
     type WarehouseConnectionSwitchResult,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useToaster from './toaster/useToaster';
 
 const switchUrl = (projectUuid: string) =>
@@ -16,8 +16,9 @@ const switchUrl = (projectUuid: string) =>
 export const useWarehouseConnectionSwitchAvailability = (
     projectUuid: string,
     enabled: boolean,
-) =>
-    useQuery<WarehouseConnectionSwitchAvailability, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<WarehouseConnectionSwitchAvailability, ApiError>({
         queryKey: ['projects', projectUuid, 'warehouse-connection-mode'],
         queryFn: () =>
             lightdashApi<WarehouseConnectionSwitchAvailability>({
@@ -28,9 +29,11 @@ export const useWarehouseConnectionSwitchAvailability = (
         enabled,
         retry: false,
     });
+};
 
-export const usePreviewWarehouseConnectionSwitch = (projectUuid: string) =>
-    useMutation<
+export const usePreviewWarehouseConnectionSwitch = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+    return useMutation<
         WarehouseConnectionSwitchPlan,
         ApiError,
         ApiWarehouseConnectionSwitchRequest
@@ -45,11 +48,13 @@ export const usePreviewWarehouseConnectionSwitch = (projectUuid: string) =>
             mutationKey: ['preview_warehouse_connection_switch', projectUuid],
         },
     );
+};
 
 export const useSwitchToMultipleConnections = (
     projectUuid: string,
     options: { onSuccess: () => void },
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<

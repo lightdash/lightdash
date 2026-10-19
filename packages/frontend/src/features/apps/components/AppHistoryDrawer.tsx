@@ -12,6 +12,7 @@ type Props = Pick<
     | 'viewedVersion'
     | 'onView'
     | 'onRestore'
+    | 'onCancel'
     | 'liveBuild'
     | 'hasEarlier'
     | 'isFetchingEarlier'

@@ -34,8 +34,6 @@ import {
     McpDocumentAsCode,
     McpDocumentEdit,
     McpDocumentRead,
-    MergeQuery,
-    MetricQuery,
     ParameterDefinitions,
     ParametersValuesMap,
     PreviewDeploySetupResult,
@@ -54,6 +52,7 @@ import {
     ToolListContentArgs,
     UpdateSlackResponse,
     UpdateWebAppResponse,
+    WarehouseExecutionStats,
     WarehouseTablesCatalog,
     WarehouseTypes,
     type SqlApprovalToolName,
@@ -524,17 +523,7 @@ export type RunAsyncQueryFn = (
     rows: Record<string, AnyType>[];
     cacheMetadata: CacheMetadata;
     fields: ItemsMap;
-}>;
-
-export type RunAsyncMergeQueryFn = (
-    mergeQuery: MergeQuery,
-    parameters?: ParametersValuesMap,
-) => Promise<{
-    queryUuid: string;
-    rows: Record<string, AnyType>[];
-    cacheMetadata: CacheMetadata;
-    fields: ItemsMap;
-    metricQuery: MetricQuery;
+    executionStats: WarehouseExecutionStats | null;
 }>;
 
 export type RunSavedChartQueryFn = (args: {
@@ -556,9 +545,27 @@ export type RunSavedChartQueryFn = (args: {
     rows: Record<string, AnyType>[];
     cacheMetadata: CacheMetadata;
     fields: ItemsMap;
+    executionStats: WarehouseExecutionStats | null;
 }>;
 
 export type GetSavedChartFn = (chartUuidOrSlug: string) => Promise<SavedChart>;
+
+export type SqlChartSummary = {
+    uuid: string;
+    slug: string;
+    name: string;
+    sql: string;
+};
+
+/** A saved SQL chart the agent may view; checks view and agent space access, like readContent. */
+export type GetSqlChartFn = (slug: string) => Promise<SqlChartSummary>;
+
+/** Runs a saved SQL chart, on its own or as a dashboard tile with the dashboard's filters. */
+export type RunSqlChartQueryFn = (args: {
+    chartSlug: string;
+    dashboardSlug: string | null;
+    limit: number;
+}) => Promise<SqlQueryRows & { sqlChart: SqlChartSummary }>;
 
 export type SendFileFn = (args: PostSlackFile) => Promise<string | undefined>;
 
@@ -706,12 +713,18 @@ export type CheckUserPermissionFn = (args: {
     permission: string;
 }) => Promise<boolean>;
 
-export type RunSqlJobFn = (args: { sql: string; limit: number }) => Promise<{
+export type SqlQueryRows = {
     queryUuid: string;
     rows: Record<string, AnyType>[];
     columns: string[];
     rowCount: number;
-}>;
+    executionStats: WarehouseExecutionStats | null;
+};
+
+export type RunSqlJobFn = (args: {
+    sql: string;
+    limit: number;
+}) => Promise<SqlQueryRows>;
 
 /**
  * Per-node lifecycle event emitted while a composer pipeline executes, so the
@@ -957,6 +970,12 @@ export type GetProjectInfoFn = () => Promise<{
     dbtConnectionType: DbtProjectType;
     dbtVersion: string;
     warehouseType: WarehouseTypes | null;
+    connections: {
+        name: string;
+        warehouseConnectionUuid: string | null;
+        warehouseType: WarehouseTypes;
+        isOriginal: boolean;
+    }[];
     git: {
         repository: string;
         branch: string;

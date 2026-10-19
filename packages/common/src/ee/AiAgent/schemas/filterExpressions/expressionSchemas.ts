@@ -16,6 +16,7 @@ import {
     mergeConfigSchema,
     mergeSourceQueryConfigSchema,
     queryConfigBaseSchema,
+    rejectAgentMergeConfig,
 } from '../tools/toolRunQueryArgs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
@@ -219,23 +220,7 @@ export const toolRunQueryExpressionArgsSchema = createToolSchema()
     .build();
 
 export const toolRunQueryExpressionArgsSchemaV2RejectingMerge = z.preprocess(
-    (raw, context) => {
-        if (
-            raw !== null &&
-            typeof raw === 'object' &&
-            'mergeConfig' in raw &&
-            raw.mergeConfig !== null &&
-            raw.mergeConfig !== undefined
-        ) {
-            context.addIssue({
-                code: 'custom',
-                path: ['mergeConfig'],
-                message: 'Merge queries are not enabled for this organization.',
-            });
-            return z.NEVER;
-        }
-        return raw;
-    },
+    rejectAgentMergeConfig,
     toolRunQueryExpressionArgsSchemaV2FormulaOnly,
 );
 

@@ -48,7 +48,7 @@ Validation failures should be corrected before another query is started. Applica
 
 Use completed query `rows` as data for your HTML table or React chart library. For metric results, rows use stable field IDs and `fields` provides metadata; CSV headers instead use display labels. Keep stable IDs for data access, use labels for presentation, and do not treat labels as unique identifiers.
 
-`render_chart` is a separate tool for Lightdash's built-in chart UI in MCP App-capable clients. It supports completed metric queries only and never starts, polls or reruns a query. Its model-visible `echartsOption` is a placeholder, not a downloadable chart specification. A custom artifact should build charts from query data rather than depend on `_meta` or copy that placeholder into ECharts.
+`render_chart` is a separate tool for Lightdash's built-in chart UI in MCP App-capable clients. It supports completed metric queries only. It does not poll or rerun your query. For a grouped bar, horizontal bar, line or scatter chart (groupBy), it runs the grouped query for the chart itself; while that query runs it returns status `running` instead of an error; wait, then call `render_chart` again with the same arguments. Its model-visible `echartsOption` is a placeholder, not a downloadable chart specification. A custom artifact should build charts from query data rather than depend on `_meta` or copy that placeholder into ECharts.
 
 `run_sql` and SQL polling return data only, never Lightdash chart artifacts. Your custom artifact may visualize that data itself; do not send SQL query UUIDs to `render_chart`.
 

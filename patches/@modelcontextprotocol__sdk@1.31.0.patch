@@ -1,0 +1,34 @@
+diff --git a/dist/cjs/shared/auth-utils.js b/dist/cjs/shared/auth-utils.js
+index f2fe617344051e0b7a5ff4543af4bf435523092d..e9a78e027e590822151d16f60355b54e4d4f1abf 100644
+--- a/dist/cjs/shared/auth-utils.js
++++ b/dist/cjs/shared/auth-utils.js
+@@ -31,10 +31,8 @@ function checkResourceAllowed({ requestedResource, configuredResource }) {
+     if (requested.origin !== configured.origin) {
+         return false;
+     }
+-    // Handle cases like requested=/foo and configured=/foo/
+-    if (requested.pathname.length < configured.pathname.length) {
+-        return false;
+-    }
++    // A single trailing slash is not a different resource: requested=/foo
++    // matches configured=/foo/ once both paths are normalised below.
+     // Check if the requested path starts with the configured path
+     // Ensure both paths end with / for proper comparison
+     // This ensures that if we have paths like "/api" and "/api/users",
+diff --git a/dist/esm/shared/auth-utils.js b/dist/esm/shared/auth-utils.js
+index 1883885e406491c6142127fd8d7a00f2d5d229a3..59044c55394b23d3f3abf6ddcc05d0471fb85a79 100644
+--- a/dist/esm/shared/auth-utils.js
++++ b/dist/esm/shared/auth-utils.js
+@@ -27,10 +27,8 @@ export function checkResourceAllowed({ requestedResource, configuredResource })
+     if (requested.origin !== configured.origin) {
+         return false;
+     }
+-    // Handle cases like requested=/foo and configured=/foo/
+-    if (requested.pathname.length < configured.pathname.length) {
+-        return false;
+-    }
++    // A single trailing slash is not a different resource: requested=/foo
++    // matches configured=/foo/ once both paths are normalised below.
+     // Check if the requested path starts with the configured path
+     // Ensure both paths end with / for proper comparison
+     // This ensures that if we have paths like "/api" and "/api/users",

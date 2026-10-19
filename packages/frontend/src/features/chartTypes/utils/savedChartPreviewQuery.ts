@@ -11,7 +11,7 @@ import {
     type ReadyQueryResultsPage,
     type ResultRow,
 } from '@lightdash/common';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import { pollForResults } from '../../queryRunner/executeQuery';
 
 /** One page of rows is all a preview needs, and the cap the picker reports. */
@@ -28,17 +28,20 @@ export type SavedChartPreviewQueryResult = {
 };
 
 /** Run the saved query with its native pivot or an explicit preview override. */
-export const executeSavedChartPreviewQuery = async ({
-    projectUuid,
-    chartUuid,
-    pivotResults = true,
-    pivotConfiguration,
-}: {
-    projectUuid: string;
-    chartUuid: string;
-    pivotResults?: boolean;
-    pivotConfiguration?: PivotConfiguration;
-}): Promise<SavedChartPreviewQueryResult> => {
+export const executeSavedChartPreviewQuery = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        chartUuid,
+        pivotResults = true,
+        pivotConfiguration,
+    }: {
+        projectUuid: string;
+        chartUuid: string;
+        pivotResults?: boolean;
+        pivotConfiguration?: PivotConfiguration;
+    },
+): Promise<SavedChartPreviewQueryResult> => {
     try {
         const query = await lightdashApi<ApiExecuteAsyncMetricQueryResults>({
             url: `/projects/${projectUuid}/query/chart`,
@@ -53,7 +56,11 @@ export const executeSavedChartPreviewQuery = async ({
             } satisfies ExecuteAsyncSavedChartRequestParams),
         });
 
-        const results = await pollForResults(projectUuid, query.queryUuid);
+        const results = await pollForResults(
+            lightdashApi,
+            projectUuid,
+            query.queryUuid,
+        );
         if (results.status !== QueryHistoryStatus.READY) {
             throw new Error(
                 ('error' in results ? results.error : null) ??

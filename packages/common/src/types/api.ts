@@ -126,6 +126,8 @@ import type {
 import type { ApiAiThreadFileResponse } from '../ee/AiAgent/threadFileTypes';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
+import type { ApiQueryCostEstimateResponse } from '../utils/queryCostEstimate';
+import { type WeekDay } from '../utils/timeFrames';
 import type { PivotValuesColumn } from '../visualizations/types';
 import {
     type AgentCapabilityPolicy,
@@ -390,6 +392,7 @@ import {
     type EnsurePlaygroundProjectResults,
     type Project,
     type WarehouseCredentials,
+    type WarehouseTypes,
 } from './projects';
 import { type ApiPromotionChangesResponse } from './promotion';
 import {
@@ -404,6 +407,7 @@ import {
     type ApiListQuerySourcesResults,
     type ApiScanQuerySourceSchemaResults,
 } from './querySources';
+import { type ReleaseHighlightsResult } from './releaseHighlights';
 import { type ApiRenameFieldsResponse, type ApiRenameResponse } from './rename';
 import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import { type ResultColumns, type ResultRow } from './results';
@@ -573,6 +577,11 @@ export type ApiExploresResults = SummaryExplore[];
 
 export interface ApiExploreResults extends Omit<Explore, 'unfilteredTables'> {
     warehouseConnectionUuid: string | null;
+    warehouseConnection: {
+        warehouseConnectionUuid: string | null;
+        warehouseType: WarehouseTypes;
+        startOfWeek: WeekDay | null;
+    };
 }
 
 export type ApiTableGroupsResults = Record<string, GroupType>;
@@ -889,6 +898,13 @@ export type HealthState = {
          * the frontend hides the per-chart "include sample data" opt-in.
          */
         sampleDataEnabled: boolean;
+        /**
+         * Instance-wide ceiling for data app captures (prompt-bar screenshots,
+         * file attachments, thumbnails, Slack build-outcome images). When false
+         * no org can enable them; the org-level switch is on `GET /org` and
+         * `GET /org/settings`.
+         */
+        capturesEnabled: boolean;
     };
 };
 
@@ -1371,6 +1387,8 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | ApiQueryCostEstimateResponse['results']
+    | ReleaseHighlightsResult
     | AgentConnectionApprovalReviewResponse['results']
     | AgentConnectionApprovalDecisionResponse['results']
     | AgentCapabilityPolicy

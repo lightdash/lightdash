@@ -85,12 +85,13 @@ export const canonicalInstanceUrl = (input: string): string => {
         throw invalidConnection();
     }
 };
-const text = { type: 'string', minLength: 1 };
+const text = { type: 'string', minLength: 1, maxLength: 16384 };
 const uuid = { type: 'string', format: 'uuid' };
 const date = {
     type: 'string',
     format: 'date-time',
-    pattern: '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$',
+    // No leap second: Date.parse cannot read ":60".
+    pattern: '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:[0-5]\\d\\.\\d{3}Z$',
 };
 const nullable = (schema: object) => ({ anyOf: [schema, { type: 'null' }] });
 const object = (properties: Record<string, object>) => ({
@@ -105,7 +106,7 @@ const createSlotValidator = () => {
     addFormats(ajv);
     return ajv.compile<AgentConnectionSlot>(
         object({
-            instanceUrl: text,
+            instanceUrl: { ...text, maxLength: 2048 },
             organizationUuid: uuid,
             personUuid: uuid,
             name: {
@@ -113,7 +114,7 @@ const createSlotValidator = () => {
                 pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$',
             },
             clientId: { const: 'lightdash-cli' },
-            resource: text,
+            resource: { ...text, maxLength: 2048 },
             grantUuid: uuid,
             grantRevision: nullable({ type: 'integer', minimum: 1 }),
             approvedAt: date,
@@ -126,6 +127,7 @@ const createSlotValidator = () => {
                 scopes: {
                     ...array({
                         type: 'string',
+                        maxLength: 256,
                         pattern: '^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$',
                     }),
                     minItems: 1,
@@ -263,5 +265,75 @@ export const validateSlot = (
         )
             throw invalidConnection();
     }
-    return value;
+    let refreshState: AgentConnectionSlot['refreshState'];
+    switch (value.refreshState.kind) {
+        case 'in_progress':
+            refreshState = {
+                kind: value.refreshState.kind,
+                attemptUuid: value.refreshState.attemptUuid,
+                startedAt: value.refreshState.startedAt,
+            };
+            break;
+        case 'reconnect_required':
+            refreshState = {
+                kind: value.refreshState.kind,
+                since: value.refreshState.since,
+            };
+            break;
+        default:
+            refreshState = { kind: value.refreshState.kind };
+    }
+    return {
+        instanceUrl: value.instanceUrl,
+        organizationUuid: value.organizationUuid,
+        personUuid: value.personUuid,
+        name: value.name,
+        clientId: value.clientId,
+        resource: value.resource,
+        grantUuid: value.grantUuid,
+        grantRevision: value.grantRevision,
+        approvedAt: value.approvedAt,
+        grantExpiresAt: value.grantExpiresAt,
+        tokens: {
+            accessToken: value.tokens.accessToken,
+            accessTokenExpiresAt: value.tokens.accessTokenExpiresAt,
+            refreshToken: value.tokens.refreshToken,
+            refreshTokenExpiresAt: value.tokens.refreshTokenExpiresAt,
+            scopes: [...value.tokens.scopes],
+            generation: value.tokens.generation,
+            lastRefreshAttemptUuid: value.tokens.lastRefreshAttemptUuid,
+        },
+        lastReported: {
+            checkedAt: value.lastReported.checkedAt,
+            limitsStatus: value.lastReported.limitsStatus,
+            approvedProjects: value.lastReported.approvedProjects.map(
+                (project) => ({
+                    projectUuid: project.projectUuid,
+                    name: project.name,
+                    approvedCapabilities: [...project.approvedCapabilities],
+                }),
+            ),
+            effectiveProjects: value.lastReported.effectiveProjects.map(
+                (project) => ({
+                    projectUuid: project.projectUuid,
+                    capabilities: project.capabilities.map((action) => ({
+                        capability: action.capability,
+                        allowed: action.allowed,
+                        reason: action.reason,
+                    })),
+                }),
+            ),
+            status: value.lastReported.status,
+            lastUsedAt: value.lastReported.lastUsedAt,
+            revokedAt: value.lastReported.revokedAt,
+        },
+        refreshState,
+        revokeState:
+            value.revokeState.kind === 'unconfirmed'
+                ? {
+                      kind: value.revokeState.kind,
+                      attemptedAt: value.revokeState.attemptedAt,
+                  }
+                : { kind: value.revokeState.kind },
+    };
 };

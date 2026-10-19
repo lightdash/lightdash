@@ -4,9 +4,7 @@ import { renderHook } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
-vi.mock('../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../api');
 
 vi.mock('./toaster/useToaster', () => ({
     default: () => ({
@@ -28,16 +26,12 @@ vi.mock('../providers/Tracking/useTracking', () => ({
     default: () => ({ track: vi.fn() }),
 }));
 
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
 import { useServiceAccounts } from '../ee/features/serviceAccounts/useServiceAccounts';
 import { useTestConnection } from '../features/externalConnections/hooks/useTestConnection';
 import { useTestConnectionConfig } from '../features/externalConnections/hooks/useTestConnectionConfig';
 import { useLoginWithEmailMutation } from '../features/users/hooks/useLogin';
 import { getGdriveAccessToken } from './gdrive/useGdrive';
-import {
-    useCreateOrganizationWarehouseCredentials,
-    useUpdateOrganizationWarehouseCredentials,
-} from './organization/useOrganizationWarehouseCredentials';
 import { useRotateAccessToken } from './useAccessToken';
 import { usePasswordResetMutation } from './usePasswordReset';
 import { useUpdateWarehouseCredentialsMutation } from './useProject';
@@ -48,7 +42,7 @@ import {
     useUserWarehouseCredentialsUpdateMutation,
 } from './userWarehouseCredentials/useUserWarehouseCredentials';
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 
 function createWrapper(
     queryClient = new QueryClient({
@@ -199,39 +193,6 @@ describe('credential-bearing requests are marked sensitive', () => {
         );
     });
 
-    it('organization warehouse credentials create and update', async () => {
-        const created = renderHook(
-            () => useCreateOrganizationWarehouseCredentials(),
-            { wrapper: createWrapper() },
-        );
-        await created.result.current.mutateAsync({} as AnyType);
-
-        expect(mockApi).toHaveBeenCalledWith(
-            expect.objectContaining({
-                url: '/org/warehouse-credentials',
-                method: 'POST',
-                sensitive: true,
-            }),
-        );
-
-        const updated = renderHook(
-            () => useUpdateOrganizationWarehouseCredentials(),
-            { wrapper: createWrapper() },
-        );
-        await updated.result.current.mutateAsync({
-            uuid: 'cred-uuid',
-            data: {},
-        } as AnyType);
-
-        expect(mockApi).toHaveBeenCalledWith(
-            expect.objectContaining({
-                url: '/org/warehouse-credentials/cred-uuid',
-                method: 'PATCH',
-                sensitive: true,
-            }),
-        );
-    });
-
     it('service account create and token rotation', async () => {
         const { result } = renderHook(() => useServiceAccounts(), {
             wrapper: createWrapper(),
@@ -303,7 +264,7 @@ describe('credential-bearing requests are marked sensitive', () => {
     });
 
     it('gdrive access token', async () => {
-        await getGdriveAccessToken();
+        await getGdriveAccessToken(sharedLightdashApi);
 
         expect(mockApi).toHaveBeenCalledWith(
             expect.objectContaining({

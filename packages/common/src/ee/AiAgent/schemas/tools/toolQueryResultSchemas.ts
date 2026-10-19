@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { WarehouseExecutionStats } from '../../../../types/warehouse';
 
 const createMcpAsyncQueryUuidSchema = () => z.string().uuid();
 
@@ -130,5 +131,49 @@ export const mcpGetQueryResultStructuredOutputSchema =
         ]),
     );
 
+export const mcpRenderChartRunningResultSchema = z
+    .object({
+        status: z
+            .literal('running')
+            .describe(
+                'Present while the grouped query for the chart is still running. Call render_chart again with the same arguments.',
+            ),
+        queryUuid: createMcpAsyncQueryUuidSchema().describe(
+            'The queryUuid render_chart was called with.',
+        ),
+        nextPollAfterMs: mcpNextPollAfterMsSchema.describe(
+            'Suggested delay before calling render_chart again.',
+        ),
+        heartbeatAt: mcpHeartbeatAtSchema,
+    })
+    .describe(
+        'The chart is not drawn yet because its grouped query is running.',
+    );
+
 export const mcpRenderChartStructuredOutputSchema =
-    createMcpStructuredOutputSchema(mcpRenderChartResultSchema);
+    createMcpStructuredOutputSchema(
+        z.union([
+            mcpRenderChartResultSchema,
+            mcpRenderChartRunningResultSchema,
+        ]),
+    );
+
+export const warehouseExecutionStatsSchema = z
+    .object({
+        jobId: z.string().nullable(),
+        bytesProcessed: z.number().nullable(),
+        bytesBilled: z.number().nullable(),
+        executionTimeMs: z.number().nullable(),
+        cacheHit: z.boolean().nullable(),
+    })
+    .describe(
+        "The warehouse's own report for the query job, as stated in the result.",
+    ) satisfies z.ZodType<WarehouseExecutionStats>;
+
+// Optional: results recorded before execution stats existed lack the field.
+export const executionStatsContentSchema = warehouseExecutionStatsSchema
+    .nullable()
+    .optional()
+    .describe(
+        'Warehouse execution stats, when the warehouse reported them; null when it did not or the results came from the results cache.',
+    );

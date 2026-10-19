@@ -13,8 +13,9 @@ import {
 } from 'ai';
 import { useCallback } from 'react';
 import { z } from 'zod';
-import { LightdashApiStreamError, lightdashApiStream } from '../../../../api';
+import { LightdashApiStreamError, type LightdashApi } from '../../../../api';
 import { getAiAccessRefusal } from '../../../../features/aiAccess/errors';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import { getAiAgentApiBase } from '../hooks/aiAgentRouting';
 import { readAiAgentFastMode } from '../hooks/useAiAgentFastMode';
 import {
@@ -96,6 +97,7 @@ type StepProgressChunk = UIMessageChunk & {
 };
 
 const getAgentThreadReadableStream = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     threadUuid: string,
@@ -110,7 +112,7 @@ const getAgentThreadReadableStream = async (
         autoApproveSql,
         toolHints,
     };
-    const res = await lightdashApiStream({
+    const res = await lightdashApi.stream({
         url: `${getAiAgentApiBase(
             projectUuid,
         )}/${agentUuid}/threads/${threadUuid}/stream`,
@@ -320,6 +322,8 @@ const FIRST_TOKEN_CHUNK_TYPES = new Set<UIMessageChunk['type']>([
 ]);
 
 export function useAiAgentThreadStreamMutation() {
+    const lightdashApi = useLightdashApi();
+
     const dispatch = useAiAgentStoreDispatch();
     const { setAbortController, abort } =
         useAiAgentThreadStreamAbortController();
@@ -366,6 +370,7 @@ export function useAiAgentThreadStreamMutation() {
                 );
 
                 const response = await getAgentThreadReadableStream(
+                    lightdashApi,
                     projectUuid,
                     agentUuid,
                     threadUuid,
@@ -744,7 +749,7 @@ export function useAiAgentThreadStreamMutation() {
                 inactivityMonitor?.stop();
             }
         },
-        [dispatch, setAbortController],
+        [dispatch, setAbortController, lightdashApi],
     );
 
     const cancelMessageStream = useCallback(

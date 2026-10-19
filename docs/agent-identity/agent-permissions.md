@@ -44,7 +44,8 @@ The policy API accepts group admission in either mode. A PUT with
 list. Omitting `mode` means managed. Reset keeps the group restriction.
 GET, PUT and reset omit the old people and project choices. Old browser tabs
 can still save them, but the server ignores them and clears the old columns.
-The current page uses a temporary response adapter until the page rewrite.
+The Agents page uses the capability-policy API for Same as the person,
+Read and query, and Custom.
 
 ## The 11 capabilities
 
@@ -178,6 +179,9 @@ cancel another.
 | MCP settings                                                                         | MCP tool registration and configured-agent gates         |
 | Operations only a person can do | `humanOnlyInManaged.ts`, `assertHumanManagedMutation.ts` |
 
+Agent connections enforce their stored approval and token scopes. Current
+**Permissions** and the person's ordinary permissions can narrow them further.
+
 The evaluator stops at the first refusal. The refusal names the check that
 refused:
 
@@ -197,6 +201,19 @@ auth types). The REST check runs only for OAuth (`middlewares.ts`). A PAT
 used by an agent is treated as the person. Normal permissions, the MCP
 switches and warehouse rules still apply to it. Do not describe agent
 permissions as covering every AI client.
+
+### Local CLI programs
+
+An agent connection limits the projects and actions available to requests that use
+its credential. Programs the CLI starts run as your computer user and can still
+read your files, including your saved personal API key and connection tokens.
+Removing the API key from those programs' environment helps avoid accidental use
+or exposure; it does not isolate those programs from your account or files.
+
+See [Scoped CLI credentials](../../packages/cli/README.md#scoped-cli-credentials)
+for environment and file access.
+
+### OAuth scopes
 
 **OAuth scopes keep their old meaning.** `read`, `write`, `mcp:read` and
 `mcp:write` are separate from the 11 capabilities. `read` and `mcp:read`

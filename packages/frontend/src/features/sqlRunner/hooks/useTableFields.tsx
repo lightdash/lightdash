@@ -6,7 +6,8 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
 import isEmpty from 'lodash/isEmpty';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 export type GetTableFieldsParams = {
     projectUuid: string;
@@ -15,11 +16,14 @@ export type GetTableFieldsParams = {
     search: string | undefined;
 };
 
-export const fetchTableFields = async ({
-    projectUuid,
-    tableName,
-    schema,
-}: Pick<GetTableFieldsParams, 'projectUuid' | 'tableName' | 'schema'>) => {
+export const fetchTableFields = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        tableName,
+        schema,
+    }: Pick<GetTableFieldsParams, 'projectUuid' | 'tableName' | 'schema'>,
+) => {
     const params = {
         ...(tableName ? { tableName } : {}),
         ...(schema ? { schemaName: schema } : {}),
@@ -48,6 +52,7 @@ export const useTableFields = ({
     search,
     schema,
 }: GetTableFieldsParams) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<
         WarehouseTableSchema,
         ApiError,
@@ -55,7 +60,7 @@ export const useTableFields = ({
     >({
         queryKey: ['sqlRunner', 'tables', tableName, projectUuid, schema],
         queryFn: () =>
-            fetchTableFields({
+            fetchTableFields(lightdashApi, {
                 projectUuid,
                 tableName,
                 schema,

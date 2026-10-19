@@ -10,6 +10,8 @@ import {
     ApiSuccessEmpty,
     assertRegisteredAccount,
     DownloadAsyncQueryResultsRequestParams,
+    EstimateAsyncMetricQueryRequestParams,
+    EstimateAsyncSqlQueryRequestParams,
     ExecuteAsyncSqlQueryRequestParams,
     ForbiddenError,
     isExecuteAsyncDashboardSqlChartByUuidParams,
@@ -33,6 +35,7 @@ import {
     type ApiExecuteAsyncMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiJobScheduledResponse,
+    type ApiQueryCostEstimateResponse,
     type ApiQueryHistoryListResponse,
     type ExecuteAsyncCalculateTotalRequestParams,
     type ExecuteAsyncComposeSqlQueryRequestParams,
@@ -40,6 +43,7 @@ import {
     type ExecuteAsyncDashboardSqlChartRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
+    type ExecuteAsyncPythonQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncSqlChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
@@ -411,6 +415,50 @@ export class QueryController extends BaseController {
     }
 
     /**
+     * Estimates the bytes a metric query would process with a free warehouse dry run, without running it. Only BigQuery connections with query estimates enabled return an estimate.
+     * @summary Estimate metric query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/metric-query/estimate')
+    @OperationId('estimateAsyncMetricQuery')
+    async estimateAsyncMetricQuery(
+        @Body()
+        body: EstimateAsyncMetricQueryRequestParams,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiQueryCostEstimateResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getAsyncQueryService()
+            .estimateAsyncMetricQuery({
+                account: req.account,
+                projectUuid,
+                metricQuery: {
+                    exploreName: body.query.exploreName,
+                    dimensions: body.query.dimensions,
+                    metrics: body.query.metrics,
+                    filters: body.query.filters,
+                    sorts: body.query.sorts,
+                    limit: body.query.limit,
+                    tableCalculations: body.query.tableCalculations,
+                    additionalMetrics: body.query.additionalMetrics,
+                    customDimensions: body.query.customDimensions,
+                    timezone: body.query.timezone,
+                    pivotDimensions: body.query.pivotDimensions,
+                    metricOverrides: body.query.metricOverrides,
+                    dimensionOverrides: body.query.dimensionOverrides,
+                },
+                dateZoom: body.dateZoom,
+                parameters: body.parameters,
+                pivotConfiguration: body.pivotConfiguration,
+                usePreAggregateCache: body.usePreAggregateCache,
+            });
+        return { status: 'ok', results };
+    }
+
+    /**
      * Searches for unique field values asynchronously, returning a query UUID to poll for results
      * @summary Search field values
      */
@@ -651,6 +699,35 @@ export class QueryController extends BaseController {
     }
 
     /**
+     * Estimates the bytes a SQL runner query would process with a free warehouse dry run, without running it. Only BigQuery connections with query estimates enabled return an estimate.
+     * @summary Estimate SQL query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/sql/estimate')
+    @OperationId('estimateAsyncSqlQuery')
+    async estimateAsyncSqlQuery(
+        @Body()
+        body: EstimateAsyncSqlQueryRequestParams,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiQueryCostEstimateResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getAsyncQueryService()
+            .estimateAsyncSqlQuery({
+                account: req.account,
+                projectUuid,
+                sql: body.sql,
+                limit: body.limit,
+                parameters: body.parameters,
+                warehouseConnectionUuid: body.warehouseConnectionUuid,
+            });
+        return { status: 'ok', results };
+    }
+
+    /**
      * Executes a DuckDB SQL query asynchronously on the pre-aggregate DuckDB engine. Requires run-queries access (interactive viewer and up) and the compose-sql-runner feature flag. The references map exposes other async queries' results as named tables the SQL can select from ({"orders": "queryUuid"} lets the SQL run SELECT * FROM orders); each referenced query is authorized with the same access checks as Get results, so you can reference any query you can already fetch by uuid. References to queries that are still running are waited on — this query executes once every referenced result is ready and fails if a referenced query fails. Direct file access in the SQL is rejected. Returns a queryUuid to poll for results via Get results.
      * @summary Execute compose SQL query
      */
@@ -676,6 +753,42 @@ export class QueryController extends BaseController {
                 limit: body.limit,
                 references: body.references,
                 context: context ?? QueryExecutionContext.COMPOSE_SQL_RUNNER,
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Executes python `run(inputs, params)` asynchronously in an isolated sandbox over other async queries' results. Requires run-queries access (interactive viewer and up) and the compose-sql-runner feature flag. The references map exposes other queries' results as pandas DataFrames in `inputs` ({"orders": "queryUuid"} is read as inputs["orders"]); each referenced query is authorized with the same access checks as Get results and still-running references are waited on. The returned DataFrame is validated, capped at `limit` rows and stored as a regular result. The sandbox has no network access and no credentials. Returns a queryUuid to poll for results via Get results.
+     * @summary Execute python query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/python')
+    @OperationId('executeAsyncPythonQuery')
+    async executeAsyncPythonQuery(
+        @Body()
+        body: ExecuteAsyncPythonQueryRequestParams,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiExecuteAsyncSqlQueryResults>> {
+        this.setStatus(200);
+        const context = body.context ?? getContextFromHeader(req);
+
+        const results = await this.services
+            .getAsyncQueryService()
+            .executeAsyncPythonQuery({
+                account: req.account!,
+                projectUuid,
+                code: body.code,
+                limit: body.limit,
+                references: body.references,
+                parameters: body.parameters,
+                invalidateCache: body.invalidateCache,
+                context: context ?? QueryExecutionContext.PYTHON_RUNNER,
             });
 
         return {

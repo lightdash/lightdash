@@ -3149,7 +3149,13 @@ export class AiWritebackService extends BaseService {
                 },
             );
             projectDbtSourceUuid = dbtTarget.candidate.sourceUuid;
-            warehouseType = project.warehouseConnection?.type ?? null;
+            warehouseType =
+                projectDbtSourceUuid === null
+                    ? (project.warehouseConnection?.type ?? null)
+                    : await this.projectModel.getDbtSourceWarehouseType(
+                          projectUuid,
+                          projectDbtSourceUuid,
+                      );
             dbtVersion = resolveSandboxDbtVersion(project.dbtVersion);
         }
 

@@ -1,0 +1,12 @@
+redshift_dev:
+  target: dev
+  outputs:
+    dev:
+      type: redshift
+      host: "{{ env_var('PGHOST', 'localhost') }}"
+      port: "{{ env_var('PGPORT', '5432') | as_number }}"
+      user: "{{ env_var('PGUSER', 'postgres') }}"
+      password: "{{ env_var('PGPASSWORD', '') }}"
+      dbname: redshift_standin
+      schema: public
+      threads: 1

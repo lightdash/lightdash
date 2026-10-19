@@ -10,13 +10,16 @@ import {
     type UpsertAiRouterRequest,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 
 const ROUTER_BASE = '/org/aiRouter';
 
-const getAiRouterConfig = async (): Promise<AiRouter | null> => {
+const getAiRouterConfig = async (
+    lightdashApi: LightdashApi,
+): Promise<AiRouter | null> => {
     try {
         return await lightdashApi<AiRouter>({
             url: ROUTER_BASE,
@@ -31,16 +34,21 @@ const getAiRouterConfig = async (): Promise<AiRouter | null> => {
 };
 
 export const useAiRouterConfig = () => {
+    const lightdashApi = useLightdashApi();
+
     const isEmbed = useIsEmbedded();
     return useQuery<AiRouter | null, ApiError>({
         queryKey: ['ai-router'],
-        queryFn: getAiRouterConfig,
+        queryFn: () => getAiRouterConfig(lightdashApi),
         enabled: !isEmbed,
         retry: false,
     });
 };
 
-const upsertAiRouterConfig = (body: UpsertAiRouterRequest) =>
+const upsertAiRouterConfig = (
+    lightdashApi: LightdashApi,
+    body: UpsertAiRouterRequest,
+) =>
     lightdashApi<AiRouter>({
         url: ROUTER_BASE,
         method: 'PUT',
@@ -48,10 +56,13 @@ const upsertAiRouterConfig = (body: UpsertAiRouterRequest) =>
     });
 
 export const useUpsertAiRouterConfig = () => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<AiRouter, ApiError, UpsertAiRouterRequest>({
-        mutationFn: upsertAiRouterConfig,
+        mutationFn: (body: UpsertAiRouterRequest) =>
+            upsertAiRouterConfig(lightdashApi, body),
         onSuccess: (data) => {
             queryClient.setQueryData(['ai-router'], data);
         },
@@ -63,58 +74,78 @@ export const useUpsertAiRouterConfig = () => {
     });
 };
 
-const routePrompt = (body: AiRouterRouteRequest) =>
+const routePrompt = (lightdashApi: LightdashApi, body: AiRouterRouteRequest) =>
     lightdashApi<AiRouterRouteResponseResult>({
         url: `${ROUTER_BASE}/route`,
         method: 'POST',
         body: JSON.stringify(body),
     });
 
-export const useAiRouterRoute = () =>
-    useMutation<AiRouterRouteResponseResult, ApiError, AiRouterRouteRequest>({
-        mutationFn: routePrompt,
+export const useAiRouterRoute = () => {
+    const lightdashApi = useLightdashApi();
+    return useMutation<
+        AiRouterRouteResponseResult,
+        ApiError,
+        AiRouterRouteRequest
+    >({
+        mutationFn: (body: AiRouterRouteRequest) =>
+            routePrompt(lightdashApi, body),
     });
+};
 
-const commitDecision = ({
-    decisionUuid,
-    ...body
-}: { decisionUuid: string } & AiRouterDecisionCommitRequest) =>
+const commitDecision = (
+    lightdashApi: LightdashApi,
+    {
+        decisionUuid,
+        ...body
+    }: { decisionUuid: string } & AiRouterDecisionCommitRequest,
+) =>
     lightdashApi<undefined>({
         url: `${ROUTER_BASE}/decisions/${decisionUuid}/commit`,
         method: 'POST',
         body: JSON.stringify(body),
     });
 
-export const useAiRouterCommit = () =>
-    useMutation<
+export const useAiRouterCommit = () => {
+    const lightdashApi = useLightdashApi();
+    return useMutation<
         undefined,
         ApiError,
         { decisionUuid: string } & AiRouterDecisionCommitRequest
     >({
-        mutationFn: commitDecision,
+        mutationFn: (
+            args: { decisionUuid: string } & AiRouterDecisionCommitRequest,
+        ) => commitDecision(lightdashApi, args),
     });
+};
 
 const instructionQueryKey = (projectUuid: string) => [
     'ai-router-instruction',
     projectUuid,
 ];
 
-const getAiRouterInstruction = (projectUuid: string) =>
+const getAiRouterInstruction = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<AiRouterInstruction | null>({
         url: `${ROUTER_BASE}/instructions/${projectUuid}`,
         method: 'GET',
         body: undefined,
     });
 
-export const useAiRouterInstruction = (projectUuid: string | undefined) =>
-    useQuery<AiRouterInstruction | null, ApiError>({
+export const useAiRouterInstruction = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<AiRouterInstruction | null, ApiError>({
         queryKey: instructionQueryKey(projectUuid ?? ''),
-        queryFn: () => getAiRouterInstruction(projectUuid!),
+        queryFn: () => getAiRouterInstruction(lightdashApi, projectUuid!),
         enabled: !!projectUuid,
         retry: false,
     });
+};
 
 const upsertAiRouterInstruction = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     body: UpsertAiRouterInstructionRequest,
 ) =>
@@ -125,6 +156,8 @@ const upsertAiRouterInstruction = (
     });
 
 export const useUpsertAiRouterInstruction = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
@@ -132,7 +165,8 @@ export const useUpsertAiRouterInstruction = (projectUuid: string) => {
         ApiError,
         UpsertAiRouterInstructionRequest
     >({
-        mutationFn: (body) => upsertAiRouterInstruction(projectUuid, body),
+        mutationFn: (body) =>
+            upsertAiRouterInstruction(lightdashApi, projectUuid, body),
         onSuccess: (data) => {
             queryClient.setQueryData(instructionQueryKey(projectUuid), data);
             showToastSuccess({ title: 'Routing instructions saved' });

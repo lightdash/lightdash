@@ -193,6 +193,148 @@ describe('ProjectModel', () => {
             model.getDbtSourceIdentity(projectUuid),
         ).rejects.toBeInstanceOf(NotFoundError);
     });
+    describe('dbt source warehouse bindings', () => {
+        const primarySourceUuid = 'primary-source';
+        const extraConnectionUuid = 'bigquery-connection';
+
+        beforeEach(() => {
+            vi.spyOn(model, 'getDbtSourceIdentity').mockResolvedValue({
+                dbtSourceUuid: primarySourceUuid,
+                dbtSourceName: 'dbt_project',
+            });
+        });
+
+        test.each([
+            [primarySourceUuid, null, WarehouseTypes.POSTGRES],
+            ['unbound-source', null, WarehouseTypes.POSTGRES],
+            ['bound-source', extraConnectionUuid, WarehouseTypes.BIGQUERY],
+            ['same-type-source', extraConnectionUuid, WarehouseTypes.POSTGRES],
+        ])(
+            'resolves the warehouse type for %s from metadata',
+            async (sourceUuid, warehouseConnectionUuid, warehouseType) => {
+                tracker.on
+                    .select(
+                        queryMatcher('project_dbt_sources', [
+                            projectUuid,
+                            sourceUuid,
+                            1,
+                        ]),
+                    )
+                    .response([
+                        { warehouse_connection_uuid: warehouseConnectionUuid },
+                    ]);
+                const getMetadata = vi
+                    .spyOn(model, 'getWarehouseConnectionsMetadata')
+                    .mockResolvedValue([
+                        {
+                            name: 'Original',
+                            warehouseConnectionUuid: null,
+                            warehouseType: WarehouseTypes.POSTGRES,
+                            isOriginal: true,
+                        },
+                        {
+                            name: 'Extra',
+                            warehouseConnectionUuid: extraConnectionUuid,
+                            warehouseType,
+                            isOriginal: false,
+                        },
+                    ]);
+                const decrypt = vi
+                    .spyOn(encryptionUtilMock, 'decrypt')
+                    .mockClear();
+
+                await expect(
+                    model.getDbtSourceWarehouseType(projectUuid, sourceUuid),
+                ).resolves.toBe(warehouseType);
+                expect(getMetadata).toHaveBeenCalledWith(projectUuid);
+                expect(decrypt).not.toHaveBeenCalled();
+                expect(tracker.history.select).toHaveLength(
+                    sourceUuid === primarySourceUuid ? 0 : 1,
+                );
+            },
+        );
+
+        test('rejects a source outside the project', async () => {
+            tracker.on
+                .select(
+                    queryMatcher('project_dbt_sources', [
+                        projectUuid,
+                        'unknown-source',
+                        1,
+                    ]),
+                )
+                .response([]);
+            const getMetadata = vi.spyOn(
+                model,
+                'getWarehouseConnectionsMetadata',
+            );
+
+            await expect(
+                model.getDbtSourceWarehouseType(projectUuid, 'unknown-source'),
+            ).rejects.toThrow(ParameterError);
+            expect(getMetadata).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            [primarySourceUuid, null],
+            ['unbound-source', null],
+            ['bound-source', extraConnectionUuid],
+            [null, extraConnectionUuid],
+        ])(
+            'keeps deploy start of week bound to the warehouse for %s',
+            async (sourceUuid, warehouseConnectionUuid) => {
+                tracker.on
+                    .select(
+                        queryMatcher('project_dbt_sources', [
+                            projectUuid,
+                            sourceUuid,
+                            1,
+                        ]),
+                    )
+                    .response([
+                        { warehouse_connection_uuid: warehouseConnectionUuid },
+                    ]);
+                const getExploreBinding = vi
+                    .spyOn(model, 'getExploreWarehouseConnectionUuid')
+                    .mockResolvedValue(warehouseConnectionUuid);
+                const getConnection = vi
+                    .spyOn(model, 'getWarehouseConnectionForBinding')
+                    .mockResolvedValue({
+                        ...IncompletePostgresCredentialsWithoutSecrets,
+                        startOfWeek: 1,
+                    });
+
+                await expect(
+                    model.getDeployStartOfWeek(
+                        projectUuid,
+                        'orders',
+                        sourceUuid,
+                    ),
+                ).resolves.toEqual(
+                    warehouseConnectionUuid === null
+                        ? { kind: 'original' }
+                        : { kind: 'extra', startOfWeek: 1 },
+                );
+                if (warehouseConnectionUuid === null) {
+                    expect(getConnection).not.toHaveBeenCalled();
+                } else {
+                    expect(getConnection).toHaveBeenCalledWith(projectUuid, {
+                        kind: 'connection',
+                        warehouseConnectionUuid,
+                    });
+                }
+                if (sourceUuid === null) {
+                    expect(getExploreBinding).toHaveBeenCalledWith(
+                        projectUuid,
+                        'orders',
+                    );
+                } else {
+                    expect(getExploreBinding).not.toHaveBeenCalled();
+                }
+            },
+        );
+    });
+
     test('should get project tables configuration', async () => {
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid]))
@@ -1366,11 +1508,13 @@ describe('ProjectModel', () => {
                 project_id: 2,
                 project_uuid: previewProjectUuid,
                 organization_id: 10,
+                created_by_user_uuid: 'user-1-uuid',
             },
         ]);
         tracker.on.select(matchSql(ProjectMembershipsTableName)).response([
             {
                 user_id: 1,
+                user_uuid: 'user-1-uuid',
                 role: ProjectMemberRole.EDITOR,
                 role_uuid: null,
                 is_internal: false,
@@ -1378,6 +1522,7 @@ describe('ProjectModel', () => {
             },
             {
                 user_id: 2,
+                user_uuid: 'user-2-uuid',
                 role: ProjectMemberRole.VIEWER,
                 role_uuid: null,
                 is_internal: false,
@@ -1385,6 +1530,7 @@ describe('ProjectModel', () => {
             },
             {
                 user_id: 3,
+                user_uuid: 'service-account-user-uuid',
                 role: ProjectMemberRole.VIEWER,
                 role_uuid: null,
                 is_internal: true,
@@ -1453,6 +1599,72 @@ describe('ProjectModel', () => {
         );
         expect(groupAccessQuery?.sql).toContain('groups');
         expect(groupAccessQuery?.bindings).toContain(10);
+    });
+
+    test('copies a service account access into a preview it created', async () => {
+        const upstreamProjectUuid = 'upstream-project-uuid';
+        const previewProjectUuid = 'preview-project-uuid';
+        const matchSql =
+            (table: string) =>
+            ({ sql }: RawQuery) =>
+                sql.includes(table);
+
+        tracker.on.select(matchSql(ProjectTableName)).response([
+            {
+                project_id: 1,
+                project_uuid: upstreamProjectUuid,
+                organization_id: 10,
+                created_by_user_uuid: 'user-1-uuid',
+            },
+            {
+                project_id: 2,
+                project_uuid: previewProjectUuid,
+                organization_id: 10,
+                created_by_user_uuid: 'creator-sa-user-uuid',
+            },
+        ]);
+        tracker.on.select(matchSql(ProjectMembershipsTableName)).response([
+            {
+                user_id: 3,
+                user_uuid: 'creator-sa-user-uuid',
+                role: ProjectMemberRole.DEVELOPER,
+                role_uuid: null,
+                is_internal: true,
+                organization_id: 10,
+            },
+            {
+                user_id: 4,
+                user_uuid: 'other-sa-user-uuid',
+                role: ProjectMemberRole.DEVELOPER,
+                role_uuid: null,
+                is_internal: true,
+                organization_id: 10,
+            },
+        ]);
+        tracker.on.select(matchSql(ProjectGroupAccessTableName)).response([]);
+        tracker.on.insert(matchSql(ProjectMembershipsTableName)).response([]);
+        tracker.on
+            .delete(matchSql(ProjectMembershipCustomRolesTableName))
+            .response(0);
+        tracker.on
+            .insert(matchSql(ProjectMembershipCustomRolesTableName))
+            .response([]);
+
+        await expect(
+            model.copyProjectAccess(upstreamProjectUuid, previewProjectUuid),
+        ).resolves.toEqual({
+            userAccessCount: 1,
+            skippedUserAccessCount: 1,
+            groupAccessCount: 0,
+        });
+
+        const [membershipInsert] = tracker.history.insert.filter(({ sql }) =>
+            sql.includes(`"${ProjectMembershipsTableName}"`),
+        );
+        expect(membershipInsert.bindings).toEqual(
+            expect.arrayContaining([3, 2, ProjectMemberRole.DEVELOPER]),
+        );
+        expect(membershipInsert.bindings).not.toContain(4);
     });
 
     test('updateProjectAccess clears extra custom roles for every updated membership', async () => {

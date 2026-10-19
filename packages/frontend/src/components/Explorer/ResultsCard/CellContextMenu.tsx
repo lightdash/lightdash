@@ -48,7 +48,7 @@ const CellContextMenu: FC<
     const { openUnderlyingDataModal, metricQuery, tableName } =
         useMetricQueryDataContext();
     const { track } = useTracking();
-    const { showToastError, showToastSuccess } = useToaster();
+    const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 2000 });
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
@@ -81,8 +81,7 @@ const CellContextMenu: FC<
         () => mapValues(cell.row.original, (v) => v?.value) || {},
         [cell.row.original],
     );
-    const { prepareUnderlyingData, resolve: resolveMergeSourceCell } =
-        useMergeSourceCell();
+    const { resolve: resolveMergeSourceCell } = useMergeSourceCell();
     const resolvedSourceCell = useMemo(
         () =>
             isMerged && item && isField(item)
@@ -98,32 +97,9 @@ const CellContextMenu: FC<
         showToastSuccess({ title: 'Copied to clipboard!' });
     }, [value, clipboard, showToastSuccess]);
 
-    const handleViewUnderlyingData = useCallback(async () => {
+    const handleViewUnderlyingData = useCallback(() => {
         if (meta?.item === undefined) return;
-        if (isMerged) {
-            if (!resolvedSourceCell) return;
-            try {
-                const prepared =
-                    await prepareUnderlyingData(resolvedSourceCell);
-                openUnderlyingDataModal({
-                    item: prepared.item,
-                    value,
-                    fieldValues: prepared.fieldValues,
-                    source: prepared.source,
-                });
-            } catch {
-                showToastError({
-                    title: 'Could not open underlying data',
-                });
-                return;
-            }
-        } else {
-            openUnderlyingDataModal({
-                item: meta.item,
-                value,
-                fieldValues,
-            });
-        }
+        openUnderlyingDataModal({ item: meta.item, value, fieldValues });
         track({
             name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
             properties: {
@@ -140,10 +116,6 @@ const CellContextMenu: FC<
         track,
         user,
         projectUuid,
-        isMerged,
-        prepareUnderlyingData,
-        resolvedSourceCell,
-        showToastError,
     ]);
 
     const jsonValue =

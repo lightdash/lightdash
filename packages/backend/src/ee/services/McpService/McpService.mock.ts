@@ -15,6 +15,7 @@ export const makeMcpServerOptions = (
         filterExpressionsEnabled: false,
         documentsEnabled: false,
         dataAppBuildsEnabled: false,
+        customChartTypesEnabled: false,
         agentIdentityEnabled: false,
         ...featureAvailability,
     },

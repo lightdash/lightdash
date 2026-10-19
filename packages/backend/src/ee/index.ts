@@ -35,6 +35,7 @@ import {
     AppThumbnailClient,
 } from './clients/AppThumbnailClient';
 import { ChartRegistryClient } from './clients/ChartRegistryClient';
+import { GithubReleaseNotesClient } from './clients/GithubReleaseNotes/GithubReleaseNotesClient';
 import LicenseClient from './clients/License/LicenseClient';
 import OpenAi from './clients/OpenAi';
 import { CommercialSlackClient } from './clients/Slack/SlackClient';
@@ -70,6 +71,7 @@ import { MobilePushNotificationModel } from './models/MobilePushNotificationMode
 import { ProjectCiStatusModel } from './models/ProjectCiStatusModel';
 import { ProjectContextModel } from './models/ProjectContextModel';
 import { ProjectHomepageModel } from './models/ProjectHomepageModel';
+import { ReleaseHighlightsModel } from './models/ReleaseHighlightsModel';
 import { SandboxRegistryModel } from './models/SandboxRegistryModel';
 import { SchedulerAiAugmentationModel } from './models/SchedulerAiAugmentationModel';
 import { ScimRequestLogModel } from './models/ScimRequestLogModel';
@@ -137,6 +139,7 @@ import { provisionPlaygroundProject } from './services/ProjectService/provisionP
 import { seedTrainingCopyAgentDocuments } from './services/ProjectService/seedPlaygroundAgentDocuments';
 import { seedPlaygroundContent } from './services/ProjectService/seedPlaygroundContent';
 import { seedPlaygroundMetricsTrees } from './services/ProjectService/seedPlaygroundMetricsTrees';
+import { ReleaseHighlightsService } from './services/ReleaseHighlightsService/ReleaseHighlightsService';
 import { RoadmapService } from './services/RoadmapService/RoadmapService';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { ScimService } from './services/ScimService/ScimService';
@@ -669,6 +672,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiService: ({ repository, context, models }) =>
                 new AiService({
+                    organizationSettingsModel:
+                        models.getOrganizationSettingsModel(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     projectService: repository.getProjectService(),
@@ -795,6 +800,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectService: repository.getProjectService(),
                     catalogService: repository.getCatalogService(),
                     asyncQueryService: repository.getAsyncQueryService(),
+                    querySourceService: repository.getQuerySourceService(),
+                    queryHistoryModel: models.getQueryHistoryModel(),
                     userAttributesModel: models.getUserAttributesModel(),
                     searchModel: models.getSearchModel(),
                     searchService: repository.getSearchService(),
@@ -1145,6 +1152,16 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     slackClient: clients.getSlackClient(),
                     aiAgentModel: models.getAiAgentModel(),
                 }),
+            releaseHighlightsService: ({ models, context, repository }) =>
+                new ReleaseHighlightsService({
+                    lightdashConfig: context.lightdashConfig,
+                    model: models.getReleaseHighlightsModel<ReleaseHighlightsModel>(),
+                    githubClient: new GithubReleaseNotesClient(),
+                    roadmapService:
+                        repository.getRoadmapService<RoadmapService>(),
+                    now: null,
+                    aiService: repository.getAiService<AiService>(),
+                }),
             supportService: ({ models, context, repository, clients }) =>
                 new SupportService({
                     analytics: context.lightdashAnalytics,
@@ -1173,6 +1190,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     groupsModel: models.getGroupsModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     rolesModel: models.getRolesModel(),
+                    organizationSettingsModel:
+                        models.getOrganizationSettingsModel(),
                     onOrganizationCreated: ({ user, organizationUuid }) =>
                         provisionOnboardingOrgFlags({
                             user,
@@ -1637,16 +1656,22 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     projectService: repository.getProjectService(),
                     schedulerClient: clients.getSchedulerClient(),
-                    exploreEnhancer: (explores, { startOfWeek }) =>
+                    exploreEnhancer: (
+                        explores,
+                        { startOfWeek, startOfWeekByExplore },
+                    ) =>
                         enhanceExploresForPreAggregates({
                             explores,
                             enabled:
                                 context.lightdashConfig.preAggregates.enabled,
                             startOfWeek,
+                            startOfWeekByExplore,
                         }),
                 }),
         },
         modelProviders: {
+            releaseHighlightsModel: ({ database }) =>
+                new ReleaseHighlightsModel({ database }),
             externalSourceModel: ({ database, utils }) =>
                 new ExternalSourceModel({
                     database,

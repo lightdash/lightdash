@@ -42,6 +42,8 @@ import {
     ValidateProjectPayload,
     WarehouseTypes,
     type AgentActorSurface,
+    type AgentSuggestionsResponseSource,
+    type AgentSuggestionsSource,
     type AiAgentMemoryConsolidationTrigger,
     type AiAgentMemoryScope,
     type AiAgentMemoryStatus,
@@ -87,6 +89,7 @@ import ExecutionContext from 'node-execution-context';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
+import { type SuggestionFallbackReason } from '../ee/services/ai/agents/suggestionErrors';
 import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
 import type { EnsureOrganizationOverrideOutcome } from '../models/FeatureFlagModel/FeatureFlagModel';
@@ -864,7 +867,7 @@ export type MergeQueryExecutedEvent = BaseTrack & {
     properties: MergeQueryShapeProperties & {
         queryId: string;
         engine: MergeEngine;
-        status: 'ready' | 'error';
+        status: 'ready' | 'error' | 'cancelled';
         /** Whether the merged result itself was served from cache. */
         cacheHit: boolean;
         /** Legs this merge ran; referenced results run nothing. */
@@ -2521,6 +2524,9 @@ export type DataAppUploadedEvent = BaseTrack & {
         customDependencyCount: number;
         customDependencies: AppVersionDependencyEntry[];
         lockfileHash?: string;
+        // Set when the upload re-installed a library chart type instead of building.
+        registrySlug?: string;
+        registryVersion?: string;
     };
 };
 
@@ -3918,8 +3924,15 @@ export type AiAgentArtifactVizQueryEvent = BaseTrack & {
         source: string;
         // Null for artifacts persisted without a prompt.
         promptId: string | null;
+        // Time to submit the query (every node, for composer runs), not to results.
         durationMs: number;
         queryId: string | null;
+        // Composer runs only, tracked once the run settles or the wait caps:
+        // nodes in the pipeline, nodes that reached a terminal status, and
+        // settled nodes served from cache.
+        nodeCount: number | null;
+        settledNodeCount: number | null;
+        cachedNodeCount: number | null;
     };
 };
 
@@ -3982,6 +3995,13 @@ export type AiAgentSuggestionsGeneratedEvent = BaseTrack & {
         latencyMs: number;
         modelId: string;
         usingFallback: boolean;
+        outcome: AgentSuggestionsSource | 'error';
+        source: AgentSuggestionsResponseSource;
+        fallbackReason: SuggestionFallbackReason | null;
+        droppedChipCount: number;
+        client: string;
+        clientVersion: string | null;
+        clientBuild: string | null;
         // Server-added "Save this analysis as a Document" chip.
         documentChipShown: boolean;
     };

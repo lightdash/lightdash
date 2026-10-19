@@ -4,9 +4,13 @@ import {
     type SchedulerAiAugmentation,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
-const getSchedulerAiAugmentation = (schedulerUuid: string) =>
+const getSchedulerAiAugmentation = (
+    lightdashApi: LightdashApi,
+    schedulerUuid: string,
+) =>
     lightdashApi<ApiSchedulerAiAugmentationResponse['results']>({
         url: `/schedulers/${schedulerUuid}/ai-augmentation`,
         method: 'GET',
@@ -16,14 +20,17 @@ const getSchedulerAiAugmentation = (schedulerUuid: string) =>
 export const useSchedulerAiAugmentation = (
     schedulerUuid: string | undefined,
     { enabled = true }: { enabled?: boolean } = {},
-) =>
-    useQuery<SchedulerAiAugmentation | null, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<SchedulerAiAugmentation | null, ApiError>({
         queryKey: ['scheduler_ai_augmentation', schedulerUuid],
-        queryFn: () => getSchedulerAiAugmentation(schedulerUuid!),
+        queryFn: () => getSchedulerAiAugmentation(lightdashApi, schedulerUuid!),
         enabled: !!schedulerUuid && enabled,
     });
+};
 
 const upsertSchedulerAiAugmentation = (
+    lightdashApi: LightdashApi,
     schedulerUuid: string,
     augmentation: SchedulerAiAugmentation,
 ) =>
@@ -34,6 +41,7 @@ const upsertSchedulerAiAugmentation = (
     });
 
 export const useSchedulerAiAugmentationUpsertMutation = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<
         SchedulerAiAugmentation | null,
@@ -41,7 +49,11 @@ export const useSchedulerAiAugmentationUpsertMutation = () => {
         { schedulerUuid: string; augmentation: SchedulerAiAugmentation }
     >(
         ({ schedulerUuid, augmentation }) =>
-            upsertSchedulerAiAugmentation(schedulerUuid, augmentation),
+            upsertSchedulerAiAugmentation(
+                lightdashApi,
+                schedulerUuid,
+                augmentation,
+            ),
         {
             mutationKey: ['upsert_scheduler_ai_augmentation'],
             onSuccess: async (_data, { schedulerUuid }) => {
@@ -54,7 +66,10 @@ export const useSchedulerAiAugmentationUpsertMutation = () => {
     );
 };
 
-const deleteSchedulerAiAugmentation = (schedulerUuid: string) =>
+const deleteSchedulerAiAugmentation = (
+    lightdashApi: LightdashApi,
+    schedulerUuid: string,
+) =>
     lightdashApi<undefined>({
         url: `/schedulers/${schedulerUuid}/ai-augmentation`,
         method: 'DELETE',
@@ -62,9 +77,11 @@ const deleteSchedulerAiAugmentation = (schedulerUuid: string) =>
     });
 
 export const useSchedulerAiAugmentationDeleteMutation = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<undefined, ApiError, { schedulerUuid: string }>(
-        ({ schedulerUuid }) => deleteSchedulerAiAugmentation(schedulerUuid),
+        ({ schedulerUuid }) =>
+            deleteSchedulerAiAugmentation(lightdashApi, schedulerUuid),
         {
             mutationKey: ['delete_scheduler_ai_augmentation'],
             onSuccess: async (_data, { schedulerUuid }) => {

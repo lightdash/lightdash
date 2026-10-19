@@ -33,6 +33,7 @@ import { Can } from '../../../providers/Ability';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import AddTableCalculationButton from '../../AddTableCalculationButton';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import {
@@ -47,6 +48,7 @@ import { ResultsViewMode } from './types';
 import { useGroupedResultsAvailability } from './useGroupedResultsAvailability';
 
 const ResultsCard: FC = memo(() => {
+    const lightdashApi = useLightdashApi();
     const projectUuid = useProjectUuid();
 
     // View mode state for switching between results and grouped results
@@ -118,7 +120,7 @@ const ResultsCard: FC = memo(() => {
 
     const getGsheetLink = async () => {
         if (projectUuid) {
-            return uploadGsheet({
+            return uploadGsheet(lightdashApi, {
                 projectUuid,
                 exploreId: tableName,
                 metricQuery,

@@ -11,13 +11,15 @@ import {
     useMutation,
     useQueryClient,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type ChartSchedulersResponse =
     ApiSavedChartPaginatedSchedulersResponse['results'];
 
 const getChartSchedulers = async (
+    lightdashApi: LightdashApi,
     uuid: string,
     paginateArgs: KnexPaginateArgs,
     searchQuery?: string,
@@ -63,8 +65,9 @@ export const useChartSchedulers = ({
     pageSize = 25,
     formats,
     includeLatestRun,
-}: UseChartSchedulersParams) =>
-    useInfiniteQuery<ChartSchedulersResponse, ApiError>({
+}: UseChartSchedulersParams) => {
+    const lightdashApi = useLightdashApi();
+    return useInfiniteQuery<ChartSchedulersResponse, ApiError>({
         queryKey: [
             'chart_schedulers',
             chartUuid,
@@ -75,6 +78,7 @@ export const useChartSchedulers = ({
         ],
         queryFn: ({ pageParam = 1 }) =>
             getChartSchedulers(
+                lightdashApi,
                 chartUuid,
                 { page: pageParam as number, pageSize },
                 searchQuery,
@@ -90,8 +94,10 @@ export const useChartSchedulers = ({
         refetchOnWindowFocus: false,
         enabled: !!chartUuid,
     });
+};
 
 const createChartScheduler = async (
+    lightdashApi: LightdashApi,
     uuid: string,
     data: CreateSchedulerAndTargetsWithoutIds,
 ) =>
@@ -102,28 +108,33 @@ const createChartScheduler = async (
     });
 
 export const useChartSchedulerCreateMutation = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         ApiCreateSavedChartSchedulerResponse['results'],
         ApiError,
         { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
-    >(({ resourceUuid, data }) => createChartScheduler(resourceUuid, data), {
-        mutationKey: ['create_chart_scheduler'],
-        onSuccess: async (_, variables) => {
-            await queryClient.invalidateQueries([
-                'chart_schedulers',
-                variables.resourceUuid,
-            ]);
-            showToastSuccess({
-                title: `Success! Scheduled delivery was created.`,
-            });
+    >(
+        ({ resourceUuid, data }) =>
+            createChartScheduler(lightdashApi, resourceUuid, data),
+        {
+            mutationKey: ['create_chart_scheduler'],
+            onSuccess: async (_, variables) => {
+                await queryClient.invalidateQueries([
+                    'chart_schedulers',
+                    variables.resourceUuid,
+                ]);
+                showToastSuccess({
+                    title: `Success! Scheduled delivery was created.`,
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to create scheduled delivery`,
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: `Failed to create scheduled delivery`,
-                apiError: error,
-            });
-        },
-    });
+    );
 };

@@ -15,7 +15,7 @@ import { UsageEventsCompactor } from './UsageEventsCompactor';
 describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
     'organization usage processing live locally',
     () => {
-        it('gates capture and all stages, bounds history, and recovers partial cleanup without duplicates', async () => {
+        it('captures all organizations but gates processing, bounds history, and recovers cleanup', async () => {
             vi.unstubAllGlobals();
             const schema = `usage_policy_${randomUUID().replaceAll('-', '')}`;
             const db = knex({
@@ -48,8 +48,6 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
             const org = randomUUID();
             const otherOrg = randomUUID();
             const now = new Date('2026-10-08T00:30:00Z');
-            let clock = Date.now();
-            vi.spyOn(Date, 'now').mockImplementation(() => clock);
             const config = {
                 ...lightdashConfigMock,
                 enabledFeatureFlags: new Set<string>(),
@@ -78,11 +76,7 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                 incrementUsageEventsDropped: vi.fn(),
                 incrementUsageEventsPutFailure: vi.fn(),
             } as unknown as PrometheusMetrics;
-            const writer = createEventStreamWriter(
-                config,
-                metrics,
-                () => flags,
-            )!;
+            const writer = createEventStreamWriter(config, metrics)!;
             const dimensionsRead: string[] = [];
             const model = {
                 async *getOrganizations() {
@@ -161,13 +155,13 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                 writer.push('query_events', event(org));
                 writer.push('query_events', event(otherOrg));
                 await writer.flush();
-                expect(await list()).toHaveLength(0);
+                expect(await list('events/raw/')).toHaveLength(2);
+                expect(get).not.toHaveBeenCalled();
                 expect((await run()).dimensions.refreshed).toBe(0);
                 expect(dimensionsRead).toEqual([]);
                 await db('feature_flag_overrides')
                     .where({ organization_uuid: org })
                     .update({ enabled: true });
-                clock += 60001;
                 get.mockClear();
                 const captureStart = performance.now();
                 for (let index = 0; index < 10000; index += 1) {
@@ -181,10 +175,10 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                 writer.push('query_events', event(org, '2026-10-08'));
                 await writer.flush();
                 const captureMs = performance.now() - captureStart;
-                expect(get).toHaveBeenCalledTimes(2);
+                expect(get).not.toHaveBeenCalled();
                 expect(
                     await list(`events/raw/org_id=${otherOrg}/`),
-                ).toHaveLength(0);
+                ).toHaveLength(2);
                 const runStart = performance.now();
                 const summary = await run();
                 const processingMs = performance.now() - runStart;
@@ -195,9 +189,15 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                     users: { published: 2, failed: 0 },
                 });
                 expect(new Set(dimensionsRead)).toEqual(new Set([org]));
-                expect(await total('query_events', 'count(*)')).toBe(10000);
+                expect(
+                    await list(`events/compacted/org_id=${otherOrg}/`),
+                ).toHaveLength(0);
+                expect(
+                    await list(`events/raw/org_id=${otherOrg}/`),
+                ).toHaveLength(2);
+                expect(await total('query_events', 'count(*)')).toBe(10001);
                 expect(await total('user_activity', 'sum(event_count)')).toBe(
-                    10000,
+                    10001,
                 );
                 expect(await list(`events/raw/org_id=${org}/`)).toHaveLength(2); // current day and day eight
                 expect((await run()).users).toMatchObject({
@@ -247,12 +247,12 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                         } as never;
                     });
                 expect((await run()).partitionsFailed).toBe(1);
-                expect(await total('query_events', 'count(*)')).toBe(10010);
+                expect(await total('query_events', 'count(*)')).toBe(10011);
                 deletion.mockRestore();
                 expect((await run()).partitionsFailed).toBe(0);
-                expect(await total('query_events', 'count(*)')).toBe(10010);
+                expect(await total('query_events', 'count(*)')).toBe(10011);
                 expect(await total('user_activity', 'sum(event_count)')).toBe(
-                    10010,
+                    10011,
                 );
                 expect(
                     (await list('events/raw/')).some((item) =>
@@ -270,32 +270,31 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                 await putRaw(1);
                 await run();
                 await run();
-                expect(await total('query_events', 'count(*)')).toBe(10021);
+                expect(await total('query_events', 'count(*)')).toBe(10022);
                 expect(await total('user_activity', 'sum(event_count)')).toBe(
-                    10021,
+                    10022,
                 );
                 expect(await list('events/compaction/')).toHaveLength(0);
-                // Disable on an existing process: capture cache expires; processing rechecks immediately.
+                // Disabling processing leaves capture running on the existing writer.
                 await db('feature_flag_overrides')
                     .where({ organization_uuid: org })
                     .update({ enabled: false });
                 const before = (await list()).length;
-                clock += 60001;
                 writer.push('query_events', event(org));
                 await writer.flush();
                 dimensionsRead.length = 0;
                 expect((await run()).dimensions.refreshed).toBe(0);
                 expect(dimensionsRead).toEqual([]);
-                expect((await list()).length).toBe(before);
+                expect((await list()).length).toBe(before + 1);
                 process.stdout.write(
                     `${JSON.stringify({
                         captureInputEvents: 20002,
-                        capturedEvents: 10002,
-                        eligibleEvents: 10000,
+                        capturedEvents: 20002,
+                        eligibleEvents: 10001,
                         captureMs,
                         processingMs,
-                        recoveredTotal: 10021,
-                        flagLookupsPerFlush: 2,
+                        recoveredTotal: 10022,
+                        flagLookupsPerFlush: 0,
                     })}\n`,
                 );
             } finally {

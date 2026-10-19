@@ -1794,6 +1794,23 @@ export class SchedulerClient {
         return jobId;
     }
 
+    async scheduleInitialUsageProcessing(
+        payload: TraceTaskBase,
+    ): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+        await graphileClient.addJob(
+            SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
+            payload,
+            {
+                queueName: 'usage-events-compaction',
+                jobKey: `initial-usage-processing:${payload.organizationUuid}`,
+                jobKeyMode: 'unsafe_dedupe',
+                maxAttempts: 1,
+                priority: JobPriority.LOW,
+            },
+        );
+    }
+
     // --- Managed Agent Heartbeat ---
 
     async scheduleManagedAgentHeartbeat(

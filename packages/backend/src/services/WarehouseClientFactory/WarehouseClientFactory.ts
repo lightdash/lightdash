@@ -84,6 +84,10 @@ import {
     type PreparedCredentials,
 } from './CredentialResolver';
 import { CredentialResolverRegistry } from './CredentialResolverRegistry';
+import {
+    resolveMaximumBytesBilledForPerson,
+    withMaximumBytesBilled,
+} from './maximumBytesBilled';
 import { resolvePersonalCredentialPolicy } from './personalCredentialPolicy';
 import type {
     ResolvedWarehouseCredentials,
@@ -847,13 +851,44 @@ export class WarehouseClientFactory {
                 await materialization?.dispose();
                 throw error;
             });
-        const withExecutionTags = (client: WarehouseClient) =>
-            agentIdentityEnabled
+        const { person } = context.actor;
+        const { projectUuid } = ref;
+        const maximumBytesBilled =
+            context.purpose === 'query' &&
+            (ref.kind === 'binding' || ref.kind === 'resolved') &&
+            warehouseCredentials.type === WarehouseTypes.BIGQUERY
+                ? await resolveMaximumBytesBilledForPerson(
+                      warehouseCredentials,
+                      {
+                          isAgent:
+                              !!aiPlan || (overrides?.agentSession ?? false),
+                          getRole:
+                              person !== null && projectUuid !== null
+                                  ? () =>
+                                        this.projectModel.getHighestSystemProjectRole(
+                                            projectUuid,
+                                            person.userUuid,
+                                        )
+                                  : null,
+                      },
+                  ).catch(async (error: unknown) => {
+                      await sshTunnel.disconnect();
+                      await materialization?.dispose();
+                      throw error;
+                  })
+                : null;
+        const withExecutionTags = (client: WarehouseClient) => {
+            const limitedClient = withMaximumBytesBilled(
+                client,
+                maximumBytesBilled,
+            );
+            return agentIdentityEnabled
                 ? withTrustedAgentQueryTags(
-                      client,
+                      limitedClient,
                       context.agentIdentity ?? null,
                   )
-                : client;
+                : limitedClient;
+        };
         const connectionCredentials = sshTunnel.overrideCredentials;
         const clientOptions = this.clientOptions.get(warehouseClient) ?? {};
         let releasePromise: Promise<void> | null = null;

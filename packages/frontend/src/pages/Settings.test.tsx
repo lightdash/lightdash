@@ -48,6 +48,7 @@ const renderSettings = (
     aiSettings = { isCopilotEnabled: false, isTrial: false },
     seedAdminSettings = true,
     cold = false,
+    isAnalyticsProject = false,
 ) => {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -63,6 +64,7 @@ const renderSettings = (
         name: 'Test project',
         type: ProjectType.DEFAULT,
         dbtConnection: { type: DbtProjectType.NONE },
+        provisioningSource: isAnalyticsProject ? 'analytics' : null,
     });
     queryClient.setQueryData(['organization'], {
         organizationUuid: 'org',
@@ -86,6 +88,16 @@ const renderSettings = (
     ].forEach((id) => {
         queryClient.setQueryData(['feature-flag', id], { id, enabled: false });
     });
+    if (isAnalyticsProject) {
+        queryClient.setQueryData(
+            ['feature-flag', FeatureFlags.AnalyticsProject],
+            {
+                id: FeatureFlags.AnalyticsProject,
+                enabled: true,
+            },
+        );
+        queryClient.setQueryData(['analytics-project'], { project: null });
+    }
     if (agentIdentityEnabled === null) {
         queryClient.removeQueries(['feature-flag', FeatureFlags.AgentIdentity]);
     } else {
@@ -98,7 +110,6 @@ const renderSettings = (
         ['ai-access', 'org', 'agent-identity'],
         agentSettingsIdentityMock,
     );
-    queryClient.setQueryData(['organization-warehouse-credentials'], []);
     nock(BASE_API_URL)
         .get('/api/v1/user/account')
         .reply(200, {
@@ -158,6 +169,116 @@ describe('limited project settings routes', () => {
         viewport = mockViewport(1280);
     });
     afterEach(() => viewport.restore());
+
+    it.each(['settings', 'tablesConfiguration', 'unavailable', ''])(
+        'redirects managed analytics /%s to analytics settings',
+        async (page) => {
+            renderSettings(
+                page,
+                [{ action: 'manage', subject: 'all' }],
+                true,
+                `${base}/${page}`,
+                false,
+                { isCopilotEnabled: false, isTrial: false },
+                true,
+                false,
+                true,
+            );
+            expect(
+                await screen.findByRole('heading', {
+                    name: 'Lightdash analytics',
+                }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('status', { name: 'Current URL' }),
+            ).toHaveTextContent('/generalSettings/lightdashAnalytics');
+            expect(
+                screen.queryByRole('link', { name: 'Connection settings' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByText(
+                    'Settings cannot be changed for managed analytics projects.',
+                ),
+            ).not.toBeInTheDocument();
+            fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+            expect(
+                await screen.findByRole('menuitem', {
+                    name: 'Project settings',
+                }),
+            ).toHaveAttribute('href', '/generalSettings/lightdashAnalytics');
+        },
+    );
+
+    it.each(['projectAccess', 'recentlyDeleted'])(
+        'keeps managed analytics /%s accessible',
+        async (page) => {
+            renderSettings(
+                page,
+                [{ action: 'manage', subject: 'all' }],
+                true,
+                `${base}/${page}`,
+                false,
+                { isCopilotEnabled: false, isTrial: false },
+                true,
+                false,
+                true,
+            );
+            expect(
+                await screen.findByRole('heading', {
+                    name:
+                        page === 'projectAccess'
+                            ? 'Project access'
+                            : 'Recently deleted',
+                }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('status', { name: 'Current URL' }),
+            ).toHaveTextContent(`${base}/${page}`);
+            if (page === 'projectAccess') {
+                expect(
+                    screen.getByText(
+                        /Standard project roles alone do not grant access/,
+                    ),
+                ).toBeInTheDocument();
+            }
+            expect(
+                screen.queryByRole('link', { name: 'Connection settings' }),
+            ).not.toBeInTheDocument();
+        },
+    );
+
+    it('keeps analytics recovery available without project administration', async () => {
+        renderSettings(
+            'recentlyDeleted',
+            [
+                viewProject,
+                {
+                    action: 'manage',
+                    subject: 'DeletedContent',
+                    conditions: scope,
+                },
+            ],
+            true,
+            `${base}/recentlyDeleted`,
+            false,
+            { isCopilotEnabled: false, isTrial: false },
+            true,
+            false,
+            true,
+        );
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Recently deleted',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('link', { name: 'Project access' }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+        expect(
+            await screen.findByRole('menuitem', { name: 'Project settings' }),
+        ).toHaveAttribute('href', `${base}/recentlyDeleted`);
+    });
 
     it.each([
         'settings',
@@ -470,43 +591,20 @@ describe('Agent identity settings routes', () => {
             screen.getByRole('status', { name: 'Current URL' }),
         ).toHaveTextContent('/generalSettings/agentIdentity');
     });
-
-    it('keeps Warehouse credentials available without the agent identity card', async () => {
+    it('redirects the removed organization warehouse credentials settings to Profile', async () => {
         renderSettings(
             '',
-            [
-                viewProject,
-                manageOrganization,
-                {
-                    action: 'manage',
-                    subject: 'OrganizationWarehouseCredentials',
-                },
-            ],
+            [viewProject, manageOrganization],
             true,
             '/generalSettings/warehouseCredentials',
             true,
         );
-
         expect(
-            await screen.findByRole('heading', {
-                name: 'Warehouse credentials',
-            }),
+            await screen.findByRole('heading', { name: 'Profile' }),
         ).toBeInTheDocument();
         expect(
-            screen.getByText('No warehouse credentials'),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('heading', { name: 'Identity' }),
+            screen.queryByRole('link', { name: 'Warehouse credentials' }),
         ).not.toBeInTheDocument();
-        expect(
-            screen.queryByRole('heading', { name: 'Agents' }),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.getByRole('link', { name: 'Agents' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('status', { name: 'Current URL' }),
-        ).toHaveTextContent('/generalSettings/warehouseCredentials');
     });
 });
 
@@ -609,7 +707,10 @@ describe('MCP settings route permission parity', () => {
                     true,
                     AGENT_IDENTITY_SETTINGS_PATH,
                     enabled,
-                    { isCopilotEnabled: true, isTrial: false },
+                    {
+                        isCopilotEnabled: true,
+                        isTrial: false,
+                    },
                 );
                 await screen.findByRole('heading', { name: 'Profile' });
                 expect(
@@ -652,7 +753,10 @@ describe('MCP settings route permission parity', () => {
                 true,
                 '/generalSettings/mcp/general',
                 enabled,
-                { isCopilotEnabled: true, isTrial: false },
+                {
+                    isCopilotEnabled: true,
+                    isTrial: false,
+                },
             );
             if (!manageAi) {
                 expect(

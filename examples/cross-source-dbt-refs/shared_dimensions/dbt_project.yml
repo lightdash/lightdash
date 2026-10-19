@@ -1,0 +1,9 @@
+name: shared_dimensions
+version: '1.0.0'
+config-version: 2
+profile: cross_source_refs
+model-paths: ['models']
+models:
+  shared_dimensions:
+    +materialized: table
+    +access: public

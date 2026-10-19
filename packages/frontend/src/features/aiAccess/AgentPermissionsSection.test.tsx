@@ -17,7 +17,7 @@ import {
 } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { AgentPermissionsSection } from './AgentPermissionsSection';
 
 vi.mock('../../providers/App/useApp', () => ({
@@ -36,7 +36,7 @@ vi.mock('../../hooks/useProjects', () => ({
 vi.mock('../../hooks/useOrganizationUsers', () => ({
     useOrganizationUsers: () => ({ data: [] }),
 }));
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 vi.mock('../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastSuccess: vi.fn(), showToastApiError: vi.fn() }),
 }));
@@ -82,7 +82,7 @@ const groups: GroupWithMembers[] = [
 let availableGroups = groups;
 let loadError = false;
 const refetch = vi.fn();
-const api = vi.mocked(lightdashApi);
+const api = mockedLightdashApi;
 const renderSection = () => {
     const client = new QueryClient({
         defaultOptions: {
@@ -121,10 +121,20 @@ const review = () =>
 const save = () =>
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 const custom = () => choose('Custom');
-const expandWho = () =>
-    fireEvent.click(
-        screen.getByRole('button', { name: 'Change who can use agents' }),
-    );
+const expectCapabilityChoices = () => {
+    for (const name of ['Same as the person', 'Read and query', 'Custom']) {
+        expect(screen.getByRole('radio', { name })).toBeVisible();
+    }
+};
+const expectNoChangeButtons = () => {
+    for (const name of [
+        'Change',
+        'Change what agents can do',
+        'Change who can use agents',
+    ]) {
+        expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    }
+};
 beforeEach(() => {
     vi.clearAllMocks();
     policy = legacy();
@@ -142,6 +152,146 @@ beforeEach(() => {
     });
 });
 describe('reviewed agent permissions', () => {
+    it.each([
+        {
+            name: 'saved Same as the person',
+            choice: 'Same as the person',
+            capabilities: null,
+            selection: null,
+        },
+        {
+            name: 'saved Read and query',
+            choice: 'Read and query',
+            capabilities: [
+                AgentCapability.ReadDiscover,
+                AgentCapability.Query,
+                AgentCapability.Export,
+                AgentCapability.RawSql,
+            ],
+            selection: null,
+        },
+        {
+            name: 'saved Custom',
+            choice: 'Custom',
+            capabilities: all,
+            selection: null,
+        },
+        {
+            name: 'Everyone whose role allows AI',
+            choice: 'Same as the person',
+            capabilities: null,
+            selection: null,
+        },
+        {
+            name: 'Only these groups with two groups',
+            choice: 'Same as the person',
+            capabilities: null,
+            selection: ['a', 'b'],
+        },
+    ])(
+        'renders both sections without Change buttons for $name',
+        ({ choice, capabilities, selection }) => {
+            policy = {
+                ...policy,
+                mode: capabilities === null ? 'legacy' : 'managed',
+                allowedCapabilities: capabilities,
+                systemRoleMatrix: matrix(capabilities ?? []),
+                allowedGroupUuids: selection,
+            };
+            renderSection();
+            expectNoChangeButtons();
+            expectCapabilityChoices();
+            expect(
+                screen.getByRole('radio', {
+                    name: 'Everyone whose role allows AI',
+                }),
+            ).toBeVisible();
+            expect(
+                screen.getByRole('radio', { name: 'Only these groups' }),
+            ).toBeVisible();
+            expect(screen.getByRole('radio', { name: choice })).toBeChecked();
+            expect(
+                screen.getByRole('radio', {
+                    name:
+                        selection === null
+                            ? 'Everyone whose role allows AI'
+                            : 'Only these groups',
+                }),
+            ).toBeChecked();
+            if (choice === 'Custom') {
+                expect(screen.getAllByRole('switch')).toHaveLength(7);
+                screen
+                    .getAllByRole('switch')
+                    .forEach((control) => expect(control).toBeChecked());
+            }
+            if (selection !== null) {
+                expect(
+                    screen.getByRole('combobox', { name: 'Groups' }),
+                ).toBeVisible();
+                expect(
+                    screen.getByText('Data team (2)', {
+                        selector: '.mantine-Pill-label',
+                    }),
+                ).toBeVisible();
+                expect(
+                    screen.getByText('Analysts (1)', {
+                        selector: '.mantine-Pill-label',
+                    }),
+                ).toBeVisible();
+            } else {
+                expect(
+                    screen.queryByRole('combobox', { name: 'Groups' }),
+                ).not.toBeInTheDocument();
+            }
+            expect(screen.getByText('No changes')).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Review and save' }),
+            ).toBeDisabled();
+            expect(api).not.toHaveBeenCalled();
+        },
+    );
+    it('keeps edits in both sections visible and reviews their combined changes', async () => {
+        renderSection();
+        custom();
+        toggle('Delete content');
+        expect(screen.getByText('2 unsaved changes')).toBeInTheDocument();
+        choose('Only these groups');
+        expect(
+            screen.getByText('Choose at least one group.'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Review and save' }),
+        ).toBeDisabled();
+        fireEvent.click(screen.getByRole('combobox', { name: 'Groups' }));
+        fireEvent.click(
+            await screen.findByRole('option', { name: 'Data team (2)' }),
+        );
+        expect(screen.getByRole('radio', { name: 'Custom' })).toBeChecked();
+        expect(
+            screen.getByRole('switch', { name: 'Delete content' }),
+        ).not.toBeChecked();
+        expect(
+            screen.getByRole('radio', { name: 'Only these groups' }),
+        ).toBeChecked();
+        expect(screen.getByRole('combobox', { name: 'Groups' })).toBeVisible();
+        expect(
+            screen.getByText('Data team (2)', {
+                selector: '.mantine-Pill-label',
+            }),
+        ).toBeVisible();
+        expect(screen.getByText('3 unsaved changes')).toBeInTheDocument();
+        review();
+        const modal = within(screen.getByRole('dialog'));
+        expect(
+            within(modal.getByText('STOPS').parentElement!).getByText(
+                'Delete content',
+            ),
+        ).toBeInTheDocument();
+        expect(modal.getByText(/Only members of/)).toHaveTextContent(
+            'Data team',
+        );
+        expect(api).not.toHaveBeenCalled();
+    });
     it('starts with the saved choice, a clean footer and no old pickers', () => {
         renderSection();
         expect(
@@ -182,7 +332,6 @@ describe('reviewed agent permissions', () => {
         renderSection();
         choose('Read and query');
         expect(screen.getByText('1 unsaved change')).toBeInTheDocument();
-        expandWho();
         choose('Only these groups');
         fireEvent.click(screen.getByRole('combobox', { name: 'Groups' }));
         fireEvent.click(
@@ -406,12 +555,11 @@ describe('reviewed agent permissions', () => {
             JSON.parse(String(api.mock.calls[0][0].body)).systemRoleMatrix,
         ).toEqual(matrix([AgentCapability.Query]));
     });
-    it('collapses capabilities for group editing, shows member counts and reviews names without a people count', async () => {
+    it('keeps capabilities visible during group editing, shows member counts and reviews names without a people count', async () => {
         renderSection();
-        expandWho();
         expect(
-            screen.queryByRole('radio', { name: 'Custom' }),
-        ).not.toBeInTheDocument();
+            screen.getByRole('radio', { name: 'Custom' }),
+        ).toBeInTheDocument();
         choose('Only these groups');
         expect(
             screen.getByText('Choose at least one group.'),
@@ -443,6 +591,12 @@ describe('reviewed agent permissions', () => {
         expect(
             screen.queryByText('Who can use agents'),
         ).not.toBeInTheDocument();
+        expectCapabilityChoices();
+        expectNoChangeButtons();
+        expect(screen.getAllByRole('radio')).toHaveLength(3);
+        expect(
+            screen.queryByRole('combobox', { name: 'Groups' }),
+        ).not.toBeInTheDocument();
     });
     it('keeps an unavailable saved restriction and clears it only through review', async () => {
         policy = {
@@ -456,6 +610,20 @@ describe('reviewed agent permissions', () => {
                 'Groups are unavailable. The saved group restriction still applies.',
             ),
         ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Allow everyone' }),
+        ).toBeVisible();
+        expectCapabilityChoices();
+        expectNoChangeButtons();
+        expect(screen.getAllByRole('radio')).toHaveLength(3);
+        expect(
+            screen.queryByRole('radio', {
+                name: 'Everyone whose role allows AI',
+            }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('radio', { name: 'Only these groups' }),
+        ).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Allow everyone' }));
         review();
         expect(
@@ -474,8 +642,14 @@ describe('reviewed agent permissions', () => {
         policy = { ...policy, allowedGroupUuids: ['hidden'] };
         renderSection();
         expect(
-            screen.getByText('Only these groups: A saved group.'),
-        ).toBeInTheDocument();
+            screen.getByRole('radio', { name: 'Only these groups' }),
+        ).toBeChecked();
+        expect(screen.getByRole('combobox', { name: 'Groups' })).toBeVisible();
+        expect(
+            screen.getByText('A saved group', {
+                selector: '.mantine-Pill-label',
+            }),
+        ).toBeVisible();
         custom();
         review();
         save();
@@ -567,8 +741,14 @@ describe('reviewed agent permissions', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
         expect(screen.getByText('No changes')).toBeInTheDocument();
         expect(
-            screen.getByText('Only these groups: Analysts.'),
-        ).toBeInTheDocument();
+            screen.getByRole('radio', { name: 'Only these groups' }),
+        ).toBeChecked();
+        expect(screen.getByRole('combobox', { name: 'Groups' })).toBeVisible();
+        expect(
+            screen.getByText('Analysts (1)', {
+                selector: '.mantine-Pill-label',
+            }),
+        ).toBeVisible();
     });
     it('retains the draft after a version conflict and never resubmits automatically', async () => {
         const view = renderSection();
@@ -623,7 +803,6 @@ describe('reviewed agent permissions', () => {
     it('shows an empty group picker and blocks a new empty restriction', () => {
         availableGroups = [];
         renderSection();
-        expandWho();
         choose('Only these groups');
         expect(
             screen.getAllByText('No groups available').length,
@@ -656,7 +835,6 @@ describe('reviewed agent permissions', () => {
                 allowedGroupUuids: remaining.length ? ['a', 'b'] : ['a'],
             };
             const view = renderSection();
-            expandWho();
             policy = { ...policy, allowedGroupUuids: remaining };
             availableGroups = groups.filter((group) =>
                 remaining.includes(group.uuid),
@@ -678,11 +856,6 @@ describe('reviewed agent permissions', () => {
                     screen.getAllByText('Data team (2)').length,
                 ).toBeGreaterThan(0);
             expect(screen.getByText('No changes')).toBeInTheDocument();
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: 'Change what agents can do',
-                }),
-            );
             custom();
             review();
             save();
@@ -735,8 +908,14 @@ describe('reviewed agent permissions', () => {
         policy = { ...policy, allowedGroupUuids: [] };
         view.rerender();
         expect(
-            screen.getByText('Only these groups: Data team.'),
-        ).toBeInTheDocument();
+            screen.getByRole('radio', { name: 'Only these groups' }),
+        ).toBeChecked();
+        expect(screen.getByRole('combobox', { name: 'Groups' })).toBeVisible();
+        expect(
+            screen.getByText('Data team (2)', {
+                selector: '.mantine-Pill-label',
+            }),
+        ).toBeVisible();
         expect(
             screen.getByRole('switch', { name: 'Delete content' }),
         ).not.toBeChecked();
@@ -750,14 +929,19 @@ describe('reviewed agent permissions', () => {
         policy = older;
         view.rerender();
         expect(
-            screen.getByText('Only these groups: Analysts.'),
-        ).toBeInTheDocument();
+            screen.getByRole('radio', { name: 'Only these groups' }),
+        ).toBeChecked();
+        expect(screen.getByRole('combobox', { name: 'Groups' })).toBeVisible();
+        expect(
+            screen.getByText('Analysts (1)', {
+                selector: '.mantine-Pill-label',
+            }),
+        ).toBeVisible();
         expect(screen.getByText('No changes')).toBeInTheDocument();
     });
     it('keeps the draft and blocks saves and group edits on a stale-data error', () => {
         const view = renderSection();
         custom();
-        expandWho();
         choose('Only these groups');
         loadError = true;
         view.rerender();

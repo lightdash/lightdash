@@ -158,6 +158,29 @@ describe('AiProviderCredentialsCard', () => {
         });
     });
 
+    // EU residency needs an EU endpoint region; picking one must land on the
+    // EU inference profile without the admin having to choose it.
+    it('offers EU regions that default to EU inference', async () => {
+        renderCard();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Add credential' }),
+        );
+        await userEvent.click(
+            screen.getByRole('combobox', { name: 'AWS region' }),
+        );
+        expect(
+            screen.getByText('Europe (Ireland) — eu-west-1'),
+        ).toBeInTheDocument();
+        await userEvent.click(
+            screen.getByText('Europe (Frankfurt) — eu-central-1'),
+        );
+
+        expect(
+            screen.getByText(/served by any European region/),
+        ).toBeInTheDocument();
+    });
+
     // A key hint is safe to render; the key itself must never reach the client.
     it('shows only a key hint, never a key', () => {
         renderCard({ credentials: [TOKYO] });

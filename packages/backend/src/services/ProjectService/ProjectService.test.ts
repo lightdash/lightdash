@@ -15,9 +15,11 @@ import {
     convertExplores,
     createVirtualView,
     CustomDimensionType,
+    CustomFormatType,
     CustomSqlQueryForbiddenError,
     DatabricksAuthenticationType,
     DatabricksTokenError,
+    DbtError,
     DbtExposureType,
     DbtProjectType,
     DbtVersionOptionLatest,
@@ -48,6 +50,7 @@ import {
     JobStepType,
     JobType,
     MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
+    MERGE_TABLE_NAME,
     MergeJoinType,
     MergeQueryErrorKind,
     MetricQuery,
@@ -72,6 +75,7 @@ import {
     SnowflakeTokenError,
     SshTunnelError,
     SupportedDbtAdapter,
+    SupportedDbtVersions,
     TableCalculation,
     TableCalculationTemplateType,
     UserWarehouseCredentialPurpose,
@@ -457,6 +461,8 @@ const projectModel = {
     })),
     findExploreByTableName: vi.fn(async () => validExplore),
     getAllExploresFromCache: vi.fn(async () => ({})),
+    getPreAggregateRefreshSummary:
+        vi.fn<ProjectModel['getPreAggregateRefreshSummary']>(),
     getTableGroups: vi.fn(async () => ({})),
     getCachedExploreNames: vi.fn(async () => []),
     getWarehouseFromCache: vi.fn(async () => undefined),
@@ -508,6 +514,29 @@ const preAggregateModel = {
     getPreAggregateDefinitionByDefinitionName: vi.fn(async () => undefined),
     getActiveMaterialization: vi.fn(async () => undefined),
 };
+projectModel.getPreAggregateRefreshSummary.mockImplementation(async () => {
+    const definitions =
+        (await preAggregateModel.getPreAggregateDefinitionsForProject()) as {
+            refreshCron: string | null;
+        }[];
+    const explores = (await projectModel.getAllExploresFromCache()) as Record<
+        string,
+        Explore | ExploreError
+    >;
+    return {
+        hasScheduledDefinition: definitions.some(
+            (definition) => definition.refreshCron !== null,
+        ),
+        hasScheduledRefresh: Object.values(explores).some(
+            (explore) =>
+                'preAggregates' in explore &&
+                !!explore.preAggregates?.some(
+                    (definition) => definition.refresh?.cron != null,
+                ),
+        ),
+        hasMalformedPreAggregates: false,
+    };
+});
 const onboardingModel = {
     getByOrganizationUuid: vi.fn(async () => ({
         ranQueryAt: new Date(),
@@ -607,6 +636,7 @@ const emailModel = {
 };
 
 const schedulerClient = {
+    scheduleInitialUsageProcessing: vi.fn(async () => undefined),
     copyPreviewContent: vi.fn(),
     compileProject: vi.fn(),
     testAndCompileProject: vi.fn(async () => undefined),
@@ -1558,6 +1588,9 @@ describe('ProjectService', () => {
                 created: false,
             });
             expect(
+                schedulerClient.scheduleInitialUsageProcessing,
+            ).not.toHaveBeenCalled();
+            expect(
                 projectModel.runInAnalyticsProvisioningLock,
             ).toHaveBeenCalledWith('analytics-org', expect.any(Function));
             expect(projectModel.saveExploresToCache).toHaveBeenCalledWith(
@@ -1585,6 +1618,18 @@ describe('ProjectService', () => {
                 >);
             const result = await service.ensureAnalyticsProject(admin);
             expect(result.created).toBe(true);
+            expect(
+                schedulerClient.scheduleInitialUsageProcessing,
+            ).toHaveBeenCalledWith({
+                organizationUuid: admin.organizationUuid,
+                projectUuid: 'new',
+                userUuid: admin.userUuid,
+            });
+            expect(analyticsClient.createAnalyticsClient).toHaveBeenCalledWith(
+                admin.organizationUuid,
+                expect.anything(),
+                { allowEmpty: true },
+            );
             expect(create).toHaveBeenCalledWith(
                 admin,
                 expect.objectContaining({
@@ -1596,6 +1641,27 @@ describe('ProjectService', () => {
                 }),
                 RequestMethod.BACKEND,
                 { source: 'analytics' },
+            );
+        });
+
+        test('preserves a newly created project when initial processing cannot be queued', async () => {
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([]);
+            vi.spyOn(service, 'createWithoutCompile').mockResolvedValueOnce({
+                project: { projectUuid: 'new' },
+            } as Awaited<ReturnType<ProjectService['createWithoutCompile']>>);
+            schedulerClient.scheduleInitialUsageProcessing.mockRejectedValueOnce(
+                new Error('queue unavailable'),
+            );
+            await expect(
+                service.ensureAnalyticsProject(admin),
+            ).resolves.toMatchObject({
+                projectUuid: 'new',
+                created: true,
+            });
+            expect(projectModel.saveExploresToCache).toHaveBeenCalledWith(
+                'new',
+                expect.any(Array),
+                true,
             );
         });
 
@@ -1611,6 +1677,159 @@ describe('ProjectService', () => {
             ).not.toHaveBeenCalled();
         });
 
+        test.each(['organization', 'project'] as const)(
+            'allows explicit %s analytics readers but not administration',
+            async (level) => {
+                const reader = {
+                    ...admin,
+                    ability: new Ability<PossibleAbilities>([
+                        {
+                            subject: 'SystemAnalytics',
+                            action: 'view',
+                            conditions:
+                                level === 'organization'
+                                    ? { organizationUuid: 'analytics-org' }
+                                    : { projectUuid: 'analytics-project' },
+                        },
+                    ]),
+                };
+                await expect(
+                    service.assertAnalyticsProjectAccess(reader, {
+                        organizationUuid: 'analytics-org',
+                        projectUuid: 'analytics-project',
+                        provisioningSource: 'analytics',
+                    }),
+                ).resolves.toBeUndefined();
+                await expect(
+                    service.ensureAnalyticsProject(reader),
+                ).rejects.toThrow(/administration/);
+                await expect(
+                    service.assertAnalyticsProjectAdministration(reader),
+                ).rejects.toThrow(/administration/);
+                await expect(
+                    service.assertAnalyticsProjectAccess(
+                        {
+                            ...reader,
+                            ability: new Ability<PossibleAbilities>([]),
+                        },
+                        {
+                            organizationUuid: 'analytics-org',
+                            projectUuid: 'analytics-project',
+                            provisioningSource: 'analytics',
+                        },
+                    ),
+                ).rejects.toThrow(/View managed analytics/);
+                expect(
+                    projectModel.runInAnalyticsProvisioningLock,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        test.each([
+            {
+                subject: 'SystemAnalytics',
+                action: 'view',
+                conditions: { projectUuid: 'other-project' },
+            },
+            {
+                subject: 'Analytics',
+                action: 'view',
+                conditions: { organizationUuid: 'analytics-org' },
+            },
+        ] as const)(
+            'rejects an unrelated analytics grant: %j',
+            async (rule) => {
+                await expect(
+                    service.assertAnalyticsProjectAccess(
+                        {
+                            ...admin,
+                            ability: new Ability<PossibleAbilities>([rule]),
+                        },
+                        {
+                            projectUuid: 'analytics-project',
+                            organizationUuid: 'analytics-org',
+                            provisioningSource: 'analytics',
+                        },
+                    ),
+                ).rejects.toThrow(/View managed analytics/);
+            },
+        );
+
+        test.each([false, true])(
+            'resolves analytics credentials using the current principal grant (service account: %s)',
+            async (isServiceAccount) => {
+                const credentials = {
+                    type: WarehouseTypes.DUCKDB as const,
+                    connectionType: DuckdbConnectionType.ANALYTICS as const,
+                    database: 'memory' as const,
+                    schema: 'main' as const,
+                };
+                projectModel.getWarehouseCredentialsForProject
+                    .mockResolvedValueOnce(credentials)
+                    .mockResolvedValueOnce(credentials)
+                    .mockResolvedValueOnce(credentials);
+                const analyticsSummary = {
+                    ...projectSummary,
+                    projectUuid: 'analytics-project',
+                    organizationUuid: 'analytics-org',
+                    provisioningSource: 'analytics',
+                };
+                projectModel.getSummary
+                    .mockResolvedValueOnce(analyticsSummary)
+                    .mockResolvedValueOnce(analyticsSummary);
+                const reload = vi.fn().mockResolvedValue({
+                    ...admin,
+                    userUuid: 'reader',
+                    ability: new Ability<PossibleAbilities>([
+                        {
+                            subject: 'SystemAnalytics',
+                            action: 'view',
+                            conditions: { projectUuid: 'analytics-project' },
+                        },
+                    ]),
+                });
+                const credentialService = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                );
+                Object.assign(credentialService.userModel, {
+                    findSessionUserAndOrgByUuid: reload,
+                });
+                const load = (isRegisteredUser: boolean) =>
+                    (
+                        credentialService as unknown as {
+                            loadSingleRouteCredentialBase: (args: {
+                                projectUuid: string;
+                                userId: string;
+                                isRegisteredUser: boolean;
+                                isServiceAccount: boolean;
+                                preloadedOrgWarehouseCredentialsUuid: null;
+                            }) => Promise<unknown>;
+                        }
+                    ).loadSingleRouteCredentialBase({
+                        projectUuid: 'analytics-project',
+                        userId: 'reader',
+                        isRegisteredUser,
+                        isServiceAccount,
+                        preloadedOrgWarehouseCredentialsUuid: null,
+                    });
+                await expect(load(true)).resolves.toMatchObject({
+                    credentials,
+                    organizationUuid: 'analytics-org',
+                });
+                expect(reload).toHaveBeenCalledWith('reader', 'analytics-org');
+                reload.mockResolvedValue({
+                    ...admin,
+                    ability: new Ability<PossibleAbilities>([]),
+                });
+                await expect(load(true)).rejects.toThrow(
+                    /View managed analytics/,
+                );
+                await expect(load(false)).rejects.toThrow(
+                    /authenticated organization member/,
+                );
+            },
+        );
+
         test('rejects another organization even with an unrestricted ability', async () => {
             await expect(
                 service.assertAnalyticsProjectAccess(
@@ -1621,6 +1840,7 @@ describe('ProjectService', () => {
                         ]),
                     },
                     {
+                        projectUuid: 'analytics-project',
                         provisioningSource: 'analytics',
                         organizationUuid: 'other-org',
                     },
@@ -1669,6 +1889,7 @@ describe('ProjectService', () => {
                 await expect(
                     service.assertAnalyticsProjectAccess(admin, {
                         organizationUuid: 'analytics-org',
+                        projectUuid: 'analytics-project',
                         provisioningSource: 'analytics',
                     }),
                 ).rejects.toThrow(/not enabled/);
@@ -1726,6 +1947,7 @@ describe('ProjectService', () => {
             expect(analyticsClient.createAnalyticsClient).toHaveBeenCalledWith(
                 admin.organizationUuid,
                 flags,
+                { allowEmpty: true },
             );
         });
 
@@ -1733,6 +1955,7 @@ describe('ProjectService', () => {
             await expect(
                 service.assertAnalyticsProjectAccess(admin, {
                     organizationUuid: 'analytics-org',
+                    projectUuid: 'analytics-project',
                     provisioningSource: null,
                 }),
             ).resolves.toBeUndefined();
@@ -10462,6 +10685,9 @@ describe('ProjectService', () => {
                     explores,
                     undefined,
                     undefined,
+                    ...(kind === 'no-cron'
+                        ? [undefined, expect.any(Function)]
+                        : []),
                 );
             },
         );
@@ -12917,6 +13143,46 @@ describe('ProjectService', () => {
             );
         });
 
+        test('carries a merge calculation format onto its merged field', async () => {
+            const format = {
+                type: CustomFormatType.PERCENT,
+                round: 1,
+            };
+            const result = await service.compileMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery: mergeQuery({
+                    tableCalculations: [
+                        {
+                            name: 'share',
+                            displayName: 'Share',
+                            sql: '',
+                            formula: '=a_a_met1 / b_a_met1',
+                            format,
+                        },
+                        {
+                            name: 'unformatted',
+                            displayName: 'Unformatted',
+                            sql: '',
+                            formula: '=a_a_met1',
+                        },
+                    ],
+                }),
+            });
+
+            expect(result.errors).toEqual([]);
+            expect(
+                result.itemsMap[
+                    getItemId({ table: MERGE_TABLE_NAME, name: 'share' })
+                ],
+            ).toEqual(expect.objectContaining({ formatOptions: format }));
+            expect(
+                result.itemsMap[
+                    getItemId({ table: MERGE_TABLE_NAME, name: 'unformatted' })
+                ],
+            ).toEqual(expect.objectContaining({ formatOptions: undefined }));
+        });
+
         test('refuses an oversized merge formula before parsing it', async () => {
             const result = await service.compileMergeQuery({
                 account: sessionAccount,
@@ -13310,6 +13576,7 @@ type ResolveCompileAdapterArgs = {
 };
 
 type BuildMergedManifestAdapterArgs = {
+    userUuid: string;
     projectUuid: string;
     organizationUuid: string | undefined;
     primary: ResolveCompileAdapterArgs['primary'];
@@ -13320,6 +13587,7 @@ type BuildMergedManifestAdapterArgs = {
 type ResolvedCompileAdapter = {
     adapter: ProjectAdapter;
     stagedMergedManifest?: Buffer;
+    connectionWarnings?: string[];
 };
 
 // resolveCompileAdapter/buildMergedManifestAdapter/featureFlagModel/
@@ -13487,6 +13755,8 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                         name: `country_codes_${seedPackageName}`,
                         package_name: seedPackageName,
                         resource_type: 'seed',
+                        path: 'seeds/country_codes.csv',
+                        original_file_path: 'seeds/country_codes.csv',
                         compiled: true,
                         database: 'analytics',
                         schema: 'public',
@@ -13516,6 +13786,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         timings: DbtManifestFetchTimings = NO_FETCH_TIMINGS,
     ) =>
         ({
+            prepareDbtSource: vi.fn(async () => ({
+                projectDir: null,
+                timings: { gitRefreshMs: null, depsMs: null },
+            })),
             getDbtManifest: vi.fn(async () => ({
                 manifest,
                 ...(selectedModelIds ? { selectedModelIds } : {}),
@@ -13555,6 +13829,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
 
         const adapter = projectService.buildMergedManifestAdapter({
+            userUuid: 'user-uuid',
             projectUuid: 'project-uuid',
             organizationUuid: 'org-uuid',
             primary: {
@@ -13585,6 +13860,135 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
         return (await adapter).adapter;
     };
+
+    it('names a source preparation failure before fetching any manifest', async () => {
+        const { projectService } = buildServiceWithMocks(true, []);
+        projectService.featureFlagModel.get = vi.fn(async (args: unknown) => ({
+            id: (args as { featureFlagId: FeatureFlags }).featureFlagId,
+            enabled: true,
+        }));
+        const preparedPrimary = buildAdapterWithManifest(buildManifest([]));
+        const sourceAdapter = buildAdapterWithManifest(buildManifest([]));
+        vi.mocked(sourceAdapter.prepareDbtSource).mockRejectedValue(
+            new Error('deps failed'),
+        );
+        vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
+            sourceAdapter,
+        );
+        await expect(
+            projectService.buildMergedManifestAdapter({
+                userUuid: 'user-uuid',
+                projectUuid: 'project-uuid',
+                organizationUuid: 'org-uuid',
+                primary: { ...primary, adapter: preparedPrimary },
+                sources: [buildSource('source-b')],
+                manifestFetchAdapters: [],
+            }),
+        ).rejects.toThrow('Failed to load dbt source "source-b": deps failed');
+        expect(preparedPrimary.getDbtManifest).not.toHaveBeenCalled();
+        expect(sourceAdapter.getDbtManifest).not.toHaveBeenCalled();
+    });
+
+    it.each([true, false])(
+        'gates managed cross-source retries with flag enabled=%s',
+        async (enabled) => {
+            const { projectService } = buildServiceWithMocks(true, []);
+            projectService.featureFlagModel.get = vi.fn(
+                async (args: unknown) => {
+                    const { featureFlagId } = args as {
+                        featureFlagId: FeatureFlags;
+                    };
+                    return { id: featureFlagId, enabled };
+                },
+            );
+            const upstream = buildManifest([
+                {
+                    uniqueId: 'model.shared.calendar',
+                    name: 'calendar',
+                    packageName: 'shared',
+                },
+            ]);
+            upstream.metadata.project_name = 'shared';
+            const downstream = buildManifest([
+                {
+                    uniqueId: 'model.analytics.orders',
+                    name: 'orders',
+                    packageName: 'analytics',
+                },
+            ]);
+            downstream.metadata.project_name = 'analytics';
+            Object.assign(downstream.nodes['model.analytics.orders'], {
+                refs: [{ name: 'calendar', package: null, version: null }],
+                depends_on: { nodes: ['model.shared.calendar'] },
+            });
+            const stub = {
+                ...(upstream.nodes['model.shared.calendar'] as DbtRawModelNode &
+                    DbtManifest['nodes'][string]),
+                path: '',
+                original_file_path: '',
+            };
+            const error = new DbtError(
+                "depends on a node named 'calendar' in package or project 'shared' which was not found",
+            );
+            const downstreamAdapter = buildAdapterWithManifest(downstream);
+            const fetchManifest = vi
+                .mocked(downstreamAdapter.getDbtManifest)
+                .mockRejectedValueOnce(error)
+                .mockResolvedValueOnce({
+                    manifest: {
+                        ...downstream,
+                        nodes: { ...downstream.nodes, [stub.unique_id]: stub },
+                    },
+                    selectedModelIds: [
+                        stub.unique_id,
+                        'model.analytics.orders',
+                    ],
+                    timings: NO_FETCH_TIMINGS,
+                });
+            const build = vi
+                .spyOn(projectService, 'buildSourceAdapter')
+                .mockResolvedValue(downstreamAdapter);
+            const resolution = projectService.buildMergedManifestAdapter({
+                userUuid: 'user-uuid',
+                projectUuid: 'project-uuid',
+                organizationUuid: 'org-uuid',
+                primary: {
+                    ...primary,
+                    adapter: buildAdapterWithManifest(upstream),
+                },
+                sources: [buildSource('analytics')],
+                manifestFetchAdapters: [],
+            });
+            if (enabled) {
+                const { adapter, connectionWarnings } = await resolution;
+                expect(connectionWarnings).toEqual([
+                    "Model \"orders\" in dbt source \"analytics\" uses ref('calendar'), which resolved to external model model.shared.calendar from another dbt source. Use ref('shared', 'calendar') to make the cross-source reference explicit.",
+                ]);
+
+                const merged = await adapter.getDbtManifest();
+                expect(merged.manifest.nodes[stub.unique_id]).toMatchObject({
+                    path: 'models/calendar.sql',
+                });
+                expect(fetchManifest).toHaveBeenCalledTimes(2);
+                expect(fetchManifest.mock.calls[1][0]?.externalNodes).toEqual([
+                    expect.objectContaining({
+                        package_name: 'shared',
+                        name: 'calendar',
+                    }),
+                ]);
+                expect(build).toHaveBeenCalledTimes(1);
+            } else {
+                await expect(resolution).rejects.toThrow(
+                    'This model references a model in another dbt project. Connect that project as a dbt source and enable cross-source dbt refs for your organization.',
+                );
+                expect(fetchManifest).toHaveBeenCalledTimes(1);
+            }
+            expect(projectService.featureFlagModel.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+                user: { userUuid: 'user-uuid', organizationUuid: 'org-uuid' },
+            });
+        },
+    );
 
     it('returns the deduplicated union when both sources select models', async () => {
         const primaryManifest = buildManifest([
@@ -13691,6 +14095,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 );
 
             await projectService.buildMergedManifestAdapter({
+                userUuid: 'user-uuid',
                 projectUuid: 'project-uuid',
                 organizationUuid: 'org-uuid',
                 primary: {
@@ -13788,6 +14193,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
             const { adapter } = await projectService.buildMergedManifestAdapter(
                 {
+                    userUuid: 'user-uuid',
                     projectUuid: 'project-uuid',
                     organizationUuid: 'org-uuid',
                     primary: {
@@ -13827,6 +14233,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             );
 
             await projectService.buildMergedManifestAdapter({
+                userUuid: 'user-uuid',
                 projectUuid: 'project-uuid',
                 organizationUuid: 'org-uuid',
                 primary: {
@@ -13859,6 +14266,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
             await expect(
                 projectService.buildMergedManifestAdapter({
+                    userUuid: 'user-uuid',
                     projectUuid: 'project-uuid',
                     organizationUuid: 'org-uuid',
                     primary: {
@@ -13898,6 +14306,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
             await expect(
                 projectService.buildMergedManifestAdapter({
+                    userUuid: 'user-uuid',
                     projectUuid: 'project-uuid',
                     organizationUuid: 'org-uuid',
                     primary: { ...primary, adapter: failingPrimaryAdapter },
@@ -13937,6 +14346,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
 
         await projectService.buildMergedManifestAdapter({
+            userUuid: 'user-uuid',
             projectUuid: 'project-uuid',
             organizationUuid: 'org-uuid',
             primary: {
@@ -14286,6 +14696,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         };
 
         await projectService.buildMergedManifestAdapter({
+            userUuid: 'user-uuid',
             projectUuid: 'project-uuid',
             organizationUuid: 'org-uuid',
             primary: {
@@ -14307,7 +14718,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             manifestFetchAdapters: [],
         });
 
-        expect(getFlag).not.toHaveBeenCalled();
+        expect(getFlag).toHaveBeenCalledExactlyOnceWith({
+            featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+            user: { userUuid: 'user-uuid', organizationUuid: 'org-uuid' },
+        });
         expect(projectModel.getSummary).not.toHaveBeenCalled();
         expect(buildSourceAdapter).toHaveBeenCalledTimes(2);
         expect(buildSourceAdapter).toHaveBeenNthCalledWith(
@@ -14410,6 +14824,8 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             name: 'countries',
             package_name: 'pkg_a',
             resource_type: 'seed',
+            path: 'seeds/country_codes.csv',
+            original_file_path: 'seeds/country_codes.csv',
             database: 'analytics',
             schema: 'public',
             config: { materialized: 'seed' },
@@ -14593,6 +15009,11 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             { subject: 'Project', action: ['update', 'view'] },
             { subject: 'Job', action: ['create'] },
             { subject: 'CompileProject', action: ['manage'] },
+            {
+                subject: 'DeployProject',
+                action: ['manage'],
+                conditions: { projectUuid: 'projectUuid' },
+            },
         ]),
     };
 
@@ -15410,6 +15831,116 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             expect.objectContaining({ jobStatus: JobStatusType.DONE }),
         );
     });
+
+    it.each([
+        { enabled: true, missingRef: true, warehouseFails: false },
+        { enabled: false, missingRef: true, warehouseFails: false },
+        { enabled: true, missingRef: false, warehouseFails: false },
+        { enabled: true, missingRef: true, warehouseFails: true },
+    ])(
+        'defers only missing cross-project refs when enabled=$enabled missingRef=$missingRef warehouseFails=$warehouseFails',
+        async ({ enabled, missingRef, warehouseFails }) => {
+            const dbtError = new DbtError(
+                missingRef
+                    ? "Model 'model.analytics.orders' depends on a node named 'orders' in package or project 'upstream' which was not found"
+                    : 'dbt parse failed: invalid configuration',
+            );
+            const warehouseError = new Error('warehouse connection failed');
+            const warehouseTest = vi.spyOn(warehouseClientMock, 'test');
+            if (warehouseFails)
+                warehouseTest.mockRejectedValueOnce(warehouseError);
+            const adapter = new DbtBaseProjectAdapter(
+                {
+                    test: vi.fn().mockRejectedValue(dbtError),
+                } as unknown as ConstructorParameters<
+                    typeof DbtBaseProjectAdapter
+                >[0],
+                warehouseClientMock,
+                {
+                    warehouseCatalog: undefined,
+                    onWarehouseCatalogChange: () => {},
+                },
+                SupportedDbtVersions.V1_12,
+            );
+            vi.spyOn(
+                projectAdapterModule,
+                'projectAdapterFromConfig',
+            ).mockResolvedValueOnce(adapter);
+            const flags = {
+                get: vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId === FeatureFlags.CrossSourceDbtRefs &&
+                            enabled,
+                    }),
+                ),
+            };
+            const projectService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                {
+                    featureFlagModel: flags as unknown as FeatureFlagModel,
+                },
+            );
+            const internals = projectService as unknown as {
+                logger: { info: (message: string, metadata: unknown) => void };
+                testProjectAdapter: (
+                    data: Omit<UpdateProject, 'warehouseConnection'> & {
+                        warehouseConnection: {
+                            kind: 'submitted_resolved';
+                            credentials: CreateWarehouseCredentials;
+                        };
+                    },
+                    caller: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+                    context: 'project_update',
+                    method: RequestMethod,
+                    projectUuid: string,
+                    projectOrganizationUuid: string,
+                ) => Promise<unknown>;
+            };
+            const info = vi.spyOn(internals.logger, 'info');
+            const tested = internals.testProjectAdapter(
+                {
+                    ...projectWithSensitiveFields,
+                    warehouseConnection: {
+                        kind: 'submitted_resolved',
+                        credentials: warehouseClientMock.credentials,
+                    },
+                },
+                compileUser,
+                'project_update',
+                RequestMethod.WEB_APP,
+                'projectUuid',
+                'organizationUuid',
+            );
+            if (enabled && missingRef) {
+                if (warehouseFails)
+                    await expect(tested).rejects.toBe(warehouseError);
+                else await expect(tested).resolves.toMatchObject({ adapter });
+                expect(warehouseTest).toHaveBeenCalledOnce();
+                expect(info).toHaveBeenCalledWith(
+                    'dbt.test.deferredCrossSourceRefs',
+                    {
+                        refs: [{ packageName: 'upstream', model: 'orders' }],
+                    },
+                );
+                expect(flags.get).toHaveBeenCalledWith({
+                    featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+                    user: {
+                        userUuid: compileUser.userUuid,
+                        organizationUuid: 'organizationUuid',
+                    },
+                });
+            } else {
+                await expect(tested).rejects.toBe(dbtError);
+                expect(warehouseTest).not.toHaveBeenCalled();
+                expect(info).not.toHaveBeenCalledWith(
+                    'dbt.test.deferredCrossSourceRefs',
+                    expect.anything(),
+                );
+            }
+        },
+    );
 
     it('a failed adapter test destroys the adapter and releases the lease', async () => {
         const adapter = {
@@ -18974,11 +19505,15 @@ describe('ProjectService.getExploreResponse', () => {
 
 describe('homepage popularity', () => {
     it('ranks apps with charts and dashboards before the shared limit, without changing recently updated', async () => {
-        const chart = { uuid: 'chart', views: 20, updatedAt: new Date() };
+        const chart = {
+            uuid: 'chart',
+            views: 20,
+            updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        };
         const dashboard = {
             uuid: 'dashboard',
             views: 10,
-            updatedAt: new Date(),
+            updatedAt: new Date('2026-01-01T00:00:00.000Z'),
         };
         const app = { uuid: 'app', contentType: 'data_app', views: 15 };
         const getMostPopularApps = vi.fn().mockResolvedValue([app]);
@@ -20009,6 +20544,7 @@ describe('compile adapter connection credentials', () => {
             async (connection) => {
                 const derive = vi.spyOn(connection, 'deriveClient');
                 await service.buildMergedManifestAdapter({
+                    userUuid: 'user-uuid',
                     projectUuid: 'project-uuid',
                     organizationUuid: 'org-uuid',
                     sources: [],
@@ -20805,4 +21341,64 @@ describe('strict personal overlay (agent-identity on)', () => {
             expect(f.materialize).not.toHaveBeenCalled();
         },
     );
+});
+
+describe('ProjectService.getDeployStartOfWeekByExplore', () => {
+    const explores = [
+        { name: 'orders', preAggregates: [{ name: 'daily' }] },
+        { name: 'customers' },
+    ] as never;
+
+    const serviceWith = (mixedWarehouseConnectionsEnabled: boolean) => {
+        const getDeployStartOfWeek = vi.fn(async () => ({
+            kind: 'extra' as const,
+            startOfWeek: WeekDay.MONDAY,
+        }));
+        const service = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                projectModel: {
+                    getDeployStartOfWeek,
+                } as unknown as ProjectModel,
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId ===
+                                FeatureFlags.MixedWarehouseConnections &&
+                            mixedWarehouseConnectionsEnabled,
+                    })),
+                } as unknown as FeatureFlagModel,
+            },
+        );
+        return { service, getDeployStartOfWeek };
+    };
+
+    const args = {
+        userUuid: 'user-uuid',
+        organizationUuid: 'org-uuid',
+        projectUuid: 'project-uuid',
+        explores,
+        sourceUuid: 'source-uuid',
+    };
+
+    test('keeps the project week start with the mixed flag off', async () => {
+        const { service, getDeployStartOfWeek } = serviceWith(false);
+        await expect(
+            service.getDeployStartOfWeekByExplore(args),
+        ).resolves.toEqual(new Map());
+        expect(getDeployStartOfWeek).not.toHaveBeenCalled();
+    });
+
+    test('uses the extra connection week start with the mixed flag on', async () => {
+        const { service, getDeployStartOfWeek } = serviceWith(true);
+        await expect(
+            service.getDeployStartOfWeekByExplore(args),
+        ).resolves.toEqual(new Map([['orders', WeekDay.MONDAY]]));
+        expect(getDeployStartOfWeek).toHaveBeenCalledExactlyOnceWith(
+            'project-uuid',
+            'orders',
+            'source-uuid',
+        );
+    });
 });

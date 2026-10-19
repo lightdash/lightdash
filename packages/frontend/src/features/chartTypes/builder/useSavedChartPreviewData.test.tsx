@@ -3,19 +3,18 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import {
     executeSavedChartPreviewQuery,
     type SavedChartPreviewQueryResult,
 } from '../utils/savedChartPreviewQuery';
 import { useSavedChartPreviewData } from './useSavedChartPreviewData';
 
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../api');
 vi.mock('../utils/savedChartPreviewQuery', () => ({
     executeSavedChartPreviewQuery: vi.fn(),
 }));
 
-const mockedLightdashApi = vi.mocked(lightdashApi);
 const mockedExecuteSavedChartPreviewQuery = vi.mocked(
     executeSavedChartPreviewQuery,
 );
@@ -125,10 +124,13 @@ describe('useSavedChartPreviewData', () => {
 
         expect(mockedLightdashApi).toHaveBeenCalledTimes(1);
         expect(mockedExecuteSavedChartPreviewQuery).toHaveBeenCalledTimes(1);
-        expect(mockedExecuteSavedChartPreviewQuery).toHaveBeenCalledWith({
-            projectUuid: 'project-1',
-            chartUuid: 'chart-a',
-        });
+        expect(mockedExecuteSavedChartPreviewQuery).toHaveBeenCalledWith(
+            expect.anything(),
+            {
+                projectUuid: 'project-1',
+                chartUuid: 'chart-a',
+            },
+        );
     });
 
     it('waits for source bindings even when the row query finishes first', async () => {
@@ -251,10 +253,14 @@ describe('useSavedChartPreviewData', () => {
                 2,
             ),
         );
-        expect(mockedExecuteSavedChartPreviewQuery).toHaveBeenNthCalledWith(2, {
-            projectUuid: 'project-1',
-            chartUuid: 'chart-b',
-        });
+        expect(mockedExecuteSavedChartPreviewQuery).toHaveBeenNthCalledWith(
+            2,
+            expect.anything(),
+            {
+                projectUuid: 'project-1',
+                chartUuid: 'chart-b',
+            },
+        );
     });
 
     it('recovers from an execution error when retried', async () => {

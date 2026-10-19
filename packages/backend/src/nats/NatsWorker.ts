@@ -309,7 +309,11 @@ export class NatsWorker {
                       .getByQueryUuid(parsed.payload.queryUuid)
                       .catch(() => null)
                 : null;
-            if (query?.status === QueryHistoryStatus.ERROR) message.term();
+            if (
+                query?.status === QueryHistoryStatus.ERROR ||
+                query?.status === QueryHistoryStatus.CANCELLED
+            )
+                message.term();
             else message.nak();
         }
     }

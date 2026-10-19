@@ -6,7 +6,11 @@ import {
     type WarehouseClient,
 } from '@lightdash/common';
 import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import { DbtCliClient } from '../dbt/dbtCliClient';
+import { cliArgs } from '../dbt/dbtCliClient.mock';
 import type { CachedWarehouse, DbtClient } from '../types';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 
@@ -189,6 +193,70 @@ describe('getDbtManifest', () => {
             manifest,
             timings: { gitRefreshMs: null, depsMs: 2300, manifestMs: 15300 },
         });
+    });
+
+    it('prepares once across a pre-scan and two manifest fetches', async () => {
+        const installDeps = vi.fn(async () => {
+            vi.advanceTimersByTime(23);
+        });
+        const getDbtManifest = vi.fn(async () => ({ manifest }));
+        const adapter = buildAdapter({
+            installDeps,
+            getDbtManifest,
+        } as unknown as DbtClient);
+        const preparation = await adapter.prepareDbtSource();
+        expect(await adapter.prepareDbtSource()).toBe(preparation);
+        expect((await adapter.getDbtManifest()).timings.depsMs).toBe(23);
+        expect((await adapter.getDbtManifest()).timings.depsMs).toBeNull();
+        expect(installDeps).toHaveBeenCalledTimes(1);
+        expect(getDbtManifest).toHaveBeenCalledTimes(2);
+    });
+
+    it('prepares dependencies once while testing the client', async () => {
+        const installDeps = vi.fn(async () => undefined);
+        const test = vi.fn(async (prepareDependencies: () => Promise<void>) => {
+            await prepareDependencies();
+        });
+        const adapter = new DbtBaseProjectAdapter(
+            {
+                installDeps,
+                test,
+                getDbtManifest: vi.fn(async () => ({ manifest })),
+            } as unknown as DbtClient,
+            {
+                test: vi.fn(async () => undefined),
+            } as unknown as WarehouseClient,
+            vi.fn() as unknown as CachedWarehouse,
+            SupportedDbtVersions.V1_9,
+        );
+        await adapter.test();
+        expect(installDeps).toHaveBeenCalledTimes(1);
+        await adapter.getDbtManifest();
+        await adapter.getDbtManifest();
+        expect(installDeps).toHaveBeenCalledTimes(1);
+        expect(test).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a missing project directory before dependency preparation can fail', async () => {
+        const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'dbt-test-'));
+        const client = new DbtCliClient({
+            ...cliArgs,
+            dbtProjectDirectory: path.join(directory, 'missing-project'),
+            dbtVersion: SupportedDbtVersions.V1_9,
+        });
+        const installDeps = vi
+            .spyOn(client, 'installDeps')
+            .mockRejectedValue(new Error('deps failed'));
+        try {
+            await expect(buildAdapter(client).test()).rejects.toHaveProperty(
+                'message',
+                'dbt project directory not found: /missing-project',
+            );
+            expect(installDeps).not.toHaveBeenCalled();
+        } finally {
+            installDeps.mockRestore();
+            await fs.rmdir(directory);
+        }
     });
 
     it('reports no dependency time when the client installs no dependencies', async () => {

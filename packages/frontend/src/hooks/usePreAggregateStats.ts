@@ -4,9 +4,11 @@ import {
     type KnexPaginateArgs,
 } from '@lightdash/common';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
 const getPreAggregateStats = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     days: number,
     paginateArgs?: KnexPaginateArgs,
@@ -27,13 +29,14 @@ export const usePreAggregateStats = (
     days: number = 3,
     pageSize: number = 100,
 ) => {
+    const lightdashApi = useLightdashApi();
     return useInfiniteQuery<
         ApiGetPreAggregateStatsResponse['results'],
         ApiError
     >({
         queryKey: ['preAggregateStats', projectUuid, days, pageSize],
         queryFn: ({ pageParam }) =>
-            getPreAggregateStats(projectUuid, days, {
+            getPreAggregateStats(lightdashApi, projectUuid, days, {
                 page: (pageParam as number) ?? 1,
                 pageSize,
             }),

@@ -17,12 +17,15 @@ import { AiAgentController } from './aiAgentController';
 
 describe('AiAgentController getAgentSuggestions', () => {
     const getAgentSuggestions = vi.fn<AiAgentService['getAgentSuggestions']>(
-        async () => ({ chips: [] }),
+        async () => ({ chips: [], source: 'none' }),
     );
     const controller = new AiAgentController({
         getAiAgentService: () => ({ getAgentSuggestions }),
     } as unknown as ServiceRepository);
     const request = {
+        header: vi.fn((name: string) =>
+            name === 'X-Lightdash-Client' ? 'ios/1.0.1+198' : undefined,
+        ),
         account: {
             user: { type: 'registered', id: 'user-1' },
             organization: {
@@ -57,6 +60,11 @@ describe('AiAgentController getAgentSuggestions', () => {
                 afterMessageUuid: undefined,
                 enableSqlMode: false,
                 context,
+                client: {
+                    client: 'ios',
+                    clientVersion: '1.0.1',
+                    clientBuild: '198',
+                },
             },
         );
     });

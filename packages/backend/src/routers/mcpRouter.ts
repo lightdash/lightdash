@@ -402,6 +402,7 @@ mcpRouter.all(
                     filterExpressionsEnabled,
                     documentsEnabled,
                     dataAppBuildsEnabled,
+                    customChartTypesEnabled,
                     agentIdentityEnabled,
                 ] = await Promise.all([
                     mcpService.isContentToolsEnabled(req.user!),
@@ -414,6 +415,10 @@ mcpRouter.all(
                     mcpService.isFilterExpressionsEnabled(req.user!),
                     mcpService.isDocumentsEnabled(req.user!),
                     mcpService.isDataAppBuildsEnabled(
+                        req.user!,
+                        pinnedProjectUuid,
+                    ),
+                    mcpService.isCustomChartTypesEnabled(
                         req.user!,
                         pinnedProjectUuid,
                     ),
@@ -433,6 +438,7 @@ mcpRouter.all(
                         filterExpressionsEnabled,
                         documentsEnabled,
                         dataAppBuildsEnabled,
+                        customChartTypesEnabled,
                         agentIdentityEnabled,
                     },
                 };

@@ -1,5 +1,9 @@
 import { Ability } from '@casl/ability';
-import { AgentCapability, NotFoundError } from '@lightdash/common';
+import {
+    AgentCapability,
+    ForbiddenError,
+    NotFoundError,
+} from '@lightdash/common';
 import { type Request } from 'express';
 import { AgentConnectionController } from '../../controllers/v2/agentConnectionController';
 import { type ServiceRepository } from '../../services/ServiceRepository';
@@ -36,16 +40,16 @@ const setup = () => {
     };
     const deps = {
         model,
-        userModel: {
+        userModel: Object.assign(f.userModel, {
             findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(f.user),
-        },
-        projectModel: {
+        }),
+        projectModel: Object.assign(f.projectModel, {
             getAllByOrganizationUuid: vi
                 .fn()
                 .mockResolvedValue([
                     { projectUuid: f.projectUuid, name: 'Visible project' },
                 ]),
-        },
+        }),
         featureFlags: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         getAgentPermissionService: () => f.permissions,
     };
@@ -267,12 +271,90 @@ it.each(
 );
 it('propagates policy storage errors instead of reporting permission refusal', async () => {
     const f = setup();
-    vi.spyOn(f.permissions, 'assertOperation').mockRejectedValue(
+    vi.spyOn(f.permissions, 'evaluateOperations').mockRejectedValue(
         new Error('storage unavailable'),
     );
     await expect(f.service.status(f.account, 'grant')).rejects.toThrow(
         'storage unavailable',
     );
+});
+
+// A refusal raised while the bulk check loads is answered per project, as the single check did.
+describe('a refusal thrown by the bulk check', () => {
+    const second = '22222222-2222-4222-8222-222222222222';
+    const twoProjects = () => {
+        const f = setup();
+        f.grant.approvedProjectUuids.push(second);
+        f.deps.projectModel.getAllByOrganizationUuid.mockResolvedValue([
+            { projectUuid: f.projectUuid, name: 'Visible project' },
+            { projectUuid: second, name: 'Second project' },
+        ]);
+        return f;
+    };
+    // Cells the policy check would have allowed become agent_policy; cells decided earlier keep their reason.
+    const refusedLike = (
+        baseline: Awaited<ReturnType<AgentConnectionService['status']>>,
+        refused: (projectUuid: string) => boolean,
+    ) =>
+        baseline.effectiveProjects.map((project) => ({
+            ...project,
+            capabilities: project.capabilities.map((capability) =>
+                refused(project.projectUuid) && capability.allowed
+                    ? { ...capability, allowed: false, reason: 'agent_policy' }
+                    : capability,
+            ),
+        }));
+    it('marks only the refused project as agent_policy and keeps the others', async () => {
+        const f = twoProjects();
+        const baseline = await f.service.status(f.account, 'grant');
+        expect(
+            baseline.effectiveProjects.every((project) =>
+                project.capabilities.some((capability) => capability.allowed),
+            ),
+        ).toBe(true);
+        const evaluate = vi
+            .spyOn(f.permissions, 'evaluateOperations')
+            .mockImplementation(async ({ operations }) => {
+                if (
+                    operations.some(
+                        (operation) => operation.projectUuid === second,
+                    )
+                )
+                    throw new ForbiddenError('Project moved');
+                return operations.map(() => null);
+            });
+        const result = await f.service.status(f.account, 'grant');
+        expect(result.effectiveProjects).toEqual(
+            refusedLike(baseline, (projectUuid) => projectUuid === second),
+        );
+        expect(evaluate).toHaveBeenCalledTimes(3);
+    });
+    it('marks every project as agent_policy when the person can no longer be loaded', async () => {
+        const f = twoProjects();
+        const baseline = await f.service.status(f.account, 'grant');
+        vi.spyOn(f.permissions, 'evaluateOperations').mockRejectedValue(
+            new ForbiddenError('Person removed'),
+        );
+        const result = await f.service.status(f.account, 'grant');
+        expect(result.effectiveProjects).toEqual(
+            refusedLike(baseline, () => true),
+        );
+    });
+    it('still propagates a storage error raised for one project', async () => {
+        const f = twoProjects();
+        vi.spyOn(f.permissions, 'evaluateOperations')
+            .mockRejectedValueOnce(new ForbiddenError('Project moved'))
+            .mockRejectedValue(new Error('storage unavailable'));
+        await expect(f.service.status(f.account, 'grant')).rejects.toThrow(
+            'storage unavailable',
+        );
+    });
+    it('makes one bulk call when nothing is refused while loading', async () => {
+        const f = twoProjects();
+        const evaluate = vi.spyOn(f.permissions, 'evaluateOperations');
+        await f.service.status(f.account, 'grant');
+        expect(evaluate).toHaveBeenCalledOnce();
+    });
 });
 
 it('reports the version 1 flat approval for each project', async () => {
@@ -289,7 +371,7 @@ it.each(['expired', 'revoked'] as const)(
         const f = setup();
         if (state === 'expired') f.grant.expiresAt = new Date(0);
         else f.grant.revokedAt = new Date();
-        const policy = vi.spyOn(f.permissions, 'assertOperation');
+        const policy = vi.spyOn(f.permissions, 'evaluateOperations');
         const result = await f.service.status(f.account, 'grant');
         expect(result.status).toBe(state);
         expect(
@@ -333,8 +415,8 @@ it.each([
     f.user.ability = new Ability([{ action: 'manage', subject: 'all' }]);
     f.grant.approvedCapabilities = [capability];
     const policy = vi
-        .spyOn(f.permissions, 'assertOperation')
-        .mockResolvedValue();
+        .spyOn(f.permissions, 'evaluateOperations')
+        .mockResolvedValue([]);
     const result = await f.service.status(f.account, 'grant');
     expect(result.effectiveProjects[0].capabilities).toEqual([
         { capability, allowed: false, reason: 'not_supported' },
@@ -399,7 +481,7 @@ describe.each([1, 2])('version %i unreadable approvals', (version) => {
                 getAgentConnectionService: () => f.service,
             } as ServiceRepository);
             const req = { account: f.account } as Request;
-            const policy = vi.spyOn(f.permissions, 'assertOperation');
+            const policy = vi.spyOn(f.permissions, 'evaluateOperations');
             const expectedProjects = keepsProject
                 ? [
                       {
@@ -472,7 +554,7 @@ it.each(['active', 'expired', 'revoked', 'flag_off', 'person_denied'])(
             getAgentConnectionService: () => f.service,
         } as ServiceRepository);
         const req = { account: f.account } as Request;
-        const policy = vi.spyOn(f.permissions, 'assertOperation');
+        const policy = vi.spyOn(f.permissions, 'evaluateOperations');
         const listed = await controller.list(req);
         expect(listed.results[0]).toMatchObject({
             limitsStatus: 'invalid',

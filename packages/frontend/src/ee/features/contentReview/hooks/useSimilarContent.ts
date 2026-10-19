@@ -5,6 +5,7 @@ import {
     type ContentReviewSimilarContentItem,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import { useAmbientAiEnabled } from '../../ambientAi/hooks/useAmbientAiEnabled';
 import { getSimilarContentForReview } from '../api';
 
@@ -13,6 +14,7 @@ export const useSimilarContent = (
     params: FindSimilarContentBody,
     enabled: boolean,
 ) => {
+    const lightdashApi = useLightdashApi();
     const ambientAiEnabled = useAmbientAiEnabled(projectUuid);
     const isEnabled =
         enabled &&
@@ -23,7 +25,12 @@ export const useSimilarContent = (
     const query = useQuery<ContentReviewSimilarContentItem[], ApiError>({
         queryKey: ['content-review', projectUuid, 'similar', params],
         queryFn: ({ signal }) =>
-            getSimilarContentForReview(projectUuid, params, signal),
+            getSimilarContentForReview(
+                lightdashApi,
+                projectUuid,
+                params,
+                signal,
+            ),
         refetchOnWindowFocus: false,
         retry: false,
         enabled: isEnabled,

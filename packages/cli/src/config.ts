@@ -87,6 +87,10 @@ const getRawConfig = async (): Promise<Config> => {
         const raw = yaml.load(contents);
         return raw as Config;
     } catch (e: unknown) {
+        if (e instanceof yaml.YAMLException)
+            throw new yaml.YAMLException(
+                `Could not parse CLI configuration${e.mark ? ` at line ${e.mark.line + 1}, column ${e.mark.column + 1}` : ''}. Check the syntax of config.yaml.`,
+            );
         if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
             return {} as Config;
         }

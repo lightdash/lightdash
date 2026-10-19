@@ -144,6 +144,22 @@ describe('NatsWorker subject dispatch', () => {
         expect(message.nak).not.toHaveBeenCalled();
     });
 
+    it('terminates a connection query that failed after it was cancelled', async () => {
+        const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+        asyncQueryService.runAsyncWarehouseQueryFromHistory.mockRejectedValueOnce(
+            new Error('canceling statement due to user request'),
+        );
+        queryHistoryModel.getByQueryUuid.mockResolvedValue({
+            status: QueryHistoryStatus.CANCELLED,
+            requestParameters: {
+                agentConnectionExecution: { grantUuid: 'grant' },
+            },
+        } as QueryHistory);
+        await buildWorker().handleMessage(message, 'worker-1');
+        expect(message.term).toHaveBeenCalledOnce();
+        expect(message.nak).not.toHaveBeenCalled();
+    });
+
     it('terminates ERROR after a malformed connection reference fails setup', async () => {
         const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
         asyncQueryService.runAsyncWarehouseQueryFromHistory.mockRejectedValueOnce(

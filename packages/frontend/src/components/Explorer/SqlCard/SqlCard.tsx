@@ -27,6 +27,7 @@ import {
 } from '../../../features/explorer/store';
 import { useMergeCompiledSql } from '../../../features/mergeQuery/hooks/useMergeCompiledSql';
 import { useCompiledSql } from '../../../hooks/useCompiledSql';
+import { useExploreWarehouseConnection } from '../../../hooks/useExploreWarehouseConnection';
 import { useProject } from '../../../hooks/useProject';
 import { useCannotViewCompiledSql } from '../../../hooks/user/useCannotViewCompiledSql';
 import { Can } from '../../../providers/Ability';
@@ -86,17 +87,27 @@ const SqlCard: FC<SqlCardProps> = memo((props) => {
     const merge = useMergeCompiledSql();
 
     const hasPivotQuery = !merge.isMergeActive && !!data?.pivotQuery;
-    const selectedSql = merge.isMergeActive
-        ? merge.data && getMergeCompiledSqlText(merge.data)
-        : selectedView === 'pivotQuery'
-          ? data?.pivotQuery
-          : data?.query;
+    const selectedSql =
+        selectedView === 'pivotQuery' ? data?.pivotQuery : data?.query;
 
-    const warehouseType = project?.warehouseConnection?.type;
-    const formattedSql = useMemo(
-        () => (selectedSql ? formatSql(selectedSql, warehouseType) : ''),
-        [selectedSql, warehouseType],
+    const { warehouseType } = useExploreWarehouseConnection(
+        unsavedChartVersionTableName,
+        projectUuid,
     );
+    const formattedSql = useMemo(() => {
+        if (merge.isMergeActive) {
+            if (!merge.data) return '';
+            return (
+                getMergeCompiledSqlText(
+                    merge.data,
+                    warehouseType ?? undefined,
+                ) ?? ''
+            );
+        }
+        return selectedSql
+            ? formatSql(selectedSql, warehouseType ?? undefined)
+            : '';
+    }, [merge.isMergeActive, merge.data, selectedSql, warehouseType]);
 
     return (
         <CollapsableCard

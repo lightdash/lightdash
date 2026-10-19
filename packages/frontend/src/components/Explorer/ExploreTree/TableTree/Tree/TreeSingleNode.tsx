@@ -61,6 +61,7 @@ import {
 import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
 import { useCustomMetricSourceId } from '../../CustomMetricSourceContext';
+import { useFieldFilterTarget } from '../../FieldFilterTargetContext';
 import { useCustomMetricDelete } from '../../useCustomMetricDelete';
 import { ItemDetailPreview } from '../ItemDetailPreview';
 import previewClasses from '../ItemDetailPreview.module.css';
@@ -193,6 +194,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
 
     const dispatch = useExplorerDispatch();
     const customMetricSourceId = useCustomMetricSourceId();
+    const filterTarget = useFieldFilterTarget();
 
     const [isHover, toggleHover] = useToggle(false);
     const [isMenuOpen, toggleMenu] = useToggle(false);
@@ -217,10 +219,13 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         [fieldId],
     );
 
-    const isFieldFiltered = useExplorerSelector(
+    const isExplorerFieldFiltered = useExplorerSelector(
         selectIsFiltered,
         (a, b) => a === b,
     );
+    const isFieldFiltered = filterTarget
+        ? filterTarget.filteredFieldIds.has(fieldId)
+        : isExplorerFieldFiltered;
     const isSelected = useExplorerSelector(selectIsActive, (a, b) => a === b);
 
     // Use the active explore name (base table) rather than the section's
@@ -336,10 +341,14 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const handleFilterClick = useCallback(
         (e: React.MouseEvent<HTMLButtonElement>) => {
             track({ name: EventName.ADD_FILTER_CLICKED });
-            if (!isFiltered) addFilter(item as FilterableField, undefined);
+            if (!isFiltered) {
+                if (filterTarget)
+                    filterTarget.addFilter(item as FilterableField);
+                else addFilter(item as FilterableField, undefined);
+            }
             e.stopPropagation();
         },
-        [isFiltered, addFilter, item, track],
+        [isFiltered, filterTarget, addFilter, item, track],
     );
     const handleClick = useCallback(() => {
         onItemClick(node.key, item);

@@ -167,6 +167,7 @@ beforeEach(async () => {
         refresh_token: 'private-refresh',
         token_type: 'Bearer',
         expires_in: 300,
+        refresh_expires_in: 3600,
         scope: 'read write',
         agent_connection: { grant_uuid: callbackGrant, grant_revision: 1 },
     };
@@ -202,7 +203,7 @@ beforeEach(async () => {
                     requestReply ?? {
                         status: 'ok',
                         results: {
-                            authorizationUrl: `${instance}/api/v1/oauth/authorize?approval_request=test`,
+                            authorizationUrl: `${instance}/api/v1/oauth/authorize?agent_request=44444444-4444-4444-8444-444444444444`,
                             issuer: instance,
                             resource: instance,
                             expiresAt: new Date(
@@ -375,11 +376,15 @@ it('narrows deduplicated UUIDs and slugs, capabilities, expiry and name', async 
     });
     expect(process.exitCode).toBe(0);
 });
-it('proves a requested slug using only the returned Bearer', async () => {
+it('proves a requested slug from approved token projects without a project read', async () => {
+    token.agent_connection = {
+        grant_uuid: callbackGrant,
+        approved_projects: [{ project_uuid: projectUuid, slug: 'development' }],
+    };
     await run({ projects: ['development'] });
-    expect(
-        calls.find((c) => c.url.endsWith(`/projects/${projectUuid}`))?.auth,
-    ).toBe('Bearer private-access');
+    expect(calls.some((c) => c.url.endsWith(`/projects/${projectUuid}`))).toBe(
+        false,
+    );
     expect(process.exitCode).toBe(0);
 });
 it.each([
@@ -710,7 +715,7 @@ it.each([
         expect(process.exitCode).toBe(1);
         expect(vi.mocked(console.error).mock.calls).toEqual([
             [
-                `Open this page to approve the agent connection:\n${instance}/api/v1/oauth/authorize?approval_request=test`,
+                `Open this page to approve the agent connection:\n${instance}/api/v1/oauth/authorize?agent_request=44444444-4444-4444-8444-444444444444`,
             ],
             ['Waiting for browser approval and warehouse setup...'],
             [message],

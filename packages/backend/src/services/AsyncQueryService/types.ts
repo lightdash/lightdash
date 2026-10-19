@@ -204,6 +204,27 @@ export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
     warehouseConnectionUuid?: string | null;
 };
 
+export type EstimateAsyncMetricQueryArgs = Pick<
+    ExecuteAsyncMetricQueryArgs,
+    | 'account'
+    | 'projectUuid'
+    | 'metricQuery'
+    | 'parameters'
+    | 'pivotConfiguration'
+    | 'dateZoom'
+    | 'usePreAggregateCache'
+>;
+
+export type EstimateAsyncSqlQueryArgs = Pick<
+    ExecuteAsyncSqlQueryArgs,
+    | 'account'
+    | 'projectUuid'
+    | 'sql'
+    | 'limit'
+    | 'parameters'
+    | 'warehouseConnectionUuid'
+>;
+
 export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
     sql: string;
     limit?: number;
@@ -211,6 +232,14 @@ export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
     references?: Record<string, UUID>;
     /** Pivots the result over the columns discovered from the SQL. */
     pivotConfiguration?: PivotConfiguration;
+};
+
+export type ExecuteAsyncPythonQueryArgs = CommonAsyncQueryArgs & {
+    /** Python source defining run(inputs, params) -> pandas.DataFrame. */
+    code: string;
+    limit?: number;
+    /** Input name -> queryUuid of a previous async query exposed as that DataFrame. */
+    references: Record<string, UUID>;
 };
 
 export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {

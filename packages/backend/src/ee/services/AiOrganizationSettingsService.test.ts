@@ -758,6 +758,7 @@ describe('converting a legacy Bedrock configuration', () => {
                 'new-cred-uuid',
         );
         const updateSettings = vi.fn(async () => undefined);
+        const upsertSettings = vi.fn(async () => undefined);
         const service = new AiOrganizationSettingsService({
             featureFlagModel: {
                 get: vi.fn().mockResolvedValue({ enabled: true }),
@@ -772,6 +773,7 @@ describe('converting a legacy Bedrock configuration', () => {
                     },
                 }),
                 update: updateSettings,
+                upsert: upsertSettings,
             },
             aiOrganizationProviderCredentialModel: {
                 countByOrganizationUuid: async () => existingCount,
@@ -820,7 +822,7 @@ describe('converting a legacy Bedrock configuration', () => {
         (
             service as unknown as { createAuditedAbility: () => unknown }
         ).createAuditedAbility = () => ({ can: () => true });
-        return { service, createCredential, updateSettings };
+        return { service, createCredential, updateSettings, upsertSettings };
     };
 
     const user = {
@@ -831,7 +833,7 @@ describe('converting a legacy Bedrock configuration', () => {
     // Without this an org that configured Bedrock before named credentials
     // could see its configuration but never edit or remove it.
     it('converts the legacy config into a managed credential', async () => {
-        const { service, createCredential, updateSettings } = buildService();
+        const { service, createCredential, upsertSettings } = buildService();
         await service.adoptLegacyProviderCredential(user);
 
         expect(createCredential).toHaveBeenCalledTimes(1);
@@ -843,7 +845,7 @@ describe('converting a legacy Bedrock configuration', () => {
             apiKey: 'ABSKlegacy-key',
         });
         // Mirrored, not cleared — an N-1 pod reads only this blob.
-        expect(updateSettings).toHaveBeenCalledWith('org-uuid', {
+        expect(upsertSettings).toHaveBeenCalledWith('org-uuid', {
             providerApiKeys: { bedrock: LEGACY },
         });
     });
@@ -1204,6 +1206,7 @@ describe('legacy Bedrock adoption', () => {
                 'new-cred-uuid',
         );
         const updateSettings = vi.fn(async () => undefined);
+        const upsertSettings = vi.fn(async () => undefined);
         const service = new AiOrganizationSettingsService({
             featureFlagModel: {
                 get: vi.fn().mockResolvedValue({ enabled: true }),
@@ -1218,6 +1221,7 @@ describe('legacy Bedrock adoption', () => {
                     },
                 }),
                 update: updateSettings,
+                upsert: upsertSettings,
             },
             aiOrganizationProviderCredentialModel: {
                 countByOrganizationUuid: async () => existingCount,
@@ -1266,7 +1270,7 @@ describe('legacy Bedrock adoption', () => {
         (
             service as unknown as { createAuditedAbility: () => unknown }
         ).createAuditedAbility = () => ({ can: () => true });
-        return { service, createCredential, updateSettings };
+        return { service, createCredential, updateSettings, upsertSettings };
     };
 
     const user = {
@@ -1304,13 +1308,13 @@ describe('legacy Bedrock adoption', () => {
     // another provider — a residency break, not just an outage. The blob is
     // mirrored to the default credential instead.
     it('keeps the legacy blob as a mirror of the default credential', async () => {
-        const { service, updateSettings } = buildService();
+        const { service, updateSettings, upsertSettings } = buildService();
         await service.createProviderCredential(user, newCredential);
 
         expect(updateSettings).not.toHaveBeenCalledWith('org-uuid', {
             providerApiKeys: { bedrock: null },
         });
-        expect(updateSettings).toHaveBeenCalledWith('org-uuid', {
+        expect(upsertSettings).toHaveBeenCalledWith('org-uuid', {
             providerApiKeys: { bedrock: LEGACY_BEDROCK },
         });
     });
@@ -1345,13 +1349,74 @@ describe('legacy Bedrock adoption', () => {
     });
 
     it('does nothing to adopt when there is no legacy blob', async () => {
-        const { service, createCredential, updateSettings } = buildService({
-            legacy: null,
-        });
+        const { service, createCredential, updateSettings, upsertSettings } =
+            buildService({
+                legacy: null,
+            });
         await service.createProviderCredential(user, newCredential);
 
         expect(createCredential).toHaveBeenCalledTimes(1);
         expect(updateSettings).not.toHaveBeenCalled();
+        expect(upsertSettings).not.toHaveBeenCalled();
+    });
+
+    // Regression for lightdash/lightdash#31001: an org that has never saved
+    // AI settings has no settings row, so mirroring with `update` threw
+    // NotFoundError after the credential row was already inserted — the API
+    // returned 404 while the credential silently persisted.
+    it('creates the settings row when the org has never saved AI settings', async () => {
+        const { service, upsertSettings } = buildService({ legacy: null });
+        const notFound = new Error('AI organization settings not found');
+        // Simulate the missing-row org: update would throw, upsert must be
+        // used instead.
+        const updateThrowing = vi.fn(async () => {
+            throw notFound;
+        });
+        const internals = service as unknown as {
+            aiOrganizationSettingsModel: {
+                update: typeof updateThrowing;
+                findByOrganizationUuid: () => Promise<null>;
+                findDecryptedProviderApiKeys: () => Promise<null>;
+            };
+            aiOrganizationProviderCredentialModel: {
+                findDefaultDecrypted: () => Promise<unknown>;
+            };
+        };
+        internals.aiOrganizationSettingsModel.update = updateThrowing;
+        internals.aiOrganizationSettingsModel.findByOrganizationUuid =
+            async () => null;
+        internals.aiOrganizationSettingsModel.findDecryptedProviderApiKeys =
+            async () => null;
+        internals.aiOrganizationProviderCredentialModel.findDefaultDecrypted =
+            async () => ({
+                status: 'ok',
+                credential: {
+                    uuid: 'new-cred-uuid',
+                    organizationUuid: 'org-uuid',
+                    provider: 'bedrock',
+                    label: newCredential.label,
+                    isDefault: true,
+                    config: {
+                        apiKey: newCredential.apiKey,
+                        region: newCredential.region,
+                        allowedModels: newCredential.allowedModels,
+                    },
+                },
+            });
+
+        await expect(
+            service.createProviderCredential(user, newCredential),
+        ).resolves.toEqual({ uuid: 'new-cred-uuid' });
+        expect(updateThrowing).not.toHaveBeenCalled();
+        expect(upsertSettings).toHaveBeenCalledWith('org-uuid', {
+            providerApiKeys: {
+                bedrock: {
+                    apiKey: newCredential.apiKey,
+                    region: newCredential.region,
+                    allowedModels: newCredential.allowedModels,
+                },
+            },
+        });
     });
 });
 

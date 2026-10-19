@@ -125,13 +125,17 @@ import { getReadContent } from '../tools/readContent';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
 import { getResolveUrl } from '../tools/resolveUrl';
 import { getRunComposerQueries } from '../tools/runComposerQueries';
-import { getRunContentQuery } from '../tools/runContentQuery';
+import {
+    canRunContentQuerySql,
+    getRunContentQuery,
+} from '../tools/runContentQuery';
 import { getRunQuery } from '../tools/runQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
+import { type SqlApprovalDependencies } from '../tools/sqlApprovalGate';
 import {
     buildSqlApprovalDecidedEvent,
     type TrackSqlApprovalTimeoutFn,
@@ -1901,11 +1905,10 @@ export const getAgentTools = (
         searchFieldValues: dependencies.searchFieldValues,
         updateProgress: dependencies.updateProgress,
         runAsyncQuery: queryDependencies.runAsyncQuery,
-        runAsyncMergeQuery: queryDependencies.runAsyncMergeQuery,
         getPrompt: dependencies.getPrompt,
         sendFile: dependencies.sendFile,
         deferSlackVisualization:
-            args.decisions && args.execution.mode === 'standard'
+            args.execution.mode === 'standard'
                 ? dependencies.deferSlackVisualization
                 : undefined,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
@@ -1917,7 +1920,6 @@ export const getAgentTools = (
         enableDataAccess: args.enableDataAccess,
         projectParameterDefinitions,
         slackLinksOnly: args.slackLinksOnly,
-        enableMergeQueries: args.enableMergeQueries,
         enableFilterExpressions: args.enableFilterExpressions,
         resolveCustomChartType: dependencies.resolveCustomChartType,
         exportCustomChartTypeImage: dependencies.exportCustomChartTypeImage,
@@ -1940,7 +1942,6 @@ export const getAgentTools = (
                   searchFieldValues: dependencies.searchFieldValues,
                   updateProgress: dependencies.updateProgress,
                   runAsyncQuery: queryDependencies.runAsyncQuery,
-                  runAsyncMergeQuery: queryDependencies.runAsyncMergeQuery,
                   getPrompt: dependencies.getPrompt,
                   sendFile: dependencies.sendFile,
                   createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
@@ -1951,7 +1952,6 @@ export const getAgentTools = (
                   enableDataAccess: true,
                   projectParameterDefinitions,
                   slackLinksOnly: args.slackLinksOnly,
-                  enableMergeQueries: args.enableMergeQueries,
                   enableFilterExpressions: args.enableFilterExpressions,
                   resolveCustomChartType: dependencies.resolveCustomChartType,
                   exportCustomChartTypeImage:
@@ -2024,22 +2024,30 @@ export const getAgentTools = (
 
     const runComposerQueries = args.enableComposerQueries
         ? getRunComposerQueries({
+              agentContext,
               reviewQuery,
               planViz,
               updateProgress: dependencies.updateProgress,
               runComposerQueries: queryDependencies.runComposerQueries,
               getPrompt: dependencies.getPrompt,
+              updateSlackMessage: dependencies.updateSlackMessage,
+              siteUrl: args.siteUrl,
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
+              isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+              listSqlApprovalDecisions: dependencies.listSqlApprovalDecisions,
               trackSqlApprovalTimeout,
+              storeToolResults: dependencies.storeToolResults,
               createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
               listThreadComposerPipelines:
                   dependencies.listThreadComposerPipelines,
               maxQueryLimit: args.runSqlMaxLimit,
               enableDataAccess: args.enableDataAccess,
               canRunSql: args.canRunSql,
+              enablePythonNodes: args.enableComposerPythonNodes,
               autoApproveSql: args.autoApproveSql,
               autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
+              useSlackStreamCard: args.useSlackStreamCard,
           })
         : null;
 
@@ -2073,26 +2081,23 @@ export const getAgentTools = (
           })
         : null;
 
+    const sqlApproval: SqlApprovalDependencies = {
+        getPrompt: dependencies.getPrompt,
+        updateProgress: dependencies.updateProgress,
+        updateSlackMessage: dependencies.updateSlackMessage,
+        siteUrl: args.siteUrl,
+        waitForSqlApproval: dependencies.waitForSqlApproval,
+        recordSqlApproval: dependencies.recordSqlApproval,
+        isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+        listSqlApprovalDecisions: dependencies.listSqlApprovalDecisions,
+        trackSqlApprovalTimeout,
+        storeToolResults: dependencies.storeToolResults,
+        autoApproveSql: args.autoApproveSql ?? false,
+        autoApproveSqlUserUuid: args.autoApproveSqlUserUuid ?? null,
+        useSlackStreamCard: args.useSlackStreamCard,
+    };
     const sqlChartSaving: SqlChartSaving = args.canRunSql
-        ? {
-              mode: 'thread_approval',
-              approval: {
-                  getPrompt: dependencies.getPrompt,
-                  updateProgress: dependencies.updateProgress,
-                  updateSlackMessage: dependencies.updateSlackMessage,
-                  siteUrl: args.siteUrl,
-                  waitForSqlApproval: dependencies.waitForSqlApproval,
-                  recordSqlApproval: dependencies.recordSqlApproval,
-                  isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
-                  listSqlApprovalDecisions:
-                      dependencies.listSqlApprovalDecisions,
-                  trackSqlApprovalTimeout,
-                  storeToolResults: dependencies.storeToolResults,
-                  autoApproveSql: args.autoApproveSql ?? false,
-                  autoApproveSqlUserUuid: args.autoApproveSqlUserUuid ?? null,
-                  useSlackStreamCard: args.useSlackStreamCard,
-              },
-          }
+        ? { mode: 'thread_approval', approval: sqlApproval }
         : { mode: 'disabled' };
     sqlChartSaving.recordRefusal = dependencies.recordSqlChartRefusal;
     const editContent = getEditContent({
@@ -2110,16 +2115,34 @@ export const getAgentTools = (
     const createScheduledDelivery = getCreateScheduledDelivery({
         createScheduledDelivery: dependencies.createScheduledDelivery,
     });
+    const canRunContentSql = canRunContentQuerySql({
+        canRunSql: args.canRunSql,
+        toolAllowlist:
+            args.execution.mode === 'standard'
+                ? (args.execution.toolAllowlist ?? null)
+                : null,
+    });
     const runContentQuery = getRunContentQuery({
         reviewQuery,
         updateProgress: dependencies.updateProgress,
         runAsyncQuery: queryDependencies.runAsyncQuery,
         runSavedChartQuery: queryDependencies.runSavedChartQuery,
         getSavedChart: dependencies.getSavedChart,
+        runSqlChartQuery: queryDependencies.runSqlChartQuery,
+        getSqlChart: dependencies.getSqlChart,
         validateContent: dependencies.validateContent,
         maxLimit: args.maxQueryLimit,
         maxContextRows: args.maxContextRows,
         enableDataAccess: args.enableDataAccess,
+        sqlQuerying: canRunContentSql
+            ? {
+                  runSqlJob: queryDependencies.runSqlJob,
+                  approval: sqlApproval,
+                  maxLimit: args.runSqlMaxLimit,
+                  sqlScope: args.sqlScope ?? null,
+                  hyphenatedIdentifiers: args.hyphenatedIdentifiers,
+              }
+            : null,
     });
 
     const generateDataApp = args.enableGenerateDataApp
@@ -2626,6 +2649,7 @@ const getCapabilitySectionArgs = (
     enableComposerQueries: args.enableComposerQueries,
     warehouseType: args.warehouseType,
     warehouseSchema: args.warehouseSchema,
+    warehouseConnections: args.warehouseConnections ?? [],
     sqlScope: args.sqlScope,
     runSqlMaxLimit: args.runSqlMaxLimit,
 });
@@ -2735,7 +2759,7 @@ export const getAgentMessages = (
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         slackLinksOnly: args.slackLinksOnly,
-        enableMergeQueries: args.enableMergeQueries,
+        enableComposerPythonNodes: args.enableComposerPythonNodes,
         unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
             args,
             mcpToolSetup,
@@ -3309,27 +3333,22 @@ export const generateAgentResponse = async ({
                     generatedTokenUsage,
                     stepUsage.totalTokens,
                 );
-                if (args.execution.mode === 'deep_research') {
-                    // Hidden phases (planner/investigators, persisted as
-                    // subagent children) each track their own slice; writing
-                    // their totals to the prompt would race across parallel
-                    // investigators. The executor aggregates via onStepUsage
-                    // and seeds the judge with the aggregate.
-                    if (args.execution.parentToolCallId == null) {
-                        await dependencies.updatePrompt({
-                            promptUuid: args.promptUuid,
-                            tokenUsage: generatedTokenUsage,
-                        });
-                    }
-                } else {
-                    void dependencies.updatePrompt({
-                        response: agentContext.responseBlocks.render(
-                            (await answerVerifier?.verify(step.text))?.text ??
-                                step.text,
-                        ),
+                // Hidden phases (planner/investigators, persisted as
+                // subagent children) each track their own slice; writing
+                // their totals to the prompt would race across parallel
+                // investigators. The executor aggregates via onStepUsage
+                // and seeds the judge with the aggregate.
+                if (
+                    args.execution.mode === 'deep_research' &&
+                    args.execution.parentToolCallId == null
+                ) {
+                    await dependencies.updatePrompt({
                         promptUuid: args.promptUuid,
+                        tokenUsage: generatedTokenUsage,
                     });
                 }
+                // Response is persisted once at the end: a step response would
+                // mark the prompt responded while the agent is still running.
             },
             ...telemetry,
         });

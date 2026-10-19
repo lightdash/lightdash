@@ -112,7 +112,6 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                   },
             warehouse: warehouseDefaultValues[warehouseType],
             dbtVersion: dbtDefaults.dbtVersion,
-            organizationWarehouseCredentialsUuid: undefined,
         },
         validate: {
             warehouse: createWarehouseValueValidators[warehouseType],
@@ -129,7 +128,6 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             dbt: dbtConnection,
             warehouse: warehouseConnection,
             dbtVersion,
-            organizationWarehouseCredentialsUuid,
         } = formValues;
         track({
             name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
@@ -150,7 +148,6 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                     type: ProjectType.DEFAULT,
                     dbtConnection,
                     dbtVersion,
-                    organizationWarehouseCredentialsUuid,
                     warehouseConnection: {
                         ...warehouseConnection,
                         type: selectedWarehouse,

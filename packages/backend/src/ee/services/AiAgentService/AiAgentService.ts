@@ -75,6 +75,7 @@ import {
     ApiUpdateAiMcpServerCredentialBody,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
+    assertRegisteredAccount,
     assertUnreachable,
     buildAgentIdentityClaim,
     CatalogType,
@@ -105,6 +106,7 @@ import {
     formatAiThreadFileSize,
     formatMergeQueryRefusal,
     GenerateArtifactQuestionJobPayload,
+    getAgentConnectionGrantRef,
     getAiAgentSkillListingText,
     getAppDisplayName,
     getDataAppVizChartFromArtifact,
@@ -124,7 +126,8 @@ import {
     InsufficientGitPermissionsError,
     InvalidUser,
     isAgentToolName,
-    isAiAgentSqlArtifactVizQuery,
+    isAiAgentComposerArtifactVizQuery,
+    isAiAgentSemanticArtifactVizQuery,
     isAiAppThreadCreatedFrom,
     isAiComposerChartArtifactConfig,
     isAiDeepResearchRunTerminal,
@@ -159,6 +162,7 @@ import {
     PullRequestProvider,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySourceType,
     QuerySurface,
     ReadinessScore,
     serializeDashboardFiltersForAiContext,
@@ -175,6 +179,9 @@ import {
     UserAttributeValueMap,
     validateAgentSuggestion,
     validateAiAgentSkill,
+    type AgentIdentityClaim,
+    type AgentSuggestionsResponseSource,
+    type AgentSuggestionsSource,
     type AgentSuggestionTool,
     type AgentToolName,
     type AgentWorkMarker,
@@ -296,6 +303,10 @@ import { OpenIdIdentityModel } from '../../../models/OpenIdIdentitiesModel';
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { PullRequestsModel } from '../../../models/PullRequestsModel';
+import {
+    isQueryHistoryCacheHit,
+    type QueryHistoryModel,
+} from '../../../models/QueryHistoryModel/QueryHistoryModel';
 import { RolesModel } from '../../../models/RolesModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { SlackUnfurlImageModel } from '../../../models/SlackUnfurlImageModel';
@@ -320,6 +331,7 @@ import {
     buildResultReader,
     createAgentExecutionContext,
 } from '../../../services/AiAccessService/agentExecutionContext';
+import { type AgentResultReadDecision } from '../../../services/AiAccessService/AiAccessService';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
@@ -331,6 +343,7 @@ import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagSer
 import { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
 import { PersistentDownloadFileService } from '../../../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { type QuerySourceService } from '../../../services/QuerySourceService/QuerySourceService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
@@ -340,6 +353,7 @@ import {
     UnfurlService,
 } from '../../../services/UnfurlService/UnfurlService';
 import { wrapSentryTransaction } from '../../../utils';
+import { type ClientInfo } from '../../../utils/clientHeader';
 import { redactItemsMapSql } from '../../../utils/embedCompiledSql';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
 import {
@@ -397,6 +411,11 @@ import {
     type AiDeepResearchFinalizerUsageFn,
 } from '../ai/agents/reportFinalizer';
 import { sqlApprovalId } from '../ai/agents/sqlApprovalSuspend';
+import {
+    classifySuggestionError,
+    SuggestionGenerationError,
+    type SuggestionFallbackReason,
+} from '../ai/agents/suggestionErrors';
 import {
     generateAgentSuggestions,
     SUGGESTION_FALLBACK_CHIPS,
@@ -494,7 +513,12 @@ import { RepoFs } from '../ai/repoFs/RepoFs';
 import type { AiAgentSkill as ServedSkill } from '../ai/skills/types';
 import { executeEditContent } from '../ai/tools/editContent';
 import { formatSkillResult } from '../ai/tools/loadSkill';
-import { renderBlocks as renderSqlApprovalBlocks } from '../ai/tools/slackSqlAggregate';
+import {
+    getAgentThreadUrl,
+    getSqlApprovalDisplay,
+    getSqlApprovalSteps,
+    renderBlocks as renderSqlApprovalBlocks,
+} from '../ai/tools/slackSqlAggregate';
 import {
     buildSqlApprovalDecidedEvent,
     getRejectedOutput,
@@ -579,6 +603,10 @@ import {
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
 import {
+    normalizeAiMcpOAuthClientCredentials,
+    type AiMcpOAuthClientCredentials,
+} from '../ai/utils/mcpServerCredentials';
+import {
     parseMemoryCitations,
     stripMemoryCitations,
 } from '../ai/utils/memoryCitation';
@@ -654,6 +682,10 @@ import {
     withoutDocumentOffer,
 } from './suggestionAccess';
 import {
+    buildSuggestionCacheKey,
+    SuggestionFallbackCache,
+} from './suggestionFallbackCache';
+import {
     buildChartSuggestionContext,
     buildDashboardSuggestionContext,
     getPinnedSuggestionContextInput,
@@ -721,6 +753,7 @@ type StaticToolCall = {
 
 // The fast edit reply waits this long for a one-number result before sending without it.
 const SINGLE_VALUE_TIMEOUT_MS = 3_000;
+const COMPOSER_RUN_SETTLE_TIMEOUT_MS = 3 * 60_000;
 
 type ChartIntentApplication =
     | {
@@ -856,6 +889,8 @@ type EmbedAiAgentRuntimeOptions = {
     userAttributeOverrides: UserAttributeValueMap;
 };
 
+export type SuggestionClientInfo = ClientInfo;
+
 type AiAgentServiceDependencies = {
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     agentPermissionService: Pick<
@@ -876,7 +911,7 @@ type AiAgentServiceDependencies = {
     >;
     appGenerateService: Pick<
         AppGenerateService,
-        'canViewApp' | 'restoreVersion'
+        'canViewApp' | 'restoreVersion' | 'areDataAppCapturesEnabled'
     >;
     aiAgentMemoryModel: AiAgentMemoryModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
@@ -896,6 +931,8 @@ type AiAgentServiceDependencies = {
     projectContextModel: ProjectContextModel;
     analytics: LightdashAnalytics;
     asyncQueryService: AsyncQueryService;
+    querySourceService: Pick<QuerySourceService, 'submitQueries'>;
+    queryHistoryModel: Pick<QueryHistoryModel, 'pollForQueryCompletion'>;
     catalogService: CatalogService;
     catalogModel: CatalogModel;
     contentVerificationModel: ContentVerificationModel;
@@ -1175,6 +1212,7 @@ const catalogFieldKind = (basicType: string | undefined): FieldKind | null => {
 };
 
 export class AiAgentService extends BaseService {
+    private readonly suggestionFallbackCache = new SuggestionFallbackCache();
     private readonly agentActionLogModel: AiAgentServiceDependencies['agentActionLogModel'];
     private readonly agentPermissionService: AiAgentServiceDependencies['agentPermissionService'];
     private readonly aiAgentModel: AiAgentModel;
@@ -1191,7 +1229,7 @@ export class AiAgentService extends BaseService {
 
     private readonly appGenerateService: Pick<
         AppGenerateService,
-        'canViewApp' | 'restoreVersion'
+        'canViewApp' | 'restoreVersion' | 'areDataAppCapturesEnabled'
     >;
 
     private readonly inFlightStreamPrompts = new Map<
@@ -1248,6 +1286,16 @@ export class AiAgentService extends BaseService {
     private readonly analytics: LightdashAnalytics;
 
     private readonly asyncQueryService: AsyncQueryService;
+
+    private readonly querySourceService: Pick<
+        QuerySourceService,
+        'submitQueries'
+    >;
+
+    private readonly queryHistoryModel: Pick<
+        QueryHistoryModel,
+        'pollForQueryCompletion'
+    >;
 
     private readonly catalogService: CatalogService;
 
@@ -1842,6 +1890,8 @@ export class AiAgentService extends BaseService {
         this.projectContextModel = dependencies.projectContextModel;
         this.analytics = dependencies.analytics;
         this.asyncQueryService = dependencies.asyncQueryService;
+        this.querySourceService = dependencies.querySourceService;
+        this.queryHistoryModel = dependencies.queryHistoryModel;
         this.catalogService = dependencies.catalogService;
         this.catalogModel = dependencies.catalogModel;
         this.contentVerificationModel = dependencies.contentVerificationModel;
@@ -2054,8 +2104,7 @@ export class AiAgentService extends BaseService {
                 return null;
             throw error;
         }
-        if (!agent.enableDataAccess || !(await this.getDecisionClient(user)))
-            return null;
+        if (!agent.enableDataAccess) return null;
         const installation =
             await this.slackAuthenticationModel.getRawInstallationFromOrganizationUuid(
                 prompt.organizationUuid,
@@ -2943,6 +2992,23 @@ export class AiAgentService extends BaseService {
         };
     }
 
+    /**
+     * Shapes an agent for an embedded viewer. They are external, so the
+     * names and emails of the org users with access are withheld; the uuid
+     * list stays so the shape matches what logged-in users receive.
+     */
+    private forEmbedViewer<
+        T extends Pick<
+            AiAgent,
+            'imageUrl' | 'imageUrlSource' | 'userAccessDetails'
+        >,
+    >(agent: T): T {
+        return this.withEmbedViewableAvatar({
+            ...agent,
+            userAccessDetails: [],
+        });
+    }
+
     async listEmbedAgents(account: AnonymousAccount, projectUuid: string) {
         const { user, spaceUuid, tokenAgentUuid } =
             AiAgentService.getEmbedAiAgentContext(account, projectUuid);
@@ -2953,7 +3019,7 @@ export class AiAgentService extends BaseService {
                     agent.uuid === tokenAgentUuid &&
                     hasAiAgentAccessToSpace(agent, spaceUuid),
             )
-            .map((agent) => this.withEmbedViewableAvatar(agent));
+            .map((agent) => this.forEmbedViewer(agent));
     }
 
     async getEmbedAgentDetails(
@@ -2966,7 +3032,7 @@ export class AiAgentService extends BaseService {
             projectUuid,
             agentUuid,
         );
-        return this.withEmbedViewableAvatar(agent);
+        return this.forEmbedViewer(agent);
     }
 
     async getAvailableExplores(
@@ -3032,6 +3098,54 @@ export class AiAgentService extends BaseService {
 
     public async getAgentSuggestions(
         user: SessionUser,
+        input: {
+            projectUuid: string;
+            agentUuid: string;
+            threadUuid?: string;
+            afterMessageUuid?: string;
+            enableSqlMode?: boolean;
+            context?: AiAgentSuggestionContext;
+            client: SuggestionClientInfo;
+        },
+    ): Promise<{
+        chips: AgentSuggestion[];
+        source: AgentSuggestionsResponseSource;
+    }> {
+        const startedAt = Date.now();
+        const { organizationUuid } = user;
+        if (!organizationUuid)
+            throw new ForbiddenError('Organization not found');
+        try {
+            return await this.getAgentSuggestionsImpl(user, input, startedAt);
+        } catch (error) {
+            this.analytics.track<AiAgentSuggestionsGeneratedEvent>({
+                event: 'ai_agent.suggestions_generated',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: input.projectUuid,
+                    agentId: input.agentUuid,
+                    chipCount: 0,
+                    exploreCount: 0,
+                    verifiedQuestionsCount: 0,
+                    latencyMs: Date.now() - startedAt,
+                    modelId: 'fallback',
+                    usingFallback: true,
+                    documentChipShown: false,
+                    outcome: 'error',
+                    source: 'none',
+                    fallbackReason: null,
+                    droppedChipCount: 0,
+                    ...input.client,
+                },
+            });
+            this.prometheusMetrics?.incrementAiAgentSuggestions('error', null);
+            throw error;
+        }
+    }
+
+    private async getAgentSuggestionsImpl(
+        user: SessionUser,
         {
             projectUuid,
             agentUuid,
@@ -3039,7 +3153,9 @@ export class AiAgentService extends BaseService {
             afterMessageUuid,
             enableSqlMode = false,
             context,
+            client,
         }: {
+            client: SuggestionClientInfo;
             projectUuid: string;
             agentUuid: string;
             threadUuid?: string;
@@ -3047,7 +3163,11 @@ export class AiAgentService extends BaseService {
             enableSqlMode?: boolean;
             context?: AiAgentSuggestionContext;
         },
-    ): Promise<{ chips: AgentSuggestion[] }> {
+        startedAt: number,
+    ): Promise<{
+        chips: AgentSuggestion[];
+        source: AgentSuggestionsResponseSource;
+    }> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
@@ -3067,7 +3187,7 @@ export class AiAgentService extends BaseService {
             }
 
             if (!canGeneratePostResponseSuggestions(user.userUuid, thread)) {
-                return { chips: [] };
+                return { chips: [], source: 'none' };
             }
         }
 
@@ -3119,114 +3239,135 @@ export class AiAgentService extends BaseService {
             canCreateDashboards,
         });
 
-        const availableExplores = await this.getAvailableExplores(
-            user,
-            projectUuid,
-            agent.tags,
-        );
-
-        const explores = availableExplores.slice(0, 12).map((explore) => {
-            const baseTable = explore.tables[explore.baseTable];
-            return {
-                name: explore.name,
-                label: explore.label,
-                description: baseTable.description ?? null,
-                dimensions: Object.values(baseTable.dimensions)
-                    .slice(0, 8)
-                    .map((d) => ({
-                        id: getItemId(d),
-                        label: d.label,
-                    })),
-                metrics: Object.values(baseTable.metrics)
-                    .slice(0, 8)
-                    .map((m) => ({
-                        id: getItemId(m),
-                        label: m.label,
-                    })),
-            };
-        });
-
-        // Semantic-layer-less projects (dbt-less / NONE) have no explores, so
-        // ground empty-state chips in the indexed warehouse schema instead.
-        const warehouseTables =
-            explores.length === 0 && canRunSql
-                ? await this.getSuggestionWarehouseTables(
-                      user,
-                      projectUuid,
-                      agent.uuid,
-                  )
-                : [];
-
-        const verifiedQuestionsData =
-            await this.aiAgentModel.getVerifiedQuestions(agentUuid);
-        const verifiedQuestions = verifiedQuestionsData
-            .slice(0, 6)
-            .map((q) => q.question);
-
-        const verifiedContent = await this.fetchSuggestionsVerifiedContent(
-            user,
-            projectUuid,
-        );
-
-        const recentUserConversations =
-            threadUuid || validatedContext
-                ? undefined
-                : await this.fetchSuggestionsRecentConversations({
-                      organizationUuid,
-                      agentUuid,
-                      userUuid: user.userUuid,
-                  });
-
-        const threadContext = threadMessages
-            ? this.buildSuggestionsThreadContext({
-                  messages: threadMessages,
-                  afterMessageUuid,
-                  availableExplores,
-              })
-            : null;
-        const pinnedContext = validatedContext
-            ? await this.buildSuggestionsPinnedContext({
-                  user,
-                  projectUuid,
-                  context: validatedContext,
-                  availableExplores,
-              })
-            : undefined;
-
-        if (threadContext) {
-            // The signals call reads the agent's latest response, so a pinned
-            // agent never sends it to the external decisions provider.
-            const decisions = agent.providerCredentialUuid
-                ? undefined
-                : await this.getDecisionClient(user);
-            if (decisions) {
-                const signals = await classifyResponseSignals(
-                    decisions,
-                    threadContext.latestAssistantTurn.text,
-                );
-                threadContext.latestAssistantTurn.askedClarifyingQuestion =
-                    signals.needsUserInput ??
-                    threadContext.latestAssistantTurn.askedClarifyingQuestion;
-                threadContext.latestAssistantTurn.refused =
-                    signals.refused ??
-                    threadContext.latestAssistantTurn.refused;
-            }
-        }
-
-        const validationCatalog: SuggestionValidationCatalog = {
-            exploreNames: new Set(availableExplores.map((e) => e.name)),
-        };
-
-        const startedAt = Date.now();
         const fallbackChips = filterSuggestionsByEnabledTools(
             SUGGESTION_FALLBACK_CHIPS,
             enabledTools,
         );
         let chips: AgentSuggestion[] = fallbackChips;
-        let usingFallback = true;
+        let source: AgentSuggestionsSource = 'default';
+        let fallbackReason: SuggestionFallbackReason | null = null;
+        let droppedChipCount = 0;
+        let contextLoaded = false;
+        let availableExplores: Explore[] = [];
+        let explores: SuggestionPromptContext['explores'] = [];
+        let verifiedQuestions: string[] = [];
+        let threadContext: NonNullable<
+            SuggestionPromptContext['thread']
+        > | null = null;
+        let validationCatalog: SuggestionValidationCatalog = {
+            exploreNames: new Set(),
+        };
+        const cacheKey = buildSuggestionCacheKey({
+            organizationUuid,
+            projectUuid,
+            agentUuid,
+            userUuid: user.userUuid,
+            enableSqlMode,
+            context: context ?? null,
+            threadUuid: threadUuid ?? null,
+            afterMessageUuid: afterMessageUuid ?? null,
+        });
         let modelId = 'fallback';
 
         try {
+            availableExplores = await this.getAvailableExplores(
+                user,
+                projectUuid,
+                agent.tags,
+            );
+
+            explores = availableExplores.slice(0, 12).map((explore) => {
+                const baseTable = explore.tables[explore.baseTable];
+                return {
+                    name: explore.name,
+                    label: explore.label,
+                    description: baseTable.description ?? null,
+                    dimensions: Object.values(baseTable.dimensions)
+                        .slice(0, 8)
+                        .map((d) => ({
+                            id: getItemId(d),
+                            label: d.label,
+                        })),
+                    metrics: Object.values(baseTable.metrics)
+                        .slice(0, 8)
+                        .map((m) => ({
+                            id: getItemId(m),
+                            label: m.label,
+                        })),
+                };
+            });
+
+            const warehouseTables =
+                explores.length === 0 && canRunSql
+                    ? await this.getSuggestionWarehouseTables(
+                          user,
+                          projectUuid,
+                          agent.uuid,
+                      )
+                    : [];
+
+            const verifiedQuestionsData =
+                await this.aiAgentModel.getVerifiedQuestions(agentUuid);
+            verifiedQuestions = verifiedQuestionsData
+                .slice(0, 6)
+                .map((q) => q.question);
+
+            const verifiedContent = await this.fetchSuggestionsVerifiedContent(
+                user,
+                projectUuid,
+            );
+
+            const recentUserConversations =
+                threadUuid || validatedContext
+                    ? undefined
+                    : await this.fetchSuggestionsRecentConversations({
+                          organizationUuid,
+                          agentUuid,
+                          userUuid: user.userUuid,
+                      });
+
+            threadContext = threadMessages
+                ? this.buildSuggestionsThreadContext({
+                      messages: threadMessages,
+                      afterMessageUuid,
+                      availableExplores,
+                  })
+                : null;
+            const pinnedContext = validatedContext
+                ? await this.buildSuggestionsPinnedContext({
+                      user,
+                      projectUuid,
+                      context: validatedContext,
+                      availableExplores,
+                  })
+                : undefined;
+
+            if (threadContext) {
+                // The signals call reads the agent's latest response, so a pinned
+                // agent never sends it to the external decisions provider.
+                const decisions = agent.providerCredentialUuid
+                    ? undefined
+                    : await this.getDecisionClient(user);
+                if (decisions) {
+                    const signals = await classifyResponseSignals(
+                        decisions,
+                        threadContext.latestAssistantTurn.text,
+                    );
+                    threadContext.latestAssistantTurn.askedClarifyingQuestion =
+                        signals.needsUserInput ??
+                        threadContext.latestAssistantTurn
+                            .askedClarifyingQuestion;
+                    threadContext.latestAssistantTurn.refused =
+                        signals.refused ??
+                        threadContext.latestAssistantTurn.refused;
+                }
+            }
+
+            validationCatalog = {
+                exploreNames: new Set(availableExplores.map((e) => e.name)),
+            };
+
+            contextLoaded = true;
             const copilotConfig =
                 await this.orgAiCopilotConfigResolver.getCopilotConfig({
                     organizationUuid,
@@ -3263,6 +3404,7 @@ export class AiAgentService extends BaseService {
                     agentUuid,
                 },
             );
+            modelId = String(modelOptions.model.modelId ?? 'unknown');
 
             const dropped: string[] = [];
             // Resolve model-side intent into final wire shape. Navigate chips
@@ -3303,28 +3445,87 @@ export class AiAgentService extends BaseService {
                 }
                 return true;
             });
-            if (dropped.length > 0) {
+            droppedChipCount = generated.droppedChipCount + dropped.length;
+            if (droppedChipCount > 0) {
                 Logger.warn(
-                    `[AiAgentService] Dropped ${dropped.length} suggestion chip(s): ${dropped.join('; ')}`,
+                    `[AiAgentService] Dropped ${droppedChipCount} suggestion chip(s): ${[...generated.droppedReasons, ...dropped].join('; ')}`,
                 );
             }
             if (validated.length === 0) {
-                chips = fallbackChips;
-                usingFallback = true;
+                throw new SuggestionGenerationError('schema', null);
             } else {
                 chips = validated;
-                usingFallback = false;
+                source = 'generated';
+                this.suggestionFallbackCache.set(cacheKey, chips);
+                if (droppedChipCount > 0) {
+                    Sentry.addBreadcrumb({
+                        category: 'ai_agent.suggestions',
+                        level: 'warning',
+                        message: 'Dropped invalid suggestion chips',
+                        data: {
+                            'suggestions.reason': 'schema',
+                            droppedChipCount,
+                            client: client.client,
+                            projectUuid,
+                        },
+                    });
+                }
             }
-            modelId = String(modelOptions.model.modelId ?? 'unknown');
         } catch (error) {
             Logger.warn(
                 `[AiAgentService] Failed to generate agent suggestions, falling back to defaults: ${String(
                     error,
                 )}`,
             );
-            Sentry.captureException(error, {
-                tags: { errorType: 'AiAgentSuggestionsGenerationFailed' },
-            });
+            fallbackReason = contextLoaded
+                ? classifySuggestionError(error)
+                : 'context_load';
+            if (!contextLoaded) threadContext = null;
+            if (fallbackReason === 'schema' || fallbackReason === 'parse') {
+                Sentry.addBreadcrumb({
+                    category: 'ai_agent.suggestions',
+                    level: 'warning',
+                    message: 'Suggestion generation fell back',
+                    data: {
+                        'suggestions.reason': fallbackReason,
+                        droppedChipCount,
+                        client: client.client,
+                        projectUuid,
+                    },
+                });
+            } else {
+                Sentry.captureException(error, {
+                    tags: {
+                        errorType: 'AiAgentSuggestionsGenerationFailed',
+                        'suggestions.reason': fallbackReason,
+                        client: client.client,
+                        projectUuid,
+                    },
+                });
+            }
+        }
+
+        if (source !== 'generated') {
+            const cached = this.suggestionFallbackCache.get(cacheKey);
+            const validCached = cached
+                ? filterSuggestionsByEnabledTools(cached, enabledTools).filter(
+                      (chip) =>
+                          !contextLoaded ||
+                          validateGeneratedSuggestion(
+                              chip,
+                              validationCatalog,
+                              availableExplores,
+                              enabledTools,
+                          ).valid,
+                  )
+                : [];
+            if (validCached.length > 0) {
+                chips = validCached;
+                source = 'cached';
+            } else {
+                chips = fallbackChips;
+                source = 'default';
+            }
         }
 
         // Chips answer the agent's question when it asked one, so no Document offer then.
@@ -3345,6 +3546,9 @@ export class AiAgentService extends BaseService {
             chips = withDocumentSuggestion(chips);
         }
 
+        const responseSource: AgentSuggestionsResponseSource =
+            chips.length === 0 ? 'none' : source;
+
         this.analytics.track<AiAgentSuggestionsGeneratedEvent>({
             event: 'ai_agent.suggestions_generated',
             userId: user.userUuid,
@@ -3357,12 +3561,24 @@ export class AiAgentService extends BaseService {
                 verifiedQuestionsCount: verifiedQuestions.length,
                 latencyMs: Date.now() - startedAt,
                 modelId,
-                usingFallback,
+                usingFallback: source !== 'generated',
+                outcome: source,
+                source: responseSource,
+                fallbackReason,
+                droppedChipCount,
+                ...client,
                 documentChipShown,
             },
         });
 
-        return { chips };
+        this.prometheusMetrics?.incrementAiAgentSuggestions(
+            source,
+            fallbackReason,
+        );
+        this.prometheusMetrics?.incrementAiAgentSuggestionChipsDropped(
+            droppedChipCount,
+        );
+        return { chips, source: responseSource };
     }
 
     /**
@@ -4572,6 +4788,7 @@ export class AiAgentService extends BaseService {
         switch (toolName) {
             case 'runSql':
             case 'runComposerQueries':
+            case 'runContentQuery':
                 if (
                     ability.cannot(
                         'manage',
@@ -5445,6 +5662,7 @@ export class AiAgentService extends BaseService {
                 body.enableDataAccess && (body.enableContentTools ?? false),
             enableUserContext: body.enableUserContext ?? false,
             enableSqlMode: body.enableSqlMode ?? true,
+            enableSqlAutoApproval: body.enableSqlAutoApproval ?? false,
             adminOnly: body.adminOnly ?? false,
             modelConfig: body.modelConfig ?? null,
             providerCredentialUuid: body.providerCredentialUuid ?? null,
@@ -6268,6 +6486,7 @@ export class AiAgentService extends BaseService {
         // already gated by assertCanManageMcpServers above.
         const allowOAuthCredentialSharing =
             body.allowOAuthCredentialSharing ?? false;
+        let oauthClientCredentials: AiMcpOAuthClientCredentials | null = null;
 
         switch (body.authType) {
             case 'none':
@@ -6329,23 +6548,12 @@ export class AiAgentService extends BaseService {
                         'Bearer credentials are not allowed for auth type "oauth"',
                     );
                 }
-                if (
-                    (body.credentials?.clientId?.trim() &&
-                        !body.credentials?.clientSecret?.trim()) ||
-                    (!body.credentials?.clientId?.trim() &&
-                        body.credentials?.clientSecret?.trim())
-                ) {
+                oauthClientCredentials = normalizeAiMcpOAuthClientCredentials(
+                    body.credentials,
+                );
+                if (allowOAuthCredentialSharing && oauthClientCredentials) {
                     throw new ParameterError(
-                        'OAuth client ID and secret must be provided together',
-                    );
-                }
-                if (
-                    allowOAuthCredentialSharing &&
-                    (body.credentials?.clientId?.trim() ||
-                        body.credentials?.clientSecret?.trim())
-                ) {
-                    throw new ParameterError(
-                        'OAuth client ID and secret are only supported for personal OAuth credentials',
+                        'OAuth client credentials are only supported for personal OAuth credentials',
                     );
                 }
                 if (body.credentialScope !== undefined) {
@@ -6367,15 +6575,8 @@ export class AiAgentService extends BaseService {
                 bearerToken: body.credentials!.bearerToken!.trim(),
             };
         }
-        if (
-            body.authType === 'oauth' &&
-            body.credentials?.clientId?.trim() &&
-            body.credentials?.clientSecret?.trim()
-        ) {
-            credentials = {
-                clientId: body.credentials.clientId.trim(),
-                clientSecret: body.credentials.clientSecret.trim(),
-            };
+        if (body.authType === 'oauth' && oauthClientCredentials) {
+            credentials = oauthClientCredentials;
         }
 
         let mcpConnectionMetadata: { iconUrl: string | null } | null = null;
@@ -7221,6 +7422,7 @@ export class AiAgentService extends BaseService {
                 : false,
             enableUserContext: body.enableUserContext,
             enableSqlMode: body.enableSqlMode,
+            enableSqlAutoApproval: body.enableSqlAutoApproval,
             adminOnly: body.adminOnly,
             modelConfig: body.modelConfig,
             providerCredentialUuid: body.providerCredentialUuid,
@@ -9356,6 +9558,45 @@ export class AiAgentService extends BaseService {
         return { history, reader };
     }
 
+    async canPersonReadAgentResult({
+        account,
+        projectUuid,
+        claim,
+    }: {
+        account: Account;
+        projectUuid: string;
+        claim: AgentIdentityClaim;
+    }): Promise<AgentResultReadDecision> {
+        if (
+            !account.isRegisteredUser() ||
+            claim.subject.type !== 'user' ||
+            (claim.act.surface !== AgentActorSurface.IN_APP_AGENT &&
+                claim.act.surface !== AgentActorSurface.SLACK_AGENT) ||
+            claim.act.agent_uuid == null ||
+            getAgentConnectionGrantRef(claim) !== null ||
+            !account.organization.organizationUuid
+        )
+            return 'not_applicable';
+        if (claim.subject.uuid !== account.user.id) return 'other_person';
+        assertRegisteredAccount(account);
+        const { organizationUuid } = account.organization;
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid: claim.act.agent_uuid,
+        });
+        const user = toSessionUser(account);
+        if (
+            agent === null ||
+            agent.projectUuid !== projectUuid ||
+            !(await canAccessAiAgent(user, agent, {
+                auditedAbility: this.createAuditedAbility(user),
+                groupsModel: this.groupsModel,
+            }))
+        )
+            return 'agent_unavailable';
+        return 'allowed';
+    }
+
     private async getArtifactOwnerResultReader(
         user: SessionUser,
         projectUuid: string,
@@ -9462,27 +9703,14 @@ export class AiAgentService extends BaseService {
                 },
                 account,
             ));
-        } else {
-            if (artifact.chartConfig?.source === 'composer') {
-                const config = artifact.chartConfig;
-                if (
-                    queryUuid !== config.lastQueryUuid &&
-                    !Object.values(config.nodeResults ?? {}).some(
-                        (result) => result.queryUuid === queryUuid,
-                    )
-                )
-                    throw new ForbiddenError(
-                        'Artifact results are unavailable',
-                    );
-            }
-            if (enabled)
-                reader = await this.getArtifactOwnerResultReader(
-                    user,
-                    projectUuid,
-                    agentUuid,
-                    artifact,
-                    account.authentication.type,
-                );
+        } else if (enabled) {
+            reader = await this.getArtifactOwnerResultReader(
+                user,
+                projectUuid,
+                agentUuid,
+                artifact,
+                account.authentication.type,
+            );
         }
         const args = {
             account,
@@ -9492,7 +9720,7 @@ export class AiAgentService extends BaseService {
             page: page ?? undefined,
             pageSize: pageSize ?? undefined,
         };
-        if (!cached && artifact.chartConfig?.source !== 'composer' && enabled)
+        if (!cached && enabled)
             return this.asyncQueryService.getArtifactBoundQueryResults(args, {
                 agentUuid,
                 artifactUuid,
@@ -9501,9 +9729,34 @@ export class AiAgentService extends BaseService {
         return this.asyncQueryService.getAsyncQueryResults(args);
     }
 
-    private async executeArtifactQueryAsOwner<
-        T extends { query: { queryUuid: string } },
-    >(
+    /** Waits (bounded) for every node row to settle and counts the ones served from cache. */
+    private async countCachedComposerRunNodes(
+        projectUuid: string,
+        queryUuids: string[],
+    ): Promise<{ settledNodeCount: number; cachedNodeCount: number }> {
+        const settled = await Promise.allSettled(
+            queryUuids.map((queryUuid) =>
+                this.queryHistoryModel.pollForQueryCompletion({
+                    queryUuid,
+                    projectUuid,
+                    account: null,
+                    timeoutMs: COMPOSER_RUN_SETTLE_TIMEOUT_MS,
+                    throwOnCancelled: false,
+                    throwOnError: false,
+                }),
+            ),
+        );
+        const rows = settled.flatMap((outcome) =>
+            outcome.status === 'fulfilled' ? [outcome.value] : [],
+        );
+        return {
+            settledNodeCount: rows.length,
+            cachedNodeCount: rows.filter(isQueryHistoryCacheHit).length,
+        };
+    }
+
+    /** Runs as the owner when the reader allows, then binds every query it produced to the artifact. */
+    private async executeArtifactQueriesAsOwner<T>(
         user: SessionUser,
         options: {
             projectUuid: string;
@@ -9512,6 +9765,7 @@ export class AiAgentService extends BaseService {
             versionUuid: string;
         },
         execute: () => Promise<T>,
+        getQueryUuids: (result: T) => string[],
     ): Promise<T> {
         const { enabled } = await this.featureFlagService.get({
             user,
@@ -9547,15 +9801,15 @@ export class AiAgentService extends BaseService {
                       execute,
                   )
                 : await execute();
-        await this.asyncQueryService.bindQueryToArtifact(
-            account,
-            projectUuid,
-            result.query.queryUuid,
-            {
-                agentUuid,
-                artifactUuid,
-                versionUuid,
-            },
+        await Promise.all(
+            getQueryUuids(result).map((queryUuid) =>
+                this.asyncQueryService.bindQueryToArtifact(
+                    account,
+                    projectUuid,
+                    queryUuid,
+                    { agentUuid, artifactUuid, versionUuid },
+                ),
+            ),
         );
         return result;
     }
@@ -9573,8 +9827,14 @@ export class AiAgentService extends BaseService {
     ): Promise<ApiAiAgentArtifactVizQuery> {
         if (options.cachedQueryUuid !== undefined || options.runtimeOptions)
             return this.executeArtifactVizQuery(user, options);
-        return this.executeArtifactQueryAsOwner(user, options, () =>
-            this.executeArtifactVizQuery(user, options),
+        return this.executeArtifactQueriesAsOwner(
+            user,
+            options,
+            () => this.executeArtifactVizQuery(user, options),
+            (vizQuery) =>
+                isAiAgentComposerArtifactVizQuery(vizQuery)
+                    ? Object.values(vizQuery.nodeQueryUuids)
+                    : [vizQuery.query.queryUuid],
         );
     }
 
@@ -9710,6 +9970,9 @@ export class AiAgentService extends BaseService {
                     promptId: artifact.promptUuid,
                     durationMs: Date.now() - vizQueryStartedAt,
                     queryId: query.queryUuid,
+                    nodeCount: null,
+                    settledNodeCount: null,
+                    cachedNodeCount: null,
                 },
             });
             return {
@@ -9724,12 +9987,84 @@ export class AiAgentService extends BaseService {
             };
         }
 
-        // v0 composer artifacts render straight from the stored terminal
-        // result id on the frontend; re-execution-as-viewer is a follow-up.
         if (isAiComposerChartArtifactConfig(artifact.chartConfig)) {
-            throw new ParameterError(
-                'Composer artifacts do not support re-execution yet',
+            const { queries, terminalNodeId } = artifact.chartConfig;
+            // Embed viewers are scoped by user attributes, which raw SQL bypasses.
+            if (
+                runtimeOptions &&
+                queries.some(
+                    (query) => query.sourceType === QuerySourceType.SQL,
+                )
+            ) {
+                throw new ForbiddenError(
+                    'Pipelines with warehouse SQL are not available in embedded AI agents',
+                );
+            }
+
+            const account = fromSession(user);
+            const { queries: submissions } =
+                await this.querySourceService.submitQueries({
+                    account,
+                    projectUuid,
+                    queries,
+                    context: QueryExecutionContext.AI,
+                    querySurface: await this.getArtifactQuerySurface(
+                        artifact.promptUuid,
+                    ),
+                    parameters: {},
+                    userAttributeOverrides:
+                        runtimeOptions?.userAttributeOverrides ?? {},
+                    invalidateCache: false,
+                    plans: {},
+                });
+            const nodeQueryUuids = Object.fromEntries(
+                submissions.map(({ nodeId, queryUuid }) => [nodeId, queryUuid]),
             );
+
+            const durationMs = Date.now() - vizQueryStartedAt;
+            // A DuckDB or Python node only learns it was cached when it runs,
+            // so the event waits for the run to settle.
+            void this.countCachedComposerRunNodes(
+                projectUuid,
+                submissions.map(({ queryUuid }) => queryUuid),
+            )
+                .then(({ settledNodeCount, cachedNodeCount }) =>
+                    this.analytics.track({
+                        event: 'ai_agent.artifact_viz_query',
+                        userId: user.userUuid,
+                        properties: {
+                            projectId: projectUuid,
+                            organizationId: organizationUuid,
+                            agentId: agent.uuid,
+                            agentName: agent.name,
+                            artifactId: artifactUuid,
+                            artifactVersionId: versionUuid,
+                            vizType: AiResultType.TABLE_RESULT,
+                            source: 'composer',
+                            promptId: artifact.promptUuid,
+                            durationMs,
+                            queryId: nodeQueryUuids[terminalNodeId] ?? null,
+                            nodeCount: submissions.length,
+                            settledNodeCount,
+                            cachedNodeCount,
+                        },
+                    }),
+                )
+                .catch((error) =>
+                    this.logger.warn(
+                        `Failed to track composer artifact run ${artifactUuid}: ${getErrorMessage(error)}`,
+                    ),
+                );
+
+            return {
+                source: 'composer',
+                terminalNodeId,
+                nodeQueryUuids,
+                metadata: {
+                    title: artifact.title,
+                    description: artifact.description,
+                },
+            };
         }
 
         if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
@@ -9767,6 +10102,9 @@ export class AiAgentService extends BaseService {
                     promptId: artifact.promptUuid,
                     durationMs: Date.now() - vizQueryStartedAt,
                     queryId: query.queryUuid,
+                    nodeCount: null,
+                    settledNodeCount: null,
+                    cachedNodeCount: null,
                 },
             });
 
@@ -9835,6 +10173,9 @@ export class AiAgentService extends BaseService {
                 promptId: artifact.promptUuid,
                 durationMs: Date.now() - vizQueryStartedAt,
                 queryId: query.queryUuid,
+                nodeCount: null,
+                settledNodeCount: null,
+                cachedNodeCount: null,
             },
         });
 
@@ -9861,7 +10202,12 @@ export class AiAgentService extends BaseService {
         const execute = () =>
             this.executeDashboardArtifactChartVizQuery(user, options);
         if (options.runtimeOptions) return execute();
-        return this.executeArtifactQueryAsOwner(user, options, execute);
+        return this.executeArtifactQueriesAsOwner(
+            user,
+            options,
+            execute,
+            (vizQuery) => [vizQuery.query.queryUuid],
+        );
     }
 
     private async executeDashboardArtifactChartVizQuery(
@@ -12747,6 +13093,15 @@ Use your existing tools to inspect them when relevant to the user's question (re
         deliveryGuard: AgentDeliveryGuard,
     ): Promise<KnownBlock | undefined> {
         const capture = async (): Promise<KnownBlock | undefined> => {
+            // The org's captures switch covers this image too: the outcome
+            // then posts text and a link only.
+            if (
+                !(await this.appGenerateService.areDataAppCapturesEnabled(
+                    prompt.organizationUuid,
+                ))
+            ) {
+                return undefined;
+            }
             const { imageBuffer, imageUrl } =
                 await this.unfurlService.exportDataApp({
                     projectUuid: prompt.projectUuid,
@@ -13807,8 +14162,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
             updateProgress,
             getPrompt,
             runAsyncQuery: toolsRuntime.runAsyncQuery,
-            runAsyncMergeQuery: toolsRuntime.runAsyncMergeQuery,
             runSavedChartQuery: toolsRuntime.runSavedChartQuery,
+            runSqlChartQuery: toolsRuntime.runSqlChartQuery,
             runSqlJob: toolsRuntime.runSqlJob,
             runComposerQueries: toolsRuntime.runComposerQueries,
             listWarehouseTables: toolsRuntime.listWarehouseTables,
@@ -13817,6 +14172,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             getKnowledgeDocumentContent:
                 toolsRuntime.getKnowledgeDocumentContent,
             getSavedChart: toolsRuntime.getSavedChart,
+            getSqlChart: toolsRuntime.getSqlChart,
             sendFile,
             deferSlackVisualization,
             exportCustomChartTypeImage,
@@ -14573,7 +14929,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 artifactUuid: artifact.artifactUuid,
                 versionUuid: artifact.versionUuid,
             });
-            if (isAiAgentSqlArtifactVizQuery(vizQuery)) return null;
+            if (!isAiAgentSemanticArtifactVizQuery(vizQuery)) return null;
             const startedAt = Date.now();
             /* oxlint-disable no-await-in-loop */
             while (Date.now() - startedAt < SINGLE_VALUE_TIMEOUT_MS) {
@@ -15819,6 +16175,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                           { kind: 'connection', warehouseConnectionUuid: null },
                       )
                     : null;
+                const warehouseConnections = canRunSql
+                    ? await this.projectModel.getWarehouseConnectionsMetadata(
+                          prompt.projectUuid,
+                      )
+                    : [];
                 const warehouseType = warehouseCredentials?.type ?? null;
                 const warehouseSchema = warehouseCredentials
                     ? ('schema' in warehouseCredentials &&
@@ -15904,15 +16265,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         deepResearchContextRuns,
                         latestDeepResearchProgress,
                     );
-                const { enabled: mergeQueriesEnabled } =
-                    await this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.MergeQueries,
-                    });
                 // Web-chat composer requires both orchestration and execution flags.
                 const [
                     { enabled: multiSourceQueryEnabled },
                     { enabled: composeSqlRunnerEnabled },
+                    { enabled: pythonQueryRunnerEnabled },
                 ] = await Promise.all([
                     this.featureFlagService.get({
                         user,
@@ -15922,13 +16279,18 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         user,
                         featureFlagId: FeatureFlags.ComposeSqlRunner,
                     }),
+                    this.featureFlagService.get({
+                        user,
+                        featureFlagId: FeatureFlags.PythonQueryRunner,
+                    }),
                 ]);
                 const enableComposerQueries =
                     multiSourceQueryEnabled &&
                     composeSqlRunnerEnabled &&
                     agentSettings.enableDataAccess &&
-                    !isSlackPrompt(prompt) &&
                     responseExecution.mode !== 'deep_research';
+                const enableComposerPythonNodes =
+                    enableComposerQueries && pythonQueryRunnerEnabled;
                 const { enabled: filterExpressionsEnabled } =
                     await this.featureFlagService.get({
                         user,
@@ -16126,8 +16488,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     updateProgress,
                     getPrompt,
                     runAsyncQuery,
-                    runAsyncMergeQuery,
                     runSavedChartQuery,
+                    runSqlChartQuery,
                     runSqlJob,
                     runComposerQueries,
                     listWarehouseTables,
@@ -16135,6 +16497,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     listKnowledgeDocuments,
                     getKnowledgeDocumentContent,
                     getSavedChart,
+                    getSqlChart,
                     sendFile,
                     deferSlackVisualization,
                     exportCustomChartTypeImage,
@@ -16449,14 +16812,16 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,
-                    enableMergeQueries: mergeQueriesEnabled,
                     enableFilterExpressions: filterExpressionsEnabled,
                     repoFsRoot,
                     repoFsSupportsCodeSearch,
                     canRunSql,
                     enableComposerQueries,
+                    enableComposerPythonNodes,
                     canCreateDashboards,
-                    autoApproveSql: options.autoApproveSql ?? false,
+                    autoApproveSql:
+                        (options.autoApproveSql ?? false) ||
+                        agentSettings.enableSqlAutoApproval,
                     autoApproveSqlUserUuid: options.autoApproveSql
                         ? user.userUuid
                         : null,
@@ -16467,6 +16832,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     slackLinksOnly,
                     warehouseType,
                     warehouseSchema,
+                    warehouseConnections,
                     sqlScope: agentSqlScope,
                     hyphenatedIdentifiers,
                     availableSkills,
@@ -16604,8 +16970,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     analyzeFieldImpact,
                     syncDbtProject,
                     runAsyncQuery,
-                    runAsyncMergeQuery,
                     runSavedChartQuery,
+                    runSqlChartQuery,
                     runSqlJob,
                     runComposerQueries,
                     listWarehouseTables,
@@ -16636,6 +17002,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         }));
                     },
                     getSavedChart,
+                    getSqlChart,
                     getPrompt,
                     sendFile,
                     deferSlackVisualization,
@@ -17441,7 +17808,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
             : [];
         const feedbackBlocks =
             legacyFeedbackBlocks.length > 0
-                ? buildFeedbackContextActions(slackPrompt.promptUuid)
+                ? buildFeedbackContextActions(
+                      slackPrompt.promptUuid,
+                      this.getAgentThreadUrl(slackPrompt, agent?.uuid),
+                  )
                 : legacyFeedbackBlocks;
 
         const createShareUrl = async (
@@ -17646,6 +18016,42 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 type: 'mrkdwn',
                 text: `${text} <${url}|View it in Lightdash>.`,
             },
+        };
+    }
+
+    private static readonly SLACK_PROMPT_RETRY_ACTION_ID = 'ai_prompt_retry';
+
+    // Generation failures already store their error; this covers failures
+    // outside generation so the retry button can claim the prompt.
+    private async persistSlackPromptError(
+        promptUuid: string,
+        errorMessage: string,
+    ): Promise<boolean> {
+        try {
+            await this.aiAgentModel.updateModelResponse(
+                { promptUuid, errorMessage },
+                { onlyIfPending: true },
+            );
+            return true;
+        } catch (error) {
+            Logger.warn(
+                `Failed to persist Slack prompt error for ${promptUuid}: ${getErrorMessage(error)}`,
+            );
+            return false;
+        }
+    }
+
+    private static slackRetryActionsBlock(promptUuid: string): KnownBlock {
+        return {
+            type: 'actions',
+            elements: [
+                {
+                    type: 'button',
+                    action_id: AiAgentService.SLACK_PROMPT_RETRY_ACTION_ID,
+                    text: { type: 'plain_text', text: 'Retry' },
+                    value: promptUuid,
+                },
+            ],
         };
     }
 
@@ -17985,6 +18391,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         threadTs: string;
         toolCallId: string;
         toolName: NativeSqlApprovalToolName;
+        toolArgs: unknown;
         sql: string;
         agentName?: string;
     }): Promise<void> {
@@ -17999,7 +18406,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
             blocks: renderSqlApprovalBlocks(
                 {
                     kind: 'pending',
-                    sql: input.sql,
+                    display: getSqlApprovalDisplay({
+                        sql: input.sql,
+                        steps: getSqlApprovalSteps(
+                            input.toolName,
+                            input.toolArgs,
+                        ),
+                        threadUrl: getAgentThreadUrl(
+                            this.lightdashConfig.siteUrl,
+                            input.slackPrompt,
+                        ),
+                    }),
                     toolCallId: input.toolCallId,
                     threadUuid: input.slackPrompt.threadUuid,
                     heading,
@@ -18605,6 +19022,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     threadTs,
                     toolCallId: pendingApproval.toolCallId,
                     toolName: pendingApproval.toolName,
+                    toolArgs: pendingApproval.toolArgs,
                     sql: pendingApproval.sql,
                     agentName: agent?.name,
                 });
@@ -18896,6 +19314,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 AiAgentService.agentFailedMessage(agent?.name),
                 agent?.providerCredentialUuid ?? null,
             );
+            const canRetry =
+                !answerPublished &&
+                (await this.persistSlackPromptError(
+                    slackPrompt.promptUuid,
+                    userFacingMessage,
+                ));
             queueReasoningTaskUpdate({
                 status: 'error',
                 output: userFacingMessage,
@@ -18920,6 +19344,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                 },
                             },
                             ...getAccessRefusalBlocks(),
+                            ...(canRetry
+                                ? [
+                                      AiAgentService.slackRetryActionsBlock(
+                                          slackPrompt.promptUuid,
+                                      ),
+                                  ]
+                                : []),
                         ],
                     },
                 ],
@@ -19171,6 +19602,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 AiAgentService.agentFailedMessage(agent?.name),
                 agent?.providerCredentialUuid ?? null,
             );
+            const canRetry = await this.persistSlackPromptError(
+                promptUuid,
+                userFacingMessage,
+            );
             await this.slackClient.postMessage({
                 organizationUuid: slackPrompt.organizationUuid,
                 text: `🔴 ${userFacingMessage}`,
@@ -19188,6 +19623,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             : accessRefusalState.selected,
                         this.lightdashConfig.siteUrl,
                     ),
+                    ...(canRetry
+                        ? [AiAgentService.slackRetryActionsBlock(promptUuid)]
+                        : []),
                     {
                         type: 'context',
                         elements: [
@@ -19447,6 +19885,118 @@ Use your existing tools to inspect them when relevant to the user's question (re
             await ack();
             // TODO :: track analytics
         });
+    }
+
+    public handleSlackPromptRetryButton(app: App) {
+        app.action(
+            AiAgentService.SLACK_PROMPT_RETRY_ACTION_ID,
+            async ({ ack, body, action, respond }) => {
+                await ack();
+                if (body.type !== 'block_actions' || action.type !== 'button') {
+                    return;
+                }
+                const reply = (text: string) =>
+                    respond({
+                        text,
+                        replace_original: false,
+                        response_type: 'ephemeral',
+                    });
+
+                try {
+                    const result = await this.retrySlackPrompt({
+                        promptUuid: action.value ?? null,
+                        slackUserId: body.user.id,
+                        slackAppId: body.api_app_id ?? null,
+                    });
+                    if (!result.started) {
+                        await reply(result.message);
+                    }
+                } catch (error) {
+                    Logger.error('Failed to retry Slack AI prompt', error);
+                    await reply(
+                        ':warning: Could not start the retry. Please try again.',
+                    ).catch(() => undefined);
+                }
+            },
+        );
+    }
+
+    private async retrySlackPrompt({
+        promptUuid,
+        slackUserId,
+        slackAppId,
+    }: {
+        promptUuid: string | null;
+        slackUserId: string;
+        slackAppId: string | null;
+    }): Promise<{ started: true } | { started: false; message: string }> {
+        const slackPrompt = promptUuid
+            ? await this.aiAgentModel.findSlackPrompt(promptUuid)
+            : undefined;
+        if (!slackPrompt) {
+            return {
+                started: false,
+                message: 'This request is no longer available.',
+            };
+        }
+        // The retry runs as the original asker, so only they may trigger it.
+        if (slackPrompt.slackUserId !== slackUserId) {
+            return {
+                started: false,
+                message:
+                    'Only the person who asked this question can retry it.',
+            };
+        }
+        const threadMessages = await this.aiAgentModel.getThreadMessages(
+            slackPrompt.organizationUuid,
+            slackPrompt.projectUuid,
+            slackPrompt.threadUuid,
+        );
+        if (threadMessages.at(-1)?.ai_prompt_uuid !== slackPrompt.promptUuid) {
+            return {
+                started: false,
+                message:
+                    'Only the latest question in a thread can be retried. Mention me again to ask it.',
+            };
+        }
+        const claimed = await this.aiAgentModel.resetFailedPromptForRetry(
+            slackPrompt.promptUuid,
+        );
+        if (!claimed) {
+            return {
+                started: false,
+                message:
+                    'This request is already being retried or has been answered.',
+            };
+        }
+        try {
+            await this.aiAgentModel.deleteAiPromptInterrupt(
+                slackPrompt.promptUuid,
+            );
+            await this.schedulerClient.slackAiPrompt({
+                slackAppId,
+                slackPromptUuid: slackPrompt.promptUuid,
+                userUuid: slackPrompt.createdByUserUuid,
+                projectUuid: slackPrompt.projectUuid,
+                organizationUuid: slackPrompt.organizationUuid,
+            });
+        } catch (error) {
+            // Restore the failed state so the Retry button works again.
+            await this.persistSlackPromptError(
+                slackPrompt.promptUuid,
+                slackPrompt.errorMessage ??
+                    AiAgentService.agentFailedMessage(undefined),
+            );
+            throw error;
+        }
+        this.trackAgentRequestLifecycle('ai_agent_request.retry_started', {
+            organizationUuid: slackPrompt.organizationUuid,
+            projectUuid: slackPrompt.projectUuid,
+            agentUuid: slackPrompt.agentUuid,
+            threadUuid: slackPrompt.threadUuid,
+            promptUuid: slackPrompt.promptUuid,
+        });
+        return { started: true };
     }
 
     // eslint-disable-next-line class-methods-use-this

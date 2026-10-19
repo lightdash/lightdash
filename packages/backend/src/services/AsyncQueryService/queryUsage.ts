@@ -39,6 +39,7 @@ export const queryWorkloadOrigin = (
         case QueryExecutionContext.SQL_CHART:
         case QueryExecutionContext.SQL_RUNNER:
         case QueryExecutionContext.COMPOSE_SQL_RUNNER:
+        case QueryExecutionContext.PYTHON_RUNNER:
         case QueryExecutionContext.VIEW_UNDERLYING_DATA:
         case QueryExecutionContext.METRICS_EXPLORER:
             return 'interactive';

@@ -4,10 +4,11 @@ import {
     type ApiError,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { useOrganization } from './useOrganization';
 
 export const useAnalyticsProject = () => {
+    const lightdashApi = useLightdashApi();
     const { data: organization } = useOrganization();
     return useQuery<AnalyticsProjectStatus, ApiError>({
         queryKey: ['analytics-project', organization?.organizationUuid],
@@ -32,6 +33,7 @@ const useInvalidateAnalyticsProject = () => {
 };
 
 export const useCreateAnalyticsProject = () => {
+    const lightdashApi = useLightdashApi();
     const invalidate = useInvalidateAnalyticsProject();
     return useMutation<EnsureAnalyticsProjectResult, ApiError>(
         () =>
@@ -48,6 +50,7 @@ export const useCreateAnalyticsProject = () => {
 };
 
 export const useDeleteAnalyticsProject = () => {
+    const lightdashApi = useLightdashApi();
     const invalidate = useInvalidateAnalyticsProject();
     return useMutation<undefined, ApiError, string>(
         (projectUuid) =>
@@ -61,6 +64,7 @@ export const useDeleteAnalyticsProject = () => {
 };
 
 export const useInstallAnalyticsSampleContent = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<undefined, ApiError>(
         () =>

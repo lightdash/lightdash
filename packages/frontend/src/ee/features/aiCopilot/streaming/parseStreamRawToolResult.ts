@@ -1,5 +1,6 @@
 import {
     agentToolDefinitionsByName,
+    createToolComposerQueriesArgsSchema,
     isAiAgentMcpToolName,
     mcpCreateContentArgsSchema,
     mcpEditContentArgsSchema,
@@ -30,6 +31,11 @@ const wideInputSchemaOverrides = {
     // content tools, whose args also accept type "document".
     createContent: mcpCreateContentArgsSchema,
     editContent: mcpEditContentArgsSchema,
+    // Python nodes and the runtime row limit are runtime-selected, so parse the widest pipeline.
+    runComposerQueries: createToolComposerQueriesArgsSchema({
+        enablePythonNodes: true,
+        maxLimit: Number.MAX_SAFE_INTEGER,
+    }),
 } as const;
 
 type ToolArgs<TName extends ToolName> =

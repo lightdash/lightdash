@@ -2,6 +2,7 @@ import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import {
     DATA_REFERENCE_EXTRACTOR_VERSION,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
+    DirectAccessResourceType,
     FeatureFlags,
     ForbiddenError,
     getCustomSqlFieldKey,
@@ -125,6 +126,18 @@ const makeDeps = (
     };
 };
 
+const makeExistingApp = () => ({
+    app_id: EXISTING_APP_UUID,
+    project_uuid: PROJECT_UUID,
+    space_uuid: null,
+    created_by_user_uuid: USER_UUID,
+    organization_uuid: PROJECT_ORG_UUID,
+    name: 'Test App',
+    description: 'A test app',
+    slug: EXISTING_APP_SLUG,
+    registry_slug: null,
+});
+
 const s3SendSpy = vi.fn().mockResolvedValue({});
 
 const makeSingleSourceTar = async (content: string): Promise<Buffer> =>
@@ -157,6 +170,7 @@ function buildService(
         getVersion: vi.fn().mockResolvedValue(null),
         countInProgressVersionsForProject: vi.fn().mockResolvedValue(0),
         updateVersionDataReferences: vi.fn().mockResolvedValue(undefined),
+        updateVersionStatusIfInProgress: vi.fn().mockResolvedValue(true),
         recordBuildNarration: vi.fn().mockResolvedValue(undefined),
         updateApp: vi.fn().mockResolvedValue({}),
         moveToSpace: vi.fn().mockResolvedValue(undefined),
@@ -167,6 +181,9 @@ function buildService(
             space: { uuid: 'resolved-space-uuid' },
             created: false,
         }),
+        prepareDirectAccessReplace: vi.fn().mockResolvedValue(null),
+        assertCanApplyDirectAccessPolicy: vi.fn().mockResolvedValue(undefined),
+        applyDirectAccessPolicy: vi.fn().mockResolvedValue(undefined),
     };
 
     const schedulerClient = {
@@ -540,6 +557,124 @@ describe('AppGenerateService.importAppCode', () => {
                 },
             },
         );
+    });
+
+    it('append mode: authorizes the access policy after the space move, against the new location', async () => {
+        const { service, appModel, coderService } = buildService();
+        appModel.findApp.mockResolvedValue({
+            ...makeExistingApp(),
+            space_uuid: 'old-space-uuid',
+        });
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+        coderService.prepareDirectAccessReplace.mockResolvedValue([]);
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, {
+                spaceSlug: 'sales/q3-reports',
+                access: { users: [], groups: [] },
+            }),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.moveToSpace).toHaveBeenCalledOnce();
+        expect(
+            coderService.assertCanApplyDirectAccessPolicy,
+        ).toHaveBeenCalledOnce();
+        const [moveOrder] = appModel.moveToSpace.mock.invocationCallOrder;
+        const [preflightOrder] =
+            coderService.assertCanApplyDirectAccessPolicy.mock
+                .invocationCallOrder;
+        const [createOrder] = appModel.createVersion.mock.invocationCallOrder;
+        expect(moveOrder).toBeLessThan(preflightOrder);
+        expect(preflightOrder).toBeLessThan(createOrder);
+    });
+
+    it('append mode: does not create a version when the uploader cannot manage the access policy', async () => {
+        const { service, appModel, coderService, schedulerClient } =
+            buildService();
+        appModel.findApp.mockResolvedValue(makeExistingApp());
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+        coderService.prepareDirectAccessReplace.mockResolvedValue([]);
+        coderService.assertCanApplyDirectAccessPolicy.mockRejectedValue(
+            new ForbiddenError(
+                'You do not have permission to manage direct access for this resource',
+            ),
+        );
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                targetAppUuid: EXISTING_APP_UUID,
+                code: makeCode(undefined, {
+                    access: { users: [], groups: [] },
+                }),
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(ForbiddenError);
+
+        expect(
+            coderService.assertCanApplyDirectAccessPolicy,
+        ).toHaveBeenCalledWith(
+            expect.anything(),
+            PROJECT_UUID,
+            DirectAccessResourceType.APP,
+            EXISTING_APP_UUID,
+        );
+        expect(appModel.createVersion).not.toHaveBeenCalled();
+        expect(appModel.updateVersionStatusIfInProgress).not.toHaveBeenCalled();
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalled();
+    });
+
+    it('create mode: marks the new version error when a step after creation fails', async () => {
+        const { service, appModel, coderService, schedulerClient } =
+            buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+        coderService.prepareDirectAccessReplace.mockResolvedValue([]);
+        coderService.applyDirectAccessPolicy.mockRejectedValue(
+            new ForbiddenError('policy rejected'),
+        );
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(undefined, {
+                    access: { users: [], groups: [] },
+                }),
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow('policy rejected');
+
+        expect(appModel.updateVersionStatusIfInProgress).toHaveBeenCalledWith(
+            NEW_APP_UUID,
+            1,
+            'error',
+            expect.stringContaining('policy rejected'),
+            'Upload failed before the build started',
+        );
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalled();
+    });
+
+    it('append mode: marks the version error when the source upload to storage fails', async () => {
+        const { service, appModel, schedulerClient, analytics } =
+            buildService();
+        appModel.findApp.mockResolvedValue(makeExistingApp());
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+        appModel.createVersion.mockResolvedValue({ version: 5 });
+        s3SendSpy.mockRejectedValueOnce(new Error('S3 unavailable'));
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                targetAppUuid: EXISTING_APP_UUID,
+                code: makeCode(),
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow('S3 unavailable');
+
+        expect(appModel.createVersion).toHaveBeenCalledOnce();
+        expect(appModel.updateVersionStatusIfInProgress).toHaveBeenCalledWith(
+            EXISTING_APP_UUID,
+            5,
+            'error',
+            expect.stringContaining('S3 unavailable'),
+            'Upload failed before the build started',
+        );
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalled();
+        expect(analytics.track).not.toHaveBeenCalled();
     });
 
     it('append mode: appends version 5 when latest is 4 and enqueues build', async () => {

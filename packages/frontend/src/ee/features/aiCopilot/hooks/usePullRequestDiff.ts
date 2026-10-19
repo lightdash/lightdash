@@ -1,10 +1,12 @@
 import { type ApiError } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 type PullRequestDiff = { diff: string } | null;
 
 const getPullRequestDiff = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     prUrl: string,
     commitSha: string | null,
@@ -32,12 +34,15 @@ export const usePullRequestDiff = (
     prUrl: string,
     commitSha: string | null,
     enabled: boolean,
-) =>
-    useQuery<PullRequestDiff, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<PullRequestDiff, ApiError>({
         queryKey: ['pullRequestDiff', projectUuid, prUrl, commitSha],
-        queryFn: () => getPullRequestDiff(projectUuid, prUrl, commitSha),
+        queryFn: () =>
+            getPullRequestDiff(lightdashApi, projectUuid, prUrl, commitSha),
         enabled: enabled && !!projectUuid && !!prUrl,
         refetchOnWindowFocus: false,
         retry: false,
         staleTime: 60_000,
     });
+};

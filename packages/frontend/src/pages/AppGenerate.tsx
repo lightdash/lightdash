@@ -128,6 +128,7 @@ import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion'
 import { useCanEditVerifiedDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useCaptureThumbnail } from '../features/apps/hooks/useCaptureThumbnail';
 import { useClarificationRound } from '../features/apps/hooks/useClarificationRound';
+import { useDataAppCapturesEnabled } from '../features/apps/hooks/useDataAppCapturesEnabled';
 import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
 import { useElementPicker } from '../features/apps/hooks/useElementPicker';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
@@ -691,6 +692,9 @@ const AppGenerate: FC = () => {
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { user, health } = useApp();
     const sampleDataEnabled = health.data?.dataApps.sampleDataEnabled !== false;
+    // Org switch for screenshots, file attachments and thumbnails. Hides the
+    // affordances below; the backend rejects the uploads regardless.
+    const capturesEnabled = useDataAppCapturesEnabled();
     const ability = useAbilityContext();
     const chatMessagesRef = useRef<HTMLDivElement>(null);
 
@@ -1529,6 +1533,8 @@ const AppGenerate: FC = () => {
     }
 
     const handleFileAttach = async (file: File, kind?: 'screenshot') => {
+        // Covers paste, drop and the file input in one place.
+        if (!capturesEnabled) return;
         const validationError = await getAppFileValidationError(file);
         if (validationError) {
             showToastError(validationError);
@@ -1868,26 +1874,24 @@ const AppGenerate: FC = () => {
         }
     };
 
-    const handleCancel = () => {
-        if (
-            !projectUuid ||
-            !activeAppUuid ||
-            !latestBuildingVersion ||
-            isCancelling
-        )
-            return;
+    // Shared by the prompt bar's "Stop generation" (latest build) and the
+    // history drawer (any building version). Plain function, not a hook: it
+    // sits below the early returns.
+    const cancelVersion = (version: number) => {
+        if (!projectUuid || !activeAppUuid || isCancelling) return;
         cancelMutate(
-            {
-                projectUuid,
-                appUuid: activeAppUuid,
-                version: latestBuildingVersion.version,
-            },
+            { projectUuid, appUuid: activeAppUuid, version },
             {
                 onSuccess: () => {
                     invalidateAppData(activeAppUuid);
                 },
             },
         );
+    };
+
+    const handleCancel = () => {
+        if (!latestBuildingVersion) return;
+        cancelVersion(latestBuildingVersion.version);
     };
 
     return (
@@ -2970,12 +2974,16 @@ const AppGenerate: FC = () => {
                                                         fileAttachments.length >=
                                                         MAX_APP_FILES_PER_VERSION
                                                     }
+                                                    filesHidden={
+                                                        !capturesEnabled
+                                                    }
                                                     linkedAppUuid={
                                                         activeAppUuid
                                                     }
                                                 />
                                                 {previewApp &&
-                                                    screenshotAvailable && (
+                                                    screenshotAvailable &&
+                                                    capturesEnabled && (
                                                         <ScreenshotButton
                                                             onClick={() =>
                                                                 void handleCaptureScreenshot()
@@ -3307,6 +3315,7 @@ const AppGenerate: FC = () => {
                                             : pinPreviewToVersion(version)
                                     }
                                     onRestore={setRestoreTargetVersion}
+                                    onCancel={cancelVersion}
                                     liveBuild={historyLiveBuild}
                                     hasEarlier={hasUnloadedEarlierVersions}
                                     isFetchingEarlier={isFetchingNextPage}

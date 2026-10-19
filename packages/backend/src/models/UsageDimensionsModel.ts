@@ -30,7 +30,9 @@ export class UsageDimensionsModel {
         });
     }
 
-    async *getOrganizations(): AsyncGenerator<Organization> {
+    async *getOrganizations(
+        organizationUuid?: string,
+    ): AsyncGenerator<Organization> {
         let cursor = 0;
         while (true) {
             // eslint-disable-next-line no-await-in-loop
@@ -38,6 +40,10 @@ export class UsageDimensionsModel {
                 this.database('organizations')
                     .select('organization_id', 'organization_uuid')
                     .where('organization_id', '>', cursor)
+                    .modify((query) => {
+                        if (organizationUuid)
+                            query.where('organization_uuid', organizationUuid);
+                    })
                     .orderBy('organization_id')
                     .limit(USAGE_DIMENSION_PAGE_SIZE),
             );

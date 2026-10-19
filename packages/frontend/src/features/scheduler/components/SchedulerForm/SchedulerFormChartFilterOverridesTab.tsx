@@ -9,6 +9,7 @@ import { Center, Loader, Stack, Text } from '@mantine/core';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
 import FiltersProvider from '../../../../components/common/Filters/FiltersProvider';
 import { useExploreByProjectUuid } from '../../../../hooks/useExplore';
+import { useExploreWarehouseConnection } from '../../../../hooks/useExploreWarehouseConnection';
 import { useProject } from '../../../../hooks/useProject';
 import {
     CHART_FILTER_SECTIONS,
@@ -61,6 +62,10 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
             itemsMap ? undefined : savedChart.tableName,
             savedChart.projectUuid,
         );
+    const { startOfWeek } = useExploreWarehouseConnection(
+        savedChart.tableName,
+        savedChart.projectUuid,
+    );
     const fieldsMap = useMemo<ItemsMap | undefined>(
         () =>
             itemsMap ??
@@ -173,7 +178,7 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
             popoverProps={{ withinPortal: true }}
             projectUuid={project.projectUuid}
             itemsMap={fieldsMap}
-            startOfWeek={project.warehouseConnection?.startOfWeek ?? undefined}
+            startOfWeek={startOfWeek ?? undefined}
         >
             {readOnly && hasRules ? (
                 <Stack mb="sm">

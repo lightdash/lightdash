@@ -7,11 +7,15 @@ import {
     type Dimension,
     type Metric,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { describe, expect, it, vi } from 'vitest';
 import { createExplorerStore } from '../../../../../features/explorer/store';
 import { renderWithProviders } from '../../../../../testing/testUtils';
+import {
+    FieldFilterTargetContext,
+    type FieldFilterTarget,
+} from '../../FieldFilterTargetContext';
 import { TreeSection } from '../Virtualization/types';
 import TreeContext from './TreeContext';
 import TreeSingleNode from './TreeSingleNode';
@@ -20,8 +24,10 @@ import { type TableTreeContext } from './types';
 vi.mock('../../../../../hooks/useExplore', () => ({
     useExplore: () => ({ data: undefined }),
 }));
+const explorerAddFilter = vi.hoisted(() => vi.fn());
+
 vi.mock('../../../../../hooks/useFilters', () => ({
-    useAddFilter: () => vi.fn(),
+    useAddFilter: () => explorerAddFilter,
     useFilteredFields: () => ({ addFilter: vi.fn() }),
 }));
 vi.mock('../../../../../hooks/useProjectUuid', () => ({
@@ -89,7 +95,10 @@ const UNLABELLED_DIMENSION: Dimension = {
     hidden: false,
 };
 
-const renderRow = (item: Dimension | Metric) => {
+const renderRow = (
+    item: Dimension | Metric,
+    filterTarget: FieldFilterTarget | null = null,
+) => {
     const key = `${item.table}_${item.name}`;
     const context: TableTreeContext = {
         itemsMap: { [key]: item },
@@ -104,9 +113,13 @@ const renderRow = (item: Dimension | Metric) => {
     };
     renderWithProviders(
         <Provider store={createExplorerStore()}>
-            <TreeContext.Provider value={context}>
-                <TreeSingleNode node={{ key, label: item.label, index: 0 }} />
-            </TreeContext.Provider>
+            <FieldFilterTargetContext.Provider value={filterTarget}>
+                <TreeContext.Provider value={context}>
+                    <TreeSingleNode
+                        node={{ key, label: item.label, index: 0 }}
+                    />
+                </TreeContext.Provider>
+            </FieldFilterTargetContext.Provider>
         </Provider>,
     );
 };
@@ -142,5 +155,55 @@ describe('TreeSingleNode tour anchors', () => {
         renderRow(UNLABELLED_DIMENSION);
 
         expectRowNamed('explore-dimension', 'payment_method');
+    });
+});
+
+describe('TreeSingleNode filter action', () => {
+    beforeEach(() => explorerAddFilter.mockReset());
+
+    const clickFilterIcon = () => {
+        const row = screen.getByTestId('tree-single-node-payment_method');
+        fireEvent.mouseEnter(row);
+        const [filterButton] = row.querySelectorAll('button:not([aria-label])');
+        fireEvent.click(filterButton);
+    };
+
+    it('adds the filter to the explorer query by default', () => {
+        renderRow(UNLABELLED_DIMENSION);
+
+        clickFilterIcon();
+
+        expect(explorerAddFilter).toHaveBeenCalledWith(
+            UNLABELLED_DIMENSION,
+            undefined,
+        );
+    });
+
+    it('adds the filter to the tree’s filter target when one is given', () => {
+        const filterTarget: FieldFilterTarget = {
+            filteredFieldIds: new Set(),
+            addFilter: vi.fn(),
+        };
+        renderRow(UNLABELLED_DIMENSION, filterTarget);
+
+        clickFilterIcon();
+
+        expect(filterTarget.addFilter).toHaveBeenCalledWith(
+            UNLABELLED_DIMENSION,
+        );
+        expect(explorerAddFilter).not.toHaveBeenCalled();
+    });
+
+    it('reads filtered state from the filter target, not the explorer', () => {
+        renderRow(UNLABELLED_DIMENSION, {
+            filteredFieldIds: new Set(['payments_payment_method']),
+            addFilter: vi.fn(),
+        });
+
+        expect(
+            screen
+                .getByTestId('tree-single-node-payment_method')
+                .querySelectorAll('button:not([aria-label])'),
+        ).toHaveLength(1);
     });
 });

@@ -6,6 +6,7 @@ import Paragraph from '@tiptap/extension-paragraph';
 import Text from '@tiptap/extension-text';
 import { Markdown } from 'tiptap-markdown';
 import { afterEach, describe, expect, it } from 'vitest';
+import { sharedLightdashApi } from '../../../../../api';
 import {
     createMentionMarkdownExtension,
     hydrateContentMentions,
@@ -29,7 +30,7 @@ const buildEditor = (content: Content) => {
             Text,
             Link.configure({ autolink: false }),
             Markdown.configure({ html: false }),
-            createMentionMarkdownExtension(PROJECT),
+            createMentionMarkdownExtension(sharedLightdashApi, PROJECT),
         ],
         content,
     });

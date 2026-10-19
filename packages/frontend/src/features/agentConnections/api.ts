@@ -5,7 +5,8 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { createRequestQueue } from './requestQueue';
 import {
     type AgentConnectionRecord,
@@ -13,7 +14,11 @@ import {
 } from './types';
 
 const statusQueue = createRequestQueue();
-const loadStatus = (grantUuid: string, signal: AbortSignal | undefined) =>
+const loadStatus = (
+    lightdashApi: LightdashApi,
+    grantUuid: string,
+    signal: AbortSignal | undefined,
+) =>
     statusQueue(
         () =>
             lightdashApi<AgentConnectionStatus>({
@@ -30,8 +35,9 @@ export const useAgentConnections = (
         UseQueryOptions<AgentConnectionRecord[], ApiError>,
         'enabled' | 'refetchOnMount' | 'retryOnMount'
     > = {},
-) =>
-    useQuery<AgentConnectionRecord[], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<AgentConnectionRecord[], ApiError>({
         queryKey: ['agent-connections'],
         ...options,
         queryFn: () =>
@@ -41,15 +47,18 @@ export const useAgentConnections = (
                 method: 'GET',
             }),
     });
+};
 
 export const useAgentConnectionStatus = (
     grantUuid: string,
     enabled: boolean,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const client = useQueryClient();
     return useQuery<AgentConnectionStatus, ApiError>({
         queryKey: ['agent-connection-status', grantUuid],
-        queryFn: ({ signal }) => loadStatus(grantUuid, signal),
+        queryFn: ({ signal }) => loadStatus(lightdashApi, grantUuid, signal),
         enabled,
         staleTime: Infinity,
         onSuccess: (status) =>
@@ -71,6 +80,8 @@ export const useAgentConnectionStatus = (
 };
 
 export const useRevokeAgentConnection = () => {
+    const lightdashApi = useLightdashApi();
+
     const client = useQueryClient();
     return useMutation<AgentConnectionRecord, ApiError, string>({
         mutationFn: (grantUuid) =>

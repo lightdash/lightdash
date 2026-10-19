@@ -26,7 +26,10 @@ import {
     MCP_QUERY_ERROR_NOTE,
     MCP_QUERY_RESULT_USAGE_NOTE,
 } from './toolMcpQueryResultDescription';
-import { mcpAsyncQueryUuidSchema } from './toolQueryResultSchemas';
+import {
+    executionStatsContentSchema,
+    mcpAsyncQueryUuidSchema,
+} from './toolQueryResultSchemas';
 
 const parameterValueSchema = z.union([
     z.string(),
@@ -411,27 +414,32 @@ export const toolRunQueryArgsSchema = toolRunQueryArgsSchemaV4;
 //   narrow it — old threads must keep parsing.
 export const toolRunQueryArgsSchemaPersisted = toolRunQueryArgsSchemaV3;
 
-// For runtimes where merge queries are disabled: a merge-shaped payload
-// must fail validation, not have Zod strip mergeConfig and run only the
-// primary query. The preprocess leaves the emitted JSON schema unchanged.
+export const AI_AGENT_MERGE_REFUSAL =
+    'Merge queries are not supported by the agent.';
+
+// The agent cannot build merges: a merge-shaped payload must fail validation,
+// not have Zod strip mergeConfig and run only the primary query. Used with
+// z.preprocess, it leaves the emitted JSON schema unchanged.
+export const rejectAgentMergeConfig = (raw: unknown, ctx: z.RefinementCtx) => {
+    if (
+        raw !== null &&
+        typeof raw === 'object' &&
+        'mergeConfig' in raw &&
+        raw.mergeConfig !== null &&
+        raw.mergeConfig !== undefined
+    ) {
+        ctx.addIssue({
+            code: 'custom',
+            path: ['mergeConfig'],
+            message: AI_AGENT_MERGE_REFUSAL,
+        });
+        return z.NEVER;
+    }
+    return raw;
+};
+
 export const toolRunQueryArgsSchemaV2RejectingMerge = z.preprocess(
-    (raw, ctx) => {
-        if (
-            raw !== null &&
-            typeof raw === 'object' &&
-            'mergeConfig' in raw &&
-            raw.mergeConfig !== null &&
-            raw.mergeConfig !== undefined
-        ) {
-            ctx.addIssue({
-                code: 'custom',
-                path: ['mergeConfig'],
-                message: 'Merge queries are not enabled for this organization.',
-            });
-            return z.NEVER;
-        }
-        return raw;
-    },
+    rejectAgentMergeConfig,
     toolRunQueryArgsSchemaV2FormulaOnly,
 );
 
@@ -567,7 +575,7 @@ export const parsePersistedRunQueryArgs = (
 
 export const TOOL_RENDER_CHART_DESCRIPTION = `Render a completed run_metric_query result in Lightdash's built-in chart app in MCP App-capable clients.
 
-Use when the user wants a visual. If the query is running, call get_query_result first. This tool does not start, poll or rerun queries.
+Use when the user wants a visual. If the query is running, call get_query_result first. For a grouped bar, horizontal_bar, line or scatter chart (chartConfig.groupBy), this tool runs the grouped query for the chart itself. While that query runs it returns status "running", not an error: wait nextPollAfterMs, then call render_chart again with the same arguments. Otherwise it does not start, poll or rerun queries.
 Pass the exact queryUuid returned for this query by run_metric_query or get_query_result (also available in the \`queryUuid: <id>\` text block). Never invent an ID or reuse one from another query or session. SQL Runner/run_sql results are not supported.
 
 Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel.
@@ -576,7 +584,7 @@ Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel.
 - For single values or detailed data: use \`table\`.
 - Always provide axis labels.
 
-The full chart payload is app metadata; structuredContent contains only a lightweight placeholder. Custom artifacts should build visuals from query data instead.
+The full chart payload is app metadata, drawn only by MCP App-capable clients. In structuredContent, \`echartsOption: {}\` is a placeholder for that payload, not a failed render. If your client cannot display MCP Apps, the user has not seen the chart: build the visual from the query rows. Custom artifacts should build visuals from query data instead.
 
 ${MCP_ARTIFACT_INTEGRATION_NOTE}`;
 
@@ -772,6 +780,7 @@ export const toolRunQueryStructuredContentSchema = z.discriminatedUnion(
                     'null when the explore references no parameters or the query was a merge.',
                 ),
             data: shownResultsSchema,
+            executionStats: executionStatsContentSchema,
         }),
     ],
 );

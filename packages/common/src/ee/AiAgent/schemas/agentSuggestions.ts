@@ -86,9 +86,18 @@ const navigateChipModelSchema = z.object({
 // structured output, and zod renders a discriminated union as JSON Schema
 // `oneOf`, which strict structured outputs reject. Both branches are objects
 // with distinct `kind` literals, so z.union parses the same inputs.
+export const agentSuggestionModelChipSchema = z.union([
+    promptChipModelSchema,
+    navigateChipModelSchema,
+]);
+
+export type AgentSuggestionModelChip = z.infer<
+    typeof agentSuggestionModelChipSchema
+>;
+
 export const agentSuggestionsModelSchema = z.object({
     chips: z
-        .array(z.union([promptChipModelSchema, navigateChipModelSchema]))
+        .array(agentSuggestionModelChipSchema)
         .min(2)
         .max(6)
         .describe('Between 2 and 6 suggestion chips.'),
@@ -98,6 +107,12 @@ export type AgentSuggestionsModelObject = z.infer<
     typeof agentSuggestionsModelSchema
 >;
 
+export type AgentSuggestionsSource = 'generated' | 'cached' | 'default';
+
+// 'none' means the response carries no chips.
+export type AgentSuggestionsResponseSource = AgentSuggestionsSource | 'none';
+
 export type ApiAgentSuggestionsResponse = ApiSuccess<{
     chips: AgentSuggestion[];
+    source: AgentSuggestionsResponseSource;
 }>;

@@ -4,10 +4,12 @@ import {
     type SchedulerAndTargets,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 const getSqlChartSchedulers = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     savedSqlUuid: string,
 ) =>
@@ -20,14 +22,18 @@ const getSqlChartSchedulers = async (
 export const useSqlChartSchedulers = (
     projectUuid: string,
     savedSqlUuid: string,
-) =>
-    useQuery<SchedulerAndTargets[], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<SchedulerAndTargets[], ApiError>({
         queryKey: ['sql_chart_schedulers', savedSqlUuid],
-        queryFn: () => getSqlChartSchedulers(projectUuid, savedSqlUuid),
+        queryFn: () =>
+            getSqlChartSchedulers(lightdashApi, projectUuid, savedSqlUuid),
         enabled: !!savedSqlUuid && !!projectUuid,
     });
+};
 
 const createSqlChartScheduler = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     savedSqlUuid: string,
     data: CreateSchedulerAndTargetsWithoutIds,
@@ -41,6 +47,7 @@ const createSqlChartScheduler = async (
 export const useSqlChartSchedulerCreateMutation = (
     projectUuid: string | undefined,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
@@ -52,7 +59,12 @@ export const useSqlChartSchedulerCreateMutation = (
             if (!projectUuid) {
                 throw new Error('projectUuid is required');
             }
-            return createSqlChartScheduler(projectUuid, resourceUuid, data);
+            return createSqlChartScheduler(
+                lightdashApi,
+                projectUuid,
+                resourceUuid,
+                data,
+            );
         },
         {
             mutationKey: ['create_sql_chart_scheduler'],

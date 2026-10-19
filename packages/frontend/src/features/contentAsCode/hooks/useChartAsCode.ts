@@ -1,5 +1,5 @@
 import { type ApiChartAsCodeListResponse } from '@lightdash/common';
-import { lightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { useContentAsCode } from './useContentAsCode';
 
 const CHART_FIELDS_TO_OMIT = ['updatedAt', 'downloadedAt'];
@@ -16,6 +16,7 @@ export const useChartAsCode = ({
     chartUuid: string;
     enabled: boolean;
 }) => {
+    const lightdashApi = useLightdashApi();
     return useContentAsCode<ApiChartAsCodeListResponse['results']>({
         queryKey: ['chart-as-code', projectUuid, chartUuid],
         queryFn: () =>

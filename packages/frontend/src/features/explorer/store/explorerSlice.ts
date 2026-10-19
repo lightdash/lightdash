@@ -39,6 +39,7 @@ import {
     type ExplorerReduceState,
     type ExplorerSection,
     type MapExtent,
+    type PendingQueryCostConfirmation,
 } from '../../../providers/Explorer/types';
 import {
     getCachedPivotConfig,
@@ -1136,7 +1137,23 @@ const explorerSlice = createSlice({
                 queryUuidHistory: [],
                 unpivotedQueryUuidHistory: [],
                 pendingFetch: false,
+                pendingCostConfirmation: null,
             };
+        },
+        requestQueryCostConfirmation: (
+            state,
+            action: PayloadAction<PendingQueryCostConfirmation>,
+        ) => {
+            state.queryExecution.pendingCostConfirmation = action.payload;
+        },
+        confirmQueryCost: (state) => {
+            const pending = state.queryExecution.pendingCostConfirmation;
+            if (!pending) return;
+            state.queryExecution.validQueryArgs = pending.args;
+            state.queryExecution.pendingCostConfirmation = null;
+        },
+        cancelQueryCostConfirmation: (state) => {
+            state.queryExecution.pendingCostConfirmation = null;
         },
 
         // Request a query execution (works regardless of auto-fetch setting)

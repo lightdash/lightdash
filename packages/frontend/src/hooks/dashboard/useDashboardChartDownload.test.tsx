@@ -4,13 +4,14 @@ import {
 } from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import { Limit } from '../../components/ExportResults/types';
 import { pollForResults } from '../../features/queryRunner/executeQuery';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { useDashboardChartDownload } from './useDashboardChartDownload';
 import { useEmbedDashboardChartDownload } from './useEmbedDashboardChartDownload';
 
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 vi.mock('../../features/queryRunner/executeQuery', () => ({
     pollForResults: vi.fn(),
 }));
@@ -46,7 +47,7 @@ describe.each(Object.entries(hooks))(
     (_name, useDownload) => {
         beforeEach(() => {
             vi.clearAllMocks();
-            vi.mocked(lightdashApi).mockResolvedValue({
+            mockedLightdashApi.mockResolvedValue({
                 queryUuid: 'download-query',
             } as ApiExecuteAsyncDashboardChartQueryResults);
             vi.mocked(pollForResults).mockResolvedValue({
@@ -60,7 +61,7 @@ describe.each(Object.entries(hooks))(
             await expect(
                 result.current.getDownloadQueryUuid(2, Limit.TABLE, false),
             ).resolves.toBe('visible-query');
-            expect(lightdashApi).not.toHaveBeenCalled();
+            expect(sharedLightdashApi).not.toHaveBeenCalled();
 
             for (const [limit, scope] of [
                 [2, Limit.CUSTOM],
@@ -69,7 +70,7 @@ describe.each(Object.entries(hooks))(
                 await expect(
                     result.current.getDownloadQueryUuid(limit, scope, false),
                 ).resolves.toBe('download-query');
-                expect(lightdashApi).toHaveBeenLastCalledWith(
+                expect(sharedLightdashApi).toHaveBeenLastCalledWith(
                     expect.objectContaining({
                         body: expect.stringContaining(`"limit":${limit}`),
                     }),

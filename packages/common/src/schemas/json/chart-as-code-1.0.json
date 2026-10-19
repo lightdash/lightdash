@@ -2864,6 +2864,10 @@
                 "displayName": {
                     "type": "string"
                 },
+                "format": {
+                    "$ref": "#/$defs/CustomFormat",
+                    "description": "How the calculation's values are displayed."
+                },
                 "formula": {
                     "description": "Spreadsheet-like formula over merged field ids.",
                     "type": "string"

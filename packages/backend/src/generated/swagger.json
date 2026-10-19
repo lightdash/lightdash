@@ -2949,6 +2949,10 @@
             },
             "MergeTableCalculation": {
                 "properties": {
+                    "format": {
+                        "$ref": "#/components/schemas/CustomFormat",
+                        "description": "How the calculation's values are displayed."
+                    },
                     "formula": {
                         "type": "string",
                         "description": "Spreadsheet-like formula over merged field ids."
@@ -8767,6 +8771,9 @@
                         "format": "double",
                         "nullable": true
                     },
+                    "enableSqlAutoApproval": {
+                        "type": "boolean"
+                    },
                     "enableSqlMode": {
                         "type": "boolean"
                     },
@@ -12964,6 +12971,108 @@
                 "format": "uuid",
                 "description": "Stringified UUIDv4.\nSee [RFC 4112](https://tools.ietf.org/html/rfc4122)",
                 "pattern": "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}"
+            },
+            "ReleaseHighlight": {
+                "properties": {
+                    "requestedByYourOrganization": {
+                        "type": "boolean"
+                    },
+                    "version": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "benefit": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "requestedByYourOrganization",
+                    "version",
+                    "url",
+                    "benefit",
+                    "title"
+                ],
+                "type": "object"
+            },
+            "ReleaseHighlightsResult": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "generatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "highlights": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ReleaseHighlight"
+                                },
+                                "type": "array"
+                            },
+                            "toVersion": {
+                                "type": "string"
+                            },
+                            "fromVersion": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["ready"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "generatedAt",
+                            "highlights",
+                            "toVersion",
+                            "fromVersion",
+                            "status"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "type": "string",
+                                "enum": [
+                                    "not_self_hosted",
+                                    "update_check_disabled",
+                                    "up_to_date",
+                                    "ai_not_configured",
+                                    "source_unavailable",
+                                    "no_features",
+                                    "generation_failed",
+                                    "rate_limited"
+                                ]
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["unavailable"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["reason", "status"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiReleaseHighlights": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ReleaseHighlightsResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "HomepageCollectionItemRef": {
                 "properties": {
@@ -23071,6 +23180,21 @@
                 "required": ["connectionSlug", "alias"],
                 "type": "object"
             },
+            "DataAppManifestRegistryProvenance": {
+                "properties": {
+                    "url": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    }
+                },
+                "required": ["url", "version", "slug"],
+                "type": "object"
+            },
             "DataAppManifest": {
                 "properties": {
                     "scaffoldingVersion": {
@@ -23078,6 +23202,9 @@
                     },
                     "downloadedAt": {
                         "type": "string"
+                    },
+                    "registry": {
+                        "$ref": "#/components/schemas/DataAppManifestRegistryProvenance"
                     },
                     "access": {
                         "$ref": "#/components/schemas/ContentAsCodeDirectAccess"
@@ -25085,16 +25212,13 @@
                     }
                 ]
             },
-            "GenerateTableCalculationRequest": {
+            "Pick_GenerateTableCalculationRequest.Exclude_keyofGenerateTableCalculationRequest.exploreName__": {
                 "properties": {
-                    "currentSql": {
+                    "tableName": {
                         "type": "string"
                     },
-                    "existingTableCalculations": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
+                    "prompt": {
+                        "type": "string"
                     },
                     "fieldsContext": {
                         "items": {
@@ -25102,15 +25226,23 @@
                         },
                         "type": "array"
                     },
-                    "tableName": {
-                        "type": "string"
+                    "existingTableCalculations": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     },
-                    "prompt": {
+                    "currentSql": {
                         "type": "string"
                     }
                 },
-                "required": ["fieldsContext", "tableName", "prompt"],
-                "type": "object"
+                "required": ["tableName", "prompt", "fieldsContext"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_GenerateTableCalculationRequest.exploreName_": {
+                "$ref": "#/components/schemas/Pick_GenerateTableCalculationRequest.Exclude_keyofGenerateTableCalculationRequest.exploreName__",
+                "description": "Construct a type with the properties of T except for those in type K."
             },
             "GeneratedCustomDimension": {
                 "properties": {
@@ -25157,9 +25289,12 @@
                     }
                 ]
             },
-            "GenerateCustomDimensionRequest": {
+            "Pick_GenerateCustomDimensionRequest.Exclude_keyofGenerateCustomDimensionRequest.exploreName__": {
                 "properties": {
-                    "currentSql": {
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "prompt": {
                         "type": "string"
                     },
                     "fieldsContext": {
@@ -25168,15 +25303,17 @@
                         },
                         "type": "array"
                     },
-                    "tableName": {
-                        "type": "string"
-                    },
-                    "prompt": {
+                    "currentSql": {
                         "type": "string"
                     }
                 },
-                "required": ["fieldsContext", "tableName", "prompt"],
-                "type": "object"
+                "required": ["tableName", "prompt", "fieldsContext"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_GenerateCustomDimensionRequest.exploreName_": {
+                "$ref": "#/components/schemas/Pick_GenerateCustomDimensionRequest.Exclude_keyofGenerateCustomDimensionRequest.exploreName__",
+                "description": "Construct a type with the properties of T except for those in type K."
             },
             "GeneratedFormulaTableCalculation": {
                 "properties": {
@@ -26622,6 +26759,7 @@
                     "metricsExplorer",
                     "preAggregateMaterialization",
                     "composeSqlRunner",
+                    "pythonRunner",
                     "multiSourceQuery",
                     "dataAppSample",
                     "desktop"
@@ -27128,6 +27266,33 @@
                     }
                 ]
             },
+            "ExecuteAsyncPythonQueryRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "references": {
+                                "$ref": "#/components/schemas/Record_string.UUID_",
+                                "description": "Results of other async queries exposed to the code as DataFrames, keyed\nby input name: {\"orders\": \"<queryUuid>\"} is read as inputs[\"orders\"].\nTyped Record<string, UUID> for the same TSOA reason as compose SQL."
+                            },
+                            "limit": {
+                                "type": "number",
+                                "format": "double",
+                                "description": "Maximum rows kept from the returned DataFrame; the rest are dropped and the result marked truncated."
+                            },
+                            "code": {
+                                "type": "string",
+                                "description": "Python source defining `run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame`.\nEach key of `references` is exposed in `inputs` as a DataFrame."
+                            }
+                        },
+                        "required": ["references", "code"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Python `run(inputs, params)` over other async queries' results, executed in a sandbox."
+            },
             "ExecuteAsyncSavedChartRequestParams": {
                 "allOf": [
                     {
@@ -27399,6 +27564,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/ExecuteAsyncComposeSqlQueryRequestParams"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExecuteAsyncPythonQueryRequestParams"
                             },
                             {
                                 "$ref": "#/components/schemas/ExecuteAsyncSavedChartRequestParams"
@@ -28487,6 +28655,98 @@
                 "type": "object",
                 "description": "Merge execution request for the compose endpoint, which accepts the full\nMergeQuerySource union (including references to existing query results).\nA separate endpoint keeps the original merge-query contract untouched for\nexisting clients while compose-only capabilities evolve on their own path."
             },
+            "QueryCostEstimate": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "status": {
+                                "type": "string",
+                                "enum": ["unavailable"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["status"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "message": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["error"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["message", "status"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "requiresConfirmation": {
+                                "type": "boolean"
+                            },
+                            "confirmEstimatedBytesAbove": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "totalBytesProcessed": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["estimated"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "requiresConfirmation",
+                            "confirmEstimatedBytesAbove",
+                            "totalBytesProcessed",
+                            "status"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiQueryCostEstimateResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/QueryCostEstimate"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "EstimateAsyncMetricQueryRequestParams": {
+                "properties": {
+                    "usePreAggregateCache": {
+                        "type": "boolean"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration"
+                    },
+                    "dateZoom": {
+                        "$ref": "#/components/schemas/DateZoom"
+                    },
+                    "query": {
+                        "$ref": "#/components/schemas/Omit_MetricQueryRequest.csvLimit_"
+                    }
+                },
+                "required": ["query"],
+                "type": "object"
+            },
             "ApiExecuteAsyncFieldValueSearchResults": {
                 "properties": {
                     "labelFieldId": {
@@ -28562,6 +28822,26 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "EstimateAsyncSqlQueryRequestParams": {
+                "properties": {
+                    "warehouseConnectionUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sql": {
+                        "type": "string"
+                    }
+                },
+                "required": ["sql"],
                 "type": "object"
             },
             "ExecuteAsyncSqlChartByUuidRequestParams": {
@@ -28814,7 +29094,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
+            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -28893,6 +29173,32 @@
                         },
                         "type": "array"
                     },
+                    "userAccessDetails": {
+                        "items": {
+                            "properties": {
+                                "email": {
+                                    "type": "string"
+                                },
+                                "lastName": {
+                                    "type": "string"
+                                },
+                                "firstName": {
+                                    "type": "string"
+                                },
+                                "userUuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "email",
+                                "lastName",
+                                "firstName",
+                                "userUuid"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
                     "spaceAccess": {
                         "items": {
                             "type": "string"
@@ -28912,6 +29218,9 @@
                         "type": "boolean"
                     },
                     "enableSqlMode": {
+                        "type": "boolean"
+                    },
+                    "enableSqlAutoApproval": {
                         "type": "boolean"
                     },
                     "adminOnly": {
@@ -28951,12 +29260,14 @@
                     "integrations",
                     "instruction",
                     "groupAccess",
+                    "userAccessDetails",
                     "spaceAccess",
                     "enableDataAccess",
                     "enableSelfImprovement",
                     "enableContentTools",
                     "enableUserContext",
                     "enableSqlMode",
+                    "enableSqlAutoApproval",
                     "adminOnly",
                     "modelConfig",
                     "providerCredentialUuid",
@@ -28966,7 +29277,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -29673,7 +29984,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -29752,6 +30063,32 @@
                         },
                         "type": "array"
                     },
+                    "userAccessDetails": {
+                        "items": {
+                            "properties": {
+                                "email": {
+                                    "type": "string"
+                                },
+                                "lastName": {
+                                    "type": "string"
+                                },
+                                "firstName": {
+                                    "type": "string"
+                                },
+                                "userUuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "email",
+                                "lastName",
+                                "firstName",
+                                "userUuid"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
                     "spaceAccess": {
                         "items": {
                             "type": "string"
@@ -29771,6 +30108,9 @@
                         "type": "boolean"
                     },
                     "enableSqlMode": {
+                        "type": "boolean"
+                    },
+                    "enableSqlAutoApproval": {
                         "type": "boolean"
                     },
                     "adminOnly": {
@@ -29810,12 +30150,14 @@
                     "integrations",
                     "instruction",
                     "groupAccess",
+                    "userAccessDetails",
                     "spaceAccess",
                     "enableDataAccess",
                     "enableSelfImprovement",
                     "enableContentTools",
                     "enableUserContext",
                     "enableSqlMode",
+                    "enableSqlAutoApproval",
                     "adminOnly",
                     "modelConfig",
                     "providerCredentialUuid",
@@ -29825,7 +30167,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -30294,10 +30636,28 @@
                     }
                 ]
             },
-            "ApiSuccess__chips-AgentSuggestion-Array__": {
+            "AgentSuggestionsSource": {
+                "type": "string",
+                "enum": ["generated", "cached", "default"]
+            },
+            "AgentSuggestionsResponseSource": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/AgentSuggestionsSource"
+                    },
+                    {
+                        "type": "string",
+                        "enum": ["none"]
+                    }
+                ]
+            },
+            "ApiSuccess__chips-AgentSuggestion-Array--source-AgentSuggestionsResponseSource__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "source": {
+                                "$ref": "#/components/schemas/AgentSuggestionsResponseSource"
+                            },
                             "chips": {
                                 "items": {
                                     "$ref": "#/components/schemas/AgentSuggestion"
@@ -30305,7 +30665,7 @@
                                 "type": "array"
                             }
                         },
-                        "required": ["chips"],
+                        "required": ["source", "chips"],
                         "type": "object"
                     },
                     "status": {
@@ -30318,7 +30678,7 @@
                 "type": "object"
             },
             "ApiAgentSuggestionsResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__chips-AgentSuggestion-Array__"
+                "$ref": "#/components/schemas/ApiSuccess__chips-AgentSuggestion-Array--source-AgentSuggestionsResponseSource__"
             },
             "ReadinessScoreEvaluation": {
                 "properties": {
@@ -30689,6 +31049,9 @@
                             "adminOnly": {
                                 "type": "boolean"
                             },
+                            "enableSqlAutoApproval": {
+                                "type": "boolean"
+                            },
                             "enableSqlMode": {
                                 "type": "boolean"
                             },
@@ -30817,6 +31180,9 @@
                                     "type": "string"
                                 },
                                 "type": "array"
+                            },
+                            "enableSqlAutoApproval": {
+                                "type": "boolean"
                             },
                             "enableSqlMode": {
                                 "type": "boolean"
@@ -34560,6 +34926,139 @@
                                                 "allOf": [
                                                     {
                                                         "properties": {
+                                                            "artifactVersionUuid": {
+                                                                "type": "string"
+                                                            },
+                                                            "queryUuid": {
+                                                                "type": "string"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success",
+                                                                    "rejected",
+                                                                    "timeout"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "artifactVersionUuid": {
+                                                                "type": "string"
+                                                            },
+                                                            "queryUuid": {
+                                                                "type": "string"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success",
+                                                                    "rejected",
+                                                                    "timeout"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "refusal": {
+                                                                "properties": {
+                                                                    "projectUuid": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "policyVersion": {
+                                                                        "type": "number",
+                                                                        "format": "double"
+                                                                    },
+                                                                    "operation": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "policyLayer": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "capability": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "connectUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "settingsUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "action": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "message": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "reason": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "code": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "ai_access_refused"
+                                                                        ],
+                                                                        "nullable": false
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "connectUrl",
+                                                                    "settingsUrl",
+                                                                    "action",
+                                                                    "message",
+                                                                    "reason",
+                                                                    "code"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "rejected",
+                                                                    "timeout"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
                                                             "ranking": {
                                                                 "properties": {
                                                                     "fields": {
@@ -35917,7 +36416,7 @@
                     },
                     "autoApproveSql": {
                         "type": "boolean",
-                        "description": "Skips the SQL human-approval gate for this stream. Used by the review\nremediation workspace so Continue PR turns run frictionlessly. Defaults\nto false — normal chat still asks the user to approve SQL."
+                        "description": "Skips the SQL human-approval gate for this stream. Used by the review\nremediation workspace so Continue PR turns run frictionlessly. Defaults\nto false; the agent-level `enableSqlAutoApproval` setting also skips the gate."
                     },
                     "enableFastDecisions": {
                         "type": "boolean",
@@ -36317,6 +36816,45 @@
                 ],
                 "type": "object"
             },
+            "QueryNodeId": {
+                "type": "string",
+                "description": "A name identifying one query within a multi-query submission. Other queries\nreference this query's results by this name, and by default the results are\nexposed to referencing DuckDB SQL as a table of the same name — so node ids\nshare the table-name grammar.",
+                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+            },
+            "Record_QueryNodeId.string_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ApiAiAgentComposerArtifactVizQuery": {
+                "properties": {
+                    "metadata": {
+                        "$ref": "#/components/schemas/AiVizMetadata"
+                    },
+                    "nodeQueryUuids": {
+                        "$ref": "#/components/schemas/Record_QueryNodeId.string_"
+                    },
+                    "terminalNodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["composer"],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "metadata",
+                    "nodeQueryUuids",
+                    "terminalNodeId",
+                    "source"
+                ],
+                "type": "object",
+                "description": "One run of a composer artifact's pipeline: every node's result from that run."
+            },
             "ApiAiAgentArtifactVizQuery": {
                 "anyOf": [
                     {
@@ -36324,6 +36862,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/ApiAiAgentSqlArtifactVizQuery"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ApiAiAgentComposerArtifactVizQuery"
                     }
                 ]
             },
@@ -38022,6 +38563,31 @@
                 "enum": ["sso", "private_key", "adc"],
                 "type": "string"
             },
+            "BigqueryMaximumBytesBilledByRole": {
+                "properties": {
+                    "viewer": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "interactive_viewer": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "editor": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "developer": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "admin": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "type": "object"
+            },
             "Pick_CreateBigqueryCredentials.Exclude_keyofCreateBigqueryCredentials.SensitiveCredentialsFieldNames__": {
                 "properties": {
                     "type": {
@@ -38078,6 +38644,27 @@
                     "maximumBytesBilled": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "maximumBytesBilledByRole": {
+                        "$ref": "#/components/schemas/BigqueryMaximumBytesBilledByRole"
+                    },
+                    "agentMaximumBytesBilled": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "estimateQueryBytes": {
+                        "type": "boolean",
+                        "description": "Show a dry-run bytes estimate in the explorer and SQL runner."
+                    },
+                    "confirmEstimatedBytesAbove": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Ask users to confirm before running a query estimated above this."
+                    },
+                    "agentMaximumEstimatedBytes": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Refuse AI agent queries whose dry-run estimate is above this."
                     },
                     "executionProject": {
                         "type": "string"
@@ -39090,6 +39677,27 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "agentMaximumEstimatedBytes": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Refuse AI agent queries whose dry-run estimate is above this."
+                    },
+                    "confirmEstimatedBytesAbove": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Ask users to confirm before running a query estimated above this."
+                    },
+                    "estimateQueryBytes": {
+                        "type": "boolean",
+                        "description": "Show a dry-run bytes estimate in the explorer and SQL runner."
+                    },
+                    "agentMaximumBytesBilled": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "maximumBytesBilledByRole": {
+                        "$ref": "#/components/schemas/BigqueryMaximumBytesBilledByRole"
                     },
                     "maximumBytesBilled": {
                         "type": "number",
@@ -45094,7 +45702,7 @@
                 "type": "string",
                 "enum": ["createdAt", "title"]
             },
-            "Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-version_": {
+            "Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-version_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -45149,6 +45757,9 @@
                     "enableSqlMode": {
                         "type": "boolean"
                     },
+                    "enableSqlAutoApproval": {
+                        "type": "boolean"
+                    },
                     "adminOnly": {
                         "type": "boolean"
                     },
@@ -45173,6 +45784,7 @@
                     "enableContentTools",
                     "enableUserContext",
                     "enableSqlMode",
+                    "enableSqlAutoApproval",
                     "adminOnly",
                     "modelConfig"
                 ],
@@ -45180,7 +45792,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentThreadDumpAgent": {
-                "$ref": "#/components/schemas/Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-version_"
+                "$ref": "#/components/schemas/Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-version_"
             },
             "ServedSkillMetadata": {
                 "properties": {
@@ -60073,10 +60685,15 @@
             },
             "OrganizationSettings": {
                 "properties": {
+                    "dataAppCapturesEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Whether images of a running data app, and files, may be captured or\nattached anywhere in the data app builder: prompt-bar screenshots, file\nattachments sent to the coding agent, manual and automatic thumbnails,\nand the Slack build-outcome image. Inherits and is capped by the\ninstance-wide `LIGHTDASH_APP_CAPTURES_ENABLED` (the ceiling): an org can\nturn captures off, never back on past the env. `null` inherits it.\nAlways resolved to an effective boolean in API responses."
+                    },
                     "dataAppAutomaticThumbnailsEnabled": {
                         "type": "boolean",
                         "nullable": true,
-                        "description": "Whether a data app version gets a thumbnail captured automatically when\nit becomes ready. On unless the org turned it off, so `null` (or no\nstored row) resolves to `true`."
+                        "description": "Whether a data app version gets a thumbnail captured automatically when\nit becomes ready. On unless the org turned it off, so `null` (or no\nstored row) resolves to `true`. Always resolved to `false` while\n{@link OrganizationSettings.dataAppCapturesEnabled} is off."
                     },
                     "corsAllowedDomains": {
                         "items": {
@@ -60156,6 +60773,7 @@
                     }
                 },
                 "required": [
+                    "dataAppCapturesEnabled",
                     "dataAppAutomaticThumbnailsEnabled",
                     "corsAllowedDomains",
                     "csvCellsLimit",
@@ -60269,7 +60887,12 @@
                     "dataAppAutomaticThumbnailsEnabled": {
                         "type": "boolean",
                         "nullable": true,
-                        "description": "Whether a data app version gets a thumbnail captured automatically when\nit becomes ready. On unless the org turned it off, so `null` (or no\nstored row) resolves to `true`."
+                        "description": "Whether a data app version gets a thumbnail captured automatically when\nit becomes ready. On unless the org turned it off, so `null` (or no\nstored row) resolves to `true`. Always resolved to `false` while\n{@link OrganizationSettings.dataAppCapturesEnabled} is off."
+                    },
+                    "dataAppCapturesEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Whether images of a running data app, and files, may be captured or\nattached anywhere in the data app builder: prompt-bar screenshots, file\nattachments sent to the coding agent, manual and automatic thumbnails,\nand the Slack build-outcome image. Inherits and is capped by the\ninstance-wide `LIGHTDASH_APP_CAPTURES_ENABLED` (the ceiling): an org can\nturn captures off, never back on past the env. `null` inherits it.\nAlways resolved to an effective boolean in API responses."
                     }
                 },
                 "type": "object",
@@ -60564,6 +61187,10 @@
                         "type": "object",
                         "description": "Postgres wire protocol connection details for the semantic layer, only\npopulated on the authenticated `GET /org` response (not the public health\nendpoint). `enabled` reflects whether the instance exposes a pgwire port\nand is returned to every org member; `host`/`port` are the infra endpoint\nclients connect to and are only populated for org admins (null otherwise)."
                     },
+                    "dataAppCapturesEnabled": {
+                        "type": "boolean",
+                        "description": "Effective value of the org's \"allow screenshots and attachments in data\napp builds\" switch (the org setting capped by the instance env). Returned\nto every org member on the authenticated `GET /org` response so the\nbuilder can hide the capture affordances for non-admins too; the backend\nenforces it regardless. Absent on older servers — treat as `true`."
+                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -60649,6 +61276,10 @@
                     "colorPaletteUuid": {
                         "type": "string",
                         "description": "The active color palette uuid for all projects in the organization"
+                    },
+                    "dataAppCapturesEnabled": {
+                        "type": "boolean",
+                        "description": "Effective value of the org's \"allow screenshots and attachments in data\napp builds\" switch (the org setting capped by the instance env). Returned\nto every org member on the authenticated `GET /org` response so the\nbuilder can hide the capture affordances for non-admins too; the backend\nenforces it regardless. Absent on older servers — treat as `true`."
                     },
                     "chartColors": {
                         "items": {
@@ -64200,6 +64831,31 @@
                     "warehouseConnectionUuid": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "warehouseConnection": {
+                        "properties": {
+                            "startOfWeek": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/WeekDay"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "warehouseType": {
+                                "$ref": "#/components/schemas/WarehouseTypes"
+                            },
+                            "warehouseConnectionUuid": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "startOfWeek",
+                            "warehouseType",
+                            "warehouseConnectionUuid"
+                        ],
+                        "type": "object"
                     }
                 },
                 "required": [
@@ -64210,7 +64866,8 @@
                     "baseTable",
                     "tables",
                     "targetDatabase",
-                    "warehouseConnectionUuid"
+                    "warehouseConnectionUuid",
+                    "warehouseConnection"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -68618,7 +69275,13 @@
             },
             "QuerySourceType": {
                 "description": "Discriminator for every query source a project can execute queries against.\nA query source is anything that can scan a schema and run a query returning\nthe standard table format (ResultColumns + rows behind a queryUuid): the\nproject warehouse, the semantic layer, the DuckDB compose engine, and —\nlater — CSV uploads, HTTP APIs, Google Sheets, etc.\n\nDeliberately NOT WarehouseTypes: sources are not warehouses, they plug in\nabove the warehouse client layer.",
-                "enum": ["semanticLayer", "sql", "duckdb", "external"],
+                "enum": [
+                    "semanticLayer",
+                    "sql",
+                    "duckdb",
+                    "external",
+                    "python"
+                ],
                 "type": "string"
             },
             "QuerySourceDefinition": {
@@ -68740,11 +69403,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "QueryNodeId": {
-                "type": "string",
-                "description": "A name identifying one query within a multi-query submission. Other queries\nreference this query's results by this name, and by default the results are\nexposed to referencing DuckDB SQL as a table of the same name — so node ids\nshare the table-name grammar.",
-                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
             },
             "SourceQuerySubmission": {
                 "properties": {
@@ -69059,6 +69717,58 @@
                 "type": "object",
                 "description": "DuckDB SQL over named durable external tables."
             },
+            "QuerySourceType.PYTHON": {
+                "enum": ["python"],
+                "type": "string"
+            },
+            "PythonSourceQuery": {
+                "properties": {
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration",
+                        "description": "Python queries refuse a pivot; pivot in a referencing duckdb query."
+                    },
+                    "references": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/QueryNodeId"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Record_QuerySourceTableName.QueryResultReference_"
+                            }
+                        ],
+                        "description": "Which query results the code reads, in the same two forms as duckdb\nreferences. Shorthand array: node ids of queries in the same\nsubmission, each exposed as inputs[nodeId]. Map form for aliasing or\nexisting results: {inputName: nodeIdOrQueryUuid}. At least one is\nrequired."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Maximum rows kept from the returned DataFrame."
+                    },
+                    "code": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.PYTHON"
+                    }
+                },
+                "required": ["references", "code", "sourceType"],
+                "type": "object",
+                "description": "A python query as a source query: code defining\n`run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame`.\nReferences expose other queries' results as DataFrames in `inputs`, keyed\nlike DuckDB references expose tables. Referenced queries still running are\nwaited on; the query fails if any referenced query fails."
+            },
             "SourceQuery": {
                 "anyOf": [
                     {
@@ -69072,6 +69782,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/ExternalSourceQuery"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PythonSourceQuery"
                     }
                 ],
                 "description": "The tagged union every submit endpoint takes: one shape per source,\ndiscriminated by sourceType. New sources add a member here — this union is\nthe extension point, not new WarehouseTypes values."
@@ -72600,7 +73313,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.572.0",
+        "version": "2.612.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -80680,6 +81393,57 @@
                 }
             }
         },
+        "/api/v2/projects/{projectUuid}/query/metric-query/estimate": {
+            "post": {
+                "operationId": "estimateAsyncMetricQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiQueryCostEstimateResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Estimates the bytes a metric query would process with a free warehouse dry run, without running it. Only BigQuery connections with query estimates enabled return an estimate.",
+                "summary": "Estimate metric query",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EstimateAsyncMetricQueryRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/projects/{projectUuid}/query/field-values": {
             "post": {
                 "operationId": "executeAsyncFieldValueSearch",
@@ -80935,6 +81699,57 @@
                 }
             }
         },
+        "/api/v2/projects/{projectUuid}/query/sql/estimate": {
+            "post": {
+                "operationId": "estimateAsyncSqlQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiQueryCostEstimateResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Estimates the bytes a SQL runner query would process with a free warehouse dry run, without running it. Only BigQuery connections with query estimates enabled return an estimate.",
+                "summary": "Estimate SQL query",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EstimateAsyncSqlQueryRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/projects/{projectUuid}/query/compose-sql": {
             "post": {
                 "operationId": "executeAsyncComposeSqlQuery",
@@ -80980,6 +81795,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ExecuteAsyncComposeSqlQueryRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/python": {
+            "post": {
+                "operationId": "executeAsyncPythonQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncSqlQueryResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Executes python `run(inputs, params)` asynchronously in an isolated sandbox over other async queries' results. Requires run-queries access (interactive viewer and up) and the compose-sql-runner feature flag. The references map exposes other queries' results as pandas DataFrames in `inputs` ({\"orders\": \"queryUuid\"} is read as inputs[\"orders\"]); each referenced query is authorized with the same access checks as Get results and still-running references are waited on. The returned DataFrame is validated, capped at `limit` rows and stored as a regular result. The sandbox has no network access and no credentials. Returns a queryUuid to poll for results via Get results.",
+                "summary": "Execute python query",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExecuteAsyncPythonQueryRequestParams"
                             }
                         }
                     }
@@ -103038,6 +103904,26 @@
                         "schema": {
                             "type": "boolean"
                         }
+                    },
+                    {
+                        "description": "column to sort by (name sorts by full name, falling back to email)",
+                        "in": "query",
+                        "name": "sortBy",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["name"]
+                        }
+                    },
+                    {
+                        "description": "sort direction (asc or desc)",
+                        "in": "query",
+                        "name": "sortDirection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["asc", "desc"]
+                        }
                     }
                 ]
             }
@@ -103595,6 +104481,26 @@
                         "required": false,
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "description": "column to sort by",
+                        "in": "query",
+                        "name": "sortBy",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["name"]
+                        }
+                    },
+                    {
+                        "description": "sort direction (asc or desc)",
+                        "in": "query",
+                        "name": "sortDirection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["asc", "desc"]
                         }
                     }
                 ]

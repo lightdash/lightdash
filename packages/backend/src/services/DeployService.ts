@@ -21,10 +21,17 @@ import { captureAgentConnectionTask } from '../utils/agentConnectionExecution';
 import { agentExecutionContext } from './AiAccessService/agentExecutionContext';
 import { BaseService } from './BaseService';
 import { NO_CLI_DEPLOY_SELECTION, type CliDeploySelection } from './cliDeploy';
+import {
+    assertPreAggregateRefresh,
+    EMPTY_PRE_AGGREGATE_REFRESH,
+} from './ProjectService/preAggregateRefresh';
 
 export type DeployExploreEnhancer = (
     explores: (Explore | ExploreError)[],
-    context: { startOfWeek: WeekDay | null },
+    context: {
+        startOfWeek: WeekDay | null;
+        startOfWeekByExplore?: ReadonlyMap<string, WeekDay | null>;
+    },
 ) => (Explore | ExploreError)[];
 
 type ProjectServiceInterface = {
@@ -49,6 +56,13 @@ type ProjectServiceInterface = {
         dbtModelNames?: string[];
         cliDeploy: CliDeploySelection;
     }) => Promise<string>;
+    getDeployStartOfWeekByExplore: (args: {
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+        explores: (Explore | ExploreError)[];
+        sourceUuid: string | null;
+    }) => Promise<Map<string, WeekDay | null>>;
     trackCliSourceDeploy: (
         args: {
             userUuid: string;
@@ -167,29 +181,28 @@ export class DeployService extends BaseService {
                 projectUuid,
                 explores,
             );
+        const session = await this.deploySessionModel.getSession(sessionUuid);
+
+        // Validate ownership
+        if (session.projectUuid !== projectUuid) {
+            throw new ForbiddenError(
+                `Deploy session does not belong to this project`,
+            );
+        }
+
+        if (session.userUuid !== user.userUuid) {
+            throw new ForbiddenError(
+                `Deploy session does not belong to this user`,
+            );
+        }
+
+        if (session.status !== DeploySessionStatus.UPLOADING) {
+            throw new ForbiddenError(
+                `Deploy session is not in uploading state`,
+            );
+        }
+
         try {
-            const session =
-                await this.deploySessionModel.getSession(sessionUuid);
-
-            // Validate ownership
-            if (session.projectUuid !== projectUuid) {
-                throw new ForbiddenError(
-                    `Deploy session does not belong to this project`,
-                );
-            }
-
-            if (session.userUuid !== user.userUuid) {
-                throw new ForbiddenError(
-                    `Deploy session does not belong to this user`,
-                );
-            }
-
-            if (session.status !== DeploySessionStatus.UPLOADING) {
-                throw new ForbiddenError(
-                    `Deploy session is not in uploading state`,
-                );
-            }
-
             // Add explores to the staging table
             await this.deploySessionModel.addBatch(
                 sessionUuid,
@@ -262,14 +275,38 @@ export class DeployService extends BaseService {
             );
         }
 
+        const permissionProject =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('DeployProject', {
+                    projectUuid,
+                    organizationUuid: permissionProject.organizationUuid,
+                    upstreamProjectUuid: permissionProject.upstreamProjectUuid,
+                    type: permissionProject.type,
+                    createdByUserUuid: permissionProject.createdByUserUuid,
+                    metadata: {
+                        projectUuid,
+                        projectName: permissionProject.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `User does not have permission to deploy to this project`,
+            );
+        }
+
         if (agentExecutionContext.getStore()?.agentConnectionExecution) {
             await this.projectService.assertConnectionPreAggregateRefresh(
                 projectUuid,
             );
             const data =
                 await this.deploySessionModel.getDeployData(sessionUuid);
-            await this.projectService.assertConnectionPreAggregateRefresh(
-                projectUuid,
+            assertPreAggregateRefresh(
+                EMPTY_PRE_AGGREGATE_REFRESH,
                 data.explores,
             );
         }
@@ -288,8 +325,17 @@ export class DeployService extends BaseService {
             const deployData =
                 await this.deploySessionModel.getDeployData(sessionUuid);
             const uploadedExplores = deployData.explores;
+            const startOfWeekByExplore =
+                await this.projectService.getDeployStartOfWeekByExplore({
+                    userUuid: user.userUuid,
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                    explores: uploadedExplores,
+                    sourceUuid: cliDeploy.sourceUuid,
+                });
             const explores = this.exploreEnhancer(uploadedExplores, {
                 startOfWeek: project.warehouseConnection?.startOfWeek ?? null,
+                startOfWeekByExplore,
             });
 
             this.logger.info(

@@ -14,8 +14,9 @@ import {
     type UseMutationOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 
 const resolveAiAgentMemoryEnabled = (
@@ -27,7 +28,7 @@ const resolveAiAgentMemoryEnabled = (
         | undefined,
 ): boolean => settings?.aiAgentMemoryEnabled ?? false;
 
-const getAiOrganizationSettings = async () => {
+const getAiOrganizationSettings = async (lightdashApi: LightdashApi) => {
     return lightdashApi<ApiAiOrganizationRuntimeSettingsResponse['results']>({
         url: `/aiAgents/settings`,
         method: 'GET',
@@ -35,7 +36,7 @@ const getAiOrganizationSettings = async () => {
     });
 };
 
-const getAiOrganizationAdminSettings = async () =>
+const getAiOrganizationAdminSettings = async (lightdashApi: LightdashApi) =>
     lightdashApi<ApiAiOrganizationSettingsResponse['results']>({
         url: `/aiAgents/admin/settings`,
         method: 'GET',
@@ -61,13 +62,15 @@ export const useAiOrganizationSettings = (
         ApiError
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const isEmbed = useIsEmbedded();
     return useQuery<
         ApiAiOrganizationRuntimeSettingsResponse['results'],
         ApiError
     >({
         queryKey: aiOrganizationRuntimeSettingsQueryKey,
-        queryFn: getAiOrganizationSettings,
+        queryFn: () => getAiOrganizationSettings(lightdashApi),
         keepPreviousData: true,
         ...queryOptions,
         enabled: !isEmbed && queryOptions?.enabled !== false,
@@ -79,13 +82,15 @@ export const useAiOrganizationAdminSettings = (
         ApiAiOrganizationSettingsResponse['results'],
         ApiError
     >,
-) =>
-    useQuery<ApiAiOrganizationSettingsResponse['results'], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiAiOrganizationSettingsResponse['results'], ApiError>({
         queryKey: aiOrganizationAdminSettingsQueryKey,
-        queryFn: getAiOrganizationAdminSettings,
+        queryFn: () => getAiOrganizationAdminSettings(lightdashApi),
         keepPreviousData: true,
         ...queryOptions,
     });
+};
 
 export const useAiAgentMemoryEnabled = (): boolean => {
     const { data: settings } = useAiOrganizationSettings();
@@ -93,6 +98,7 @@ export const useAiAgentMemoryEnabled = (): boolean => {
 };
 
 const updateAiOrganizationSettings = async (
+    lightdashApi: LightdashApi,
     data: UpdateAiOrganizationSettings,
 ) => {
     return lightdashApi<ApiUpdateAiOrganizationSettingsResponse['results']>({
@@ -109,6 +115,8 @@ export const useUpdateAiOrganizationSettings = (
         UpdateAiOrganizationSettings
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 
@@ -117,7 +125,8 @@ export const useUpdateAiOrganizationSettings = (
         ApiError,
         UpdateAiOrganizationSettings
     >({
-        mutationFn: updateAiOrganizationSettings,
+        mutationFn: (data: UpdateAiOrganizationSettings) =>
+            updateAiOrganizationSettings(lightdashApi, data),
         onSuccess: async (data, variables, context) => {
             showToastSuccess({
                 title: 'Success! AI organization settings updated',
@@ -140,7 +149,10 @@ export const useUpdateAiOrganizationSettings = (
     });
 };
 
-const getAiThreadRetentionPreview = async (retentionHours: number) => {
+const getAiThreadRetentionPreview = async (
+    lightdashApi: LightdashApi,
+    retentionHours: number,
+) => {
     const params = new URLSearchParams({
         retentionHours: String(retentionHours),
     });
@@ -158,9 +170,12 @@ const getAiThreadRetentionPreview = async (retentionHours: number) => {
  */
 export const useAiThreadRetentionPreview = (
     retentionHours: number | undefined,
-) =>
-    useQuery<ApiAiThreadRetentionPreviewResponse['results'], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiAiThreadRetentionPreviewResponse['results'], ApiError>({
         queryKey: ['ai-thread-retention-preview', retentionHours],
-        queryFn: () => getAiThreadRetentionPreview(retentionHours!),
+        queryFn: () =>
+            getAiThreadRetentionPreview(lightdashApi, retentionHours!),
         enabled: retentionHours !== undefined,
     });
+};

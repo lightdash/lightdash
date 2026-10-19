@@ -4,7 +4,8 @@ import {
     type SharedSignInStatus,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
 export const SHARED_SIGN_IN_RECONNECTED = 'shared-sign-in-reconnected';
 export const SHARED_SIGN_IN_QUERY_FAILED = 'shared-sign-in-query-failed';
@@ -20,7 +21,10 @@ export const reportSharedSignInQueryFailure = (
     );
 };
 
-export const getSharedSignInStatus = (projectUuid: string) =>
+export const getSharedSignInStatus = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<SharedSignInStatus | null>({
         url: `/projects/${projectUuid}/warehouse-credentials/shared-sign-in`,
         method: 'GET',
@@ -28,6 +32,7 @@ export const getSharedSignInStatus = (projectUuid: string) =>
     });
 
 export const useReconnectSharedSignIn = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<ApiSuccessEmpty, ApiError>({
         mutationFn: () =>

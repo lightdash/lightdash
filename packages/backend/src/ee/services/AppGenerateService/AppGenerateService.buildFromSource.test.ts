@@ -258,6 +258,28 @@ describe('AppGenerateService.runBuildFromSourcePipeline', () => {
         expect(service.runBuild).not.toHaveBeenCalled();
     });
 
+    it('marks the version error when setup fails before the first stage', async () => {
+        const { service, appModel } = buildService();
+        // Use the real markError so the assertion covers the model write.
+        service.markError = AppGenerateService.prototype.markError.bind(
+            service,
+        ) as never;
+        appModel.getVersion.mockRejectedValueOnce(new Error('db down'));
+
+        await expect(
+            service.runBuildFromSourcePipeline(makePayload()),
+        ).resolves.toBeUndefined();
+
+        expect(appModel.updateVersionStatusIfInProgress).toHaveBeenCalledWith(
+            'app-uuid-1',
+            1,
+            'error',
+            expect.stringContaining('db down'),
+            'Build failed',
+        );
+        expect(service.createSandbox).not.toHaveBeenCalled();
+    });
+
     it('builds when queued by a valid service account', async () => {
         const { service } = buildService(null, {
             user: makeServiceAccountUser(),

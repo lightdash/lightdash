@@ -13,6 +13,8 @@ export const convertQueryResultsToCsv = (
     },
     /** Caps the rows written into model context; the query keeps the rest. */
     maxRows?: number,
+    /** Extra synthetic column, one cell per row, e.g. seasonality markers. */
+    annotations?: { header: string; cells: (string | null)[] } | null,
 ): string => {
     const fieldIds = queryResults.rows[0]
         ? Object.keys(queryResults.rows[0])
@@ -30,11 +32,20 @@ export const convertQueryResultsToCsv = (
         maxRows === undefined
             ? queryResults.rows
             : queryResults.rows.slice(0, maxRows)
-    ).map((row) =>
-        CsvService.convertRowToCsv(row, queryResults.fields, true, fieldIds),
-    );
+    ).map((row, index) => {
+        const cells = CsvService.convertRowToCsv(
+            row,
+            queryResults.fields,
+            true,
+            fieldIds,
+        );
+        return annotations ? [...cells, annotations.cells[index] ?? ''] : cells;
+    });
 
-    return stringify(rows, { header: true, columns: csvHeaders });
+    return stringify(rows, {
+        header: true,
+        columns: annotations ? [...csvHeaders, annotations.header] : csvHeaders,
+    });
 };
 
 const escapeMarkdownCell = (value: unknown): string =>

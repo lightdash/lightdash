@@ -61,7 +61,6 @@ import GenericOidcSsoPanel from '../components/UserSettings/OrganizationSso/Gene
 import GoogleSsoPanel from '../components/UserSettings/OrganizationSso/GoogleSsoPanel';
 import OktaSsoPanel from '../components/UserSettings/OrganizationSso/OktaSsoPanel';
 import OneLoginSsoPanel from '../components/UserSettings/OrganizationSso/OneLoginSsoPanel';
-import { OrganizationWarehouseCredentialsPanel } from '../components/UserSettings/OrganizationWarehouseCredentialsPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
 import ProfilePanel from '../components/UserSettings/ProfilePanel';
 import ProjectManagementPanel from '../components/UserSettings/ProjectManagementPanel';
@@ -498,19 +497,6 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/userAttributes',
                 element: <UserAttributesPanel />,
-            });
-        }
-        if (
-            user?.ability.can(
-                'manage',
-                subject('OrganizationWarehouseCredentials', {
-                    organizationUuid: organization?.organizationUuid,
-                }),
-            )
-        ) {
-            allowedRoutes.push({
-                path: '/warehouseCredentials',
-                element: <OrganizationWarehouseCredentialsPanel />,
             });
         }
         if (

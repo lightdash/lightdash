@@ -38,7 +38,6 @@ const settingsContext = (
     isAiOrganizationSettingsLoading: false,
     dataAppsFlag: undefined,
     dataAppAnalysisFlag: undefined,
-    isDataAppGeneralSettingsEnabled: false,
     isDataAppsFlagLoading: false,
     externalSourcesFlag: undefined,
     isResultsCacheEnabled: false,
@@ -46,7 +45,6 @@ const settingsContext = (
     allowPasswordAuthentication: false,
     hasSocialLogin: false,
     isGroupManagementEnabled: false,
-    isWarehouseCredentialsEnabled: false,
     isAgentIdentityEnabled: false,
     isAgentIdentityFlagLoading: false,
     isGitProject: false,
@@ -164,10 +162,7 @@ describe('Agents settings navigation', () => {
 });
 
 describe('Data apps settings navigation', () => {
-    const dataAppsChildren = (
-        rules: { action: string; subject: string }[],
-        { generalEnabled = true }: { generalEnabled?: boolean } = {},
-    ) =>
+    const dataAppsChildren = (rules: { action: string; subject: string }[]) =>
         organizationNavigation({
             user: {
                 ability: new Ability(rules),
@@ -176,7 +171,6 @@ describe('Data apps settings navigation', () => {
                 id: 'data-apps',
                 enabled: true,
             } as SettingsContext['dataAppsFlag'],
-            isDataAppGeneralSettingsEnabled: generalEnabled,
         })
             ?.find((item) => item.label === 'Data apps')
             ?.children.map(({ label, to }) => ({ label, to }));
@@ -189,21 +183,6 @@ describe('Data apps settings navigation', () => {
             ]),
         ).toEqual([
             { label: 'General', to: '/generalSettings/dataApps/general' },
-            { label: 'Themes', to: '/generalSettings/dataApps/themes' },
-            { label: 'Activity', to: '/generalSettings/dataApps/activity' },
-        ]);
-    });
-
-    it('hides General when its only setting is behind an off flag', () => {
-        expect(
-            dataAppsChildren(
-                [
-                    { action: 'manage', subject: 'Organization' },
-                    { action: 'manage', subject: 'OrganizationDesign' },
-                ],
-                { generalEnabled: false },
-            ),
-        ).toEqual([
             { label: 'Themes', to: '/generalSettings/dataApps/themes' },
             { label: 'Activity', to: '/generalSettings/dataApps/activity' },
         ]);
@@ -287,6 +266,63 @@ describe('limited project settings navigation', () => {
                     .find((section) => section.id === 'current-project')
                     ?.items.map(({ label, to }) => ({ label, to })),
             ).toEqual(expected);
+        },
+    );
+});
+
+describe('managed analytics project settings navigation', () => {
+    it.each(['full', 'limited'] as const)(
+        'keeps only useful analytics project settings with %s access',
+        (type) => {
+            const { result } = renderHook(() =>
+                useSettingsNavigation(
+                    settingsContext({
+                        organization: {
+                            organizationUuid: 'org',
+                            name: 'Organization',
+                        },
+                        project: {
+                            projectUuid: 'project',
+                            organizationUuid: 'org',
+                            name: 'Analytics',
+                            provisioningSource: 'analytics',
+                        } as Project,
+                        canAccessAnalyticsSettings: true,
+                        health: {
+                            softDelete: { enabled: true },
+                            preAggregates: { enabled: false },
+                        } as SettingsContext['health'],
+                        user: {
+                            ability: new Ability([
+                                { action: 'manage', subject: 'all' },
+                            ]),
+                        } as SettingsContext['user'],
+                        projectSettingsAccess:
+                            type === 'full'
+                                ? { type, defaultPage: 'settings' }
+                                : {
+                                      type,
+                                      pages: ['recentlyDeleted'],
+                                      defaultPage: 'recentlyDeleted',
+                                  },
+                    }),
+                ),
+            );
+            expect(
+                result.current
+                    .find(({ id }) => id === 'current-project')
+                    ?.items.map(({ label }) => label),
+            ).toEqual(
+                type === 'full'
+                    ? ['Project access', 'Recently deleted']
+                    : ['Recently deleted'],
+            );
+            expect(result.current.flatMap(({ items }) => items)).toContainEqual(
+                expect.objectContaining({
+                    label: 'Lightdash analytics',
+                    to: '/generalSettings/lightdashAnalytics',
+                }),
+            );
         },
     );
 });

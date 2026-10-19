@@ -1,4 +1,5 @@
 import {
+    AI_AGENT_MERGE_REFUSAL,
     ARTIFACT_CHART_TAG,
     ChartKind,
     ChartType,
@@ -44,7 +45,7 @@ const toDocumentChart = (
 ): McpDocumentAsCode['charts'][string] => {
     if (prepared.merge) {
         throw new ParameterError(
-            `Merged charts cannot be placed with <${tag.name}> yet. Add the chart in full under charts with its merge definition and place it with <${DOCUMENT_CHART_TAG}>.`,
+            `${AI_AGENT_MERGE_REFUSAL} Merged charts cannot be placed with <${tag.name}>.`,
         );
     }
     const { title, description } = tag.attributes;

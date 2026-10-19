@@ -1,12 +1,14 @@
 import {
     AGENT_SUGGESTION_TOOLS,
+    agentSuggestionModelChipSchema,
     agentSuggestionsModelSchema,
     type AgentSuggestion,
-    type AgentSuggestionsModelObject,
+    type AgentSuggestionModelChip,
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
 } from '@lightdash/common';
-import { generateText, Output } from 'ai';
+import { generateText, NoObjectGeneratedError, Output } from 'ai';
+import { z } from 'zod';
 import {
     emitAiUsage,
     languageModelUsageToTokens,
@@ -16,6 +18,7 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../utils/aiCallTelemetry';
+import { SuggestionGenerationError } from './suggestionErrors';
 
 const EMPTY_STATE_PROMPT = `You write 3-6 starter "chips" that appear above an empty AI agent chat input in a business-intelligence tool.
 
@@ -234,11 +237,22 @@ export type SuggestionPromptContext = {
     };
 };
 
+export function stripMarkdownCodeFences(text: string): string {
+    return text
+        .trim()
+        .replace(/^```(?:json)?\s*\n?([\s\S]*?)\s*```$/i, '$1')
+        .trim();
+}
+
 export async function generateAgentSuggestions(
     modelOptions: GeneratorModelOptions,
     context: SuggestionPromptContext,
     metadata: Record<string, string> = {},
-): Promise<AgentSuggestionsModelObject> {
+): Promise<{
+    chips: AgentSuggestionModelChip[];
+    droppedChipCount: number;
+    droppedReasons: string[];
+}> {
     const isPostResponse = context.thread !== undefined;
 
     // Strip threadUuid from recent conversations before sending to the LLM —
@@ -283,28 +297,78 @@ export async function generateAgentSuggestions(
             mode: isPostResponse ? 'post-response' : 'empty-state',
         },
     });
-    const result = await generateText({
-        model: modelOptions.model,
-        ...modelOptions.callOptions,
-        providerOptions: modelOptions.providerOptions,
-        output: Output.object({ schema: agentSuggestionsModelSchema }),
-        allowSystemInMessages: true,
-        messages: [
-            {
-                role: 'system',
-                content: systemContent,
-            },
-            {
-                role: 'user',
-                content: isPostResponse
-                    ? `Generate post-response chips for this conversation.\n\nContext:\n${userContent}`
-                    : `Generate empty-state suggestion chips for this agent.\n\nContext:\n${userContent}`,
-            },
-        ],
-        ...telemetry,
-    });
+    try {
+        const result = await generateText({
+            model: modelOptions.model,
+            ...modelOptions.callOptions,
+            providerOptions: modelOptions.providerOptions,
+            output: Output.object({ schema: agentSuggestionsModelSchema }),
+            allowSystemInMessages: true,
+            messages: [
+                {
+                    role: 'system',
+                    content: systemContent,
+                },
+                {
+                    role: 'user',
+                    content: isPostResponse
+                        ? `Generate post-response chips for this conversation.\n\nContext:\n${userContent}`
+                        : `Generate empty-state suggestion chips for this agent.\n\nContext:\n${userContent}`,
+                },
+            ],
+            ...telemetry,
+        });
 
-    emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
+        emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
-    return result.output;
+        return {
+            chips: result.output.chips,
+            droppedChipCount: 0,
+            droppedReasons: [],
+        };
+    } catch (error) {
+        if (!NoObjectGeneratedError.isInstance(error)) throw error;
+        if (error.usage) {
+            emitAiUsage(telemetry, languageModelUsageToTokens(error.usage));
+        }
+        if (!error.text) throw new SuggestionGenerationError('parse', error);
+        let parsed: unknown;
+        try {
+            parsed = JSON.parse(stripMarkdownCodeFences(error.text));
+        } catch (cause) {
+            throw new SuggestionGenerationError('parse', cause);
+        }
+        const array = z.array(z.unknown()).safeParse(parsed);
+        const object = z
+            .object({ chips: z.array(z.unknown()) })
+            .safeParse(parsed);
+        let candidates: unknown[] | null = null;
+        if (array.success) candidates = array.data;
+        else if (object.success) candidates = object.data.chips;
+        if (!candidates) throw new SuggestionGenerationError('schema', error);
+        const chips: AgentSuggestionModelChip[] = [];
+        const droppedReasons: string[] = [];
+        for (const candidate of candidates) {
+            const result = agentSuggestionModelChipSchema.safeParse(candidate);
+            if (result.success) {
+                if (chips.length < 6) chips.push(result.data);
+            } else {
+                droppedReasons.push(
+                    result.error.issues
+                        .map(
+                            (issue) =>
+                                `${issue.path.join('.')}: ${issue.message}`,
+                        )
+                        .join('; '),
+                );
+            }
+        }
+        if (chips.length === 0)
+            throw new SuggestionGenerationError('schema', error);
+        return {
+            chips,
+            droppedChipCount: droppedReasons.length,
+            droppedReasons,
+        };
+    }
 }

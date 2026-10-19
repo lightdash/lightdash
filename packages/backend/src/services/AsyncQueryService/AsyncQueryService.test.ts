@@ -1415,6 +1415,137 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('executeAsyncPythonQuery flags', () => {
+        const execute = (flags: Partial<Record<FeatureFlags, boolean>>) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: flags[featureFlagId as FeatureFlags] ?? false,
+                    })),
+                } as unknown as FeatureFlagModel,
+            } as never);
+
+            return service.executeAsyncPythonQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.PYTHON_RUNNER,
+                code: 'def run(inputs, params):\n    return inputs["orders"]',
+                references: { orders: '0b7c9c62-4b6e-4b1a-9c3e-4f6a0c8d2e11' },
+            });
+        };
+
+        test('requires the python query runner flag', async () => {
+            await expect(
+                execute({ [FeatureFlags.ComposeSqlRunner]: true }),
+            ).rejects.toThrow('Python queries are not enabled');
+        });
+
+        test('requires the compose SQL runner flag', async () => {
+            await expect(
+                execute({ [FeatureFlags.PythonQueryRunner]: true }),
+            ).rejects.toThrow('Python queries are not enabled');
+        });
+    });
+
+    describe('executeAsyncPythonQuery result producer', () => {
+        const referencedQueryUuid = '0b7c9c62-4b6e-4b1a-9c3e-4f6a0c8d2e11';
+        const referenced = {
+            queryUuid: referencedQueryUuid,
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            createdByUserUuid: sessionAccount.user.id,
+            context: QueryExecutionContext.AI,
+            status: QueryHistoryStatus.READY,
+            resultsFileName: 'referenced-results.jsonl',
+            resultsExpiresAt: null,
+            columns: { one: { reference: 'one', type: DimensionType.NUMBER } },
+            metricQuery: metricQueryMock,
+            requestParameters: { query: metricQueryMock },
+        } as unknown as QueryHistory;
+
+        const submit = async (identityEnabled: boolean) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId === FeatureFlags.AgentIdentity
+                                ? identityEnabled
+                                : true,
+                    })),
+                } as unknown as FeatureFlagModel,
+                queryHistoryModel: {
+                    create: vi.fn(async () => ({ queryUuid: 'python-uuid' })),
+                    get: vi.fn(async () => referenced),
+                    recordResultProducer: vi.fn(),
+                } as unknown as QueryHistoryModel,
+            } as never);
+            vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
+                userAttributes: {},
+                intrinsicUserAttributes: {},
+            });
+            const run = vi
+                .spyOn(service as AnyType, 'runPythonQuery')
+                .mockResolvedValue(undefined);
+            const submission = await service.executeAsyncPythonQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.AI,
+                querySurface: QuerySurface.APP,
+                code: 'def run(inputs, params):\n    return inputs["orders"]',
+                references: { orders: referencedQueryUuid },
+            });
+            return { service, run, submission };
+        };
+
+        test('stamps the row with a derived producer and the entitlement fingerprint before running', async () => {
+            const { service, run, submission } = await submit(true);
+
+            expect(submission.queryUuid).toBe('python-uuid');
+            const stored = vi.mocked(service.queryHistoryModel.create).mock
+                .calls[0][1].requestParameters;
+            const fingerprint = stored.resultEntitlementFingerprint;
+            expect(fingerprint).toEqual(expect.any(String));
+            expect(
+                service.queryHistoryModel.recordResultProducer,
+            ).toHaveBeenCalledWith(
+                'python-uuid',
+                projectUuid,
+                sessionAccount.user.id,
+                {
+                    version: 1,
+                    authMethod: 'session',
+                    warehouseConnectionUuid: null,
+                    credentialOwner: { kind: 'derived' },
+                    entitlementFingerprint: fingerprint,
+                    agentIdentity: buildQueryAgentIdentity(
+                        sessionAccount,
+                        QueryExecutionContext.AI,
+                        QuerySurface.APP,
+                    ),
+                },
+            );
+            expect(
+                vi.mocked(service.queryHistoryModel.recordResultProducer).mock
+                    .invocationCallOrder[0],
+            ).toBeLessThan(run.mock.invocationCallOrder[0]);
+        });
+
+        test('records the producer without a fingerprint when agent identity is off', async () => {
+            const { service } = await submit(false);
+
+            const producer = vi.mocked(
+                service.queryHistoryModel.recordResultProducer,
+            ).mock.calls[0][3];
+            expect(producer?.credentialOwner).toEqual({ kind: 'derived' });
+            expect(producer?.entitlementFingerprint).toBeNull();
+            const stored = vi.mocked(service.queryHistoryModel.create).mock
+                .calls[0][1].requestParameters;
+            expect(stored.resultEntitlementFingerprint).toBeNull();
+        });
+    });
+
     describe('compose engine in every edition', () => {
         const composeFlags = {
             get: vi.fn(
@@ -7494,6 +7625,7 @@ describe('AsyncQueryService', () => {
             compiledSql: 'SELECT * FROM test.table',
             warehouseQueryId: 'test-warehouse-query-id',
             warehouseQueryMetadata: null,
+            warehouseExecutionStats: null,
             requestParameters: {} as ExecuteAsyncQueryRequestParams,
             usedParameters: null,
             totalRowCount: null,
@@ -7632,6 +7764,7 @@ describe('AsyncQueryService', () => {
                 compiledSql: 'SELECT * FROM test.table',
                 warehouseQueryId: 'test-warehouse-query-id',
                 warehouseQueryMetadata: null,
+                warehouseExecutionStats: null,
                 requestParameters: {} as ExecuteAsyncQueryRequestParams,
                 usedParameters: null,
                 totalRowCount: null,
@@ -7877,6 +8010,7 @@ describe('AsyncQueryService', () => {
                 compiledSql: 'SELECT * FROM test.table',
                 warehouseQueryId: 'test-warehouse-query-id',
                 warehouseQueryMetadata: null,
+                warehouseExecutionStats: null,
                 requestParameters: {} as ExecuteAsyncQueryRequestParams,
                 usedParameters: null,
                 totalRowCount: 10,
@@ -8003,6 +8137,7 @@ describe('AsyncQueryService', () => {
                     'SELECT sum(orders_total_revenue) AS revenue, order_month FROM orders GROUP BY 2',
                 warehouseQueryId: null,
                 warehouseQueryMetadata: null,
+                warehouseExecutionStats: null,
                 requestParameters: {} as ExecuteAsyncQueryRequestParams,
                 usedParameters: null,
                 totalRowCount: 2,
@@ -8093,6 +8228,7 @@ describe('AsyncQueryService', () => {
                 compiledSql: 'SELECT * FROM test.table',
                 warehouseQueryId: 'test-warehouse-query-id',
                 warehouseQueryMetadata: null,
+                warehouseExecutionStats: null,
                 requestParameters: {} as ExecuteAsyncQueryRequestParams,
                 usedParameters: null,
                 totalRowCount: 1,
@@ -8177,6 +8313,7 @@ describe('AsyncQueryService', () => {
                 compiledSql: 'SELECT * FROM test.table',
                 warehouseQueryId: 'test-warehouse-query-id',
                 warehouseQueryMetadata: null,
+                warehouseExecutionStats: null,
                 requestParameters: {} as ExecuteAsyncQueryRequestParams,
                 usedParameters: null,
                 totalRowCount: 1,
@@ -8547,6 +8684,7 @@ describe('AsyncQueryService', () => {
                 compiledSql: 'SELECT * FROM test.table',
                 warehouseQueryId: 'test-warehouse-query-id',
                 warehouseQueryMetadata: null,
+                warehouseExecutionStats: null,
                 requestParameters: {} as ExecuteAsyncQueryRequestParams,
                 usedParameters: null,
                 totalRowCount: 10,
@@ -9019,7 +9157,7 @@ describe('AsyncQueryService', () => {
                 const expected = {
                     disabled: 'analytics disabled',
                     'cross-org': 'another organization',
-                    'non-admin': 'administration',
+                    'non-admin': 'View managed analytics',
                 }[reason];
                 await expect(
                     service.getAsyncQueryHistory(args),
@@ -9154,6 +9292,7 @@ describe('AsyncQueryService', () => {
             compiledSql: 'SELECT * FROM test.table',
             warehouseQueryId: 'test-warehouse-query-id',
             warehouseQueryMetadata: null,
+            warehouseExecutionStats: null,
             requestParameters: {} as ExecuteAsyncQueryRequestParams,
             usedParameters: null,
             totalRowCount: null,
@@ -9332,6 +9471,7 @@ describe('AsyncQueryService', () => {
         compiledSql: 'SELECT * FROM test.table',
         warehouseQueryId: 'test-warehouse-query-id',
         warehouseQueryMetadata: null,
+        warehouseExecutionStats: null,
         requestParameters: {} as ExecuteAsyncQueryRequestParams,
         usedParameters: null,
         totalRowCount: null,
@@ -11134,6 +11274,141 @@ describe('AsyncQueryService', () => {
                 );
             },
         );
+    });
+
+    describe('runAsyncWarehouseQuery dry-run estimate gate', () => {
+        const bigqueryCredentials = {
+            type: WarehouseTypes.BIGQUERY,
+            project: 'project',
+            dataset: 'dataset',
+            timeoutSeconds: undefined,
+            priority: undefined,
+            keyfileContents: {},
+            retries: undefined,
+            location: undefined,
+            maximumBytesBilled: undefined,
+            agentMaximumEstimatedBytes: 10_000_000_000,
+        } satisfies CreateWarehouseCredentials;
+
+        const setupGate = (totalBytesProcessed: number) => {
+            const estimateQuery = vi.fn(async () => ({ totalBytesProcessed }));
+            const runQuery = vi.fn(async () => resultsWith1Row);
+            const mockProjectModel = {
+                ...projectModel,
+                ...singleRouteProjectModelMethods,
+                getWarehouseCredentialsForProject: vi.fn(() =>
+                    Promise.resolve(bigqueryCredentials),
+                ),
+                getWarehouseClientFromCredentials: vi.fn(() => ({
+                    ...warehouseClientMock,
+                    credentials: bigqueryCredentials,
+                    estimateQuery,
+                    runQuery,
+                })),
+            };
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                projectModel: mockProjectModel as unknown as ProjectModel,
+            });
+            service.queryHistoryModel.update = vi.fn();
+            const markErrored = vi
+                .spyOn(
+                    service as unknown as {
+                        markAsyncQueryErrored: (args: {
+                            errorMessage: string;
+                        }) => Promise<void>;
+                    },
+                    'markAsyncQueryErrored',
+                )
+                .mockResolvedValue(undefined);
+            const runQueryAndTransformRows = vi.spyOn(
+                AsyncQueryService,
+                'runQueryAndTransformRows',
+            );
+            runQueryAndTransformRows.mockClear();
+            return {
+                service,
+                estimateQuery,
+                markErrored,
+                runQueryAndTransformRows,
+            };
+        };
+
+        const runArgs = (
+            context: QueryExecutionContext,
+        ): RunAsyncWarehouseQueryArgs => ({
+            userUuid: sessionAccount.user.id,
+            organizationUuid: sessionAccount.organization.organizationUuid!,
+            isPreviewProject: false,
+            isRegisteredUser: true,
+            onboardingFlow: 'legacy',
+            projectUuid,
+            query: 'SELECT * FROM big_table',
+            fieldsMap: {},
+            usedParameters: null,
+            queryTags: { query_context: context },
+            warehouseCredentialsOverrides: undefined,
+            queryUuid: 'gated-query-uuid',
+            cacheKey: 'gated-cache-key',
+            pivotConfiguration: undefined,
+            originalColumns: undefined,
+            queryCreatedAt: new Date(),
+            displayTimezone: null,
+        });
+
+        test('refuses an agent query estimated above the limit', async () => {
+            const {
+                service,
+                estimateQuery,
+                markErrored,
+                runQueryAndTransformRows,
+            } = setupGate(120_000_000_000);
+
+            await service.runAsyncWarehouseQuery(
+                runArgs(QueryExecutionContext.MCP_RUN_SQL),
+            );
+
+            expect(estimateQuery).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    sql: 'SELECT * FROM big_table',
+                    tags: expect.objectContaining({
+                        query_context: QueryExecutionContext.MCP_RUN_SQL,
+                        query_uuid: 'gated-query-uuid',
+                    }),
+                }),
+            );
+            expect(runQueryAndTransformRows).not.toHaveBeenCalled();
+            expect(markErrored).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    errorMessage: expect.stringContaining(
+                        'dry run estimate is 120 GB',
+                    ),
+                }),
+            );
+        });
+
+        test('runs an agent query estimated within the limit', async () => {
+            const { service, markErrored, runQueryAndTransformRows } =
+                setupGate(1_000_000);
+
+            await service.runAsyncWarehouseQuery(
+                runArgs(QueryExecutionContext.MCP_RUN_SQL),
+            );
+
+            expect(runQueryAndTransformRows).toHaveBeenCalledOnce();
+            expect(markErrored).not.toHaveBeenCalled();
+        });
+
+        test('does not dry-run queries from people', async () => {
+            const { service, estimateQuery, runQueryAndTransformRows } =
+                setupGate(120_000_000_000);
+
+            await service.runAsyncWarehouseQuery(
+                runArgs(QueryExecutionContext.EXPLORE),
+            );
+
+            expect(estimateQuery).not.toHaveBeenCalled();
+            expect(runQueryAndTransformRows).toHaveBeenCalledOnce();
+        });
     });
 
     describe('runAsyncWarehouseQuery preview sign-in retry', () => {
@@ -14748,6 +15023,7 @@ describe('saved chart query result access', () => {
             createdByActorType: account.authentication.type,
             warehouseQueryId: null,
             warehouseQueryMetadata: null,
+            warehouseExecutionStats: null,
             compiledSql: 'select 1',
             usedParameters: null,
             warehouseExecutionTimeMs: null,
@@ -15486,6 +15762,8 @@ describe('runDuckdbQuery', () => {
             markDuckdbCacheHit,
             findCachedResultsFile,
             update: service.queryHistoryModel.update as import('vitest').Mock,
+            getByQueryUuid: service.queryHistoryModel
+                .getByQueryUuid as import('vitest').Mock,
         };
     };
 
@@ -16067,6 +16345,248 @@ describe('runDuckdbQuery', () => {
             expect.objectContaining({ status: QueryHistoryStatus.ERROR }),
             expect.anything(),
         );
+    });
+
+    describe('a cancelled query', () => {
+        const queryReferences: RunDuckdbQueryArgs['references'] = {
+            kind: 'queries',
+            references: { merge_source_0: 'leg-uuid' },
+            guard: null,
+            labelByTable: { merge_source_0: 'Query A' },
+        };
+        const cancelledRow = {
+            queryUuid: 'duckdb-query-uuid',
+            status: QueryHistoryStatus.CANCELLED,
+        } as QueryHistory;
+
+        it('never runs once its references complete', async () => {
+            const {
+                run,
+                runWarehouseQuery,
+                findCachedResultsFile,
+                update,
+                getByQueryUuid,
+            } = buildService(cachedResults);
+            getByQueryUuid.mockResolvedValue(cancelledRow);
+
+            await run(baseArgs({ references: queryReferences }));
+
+            expect(findCachedResultsFile).not.toHaveBeenCalled();
+            expect(runWarehouseQuery).not.toHaveBeenCalled();
+            expect(update).not.toHaveBeenCalled();
+        });
+    });
+});
+
+// Single-row stand-in that applies the status guard from the model's WHERE
+const respondWithStatusGuard = (
+    tracker: ReturnType<typeof getTracker>,
+    row: { status: QueryHistoryStatus },
+) => {
+    tracker.on.update('query_history').response(({ sql, bindings }) => {
+        const guard = bindings.slice(
+            bindings.indexOf(sessionAccount.user.id) + 1,
+        );
+        const allowed = sql.includes('not "status" =')
+            ? !guard.includes(row.status)
+            : guard.length === 0 || guard.includes(row.status);
+        if (!allowed) return 0;
+        Object.assign(row, { status: bindings[0] });
+        return 1;
+    });
+};
+
+describe('cancelling a merge', () => {
+    const joinUuid = 'join-uuid';
+    const legA = 'leg-a-uuid';
+    const legB = 'leg-b-uuid';
+    const resultSourceUuid = 'result-source-uuid';
+    const mergeSpec: DuckdbExecutionSpec = {
+        references: {
+            merge_source_0: legA,
+            merge_source_1: legB,
+            merge_source_2: resultSourceUuid,
+        },
+        engine: 'scopedToReferencedResults',
+        columns: { mode: 'supplied' },
+        guard: {
+            legLabelByReferenceTable: {
+                merge_source_0: 'Query A',
+                merge_source_1: 'Query B',
+            },
+            sourceRowCap: 5000,
+        },
+        storedCompiledSql: null,
+        referenceLabels: {
+            merge_source_0: 'Query A',
+            merge_source_1: 'Query B',
+        },
+        invalidateCache: false,
+        cacheHit: false,
+        refusal: null,
+    };
+    const legCreatedAt = new Date();
+    const cancelledLeg = (queryUuid: string) => ({
+        queryUuid,
+        previousStatus: QueryHistoryStatus.QUEUED,
+        context: QueryExecutionContext.SQL_RUNNER,
+        createdAt: legCreatedAt,
+    });
+
+    const setup = ({
+        spec = mergeSpec,
+        joinStatus = QueryHistoryStatus.EXECUTING,
+        cancelledLegs = [],
+    }: {
+        spec?: DuckdbExecutionSpec | null;
+        joinStatus?: QueryHistoryStatus;
+        cancelledLegs?: ReturnType<typeof cancelledLeg>[];
+    }) => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        const join = { status: joinStatus };
+        respondWithStatusGuard(tracker, join);
+        const model = new QueryHistoryModel({ database });
+        const cancelRunningQueriesReadOnlyBy = vi.fn(async () => cancelledLegs);
+        Object.assign(service.queryHistoryModel, {
+            get: vi.fn(async () => ({
+                queryUuid: joinUuid,
+                status: join.status,
+                context: QueryExecutionContext.EXPLORE,
+                createdAt: new Date(),
+                metricQuery: { exploreName: 'merge' },
+            })),
+            update: model.update.bind(model),
+            getDuckdbExecution: vi.fn(async () => spec),
+            cancelRunningQueriesReadOnlyBy,
+        });
+        const prometheusMetrics = {
+            trackQueryStateTransition: vi.fn(),
+            incrementQueryStatus: vi.fn(),
+            observeQueryTotalDuration: vi.fn(),
+        };
+        Object.assign(service, { prometheusMetrics });
+        return {
+            cancel: () =>
+                service.cancelAsyncQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid: joinUuid,
+                }),
+            join,
+            cancelRunningQueriesReadOnlyBy,
+            prometheusMetrics,
+            teardown: async () => {
+                tracker.reset();
+                await database.destroy();
+            },
+        };
+    };
+
+    it('cancels the legs the merge ran in one guarded write, as the cancelling account', async () => {
+        const { cancel, join, cancelRunningQueriesReadOnlyBy, ...rest } = setup(
+            { cancelledLegs: [cancelledLeg(legA), cancelledLeg(legB)] },
+        );
+        try {
+            await cancel();
+
+            expect(join.status).toBe(QueryHistoryStatus.CANCELLED);
+            // A result the merge references is not a leg it ran
+            expect(cancelRunningQueriesReadOnlyBy).toHaveBeenCalledWith(
+                [legA, legB],
+                projectUuid,
+                joinUuid,
+                sessionAccount,
+            );
+            expect(
+                rest.prometheusMetrics.incrementQueryStatus.mock.calls,
+            ).toEqual([
+                [QueryHistoryStatus.CANCELLED, QueryExecutionContext.EXPLORE],
+                [
+                    QueryHistoryStatus.CANCELLED,
+                    QueryExecutionContext.SQL_RUNNER,
+                ],
+                [
+                    QueryHistoryStatus.CANCELLED,
+                    QueryExecutionContext.SQL_RUNNER,
+                ],
+            ]);
+            expect(
+                rest.prometheusMetrics.trackQueryStateTransition,
+            ).toHaveBeenCalledWith(
+                QueryHistoryStatus.QUEUED,
+                QueryHistoryStatus.CANCELLED,
+                QueryExecutionContext.SQL_RUNNER,
+            );
+        } finally {
+            await rest.teardown();
+        }
+    });
+
+    it('a retry after a partial cancel still cancels the remaining legs', async () => {
+        const { cancel, join, cancelRunningQueriesReadOnlyBy, ...rest } = setup(
+            {
+                joinStatus: QueryHistoryStatus.CANCELLED,
+                cancelledLegs: [cancelledLeg(legB)],
+            },
+        );
+        try {
+            await cancel();
+
+            expect(join.status).toBe(QueryHistoryStatus.CANCELLED);
+            expect(cancelRunningQueriesReadOnlyBy).toHaveBeenCalledTimes(1);
+            // Only the leg counts as newly cancelled
+            expect(
+                rest.prometheusMetrics.incrementQueryStatus.mock.calls,
+            ).toEqual([
+                [
+                    QueryHistoryStatus.CANCELLED,
+                    QueryExecutionContext.SQL_RUNNER,
+                ],
+            ]);
+        } finally {
+            await rest.teardown();
+        }
+    });
+
+    it.each([
+        QueryHistoryStatus.READY,
+        QueryHistoryStatus.ERROR,
+        QueryHistoryStatus.EXPIRED,
+    ])('leaves the legs of a merge that is already %s', async (status) => {
+        const { cancel, join, cancelRunningQueriesReadOnlyBy, ...rest } = setup(
+            {
+                joinStatus: status,
+                cancelledLegs: [cancelledLeg(legA)],
+            },
+        );
+        try {
+            await cancel();
+
+            expect(join.status).toBe(status);
+            expect(cancelRunningQueriesReadOnlyBy).not.toHaveBeenCalled();
+            expect(
+                rest.prometheusMetrics.incrementQueryStatus,
+            ).not.toHaveBeenCalled();
+        } finally {
+            await rest.teardown();
+        }
+    });
+
+    it('cancels only the query itself when it ran no legs', async () => {
+        const { cancel, join, cancelRunningQueriesReadOnlyBy, ...rest } = setup(
+            { spec: { ...mergeSpec, guard: null } },
+        );
+        try {
+            await cancel();
+
+            expect(join.status).toBe(QueryHistoryStatus.CANCELLED);
+            expect(cancelRunningQueriesReadOnlyBy).not.toHaveBeenCalled();
+        } finally {
+            await rest.teardown();
+        }
     });
 });
 
@@ -17282,6 +17802,7 @@ describe('executeAsyncMergeQuery over a result source', () => {
         compiledSql: 'SELECT 1',
         warehouseQueryId: null,
         warehouseQueryMetadata: null,
+        warehouseExecutionStats: null,
         requestParameters: {} as ExecuteAsyncQueryRequestParams,
         usedParameters: null,
         totalRowCount,
@@ -18098,6 +18619,7 @@ describe('chart embed token query history access', () => {
             createdByActorType: account.authentication.type,
             warehouseQueryId: null,
             warehouseQueryMetadata: null,
+            warehouseExecutionStats: null,
             compiledSql: 'select 1',
             usedParameters: null,
             warehouseExecutionTimeMs: null,
@@ -18295,6 +18817,7 @@ describe('embedded AI agent result downloads', () => {
             createdByActorType: account.authentication.type,
             warehouseQueryId: null,
             warehouseQueryMetadata: null,
+            warehouseExecutionStats: null,
             compiledSql: 'select 1',
             usedParameters: null,
             warehouseExecutionTimeMs: null,
@@ -28075,5 +28598,101 @@ describe('fresh execution producer to result reader', () => {
         expect((await readSql(f, account, result.queryUuid)).status).toBe(
             QueryHistoryStatus.READY,
         );
+    });
+});
+
+describe('late query status writes', () => {
+    const queryUuid = 'late-write-query';
+
+    const setup = (initialStatus: QueryHistoryStatus) => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        const row = { status: initialStatus };
+        respondWithStatusGuard(tracker, row);
+        const model = new QueryHistoryModel({ database });
+        Object.assign(service.queryHistoryModel, {
+            get: vi.fn(async () => ({
+                queryUuid,
+                projectUuid,
+                status: row.status,
+                context: QueryExecutionContext.SQL_RUNNER,
+                createdAt: new Date(),
+                metricQuery: metricQueryMock,
+            })),
+            update: model.update.bind(model),
+            updateStatusToError: model.updateStatusToError.bind(model),
+        });
+        const prometheusMetrics = {
+            trackQueryStateTransition: vi.fn(),
+            incrementQueryStatus: vi.fn(),
+            observeQueryTotalDuration: vi.fn(),
+        };
+        Object.assign(service, { prometheusMetrics });
+        return { service, row, prometheusMetrics, tracker, database };
+    };
+
+    test('cancelling a query that already finished leaves it ready', async () => {
+        const { service, row, prometheusMetrics, tracker, database } = setup(
+            QueryHistoryStatus.READY,
+        );
+        try {
+            await service.cancelAsyncQuery({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid,
+            });
+            expect(tracker.history.update).toHaveLength(1);
+            expect(row.status).toBe(QueryHistoryStatus.READY);
+            expect(
+                prometheusMetrics.incrementQueryStatus,
+            ).not.toHaveBeenCalled();
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+
+    test('an error after a cancel keeps the query cancelled', async () => {
+        const { service, row, prometheusMetrics, tracker, database } = setup(
+            QueryHistoryStatus.EXECUTING,
+        );
+        try {
+            await service.cancelAsyncQuery({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid,
+            });
+            expect(row.status).toBe(QueryHistoryStatus.CANCELLED);
+            expect(prometheusMetrics.incrementQueryStatus).toHaveBeenCalledWith(
+                QueryHistoryStatus.CANCELLED,
+                QueryExecutionContext.SQL_RUNNER,
+            );
+
+            await service['markAsyncQueryErrored']({
+                queryUuid,
+                projectUuid,
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                userUuid: sessionAccount.user.id,
+                isRegisteredUser: true,
+                isPreviewProject: false,
+                onboardingFlow: 'legacy',
+                queryTags: {
+                    query_context: QueryExecutionContext.SQL_RUNNER,
+                },
+                queryCreatedAt: new Date(),
+                queryUsage: undefined,
+                errorMessage: 'canceling statement due to user request',
+                executionSource: 'warehouse',
+                warehouseType: null,
+                inheritedFromProjectUuid: null,
+            });
+            expect(tracker.history.update).toHaveLength(2);
+            expect(row.status).toBe(QueryHistoryStatus.CANCELLED);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
     });
 });

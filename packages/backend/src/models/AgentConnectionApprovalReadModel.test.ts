@@ -1,9 +1,4 @@
-import {
-    AgentCapability,
-    ForbiddenError,
-    type Explore,
-    type ExploreError,
-} from '@lightdash/common';
+import { AgentCapability, ForbiddenError } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { getRequiredAgentCapabilities } from '../auth/agentPermissions/capabilityMap';
@@ -71,19 +66,16 @@ it.each([
                 'project',
             ]);
             const receiver = {
-                preAggregateModel: {
-                    getPreAggregateDefinitionsForProject: async () =>
-                        stored ? [{ refreshCron: cron }] : [],
-                },
                 projectModel: {
-                    getAllExploresFromCache: async () =>
-                        definitions === null
-                            ? {}
-                            : {
-                                  explore: {
-                                      preAggregates: definitions,
-                                  } as unknown as Explore | ExploreError,
-                              },
+                    getPreAggregateRefreshSummary: async () => ({
+                        hasScheduledDefinition: stored && cron !== null,
+                        hasScheduledRefresh:
+                            definitions?.some(
+                                (definition) =>
+                                    definition.refresh?.cron != null,
+                            ) ?? false,
+                        hasMalformedPreAggregates: false,
+                    }),
                 },
             } as unknown as ProjectService;
             const actual =

@@ -83,14 +83,6 @@ export const useSettingsContext = (): SettingsContext => {
         FeatureFlags.EnableDataAppAnalysis,
     );
     const { data: dataAppAnalysisFlag } = dataAppAnalysisFlagQuery;
-    // Data apps > General holds a single setting (automatic thumbnails), so its
-    // sidebar entry follows that flag. Drop this once another setting lands
-    // there; the route itself is not gated.
-    const dataAppAutomaticThumbnailsFlagQuery = useServerFeatureFlag(
-        FeatureFlags.EnableDataAppAutomaticThumbnails,
-    );
-    const isDataAppGeneralSettingsEnabled =
-        dataAppAutomaticThumbnailsFlagQuery.data?.enabled ?? false;
 
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
@@ -219,17 +211,6 @@ export const useSettingsContext = (): SettingsContext => {
     const isServiceAccountsEnabled =
         health?.isServiceAccountEnabled || isServiceAccountFeatureFlagEnabled;
 
-    const { data: warehouseCredentialsFlag } = useServerFeatureFlag(
-        CommercialFeatureFlags.OrganizationWarehouseCredentials,
-    );
-    const isWarehouseCredentialsFeatureFlagEnabled =
-        warehouseCredentialsFlag?.enabled ?? false;
-
-    // This allows us to enable organization warehouse credentials in the UI for on-premise installations
-    const isWarehouseCredentialsEnabled =
-        (health?.isOrganizationWarehouseCredentialsEnabled ?? false) ||
-        isWarehouseCredentialsFeatureFlagEnabled;
-
     const isAgentIdentityEnabled = agentIdentityFlag?.enabled ?? false;
 
     return {
@@ -259,7 +240,6 @@ export const useSettingsContext = (): SettingsContext => {
             aiOrganizationSettingsQuery.isInitialLoading,
         dataAppsFlag,
         dataAppAnalysisFlag,
-        isDataAppGeneralSettingsEnabled,
         isDataAppsFlagLoading:
             dataAppsFlagQuery.isInitialLoading ||
             dataAppAnalysisFlagQuery.isInitialLoading,
@@ -269,7 +249,6 @@ export const useSettingsContext = (): SettingsContext => {
         allowPasswordAuthentication,
         hasSocialLogin,
         isGroupManagementEnabled,
-        isWarehouseCredentialsEnabled,
         isAgentIdentityEnabled,
         isAgentIdentityFlagLoading,
         isGitProject,

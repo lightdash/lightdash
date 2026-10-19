@@ -784,7 +784,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 agent_surface: tags.agent_surface,
                 agent_client: tags.agent_client,
             };
-            for (const key of ['ai_principal', 'user_uuid']) {
+            for (const key of ['agent_uuid', 'ai_principal', 'user_uuid']) {
                 if (tags[key] !== undefined) prioritized[key] = tags[key];
             }
             for (const [key, value] of Object.entries(tags).filter(

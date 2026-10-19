@@ -61,6 +61,7 @@ export type CaslSubjectNames =
     | 'AiAgentThread'
     | 'AiDeepResearch'
     | 'Analytics'
+    | 'SystemAnalytics'
     | 'ChangeCsvResults'
     | 'CompiledSql'
     | 'CompileProject'

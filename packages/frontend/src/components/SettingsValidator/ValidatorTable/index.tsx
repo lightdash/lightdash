@@ -270,7 +270,9 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                 id: 'actions',
                 header: '',
                 enableSorting: false,
-                size: 70,
+                // Dismiss icon (20) + gap (8) + Fix button (~40) + cell padding (32).
+                size: 120,
+                minSize: 120,
                 Cell: ({ row }) => {
                     const validationError = row.original;
                     const isPinned =
@@ -314,6 +316,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                                 <Button
                                     variant="default"
                                     size="compact-xs"
+                                    flex="0 0 auto"
                                     onClick={(
                                         e: React.MouseEvent<HTMLButtonElement>,
                                     ) => {

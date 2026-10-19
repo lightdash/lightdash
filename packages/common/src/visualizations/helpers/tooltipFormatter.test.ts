@@ -8,11 +8,85 @@ import {
 } from '../../types/field';
 import { VizAggregationOptions, type EChartsSeries } from '../types';
 import {
+    buildCartesianTooltipFormatter,
     createStack100TooltipFormatter,
     findPivotColumnFromSeriesRef,
     transformToPercentageStacking,
     translatePivotRef,
 } from './tooltipFormatter';
+
+describe('buildCartesianTooltipFormatter with a table calculation x-axis', () => {
+    const itemsMap: ItemsMap = {
+        row_num: {
+            name: 'row_num',
+            displayName: 'Row Num',
+            sql: 'ROW_NUMBER() OVER ()',
+        },
+        orders_total_amount: {
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            name: 'total_amount',
+            label: 'Total order amount',
+            table: 'orders',
+            tableLabel: 'Orders',
+            sql: '${TABLE}.amount',
+            hidden: false,
+            formatOptions: {
+                type: CustomFormatType.CURRENCY,
+                currency: Format.USD,
+            },
+        },
+    };
+    const params: Parameters<
+        ReturnType<typeof buildCartesianTooltipFormatter>
+    >[0] = [
+        {
+            $vars: ['seriesName', 'name', 'value'],
+            componentType: 'series',
+            componentSubType: 'bar',
+            componentIndex: 0,
+            seriesType: 'bar',
+            seriesIndex: 0,
+            seriesName: 'Total order amount',
+            name: '1',
+            dataIndex: 0,
+            data: { row_num: 1, orders_total_amount: 32 },
+            value: { row_num: 1, orders_total_amount: 32 },
+            dimensionNames: ['row_num', 'orders_total_amount'],
+            encode: { x: [0], y: [1] },
+            axisId: 'x',
+            axisIndex: 0,
+            axisType: 'category',
+            axisValue: 1,
+            axisValueLabel: '1',
+        },
+    ];
+
+    it.each([undefined, '- Total orders: ${orders_total_amount}'])(
+        'preserves the header and metric rows with template %s',
+        (tooltipHtmlTemplate) => {
+            const formatter = buildCartesianTooltipFormatter({
+                itemsMap,
+                stackValue: undefined,
+                flipAxes: false,
+                xFieldId: 'row_num',
+                tooltipHtmlTemplate,
+            });
+
+            const html = formatter(params, '', () => {});
+
+            expect(html).toContain('1');
+            expect(html).toContain('Total order amount');
+            expect(html).toContain('$32.00');
+            if (tooltipHtmlTemplate) {
+                expect(html).toContain('- Total orders: $32.00');
+                expect(html).not.toContain('${orders_total_amount}');
+            } else {
+                expect(html).not.toContain('- Total orders:');
+            }
+        },
+    );
+});
 
 describe('translatePivotRef', () => {
     const pivotValuesColumnsMap = {

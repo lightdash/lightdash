@@ -1,5 +1,6 @@
 import type {
     Account,
+    FeatureFlags,
     ParametersValuesMap,
     PivotConfiguration,
     QueryExecutionContext,
@@ -77,6 +78,8 @@ export interface QuerySourceClient {
     definition: QuerySourceDefinition;
     /** Whether a query of this source may carry a pivotConfiguration. */
     supportsPivot: boolean;
+    /** Flags that must all be on for the org to list, scan or submit this source. */
+    requiredFeatureFlags: FeatureFlags[];
     scanSchema(args: ScanSchemaArgs): Promise<QuerySourceSchema>;
     getQueryReferences(query: SourceQuery): string[];
     submitQuery(

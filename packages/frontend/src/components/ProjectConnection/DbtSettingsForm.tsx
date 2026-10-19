@@ -198,9 +198,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                                         projectUuid={projectUuid}
                                     />
                                 ) : null}
-                                {isDbtSource ||
-                                form.values
-                                    .organizationWarehouseCredentialsUuid ? null : (
+                                {isDbtSource ? null : (
                                     <WarehouseSchemaInput
                                         warehouseType={warehouseType}
                                         disabled={disabled}

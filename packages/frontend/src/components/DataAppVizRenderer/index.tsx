@@ -43,6 +43,7 @@ import {
     getVizHierarchyDimensions,
     hasVizSubtotalValues,
 } from '../../features/chartTypes/utils/vizSubtotals';
+import { useIsOwnedByMergeSource } from '../../features/mergeQuery/hooks/useIsOwnedByMergeSource';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { useExplore } from '../../hooks/useExplore';
@@ -377,6 +378,7 @@ const DataAppVizRenderer: FC<Props> = ({
     const openDrillDownModal = metricQueryData?.openDrillDownModal;
     const openUnderlyingDataModal = metricQueryData?.openUnderlyingDataModal;
     const { showToastError } = useToaster();
+    const isOwnedByMergeSource = useIsOwnedByMergeSource();
 
     // Same shape as underlyingDataPreconditions plus the drill permission and
     // dialog; no explore fetch needed — DrillDownModal reads it from its provider.
@@ -398,12 +400,14 @@ const DataAppVizRenderer: FC<Props> = ({
             return undefined;
         return (intentBody: unknown) => {
             try {
-                openDrillDownModal(
-                    resolveVizDrillDownConfig(intentBody, {
-                        fieldMapping: reconciledFieldMapping,
-                        itemsMap: itemsMap ?? {},
-                    }),
-                );
+                const config = resolveVizDrillDownConfig(intentBody, {
+                    fieldMapping: reconciledFieldMapping,
+                    itemsMap: itemsMap ?? {},
+                });
+                if (!isOwnedByMergeSource(config.item)) {
+                    throw new Error('No merged query owns this column.');
+                }
+                openDrillDownModal(config);
                 trackingContext?.track({
                     name: EventName.DRILL_BY_CLICKED,
                     properties: {
@@ -425,6 +429,7 @@ const DataAppVizRenderer: FC<Props> = ({
         openDrillDownModal,
         reconciledFieldMapping,
         itemsMap,
+        isOwnedByMergeSource,
         showToastError,
         trackingContext,
         user,

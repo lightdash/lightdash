@@ -17,6 +17,9 @@ describeContentAsCodeSchemaContract({
         'providerCredentialUuid',
         'spaceAccess',
         'userAccess',
+        // Names and emails resolved from `userAccess`; read-only and, like the
+        // access lists, specific to this organization's users.
+        'userAccessDetails',
         'uuid',
     ],
     documentOnlyFields: [

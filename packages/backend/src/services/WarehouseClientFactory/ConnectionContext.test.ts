@@ -58,6 +58,8 @@ const expectedSurfaces = {
     [QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION]:
         ConnectionSurface.APP,
     [QueryExecutionContext.COMPOSE_SQL_RUNNER]: ConnectionSurface.APP,
+
+    [QueryExecutionContext.PYTHON_RUNNER]: ConnectionSurface.APP,
     [QueryExecutionContext.MULTI_SOURCE_QUERY]: ConnectionSurface.APP,
     [QueryExecutionContext.DATA_APP_SAMPLE]: ConnectionSurface.DATA_APP,
     [QueryExecutionContext.DESKTOP]: ConnectionSurface.APP,

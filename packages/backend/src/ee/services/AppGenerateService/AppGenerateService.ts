@@ -28,6 +28,7 @@ import {
     DATA_APP_CODEX_MODELS,
     DATA_APP_VIZ_TEMPLATE,
     DATA_REFERENCE_EXTRACTOR_VERSION,
+    dataAppManifestRegistryProvenanceSchema,
     dataAppVizGenerationSchema,
     dataAppVizJsonSchema,
     dataAppVizSchema,
@@ -99,6 +100,7 @@ import {
     type AppVizBuildContext,
     type ChartConfig,
     type ChartReference,
+    type ChartRegistryEntry,
     type ChartSampleData,
     type ChartTypeIcon,
     type CompiledExploreJoin,
@@ -122,6 +124,7 @@ import {
     type DataAppDependencies,
     type DataAppGenerationUsage,
     type DataAppManifestExternalConnection,
+    type DataAppManifestRegistryProvenance,
     type DataAppTemplate,
     type DataAppViewContext,
     type DataAppViz,
@@ -289,7 +292,10 @@ import {
     promptHistoryToMarkdown,
     SEMANTIC_LAYER_POINTER_FILE,
 } from './appContext';
-import { assertChartTypesEnabled } from './chartTypeFeatureGate';
+import {
+    assertChartTypesEnabled,
+    chartTypesEnabledFor,
+} from './chartTypeFeatureGate';
 import {
     CLARIFY_APP_SYSTEM_PROMPT,
     CLARIFY_VIZ_SYSTEM_PROMPT,
@@ -525,6 +531,7 @@ export type DataAppBuildStatusSource = {
         uuid: string;
         slug: string;
         name: string;
+        template: DbApp['template'];
         spaceUuid: string | null;
     };
     version: {
@@ -761,6 +768,14 @@ const CANCELLED_PROMPT_NOTICE =
 // Maximum number of in-progress app builds allowed per project at one time.
 // Prevents trivial sandbox exhaustion via repeated POST /code calls.
 const MAX_CONCURRENT_APP_BUILDS_PER_PROJECT = 5;
+
+type ImportAppCodeResult = {
+    appUuid: string;
+    version: number;
+    action: 'create' | 'append' | 'unchanged';
+    slug: string;
+    warnings: string[];
+};
 
 export class AppGenerateService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -1718,6 +1733,43 @@ export class AppGenerateService extends BaseService {
         }
     }
 
+    /**
+     * The org's effective "allow screenshots and attachments in data app
+     * builds" switch (org setting capped by `LIGHTDASH_APP_CAPTURES_ENABLED`).
+     * Gates every path that captures an image of a running app or hands a
+     * user file to the coding agent.
+     */
+    async areDataAppCapturesEnabled(
+        organizationUuid: string,
+    ): Promise<boolean> {
+        return this.appThumbnailClient.areCapturesEnabled(organizationUuid);
+    }
+
+    private async assertDataAppCapturesEnabled(
+        organizationUuid: string,
+    ): Promise<void> {
+        if (!(await this.areDataAppCapturesEnabled(organizationUuid))) {
+            throw new ForbiddenError(
+                'Screenshots and file attachments are disabled for this organization',
+            );
+        }
+    }
+
+    /**
+     * Attachment ids a build may use. While captures are off, files staged
+     * earlier (or by a client that skipped the UI) are dropped rather than
+     * handed to the agent, so flipping the switch takes effect immediately.
+     */
+    private async permittedFileIds(
+        organizationUuid: string,
+        fileIds: string[] | undefined,
+    ): Promise<string[]> {
+        if (!fileIds || fileIds.length === 0) return [];
+        return (await this.areDataAppCapturesEnabled(organizationUuid))
+            ? fileIds
+            : [];
+    }
+
     async dataAppsEnabledFor(user: SessionUser): Promise<boolean> {
         const { enabled } = await this.featureFlagModel.get({
             user,
@@ -1757,6 +1809,29 @@ export class AppGenerateService extends BaseService {
         if (auditedAbility.cannot('manage', subject('Explore', context))) {
             throw new ForbiddenError('Insufficient permissions');
         }
+    }
+
+    /**
+     * Chart Studio's gallery gate as a boolean. Without a project it is the
+     * coarse check for surfaces that must not vary per project, e.g. MCP tools/list.
+     */
+    async canUseChartTypes(
+        user: SessionUser,
+        projectUuid: string | null,
+    ): Promise<boolean> {
+        if (!(await chartTypesEnabledFor(this.featureFlagModel, user))) {
+            return false;
+        }
+        const auditedAbility = this.createAuditedAbility(user);
+        if (projectUuid === null) {
+            return auditedAbility.can('manage', 'Explore');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        return auditedAbility.can(
+            'manage',
+            subject('Explore', { organizationUuid, projectUuid }),
+        );
     }
 
     /**
@@ -2349,20 +2424,25 @@ export class AppGenerateService extends BaseService {
         // row doesn't exist yet, so we authorize against `create:DataApp`
         // (anyone who can create an app can stage a file for it).
         const app = await this.appModel.findApp(appUuid, projectUuid);
+        let organizationUuid: string;
         if (app) {
             await this.assertCanManageApp(
                 user,
                 app,
                 'Insufficient permissions to upload app files',
             );
+            organizationUuid = app.organization_uuid;
         } else {
-            await this.assertDataAppAbility(
+            ({ organizationUuid } = await this.assertDataAppAbility(
                 user,
                 'create',
                 projectUuid,
                 'Insufficient permissions to upload app files',
-            );
+            ));
         }
+        // After authorization, so a caller without access gets the
+        // permissions error rather than learning the org's setting.
+        await this.assertDataAppCapturesEnabled(organizationUuid);
 
         const maxSize = 10 * 1024 * 1024; // 10 MB
         if (contentLength > maxSize) {
@@ -2475,6 +2555,12 @@ export class AppGenerateService extends BaseService {
             app,
             'Insufficient permissions to view app images',
         );
+        // Attached screenshots and images are captures too: kept, but not
+        // served while the org's switch is off.
+        await this.assertCapturesVisible(
+            app.organization_uuid,
+            `Image not found: ${imageId}`,
+        );
 
         const belongsToApp = await this.appModel.appImageExists(
             appUuid,
@@ -2497,11 +2583,12 @@ export class AppGenerateService extends BaseService {
 
     // Viewing a thumbnail is a read: anyone who can view the app can see it,
     // not just those who can manage it.
+    /** Returns the app row so callers can scope further checks to its org. */
     private async assertCanViewAppThumbnail(
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
-    ): Promise<void> {
+    ) {
         const app = await this.appModel.getApp(appUuid, projectUuid);
         if (app.template === DATA_APP_VIZ_TEMPLATE) {
             await assertChartTypesEnabled(this.featureFlagModel, user);
@@ -2509,17 +2596,19 @@ export class AppGenerateService extends BaseService {
                 organizationUuid: app.organization_uuid,
                 projectUuid,
             });
-            return;
+            return app;
         }
         await this.assertDataAppsEnabled(user);
         await this.assertCanViewApp(user, app);
+        return app;
     }
 
+    /** Returns the app row so callers can scope further checks to its org. */
     private async assertCanManageAppThumbnail(
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
-    ): Promise<void> {
+    ) {
         await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertCanManageApp(
@@ -2527,6 +2616,7 @@ export class AppGenerateService extends BaseService {
             app,
             'Insufficient permissions to update app thumbnail',
         );
+        return app;
     }
 
     /** Saves a manual thumbnail; `version: null` targets the latest ready version. */
@@ -2539,7 +2629,12 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         version: number | null,
     ): Promise<void> {
-        await this.assertCanManageAppThumbnail(user, projectUuid, appUuid);
+        const app = await this.assertCanManageAppThumbnail(
+            user,
+            projectUuid,
+            appUuid,
+        );
+        await this.assertDataAppCapturesEnabled(app.organization_uuid);
 
         if (mimeType !== 'image/png') {
             throw new ParameterError('App thumbnails must be PNG images');
@@ -2583,7 +2678,12 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
     ): Promise<{ thumbnailUrl: string }> {
-        await this.assertCanViewAppThumbnail(user, projectUuid, appUuid);
+        const app = await this.assertCanViewAppThumbnail(
+            user,
+            projectUuid,
+            appUuid,
+        );
+        await this.assertThumbnailsVisible(app.organization_uuid);
         const thumbnailUrl = await this.appThumbnailClient.getAppThumbnailUrl({
             projectUuid,
             appUuid,
@@ -2594,13 +2694,42 @@ export class AppGenerateService extends BaseService {
         return { thumbnailUrl };
     }
 
+    /**
+     * Stored thumbnails and attached images are kept but not served while the
+     * org's captures switch is off, so "off" means no image of the data is
+     * visible anywhere. Reads as "not found", which the hover cards and chat
+     * image chips already handle.
+     */
+    private async assertCapturesVisible(
+        organizationUuid: string,
+        message: string,
+    ): Promise<void> {
+        if (!(await this.areDataAppCapturesEnabled(organizationUuid))) {
+            throw new NotFoundError(message);
+        }
+    }
+
+    private async assertThumbnailsVisible(
+        organizationUuid: string,
+    ): Promise<void> {
+        await this.assertCapturesVisible(
+            organizationUuid,
+            'App thumbnail not found',
+        );
+    }
+
     async getVersionThumbnailUrl(
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
         version: number,
     ): Promise<{ thumbnailUrl: string }> {
-        await this.assertCanViewAppThumbnail(user, projectUuid, appUuid);
+        const app = await this.assertCanViewAppThumbnail(
+            user,
+            projectUuid,
+            appUuid,
+        );
+        await this.assertThumbnailsVisible(app.organization_uuid);
         const thumbnailUrl =
             await this.appThumbnailClient.getVersionThumbnailUrl({
                 projectUuid,
@@ -2993,17 +3122,37 @@ export class AppGenerateService extends BaseService {
      * Heartbeat: every status_message / status transition bumps
      * status_updated_at (see AppModel.updateStatusMessage etc.), including
      * Claude's per-tool-call progress updates.
+     *
+     * Also fails `pending` versions older than ORPHAN_THRESHOLD that have no
+     * live build job (orphaned by a failed request) so they stop counting
+     * against the per-project build cap.
      */
     async sweepStaleLocks(): Promise<void> {
         const STALE_THRESHOLD = '5 minutes';
-        const rowCount = await this.appModel.releaseStaleLocks(
-            APP_VERSION_TERMINAL_STATUSES,
-            STALE_THRESHOLD,
-        );
-        if (rowCount > 0) {
+        const ORPHAN_THRESHOLD = '10 minutes';
+        // Run both even if one throws: each guards a different leak.
+        const [locks, orphans] = await Promise.allSettled([
+            this.appModel.releaseStaleLocks(
+                APP_VERSION_TERMINAL_STATUSES,
+                STALE_THRESHOLD,
+            ),
+            this.appModel.failOrphanedPendingVersions(ORPHAN_THRESHOLD),
+        ]);
+        if (locks.status === 'fulfilled' && locks.value > 0) {
             this.logger.info(
-                `Released ${rowCount} stale appGeneratePipeline job(s) (no progress in ${STALE_THRESHOLD})`,
+                `Released ${locks.value} stale appGeneratePipeline job(s) (no progress in ${STALE_THRESHOLD})`,
             );
+        }
+        if (orphans.status === 'fulfilled' && orphans.value > 0) {
+            this.logger.warn(
+                `Failed ${orphans.value} pending app version(s) with no build job (older than ${ORPHAN_THRESHOLD})`,
+            );
+        }
+        const failure = [locks, orphans].find(
+            (r): r is PromiseRejectedResult => r.status === 'rejected',
+        );
+        if (failure) {
+            throw failure.reason;
         }
     }
 
@@ -5610,7 +5759,10 @@ export class AppGenerateService extends BaseService {
         const { appUuid, version, projectUuid, isIteration, chartReferences } =
             payload;
         // Jobs enqueued before the fileIds rename still carry imageIds.
-        const fileIds = payload.fileIds ?? payload.imageIds;
+        const fileIds = await this.permittedFileIds(
+            payload.organizationUuid,
+            payload.fileIds ?? payload.imageIds,
+        );
 
         // Check if version was cancelled while we were dead
         const currentStatus = await this.appModel.getVersionStatus(
@@ -7148,7 +7300,9 @@ export class AppGenerateService extends BaseService {
                 projectUuid,
             ),
         ]);
-        const fileCount = fileIds?.length ?? 0;
+        const fileCount = (
+            await this.permittedFileIds(organizationUuid, fileIds)
+        ).length;
 
         // No `.max()` on the array — Anthropic's structured-output mode
         // rejects `maxItems` in the schema. The prompt already pins the
@@ -7474,6 +7628,10 @@ export class AppGenerateService extends BaseService {
         }
 
         AppGenerateService.validateFileIds(fileIds);
+        const permittedFileIds = await this.permittedFileIds(
+            organizationUuid,
+            fileIds,
+        );
 
         const appUuid = preGeneratedAppUuid ?? uuidv4();
         const version = 1;
@@ -7482,13 +7640,13 @@ export class AppGenerateService extends BaseService {
         // Resolve attachment types/filenames from the staged S3 objects so the
         // version resources can split image chips from file chips in the chat.
         let stagedFiles: StagedAppFile[] = [];
-        if (fileIds.length > 0) {
+        if (permittedFileIds.length > 0) {
             const { client: s3Client, bucket } = this.getS3Client();
             stagedFiles = await AppGenerateService.resolveStagedFiles(
                 s3Client,
                 bucket,
                 appUuid,
-                fileIds,
+                permittedFileIds,
             );
         }
 
@@ -7669,7 +7827,7 @@ export class AppGenerateService extends BaseService {
             prompt: pipelinePrompt,
             ...(creationExperience ? { creationExperience } : {}),
             template,
-            fileIds: fileIds.length > 0 ? fileIds : undefined,
+            fileIds: permittedFileIds.length > 0 ? permittedFileIds : undefined,
             isIteration: false,
             claudeEffort,
             chartReferences:
@@ -7691,6 +7849,21 @@ export class AppGenerateService extends BaseService {
         });
 
         return { appUuid, slug, version };
+    }
+
+    /** Runs iterateApp's feature and manage checks, so callers can refuse before revealing anything else about the app. */
+    async assertCanIterateApp(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+    ): Promise<void> {
+        await this.assertDataAppsEnabled(user);
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to modify data apps',
+        );
     }
 
     async iterateApp(
@@ -7731,17 +7904,21 @@ export class AppGenerateService extends BaseService {
         });
         AppGenerateService.assertNotRegistryManaged(app, 'edited');
         await this.assertDataAppCreditsAvailable(user);
+        const permittedFileIds = await this.permittedFileIds(
+            organizationUuid,
+            fileIds,
+        );
 
         // Resolve attachment types/filenames from the staged S3 objects so the
         // version resources can split image chips from file chips in the chat.
         let stagedFiles: StagedAppFile[] = [];
-        if (fileIds.length > 0) {
+        if (permittedFileIds.length > 0) {
             const { client: s3Client, bucket } = this.getS3Client();
             stagedFiles = await AppGenerateService.resolveStagedFiles(
                 s3Client,
                 bucket,
                 appUuid,
-                fileIds,
+                permittedFileIds,
             );
         }
 
@@ -7951,7 +8128,7 @@ export class AppGenerateService extends BaseService {
             userUuid: user.userUuid,
             prompt: pipelinePrompt,
             ...(creationExperience ? { creationExperience } : {}),
-            fileIds: fileIds.length > 0 ? fileIds : undefined,
+            fileIds: permittedFileIds.length > 0 ? permittedFileIds : undefined,
             isIteration: true,
             claudeEffort,
             chartReferences:
@@ -9802,6 +9979,18 @@ export class AppGenerateService extends BaseService {
             });
         }
 
+        // The sandbox is per app, not per version. Uploads do not serialize
+        // builds per app, so the version occupying it is either the one that
+        // has already moved past `pending` (a build in flight) or the latest
+        // one (about to start). Cancelling an older version that never
+        // started (e.g. an orphaned pending upload) must not interrupt a
+        // live build; cancelling one that did start must stop it.
+        const hadStarted =
+            versionRow != null && versionRow.status !== 'pending';
+        const latestVersion = await this.appModel.getLatestVersion(appUuid);
+        const isLatestVersion = latestVersion?.version === version;
+        const ownsSandbox = hadStarted || isLatestVersion;
+
         // Kill the in-flight claude process, then suspend the sandbox while
         // keeping it resumable for the next iteration (snapshot + destroy on
         // object-store backends, preserving state). The kill must happen
@@ -9812,7 +10001,7 @@ export class AppGenerateService extends BaseService {
         // a no-op since the version is already in 'error' state — and
         // pipeline catches gate `trackVersionFailed` on the markError result,
         // so no spurious failed analytics event fires on top of the cancel.
-        if (app.sandbox_id) {
+        if (app.sandbox_id && ownsSandbox) {
             try {
                 await this.getSandboxManager().suspendByUuid(app.sandbox_id, {
                     beforeSuspend: async (handle) => {
@@ -10280,6 +10469,227 @@ export class AppGenerateService extends BaseService {
                 `Chart type "${chartSlug}" not found in the registry`,
             );
         }
+        return this.installRegistryEntry(
+            user,
+            projectUuid,
+            organizationUuid,
+            entry,
+            options,
+        );
+    }
+
+    /** Digest mismatches keep their own error; transport failures get a library-facing one. */
+    private static registryUnreachableError(
+        entry: Pick<ChartRegistryEntry, 'slug' | 'version'>,
+        e: unknown,
+    ): Error {
+        if (e instanceof ParameterError) return e;
+        return new ParameterError(
+            `Could not reach the chart type library to download "${entry.slug}@${entry.version}": ${getErrorMessage(e)}`,
+        );
+    }
+
+    private static normalizeRegistryUrl(url: string): string {
+        return url.trim().replace(/\/+$/, '');
+    }
+
+    /** Same `src/` path set with identical bytes; non-src entries are ignored. */
+    private static srcFilesMatch(
+        registryFiles: DataAppCodeFile[],
+        uploadedSrcFiles: DataAppCodeFile[],
+    ): boolean {
+        const registrySrc = registryFiles.filter((f) =>
+            f.path.startsWith('src/'),
+        );
+        if (registrySrc.length !== uploadedSrcFiles.length) return false;
+        const uploaded = new Map(
+            uploadedSrcFiles.map((f) => [f.path, f.contentBase64]),
+        );
+        return registrySrc.every(
+            (f) => uploaded.get(f.path) === f.contentBase64,
+        );
+    }
+
+    /**
+     * Upload of a bundle downloaded from a registry install. An unmodified
+     * bundle re-installs that exact registry version (prebuilt dist, no
+     * build, no dependency gates); anything else falls back to the custom
+     * chart type path with a warning explaining why.
+     */
+    private async tryImportRegistryChartType(
+        user: SessionUser,
+        projectUuid: string,
+        rawProvenance: DataAppManifestRegistryProvenance,
+        manifestSlug: string | undefined,
+        sourceFiles: DataAppCodeFile[],
+        body: ImportAppCodeRequestBody,
+    ): Promise<
+        | { kind: 'installed'; result: ImportAppCodeResult }
+        | { kind: 'fallthrough'; warning: string }
+    > {
+        // The block is user-editable YAML: validate it, never trust the type.
+        const parsedProvenance =
+            dataAppManifestRegistryProvenanceSchema.safeParse(rawProvenance);
+        if (!parsedProvenance.success) {
+            throw new ParameterError(
+                'Invalid registry block in the app manifest. Re-download the chart type, or remove the block from lightdash-app.yml to upload it as a custom chart type.',
+            );
+        }
+        const provenance = parsedProvenance.data;
+        const { slug, version } = provenance;
+        await this.assertChartTypeLibraryEnabled(user);
+        const { organizationUuid } = await this.assertDataAppAbility(
+            user,
+            'create',
+            projectUuid,
+            'Insufficient permissions to install chart types',
+        );
+        const baseUrl = this.chartRegistryClient.getBaseUrl();
+        if (
+            baseUrl === null ||
+            AppGenerateService.normalizeRegistryUrl(baseUrl) !==
+                AppGenerateService.normalizeRegistryUrl(provenance.url)
+        ) {
+            throw new ParameterError(
+                `Chart type "${slug}" was downloaded from a different chart registry (${provenance.url}). Remove the registry block from lightdash-app.yml to upload it as a custom chart type.`,
+            );
+        }
+        if (body.createNew) {
+            return {
+                kind: 'fallthrough',
+                warning: `createNew ignores library provenance; uploading "${slug}" as a custom chart type.`,
+            };
+        }
+        // A renamed slug is the documented way to fork: honour it even when
+        // src/ is untouched, instead of silently re-installing the original.
+        if (manifestSlug !== undefined && manifestSlug !== slug) {
+            return {
+                kind: 'fallthrough',
+                warning: `Manifest slug "${manifestSlug}" differs from the library slug "${slug}"; uploading as a custom chart type.`,
+            };
+        }
+        let entry: ChartRegistryEntry | undefined;
+        try {
+            entry = await this.chartRegistryClient.getVersionEntry(
+                slug,
+                version,
+            );
+        } catch (e) {
+            if (e instanceof ParameterError) throw e;
+            throw new ParameterError(
+                `Could not reach the chart type library to verify "${slug}@${version}": ${getErrorMessage(e)}`,
+            );
+        }
+        if (!entry) {
+            throw new ParameterError(
+                `Chart type "${slug}" version ${version} was not found in the chart type library. Re-download it, or remove the registry block from lightdash-app.yml to upload it as a custom chart type.`,
+            );
+        }
+        const existing = await this.appModel.findAppBySlug(projectUuid, slug);
+        if (existing !== undefined && existing.registry_slug === null) {
+            return {
+                kind: 'fallthrough',
+                warning: `"${slug}" already exists in this project as a custom chart type; uploading as a custom chart type.`,
+            };
+        }
+        let sourceTar: Buffer;
+        try {
+            sourceTar = await this.chartRegistryClient.downloadArtifact(
+                entry,
+                'source',
+            );
+        } catch (e) {
+            throw AppGenerateService.registryUnreachableError(entry, e);
+        }
+        const registryFiles =
+            await AppGenerateService.extractTarFiles(sourceTar);
+        if (!AppGenerateService.srcFilesMatch(registryFiles, sourceFiles)) {
+            return {
+                kind: 'fallthrough',
+                warning: `src/ differs from "${slug}@${version}" in the chart type library; uploading as a custom chart type.`,
+            };
+        }
+        const installed = await this.installRegistryEntry(
+            user,
+            projectUuid,
+            organizationUuid,
+            entry,
+            {},
+            { sourceTar },
+        );
+        let action: ImportAppCodeResult['action'];
+        switch (installed.action) {
+            case 'unchanged':
+                action = 'unchanged';
+                break;
+            case 'upgraded':
+                action = 'append';
+                break;
+            case 'installed':
+                action = 'create';
+                break;
+            default:
+                action = assertUnreachable(
+                    installed.action,
+                    'Unknown registry install action',
+                );
+        }
+        this.analytics.track({
+            event: 'data_app.uploaded',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                appUuid: installed.appUuid,
+                version: installed.version,
+                action,
+                identitySource: 'slug',
+                template: DATA_APP_VIZ_TEMPLATE,
+                sourceFileCount: sourceFiles.length,
+                sourceBytes: sourceFiles.reduce(
+                    (total, file) =>
+                        total + Buffer.byteLength(file.contentBase64, 'base64'),
+                    0,
+                ),
+                hasCustomDependencies: false,
+                customDependencyCount: 0,
+                customDependencies: [],
+                registrySlug: slug,
+                registryVersion: version,
+            },
+        });
+        return {
+            kind: 'installed',
+            result: {
+                appUuid: installed.appUuid,
+                version: installed.version,
+                action,
+                slug: installed.slug,
+                warnings: [],
+            },
+        };
+    }
+
+    /**
+     * Installs (or appends) one resolved registry version into a project.
+     * Shared by the library install (latest index entry) and content-as-code
+     * upload (pinned version). `preloaded.sourceTar` skips a second download
+     * when the caller already fetched and digest-checked the source.
+     */
+    private async installRegistryEntry(
+        user: SessionUser,
+        projectUuid: string,
+        organizationUuid: string,
+        entry: ChartRegistryEntry,
+        options: InstallRegistryChartTypeBody,
+        preloaded?: { sourceTar: Buffer },
+    ): Promise<{
+        appUuid: string;
+        slug: string;
+        version: number;
+        action: 'installed' | 'upgraded' | 'unchanged';
+        upgradedChartCount: number;
+    }> {
         if (AppGenerateService.isRegistryEntryIncompatible(entry)) {
             throw new ParameterError(
                 `Chart type "${entry.slug}" requires a newer version (>= ${entry.minLightdashVersion}); this instance is on ${VERSION}`,
@@ -10296,7 +10706,9 @@ export class AppGenerateService extends BaseService {
 
         const installedApps =
             await this.appModel.listRegistryInstalledApps(projectUuid);
-        let existing = installedApps.find((a) => a.registry_slug === chartSlug);
+        let existing = installedApps.find(
+            (a) => a.registry_slug === entry.slug,
+        );
         // Reinstall after uninstall: revive the soft-deleted install in
         // place so charts built on it heal, instead of minting a new app
         // (whose slug the deleted row would force onto a "-1" suffix).
@@ -10304,7 +10716,7 @@ export class AppGenerateService extends BaseService {
         if (!existing) {
             const deleted = await this.appModel.findNewestDeletedRegistryApp(
                 projectUuid,
-                chartSlug,
+                entry.slug,
             );
             if (deleted) {
                 try {
@@ -10362,17 +10774,24 @@ export class AppGenerateService extends BaseService {
             }
             return {
                 appUuid: existing.app_id,
-                slug: chartSlug,
+                slug: entry.slug,
                 version: latest!.version,
                 action: revived ? 'installed' : 'unchanged',
                 upgradedChartCount,
             };
         }
 
-        const [sourceTar, distTar] = await Promise.all([
-            this.chartRegistryClient.downloadArtifact(entry, 'source'),
-            this.chartRegistryClient.downloadArtifact(entry, 'dist'),
-        ]);
+        let sourceTar: Buffer;
+        let distTar: Buffer;
+        try {
+            [sourceTar, distTar] = await Promise.all([
+                preloaded?.sourceTar ??
+                    this.chartRegistryClient.downloadArtifact(entry, 'source'),
+                this.chartRegistryClient.downloadArtifact(entry, 'dist'),
+            ]);
+        } catch (e) {
+            throw AppGenerateService.registryUnreachableError(entry, e);
+        }
         // The registry is an external input — validate the dist bundle's
         // shape before any S3 write, so a malicious/malformed dist.tar (e.g.
         // an entry that would overwrite source.tar at this version prefix)
@@ -12921,6 +13340,7 @@ export class AppGenerateService extends BaseService {
                 uuid: app.app_id,
                 slug: app.slug,
                 name: app.name,
+                template: app.template,
                 spaceUuid: app.space_uuid,
             },
             version: {
@@ -12929,6 +13349,27 @@ export class AppGenerateService extends BaseService {
                 error: versionRow.error,
                 statusMessage: versionRow.status_message,
             },
+        };
+    }
+
+    /**
+     * Manifest provenance for a registry-installed version. Registry installs
+     * carry no dependency files; the provenance lets an upload re-install the
+     * same version instead of building from source. Undefined for custom apps.
+     */
+    private registryProvenanceFor(
+        app: Pick<DbApp, 'registry_slug' | 'registry_url'>,
+        versionRow: Pick<DbAppVersion, 'registry_version'> | null,
+    ): DataAppManifestRegistryProvenance | undefined {
+        if (!app.registry_slug || !versionRow?.registry_version) {
+            return undefined;
+        }
+        const url = app.registry_url ?? this.chartRegistryClient.getBaseUrl();
+        if (url === null) return undefined;
+        return {
+            slug: app.registry_slug,
+            version: versionRow.registry_version,
+            url,
         };
     }
 
@@ -13033,6 +13474,8 @@ export class AppGenerateService extends BaseService {
               ).get(app.app_id)
             : undefined;
 
+        const registryProvenance = this.registryProvenanceFor(app, versionRow);
+
         const manifest = buildManifest({
             slug: app.slug,
             version: resolvedVersion,
@@ -13068,6 +13511,7 @@ export class AppGenerateService extends BaseService {
                   }
                 : {}),
             ...(appAccess ? { access: appAccess } : {}),
+            ...(registryProvenance ? { registry: registryProvenance } : {}),
             downloadedAt: new Date().toISOString(),
         });
 
@@ -13429,15 +13873,7 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         body: ImportAppCodeRequestBody,
-    ): Promise<{
-        appUuid: string;
-        version: number;
-        action: 'create' | 'append' | 'unchanged';
-        slug: string;
-        warnings: string[];
-    }> {
-        await this.assertDataAppsEnabled(user);
-
+    ): Promise<ImportAppCodeResult> {
         const code = validateDataAppCode(body.code);
         const sourceFiles = code.files.filter((f) => f.path.startsWith('src/'));
         if (sourceFiles.length === 0) {
@@ -13445,6 +13881,22 @@ export class AppGenerateService extends BaseService {
                 'Uploaded bundle has no src/ files to build',
             );
         }
+        const warnings: string[] = [];
+        // A bundle downloaded from a library install re-installs that version
+        // instead of building; the library flag alone gates that path.
+        if (code.manifest.registry !== undefined) {
+            const outcome = await this.tryImportRegistryChartType(
+                user,
+                projectUuid,
+                code.manifest.registry,
+                code.manifest.slug,
+                sourceFiles,
+                body,
+            );
+            if (outcome.kind === 'installed') return outcome.result;
+            warnings.push(outcome.warning);
+        }
+        await this.assertDataAppsEnabled(user);
 
         const { organizationUuid } =
             await this.getDataAppProjectContext(projectUuid);
@@ -13459,7 +13911,7 @@ export class AppGenerateService extends BaseService {
                 organizationUuid,
                 manifestLinks,
             );
-        const warnings = [...linkWarnings];
+        warnings.push(...linkWarnings);
 
         // Access block preflight also runs up front: unresolvable or
         // ambiguous principals reject the bundle before anything is written.
@@ -13698,10 +14150,9 @@ export class AppGenerateService extends BaseService {
         }
         // Registry-managed apps never receive uploads, including the
         // identical-bundle short-circuit below that only patches metadata.
-        if (existingApp) {
-            AppGenerateService.assertNotRegistryManaged(
-                existingApp,
-                'updated by upload',
+        if (existingApp && existingApp.registry_slug !== null) {
+            throw new ForbiddenError(
+                `"${existingApp.slug}" is an official chart type and cannot be updated by upload. Change the slug in lightdash-app.yml to upload a modified copy as a new chart type, or fork it in the app.`,
             );
         }
         const action: 'create' | 'append' =
@@ -13890,6 +14341,20 @@ export class AppGenerateService extends BaseService {
                     });
                 }
             }
+            // Authorize the declared access policy before the version row
+            // is written. The apply below runs after the row exists; a 403
+            // there used to orphan a pending version that still counted
+            // against the build cap. This runs after the space move on
+            // purpose: the policy is evaluated against the app's new
+            // location, exactly as the apply is.
+            if (directAccessAssignments !== null) {
+                await this.coderService.assertCanApplyDirectAccessPolicy(
+                    user,
+                    projectUuid,
+                    DirectAccessResourceType.APP,
+                    existingApp.app_id,
+                );
+            }
             newAppUuid = existingApp.app_id;
             newAppSlug = existingApp.slug;
             const latestVersion = await this.appModel.getLatestVersion(
@@ -14013,132 +14478,147 @@ export class AppGenerateService extends BaseService {
             newAppSlug = app.slug;
         }
 
-        // Reconcile links only when the manifest carries the field — bundles
-        // downloaded before link support must leave existing links untouched.
-        if (manifestLinks !== undefined) {
-            await this.externalConnectionModel.replaceAppLinks(
+        // Everything from here to the enqueue runs with a pending version
+        // row already committed. If any step throws, the row must not stay
+        // pending: it would count against the per-project build cap with
+        // no job behind it. Mark it error and surface the original cause.
+        try {
+            // Reconcile links only when the manifest carries the field — bundles
+            // downloaded before link support must leave existing links untouched.
+            if (manifestLinks !== undefined) {
+                await this.externalConnectionModel.replaceAppLinks(
+                    newAppUuid,
+                    resolvedLinks,
+                );
+            }
+
+            // Same reconciliation contract for the direct policy: present
+            // (including empty) → atomic replacement; absent → untouched.
+            if (directAccessAssignments !== null) {
+                await this.coderService.applyDirectAccessPolicy(
+                    user,
+                    projectUuid,
+                    DirectAccessResourceType.APP,
+                    newAppUuid,
+                    directAccessAssignments,
+                );
+            }
+
+            await this.extractAndPersistVersionDataReferences(
                 newAppUuid,
-                resolvedLinks,
+                newVersion,
+                sourceFiles,
             );
-        }
 
-        // Same reconciliation contract for the direct policy: present
-        // (including empty) → atomic replacement; absent → untouched.
-        if (directAccessAssignments !== null) {
-            await this.coderService.applyDirectAccessPolicy(
-                user,
-                projectUuid,
-                DirectAccessResourceType.APP,
-                newAppUuid,
-                directAccessAssignments,
-            );
-        }
+            // Re-tar the source files into a single source.tar Buffer
+            const sourceTar = await new Promise<Buffer>((resolve, reject) => {
+                const packer = tarPack();
+                const chunks: Buffer[] = [];
+                packer.on('data', (chunk: Buffer) => chunks.push(chunk));
+                packer.on('end', () => resolve(Buffer.concat(chunks)));
+                packer.on('error', reject);
 
-        await this.extractAndPersistVersionDataReferences(
-            newAppUuid,
-            newVersion,
-            sourceFiles,
-        );
-
-        // Re-tar the source files into a single source.tar Buffer
-        const sourceTar = await new Promise<Buffer>((resolve, reject) => {
-            const packer = tarPack();
-            const chunks: Buffer[] = [];
-            packer.on('data', (chunk: Buffer) => chunks.push(chunk));
-            packer.on('end', () => resolve(Buffer.concat(chunks)));
-            packer.on('error', reject);
-
-            const addNext = (index: number): void => {
-                if (index >= sourceFiles.length) {
-                    packer.finalize();
-                    return;
-                }
-                const file = sourceFiles[index];
-                const content = Buffer.from(file.contentBase64, 'base64');
-                packer.entry({ name: file.path }, content, (err) => {
-                    if (err) {
-                        reject(err);
+                const addNext = (index: number): void => {
+                    if (index >= sourceFiles.length) {
+                        packer.finalize();
                         return;
                     }
-                    addNext(index + 1);
-                });
-            };
-            addNext(0);
-        });
+                    const file = sourceFiles[index];
+                    const content = Buffer.from(file.contentBase64, 'base64');
+                    packer.entry({ name: file.path }, content, (err) => {
+                        if (err) {
+                            reject(err);
+                            return;
+                        }
+                        addNext(index + 1);
+                    });
+                };
+                addNext(0);
+            });
 
-        // Store source.tar in S3
-        const { client, bucket } = this.getS3Client();
-        await client.send(
-            new PutObjectCommand({
-                Bucket: bucket,
-                Key: `${versionPrefix(newAppUuid, newVersion)}source.tar`,
-                Body: sourceTar,
-                ContentType: 'application/x-tar',
-            }),
-        );
-
-        // Store the declared dependency files next to the source archive so
-        // download can round-trip them (builds consume them in a later slice).
-        // The stored package.json carries the TRUSTED template scripts, not
-        // the uploader's — the sandbox `pnpm build` and every downstream
-        // download read this file, so script commands must stay server-owned.
-        if (
-            dependencySummary !== undefined &&
-            code.dependencies !== undefined
-        ) {
-            const depsPrefix = `${versionPrefix(newAppUuid, newVersion)}deps/`;
+            // Store source.tar in S3
+            const { client, bucket } = this.getS3Client();
             await client.send(
                 new PutObjectCommand({
                     Bucket: bucket,
-                    Key: `${depsPrefix}package.json`,
-                    Body: sanitizeAppPackageJsonScripts(
-                        code.dependencies.packageJson,
-                        TEMPLATE_SCRIPTS,
-                        TEMPLATE_DEV_DEPENDENCIES,
-                    ),
-                    ContentType: 'application/json',
+                    Key: `${versionPrefix(newAppUuid, newVersion)}source.tar`,
+                    Body: sourceTar,
+                    ContentType: 'application/x-tar',
                 }),
             );
-            await client.send(
-                new PutObjectCommand({
-                    Bucket: bucket,
-                    Key: `${depsPrefix}pnpm-lock.yaml`,
-                    Body: code.dependencies.lockfile,
-                    ContentType: 'text/yaml',
-                }),
-            );
-        }
 
-        // Enqueue the build-only pipeline
-        await this.schedulerClient.appBuildFromSource({
-            appUuid: newAppUuid,
-            version: newVersion,
-            projectUuid,
-            organizationUuid,
-            userUuid: user.userUuid,
-        });
+            // Store the declared dependency files next to the source archive so
+            // download can round-trip them (builds consume them in a later slice).
+            // The stored package.json carries the TRUSTED template scripts, not
+            // the uploader's — the sandbox `pnpm build` and every downstream
+            // download read this file, so script commands must stay server-owned.
+            if (
+                dependencySummary !== undefined &&
+                code.dependencies !== undefined
+            ) {
+                const depsPrefix = `${versionPrefix(newAppUuid, newVersion)}deps/`;
+                await client.send(
+                    new PutObjectCommand({
+                        Bucket: bucket,
+                        Key: `${depsPrefix}package.json`,
+                        Body: sanitizeAppPackageJsonScripts(
+                            code.dependencies.packageJson,
+                            TEMPLATE_SCRIPTS,
+                            TEMPLATE_DEV_DEPENDENCIES,
+                        ),
+                        ContentType: 'application/json',
+                    }),
+                );
+                await client.send(
+                    new PutObjectCommand({
+                        Bucket: bucket,
+                        Key: `${depsPrefix}pnpm-lock.yaml`,
+                        Body: code.dependencies.lockfile,
+                        ContentType: 'text/yaml',
+                    }),
+                );
+            }
 
-        this.analytics.track({
-            event: 'data_app.uploaded',
-            userId: user.userUuid,
-            properties: {
-                organizationId: organizationUuid,
-                projectId: projectUuid,
+            // Enqueue the build-only pipeline
+            await this.schedulerClient.appBuildFromSource({
                 appUuid: newAppUuid,
                 version: newVersion,
-                action,
-                template: code.manifest.template,
-                sourceFileCount: sourceFiles.length,
-                sourceBytes: sourceTar.length,
-                hasCustomDependencies: dependencySummary !== undefined,
-                customDependencyCount: dependencySummary?.custom.length ?? 0,
-                customDependencies: dependencySummary?.custom ?? [],
-                identitySource,
-                ...(dependencySummary !== undefined
-                    ? { lockfileHash: dependencySummary.lockfileHash }
-                    : {}),
-            },
-        });
+                projectUuid,
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+            this.analytics.track({
+                event: 'data_app.uploaded',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    appUuid: newAppUuid,
+                    version: newVersion,
+                    action,
+                    template: code.manifest.template,
+                    sourceFileCount: sourceFiles.length,
+                    sourceBytes: sourceTar.length,
+                    hasCustomDependencies: dependencySummary !== undefined,
+                    customDependencyCount:
+                        dependencySummary?.custom.length ?? 0,
+                    customDependencies: dependencySummary?.custom ?? [],
+                    identitySource,
+                    ...(dependencySummary !== undefined
+                        ? { lockfileHash: dependencySummary.lockfileHash }
+                        : {}),
+                },
+            });
+        } catch (error) {
+            await this.markError(
+                newAppUuid,
+                newVersion,
+                error,
+                'Upload failed before the build started',
+            );
+            throw error;
+        }
 
         return {
             appUuid: newAppUuid,
@@ -14167,12 +14647,22 @@ export class AppGenerateService extends BaseService {
             );
             return;
         }
-        const { client, bucket } = this.getS3Client();
-        const copilot = await this.getCodingAgentConfig(organizationUuid);
-
-        // Look up the version's custom dependency set once — null means the
-        // build uses the template set only (no install step).
-        const versionRow = await this.appModel.getVersion(appUuid, version);
+        let client: S3Client;
+        let bucket: string;
+        let copilot: CodingAgentConfig;
+        let versionRow: Awaited<ReturnType<AppModel['getVersion']>>;
+        try {
+            ({ client, bucket } = this.getS3Client());
+            copilot = await this.getCodingAgentConfig(organizationUuid);
+            // Look up the version's custom dependency set once — null means
+            // the build uses the template set only (no install step).
+            versionRow = await this.appModel.getVersion(appUuid, version);
+        } catch (error) {
+            // Nothing has started yet, but the version is already pending
+            // and holding a build slot — never leave it there.
+            await this.markError(appUuid, version, error, 'Build failed');
+            return;
+        }
         const versionDeps = versionRow?.dependencies ?? null;
         const registryHosts =
             versionDeps !== null

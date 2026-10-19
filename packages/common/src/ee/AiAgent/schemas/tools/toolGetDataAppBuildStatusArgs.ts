@@ -56,7 +56,7 @@ Response shape (MCP CallToolResult):
     errorMessage:    string | null, // why the build failed, set only when status is "error"
     name:            string,        // the app's name
     slug:            string,        // the app's permanent slug
-    href:            string,        // URL to open the app in Lightdash
+    href:            string,        // URL to open the app in Lightdash; Chart Studio for a custom chart type
     nextPollAfterMs: number         // how long to wait before polling again
   }
 
@@ -99,7 +99,11 @@ export const mcpGetDataAppBuildStatusStructuredOutputSchema = z.object({
         .describe('Why the build failed. Set only when status is "error".'),
     name: z.string().describe("The app's name."),
     slug: z.string().describe("The app's permanent slug; it never changes."),
-    href: z.string().describe('URL to open the app in Lightdash.'),
+    href: z
+        .string()
+        .describe(
+            'URL that opens the app, or Chart Studio for a custom chart type.',
+        ),
     nextPollAfterMs: z
         .number()
         .int()
@@ -124,6 +128,7 @@ export const getDataAppBuildStatusResponse = ({
     status,
     error,
     statusMessage,
+    isCustomChartType,
 }: {
     siteUrl: string;
     projectUuid: string;
@@ -134,12 +139,16 @@ export const getDataAppBuildStatusResponse = ({
     status: AppVersionStatus;
     error: string | null;
     statusMessage: string | null;
+    isCustomChartType: boolean;
 }): DataAppBuildStatusResponse => {
     const displayName = getAppDisplayName(name, appUuid);
+    const kind = isCustomChartType ? 'chart type' : 'data app';
     const common = {
         name: displayName,
         slug,
-        href: `${siteUrl}${getDataAppBuilderPath(projectUuid, slug)}`,
+        href: isCustomChartType
+            ? `${siteUrl}/projects/${projectUuid}/chart-studio/${slug}`
+            : `${siteUrl}${getDataAppBuilderPath(projectUuid, slug)}`,
         nextPollAfterMs: DATA_APP_BUILD_POLL_INTERVAL_MS,
     };
     if (status !== 'error') {
@@ -150,8 +159,8 @@ export const getDataAppBuildStatusResponse = ({
                 status === 'ready'
                     ? `${
                           version === 1
-                              ? `The data app "${displayName}"`
-                              : `Version ${version} of the data app "${displayName}"`
+                              ? `The ${kind} "${displayName}"`
+                              : `Version ${version} of the ${kind} "${displayName}"`
                       } is ready.`
                     : (statusMessage ?? STAGE_STATUS_MESSAGES[status]),
             errorMessage: null,

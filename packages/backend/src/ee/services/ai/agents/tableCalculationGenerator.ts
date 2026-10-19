@@ -187,7 +187,10 @@ const TableCalculationSchema = z.object({
 
 export type GeneratedTableCalculation = z.infer<typeof TableCalculationSchema>;
 
-export type TableCalculationContext = GenerateTableCalculationRequest & {
+export type TableCalculationContext = Omit<
+    GenerateTableCalculationRequest,
+    'exploreName'
+> & {
     warehouseType: string;
 };
 

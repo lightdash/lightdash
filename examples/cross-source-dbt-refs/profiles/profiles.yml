@@ -1,0 +1,16 @@
+config:
+  send_anonymous_usage_stats: false
+
+cross_source_refs:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('PGHOST') }}"
+      port: "{{ env_var('PGPORT') | as_number }}"
+      user: "{{ env_var('PGUSER') }}"
+      pass: "{{ env_var('PGPASSWORD') }}"
+      dbname: "{{ env_var('PGDATABASE') }}"
+      threads: 4
+      sslmode: disable
+      schema: "{{ env_var('SEED_SCHEMA', 'cross_source_refs') }}"

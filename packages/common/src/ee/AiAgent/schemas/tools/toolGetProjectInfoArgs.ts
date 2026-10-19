@@ -37,6 +37,14 @@ export const toolGetProjectInfoStructuredContentSchema = z.object({
         .enum(WarehouseTypes)
         .nullable()
         .describe('Null when the project has no warehouse connection.'),
+    connections: z.array(
+        z.object({
+            name: z.string(),
+            warehouseConnectionUuid: z.string().nullable(),
+            warehouseType: z.enum(WarehouseTypes),
+            isOriginal: z.boolean(),
+        }),
+    ),
     git: z
         .object({
             repository: z.string(),

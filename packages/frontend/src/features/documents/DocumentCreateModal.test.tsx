@@ -3,6 +3,7 @@ import { SpaceMemberRole, type PossibleAbilities } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import DocumentCreateModal from './DocumentCreateModal';
 
 const mocks = vi.hoisted(() => ({
@@ -14,7 +15,7 @@ const mocks = vi.hoisted(() => ({
     spacesError: false,
     noWritableSpaces: false,
 }));
-vi.mock('../../api', () => ({ lightdashApi: mocks.api }));
+vi.mock('../../api');
 vi.mock('../../hooks/useContent', () => ({
     invalidateContent: mocks.invalidate,
 }));
@@ -63,7 +64,7 @@ vi.mock('../../hooks/useSpaces', () => ({
 describe('Create document', () => {
     const clients: QueryClient[] = [];
     beforeEach(() => {
-        mocks.api.mockReset();
+        mockedLightdashApi.mockReset();
         mocks.navigate.mockReset();
         mocks.invalidate.mockReset();
         mocks.close.mockReset();
@@ -94,7 +95,7 @@ describe('Create document', () => {
     const submit = () => screen.getByRole('button', { name: 'Create' });
 
     it('creates an empty document in the current space and opens it in the editor', async () => {
-        mocks.api.mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             documentUuid: 'fresh-id',
             slug: 'weekly-review',
         });
@@ -109,7 +110,7 @@ describe('Create document', () => {
         expect(submit()).toBeEnabled();
         fireEvent.click(submit());
         await waitFor(() =>
-            expect(mocks.api).toHaveBeenCalledWith({
+            expect(mockedLightdashApi).toHaveBeenCalledWith({
                 url: '/projects/project/documents',
                 method: 'POST',
                 body: JSON.stringify({
@@ -146,7 +147,7 @@ describe('Create document', () => {
     });
 
     it('keeps the dialog open and shows the server error when creation is denied', async () => {
-        mocks.api.mockRejectedValue({
+        mockedLightdashApi.mockRejectedValue({
             error: {
                 statusCode: 403,
                 message:

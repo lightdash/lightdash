@@ -1,0 +1,19 @@
+version: 2
+models:
+  - name: trino_nation_regions
+    meta:
+      joins:
+        - join: pg_calendar
+          sql_on: ${trino_nation_regions.joined_on} = ${pg_calendar.calendar_date}
+    columns:
+      - name: nation_id
+        meta:
+          dimension: { type: number }
+          metrics:
+            nation_count: { type: count_distinct }
+      - name: nation_name
+        meta: { dimension: { type: string } }
+      - name: region_id
+        meta: { dimension: { type: number } }
+      - name: joined_on
+        meta: { dimension: { type: date } }

@@ -1,17 +1,18 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { StrictMode, type PropsWithChildren } from 'react';
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
+import { mockedLightdashApi } from '../testing/mockedLightdashApi';
 import { useRecordContentView } from './useRecordContentView';
 
-vi.mock('../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../api');
 vi.mock('../providers/App/useApp', () => ({
     default: () => ({ user: { data: { userUuid: 'viewer' } } }),
 }));
 
 describe('useRecordContentView', () => {
     beforeEach(() => {
-        vi.mocked(lightdashApi).mockReset().mockResolvedValue(undefined);
+        mockedLightdashApi.mockReset().mockResolvedValue(undefined);
     });
     const wrapper = ({ children }: PropsWithChildren) => (
         <StrictMode>
@@ -30,12 +31,14 @@ describe('useRecordContentView', () => {
                 wrapper,
             },
         );
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
         rerender({ uuid: 'chart-1' });
-        await waitFor(() => expect(lightdashApi).toHaveBeenCalledTimes(1));
+        await waitFor(() =>
+            expect(sharedLightdashApi).toHaveBeenCalledTimes(1),
+        );
         rerender({ uuid: 'chart-1' });
-        expect(lightdashApi).toHaveBeenCalledTimes(1);
-        expect(lightdashApi).toHaveBeenCalledWith(
+        expect(sharedLightdashApi).toHaveBeenCalledTimes(1);
+        expect(sharedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 body: JSON.stringify({
                     projectUuid: 'project',
@@ -53,17 +56,21 @@ describe('useRecordContentView', () => {
         );
         rerender({ uuid: 'second' });
         rerender({ uuid: 'first' });
-        await waitFor(() => expect(lightdashApi).toHaveBeenCalledTimes(3));
+        await waitFor(() =>
+            expect(sharedLightdashApi).toHaveBeenCalledTimes(3),
+        );
     });
 
     it('does not retry failed tracking on rerender', async () => {
-        vi.mocked(lightdashApi).mockRejectedValue(new Error('offline'));
+        mockedLightdashApi.mockRejectedValue(new Error('offline'));
         const { rerender } = renderHook(
             () => useRecordContentView('project', 'chart', 'chart'),
             { wrapper },
         );
-        await waitFor(() => expect(lightdashApi).toHaveBeenCalledTimes(1));
+        await waitFor(() =>
+            expect(sharedLightdashApi).toHaveBeenCalledTimes(1),
+        );
         rerender();
-        expect(lightdashApi).toHaveBeenCalledTimes(1);
+        expect(sharedLightdashApi).toHaveBeenCalledTimes(1);
     });
 });

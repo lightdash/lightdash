@@ -80,6 +80,7 @@ import {
     assertRegisteredAccount,
     ForbiddenError,
     KnexPaginateArgs,
+    LightdashClientHeader,
     ParameterError,
     type UUID,
 } from '@lightdash/common';
@@ -110,6 +111,7 @@ import {
 import { BaseController } from '../../controllers/baseController';
 import { type ApiGetAsyncQueryResultsResponse } from '../../controllers/v2/QueryController';
 import Logger from '../../logging/logger';
+import { parseLightdashClient } from '../../utils/clientHeader';
 import { type AiAgentCoderService } from '../services/AiAgentCoderService/AiAgentCoderService';
 import { type AiAgentMemoryService } from '../services/AiAgentMemoryService/AiAgentMemoryService';
 import { type AiAgentService } from '../services/AiAgentService/AiAgentService';
@@ -820,7 +822,7 @@ export class AiAgentController extends BaseController {
             );
             return {
                 status: 'ok',
-                results: { chips: [] },
+                results: { chips: [], source: 'none' },
             };
         }
 
@@ -834,6 +836,10 @@ export class AiAgentController extends BaseController {
                 afterMessageUuid,
                 enableSqlMode,
                 context: parseSuggestionContext(context),
+                client: parseLightdashClient({
+                    header: req.header(LightdashClientHeader),
+                    userAgent: req.header('user-agent'),
+                }),
             },
         );
         return {

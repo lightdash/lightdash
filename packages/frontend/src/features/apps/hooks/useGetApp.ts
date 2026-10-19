@@ -1,12 +1,14 @@
 import { type ApiError, type ApiGetAppResponse } from '@lightdash/common';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type GetAppResult = ApiGetAppResponse['results'];
 
 const PAGE_SIZE = 5;
 
 const fetchAppVersions = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     appUuidOrSlug: string,
     beforeVersion?: number,
@@ -29,10 +31,12 @@ export const useGetApp = (
     projectUuid: string | undefined,
     appUuidOrSlug: string | undefined,
 ) => {
+    const lightdashApi = useLightdashApi();
     const query = useInfiniteQuery<GetAppResult, ApiError>({
         queryKey: ['app', projectUuid, appUuidOrSlug],
         queryFn: ({ pageParam }) =>
             fetchAppVersions(
+                lightdashApi,
                 projectUuid!,
                 appUuidOrSlug!,
                 pageParam as number | undefined,

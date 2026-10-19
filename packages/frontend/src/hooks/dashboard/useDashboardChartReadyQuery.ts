@@ -15,10 +15,12 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
+import { pickSavedChartVersion } from '../../utils/savedChartVersion';
 import { useExplore } from '../useExplore';
 import { useQueryRetryConfig } from '../useQueryRetry';
 import { useSavedQuery } from '../useSavedQuery';
@@ -27,6 +29,7 @@ import { useSessionTimezone } from '../useSessionTimezone';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
 const executeAsyncDashboardChartQuery = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     data: ExecuteAsyncDashboardChartRequestParams,
 ): Promise<ApiExecuteAsyncDashboardChartQueryResults> =>
@@ -39,6 +42,7 @@ const executeAsyncDashboardChartQuery = async (
 
 // Embed-only endpoint for executing a dashboard tile query
 const postEmbedDashboardTileQuery = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     data: {
         tileUuid: string;
@@ -74,6 +78,7 @@ export const useDashboardChartReadyQuery = (
     chartUuid: string | null,
     contextOverride?: QueryExecutionContext,
 ) => {
+    const lightdashApi = useLightdashApi();
     const retryConfig = useQueryRetryConfig();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardTileStatusContext(
@@ -265,6 +270,10 @@ export const useDashboardChartReadyQuery = (
     const isZoomLikelyApplied =
         isAffectedByDateZoom && tileDateZoom !== undefined;
 
+    const chartVersion = useMemo(
+        () => pickSavedChartVersion(chartQuery.data),
+        [chartQuery.data],
+    );
     const queryKey = useMemo(
         () => [
             'dashboard_chart_ready_query',
@@ -281,6 +290,8 @@ export const useDashboardChartReadyQuery = (
             invalidateCache,
             chartParameterValues,
             sessionTimezone,
+            chartVersion,
+            includeUnpublishedDraft,
         ],
         [
             chartQuery.data?.projectUuid,
@@ -297,6 +308,8 @@ export const useDashboardChartReadyQuery = (
             invalidateCache,
             chartParameterValues,
             sessionTimezone,
+            chartVersion,
+            includeUnpublishedDraft,
         ],
     );
 
@@ -320,6 +333,7 @@ export const useDashboardChartReadyQuery = (
 
             const executeQueryResponse = isEmbedContext
                 ? await postEmbedDashboardTileQuery(
+                      lightdashApi,
                       chartQuery.data.projectUuid,
                       {
                           tileUuid,
@@ -333,6 +347,7 @@ export const useDashboardChartReadyQuery = (
                       },
                   )
                 : await executeAsyncDashboardChartQuery(
+                      lightdashApi,
                       chartQuery.data.projectUuid,
                       {
                           context: effectiveContext,

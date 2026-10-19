@@ -7,13 +7,11 @@ import {
     useServerFeatureFlag,
 } from './useServerOrClientFeatureFlag';
 
-vi.mock('../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../api');
 
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 
 const createQueryClient = () =>
     new QueryClient({

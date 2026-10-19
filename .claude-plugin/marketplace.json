@@ -1,0 +1,27 @@
+{
+  "name": "lightdash",
+  "owner": {
+    "name": "Lightdash",
+    "email": "support@lightdash.com",
+    "url": "https://www.lightdash.com"
+  },
+  "metadata": {
+    "description": "Lightdash plugins for Claude",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "lightdash",
+      "source": "./plugins/lightdash",
+      "description": "Connect Claude to Lightdash analytics and its governed semantic layer.",
+      "category": "Data and Analytics",
+      "tags": [
+        "analytics",
+        "business-intelligence",
+        "mcp",
+        "semantic-layer",
+        "dbt"
+      ]
+    }
+  ]
+}

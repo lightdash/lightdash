@@ -1,0 +1,6 @@
+name: athena_dev
+version: '1.0.0'
+config-version: 2
+profile: athena_dev
+model-paths: ['models']
+target-path: target

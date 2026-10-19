@@ -67,6 +67,7 @@ import {
     GetPromptFn,
     GetPullRequestDiffFn,
     GetSavedChartFn,
+    GetSqlChartFn,
     GetVerifiedFieldUsageFn,
     IsPromptInterruptedFn,
     IsThreadSqlAutoApprovedFn,
@@ -90,10 +91,10 @@ import {
     RecordSqlApprovalFn,
     ResolveCustomChartTypeFn,
     ResolveUrlFn,
-    RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
     RunComposerQueriesFn,
     RunSavedChartQueryFn,
+    RunSqlChartQueryFn,
     RunSqlJobFn,
     SearchFieldValuesFn,
     SearchSemanticLayerFn,
@@ -272,7 +273,6 @@ export type AiAgentArgs = AnyAiModel & {
     // The thread owns at least one attached document, so readAttachments is
     // registered.
     enableReadAttachments: boolean;
-    enableMergeQueries: boolean;
     enableFilterExpressions: boolean;
     // Whether the general-purpose coding agent (`editRepo`) is available — the
     // CodingAgent flag, the org has a writable Git installation, and (in Slack)
@@ -288,6 +288,9 @@ export type AiAgentArgs = AnyAiModel & {
     // Whether the runComposerQueries tool (multi-source pipelines) is
     // available: the MultiSourceQuery flag + data access, web chat only in v0.
     enableComposerQueries: boolean;
+    // Whether runComposerQueries offers python nodes: composer queries plus
+    // the PythonQueryRunner flag.
+    enableComposerPythonNodes: boolean;
     // Whether the user can save a generated dashboard anywhere in the project.
     // Gates generateDashboard so the agent does not build one the user is then
     // refused permission to keep.
@@ -305,6 +308,12 @@ export type AiAgentArgs = AnyAiModel & {
     slackLinksOnly: boolean;
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
+    warehouseConnections?: {
+        name: string;
+        warehouseConnectionUuid: string | null;
+        warehouseType: WarehouseTypes;
+        isOriginal: boolean;
+    }[];
     availableSkills: AiAgentSkillReference[];
     modelReasoningEnabled: boolean | null;
 
@@ -380,8 +389,8 @@ export type AiAgentDependencies = {
     searchSemanticLayer: SearchSemanticLayerFn;
     analyzeFieldImpact: AnalyzeFieldImpactFn;
     runAsyncQuery: RunAsyncQueryFn;
-    runAsyncMergeQuery: RunAsyncMergeQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
+    runSqlChartQuery: RunSqlChartQueryFn;
     runSqlJob: RunSqlJobFn;
     runComposerQueries: RunComposerQueriesFn;
     listWarehouseTables: ListWarehouseTablesFn;
@@ -391,6 +400,7 @@ export type AiAgentDependencies = {
     readPinnedThread: ReadPinnedThreadFn;
     readAttachments: ReadAttachmentsFn;
     getSavedChart: GetSavedChartFn;
+    getSqlChart: GetSqlChartFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
     deferSlackVisualization?: import('./aiAgentDependencies').DeferSlackVisualizationFn;

@@ -79,6 +79,15 @@ const getCorsHeaders = async ({
 };
 
 describe('CorsPolicy', () => {
+    test('allows any header in preflight requests', async () => {
+        const { headers } = await getCorsHeaders({
+            origin: 'https://app.example.com',
+            method: 'OPTIONS',
+            dbAllowedDomains: ['https://app.example.com'],
+        });
+        expect(headers.get('Access-Control-Allow-Headers')).toBe('*');
+    });
+
     afterEach(() => {
         invalidateCorsPolicyCache();
     });

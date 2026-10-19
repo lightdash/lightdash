@@ -1425,7 +1425,7 @@ export const buildCartesianTooltipFormatter =
                 );
                 return `${formatTooltipHeader(
                     headerText,
-                )}${divider}${rowsHtml}`;
+                )}${divider}${tooltipHtml}${rowsHtml}`;
             }
             const hasFormat = isField(field)
                 ? field.format !== undefined

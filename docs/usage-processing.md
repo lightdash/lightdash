@@ -1,40 +1,33 @@
 # Usage capture and processing
 
-The organization `analytics-project` feature flag controls both capture and
-processing. Configure it through Console, or use the standard feature-flag ENV
-lists for a deployment-wide self-hosted override. The shared resolver's normal
-precedence applies; user overrides do not control organization capture/jobs.
-Authorization remains separate: access to managed analytics requires organization
-administration permission and a matching project organization.
+Usage capture runs for every organization on deployments with a commercial
+license and working usage S3 configuration. The organization `analytics-project`
+feature flag controls processing and analytics availability, not raw collection.
+Configure the flag through Console, or use the standard feature-flag ENV lists
+for a deployment-wide self-hosted override. The shared resolver's normal
+precedence applies; user overrides do not control organization jobs.
+Authorization and organization isolation remain separate from capture.
 
-`USAGE_EVENTS_ENABLED` is removed and ignored. A commercial license and working
-usage S3 configuration are still infrastructure prerequisites. Usage storage
-continues to inherit base S3 settings unless overridden by `USAGE_EVENTS_S3_*`.
-Do not rely on an old `USAGE_EVENTS_ENABLED=false` to prevent collection: use an
-explicit organization off override or the standard disable list (with no
-conflicting force-on). Existing enabled Analytics organizations start capturing
-when this release starts, even if the old ENV gate was off.
+`USAGE_EVENTS_ENABLED` is removed and ignored. Usage storage continues to inherit
+base S3 settings unless overridden by `USAGE_EVENTS_S3_*`. Disabling the
+`analytics-project` flag does not stop raw uploads. This behavior applies to all
+configured deployments, including self-hosted commercial deployments, not just
+shared Cloud instances.
 
 ## Capture
 
 The existing shared event sink/writer handles every allowlisted event. `track()`
-does not await a feature lookup, compression or upload. The writer's bounded
-buffer is drained asynchronously; the flag is checked before group serialization
-and compression. No individual event producer changes are required.
+does not await compression or upload. The bounded buffer is drained asynchronously
+with at most eight complete serialization/compression/upload operations at a time.
+Capture does not look up organization feature flags or require project creation.
+Existing buffer-drop and PUT-failure metrics still apply. This is best-effort
+telemetry, not an audit ledger; process interruption or exhausted upload retries
+can lose buffered events.
 
-Each process keeps at most 1,000 organization flag results, including off/error
-results, for 60 seconds. Concurrent requests for the same organization share a
-promise. At most eight complete group operations (flag lookup, compression and
-upload) run together. Flag errors fail closed. No timer polls inactive orgs.
-A slow lookup can delay the flush and cause the existing bounded event buffer to
-drop events; it cannot create unbounded per-event promises. Existing buffer-drop
-and PUT-failure metrics still apply.
-
-Changes take effect on the next flush after cache expiry, so allow up to 60
-seconds plus flush/in-flight time. This is best-effort telemetry, not an audit
-ledger. There is no data from before capture starts. Disabling capture does not
-erase already captured data or retroactively cancel in-flight uploads. Other
-analytics destinations and AI billing/usage tracking are unchanged.
+Collection starts when the configured deployment runs this code. There is no data
+from before capture starts. Flag-disabled organizations retain raw events for
+possible later processing, but the seven-day processing window below still
+applies. Other analytics destinations and AI billing/usage tracking are unchanged.
 
 ## Nightly and manual processing
 
@@ -72,11 +65,12 @@ until pending cleanup has completed.
 
 This prevents new partial-cleanup duplication; it does not identify or repair
 already duplicated parts from older releases. Raw objects whose dates leave the
-window will no longer be processed. Configure and review raw-object retention
-separately, allowing margin beyond seven days; do not apply that expiry to
-compacted history or pending recovery checkpoints. This change does not delete
-historical files or change bucket lifecycle policy.
+window will no longer be processed. Raw data for flag-disabled organizations is not compacted or cleaned up by this
+pipeline and accumulates under the existing bucket retention policy. Retaining
+months of raw data does not enable historical catch-up beyond seven days. This
+change adds no expiry policy, archive, or historical backfill; successful
+compaction still deletes its exact raw inputs after publishing Parquet.
 
-Canary a small organization through complete nightly cycles before broad rollout.
+Canary a deployment before broad rollout: uploads now include flag-disabled orgs.
 Check failures, dropped events, backlog, memory and reconciliation. Local loopback
 benchmarks are correctness evidence, not production GCS latency predictions.

@@ -1522,6 +1522,11 @@ export type DataAppVizDrillDownIntent = {
 // the API — `useAppSdkBridge` answers it before allowlist matching.
 export const APP_SDK_VIZ_POINT_MENU_PATH = '/__sdk/viz/point-menu';
 
+// Host-answered virtual route: the SDK asks for an explore's base table to
+// qualify short field names. The bridge and the CLI preview proxy reply with
+// only the base table; never forwarded to the API.
+export const APP_SDK_EXPLORE_BASE_TABLE_PATH = '/__sdk/explore-base-table';
+
 // Data-point menu intent a viz sends to the virtual route: the untransformed
 // source row and metric slot (as for drill-down), plus the click position in
 // the iframe's client coordinates so the host can place the menu.

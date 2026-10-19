@@ -1,5 +1,10 @@
 import { DuckDBInstance } from '@duckdb/node-api';
-import { PivotedResults, SortField } from '@lightdash/common';
+import {
+    formatFieldLabel,
+    type ItemsMap,
+    type PivotedResults,
+    type SortField,
+} from '@lightdash/common';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
@@ -13,9 +18,10 @@ const quoteId = (id: string) => `"${id.replace(/"/g, '""')}"`;
 
 export const getPivotedResults = async (
     rows: Record<string, unknown>[],
-    fieldsMap: Record<string, unknown>,
+    fieldsMap: ItemsMap,
     pivotFields: string[],
     metrics: string[],
+    secondaryMetrics: string[],
     sorts: SortField[],
 ): Promise<PivotedResults> => {
     const fields = Object.keys(fieldsMap);
@@ -105,10 +111,23 @@ export const getPivotedResults = async (
             // produced: Date for DATE/TIMESTAMP, bigint for BIGINT, number for DOUBLE.
             const pivoted = await result.getRowObjectsJS();
             const fieldNames = Object.keys(pivoted[0]);
+            const pivotedMetrics = fieldNames.filter(
+                (field) => !fields.includes(field),
+            );
 
+            // Secondary metrics are not pivoted: they stay group-by columns, one series each
             return {
                 results: pivoted,
-                metrics: fieldNames.filter((field) => !fields.includes(field)),
+                metrics: pivotedMetrics,
+                secondaryMetrics,
+                // DuckDB keys are already the pivot values, so they label themselves
+                labels: Object.fromEntries([
+                    ...pivotedMetrics.map((metric) => [metric, metric]),
+                    ...secondaryMetrics.map((metric) => [
+                        metric,
+                        formatFieldLabel(metric, fieldsMap),
+                    ]),
+                ]),
             };
         } finally {
             // Never let a close failure replace the in-flight error

@@ -12,6 +12,7 @@ export const trustedAgentQueryTags = <T extends Record<string, string>>(
     delete result.agent;
     delete result.agent_surface;
     delete result.agent_client;
+    delete result.agent_uuid;
     if (claim === null) {
         delete result.ai_principal;
         return result;
@@ -21,6 +22,7 @@ export const trustedAgentQueryTags = <T extends Record<string, string>>(
         agent: 'true',
         agent_surface: claim.act.surface,
         agent_client: getAgentClientLabel(claim.act.client_id),
+        ...(claim.act.agent_uuid ? { agent_uuid: claim.act.agent_uuid } : {}),
     };
 };
 

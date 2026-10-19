@@ -12,6 +12,10 @@ import {
 } from '../agentConnections/personalRecovery';
 import { type AgentConnectionSlot } from '../agentConnections/schema';
 import {
+    checkConnectionErrorEnvelope,
+    ConnectionServerError,
+} from '../agentConnections/serverError';
+import {
     connectionResponse,
     responseRecord,
 } from '../agentConnections/statusResponse';
@@ -70,6 +74,7 @@ export const agentRevokeHandler = async (
                         signal: AbortSignal.timeout(15_000),
                     });
                     const value: unknown = await response.json();
+                    checkConnectionErrorEnvelope(response.status, value);
                     const envelope = responseRecord(value);
                     const person = responseRecord(envelope.results);
                     if (
@@ -119,6 +124,7 @@ export const agentRevokeHandler = async (
                           },
                       });
                 const value: unknown = await response.json();
+                checkConnectionErrorEnvelope(response.status, value);
                 const checked = connectionResponse(value, slot, false);
                 if (
                     checked.lastReported.status !== 'revoked' ||
@@ -134,6 +140,8 @@ export const agentRevokeHandler = async (
                 if (confirmed)
                     error =
                         'The server confirmed revocation, but the local credential could not be removed.';
+                else if (failure instanceof ConnectionServerError)
+                    error = `Revocation was not confirmed. The local slot was kept. ${failure.message}`;
                 else if (slot === null)
                     error =
                         key === null

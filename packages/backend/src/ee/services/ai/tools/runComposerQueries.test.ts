@@ -1,18 +1,28 @@
 import {
     ChartKind,
+    parseAiArtifactChartConfig,
     QuerySourceType,
     VizAggregationOptions,
     VizIndexType,
+    type AiArtifact,
     type AiComposerChartArtifactConfig,
     type AiWebAppPrompt,
     type SemanticLayerSourceQuery,
+    type SlackPrompt,
+    type SourceQuery,
     type ToolComposerQueriesArgs,
     type ToolComposerQueriesOutput,
 } from '@lightdash/common';
+import type { ZodType } from 'zod';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
 import type { PlanComposerViz } from '../decisions/vizPlanner';
-import { getRunComposerQueries } from './runComposerQueries';
+import { AgentContext } from '../utils/AgentContext';
+import { getSlackTablePreviews } from '../utils/slackTablePreviews';
+import {
+    getRunComposerQueries,
+    resolveTerminalNodeId,
+} from './runComposerQueries';
 
 type ComposerTool = ReturnType<typeof getRunComposerQueries>;
 type ComposerOutput = ToolComposerQueriesOutput;
@@ -35,6 +45,42 @@ const makePrompt = (): AiWebAppPrompt => ({
     humanScore: null,
     modelConfig: null,
     battleProfile: null,
+});
+
+const makeSlackPrompt = (): SlackPrompt => ({
+    ...makePrompt(),
+    response_slack_ts: 'response-ts',
+    slackUserId: 'slack-user',
+    slackChannelId: 'slack-channel',
+    promptSlackTs: 'prompt-ts',
+    slackThreadTs: 'thread-ts',
+});
+
+// Fake artifact store: returns the saved version as the database would.
+const storeArtifact = async ({
+    title,
+    vizConfig,
+}: {
+    title?: string;
+    vizConfig: Record<string, unknown>;
+}): Promise<AiArtifact> => ({
+    artifactUuid: 'artifact-uuid',
+    threadUuid: 'thread-uuid',
+    artifactType: 'chart',
+    savedQueryUuid: null,
+    savedSqlUuid: null,
+    savedDashboardUuid: null,
+    createdAt: new Date(),
+    versionNumber: 1,
+    versionUuid: 'version-uuid',
+    title: title ?? null,
+    description: null,
+    chartConfig: parseAiArtifactChartConfig(vizConfig),
+    dashboardConfig: null,
+    promptUuid: 'prompt-uuid',
+    versionCreatedAt: new Date(),
+    verifiedByUserUuid: null,
+    verifiedAt: null,
 });
 
 type ComposerNode = ToolComposerQueriesArgs['queries'][number];
@@ -83,6 +129,16 @@ const externalNode: ComposerNode = {
     limit: 500,
 };
 
+const pythonNode: ComposerNode = {
+    sourceType: QuerySourceType.PYTHON,
+    nodeId: 'forecast',
+    title: 'Revenue forecast',
+    description: null,
+    code: 'def run(inputs, params):\n    return inputs["revenue"]',
+    references: ['revenue'],
+    limit: 500,
+};
+
 const makeArgs = (
     overrides: Partial<ToolComposerQueriesArgs> = {},
 ): ToolComposerQueriesArgs => ({
@@ -110,18 +166,27 @@ const makeTool = ({
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     canRunSql = true,
+    enablePythonNodes = false,
     enableDataAccess = true,
     waitForSqlApproval = vi.fn().mockResolvedValue('approved'),
+    prompt = makePrompt(),
+    agentContext = new AgentContext([]),
+    useSlackStreamCard = false,
 }: {
     reviewQuery?: QueryReviewer;
     planViz?: PlanComposerViz;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     canRunSql?: boolean;
+    enablePythonNodes?: boolean;
     enableDataAccess?: boolean;
     waitForSqlApproval?: import('vitest').Mock;
+    prompt?: AiWebAppPrompt | SlackPrompt;
+    agentContext?: AgentContext;
+    useSlackStreamCard?: boolean;
 } = {}) => {
     const dependencies = {
+        agentContext,
         reviewQuery,
         planViz,
         updateProgress: vi.fn().mockResolvedValue(undefined),
@@ -153,17 +218,24 @@ const makeTool = ({
                 rowCount: 1,
             },
         }),
-        getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+        getPrompt: vi.fn().mockResolvedValue(prompt),
+        updateSlackMessage: vi.fn().mockResolvedValue(undefined),
+        siteUrl: 'https://lightdash.example',
         waitForSqlApproval,
         recordSqlApproval: vi.fn().mockResolvedValue(true),
+        isThreadSqlAutoApproved: vi.fn().mockResolvedValue(false),
+        listSqlApprovalDecisions: vi.fn().mockResolvedValue([]),
         trackSqlApprovalTimeout: vi.fn(),
-        createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
+        storeToolResults: vi.fn().mockResolvedValue(undefined),
+        createOrUpdateArtifact: vi.fn(storeArtifact),
         listThreadComposerPipelines: vi.fn().mockResolvedValue([]),
         maxQueryLimit: 5000,
         enableDataAccess,
         canRunSql,
+        enablePythonNodes,
         autoApproveSql,
         autoApproveSqlUserUuid,
+        useSlackStreamCard,
     };
 
     return {
@@ -173,6 +245,64 @@ const makeTool = ({
 };
 
 describe('getRunComposerQueries', () => {
+    it('in Slack, the reply can show the terminal result as a table that links to the thread', async () => {
+        const agentContext = new AgentContext([]);
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+            prompt: makeSlackPrompt(),
+            agentContext,
+        });
+
+        const output = await executeTool(tool, makeArgs(), 'composer-call');
+        const [artifact] = await Promise.all(
+            dependencies.createOrUpdateArtifact.mock.results.map(
+                (result) => result.value,
+            ),
+        );
+        // The model selects the table using the queryUuid it was given.
+        const queryUuid = output.result.match(/queryUuid is ([^;\s]+)/)?.[1];
+
+        const previews = await getSlackTablePreviews({
+            enableDataAccess: true,
+            slackLinksOnly: false,
+            selectedQueryUuids: queryUuid ? [queryUuid] : [],
+            toolCalls: [
+                {
+                    tool_call_id: 'composer-call',
+                    tool_name: 'runComposerQueries',
+                    tool_args: makeArgs(),
+                },
+            ],
+            toolResults: [
+                {
+                    toolCallId: 'composer-call',
+                    toolType: 'built-in',
+                    toolName: 'runComposerQueries',
+                    metadata: output.metadata,
+                },
+            ],
+            artifacts: [artifact],
+            url: 'https://lightdash.test/threads/thread-uuid',
+            runtimeResults: agentContext.getSlackTableResults(),
+            authorize: vi.fn().mockResolvedValue(undefined),
+            getResults: vi
+                .fn()
+                .mockRejectedValue(new Error('stored results not needed')),
+            onLoadError: vi.fn(),
+        });
+
+        expect(previews).toEqual([
+            expect.objectContaining({
+                status: 'ready',
+                title: 'Revenue vs signups',
+                url: 'https://lightdash.test/threads/thread-uuid',
+                queryResults: expect.objectContaining({
+                    rows: [{ month: '2026-01', signups: 12 }],
+                }),
+            }),
+        ]);
+    });
+
     it('runs the pipeline, stores a composer artifact and returns the terminal snapshot', async () => {
         const { tool, dependencies } = makeTool({ autoApproveSql: true });
 
@@ -193,38 +323,82 @@ describe('getRunComposerQueries', () => {
                 promptUuid: 'prompt-uuid',
                 artifactType: 'chart',
                 title: 'Revenue vs signups',
-                vizConfig: expect.objectContaining({
-                    source: 'composer',
-                    schemaVersion: 1,
-                    queries: [
-                        expect.objectContaining({
-                            nodeId: 'revenue',
-                            title: 'Revenue by month',
-                        }),
-                        expect.objectContaining({
-                            nodeId: 'signups',
-                            title: 'Signups by month',
-                        }),
-                        expect.objectContaining({
-                            nodeId: 'joined',
-                            title: 'Revenue vs signups',
-                            description:
-                                'Joins monthly revenue with monthly signups.',
-                        }),
-                    ],
-                    terminalNodeId: 'joined',
-                    lastQueryUuid: 'query-3',
-                    nodeResults: {
-                        revenue: { queryUuid: 'query-1' },
-                        signups: { queryUuid: 'query-2' },
-                        joined: { queryUuid: 'query-3' },
-                    },
-                }),
             }),
         );
+        const [{ vizConfig }] =
+            dependencies.createOrUpdateArtifact.mock.calls[0];
+        expect(Object.keys(vizConfig)).toEqual([
+            'source',
+            'schemaVersion',
+            'queries',
+            'terminalNodeId',
+            'vizConfig',
+        ]);
+        expect(vizConfig).toEqual({
+            source: 'composer',
+            schemaVersion: 1,
+            queries: [
+                expect.objectContaining({
+                    nodeId: 'revenue',
+                    title: 'Revenue by month',
+                }),
+                expect.objectContaining({
+                    nodeId: 'signups',
+                    title: 'Signups by month',
+                }),
+                expect.objectContaining({
+                    nodeId: 'joined',
+                    title: 'Revenue vs signups',
+                    description: 'Joins monthly revenue with monthly signups.',
+                }),
+            ],
+            terminalNodeId: 'joined',
+            vizConfig: null,
+        });
         expect(output.metadata?.status).toBe('success');
-        expect(output.result).toContain('query-3');
+        expect(output.result).toContain(
+            [
+                'Composer query complete. Terminal node "joined" returned 1 rows.',
+                'Nodes in this pipeline (a later call can read any of them by node id without resubmitting it):',
+                '- revenue: "Revenue by month" (semanticLayer)',
+                '- signups: "Signups by month" (sql)',
+                '- joined: "Revenue vs signups" (duckdb)',
+                'Terminal columns: month (string), signups (number).',
+            ].join('\n'),
+        );
         expect(output.result).toContain('```csv');
+        expect(output.result).not.toContain('query-');
+        expect(output.structuredContent).toEqual({
+            terminalNodeId: 'joined',
+            rowCount: 1,
+            nodes: [
+                {
+                    nodeId: 'revenue',
+                    title: 'Revenue by month',
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                },
+                {
+                    nodeId: 'signups',
+                    title: 'Signups by month',
+                    sourceType: QuerySourceType.SQL,
+                },
+                {
+                    nodeId: 'joined',
+                    title: 'Revenue vs signups',
+                    sourceType: QuerySourceType.DUCKDB,
+                },
+            ],
+            columns: [
+                { reference: 'month', type: 'string' },
+                { reference: 'signups', type: 'number' },
+            ],
+            visualization: expect.any(String),
+            review: null,
+            preview: {
+                rows: [{ month: '2026-01', signups: 12 }],
+                truncated: false,
+            },
+        });
     });
 
     it('defaults the terminal node to the unique sink', async () => {
@@ -420,6 +594,59 @@ describe('getRunComposerQueries', () => {
         expect(dependencies.recordSqlApproval).not.toHaveBeenCalled();
     });
 
+    describe('native Slack approval', () => {
+        const needsApproval = async (
+            tool: ComposerTool,
+            args: ToolComposerQueriesArgs,
+        ) =>
+            typeof tool.needsApproval === 'function'
+                ? tool.needsApproval(args, {
+                      toolCallId: 'tool-call-1',
+                      messages: [],
+                      context: {},
+                  })
+                : tool.needsApproval;
+
+        it('suspends for approval only when the pipeline submits sql nodes', async () => {
+            const { tool } = makeTool({
+                prompt: makeSlackPrompt(),
+                useSlackStreamCard: true,
+            });
+
+            expect(await needsApproval(tool, makeArgs())).toBe(true);
+            expect(
+                await needsApproval(
+                    tool,
+                    makeArgs({
+                        queries: [
+                            semanticNode,
+                            { ...duckdbNode, references: ['revenue'] },
+                        ],
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        it('runs an approved resume without waiting and stores its result', async () => {
+            const { tool, dependencies } = makeTool({
+                prompt: makeSlackPrompt(),
+                useSlackStreamCard: true,
+            });
+
+            const output = await executeTool(tool, makeArgs());
+
+            expect(output.metadata?.status).toBe('success');
+            expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
+            expect(dependencies.storeToolResults).toHaveBeenCalledWith([
+                expect.objectContaining({
+                    toolCallId: 'tool-call-1',
+                    toolName: 'runComposerQueries',
+                    result: output.result,
+                }),
+            ]);
+        });
+    });
+
     it('rejects non-SELECT sql nodes before approval', async () => {
         const { tool, dependencies } = makeTool();
 
@@ -519,14 +746,12 @@ describe('getRunComposerQueries', () => {
 
         expect(output.metadata?.status).toBe('success');
         expect(output.result).not.toContain('```csv');
-        expect(output.result).toContain('query-3');
+        expect(output.result).toContain(
+            'Terminal node "joined" returned 1 rows.',
+        );
+        expect(output.result).not.toContain('query-');
     });
 });
-
-const ORDERS_UUID = 'bcf89bb4-1111-4aaa-8bbb-000000000001';
-const CUSTOMERS_UUID = '5e0a91c2-2222-4aaa-8bbb-000000000002';
-const ENRICHED_UUID = '7d3f22a0-3333-4aaa-8bbb-000000000003';
-const RANKED_UUID = 'a41c9e07-4444-4aaa-8bbb-000000000004';
 
 const ordersNode: SemanticLayerSourceQuery = {
     sourceType: QuerySourceType.SEMANTIC_LAYER,
@@ -548,73 +773,43 @@ const customersNode: SemanticLayerSourceQuery = {
     limit: 500,
 };
 
+const enrichedNode: SourceQuery = {
+    sourceType: QuerySourceType.DUCKDB,
+    nodeId: 'enriched',
+    title: 'Orders with customer names',
+    sql: 'SELECT * FROM orders JOIN customers ON orders_customer_id = customers_customer_id',
+    references: ['orders', 'customers'],
+    limit: 500,
+};
+
+const rankedNode: SourceQuery = {
+    sourceType: QuerySourceType.DUCKDB,
+    nodeId: 'ranked',
+    title: 'Customers ranked by spend',
+    sql: 'SELECT *, rank() OVER (ORDER BY orders_total_order_amount DESC) AS spend_rank FROM e',
+    references: { e: 'enriched' },
+    limit: 500,
+};
+
 const version1: AiComposerChartArtifactConfig = {
     source: 'composer',
     schemaVersion: 1,
-    queries: [
-        ordersNode,
-        customersNode,
-        {
-            sourceType: QuerySourceType.DUCKDB,
-            nodeId: 'enriched',
-            title: 'Orders with customer names',
-            sql: 'SELECT * FROM orders JOIN customers ON orders_customer_id = customers_customer_id',
-            references: ['orders', 'customers'],
-            limit: 500,
-        },
-    ],
+    queries: [ordersNode, customersNode, enrichedNode],
     terminalNodeId: 'enriched',
-    lastQueryUuid: ENRICHED_UUID,
-    nodeResults: {
-        orders: { queryUuid: ORDERS_UUID },
-        customers: { queryUuid: CUSTOMERS_UUID },
-        enriched: { queryUuid: ENRICHED_UUID },
-    },
+    vizConfig: null,
 };
 
-// Reused v1's enriched, so its pipeline already carries suffixed copies
 const version2: AiComposerChartArtifactConfig = {
     source: 'composer',
     schemaVersion: 1,
-    queries: [
-        { ...ordersNode, nodeId: 'orders_bcf89bb4' },
-        { ...customersNode, nodeId: 'customers_5e0a91c2' },
-        {
-            sourceType: QuerySourceType.DUCKDB,
-            nodeId: 'enriched_7d3f22a0',
-            title: 'Orders with customer names',
-            sql: 'SELECT * FROM orders JOIN customers ON orders_customer_id = customers_customer_id',
-            references: {
-                orders: 'orders_bcf89bb4',
-                customers: 'customers_5e0a91c2',
-            },
-            limit: 500,
-        },
-        {
-            sourceType: QuerySourceType.DUCKDB,
-            nodeId: 'ranked',
-            title: 'Customers ranked by spend',
-            sql: 'SELECT *, rank() OVER (ORDER BY orders_total_order_amount DESC) AS spend_rank FROM enriched',
-            references: { enriched: 'enriched_7d3f22a0' },
-            limit: 500,
-        },
-    ],
+    queries: [ordersNode, customersNode, enrichedNode, rankedNode],
     terminalNodeId: 'ranked',
-    lastQueryUuid: RANKED_UUID,
-    nodeResults: {
-        orders_bcf89bb4: { queryUuid: ORDERS_UUID },
-        customers_5e0a91c2: { queryUuid: CUSTOMERS_UUID },
-        enriched_7d3f22a0: { queryUuid: ENRICHED_UUID },
-        ranked: { queryUuid: RANKED_UUID },
-    },
+    vizConfig: null,
 };
 
-const readerNode = (
-    references: Record<string, string>,
-    nodeId = 'summary',
-): ComposerNode => ({
+const readerNode = (references: Record<string, string>): ComposerNode => ({
     sourceType: QuerySourceType.DUCKDB,
-    nodeId,
+    nodeId: 'summary',
     title: 'Spend summary',
     description: null,
     sql: 'SELECT count(*) FROM o',
@@ -622,205 +817,210 @@ const readerNode = (
     limit: 500,
 });
 
+const resubmittedOrders = (limit: number): ComposerNode => ({
+    sourceType: QuerySourceType.SEMANTIC_LAYER,
+    nodeId: 'orders',
+    title: 'Orders by customer',
+    description: null,
+    exploreName: 'orders',
+    dimensions: ['orders_customer_id'],
+    metrics: ['orders_total_order_amount'],
+    filters: null,
+    sorts: null,
+    limit,
+});
+
 const runReuse = async ({
     queries,
     earlierPipelines,
+    terminalNodeId = null,
 }: {
     queries: ComposerNode[];
     earlierPipelines: AiComposerChartArtifactConfig[];
+    terminalNodeId?: string | null;
 }) => {
     const { tool, dependencies } = makeTool();
     dependencies.listThreadComposerPipelines.mockResolvedValue(
         earlierPipelines,
     );
-    const submissions = queries.map((node, index) => ({
-        nodeId: node.nodeId,
-        sourceType: node.sourceType,
-        queryUuid: `run-query-${index}`,
-    }));
-    dependencies.runComposerQueries.mockResolvedValue({
-        submissions,
-        terminal: {
-            queryUuid: submissions[submissions.length - 1].queryUuid,
-            columns: {},
-            rows: [],
-            rowCount: 0,
-        },
-    });
-
-    const output = await executeTool(
-        tool,
-        makeArgs({
-            queries,
-            terminalNodeId: queries[queries.length - 1].nodeId,
+    // Warehouse boundary: every node gets a query id, the terminal returns one row
+    dependencies.runComposerQueries.mockImplementation(
+        async (args: { queries: SourceQuery[]; terminalNodeId: string }) => ({
+            submissions: args.queries.map((node, index) => ({
+                nodeId: node.nodeId,
+                sourceType: node.sourceType,
+                queryUuid: `run-query-${index}`,
+            })),
+            terminal: {
+                queryUuid: `run-query-${args.queries.findIndex(
+                    (node) => node.nodeId === args.terminalNodeId,
+                )}`,
+                columns: { total: { reference: 'total', type: 'number' } },
+                rows: [{ total: 3 }],
+                rowCount: 1,
+            },
         }),
     );
 
-    const [{ vizConfig }] = dependencies.createOrUpdateArtifact.mock.calls[0];
-    return { output, vizConfig: vizConfig as AiComposerChartArtifactConfig };
+    const output = await executeTool(
+        tool,
+        makeArgs({ queries, terminalNodeId }),
+    );
+
+    const stored = dependencies.createOrUpdateArtifact.mock.calls[0]?.[0]
+        ?.vizConfig as AiComposerChartArtifactConfig | undefined;
+    const executed = dependencies.runComposerQueries.mock.calls[0]?.[0] as
+        | { queries: SourceQuery[]; terminalNodeId: string }
+        | undefined;
+    return { output, stored, executed, dependencies };
 };
 
+const nodeIdsOf = (queries: SourceQuery[] | undefined) =>
+    queries?.map((node) => node.nodeId);
+
 describe('composer artifact with reused nodes', () => {
-    it('copies nodes reused from an earlier version and rewrites the reader', async () => {
-        const { output, vizConfig } = await runReuse({
-            queries: [readerNode({ o: ORDERS_UUID, c: CUSTOMERS_UUID })],
+    it('runs and stores a reused node and what it reads, without query ids', async () => {
+        const { output, stored, executed } = await runReuse({
+            queries: [readerNode({ o: 'enriched' })],
             earlierPipelines: [version1],
         });
 
-        expect(vizConfig.queries).toEqual([
-            { ...ordersNode, nodeId: 'orders_bcf89bb4' },
-            { ...customersNode, nodeId: 'customers_5e0a91c2' },
+        expect(executed?.terminalNodeId).toBe('summary');
+        expect(executed?.queries).toEqual([
+            ordersNode,
+            customersNode,
+            enrichedNode,
             expect.objectContaining({
                 nodeId: 'summary',
-                references: { o: 'orders_bcf89bb4', c: 'customers_5e0a91c2' },
+                references: { o: 'enriched' },
             }),
         ]);
-        expect(vizConfig.nodeResults).toEqual({
-            orders_bcf89bb4: { queryUuid: ORDERS_UUID },
-            customers_5e0a91c2: { queryUuid: CUSTOMERS_UUID },
-            summary: { queryUuid: 'run-query-0' },
+        expect(stored).toEqual({
+            source: 'composer',
+            schemaVersion: 1,
+            queries: executed?.queries,
+            terminalNodeId: 'summary',
+            vizConfig: null,
         });
-        expect(vizConfig.terminalNodeId).toBe('summary');
-        expect(vizConfig.lastQueryUuid).toBe('run-query-0');
+        expect(JSON.stringify(stored)).not.toContain('run-query');
         expect(output.result).toContain(
-            '- summary (duckdb): queryUuid run-query-0',
+            [
+                'Composer query complete. Terminal node "summary" returned 1 rows.',
+                'Nodes in this pipeline (a later call can read any of them by node id without resubmitting it):',
+                '- orders: "Orders by customer" (semanticLayer)',
+                '- customers: "Customers" (semanticLayer)',
+                '- enriched: "Orders with customer names" (duckdb)',
+                '- summary: "Spend summary" (duckdb)',
+                'Terminal columns: total (number).',
+            ].join('\n'),
         );
-        expect(output.result).not.toContain('orders_bcf89bb4');
-    });
-
-    it('copies a reused transformation with its reads, converting array references to map form', async () => {
-        const { vizConfig } = await runReuse({
-            queries: [readerNode({ e: ENRICHED_UUID })],
-            earlierPipelines: [version1],
-        });
-
-        expect(vizConfig.queries.map((node) => node.nodeId)).toEqual([
-            'orders_bcf89bb4',
-            'customers_5e0a91c2',
-            'enriched_7d3f22a0',
-            'summary',
-        ]);
-        expect(vizConfig.queries[2]).toEqual(
-            expect.objectContaining({
-                sql: 'SELECT * FROM orders JOIN customers ON orders_customer_id = customers_customer_id',
-                references: {
-                    orders: 'orders_bcf89bb4',
-                    customers: 'customers_5e0a91c2',
-                },
+        expect(
+            JSON.stringify({
+                result: output.result,
+                structuredContent: output.structuredContent,
             }),
-        );
-        expect(vizConfig.queries[3]).toEqual(
-            expect.objectContaining({ references: { e: 'enriched_7d3f22a0' } }),
-        );
-        expect(Object.keys(vizConfig.nodeResults ?? {})).toEqual(
-            vizConfig.queries.map((node) => node.nodeId),
-        );
+        ).not.toContain('run-query');
     });
 
-    it('copies a node reached directly from v1 and transitively via v2 once', async () => {
-        const { vizConfig } = await runReuse({
-            queries: [readerNode({ o: ORDERS_UUID, r: RANKED_UUID })],
+    it('copies a node reached directly and transitively once', async () => {
+        const { executed } = await runReuse({
+            queries: [readerNode({ o: 'orders', r: 'ranked' })],
             earlierPipelines: [version1, version2],
         });
 
-        expect(vizConfig.queries.map((node) => node.nodeId)).toEqual([
-            'orders_bcf89bb4',
-            'customers_5e0a91c2',
-            'enriched_7d3f22a0',
-            'ranked_a41c9e07',
+        expect(nodeIdsOf(executed?.queries)).toEqual([
+            'orders',
+            'customers',
+            'enriched',
+            'ranked',
             'summary',
         ]);
-        expect(vizConfig.queries[3]).toEqual(
-            expect.objectContaining({
-                references: { enriched: 'enriched_7d3f22a0' },
-            }),
-        );
-        expect(vizConfig.queries[4]).toEqual(
-            expect.objectContaining({
-                references: { o: 'orders_bcf89bb4', r: 'ranked_a41c9e07' },
-            }),
-        );
-        expect(vizConfig.nodeResults).toEqual({
-            orders_bcf89bb4: { queryUuid: ORDERS_UUID },
-            customers_5e0a91c2: { queryUuid: CUSTOMERS_UUID },
-            enriched_7d3f22a0: { queryUuid: ENRICHED_UUID },
-            ranked_a41c9e07: { queryUuid: RANKED_UUID },
-            summary: { queryUuid: 'run-query-0' },
-        });
     });
 
-    it('leaves an unknown queryUuid untouched and invents no node', async () => {
-        const unknownUuid = '99999999-5555-4aaa-8bbb-000000000005';
-        const { vizConfig } = await runReuse({
-            queries: [readerNode({ o: ORDERS_UUID, prev: unknownUuid })],
+    it('shows a reused node when it is named as the terminal node', async () => {
+        const { stored } = await runReuse({
+            queries: [readerNode({ o: 'enriched' })],
+            earlierPipelines: [version1],
+            terminalNodeId: 'enriched',
+        });
+
+        expect(stored?.terminalNodeId).toBe('enriched');
+    });
+
+    it('accepts an unchanged earlier node resubmitted under its node id', async () => {
+        const { output, executed } = await runReuse({
+            queries: [resubmittedOrders(500), readerNode({ o: 'orders' })],
             earlierPipelines: [version1],
         });
 
-        expect(vizConfig.queries.map((node) => node.nodeId)).toEqual([
-            'orders_bcf89bb4',
-            'summary',
-        ]);
-        expect(vizConfig.queries[1]).toEqual(
-            expect.objectContaining({
-                references: { o: 'orders_bcf89bb4', prev: unknownUuid },
-            }),
-        );
+        expect(output.metadata?.status).toBe('success');
+        expect(nodeIdsOf(executed?.queries)).toEqual(['orders', 'summary']);
     });
 
-    it('keeps copied ids within the node id grammar and unique against this run', async () => {
-        const longId = `orders_${'x'.repeat(70)}`;
-        const { vizConfig } = await runReuse({
-            queries: [
-                readerNode(
-                    { o: ORDERS_UUID, c: CUSTOMERS_UUID },
-                    'customers_5e0a91c2',
-                ),
-            ],
+    it('refuses a node id redefined with a different definition', async () => {
+        const { output, executed, stored } = await runReuse({
+            queries: [resubmittedOrders(10), readerNode({ o: 'orders' })],
+            earlierPipelines: [version1],
+        });
+
+        expect(output.metadata?.status).toBe('error');
+        expect(output.result).toContain(
+            'Node id "orders" already names a different node in this thread ("Orders by customer"). To reuse it, read "orders" without resubmitting it; to define a new node, give it a different node id.',
+        );
+        expect(executed).toBeUndefined();
+        expect(stored).toBeUndefined();
+    });
+
+    it("refuses an unknown node id, listing the thread's node ids and titles", async () => {
+        const { output, executed } = await runReuse({
+            queries: [readerNode({ o: 'ordrs' })],
+            earlierPipelines: [version1],
+        });
+
+        expect(output.metadata?.status).toBe('error');
+        expect(output.result).toContain(
+            'Node "summary" reads "ordrs", which is not a node of this submission or of an earlier version in this thread. Nodes from earlier versions: orders ("Orders by customer"), customers ("Customers"), enriched ("Orders with customer names").',
+        );
+        expect(executed).toBeUndefined();
+    });
+
+    it('rejects a query id in the map form of references', () => {
+        const parsed = (makeTool().tool.inputSchema as ZodType).safeParse(
+            makeArgs({
+                queries: [
+                    readerNode({ o: '7d3f22a0-3333-4aaa-8bbb-000000000003' }),
+                ],
+            }),
+        );
+
+        expect(parsed.success).toBe(false);
+        expect(parsed.error?.issues.map((issue) => issue.message)).toEqual([
+            'References name node ids (letters, digits and underscores), not query ids',
+        ]);
+    });
+
+    it('does not ask again for approval of sql it reuses from an earlier version', async () => {
+        const approvedSql: SourceQuery = {
+            sourceType: QuerySourceType.SQL,
+            nodeId: 'signups',
+            title: 'Signups by month',
+            sql: 'SELECT month, count(*) AS signups FROM raw.users GROUP BY 1',
+            limit: 500,
+        };
+        const { output, executed, dependencies } = await runReuse({
+            queries: [readerNode({ o: 'signups' })],
             earlierPipelines: [
                 {
                     ...version1,
-                    queries: [{ ...ordersNode, nodeId: longId }, customersNode],
-                    nodeResults: {
-                        [longId]: { queryUuid: ORDERS_UUID },
-                        customers: { queryUuid: CUSTOMERS_UUID },
-                    },
+                    queries: [approvedSql],
+                    terminalNodeId: 'signups',
                 },
             ],
         });
 
-        const nodeIds = vizConfig.queries.map((node) => node.nodeId);
-        expect(nodeIds).toEqual([
-            `orders_${'x'.repeat(47)}_bcf89bb4`,
-            'customers_5e0a91c22222',
-            'customers_5e0a91c2',
-        ]);
-        expect(new Set(nodeIds).size).toBe(nodeIds.length);
-        nodeIds.forEach((nodeId) =>
-            expect(nodeId).toMatch(/^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/),
-        );
-        expect(Object.keys(vizConfig.nodeResults ?? {})).toEqual(nodeIds);
-    });
-
-    it("stores only this run's nodes without an earlier artifact", async () => {
-        const { vizConfig } = await runReuse({
-            queries: [
-                semanticNode,
-                readerNode({ o: 'revenue', prev: ORDERS_UUID }),
-            ],
-            earlierPipelines: [],
-        });
-
-        expect(vizConfig.queries).toEqual([
-            expect.objectContaining({ nodeId: 'revenue' }),
-            expect.objectContaining({
-                nodeId: 'summary',
-                references: { o: 'revenue', prev: ORDERS_UUID },
-            }),
-        ]);
-        expect(vizConfig.nodeResults).toEqual({
-            revenue: { queryUuid: 'run-query-0' },
-            summary: { queryUuid: 'run-query-1' },
-        });
+        expect(output.metadata?.status).toBe('success');
+        expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
+        expect(nodeIdsOf(executed?.queries)).toEqual(['signups', 'summary']);
     });
 });
 
@@ -914,5 +1114,104 @@ describe('composer viz config', () => {
                 'Visualization: bar chart, x = month, y = signups.',
             ),
         ).toBe(true);
+    });
+});
+
+describe('python composer nodes', () => {
+    it('treats python references as edges when resolving the terminal node', () => {
+        expect(
+            resolveTerminalNodeId([semanticNode, pythonNode], null, []),
+        ).toBe('forecast');
+        expect(
+            resolveTerminalNodeId(
+                [
+                    semanticNode,
+                    pythonNode,
+                    {
+                        ...duckdbNode,
+                        references: { f: 'forecast' },
+                    },
+                ],
+                null,
+                [],
+            ),
+        ).toBe('joined');
+        expect(() =>
+            resolveTerminalNodeId(
+                [semanticNode, { ...pythonNode, references: [] }],
+                null,
+                [],
+            ),
+        ).toThrow('2 sinks');
+    });
+
+    it('offers the python node in the input schema only when enabled', () => {
+        const args = makeArgs({ queries: [semanticNode, pythonNode] });
+        const accepts = (enablePythonNodes: boolean) =>
+            (
+                makeTool({ enablePythonNodes }).tool.inputSchema as ZodType
+            ).safeParse(args).success;
+        expect(accepts(false)).toBe(false);
+        expect(accepts(true)).toBe(true);
+        expect(makeTool().tool.description).not.toContain('"python"');
+        expect(
+            makeTool({ enablePythonNodes: true }).tool.description,
+        ).toContain('"python"');
+    });
+
+    it('runs a python pipeline without SQL approval', async () => {
+        const { tool, dependencies } = makeTool({ enablePythonNodes: true });
+
+        await executeTool(
+            tool,
+            makeArgs({ queries: [semanticNode, pythonNode] }),
+        );
+
+        expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
+        expect(dependencies.runComposerQueries).toHaveBeenCalledWith(
+            expect.objectContaining({
+                terminalNodeId: 'forecast',
+                queries: [
+                    expect.objectContaining({ nodeId: 'revenue' }),
+                    expect.objectContaining({
+                        sourceType: QuerySourceType.PYTHON,
+                        nodeId: 'forecast',
+                        code: pythonNode.code,
+                        references: ['revenue'],
+                    }),
+                ],
+            }),
+        );
+    });
+
+    it('refuses python nodes when python queries are disabled', async () => {
+        const { tool, dependencies } = makeTool();
+
+        const output = await executeTool(
+            tool,
+            makeArgs({ queries: [semanticNode, pythonNode] }),
+        );
+
+        expect(output.metadata?.status).toBe('error');
+        expect(output.result).toContain('python');
+        expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+    });
+
+    it('returns the python traceback to the model when the node fails', async () => {
+        const { tool, dependencies } = makeTool({ enablePythonNodes: true });
+        dependencies.runComposerQueries.mockRejectedValue(
+            new Error(
+                'Composer query failed on node(s): "forecast" (run() raised:\nTraceback (most recent call last):\nKeyError: \'amount\')',
+            ),
+        );
+
+        const output = await executeTool(
+            tool,
+            makeArgs({ queries: [semanticNode, pythonNode] }),
+        );
+
+        expect(output.metadata?.status).toBe('error');
+        expect(output.result).toContain('"forecast"');
+        expect(output.result).toContain("KeyError: 'amount'");
     });
 });

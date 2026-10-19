@@ -1,31 +1,24 @@
+import { ParameterError } from '../../types/errors';
 import {
+    getSourceQueryResultReferences,
     QuerySourceType,
     type QueryNodeId,
     type SourceQuery,
 } from '../../types/querySources';
+import { stableJson } from '../../utils/stableJson';
 import { type AllVizChartConfig } from '../../visualizations/types';
 
-/** Per node: the queryUuid of its last run. */
-export type ComposerNodeResults = Record<QueryNodeId, { queryUuid: string }>;
-
 /**
- * A composer query (multi-source pipeline) stored as a chart artifact. The
- * pipeline is stored replayable from day one; v0 rendering reads only the
- * terminal node's last result.
+ * A composer artifact version: a declarative pipeline, its terminal node and
+ * the viz config. Holds no results; opening it runs the pipeline.
  */
 export type AiComposerChartArtifactConfig = {
     source: 'composer';
     schemaVersion: 1;
-    /** The replayable pipeline. Node ids are always pinned (resolved ids from submission). */
+    /** Self-contained pipeline: every node has a node id and reads only nodes of this pipeline. */
     queries: SourceQuery[];
-    /** Which node's result this artifact shows. */
     terminalNodeId: QueryNodeId;
-    /** Snapshot of the terminal node's last run; rendering v0 reads only this. */
-    lastQueryUuid: string;
-    /** One entry per node in `queries`; optional only for rows written before this field existed. */
-    nodeResults?: ComposerNodeResults;
-    /** The terminal node's viz config; null when not decided. Absent on rows written before it existed. */
-    vizConfig?: AllVizChartConfig | null;
+    vizConfig: AllVizChartConfig | null;
 };
 
 export const isAiComposerChartArtifactConfig = (
@@ -40,140 +33,94 @@ export const isAiComposerChartArtifactConfig = (
     'queries' in config &&
     Array.isArray(config.queries) &&
     'terminalNodeId' in config &&
-    typeof config.terminalNodeId === 'string' &&
-    'lastQueryUuid' in config &&
-    typeof config.lastQueryUuid === 'string';
+    typeof config.terminalNodeId === 'string';
 
-const NODE_ID_MAX_LENGTH = 63;
+// The full definition, with array references written in map form.
+const nodeDefinition = (node: SourceQuery): string =>
+    stableJson(
+        node.sourceType === QuerySourceType.DUCKDB ||
+            node.sourceType === QuerySourceType.PYTHON
+            ? { ...node, references: getSourceQueryResultReferences(node) }
+            : node,
+    );
 
-// Suffix grows deterministically (8, 12, 16… hex chars) until the id is free.
-const getCopiedNodeId = (
-    nodeId: QueryNodeId,
-    queryUuid: string,
-    takenIds: Set<QueryNodeId>,
-): QueryNodeId => {
-    const hex = queryUuid.replace(/[^a-zA-Z0-9]/g, '');
-    if (nodeId.endsWith(`_${hex.slice(0, 8)}`)) return nodeId;
-    for (let length = 8; ; length += 4) {
-        const suffix = `_${hex.slice(0, length)}`;
-        const candidate = `${nodeId.slice(0, NODE_ID_MAX_LENGTH - suffix.length)}${suffix}`;
-        if (!takenIds.has(candidate) || length >= hex.length) return candidate;
-    }
-};
+const describeNodes = (nodes: SourceQuery[]): string =>
+    nodes.length === 0
+        ? 'There are no nodes from earlier versions in this thread.'
+        : `Nodes from earlier versions: ${nodes
+              .map((node) => `${node.nodeId} ("${node.title ?? node.nodeId}")`)
+              .join(', ')}.`;
 
 /**
- * Builds the stored pipeline of a composer artifact: this run's nodes plus
- * every reused node (and its transitive reads) copied from earlier versions.
+ * Builds a version's pipeline from a submission: submitted nodes plus every
+ * reused node from earlier versions and everything it reads, in dependency
+ * order. Node ids name one definition for the whole thread.
  */
+/** A node of a built pipeline; building guarantees every node a node id. */
+export type ComposerPipelineNode = SourceQuery & { nodeId: QueryNodeId };
+
+const hasNodeId = (node: SourceQuery): node is ComposerPipelineNode =>
+    !!node.nodeId;
+
 export const buildComposerArtifactPipeline = ({
     queries,
-    submissions,
     earlierPipelines,
 }: {
     queries: SourceQuery[];
-    submissions: { nodeId: QueryNodeId; queryUuid: string }[];
     earlierPipelines: AiComposerChartArtifactConfig[];
-}): { queries: SourceQuery[]; nodeResults: ComposerNodeResults } => {
-    const earlierNodesByQueryUuid = new Map<
-        string,
-        { node: SourceQuery; pipeline: AiComposerChartArtifactConfig }
-    >();
-    earlierPipelines.forEach((pipeline) => {
-        const { nodeResults } = pipeline;
-        if (!nodeResults) return;
+}): ComposerPipelineNode[] => {
+    const threadNodes = new Map<QueryNodeId, SourceQuery>();
+    earlierPipelines.forEach((pipeline) =>
         pipeline.queries.forEach((node) => {
-            const result = node.nodeId ? nodeResults[node.nodeId] : undefined;
-            if (result && !earlierNodesByQueryUuid.has(result.queryUuid)) {
-                earlierNodesByQueryUuid.set(result.queryUuid, {
-                    node,
-                    pipeline,
-                });
-            }
-        });
-    });
-
-    const submittedNodeIds = new Set(
-        submissions.map((submission) => submission.nodeId),
+            if (node.nodeId) threadNodes.set(node.nodeId, node);
+        }),
     );
-    const takenIds = new Set(submittedNodeIds);
-    const copiedIdsByQueryUuid = new Map<string, QueryNodeId>();
-    const copiedNodes: SourceQuery[] = [];
-    const copiedNodeResults: ComposerNodeResults = {};
+    const submittedNodes = new Map<QueryNodeId, SourceQuery>(
+        queries.flatMap((node) => (node.nodeId ? [[node.nodeId, node]] : [])),
+    );
 
-    // Resolves a reference to a copied node id, or null when nothing earlier owns it.
-    const copyNode = (queryUuid: string): QueryNodeId | null => {
-        const copiedId = copiedIdsByQueryUuid.get(queryUuid);
-        if (copiedId) return copiedId;
-        const earlier = earlierNodesByQueryUuid.get(queryUuid);
-        if (!earlier?.node.nodeId) return null;
-
-        const nodeId = getCopiedNodeId(
-            earlier.node.nodeId,
-            queryUuid,
-            takenIds,
-        );
-        takenIds.add(nodeId);
-        copiedIdsByQueryUuid.set(queryUuid, nodeId);
-
-        let node: SourceQuery = { ...earlier.node, nodeId };
-        if (node.sourceType === QuerySourceType.DUCKDB && node.references) {
-            const entries = Array.isArray(node.references)
-                ? node.references.map((reference) => [reference, reference])
-                : Object.entries(node.references);
-            node = {
-                ...node,
-                references: Object.fromEntries(
-                    entries.map(([tableName, reference]) => {
-                        const localQueryUuid =
-                            earlier.pipeline.nodeResults?.[reference]
-                                ?.queryUuid;
-                        return [
-                            tableName,
-                            copyNode(localQueryUuid ?? reference) ?? reference,
-                        ];
-                    }),
-                ),
-            };
+    submittedNodes.forEach((node, nodeId) => {
+        const earlier = threadNodes.get(nodeId);
+        if (earlier && nodeDefinition(earlier) !== nodeDefinition(node)) {
+            throw new ParameterError(
+                `Node id "${nodeId}" already names a different node in this thread ("${earlier.title ?? nodeId}"). To reuse it, read "${nodeId}" without resubmitting it; to define a new node, give it a different node id.`,
+            );
         }
-
-        copiedNodes.push(node);
-        copiedNodeResults[nodeId] = { queryUuid };
-        return nodeId;
-    };
-
-    const submittedQueries = queries.map((node): SourceQuery => {
-        if (
-            node.sourceType !== QuerySourceType.DUCKDB ||
-            !node.references ||
-            Array.isArray(node.references)
-        ) {
-            return node;
-        }
-        return {
-            ...node,
-            references: Object.fromEntries(
-                Object.entries(node.references).map(
-                    ([tableName, reference]) => [
-                        tableName,
-                        submittedNodeIds.has(reference)
-                            ? reference
-                            : (copyNode(reference) ?? reference),
-                    ],
-                ),
-            ),
-        };
     });
+    queries.forEach((node) =>
+        Object.values(getSourceQueryResultReferences(node)).forEach(
+            (reference) => {
+                if (
+                    !submittedNodes.has(reference) &&
+                    !threadNodes.has(reference)
+                ) {
+                    throw new ParameterError(
+                        `Node "${node.nodeId}" reads "${reference}", which is not a node of this submission or of an earlier version in this thread. ${describeNodes([...threadNodes.values()])}`,
+                    );
+                }
+            },
+        ),
+    );
 
-    return {
-        queries: [...copiedNodes, ...submittedQueries],
-        nodeResults: {
-            ...copiedNodeResults,
-            ...Object.fromEntries(
-                submissions.map((submission) => [
-                    submission.nodeId,
-                    { queryUuid: submission.queryUuid },
-                ]),
-            ),
-        },
+    const emitted = new Set<QueryNodeId>();
+    const visiting = new Set<QueryNodeId>();
+    const pipeline: ComposerPipelineNode[] = [];
+    const visit = (node: SourceQuery) => {
+        if (!hasNodeId(node)) return;
+        const { nodeId } = node;
+        if (emitted.has(nodeId) || visiting.has(nodeId)) return;
+        visiting.add(nodeId);
+        Object.values(getSourceQueryResultReferences(node)).forEach(
+            (reference) => {
+                const read =
+                    submittedNodes.get(reference) ?? threadNodes.get(reference);
+                if (read) visit(read);
+            },
+        );
+        visiting.delete(nodeId);
+        emitted.add(nodeId);
+        pipeline.push(node);
     };
+    queries.forEach(visit);
+    return pipeline;
 };

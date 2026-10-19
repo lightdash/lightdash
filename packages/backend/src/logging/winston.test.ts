@@ -72,6 +72,7 @@ describe('request logging', () => {
 
     afterEach(() => {
         lightdashConfig.mode = originalMode;
+        vi.useRealTimers();
         vi.restoreAllMocks();
     });
 
@@ -83,7 +84,8 @@ describe('request logging', () => {
         '/unrelated/requests/11111111-1111-4111-8111-111111111111?next=hello+world#fragment',
         '/callback?code=secret&state=secret&other=value',
     ])('pins both HTTP loggers for ordinary URL %s', (url) => {
-        vi.spyOn(Date, 'now').mockReturnValue(1000);
+        // express-winston times the response with `new Date`, so freeze Date itself.
+        vi.useFakeTimers({ toFake: ['Date'], now: 1000 });
         const logs = vi
             .spyOn(winstonLogger, 'log')
             .mockImplementation(() => winstonLogger);

@@ -18,6 +18,7 @@ import {
     MAX_RETENTION_WINDOW_HOURS,
     MIN_RETENTION_WINDOW_HOURS,
 } from '../../types/dataRetention';
+import { type QueryNodeId } from '../../types/querySources';
 import assertUnreachable from '../../utils/assertUnreachable';
 import { type AllVizChartConfig } from '../../visualizations/types';
 import { type AiAgentReviewItemStatus } from './aiAgentReviewClassifierTypes';
@@ -132,6 +133,13 @@ export type AiAgentIntegration = {
     channelId: string;
 };
 
+const aiAgentUserAccessDetailSchema = z.object({
+    userUuid: z.string(),
+    firstName: z.string(),
+    lastName: z.string(),
+    email: z.string(),
+});
+
 export const baseAgentSchema = z.object({
     uuid: z.string(),
     projectUuid: z.string(),
@@ -165,12 +173,16 @@ export const baseAgentSchema = z.object({
     model: z.string(),
     groupAccess: z.array(z.string()),
     userAccess: z.array(z.string()),
+    // The users in `userAccess`, with the name and email the settings form
+    // shows on each pill. Resolved by the server; not accepted on writes.
+    userAccessDetails: z.array(aiAgentUserAccessDetailSchema),
     spaceAccess: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
     enableContentTools: z.boolean(),
     enableUserContext: z.boolean(),
     enableSqlMode: z.boolean(),
+    enableSqlAutoApproval: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     // AI provider credential this agent's prompts run on. Null means the
@@ -186,6 +198,10 @@ export const baseAgentSchema = z.object({
 });
 
 export type BaseAiAgent = z.infer<typeof baseAgentSchema>;
+
+export type AiAgentUserAccessDetail = z.infer<
+    typeof aiAgentUserAccessDetailSchema
+>;
 
 export type AiAgent = Pick<
     BaseAiAgent,
@@ -203,12 +219,14 @@ export type AiAgent = Pick<
     | 'imageUrlSource'
     | 'groupAccess'
     | 'userAccess'
+    | 'userAccessDetails'
     | 'spaceAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'
     | 'enableContentTools'
     | 'enableUserContext'
     | 'enableSqlMode'
+    | 'enableSqlAutoApproval'
     | 'adminOnly'
     | 'modelConfig'
     | 'providerCredentialUuid'
@@ -232,12 +250,14 @@ export type AiAgentSummary = Pick<
     | 'imageUrlSource'
     | 'groupAccess'
     | 'userAccess'
+    | 'userAccessDetails'
     | 'spaceAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'
     | 'enableContentTools'
     | 'enableUserContext'
     | 'enableSqlMode'
+    | 'enableSqlAutoApproval'
     | 'adminOnly'
     | 'modelConfig'
     | 'providerCredentialUuid'
@@ -656,6 +676,7 @@ export type ApiCreateAiAgent = Pick<
     enableContentTools?: boolean;
     enableUserContext?: boolean;
     enableSqlMode?: boolean;
+    enableSqlAutoApproval?: boolean;
     adminOnly?: boolean;
     mcpServerUuids?: string[];
     modelConfig?: AiAgentModelConfig | null;
@@ -687,6 +708,7 @@ export type ApiUpdateAiAgent = Partial<
 > & {
     uuid: string;
     enableSqlMode?: boolean;
+    enableSqlAutoApproval?: boolean;
     mcpServerUuids?: string[];
     // Omitted keeps the current pin; null clears it.
     providerCredentialUuid?: string | null;
@@ -904,7 +926,7 @@ export type ApiAiAgentThreadStreamRequest = {
     /**
      * Skips the SQL human-approval gate for this stream. Used by the review
      * remediation workspace so Continue PR turns run frictionlessly. Defaults
-     * to false — normal chat still asks the user to approve SQL.
+     * to false; the agent-level `enableSqlAutoApproval` setting also skips the gate.
      */
     autoApproveSql?: boolean;
     /**
@@ -1020,13 +1042,30 @@ export type ApiAiAgentSqlArtifactVizQuery = {
     metadata: AiVizMetadata;
 };
 
+/** One run of a composer artifact's pipeline: every node's result from that run. */
+export type ApiAiAgentComposerArtifactVizQuery = {
+    source: 'composer';
+    terminalNodeId: QueryNodeId;
+    nodeQueryUuids: Record<QueryNodeId, string>;
+    metadata: AiVizMetadata;
+};
+
 export type ApiAiAgentArtifactVizQuery =
     | ApiAiAgentThreadMessageVizQuery
-    | ApiAiAgentSqlArtifactVizQuery;
+    | ApiAiAgentSqlArtifactVizQuery
+    | ApiAiAgentComposerArtifactVizQuery;
+
+export const isAiAgentSemanticArtifactVizQuery = (
+    query: ApiAiAgentArtifactVizQuery,
+): query is ApiAiAgentThreadMessageVizQuery => query.source === 'semantic';
 
 export const isAiAgentSqlArtifactVizQuery = (
     query: ApiAiAgentArtifactVizQuery,
 ): query is ApiAiAgentSqlArtifactVizQuery => query.source === 'sql';
+
+export const isAiAgentComposerArtifactVizQuery = (
+    query: ApiAiAgentArtifactVizQuery,
+): query is ApiAiAgentComposerArtifactVizQuery => query.source === 'composer';
 
 export type ApiAiAgentArtifactVizQueryResponse = {
     status: 'ok';

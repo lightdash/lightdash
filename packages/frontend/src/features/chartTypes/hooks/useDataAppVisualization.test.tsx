@@ -3,11 +3,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
+import { sharedLightdashApi } from '../../../api';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { useDataAppVisualization } from './useDataAppVisualization';
 
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../api');
 vi.mock('../../../ee/providers/Embed/useEmbed', () => ({
     default: vi.fn(() => ({})),
 }));
@@ -38,10 +39,10 @@ const renderViz = (initialProps: Props) =>
 describe('useDataAppVisualization', () => {
     beforeEach(() => {
         vi.mocked(useEmbed).mockReturnValue({} as ReturnType<typeof useEmbed>);
-        vi.mocked(lightdashApi).mockReset();
+        mockedLightdashApi.mockReset();
         // The pinned version never resolves, so what the hook shows meanwhile
         // is observable.
-        vi.mocked(lightdashApi).mockImplementation(({ url }) =>
+        mockedLightdashApi.mockImplementation(({ url }) =>
             url.includes('version=')
                 ? new Promise(() => {})
                 : Promise.resolve(viz(1)),
@@ -52,11 +53,11 @@ describe('useDataAppVisualization', () => {
         vi.mocked(useEmbed).mockReturnValue({
             embedToken: 'embed-token',
         } as ReturnType<typeof useEmbed>);
-        vi.mocked(lightdashApi).mockResolvedValue(viz(2));
+        mockedLightdashApi.mockResolvedValue(viz(2));
         const { result } = renderViz({ dataAppVizUuid: 'viz-1', version: 2 });
 
         await waitFor(() => expect(result.current.data).toEqual(viz(2)));
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(sharedLightdashApi).toHaveBeenCalledWith({
             method: 'GET',
             url: '/embed/project-1/visualizations/viz-1?version=2',
             body: undefined,

@@ -1,9 +1,11 @@
+import { QuerySourceType } from '../../../../types/querySources';
 import assertUnreachable from '../../../../utils/assertUnreachable';
 
 /** Agent tools whose SQL waits on the user's approval. */
 export const SQL_APPROVAL_TOOL_NAMES = [
     'runSql',
     'runComposerQueries',
+    'runContentQuery',
     'createContent',
     'editContent',
 ] as const;
@@ -26,6 +28,14 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const getPatch = (toolArgs: unknown): unknown =>
     isRecord(toolArgs) ? toolArgs.patch : undefined;
+
+const getContentQuerySql = (toolArgs: unknown): string | null =>
+    isRecord(toolArgs) &&
+    isRecord(toolArgs.source) &&
+    toolArgs.source.type === 'sql' &&
+    typeof toolArgs.source.sql === 'string'
+        ? toolArgs.source.sql
+        : null;
 
 const SQL_POINTER = '/sql';
 
@@ -85,9 +95,22 @@ export const getPatchedSql = (patch: unknown): string | null => {
 export const doesPatchTouchSqlChartSql = (patch: unknown): boolean =>
     getPatchedSql(patch) !== null;
 
+/** A composer pipeline's warehouse SQL nodes, labelled and joined; null when it has none. */
+const getComposerApprovalSql = (queries: unknown[]): string | null => {
+    const sqlNodes = queries.flatMap((node) =>
+        isRecord(node) &&
+        node.sourceType === QuerySourceType.SQL &&
+        typeof node.sql === 'string'
+            ? [`-- ${String(node.nodeId)}\n${node.sql}`]
+            : [],
+    );
+    return sqlNodes.length > 0 ? sqlNodes.join('\n\n') : null;
+};
+
 /**
- * Content tools only gate on approval when they save new SQL: creating a SQL
- * chart, or editing one with a patch that can change its sql.
+ * Composer gates only with warehouse SQL nodes; content tools only when they
+ * run or save new SQL: a SQL content query, creating a SQL chart, or editing
+ * one with a patch that can change its sql.
  */
 export const isSqlApprovalToolCall = (
     toolName: string,
@@ -96,8 +119,15 @@ export const isSqlApprovalToolCall = (
     if (!isSqlApprovalToolName(toolName)) return false;
     switch (toolName) {
         case 'runSql':
-        case 'runComposerQueries':
             return true;
+        case 'runComposerQueries':
+            return (
+                isRecord(toolArgs) &&
+                Array.isArray(toolArgs.queries) &&
+                getComposerApprovalSql(toolArgs.queries) !== null
+            );
+        case 'runContentQuery':
+            return getContentQuerySql(toolArgs) !== null;
         case 'createContent':
             return isSqlChartContentArgs(toolArgs);
         case 'editContent':
@@ -114,6 +144,11 @@ export const isSqlApprovalToolCall = (
 export const getSqlApprovalSql = (toolArgs: unknown): string | null => {
     if (!isRecord(toolArgs)) return null;
     if (typeof toolArgs.sql === 'string') return toolArgs.sql;
+    if (Array.isArray(toolArgs.queries)) {
+        return getComposerApprovalSql(toolArgs.queries);
+    }
+    const contentQuerySql = getContentQuerySql(toolArgs);
+    if (contentQuerySql !== null) return contentQuerySql;
     if (
         isRecord(toolArgs.content) &&
         typeof toolArgs.content.sql === 'string'

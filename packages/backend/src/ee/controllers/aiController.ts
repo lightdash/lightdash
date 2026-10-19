@@ -131,7 +131,9 @@ export class AiController extends BaseController {
     async generateTableCalculation(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Body() body: GenerateTableCalculationRequest,
+        @Body() body: Omit<GenerateTableCalculationRequest, 'exploreName'> & {
+            exploreName?: string;
+        },
     ): Promise<ApiAiGenerateTableCalculationResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -152,7 +154,9 @@ export class AiController extends BaseController {
     async generateCustomDimension(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Body() body: GenerateCustomDimensionRequest,
+        @Body() body: Omit<GenerateCustomDimensionRequest, 'exploreName'> & {
+            exploreName?: string;
+        },
     ): Promise<ApiAiGenerateCustomDimensionResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);

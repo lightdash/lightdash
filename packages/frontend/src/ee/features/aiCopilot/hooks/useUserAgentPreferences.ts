@@ -12,13 +12,17 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 
 export const USER_AGENT_PREFERENCES = 'userAgentPreferences';
 
-const getUserAgentPreferences = (projectUuid: string) =>
+const getUserAgentPreferences = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<ApiGetUserAgentPreferencesResponse['results']>({
         url: `/projects/${projectUuid}/aiAgents/preferences`,
         method: 'GET',
@@ -32,16 +36,19 @@ export const useGetUserAgentPreferences = (
         ApiError
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const isEmbed = useIsEmbedded();
     return useQuery<ApiGetUserAgentPreferencesResponse['results'], ApiError>({
         queryKey: [USER_AGENT_PREFERENCES, projectUuid],
-        queryFn: () => getUserAgentPreferences(projectUuid!),
+        queryFn: () => getUserAgentPreferences(lightdashApi, projectUuid!),
         ...options,
         enabled: !isEmbed && !!projectUuid && options?.enabled !== false,
     });
 };
 
 const updateUserAgentPreferences = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     data: ApiUpdateUserAgentPreferences,
 ) =>
@@ -52,6 +59,8 @@ const updateUserAgentPreferences = (
     });
 
 export const useUpdateUserAgentPreferences = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const { showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -61,7 +70,8 @@ export const useUpdateUserAgentPreferences = (projectUuid: string) => {
         ApiUpdateUserAgentPreferences,
         { previousData: unknown }
     >({
-        mutationFn: (data) => updateUserAgentPreferences(projectUuid, data),
+        mutationFn: (data) =>
+            updateUserAgentPreferences(lightdashApi, projectUuid, data),
         onMutate: async (data) => {
             await queryClient.cancelQueries({
                 queryKey: [USER_AGENT_PREFERENCES, projectUuid],
@@ -99,7 +109,10 @@ export const useUpdateUserAgentPreferences = (projectUuid: string) => {
     });
 };
 
-const deleteUserAgentPreferences = (projectUuid: string) =>
+const deleteUserAgentPreferences = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<ApiSuccessEmpty['results']>({
         url: `/projects/${projectUuid}/aiAgents/preferences`,
         method: 'DELETE',
@@ -107,6 +120,8 @@ const deleteUserAgentPreferences = (projectUuid: string) =>
     });
 
 export const useDeleteUserAgentPreferences = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const { showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -116,7 +131,7 @@ export const useDeleteUserAgentPreferences = (projectUuid: string) => {
         void,
         { previousData: unknown }
     >({
-        mutationFn: () => deleteUserAgentPreferences(projectUuid),
+        mutationFn: () => deleteUserAgentPreferences(lightdashApi, projectUuid),
         onMutate: async () => {
             await queryClient.cancelQueries({
                 queryKey: [USER_AGENT_PREFERENCES, projectUuid],
@@ -155,6 +170,7 @@ export const useDeleteUserAgentPreferences = (projectUuid: string) => {
 };
 
 const getAgentExploreAccessSummary = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     payload: { tags: string[] | null },
 ) =>
@@ -168,6 +184,8 @@ export const useGetAgentExploreAccessSummary = (
     projectUuid: string,
     payload: { tags: string[] | null },
 ) => {
+    const lightdashApi = useLightdashApi();
+
     return useQuery<
         ApiAiAgentExploreAccessSummaryResponse['results'],
         ApiError
@@ -178,6 +196,7 @@ export const useGetAgentExploreAccessSummary = (
             'exploreAccessSummary',
             payload.tags,
         ],
-        queryFn: () => getAgentExploreAccessSummary(projectUuid, payload),
+        queryFn: () =>
+            getAgentExploreAccessSummary(lightdashApi, projectUuid, payload),
     });
 };

@@ -48,6 +48,10 @@ import {
     ClientProviderMap,
     ClientRepository,
 } from './clients/ClientRepository';
+import {
+    startDockerHubVersionPolling,
+    stopDockerHubVersionPolling,
+} from './clients/DockerHub/DockerHub';
 import { setGithubRateLimitObserver } from './clients/github/Github';
 import { SlackClient } from './clients/Slack/SlackClient';
 import { createStaticAssetsFallbackHandler } from './clients/StaticAssets/staticAssetsFallbackMiddleware';
@@ -112,7 +116,11 @@ import {
     ServiceProviderMap,
     ServiceRepository,
 } from './services/ServiceRepository';
-import { initOtelTracing, shutdownOtelTracing } from './tracing/tracing';
+import {
+    getActiveTraceId,
+    initOtelTracing,
+    shutdownOtelTracing,
+} from './tracing/tracing';
 import { personaliseSharedSignInError } from './utils/sharedSignInExpiry';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
@@ -274,7 +282,6 @@ export default class App {
         this.eventStreamWriter = createEventStreamWriter(
             this.lightdashConfig,
             this.prometheusMetrics,
-            () => this.models.getFeatureFlagModel(),
         );
         this.analytics = new LightdashAnalytics({
             lightdashConfig: this.lightdashConfig,
@@ -300,6 +307,12 @@ export default class App {
             this.environment === 'production'
                 ? args.knexConfig.production
                 : args.knexConfig.development,
+            {
+                logRollbacks:
+                    this.lightdashConfig.database.logTransactionRollbacks,
+                slowTransactionThresholdMs:
+                    this.lightdashConfig.database.slowTransactionThresholdMs,
+            },
         );
         this.utils = new UtilRepository({
             utilProviders: args.utilProviders,
@@ -362,6 +375,9 @@ export default class App {
         this.featureFlagCheckFlushInterval.unref();
 
         this.prometheusMetrics.start();
+        if (this.lightdashConfig.updateCheck.enabled) {
+            startDockerHubVersionPolling();
+        }
         MotherduckInstanceCache.configure(
             this.lightdashConfig.motherduckInstanceCache,
         );
@@ -453,6 +469,14 @@ export default class App {
     }
 
     private async initExpress(expressApp: Express) {
+        // Lets a caller find the request's trace in their own trace store; the
+        // browser-sent sentry-trace ID is not continued in OTel mode.
+        expressApp.use((_req, res, next) => {
+            const traceId = getActiveTraceId();
+            if (traceId) res.setHeader('x-trace-id', traceId);
+            next();
+        });
+
         // Short-circuit CORS preflights for data-app iframe asset fetches.
         //
         // The data-app preview iframe uses `sandbox="allow-scripts allow-modals"`
@@ -668,10 +692,18 @@ export default class App {
 
         expressApp.use(helmet(helmetConfig));
 
-        // Allow MCP-related icons to be embedded cross-origin so MCP hosts
-        // (e.g. claude.ai) can display them in connector listings.
+        // Allow site icons to be embedded cross-origin so MCP hosts
+        // (e.g. claude.ai) can display them in connector listings. Claude
+        // reads /favicon.ico from the server origin; the rest are the icons
+        // the MCP server advertises in its initialize response.
         expressApp.use(
-            ['/logo-icon.svg', '/favicon-32x32.png', '/apple-touch-icon.png'],
+            [
+                '/favicon.ico',
+                '/favicon-16x16.png',
+                '/favicon-32x32.png',
+                '/apple-touch-icon.png',
+                '/logo-icon.svg',
+            ],
             helmet.crossOriginResourcePolicy({ policy: 'cross-origin' }),
         );
 
@@ -1180,6 +1212,7 @@ export default class App {
             clearInterval(this.featureFlagCheckFlushInterval);
             this.featureFlagCheckFlushInterval = undefined;
         }
+        stopDockerHubVersionPolling();
         try {
             this.analytics.trackFeatureFlagChecks(
                 flushFeatureFlagChecks(),

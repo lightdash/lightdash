@@ -75,10 +75,7 @@ const sharedAgentToolDefinitionNames = agentToolDefinitions.map(
     (toolDefinition) => toolDefinition.for('agent').name,
 );
 
-const makeAgentTools = (
-    enableFilterExpressions = false,
-    enableMergeQueries = true,
-) => {
+const makeAgentTools = (enableFilterExpressions = false) => {
     const noop = vi.fn();
     const noopAsync = vi.fn().mockResolvedValue(undefined);
 
@@ -158,26 +155,27 @@ const makeAgentTools = (
         runContentQuery: getRunContentQuery({
             enableDataAccess: true,
             getSavedChart: noop,
+            getSqlChart: noop,
+            runSqlChartQuery: noop,
             maxLimit: 500,
             maxContextRows: Number.POSITIVE_INFINITY,
             runAsyncQuery: noop,
             runSavedChartQuery: noop,
             updateProgress: noopAsync,
             validateContent: noop,
+            sqlQuerying: null,
         }),
         generateVisualization: getRunQuery({
             agentContext: new AgentContext([]),
             createOrUpdateArtifact: noop,
             enableDataAccess: true,
             slackLinksOnly: false,
-            enableMergeQueries,
             enableFilterExpressions,
             getPrompt: noop,
             maxLimit: 500,
             projectParameterDefinitions: {},
             maxContextRows: Number.POSITIVE_INFINITY,
             exposeQueryUuid: false,
-            runAsyncMergeQuery: noop,
             runAsyncQuery: noop,
             sendFile: noop,
             updateProgress: noopAsync,
@@ -212,13 +210,20 @@ const makeAgentTools = (
             waitForSqlApproval: noop,
         }),
         runComposerQueries: getRunComposerQueries({
+            agentContext: new AgentContext([]),
             createOrUpdateArtifact: noop,
             listThreadComposerPipelines: noop,
             enableDataAccess: true,
             canRunSql: true,
+            enablePythonNodes: false,
             getPrompt: noop,
             recordSqlApproval: noop,
+            isThreadSqlAutoApproved: noop,
+            listSqlApprovalDecisions: noop,
             trackSqlApprovalTimeout: noop,
+            storeToolResults: noop,
+            siteUrl: 'https://lightdash.example',
+            updateSlackMessage: noop,
             runComposerQueries: noop,
             maxQueryLimit: 500,
             updateProgress: noopAsync,
@@ -249,19 +254,11 @@ describe('AI agent tool contracts', () => {
             ),
         ).toMatchSnapshot();
     });
-    it.each(
-        [false, true].flatMap((enableFilterExpressions) =>
-            [false, true].map((enableMergeQueries) => ({
-                enableFilterExpressions,
-                enableMergeQueries,
-            })),
-        ),
-    )(
-        'keeps MCP polling out of Agent query guidance: expressions=$enableFilterExpressions merge=$enableMergeQueries',
-        ({ enableFilterExpressions, enableMergeQueries }) => {
+    it.each([false, true])(
+        'keeps MCP polling out of Agent query guidance: expressions=%s',
+        (enableFilterExpressions) => {
             const { generateVisualization, runSql } = makeAgentTools(
                 enableFilterExpressions,
-                enableMergeQueries,
             );
             for (const description of [
                 generateVisualization.description,
@@ -287,7 +284,7 @@ describe('AI agent tool contracts', () => {
                 'mcp-artifact-integration',
             );
         }
-        for (const tool of Object.values(makeAgentTools(true, true))) {
+        for (const tool of Object.values(makeAgentTools(true))) {
             expect(tool.description).not.toContain('mcp-artifact-integration');
         }
     });

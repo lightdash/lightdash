@@ -8,6 +8,7 @@ import {
 import moment from 'moment/moment';
 import { validateHeaderValue } from 'node:http';
 import { Readable } from 'stream';
+import { destroyS3Body } from '../../clients/Aws/s3Streams';
 import Logger from '../../logging/logger';
 import { splitJsonlStream } from '../streamUtils';
 
@@ -177,7 +178,7 @@ export async function streamJsonlData<T>({
         // Check if we've exceeded the line limit (only if maxLines is defined)
         if (maxLines !== undefined && lineCount > maxLines) {
             truncated = true;
-            readStream.destroy();
+            destroyS3Body(readStream);
             break;
         }
 

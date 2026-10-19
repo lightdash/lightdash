@@ -27,6 +27,7 @@ import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
 import MantineIcon from './common/MantineIcon';
 import PreAggregateStatusBadge from './PreAggregateStatusBadge';
+import { ExplorerQueryCostEstimateBadge } from './QueryCostEstimate/ExplorerQueryCostEstimate';
 import RunQuerySettings from './RunQuerySettings';
 
 export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
@@ -91,76 +92,85 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     const isRunning = isLoading || !!merge.isRunning;
 
     return (
-        <Box pos="relative">
-            <Button.Group>
-                <Tooltip
-                    label={
-                        mergeBlockedReason ?? (
-                            <Group gap={4} wrap="nowrap">
-                                <Kbd size="xs">
-                                    {os === 'macos' || os === 'ios'
-                                        ? '⌘'
-                                        : 'Ctrl'}
-                                </Kbd>
-                                <Kbd size="xs">↵</Kbd>
-                            </Group>
-                        )
-                    }
-                    position="bottom"
-                    disabled={
-                        isRunning || (!canRunQuery && !mergeBlockedReason)
-                    }
-                >
-                    <Button
-                        size={size}
-                        // data-disabled keeps the button hoverable so the
-                        // tooltip can say why the merge cannot run yet.
-                        disabled={!canRunQuery && !mergeBlockedReason}
-                        data-disabled={mergeBlockedReason ? true : undefined}
-                        aria-disabled={mergeBlockedReason ? true : undefined}
-                        leftSection={<MantineIcon icon={IconPlayerPlay} />}
-                        loading={isRunning}
-                        onClick={onClick}
-                        data-testid="RefreshButton/RunQueryButton"
-                        // Anchor for scope walkthroughs (data-tour-via), and
-                        // the action of the manage:Explore walkthrough: a
-                        // query of one's own is what the scope unlocks.
-                        // See scripts/scope-tours.
-                        data-tour-anchor="run-query"
-                        data-tour-hint="Run the query"
-                        data-tour-scope="manage:Explore"
-                        data-tour-step="2"
-                        data-tour-route="/projects/:projectUuid/tables/:tableName"
-                        data-tour-label="Run the query"
-                        data-tour-title="Explore data"
-                        data-tour-interactive="true"
-                        data-tour-via='[data-tour-nav="new"] >> [data-tour-nav="new-chart"] >> [data-tour-anchor="explore-table"] >> [data-tour-anchor="explore-metric"] >> [data-tour-anchor="explore-dimension"]'
-                        data-tour-docs="explore/explore-view.mdx#select-your-fields:li3"
+        <Group gap="xs" wrap="nowrap">
+            <ExplorerQueryCostEstimateBadge />
+            <Box pos="relative">
+                <Button.Group>
+                    <Tooltip
+                        label={
+                            mergeBlockedReason ?? (
+                                <Group gap={4} wrap="nowrap">
+                                    <Kbd size="xs">
+                                        {os === 'macos' || os === 'ios'
+                                            ? '⌘'
+                                            : 'Ctrl'}
+                                    </Kbd>
+                                    <Kbd size="xs">↵</Kbd>
+                                </Group>
+                            )
+                        }
+                        position="bottom"
+                        disabled={
+                            isRunning || (!canRunQuery && !mergeBlockedReason)
+                        }
                     >
-                        Run query
-                    </Button>
-                </Tooltip>
+                        <Button
+                            size={size}
+                            // data-disabled keeps the button hoverable so the
+                            // tooltip can say why the merge cannot run yet.
+                            disabled={!canRunQuery && !mergeBlockedReason}
+                            data-disabled={
+                                mergeBlockedReason ? true : undefined
+                            }
+                            aria-disabled={
+                                mergeBlockedReason ? true : undefined
+                            }
+                            leftSection={<MantineIcon icon={IconPlayerPlay} />}
+                            loading={isRunning}
+                            onClick={onClick}
+                            data-testid="RefreshButton/RunQueryButton"
+                            // Anchor for scope walkthroughs (data-tour-via), and
+                            // the action of the manage:Explore walkthrough: a
+                            // query of one's own is what the scope unlocks.
+                            // See scripts/scope-tours.
+                            data-tour-anchor="run-query"
+                            data-tour-hint="Run the query"
+                            data-tour-scope="manage:Explore"
+                            data-tour-step="2"
+                            data-tour-route="/projects/:projectUuid/tables/:tableName"
+                            data-tour-label="Run the query"
+                            data-tour-title="Explore data"
+                            data-tour-interactive="true"
+                            data-tour-via='[data-tour-nav="new"] >> [data-tour-nav="new-chart"] >> [data-tour-anchor="explore-table"] >> [data-tour-anchor="explore-metric"] >> [data-tour-anchor="explore-dimension"]'
+                            data-tour-docs="explore/explore-view.mdx#select-your-fields:li3"
+                        >
+                            Run query
+                        </Button>
+                    </Tooltip>
 
-                <RunQuerySettings
-                    disabled={!canRunQuery}
-                    size={size}
-                    maxLimit={maxLimit}
-                    limit={limit}
-                    onLimitChange={setRowLimit}
-                    showAutoFetchSetting
-                    showPreAggregateSetting={preAggVisible}
-                    showTimezoneSetting={timezoneSupportFlag?.enabled ?? false}
-                    timezone={timezone ?? undefined}
-                    onTimezoneChange={setTimeZone}
-                    isQueryRunning={isLoading}
-                    onCancelQuery={() =>
-                        startTransition(() => {
-                            cancelQuery();
-                        })
-                    }
-                />
-            </Button.Group>
-            <PreAggregateStatusBadge />
-        </Box>
+                    <RunQuerySettings
+                        disabled={!canRunQuery}
+                        size={size}
+                        maxLimit={maxLimit}
+                        limit={limit}
+                        onLimitChange={setRowLimit}
+                        showAutoFetchSetting
+                        showPreAggregateSetting={preAggVisible}
+                        showTimezoneSetting={
+                            timezoneSupportFlag?.enabled ?? false
+                        }
+                        timezone={timezone ?? undefined}
+                        onTimezoneChange={setTimeZone}
+                        isQueryRunning={isLoading}
+                        onCancelQuery={() =>
+                            startTransition(() => {
+                                cancelQuery();
+                            })
+                        }
+                    />
+                </Button.Group>
+                <PreAggregateStatusBadge />
+            </Box>
+        </Group>
     );
 });

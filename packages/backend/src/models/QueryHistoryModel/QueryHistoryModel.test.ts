@@ -886,3 +886,147 @@ describe('claimed connection errors', () => {
         }
     });
 });
+
+describe('status transition guards', () => {
+    const runUpdate = async (
+        write: (model: QueryHistoryModel) => Promise<unknown>,
+    ) => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on.any(/update "?query_history"?/i).response(1);
+        try {
+            await write(new QueryHistoryModel({ database }));
+            return tracker.history.all[0];
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    };
+    const account = buildAccount();
+
+    test('only writes ready from pending or executing', async () => {
+        const query = await runUpdate((model) =>
+            model.update(
+                'query',
+                'project',
+                { status: QueryHistoryStatus.READY },
+                account,
+            ),
+        );
+        expect(query.sql).toContain('"status" in (');
+        expect(query.bindings.slice(-2)).toEqual([
+            QueryHistoryStatus.PENDING,
+            QueryHistoryStatus.EXECUTING,
+        ]);
+    });
+
+    test('only cancels a running query', async () => {
+        const query = await runUpdate((model) =>
+            model.update(
+                'query',
+                'project',
+                { status: QueryHistoryStatus.CANCELLED },
+                account,
+            ),
+        );
+        expect(query.sql).toContain('"status" in (');
+        expect(query.bindings.slice(-3)).toEqual([
+            QueryHistoryStatus.PENDING,
+            QueryHistoryStatus.QUEUED,
+            QueryHistoryStatus.EXECUTING,
+        ]);
+    });
+
+    test('never overwrites a cancelled query with an error', async () => {
+        const query = await runUpdate((model) =>
+            model.updateStatusToError('query', 'project', 'failed', account),
+        );
+        expect(query.sql).toContain('not "status" =');
+        expect(query.bindings.at(-1)).toBe(QueryHistoryStatus.CANCELLED);
+    });
+
+    test('never records a DuckDB refusal over a cancelled query', async () => {
+        const query = await runUpdate((model) =>
+            model.recordDuckdbRefusal(
+                'query',
+                'project',
+                { kind: 'row_cap' },
+                'refused',
+                account,
+            ),
+        );
+        expect(query.sql).toMatch(/AND status <> \$7$/);
+        expect(query.bindings.at(-1)).toBe(QueryHistoryStatus.CANCELLED);
+    });
+
+    test('leaves other updates unguarded', async () => {
+        const query = await runUpdate((model) =>
+            model.update('query', 'project', { cache_key: 'key' }, account),
+        );
+        expect(query.sql).not.toContain('"status"');
+    });
+});
+
+describe('cancelRunningQueriesReadOnlyBy', () => {
+    test('checks and cancels in one guarded, account-scoped write', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on.any(/update "?query_history"?/i).response([]);
+        const account = buildAccount();
+        try {
+            await new QueryHistoryModel({
+                database,
+            }).cancelRunningQueriesReadOnlyBy(
+                ['leg'],
+                'project',
+                'consumer',
+                account,
+            );
+            expect(tracker.history.all).toHaveLength(1);
+            const [{ sql, bindings }] = tracker.history.all;
+            expect(sql).toMatch(
+                /^with "legs" as \(select .* for update\) update "query_history" set "status" = \$\d+ from "legs" where/,
+            );
+            expect(sql).toContain('"query"."created_by_user_uuid" = ');
+            expect(sql).toContain(
+                'not exists (select 1 from "query_history" as "reader"',
+            );
+            expect(bindings).toEqual(
+                expect.arrayContaining([
+                    QueryHistoryStatus.CANCELLED,
+                    'leg',
+                    'project',
+                    'consumer',
+                    account.user.id,
+                ]),
+            );
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+
+    test('writes nothing without legs', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        try {
+            expect(
+                await new QueryHistoryModel({
+                    database,
+                }).cancelRunningQueriesReadOnlyBy(
+                    [],
+                    'project',
+                    'consumer',
+                    buildAccount(),
+                ),
+            ).toEqual([]);
+            expect(tracker.history.all).toHaveLength(0);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+});

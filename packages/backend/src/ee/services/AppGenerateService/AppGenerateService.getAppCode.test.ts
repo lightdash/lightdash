@@ -817,6 +817,67 @@ describe('AppGenerateService.getAppCode', () => {
         expect(result.context.theme.assets).toHaveLength(0);
         expect(result.context.theme.instructions).toBeNull();
     });
+
+    it('emits registry provenance for a registry-installed chart type', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const appModel = {
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue({
+                ...fakeApp,
+                template: 'data_app_viz',
+                registry_slug: 'vega-trellis',
+                registry_url: 'https://charts.example.com',
+            }),
+            getLatestReadyVersion: vi.fn().mockResolvedValue({
+                ...fakeAppVersion,
+                registry_version: '0.6.0',
+            }),
+        };
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+        expect(result.manifest.registry).toEqual({
+            slug: 'vega-trellis',
+            version: '0.6.0',
+            url: 'https://charts.example.com',
+        });
+    });
+
+    it('omits registry provenance for a custom app and for a registry app version without a registry version', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const custom = buildService({
+            appModel: {
+                getAppByUuidOrSlug: vi
+                    .fn()
+                    .mockResolvedValue({ ...fakeApp, registry_slug: null }),
+                getLatestReadyVersion: vi
+                    .fn()
+                    .mockResolvedValue(fakeAppVersion),
+            },
+            s3ClientOverride: fakeS3,
+        });
+        expect(
+            (await custom.getAppCode(fakeUser, PROJECT_UUID, APP_UUID))
+                .manifest,
+        ).not.toHaveProperty('registry');
+
+        const noVersion = buildService({
+            appModel: {
+                getAppByUuidOrSlug: vi.fn().mockResolvedValue({
+                    ...fakeApp,
+                    registry_slug: 'vega-trellis',
+                    registry_url: 'https://charts.example.com',
+                }),
+                getLatestReadyVersion: vi.fn().mockResolvedValue({
+                    ...fakeAppVersion,
+                    registry_version: null,
+                }),
+            },
+            s3ClientOverride: fakeS3,
+        });
+        expect(
+            (await noVersion.getAppCode(fakeUser, PROJECT_UUID, APP_UUID))
+                .manifest,
+        ).not.toHaveProperty('registry');
+    });
 });
 
 describe('AppGenerateService.getDataAppAuthoringContext', () => {

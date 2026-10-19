@@ -7,14 +7,12 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi, lightdashApiResponse } from '../../api';
+import { sharedLightdashApi } from '../../api';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { AiServiceAccountForm } from './AiServiceAccountForm';
 
-vi.mock('../../api', () => ({
-    lightdashApi: vi.fn(),
-    lightdashApiResponse: vi.fn(),
-}));
+vi.mock('../../api');
 vi.mock('../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastSuccess: vi.fn(), showToastApiError: vi.fn() }),
 }));
@@ -80,13 +78,13 @@ describe.each([
 
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(lightdashApi).mockResolvedValue(verification);
+        mockedLightdashApi.mockResolvedValue(verification);
         const response: ApiAiServiceAccountSaveResponse = {
             status: 'ok',
             results: slot,
             verification,
         };
-        vi.mocked(lightdashApiResponse).mockResolvedValue(response);
+        mockedLightdashApi.response.mockResolvedValue(response);
     });
     it('requires a user and non-empty password and masks the secret', () => {
         setup();
@@ -138,7 +136,7 @@ describe.each([
             'Signs in as verified-principal',
         );
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-        expect(lightdashApi).toHaveBeenCalledWith(
+        expect(sharedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 method: 'POST',
                 sensitive: true,
@@ -162,14 +160,14 @@ describe.each([
                 verification,
             ),
         );
-        expect(lightdashApiResponse).toHaveBeenCalledWith(
+        expect(sharedLightdashApi.response).toHaveBeenCalledWith(
             expect.objectContaining({
                 method: 'PUT',
                 sensitive: true,
                 body: JSON.stringify(credentials),
             }),
         );
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
         expect(onClose).toHaveBeenCalledOnce();
         expect(screen.getByLabelText(/^Password/)).toHaveValue('');
         expect(client.getMutationCache().getAll()).toHaveLength(0);
@@ -180,13 +178,13 @@ describe.each([
             let finish: (() => void) | null = null;
             const pending = new Promise<never>(() => {});
             if (action === 'Test')
-                vi.mocked(lightdashApi).mockImplementation(
+                mockedLightdashApi.mockImplementation(
                     () =>
                         new Promise((resolve) => {
                             finish = () => resolve(verification);
                         }),
                 );
-            else vi.mocked(lightdashApiResponse).mockReturnValue(pending);
+            else mockedLightdashApi.response.mockReturnValue(pending);
             const { onClose, unmount, client } = setup();
             fill();
             fireEvent.click(screen.getByRole('button', { name: action }));
@@ -218,9 +216,8 @@ describe.each([
             const error = {
                 error: { message: 'Could not verify these credentials.' },
             };
-            if (action === 'Test')
-                vi.mocked(lightdashApi).mockRejectedValue(error);
-            else vi.mocked(lightdashApiResponse).mockRejectedValue(error);
+            if (action === 'Test') mockedLightdashApi.mockRejectedValue(error);
+            else mockedLightdashApi.response.mockRejectedValue(error);
             const { onSaved } = setup();
             fill();
             fireEvent.click(screen.getByRole('button', { name: action }));
@@ -236,7 +233,7 @@ describe.each([
         },
     );
     it('shows a failed Test as an alert', async () => {
-        vi.mocked(lightdashApi).mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             ...verification,
             ok: false,
             principal: null,
@@ -258,14 +255,14 @@ describe.each([
               ]
             : [],
     )('keeps failed ClickHouse verification open: %s', async (message) => {
-        vi.mocked(lightdashApi).mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             ...verification,
             ok: false,
             principal: null,
             observed: {},
             message,
         });
-        vi.mocked(lightdashApiResponse).mockRejectedValue({
+        mockedLightdashApi.response.mockRejectedValue({
             error: { message },
         });
         const { onSaved, onClose } = setup();

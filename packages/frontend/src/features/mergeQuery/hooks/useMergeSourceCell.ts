@@ -11,15 +11,16 @@ import {
     type ResultValue,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import { type MetricQueryDataSource } from '../../../components/MetricQueryData/types';
 import { useMetricQueryDataContext } from '../../../components/MetricQueryData/useMetricQueryDataContext';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { convertDateFilters } from '../../../utils/dateFilter';
 import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
-import { useMergeSourceNames } from './useMergeSourceNames';
+import { getMergeSourceNames } from '../utils/getMergeSourceNames';
 
 export const getMergeSourceFieldValues = (
     fieldOrigins: MergeFieldOrigins,
@@ -41,6 +42,7 @@ export const getMergeSourceFieldValues = (
     );
 
 const executeSourceQuery = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     metricQuery: MetricQuery,
     parameters: ParametersValuesMap | undefined,
@@ -72,19 +74,32 @@ type PreparedMergeSourceCell = Omit<ResolvedMergeSourceCell, 'source'> & {
 };
 
 export const useMergeSourceCell = () => {
+    const lightdashApi = useLightdashApi();
     const projectUuid = useProjectUuid();
     const merge = useMergeSafe();
-    const { handleByName } = useMergeSourceNames();
-    const {
-        tableName,
-        metricQuery: primaryMetricQuery,
-        parameters,
-        resolvedTimezone,
-    } = useMetricQueryDataContext();
+    // Optional: custom chart renderers mount on surfaces without the provider
+    const metricQueryData = useMetricQueryDataContext(true);
+    const tableName = metricQueryData?.tableName;
+    const primaryMetricQuery = metricQueryData?.metricQuery;
+    const parameters = metricQueryData?.parameters;
+    const resolvedTimezone = metricQueryData?.resolvedTimezone;
+    // Not useMergeSourceNames: it reads the explorer store, absent outside the explorer
+    const { handleByName } = useMemo(
+        () =>
+            getMergeSourceNames({
+                tableName,
+                primarySourceName: merge?.primarySourceName ?? null,
+                additionalSources: merge?.additionalSources ?? [],
+            }),
+        [tableName, merge?.primarySourceName, merge?.additionalSources],
+    );
     const additionalSource = merge?.additionalSources[0];
-    const { data: primaryExplore } = useExplore(tableName, {
-        refetchOnMount: false,
-    });
+    const { data: primaryExplore } = useExplore(
+        merge?.mergeResults ? tableName : undefined,
+        {
+            refetchOnMount: false,
+        },
+    );
     const { data: additionalExplore } = useExplore(
         additionalSource?.exploreName ?? undefined,
         { refetchOnMount: false },
@@ -190,6 +205,7 @@ export const useMergeSourceCell = () => {
         ): Promise<PreparedMergeSourceCell> => {
             if (!projectUuid) throw new Error('Project is required');
             const started = await executeSourceQuery(
+                lightdashApi,
                 projectUuid,
                 sourceCell.source.metricQuery,
                 parameters,
@@ -203,7 +219,7 @@ export const useMergeSourceCell = () => {
                 },
             };
         },
-        [parameters, projectUuid, resolvedTimezone],
+        [parameters, projectUuid, resolvedTimezone, lightdashApi],
     );
 
     return { prepareUnderlyingData, resolve };

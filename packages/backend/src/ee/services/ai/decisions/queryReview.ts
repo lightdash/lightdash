@@ -1,8 +1,6 @@
 import {
-    isMergeMetricSource,
     QuerySourceType,
     type Explore,
-    type MergeQuery,
     type ParametersValuesMap,
     type SourceQuery,
 } from '@lightdash/common';
@@ -30,11 +28,6 @@ export type QueryReviewPlan =
           query: ReviewableMetricQuery;
           parameters?: ParametersValuesMap | null;
           timezone?: string | null;
-      }
-    | {
-          kind: 'merge';
-          query: MergeQuery;
-          parameters?: ParametersValuesMap | null;
       }
     | { kind: 'sql'; sql: string; limit: number }
     | { kind: 'composer'; queries: SourceQuery[]; terminalNodeId: string };
@@ -99,16 +92,7 @@ export const createQueryReviewer =
                 id: string | null;
                 query: ReviewableMetricQuery;
             }[] = [];
-            if (plan.kind === 'merge') {
-                plan.query.sources
-                    .filter(isMergeMetricSource)
-                    .forEach((source) =>
-                        sources.push({
-                            id: source.id,
-                            query: source.metricQuery,
-                        }),
-                    );
-            } else if (plan.kind === 'composer') {
+            if (plan.kind === 'composer') {
                 plan.queries.forEach((source) => {
                     if (source.sourceType === QuerySourceType.SEMANTIC_LAYER)
                         sources.push({

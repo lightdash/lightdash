@@ -50,15 +50,22 @@ const NOTHING_STORED: OrganizationSettings = {
     csvCellsLimit: null,
     corsAllowedDomains: null,
     dataAppAutomaticThumbnailsEnabled: null,
+    dataAppCapturesEnabled: null,
 };
 
-/** Organization settings where each org's stored automatic capture choice is read on every call. */
+/**
+ * Organization settings where each org's stored automatic capture choice, and
+ * optionally its captures switch, are read on every call.
+ */
 export const organizationSettingsModelWith = (
     storedChoice: (organizationUuid: string) => boolean | null,
+    storedCapturesChoice: (organizationUuid: string) => boolean | null = () =>
+        null,
 ): AppThumbnailClientArgs['organizationSettingsModel'] => ({
     get: async (organizationUuid) => ({
         ...NOTHING_STORED,
         dataAppAutomaticThumbnailsEnabled: storedChoice(organizationUuid),
+        dataAppCapturesEnabled: storedCapturesChoice(organizationUuid),
     }),
 });
 
@@ -77,6 +84,8 @@ export const featureFlagModelWith = (
 type AppThumbnailClientMockArgs = {
     appModel: AppThumbnailClientArgs['appModel'];
     headlessBrowserConfigured: boolean;
+    /** `LIGHTDASH_APP_CAPTURES_ENABLED`, the ceiling for the org switch. */
+    capturesEnabledOnInstance: boolean;
     captureDataAppVersion: AppThumbnailClientArgs['unfurlService']['captureDataAppVersion'];
     storage: AppThumbnailStorage;
     organizationSettingsModel: AppThumbnailClientArgs['organizationSettingsModel'];
@@ -87,6 +96,7 @@ type AppThumbnailClientMockArgs = {
 export const buildAppThumbnailClientMock = ({
     appModel = {} as AppThumbnailClientArgs['appModel'],
     headlessBrowserConfigured = false,
+    capturesEnabledOnInstance = true,
     captureDataAppVersion = async () => {
         throw new Error('No headless browser in this test');
     },
@@ -102,6 +112,10 @@ export const buildAppThumbnailClientMock = ({
                 host: headlessBrowserConfigured
                     ? 'headless-browser'
                     : undefined,
+            },
+            appRuntime: {
+                ...lightdashConfigMock.appRuntime,
+                capturesEnabled: capturesEnabledOnInstance,
             },
         },
         appModel,

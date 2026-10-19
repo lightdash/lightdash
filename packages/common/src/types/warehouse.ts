@@ -20,6 +20,7 @@ export type RunQueryTags = Record<UserAttributeQueryTag, string> & {
     user_uuid?: string;
     ai_principal?: string;
     agent?: 'true';
+    agent_uuid?: string;
     organization_uuid?: string;
     app_uuid?: string;
     chart_uuid?: string;
@@ -450,10 +451,17 @@ export type WarehouseResults = {
 
 export type WarehouseExecuteAsyncQueryArgs = {
     tags: Record<string, string>;
+    // BigQuery only: overrides the connection limit for this job; 0 means no limit.
+    maximumBytesBilled?: number;
     timezone?: string;
     values?: AnyType[]; // same as queryParams but in array form
     queryParams?: Record<string, AnyType>; // same as values but in object form
     sql: string;
+};
+
+export type WarehouseQueryEstimate = {
+    /** Bytes the warehouse reports the query would process (dry run). */
+    totalBytesProcessed: number;
 };
 
 // `query` is execution up to the first row; `fetch` is streaming the rest.
@@ -468,12 +476,25 @@ export type WarehousePhaseTimings = Partial<
     Record<WarehouseQueryPhase, number>
 >;
 
+/** Execution statistics reported by the warehouse for one query job. */
+export type WarehouseExecutionStats = {
+    jobId: string | null;
+    bytesProcessed: number | null;
+    bytesBilled: number | null;
+    /** Warehouse-reported job duration, from job start to job end. */
+    executionTimeMs: number | null;
+    /** Whether the warehouse served the job from its own result cache. */
+    cacheHit: boolean | null;
+};
+
 export type WarehouseExecuteAsyncQuery = {
     queryId: string | null;
     queryMetadata: WarehouseQueryMetadata | null;
     totalRows: number;
     durationMs: number;
     phaseTimings: WarehousePhaseTimings;
+    /** Omitted by warehouses that do not report execution statistics. */
+    executionStats?: WarehouseExecutionStats;
 };
 
 export enum TimeIntervalUnit {
@@ -552,6 +573,7 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
             values?: AnyType[];
             tags: Record<string, string>;
             timezone?: string;
+            maximumBytesBilled?: number;
         },
     ): Promise<void>;
 
@@ -562,6 +584,14 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
             fields: WarehouseResults['fields'],
         ) => void | Promise<void>,
     ): Promise<WarehouseExecuteAsyncQuery>;
+
+    /**
+     * Estimates the query cost without running it. Only implemented by
+     * warehouses with a free, fast estimate (BigQuery dry run).
+     */
+    estimateQuery?(
+        args: WarehouseExecuteAsyncQueryArgs,
+    ): Promise<WarehouseQueryEstimate>;
 
     /**
      * Runs a query and returns all the results
