@@ -239,6 +239,7 @@ const useHomepageSuggestionChips = ({
     const isTrackingReady = !!trackingData.rudder;
     const referenceAgentUuid = referenceAgent?.uuid;
     const suggestionsQuery = useAgentSuggestions({
+        surface: 'home',
         projectUuid: projectUuid ?? '',
         agentUuid: referenceAgentUuid,
         enableSqlMode,

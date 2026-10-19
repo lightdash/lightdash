@@ -180,6 +180,8 @@ import {
     validateAgentSuggestion,
     validateAiAgentSkill,
     type AgentIdentityClaim,
+    type AgentSuggestionsResponseSource,
+    type AgentSuggestionsSource,
     type AgentSuggestionTool,
     type AgentToolName,
     type AgentWorkMarker,
@@ -351,6 +353,7 @@ import {
     UnfurlService,
 } from '../../../services/UnfurlService/UnfurlService';
 import { wrapSentryTransaction } from '../../../utils';
+import { type ClientInfo } from '../../../utils/clientHeader';
 import { redactItemsMapSql } from '../../../utils/embedCompiledSql';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
 import {
@@ -408,6 +411,11 @@ import {
     type AiDeepResearchFinalizerUsageFn,
 } from '../ai/agents/reportFinalizer';
 import { sqlApprovalId } from '../ai/agents/sqlApprovalSuspend';
+import {
+    classifySuggestionError,
+    SuggestionGenerationError,
+    type SuggestionFallbackReason,
+} from '../ai/agents/suggestionErrors';
 import {
     generateAgentSuggestions,
     SUGGESTION_FALLBACK_CHIPS,
@@ -674,6 +682,10 @@ import {
     withoutDocumentOffer,
 } from './suggestionAccess';
 import {
+    buildSuggestionCacheKey,
+    SuggestionFallbackCache,
+} from './suggestionFallbackCache';
+import {
     buildChartSuggestionContext,
     buildDashboardSuggestionContext,
     getPinnedSuggestionContextInput,
@@ -876,6 +888,8 @@ type EmbedAiAgentRuntimeOptions = {
     spaceAccess: string[];
     userAttributeOverrides: UserAttributeValueMap;
 };
+
+export type SuggestionClientInfo = ClientInfo;
 
 type AiAgentServiceDependencies = {
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
@@ -1198,6 +1212,7 @@ const catalogFieldKind = (basicType: string | undefined): FieldKind | null => {
 };
 
 export class AiAgentService extends BaseService {
+    private readonly suggestionFallbackCache = new SuggestionFallbackCache();
     private readonly agentActionLogModel: AiAgentServiceDependencies['agentActionLogModel'];
     private readonly agentPermissionService: AiAgentServiceDependencies['agentPermissionService'];
     private readonly aiAgentModel: AiAgentModel;
@@ -3083,6 +3098,54 @@ export class AiAgentService extends BaseService {
 
     public async getAgentSuggestions(
         user: SessionUser,
+        input: {
+            projectUuid: string;
+            agentUuid: string;
+            threadUuid?: string;
+            afterMessageUuid?: string;
+            enableSqlMode?: boolean;
+            context?: AiAgentSuggestionContext;
+            client: SuggestionClientInfo;
+        },
+    ): Promise<{
+        chips: AgentSuggestion[];
+        source: AgentSuggestionsResponseSource;
+    }> {
+        const startedAt = Date.now();
+        const { organizationUuid } = user;
+        if (!organizationUuid)
+            throw new ForbiddenError('Organization not found');
+        try {
+            return await this.getAgentSuggestionsImpl(user, input, startedAt);
+        } catch (error) {
+            this.analytics.track<AiAgentSuggestionsGeneratedEvent>({
+                event: 'ai_agent.suggestions_generated',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: input.projectUuid,
+                    agentId: input.agentUuid,
+                    chipCount: 0,
+                    exploreCount: 0,
+                    verifiedQuestionsCount: 0,
+                    latencyMs: Date.now() - startedAt,
+                    modelId: 'fallback',
+                    usingFallback: true,
+                    documentChipShown: false,
+                    outcome: 'error',
+                    source: 'none',
+                    fallbackReason: null,
+                    droppedChipCount: 0,
+                    ...input.client,
+                },
+            });
+            this.prometheusMetrics?.incrementAiAgentSuggestions('error', null);
+            throw error;
+        }
+    }
+
+    private async getAgentSuggestionsImpl(
+        user: SessionUser,
         {
             projectUuid,
             agentUuid,
@@ -3090,7 +3153,9 @@ export class AiAgentService extends BaseService {
             afterMessageUuid,
             enableSqlMode = false,
             context,
+            client,
         }: {
+            client: SuggestionClientInfo;
             projectUuid: string;
             agentUuid: string;
             threadUuid?: string;
@@ -3098,7 +3163,11 @@ export class AiAgentService extends BaseService {
             enableSqlMode?: boolean;
             context?: AiAgentSuggestionContext;
         },
-    ): Promise<{ chips: AgentSuggestion[] }> {
+        startedAt: number,
+    ): Promise<{
+        chips: AgentSuggestion[];
+        source: AgentSuggestionsResponseSource;
+    }> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
@@ -3118,7 +3187,7 @@ export class AiAgentService extends BaseService {
             }
 
             if (!canGeneratePostResponseSuggestions(user.userUuid, thread)) {
-                return { chips: [] };
+                return { chips: [], source: 'none' };
             }
         }
 
@@ -3170,114 +3239,135 @@ export class AiAgentService extends BaseService {
             canCreateDashboards,
         });
 
-        const availableExplores = await this.getAvailableExplores(
-            user,
-            projectUuid,
-            agent.tags,
-        );
-
-        const explores = availableExplores.slice(0, 12).map((explore) => {
-            const baseTable = explore.tables[explore.baseTable];
-            return {
-                name: explore.name,
-                label: explore.label,
-                description: baseTable.description ?? null,
-                dimensions: Object.values(baseTable.dimensions)
-                    .slice(0, 8)
-                    .map((d) => ({
-                        id: getItemId(d),
-                        label: d.label,
-                    })),
-                metrics: Object.values(baseTable.metrics)
-                    .slice(0, 8)
-                    .map((m) => ({
-                        id: getItemId(m),
-                        label: m.label,
-                    })),
-            };
-        });
-
-        // Semantic-layer-less projects (dbt-less / NONE) have no explores, so
-        // ground empty-state chips in the indexed warehouse schema instead.
-        const warehouseTables =
-            explores.length === 0 && canRunSql
-                ? await this.getSuggestionWarehouseTables(
-                      user,
-                      projectUuid,
-                      agent.uuid,
-                  )
-                : [];
-
-        const verifiedQuestionsData =
-            await this.aiAgentModel.getVerifiedQuestions(agentUuid);
-        const verifiedQuestions = verifiedQuestionsData
-            .slice(0, 6)
-            .map((q) => q.question);
-
-        const verifiedContent = await this.fetchSuggestionsVerifiedContent(
-            user,
-            projectUuid,
-        );
-
-        const recentUserConversations =
-            threadUuid || validatedContext
-                ? undefined
-                : await this.fetchSuggestionsRecentConversations({
-                      organizationUuid,
-                      agentUuid,
-                      userUuid: user.userUuid,
-                  });
-
-        const threadContext = threadMessages
-            ? this.buildSuggestionsThreadContext({
-                  messages: threadMessages,
-                  afterMessageUuid,
-                  availableExplores,
-              })
-            : null;
-        const pinnedContext = validatedContext
-            ? await this.buildSuggestionsPinnedContext({
-                  user,
-                  projectUuid,
-                  context: validatedContext,
-                  availableExplores,
-              })
-            : undefined;
-
-        if (threadContext) {
-            // The signals call reads the agent's latest response, so a pinned
-            // agent never sends it to the external decisions provider.
-            const decisions = agent.providerCredentialUuid
-                ? undefined
-                : await this.getDecisionClient(user);
-            if (decisions) {
-                const signals = await classifyResponseSignals(
-                    decisions,
-                    threadContext.latestAssistantTurn.text,
-                );
-                threadContext.latestAssistantTurn.askedClarifyingQuestion =
-                    signals.needsUserInput ??
-                    threadContext.latestAssistantTurn.askedClarifyingQuestion;
-                threadContext.latestAssistantTurn.refused =
-                    signals.refused ??
-                    threadContext.latestAssistantTurn.refused;
-            }
-        }
-
-        const validationCatalog: SuggestionValidationCatalog = {
-            exploreNames: new Set(availableExplores.map((e) => e.name)),
-        };
-
-        const startedAt = Date.now();
         const fallbackChips = filterSuggestionsByEnabledTools(
             SUGGESTION_FALLBACK_CHIPS,
             enabledTools,
         );
         let chips: AgentSuggestion[] = fallbackChips;
-        let usingFallback = true;
+        let source: AgentSuggestionsSource = 'default';
+        let fallbackReason: SuggestionFallbackReason | null = null;
+        let droppedChipCount = 0;
+        let contextLoaded = false;
+        let availableExplores: Explore[] = [];
+        let explores: SuggestionPromptContext['explores'] = [];
+        let verifiedQuestions: string[] = [];
+        let threadContext: NonNullable<
+            SuggestionPromptContext['thread']
+        > | null = null;
+        let validationCatalog: SuggestionValidationCatalog = {
+            exploreNames: new Set(),
+        };
+        const cacheKey = buildSuggestionCacheKey({
+            organizationUuid,
+            projectUuid,
+            agentUuid,
+            userUuid: user.userUuid,
+            enableSqlMode,
+            context: context ?? null,
+            threadUuid: threadUuid ?? null,
+            afterMessageUuid: afterMessageUuid ?? null,
+        });
         let modelId = 'fallback';
 
         try {
+            availableExplores = await this.getAvailableExplores(
+                user,
+                projectUuid,
+                agent.tags,
+            );
+
+            explores = availableExplores.slice(0, 12).map((explore) => {
+                const baseTable = explore.tables[explore.baseTable];
+                return {
+                    name: explore.name,
+                    label: explore.label,
+                    description: baseTable.description ?? null,
+                    dimensions: Object.values(baseTable.dimensions)
+                        .slice(0, 8)
+                        .map((d) => ({
+                            id: getItemId(d),
+                            label: d.label,
+                        })),
+                    metrics: Object.values(baseTable.metrics)
+                        .slice(0, 8)
+                        .map((m) => ({
+                            id: getItemId(m),
+                            label: m.label,
+                        })),
+                };
+            });
+
+            const warehouseTables =
+                explores.length === 0 && canRunSql
+                    ? await this.getSuggestionWarehouseTables(
+                          user,
+                          projectUuid,
+                          agent.uuid,
+                      )
+                    : [];
+
+            const verifiedQuestionsData =
+                await this.aiAgentModel.getVerifiedQuestions(agentUuid);
+            verifiedQuestions = verifiedQuestionsData
+                .slice(0, 6)
+                .map((q) => q.question);
+
+            const verifiedContent = await this.fetchSuggestionsVerifiedContent(
+                user,
+                projectUuid,
+            );
+
+            const recentUserConversations =
+                threadUuid || validatedContext
+                    ? undefined
+                    : await this.fetchSuggestionsRecentConversations({
+                          organizationUuid,
+                          agentUuid,
+                          userUuid: user.userUuid,
+                      });
+
+            threadContext = threadMessages
+                ? this.buildSuggestionsThreadContext({
+                      messages: threadMessages,
+                      afterMessageUuid,
+                      availableExplores,
+                  })
+                : null;
+            const pinnedContext = validatedContext
+                ? await this.buildSuggestionsPinnedContext({
+                      user,
+                      projectUuid,
+                      context: validatedContext,
+                      availableExplores,
+                  })
+                : undefined;
+
+            if (threadContext) {
+                // The signals call reads the agent's latest response, so a pinned
+                // agent never sends it to the external decisions provider.
+                const decisions = agent.providerCredentialUuid
+                    ? undefined
+                    : await this.getDecisionClient(user);
+                if (decisions) {
+                    const signals = await classifyResponseSignals(
+                        decisions,
+                        threadContext.latestAssistantTurn.text,
+                    );
+                    threadContext.latestAssistantTurn.askedClarifyingQuestion =
+                        signals.needsUserInput ??
+                        threadContext.latestAssistantTurn
+                            .askedClarifyingQuestion;
+                    threadContext.latestAssistantTurn.refused =
+                        signals.refused ??
+                        threadContext.latestAssistantTurn.refused;
+                }
+            }
+
+            validationCatalog = {
+                exploreNames: new Set(availableExplores.map((e) => e.name)),
+            };
+
+            contextLoaded = true;
             const copilotConfig =
                 await this.orgAiCopilotConfigResolver.getCopilotConfig({
                     organizationUuid,
@@ -3314,6 +3404,7 @@ export class AiAgentService extends BaseService {
                     agentUuid,
                 },
             );
+            modelId = String(modelOptions.model.modelId ?? 'unknown');
 
             const dropped: string[] = [];
             // Resolve model-side intent into final wire shape. Navigate chips
@@ -3354,28 +3445,87 @@ export class AiAgentService extends BaseService {
                 }
                 return true;
             });
-            if (dropped.length > 0) {
+            droppedChipCount = generated.droppedChipCount + dropped.length;
+            if (droppedChipCount > 0) {
                 Logger.warn(
-                    `[AiAgentService] Dropped ${dropped.length} suggestion chip(s): ${dropped.join('; ')}`,
+                    `[AiAgentService] Dropped ${droppedChipCount} suggestion chip(s): ${[...generated.droppedReasons, ...dropped].join('; ')}`,
                 );
             }
             if (validated.length === 0) {
-                chips = fallbackChips;
-                usingFallback = true;
+                throw new SuggestionGenerationError('schema', null);
             } else {
                 chips = validated;
-                usingFallback = false;
+                source = 'generated';
+                this.suggestionFallbackCache.set(cacheKey, chips);
+                if (droppedChipCount > 0) {
+                    Sentry.addBreadcrumb({
+                        category: 'ai_agent.suggestions',
+                        level: 'warning',
+                        message: 'Dropped invalid suggestion chips',
+                        data: {
+                            'suggestions.reason': 'schema',
+                            droppedChipCount,
+                            client: client.client,
+                            projectUuid,
+                        },
+                    });
+                }
             }
-            modelId = String(modelOptions.model.modelId ?? 'unknown');
         } catch (error) {
             Logger.warn(
                 `[AiAgentService] Failed to generate agent suggestions, falling back to defaults: ${String(
                     error,
                 )}`,
             );
-            Sentry.captureException(error, {
-                tags: { errorType: 'AiAgentSuggestionsGenerationFailed' },
-            });
+            fallbackReason = contextLoaded
+                ? classifySuggestionError(error)
+                : 'context_load';
+            if (!contextLoaded) threadContext = null;
+            if (fallbackReason === 'schema' || fallbackReason === 'parse') {
+                Sentry.addBreadcrumb({
+                    category: 'ai_agent.suggestions',
+                    level: 'warning',
+                    message: 'Suggestion generation fell back',
+                    data: {
+                        'suggestions.reason': fallbackReason,
+                        droppedChipCount,
+                        client: client.client,
+                        projectUuid,
+                    },
+                });
+            } else {
+                Sentry.captureException(error, {
+                    tags: {
+                        errorType: 'AiAgentSuggestionsGenerationFailed',
+                        'suggestions.reason': fallbackReason,
+                        client: client.client,
+                        projectUuid,
+                    },
+                });
+            }
+        }
+
+        if (source !== 'generated') {
+            const cached = this.suggestionFallbackCache.get(cacheKey);
+            const validCached = cached
+                ? filterSuggestionsByEnabledTools(cached, enabledTools).filter(
+                      (chip) =>
+                          !contextLoaded ||
+                          validateGeneratedSuggestion(
+                              chip,
+                              validationCatalog,
+                              availableExplores,
+                              enabledTools,
+                          ).valid,
+                  )
+                : [];
+            if (validCached.length > 0) {
+                chips = validCached;
+                source = 'cached';
+            } else {
+                chips = fallbackChips;
+                source = 'default';
+            }
         }
 
         // Chips answer the agent's question when it asked one, so no Document offer then.
@@ -3396,6 +3546,9 @@ export class AiAgentService extends BaseService {
             chips = withDocumentSuggestion(chips);
         }
 
+        const responseSource: AgentSuggestionsResponseSource =
+            chips.length === 0 ? 'none' : source;
+
         this.analytics.track<AiAgentSuggestionsGeneratedEvent>({
             event: 'ai_agent.suggestions_generated',
             userId: user.userUuid,
@@ -3408,12 +3561,24 @@ export class AiAgentService extends BaseService {
                 verifiedQuestionsCount: verifiedQuestions.length,
                 latencyMs: Date.now() - startedAt,
                 modelId,
-                usingFallback,
+                usingFallback: source !== 'generated',
+                outcome: source,
+                source: responseSource,
+                fallbackReason,
+                droppedChipCount,
+                ...client,
                 documentChipShown,
             },
         });
 
-        return { chips };
+        this.prometheusMetrics?.incrementAiAgentSuggestions(
+            source,
+            fallbackReason,
+        );
+        this.prometheusMetrics?.incrementAiAgentSuggestionChipsDropped(
+            droppedChipCount,
+        );
+        return { chips, source: responseSource };
     }
 
     /**

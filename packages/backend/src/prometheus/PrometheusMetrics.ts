@@ -6,6 +6,7 @@ import {
     PreAggregateMissReason,
     QueryExecutionContext,
     QueryHistoryStatus,
+    type AgentSuggestionsSource,
     type AiAgentMemoryConsolidationOperationType,
     type AiAgentMemoryConsolidationRejectionReason,
     type WarehousePhaseTimings,
@@ -24,6 +25,7 @@ import { AI_WRITEBACK_STAGES } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import { onTransactionEnd } from '../database/transactionObservability';
 import { PreAggregateMaterializationsTableName } from '../ee/database/entities/preAggregates';
+import { type SuggestionFallbackReason } from '../ee/services/ai/agents/suggestionErrors';
 import Logger from '../logging/logger';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
 import {
@@ -183,6 +185,12 @@ export default class PrometheusMetrics {
         null;
 
     public repoFsGithubFileDurationHistogram: prometheus.Histogram<'outcome'> | null =
+        null;
+
+    public aiAgentSuggestionsCounter: prometheus.Counter<
+        'outcome' | 'fallback_reason'
+    > | null = null;
+    public aiAgentSuggestionChipsDroppedCounter: prometheus.Counter | null =
         null;
 
     // repoShell GitHub API request count by kind (tree | file | search | list),
@@ -738,6 +746,40 @@ export default class PrometheusMetrics {
                         buckets: githubRequestBuckets,
                         ...rest,
                     });
+
+                this.aiAgentSuggestionsCounter = new prometheus.Counter({
+                    name: 'ai_agent_suggestions_total',
+                    help: 'AI agent suggestion outcomes',
+                    labelNames: ['outcome', 'fallback_reason'],
+                    ...rest,
+                });
+                this.aiAgentSuggestionChipsDroppedCounter =
+                    new prometheus.Counter({
+                        name: 'ai_agent_suggestion_chips_dropped_total',
+                        help: 'Invalid AI agent suggestion chips dropped',
+                        ...rest,
+                    });
+                for (const outcome of [
+                    'generated',
+                    'cached',
+                    'default',
+                    'error',
+                ]) {
+                    for (const fallback_reason of [
+                        'none',
+                        'schema',
+                        'provider',
+                        'parse',
+                        'timeout',
+                        'context_load',
+                    ]) {
+                        this.aiAgentSuggestionsCounter.inc(
+                            { outcome, fallback_reason },
+                            0,
+                        );
+                    }
+                }
+                this.aiAgentSuggestionChipsDroppedCounter.inc(0);
 
                 this.repoFsGithubRequestCounter = new prometheus.Counter({
                     name: 'ai_repofs_github_requests_total',
@@ -1822,6 +1864,20 @@ export default class PrometheusMetrics {
             { outcome },
             durationMs,
         );
+    }
+
+    public incrementAiAgentSuggestions(
+        outcome: AgentSuggestionsSource | 'error',
+        fallbackReason: SuggestionFallbackReason | null,
+    ): void {
+        this.aiAgentSuggestionsCounter?.inc({
+            outcome,
+            fallback_reason: fallbackReason ?? 'none',
+        });
+    }
+
+    public incrementAiAgentSuggestionChipsDropped(count: number): void {
+        this.aiAgentSuggestionChipsDroppedCounter?.inc(count);
     }
 
     public incrementRepoFsGithubRequest(
