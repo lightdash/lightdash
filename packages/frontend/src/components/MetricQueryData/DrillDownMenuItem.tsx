@@ -86,20 +86,24 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
         fieldValues &&
         (source?.metricQuery || metricQuery)
     ) {
-        return (
-            <MergeSourceGate item={item}>
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconArrowBarToDown} />}
-                    onClick={handleDrillInto}
-                >
-                    <>
-                        Drill into{' '}
-                        <Text span fw="bold">
-                            {value}
-                        </Text>
-                    </>
-                </Menu.Item>
-            </MergeSourceGate>
+        const menuItem = (
+            <Menu.Item
+                leftSection={<MantineIcon icon={IconArrowBarToDown} />}
+                onClick={handleDrillInto}
+            >
+                <>
+                    Drill into{' '}
+                    <Text span fw="bold">
+                        {value}
+                    </Text>
+                </>
+            </Menu.Item>
+        );
+        // A caller-supplied source is already resolved to that source's own fields
+        return source ? (
+            menuItem
+        ) : (
+            <MergeSourceGate item={item}>{menuItem}</MergeSourceGate>
         );
     }
 
