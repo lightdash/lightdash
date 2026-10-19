@@ -34,16 +34,10 @@ export const restoreSavedMerge = (value: unknown): MergeUrlState | null => {
             filters: query.filters ?? {},
             additionalMetrics: query.additionalMetrics,
             customDimensions: query.customDimensions,
-            ...(query.tableCalculations?.length
-                ? { tableCalculations: query.tableCalculations }
-                : {}),
-            ...(query.metricOverrides
-                ? { metricOverrides: query.metricOverrides }
-                : {}),
-            ...(query.dimensionOverrides
-                ? { dimensionOverrides: query.dimensionOverrides }
-                : {}),
-            ...(query.timezone ? { timezone: query.timezone } : {}),
+            tableCalculations: query.tableCalculations,
+            metricOverrides: query.metricOverrides,
+            dimensionOverrides: query.dimensionOverrides,
+            timezone: query.timezone,
         });
     });
     return {

@@ -140,10 +140,10 @@ const parseSource = (value: unknown): MergeEditorSource | null => {
         filters: asFilters(source.w),
         additionalMetrics: source.a,
         customDimensions: source.c,
-        ...(source.tc ? { tableCalculations: source.tc } : {}),
-        ...(source.mo ? { metricOverrides: source.mo } : {}),
-        ...(source.do ? { dimensionOverrides: source.do } : {}),
-        ...(source.tz ? { timezone: source.tz } : {}),
+        tableCalculations: source.tc,
+        metricOverrides: source.mo,
+        dimensionOverrides: source.do,
+        timezone: source.tz,
     };
 };
 
