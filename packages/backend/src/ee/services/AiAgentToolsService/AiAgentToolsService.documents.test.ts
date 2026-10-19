@@ -949,6 +949,102 @@ describe('MCP Document runtime', () => {
             expect(saved.charts.c1.chart.merge).toEqual(mergeChart.chart.merge);
         });
 
+        const editMergedChart = (
+            documentEdit: Parameters<
+                ReturnType<typeof agentSetup>['runtime']['editContent']
+            >[0] & { type: 'document' },
+        ) => {
+            const { runtime, documentService } = agentSetup(withMergeChart);
+            return {
+                documentService,
+                edit: runtime.editContent(documentEdit),
+            };
+        };
+        const metricsPatch = [
+            {
+                op: 'replace',
+                path: '/chart/metricQuery/metrics',
+                value: ['orders_total_revenue'],
+            },
+        ];
+
+        test.each([
+            [
+                'patches the query feeding the merge',
+                {
+                    type: 'chart' as const,
+                    baseVersionUuid: versionUuid,
+                    chartId: 'c1',
+                    patch: metricsPatch,
+                },
+            ],
+            [
+                'replaces the merged chart with a different query',
+                {
+                    type: 'content' as const,
+                    baseVersionUuid: versionUuid,
+                    markdown: withChart.version.content.markdown,
+                    charts: {
+                        c1: {
+                            ...mergeChart,
+                            chart: {
+                                ...mergeChart.chart,
+                                metricQuery: {
+                                    ...mergeChart.chart.metricQuery,
+                                    metrics: ['orders_total_revenue'],
+                                },
+                            },
+                        },
+                    },
+                },
+            ],
+        ])('refuses an edit that %s', async (_label, documentEdit) => {
+            const { edit, documentService } = editMergedChart({
+                type: 'document',
+                slug: document.slug,
+                documentEdit,
+            });
+            await expect(edit).rejects.toThrow(refusal);
+            expect(documentService.updateContent).not.toHaveBeenCalled();
+        });
+
+        test('allows merge fields the parser defaults', async () => {
+            const { edit, documentService } = editMergedChart({
+                type: 'document',
+                slug: document.slug,
+                documentEdit: {
+                    type: 'chart',
+                    baseVersionUuid: versionUuid,
+                    chartId: 'c1',
+                    patch: [
+                        {
+                            op: 'add',
+                            path: '/chart/merge/repeatValuesSourceIds',
+                            value: [],
+                        },
+                    ],
+                },
+            });
+            await edit;
+            expect(documentService.updateContent).toHaveBeenCalledOnce();
+        });
+
+        test('MCP can still change the query feeding a merge', async () => {
+            const { runtime, documentService } = setup();
+            documentService.getBySlug.mockResolvedValue(withMergeChart);
+            await runtime.editDocumentContent(document.slug, {
+                type: 'chart',
+                baseVersionUuid: versionUuid,
+                chartId: 'c1',
+                patch: metricsPatch,
+            });
+            const saved =
+                documentService.updateContent.mock.calls[0][3].content;
+            expect(saved.charts.c1.chart.metricQuery.metrics).toEqual([
+                'orders_total_revenue',
+            ]);
+        });
+
         test('MCP can still author merged charts', async () => {
             const { runtime, documentService } = setup();
             await runtime.createContent({

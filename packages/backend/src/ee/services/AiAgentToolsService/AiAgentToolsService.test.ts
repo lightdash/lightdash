@@ -34,7 +34,7 @@ import {
     type DataAppVizSchema,
     type ExtractedDataReference,
     type PersistedDataAppDataReferences,
-    type SavedMergeQuery,
+    type SavedMergeDefinition,
 } from '@lightdash/common';
 import { EventEmitter } from 'events';
 import knex from 'knex';
@@ -2404,12 +2404,38 @@ describe('AiAgentToolsService', () => {
     });
 
     describe('agent merge authoring', () => {
-        const merge: SavedMergeQuery = {
-            primarySourceId: 'a',
-            sources: [{ id: 'a', kind: 'chart' }],
-            joinKey: [],
-            joinType: MergeJoinType.FULL,
-            tableCalculations: [],
+        const merge: SavedMergeDefinition = {
+            queries: {
+                returns: {
+                    explore: 'returns',
+                    dimensions: ['returns_status'],
+                    metrics: ['returns_count'],
+                },
+            },
+            join: MergeJoinType.FULL,
+            keys: { orders_status: ['returns.returns_status'] },
+            limit: 500,
+        };
+        const mergedChart = {
+            ...makeChartContent({}),
+            metricQuery: {
+                ...makeChartContent({}).metricQuery,
+                dimensions: ['orders_status'],
+                filters: {
+                    dimensions: {
+                        id: 'stored-group',
+                        and: [
+                            {
+                                id: 'stored-rule',
+                                target: { fieldId: 'orders_status' },
+                                operator: FilterOperator.EQUALS,
+                                values: ['completed'],
+                            },
+                        ],
+                    },
+                },
+            },
+            merge,
         };
         const makeChartService = (stored: Record<string, unknown>) => {
             const upsertChart = vi.fn().mockResolvedValue({
@@ -2436,6 +2462,28 @@ describe('AiAgentToolsService', () => {
             });
             return { service, upsertChart };
         };
+        const editChart = (
+            stored: Record<string, unknown>,
+            patch: unknown[],
+            source: 'ai_agent' | 'mcp' = 'ai_agent',
+        ) => {
+            const { service, upsertChart } = makeChartService(stored);
+            const runtime =
+                source === 'mcp'
+                    ? service.createRuntime(
+                          makeRuntimeContext({ source: 'mcp' }),
+                      )
+                    : service.createRuntime(makeRuntimeContext());
+            return {
+                upsertChart,
+                edit: runtime.editContent({
+                    slug: 'null-config-chart',
+                    type: 'chart',
+                    patch,
+                }),
+            };
+        };
+        const refusal = 'Merge queries are not supported by the agent.';
 
         it('refuses a chart created with a merge', async () => {
             const { service, upsertChart } = makeChartService(
@@ -2445,14 +2493,13 @@ describe('AiAgentToolsService', () => {
                 service.createRuntime(makeRuntimeContext()).createContent({
                     type: 'chart',
                     content: {
-                        ...makeChartContent({}),
+                        ...mergedChart,
                         chartConfig: { type: ChartType.TABLE },
                         dashboardSlug: undefined,
                         updatedAt: new Date(),
-                        merge,
                     },
                 }),
-            ).rejects.toThrow('Merge queries are not supported by the agent.');
+            ).rejects.toThrow(refusal);
             expect(upsertChart).not.toHaveBeenCalled();
         });
 
@@ -2463,50 +2510,91 @@ describe('AiAgentToolsService', () => {
                 [{ op: 'add', path: '/merge', value: merge }],
             ],
             [
-                'changes a stored merge',
-                { ...makeChartContent({}), merge },
-                [{ op: 'replace', path: '/merge/joinType', value: 'inner' }],
+                'changes the merge',
+                mergedChart,
+                [{ op: 'replace', path: '/merge/join', value: 'inner' }],
+            ],
+            [
+                'removes the merge',
+                mergedChart,
+                [{ op: 'remove', path: '/merge' }],
+            ],
+            [
+                'changes the metrics feeding the merge',
+                mergedChart,
+                [
+                    {
+                        op: 'replace',
+                        path: '/metricQuery/metrics',
+                        value: ['orders_total_revenue'],
+                    },
+                ],
+            ],
+            [
+                'changes the filters feeding the merge',
+                mergedChart,
+                [
+                    {
+                        op: 'replace',
+                        path: '/metricQuery/filters/dimensions/and/0/values',
+                        value: ['returned'],
+                    },
+                ],
             ],
         ])('refuses an edit that %s', async (_label, stored, patch) => {
-            const { service, upsertChart } = makeChartService(stored);
-            await expect(
-                service.createRuntime(makeRuntimeContext()).editContent({
-                    slug: 'null-config-chart',
-                    type: 'chart',
-                    patch,
-                }),
-            ).rejects.toThrow('Merge queries are not supported by the agent.');
+            const { edit, upsertChart } = editChart(stored, patch);
+            await expect(edit).rejects.toThrow(refusal);
             expect(upsertChart).not.toHaveBeenCalled();
         });
 
-        it('keeps a stored merge unchanged when renaming a merged chart', async () => {
-            const { service, upsertChart } = makeChartService({
-                ...makeChartContent({}),
-                merge,
-            });
-            await service.createRuntime(makeRuntimeContext()).editContent({
-                slug: 'null-config-chart',
-                type: 'chart',
-                patch: [{ op: 'replace', path: '/name', value: 'Renamed' }],
-            });
-            expect(upsertChart.mock.calls[0][3]).toMatchObject({
-                name: 'Renamed',
-                merge,
-            });
+        it.each([
+            [
+                'renames it and changes its visualization',
+                [
+                    { op: 'replace', path: '/name', value: 'Renamed' },
+                    {
+                        op: 'replace',
+                        path: '/chartConfig',
+                        value: { type: 'big_number' },
+                    },
+                ],
+            ],
+            [
+                'drops filter ids',
+                [
+                    {
+                        op: 'remove',
+                        path: '/metricQuery/filters/dimensions/and/0/id',
+                    },
+                ],
+            ],
+            [
+                'adds merge fields the parser defaults',
+                [{ op: 'add', path: '/merge/sort', value: [] }],
+            ],
+        ])('allows a merged chart edit that %s', async (_label, patch) => {
+            const { edit, upsertChart } = editChart(mergedChart, patch);
+            await edit;
+            expect(upsertChart).toHaveBeenCalledOnce();
         });
 
         it('leaves MCP chart merges to the content-as-code contract', async () => {
-            const { service, upsertChart } = makeChartService({
-                ...makeChartContent({}),
+            const { edit, upsertChart } = editChart(
+                mergedChart,
+                [
+                    { op: 'replace', path: '/merge/join', value: 'inner' },
+                    {
+                        op: 'replace',
+                        path: '/metricQuery/metrics',
+                        value: ['orders_total_revenue'],
+                    },
+                ],
+                'mcp',
+            );
+            await edit;
+            expect(upsertChart.mock.calls[0][3]).toMatchObject({
+                merge: { join: 'inner' },
             });
-            await service
-                .createRuntime(makeRuntimeContext({ source: 'mcp' }))
-                .editContent({
-                    slug: 'null-config-chart',
-                    type: 'chart',
-                    patch: [{ op: 'add', path: '/merge', value: merge }],
-                });
-            expect(upsertChart.mock.calls[0][3]).toMatchObject({ merge });
         });
     });
 
