@@ -332,4 +332,32 @@ describe('AppVersionHistoryPanel thumbnails', () => {
         expect(thumbnails()).toHaveLength(0);
         expect(lightdashApi).not.toHaveBeenCalled();
     });
+
+    it('offers Cancel on building versions when the host handles it', async () => {
+        const onCancel = vi.fn();
+        renderWithProviders(
+            <AppVersionHistoryPanel
+                {...defaultProps}
+                onCancel={onCancel}
+                versions={[{ ...entry(4, 1), status: 'pending' }, entry(3, 1)]}
+            />,
+        );
+
+        const cancel = screen.getByRole('button', { name: 'Cancel' });
+        await userEvent.click(cancel);
+        expect(onCancel).toHaveBeenCalledWith(4);
+        expect(screen.getAllByRole('button', { name: 'Cancel' })).toHaveLength(
+            1,
+        );
+    });
+
+    it('renders no Cancel when the host does not handle it', () => {
+        renderWithProviders(
+            <AppVersionHistoryPanel
+                {...defaultProps}
+                versions={[{ ...entry(4, 1), status: 'pending' }, entry(3, 1)]}
+            />,
+        );
+        expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+    });
 });

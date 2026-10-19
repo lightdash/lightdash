@@ -1874,26 +1874,24 @@ const AppGenerate: FC = () => {
         }
     };
 
-    const handleCancel = () => {
-        if (
-            !projectUuid ||
-            !activeAppUuid ||
-            !latestBuildingVersion ||
-            isCancelling
-        )
-            return;
+    // Shared by the prompt bar's "Stop generation" (latest build) and the
+    // history drawer (any building version). Plain function, not a hook: it
+    // sits below the early returns.
+    const cancelVersion = (version: number) => {
+        if (!projectUuid || !activeAppUuid || isCancelling) return;
         cancelMutate(
-            {
-                projectUuid,
-                appUuid: activeAppUuid,
-                version: latestBuildingVersion.version,
-            },
+            { projectUuid, appUuid: activeAppUuid, version },
             {
                 onSuccess: () => {
                     invalidateAppData(activeAppUuid);
                 },
             },
         );
+    };
+
+    const handleCancel = () => {
+        if (!latestBuildingVersion) return;
+        cancelVersion(latestBuildingVersion.version);
     };
 
     return (
@@ -3317,6 +3315,7 @@ const AppGenerate: FC = () => {
                                             : pinPreviewToVersion(version)
                                     }
                                     onRestore={setRestoreTargetVersion}
+                                    onCancel={cancelVersion}
                                     liveBuild={historyLiveBuild}
                                     hasEarlier={hasUnloadedEarlierVersions}
                                     isFetchingEarlier={isFetchingNextPage}
