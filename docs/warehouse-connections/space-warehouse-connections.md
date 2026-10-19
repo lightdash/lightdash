@@ -28,7 +28,7 @@ Nothing gives space-level behaviour today.
 
 - `spaces.warehouse_connection_uuid uuid NULL`, foreign key to `warehouse_connections(warehouse_connection_uuid)` with `ON DELETE SET NULL`. Deleting a connection unbinds its spaces; content falls back to the project rule.
 - The effective connection of a space is the closest ancestor (including itself) with a value, walked through `parent_space_uuid`. A sub-space inherits its parent's connection unless it sets its own.
-- Content in a space inherits the space's connection: charts, dashboards, SQL charts, and dashboard-scoped charts through their dashboard's space.
+- Content in a space inherits the space's connection only when its own connection has the same warehouse type: charts, dashboards, SQL charts, and dashboard-scoped charts through their dashboard's space. Content on another warehouse type keeps its own connection.
 
 ### Permission model
 
@@ -52,10 +52,15 @@ One rule decides this: `SpaceConnectionReservation` (`packages/backend/src/servi
 ```
 flag off                       -> today's rule
 content in a space whose chain sets a connection
-                               -> that connection (space wins)
+  with the same warehouse type as the content's own connection
+                               -> that connection (space wins for same-type content)
+content whose own connection has a different warehouse type
+                               -> its own connection (space does not apply)
 otherwise                      -> explore / SQL chart / SQL runner choice (multi-connection rule)
 otherwise                      -> project connection
 ```
+
+The router resolves the content's own connection from its explore, SQL chart, SQL runner choice or project fallback, then compares its warehouse type with the space connection's type. Both types come from the database. The original connection's type comes from the project's warehouse credentials.
 
 Within the chosen connection, the existing per-connection rule applies: shared credential, or the person's personal credential when the connection requires or allows one. "Space > personal > project" therefore reads as: the space picks the connection; the connection's own setting decides whether a personal credential overlays it.
 
@@ -68,7 +73,7 @@ Within the chosen connection, the existing per-connection rule applies: shared c
 
 ### Space page and settings
 
-- The space page shows the effective connection with the existing `ConnectionBadge`, next to the breadcrumbs, under the existing multi-connection badge rule (multi-connection project with two or more connections). The tooltip says "Inherited from <space>" on a sub-space that inherits.
+- The space page shows the effective connection for same-type content with the existing `ConnectionBadge`, next to the breadcrumbs, under the existing multi-connection badge rule (multi-connection project with two or more connections). The tooltip says "Inherited from <space>" on a sub-space that inherits.
 - The space settings picker offers "Inherit from <parent space or project> (<connection>)" plus the project's connections of the original's warehouse type. With no bound ancestor the inherited value is the project rule, shown as "each chart's own connection".
 
 ### Scheduler, alerts, async queries
@@ -77,7 +82,7 @@ Scheduled deliveries and alerts run as their creator through the same resolver, 
 
 ### Caching
 
-The results cache key already includes `warehouseConnectionUuid`, so results from the HR connection are never served to a query that resolved to another connection. Changing a space's connection changes the key for every piece of content in that space, which invalidates by construction. Saved charts with an effective space connection bypass pre-aggregates and run on the warehouse. Totals and unbounded reruns retain the source query's connection. The SQL runner table catalogue remains per connection.
+The results cache key already includes `warehouseConnectionUuid`, so results from the HR connection are never served to a query that resolved to another connection. Changing a space's connection changes the key for content to which the binding applies, which invalidates by construction. Saved charts with an effective space connection bypass pre-aggregates and run on the warehouse. Totals and unbounded reruns retain the source query's connection. The SQL runner table catalogue remains per connection.
 
 ### Interaction with "Allow raw SQL" (SPK-2490)
 
@@ -115,7 +120,7 @@ What the seam does not give: a per-content "which connection" decision for ad ho
 
 - **Open design question.** Authored SQL can still reach a bound chain through content writes that are not checked: dashboard moves carrying charts with custom SQL into a bound chain, and dashboard shared-metric edits. Checking every content write does not converge. The choice is between checking at query time (refuse author-controlled SQL routed through a reserved space connection unless the content's last editor qualifies) and treating editors of the bound subtree as trusted while closing the paths that hand out sub-space edit access (creation, restore, personal-space provisioning). Documents and virtual views now follow the named-connection rule.
 
-- **Explore and space disagree.** An explore compiled on connection A whose chart sits in a space bound to connection B runs A's SQL with B's credential. That is the intended case when A and B are the same warehouse with different identities. It breaks when B points at a different host or catalogue. The prototype limits bindings to the original's warehouse type, on the server and in the picker. It does not compare hosts: that needs a per-type host identity and a server-side flag for the picker, because the client never sees hosts. A release should add the host check, or compile per connection.
+- **Explore and space disagree.** The space connection applies only to content whose own connection has the same warehouse type. An explore or SQL chart on another warehouse type keeps its own connection. The space badge describes the connection for same-type content in the space. For matching types, an explore compiled on connection A whose chart sits in a space bound to connection B runs A's SQL with B's credential. That is the intended case when A and B are the same warehouse with different identities. It can still break when B points at a different host or catalogue. The prototype limits bindings to the original's warehouse type, on the server and in the picker, and compares the resolved content and space connection types at query time. It does not compare hosts: that needs a per-type host identity and a server-side flag for the picker, because the client never sees hosts. A release should add the host check, or compile per connection.
 - **Explicit binding is the trust boundary.** Only editors of an explicitly bound space with `manage:SqlRunner` can run or author SQL on its reserved connection. Inheriting sub-space editors can view existing content but cannot acquire SQL access through child-space creation, restoration or personal-space provisioning.
 - **Multi-connection gate.** This rides on `multi-connection-projects`, which is Enterprise and limited to Postgres, Athena and Snowflake. The driving customer is on Trino. Adding Trino to the same-type `MULTI_CONNECTION_SUPPORT` allowlist is not in this prototype: the mixed-warehouse scale test (#31096) ran Trino extras under other primaries but never a Trino primary with a Trino extra.
 - **Credentials-as-rows migration (SPK-2659).** When connections move into the credential catalogue, `spaces.warehouse_connection_uuid` keeps pointing at a connection row, so the binding survives.

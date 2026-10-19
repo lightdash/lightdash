@@ -216,16 +216,38 @@ export class WarehouseConnectionRouter {
                         projectUuid,
                         spaceUuid: binding.spaceUuid,
                     });
+                const fallbackTarget = await this.resolveMultiBinding(
+                    projectUuid,
+                    binding.fallback,
+                );
+                if (warehouseConnectionUuid === null) {
+                    return fallbackTarget;
+                }
+                const spaceTarget = await this.resolveConnectionBinding(
+                    projectUuid,
+                    warehouseConnectionUuid,
+                );
+                const spaceConnectionUuid =
+                    spaceTarget.kind === 'original'
+                        ? null
+                        : spaceTarget.warehouseConnectionUuid;
+                const fallbackConnectionUuid =
+                    fallbackTarget.kind === 'original'
+                        ? null
+                        : fallbackTarget.warehouseConnectionUuid;
+                const warehouseTypes =
+                    await this.identityModel.getConnectionWarehouseTypes(
+                        projectUuid,
+                        [spaceConnectionUuid, fallbackConnectionUuid],
+                    );
+                const spaceWarehouseType =
+                    warehouseTypes.get(spaceConnectionUuid);
                 target =
-                    warehouseConnectionUuid === null
-                        ? await this.resolveMultiBinding(
-                              projectUuid,
-                              binding.fallback,
-                          )
-                        : await this.resolveConnectionBinding(
-                              projectUuid,
-                              warehouseConnectionUuid,
-                          );
+                    spaceWarehouseType !== undefined &&
+                    spaceWarehouseType ===
+                        warehouseTypes.get(fallbackConnectionUuid)
+                        ? spaceTarget
+                        : fallbackTarget;
                 break;
             }
             case 'original':

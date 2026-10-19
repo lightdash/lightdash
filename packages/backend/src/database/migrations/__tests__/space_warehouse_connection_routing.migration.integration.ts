@@ -12,6 +12,7 @@ import {
     SpaceMemberRole,
     WarehouseTypes,
     type CreatePostgresCredentials,
+    type CreateTrinoCredentials,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { analyticsMock } from '../../../analytics/LightdashAnalytics.mock';
@@ -37,6 +38,10 @@ import {
 } from '../../../testing/migratedDatabase';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 
+vi.hoisted(() => {
+    delete process.env.EXPERIMENTAL_CACHE;
+});
+
 const secret = 'space-connection-routing-test-secret';
 const originalCredentials: CreatePostgresCredentials = {
     type: WarehouseTypes.POSTGRES,
@@ -59,15 +64,24 @@ const credentialsResolved = new Error('Credentials resolved');
 class RoutingQueryService extends AsyncQueryService {
     credentialUser: string | null = null;
 
+    credentialConnectionUuid: string | null = null;
+
+    credentialWarehouseType: WarehouseTypes | null = null;
+
     protected override async getWarehouseCredentialsWithConnection(
         args: Parameters<
             AsyncQueryService['getWarehouseCredentialsWithConnection']
         >[0],
     ): Promise<never> {
-        const { warehouseCredentials } =
+        const { warehouseCredentials, warehouseConnectionUuid } =
             await super.getWarehouseCredentialsWithConnection(args);
-        if (warehouseCredentials.type !== WarehouseTypes.POSTGRES)
+        if (
+            warehouseCredentials.type !== WarehouseTypes.POSTGRES &&
+            warehouseCredentials.type !== WarehouseTypes.TRINO
+        )
             throw new Error('Unexpected warehouse type');
+        this.credentialConnectionUuid = warehouseConnectionUuid;
+        this.credentialWarehouseType = warehouseCredentials.type;
         this.credentialUser = warehouseCredentials.user;
         throw credentialsResolved;
     }
@@ -76,6 +90,7 @@ class RoutingQueryService extends AsyncQueryService {
 describe('Space warehouse routing on the real schema', () => {
     let migrated: MigratedDatabase;
     let database: Knex;
+    let encryptionUtil: EncryptionUtil;
     let spaceModel: SpaceModel;
     let savedSqlModel: SavedSqlModel;
     let featureFlagModel: FeatureFlagModel;
@@ -93,10 +108,48 @@ describe('Space warehouse routing on the real schema', () => {
     let spaceB: string;
     const charts: string[] = [];
 
+    const createChart = async (spaceUuid: string, exploreName: string) => {
+        const space = await database('spaces')
+            .where('space_uuid', spaceUuid)
+            .first()
+            .select('space_id');
+        if (!space) throw new Error('Missing test space');
+        const [chart] = await database('saved_queries')
+            .insert({
+                project_uuid: projectUuid,
+                space_id: space.space_id,
+                dashboard_uuid: null,
+                name: `Chart ${spaceUuid}`,
+                slug: `chart-${spaceUuid}-${exploreName}`,
+                description: '',
+                last_version_chart_kind: ChartKind.TABLE,
+                last_version_updated_by_user_uuid: userUuid,
+                color_palette_uuid: null,
+            })
+            .returning(['saved_query_uuid', 'saved_query_id']);
+        await database('saved_queries_versions').insert({
+            saved_query_id: chart.saved_query_id,
+            explore_name: exploreName,
+            filters: {},
+            row_limit: 10,
+            metric_overrides: null,
+            dimension_overrides: null,
+            chart_type: ChartType.TABLE,
+            chart_config: null,
+            pivot_dimensions: null,
+            pivot_rows: null,
+            parameters: null,
+            updated_by_user_uuid: userUuid,
+            timezone: PROJECT_TIMEZONE_SETTING,
+            agent_identity: null,
+        });
+        return chart.saved_query_uuid;
+    };
+
     beforeAll(async () => {
         migrated = await createMigratedDatabase();
         database = migrated.database;
-        const encryptionUtil = new EncryptionUtil({
+        encryptionUtil = new EncryptionUtil({
             lightdashConfig: {
                 ...lightdashConfigMock,
                 lightdashSecret: secret,
@@ -180,15 +233,16 @@ describe('Space warehouse routing on the real schema', () => {
             spacePermissionService,
         } as never);
         internals = service as unknown as RoutingInternals;
-        vi.spyOn(service, 'getExploreWithUserAccessControls').mockResolvedValue(
-            {
-                explore: { ...validExplore, name: 'orders' },
-                userAccessControls: {
-                    userAttributes: {},
-                    intrinsicUserAttributes: {},
-                },
+        vi.spyOn(
+            service,
+            'getExploreWithUserAccessControls',
+        ).mockImplementation(async (_account, _projectUuid, exploreName) => ({
+            explore: { ...validExplore, name: exploreName },
+            userAccessControls: {
+                userAttributes: {},
+                intrinsicUserAttributes: {},
             },
-        );
+        }));
         const [organization] = await database('organizations')
             .insert({ organization_name: 'Space routing test' })
             .returning('*');
@@ -283,43 +337,9 @@ describe('Space warehouse routing on the real schema', () => {
             warehouseConnectionUuid: extraConnectionUuid,
         });
         const chartUuids = await Promise.all(
-            [spaceA, child, spaceB].map(async (spaceUuid) => {
-                const space = await database('spaces')
-                    .where('space_uuid', spaceUuid)
-                    .first()
-                    .select('space_id');
-                if (!space) throw new Error('Missing test space');
-                const [chart] = await database('saved_queries')
-                    .insert({
-                        project_uuid: projectUuid,
-                        space_id: space.space_id,
-                        dashboard_uuid: null,
-                        name: `Chart ${spaceUuid}`,
-                        slug: `chart-${spaceUuid}`,
-                        description: '',
-                        last_version_chart_kind: ChartKind.TABLE,
-                        last_version_updated_by_user_uuid: userUuid,
-                        color_palette_uuid: null,
-                    })
-                    .returning(['saved_query_uuid', 'saved_query_id']);
-                await database('saved_queries_versions').insert({
-                    saved_query_id: chart.saved_query_id,
-                    explore_name: 'orders',
-                    filters: {},
-                    row_limit: 10,
-                    metric_overrides: null,
-                    dimension_overrides: null,
-                    chart_type: ChartType.TABLE,
-                    chart_config: null,
-                    pivot_dimensions: null,
-                    pivot_rows: null,
-                    parameters: null,
-                    updated_by_user_uuid: userUuid,
-                    timezone: PROJECT_TIMEZONE_SETTING,
-                    agent_identity: null,
-                });
-                return chart.saved_query_uuid;
-            }),
+            [spaceA, child, spaceB].map((spaceUuid) =>
+                createChart(spaceUuid, 'orders'),
+            ),
         );
         charts.push(...chartUuids);
         await database('cached_explore').insert({
@@ -375,6 +395,156 @@ describe('Space warehouse routing on the real schema', () => {
             (await spaceModel.getSpaceSummary(spaceA)).warehouseConnectionUuid,
         ).toBe(extraConnectionUuid);
     });
+
+    test('a Postgres space keeps the original chart on its active Trino organization credentials', async () => {
+        const credentials: CreateTrinoCredentials = {
+            type: WarehouseTypes.TRINO,
+            host: 'trino.internal',
+            port: 8080,
+            user: 'organization-user',
+            password: 'test-only-password',
+            dbname: 'analytics',
+            schema: 'public',
+            http_scheme: 'http',
+        };
+        const [organizationCredential] = await database(
+            'organization_warehouse_credentials',
+        )
+            .insert({
+                organization_uuid: organizationUuid,
+                name: 'Trino organization credentials',
+                description: null,
+                warehouse_type: credentials.type,
+                warehouse_connection: encryptionUtil.encrypt(
+                    JSON.stringify(credentials),
+                ),
+                created_by_user_uuid: userUuid,
+            })
+            .returning('organization_warehouse_credentials_uuid');
+        await database('projects').where('project_uuid', projectUuid).update({
+            organization_warehouse_credentials_uuid:
+                organizationCredential.organization_warehouse_credentials_uuid,
+        });
+        try {
+            expect(await chartCredentialUser(charts[0])).toBe(
+                'organization-user',
+            );
+            expect(service.credentialConnectionUuid).toBeNull();
+            expect(service.credentialWarehouseType).toBe(WarehouseTypes.TRINO);
+        } finally {
+            await database('projects')
+                .where('project_uuid', projectUuid)
+                .update({ organization_warehouse_credentials_uuid: null });
+            await database('organization_warehouse_credentials')
+                .where(
+                    'organization_warehouse_credentials_uuid',
+                    organizationCredential.organization_warehouse_credentials_uuid,
+                )
+                .delete();
+        }
+    });
+
+    test.each(['extra', 'original'] as const)(
+        'a space bound to the Postgres %s keeps a Trino chart on its own connection',
+        async (spaceBinding) => {
+            await featureFlagModel.upsertOrganizationOverride(
+                FeatureFlags.MixedWarehouseConnections,
+                organizationUuid,
+                true,
+            );
+            const trinoCredentials: CreateTrinoCredentials = {
+                type: WarehouseTypes.TRINO,
+                host: 'trino.internal',
+                port: 8080,
+                user: 'trino-user',
+                password: 'test-only-password',
+                dbname: 'analytics',
+                schema: 'public',
+                http_scheme: 'http',
+            };
+            const [connection] = await database('warehouse_connections')
+                .insert({
+                    project_uuid: projectUuid,
+                    is_original: false,
+                    name: 'Trino connection',
+                    warehouse_type: WarehouseTypes.TRINO,
+                    encrypted_credentials: encryptionUtil.encrypt(
+                        JSON.stringify(trinoCredentials),
+                    ),
+                })
+                .returning('warehouse_connection_uuid');
+            const trinoConnectionUuid = connection.warehouse_connection_uuid;
+            const [source] = await database('project_dbt_sources')
+                .insert({
+                    project_uuid: projectUuid,
+                    name: 'Trino source',
+                    is_primary: false,
+                    precedence: 1,
+                    warehouse_connection_uuid: trinoConnectionUuid,
+                } as never)
+                .returning('project_dbt_source_uuid');
+            await database('cached_explore').insert({
+                project_uuid: projectUuid,
+                name: 'trino_orders',
+                table_names: ['trino_orders'],
+                explore: JSON.stringify({
+                    name: 'trino_orders',
+                    dbtSourceUuid: source.project_dbt_source_uuid,
+                }),
+                warehouse_connection_uuid: trinoConnectionUuid,
+            } as never);
+            const chartUuid = await createChart(spaceA, 'trino_orders');
+            const [original] = await database('warehouse_connections')
+                .where({ project_uuid: projectUuid, is_original: true })
+                .select('warehouse_connection_uuid');
+            if (spaceBinding === 'original') {
+                await spaceModel.update(spaceA, {
+                    warehouseConnectionUuid: original.warehouse_connection_uuid,
+                });
+            }
+            try {
+                expect(await chartCredentialUser(chartUuid)).toBe('trino-user');
+                expect(service.credentialConnectionUuid).toBe(
+                    trinoConnectionUuid,
+                );
+                expect(service.credentialWarehouseType).toBe(
+                    WarehouseTypes.TRINO,
+                );
+                expect(await chartCredentialUser(charts[0])).toBe(
+                    spaceBinding === 'original'
+                        ? 'original-user'
+                        : 'space-user',
+                );
+                expect(service.credentialWarehouseType).toBe(
+                    WarehouseTypes.POSTGRES,
+                );
+            } finally {
+                await featureFlagModel.upsertOrganizationOverride(
+                    FeatureFlags.MixedWarehouseConnections,
+                    organizationUuid,
+                    false,
+                );
+                await spaceModel.update(spaceA, {
+                    warehouseConnectionUuid: extraConnectionUuid,
+                });
+                await database('saved_queries')
+                    .where('saved_query_uuid', chartUuid)
+                    .delete();
+                await database('cached_explore')
+                    .where({ project_uuid: projectUuid, name: 'trino_orders' })
+                    .delete();
+                await database('project_dbt_sources')
+                    .where(
+                        'project_dbt_source_uuid',
+                        source.project_dbt_source_uuid,
+                    )
+                    .delete();
+                await database('warehouse_connections')
+                    .where('warehouse_connection_uuid', trinoConnectionUuid)
+                    .delete();
+            }
+        },
+    );
 
     test('Console disable and re-enable change the next credential read', async () => {
         await featureFlagModel.upsertOrganizationOverride(

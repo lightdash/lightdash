@@ -2,8 +2,10 @@ import {
     ConflictError,
     NotFoundError,
     ParameterError,
+    UnexpectedServerError,
     type Explore,
     type ExploreError,
+    type WarehouseTypes,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { validate as isUuid } from 'uuid';
@@ -103,6 +105,83 @@ export class WarehouseConnectionIdentityModel {
                 'warehouse_connection_uuid',
             );
         return rows.map((row) => row.warehouse_connection_uuid);
+    }
+
+    async getConnectionWarehouseTypes(
+        projectUuid: string,
+        warehouseConnectionUuids: (string | null)[],
+    ): Promise<Map<string | null, WarehouseTypes>> {
+        const rows = await this.database(WAREHOUSE_CONNECTIONS_TABLE)
+            .innerJoin(
+                'projects',
+                'projects.project_uuid',
+                'warehouse_connections.project_uuid',
+            )
+            .innerJoin(
+                'organizations',
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .leftJoin(
+                'warehouse_credentials',
+                'warehouse_credentials.project_id',
+                'projects.project_id',
+            )
+            .leftJoin('organization_warehouse_credentials', (join) => {
+                join.on(
+                    'organization_warehouse_credentials.organization_warehouse_credentials_uuid',
+                    'projects.organization_warehouse_credentials_uuid',
+                ).andOn(
+                    'organization_warehouse_credentials.organization_uuid',
+                    'organizations.organization_uuid',
+                );
+            })
+            .where('warehouse_connections.project_uuid', projectUuid)
+            .andWhere((query) => {
+                query.whereIn(
+                    'warehouse_connections.warehouse_connection_uuid',
+                    warehouseConnectionUuids.filter(
+                        (uuid): uuid is string => uuid !== null,
+                    ),
+                );
+                if (warehouseConnectionUuids.includes(null)) {
+                    query.orWhere('warehouse_connections.is_original', true);
+                }
+            })
+            .select<
+                {
+                    warehouse_connection_uuid: string;
+                    is_original: boolean;
+                    warehouse_type: WarehouseTypes | null;
+                    original_warehouse_type: WarehouseTypes | null;
+                }[]
+            >(
+                'warehouse_connections.warehouse_connection_uuid',
+                'warehouse_connections.is_original',
+                'warehouse_connections.warehouse_type',
+                this.database.raw(
+                    `CASE WHEN projects.organization_warehouse_credentials_uuid IS NOT NULL
+                        THEN organization_warehouse_credentials.warehouse_type
+                        ELSE warehouse_credentials.warehouse_type
+                    END AS original_warehouse_type`,
+                ),
+            );
+        return new Map(
+            rows.map((row) => {
+                const warehouseType = row.is_original
+                    ? row.original_warehouse_type
+                    : row.warehouse_type;
+                if (warehouseType === null) {
+                    throw new UnexpectedServerError(
+                        `Warehouse connection ${row.warehouse_connection_uuid} has no warehouse type`,
+                    );
+                }
+                return [
+                    row.is_original ? null : row.warehouse_connection_uuid,
+                    warehouseType,
+                ];
+            }),
+        );
     }
 
     async getSaveWarehouseConnectionUuid(

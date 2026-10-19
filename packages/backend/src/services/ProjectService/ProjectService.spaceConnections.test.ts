@@ -17,16 +17,19 @@ describe('Legacy SQL chart result jobs use space bindings', () => {
     it.each(
         ['stream', 'pivot'].flatMap((entry) =>
             [true, false].flatMap((enabled) =>
-                ['reserved', null].map((effective) => ({
-                    entry,
-                    enabled,
-                    effective,
-                })),
+                ['reserved', null].flatMap((effective) =>
+                    ['chart', undefined].map((sqlChartUuid) => ({
+                        entry,
+                        enabled,
+                        effective,
+                        sqlChartUuid,
+                    })),
+                ),
             ),
         ),
     )(
-        '$entry with enabled=$enabled effective=$effective',
-        async ({ entry, enabled, effective }) => {
+        '$entry with enabled=$enabled effective=$effective sqlChartUuid=$sqlChartUuid',
+        async ({ entry, enabled, effective, sqlChartUuid }) => {
             const reachedWarehouse = new Error('Warehouse reached');
             const withWarehouseClient = vi
                 .fn()
@@ -55,7 +58,7 @@ describe('Legacy SQL chart result jobs use space bindings', () => {
                 organizationUuid: 'org',
                 userUuid: 'user',
                 projectUuid: 'project',
-                sqlChartUuid: 'chart',
+                sqlChartUuid,
                 sql: 'SELECT 1',
                 limit: 10,
                 context: QueryExecutionContext.CHART,
@@ -79,32 +82,35 @@ describe('Legacy SQL chart result jobs use space bindings', () => {
                           ],
                       }),
             ).rejects.toBe(reachedWarehouse);
-            const fallback =
-                entry === 'stream'
-                    ? { kind: 'connection', warehouseConnectionUuid: null }
-                    : { kind: 'sqlChart', savedSqlUuid: 'chart' };
+            const fallback = sqlChartUuid
+                ? { kind: 'sqlChart', savedSqlUuid: sqlChartUuid }
+                : { kind: 'connection', warehouseConnectionUuid: null };
             expect(withWarehouseClient).toHaveBeenCalledWith(
                 {
                     kind: 'binding',
                     projectUuid: 'project',
                     binding:
-                        enabled && effective !== null
+                        sqlChartUuid && enabled && effective !== null
                             ? { kind: 'space', spaceUuid: 'child', fallback }
                             : fallback,
                 },
                 expect.anything(),
                 expect.anything(),
             );
-            expect(getFlag).toHaveBeenCalledWith({
-                user: { organizationUuid: 'org' },
-                featureFlagId: FeatureFlags.SpaceWarehouseConnections,
-            });
+            if (sqlChartUuid) {
+                expect(getFlag).toHaveBeenCalledWith({
+                    user: { organizationUuid: 'org' },
+                    featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+                });
+            } else {
+                expect(getFlag).not.toHaveBeenCalled();
+            }
             expect(spaceModel.getSqlChartSpaceUuid).toHaveBeenCalledTimes(
-                enabled ? 1 : 0,
+                sqlChartUuid && enabled ? 1 : 0,
             );
             expect(
                 spaceModel.getEffectiveWarehouseConnectionUuid,
-            ).toHaveBeenCalledTimes(enabled ? 1 : 0);
+            ).toHaveBeenCalledTimes(sqlChartUuid && enabled ? 1 : 0);
         },
     );
 });

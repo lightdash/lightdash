@@ -11868,7 +11868,9 @@ export class ProjectService
             projectUuid,
             organizationUuid,
             sqlChartUuid,
-            binding: { kind: 'connection', warehouseConnectionUuid: null },
+            binding: sqlChartUuid
+                ? { kind: 'sqlChart', savedSqlUuid: sqlChartUuid }
+                : { kind: 'connection', warehouseConnectionUuid: null },
         });
 
         return this.warehouseClientFactory.withWarehouseClient(
