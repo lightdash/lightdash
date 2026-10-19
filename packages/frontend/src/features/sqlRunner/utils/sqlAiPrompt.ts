@@ -1,4 +1,8 @@
-import { type SqlRunnerAiTableContext } from '@lightdash/common';
+import {
+    type SqlRunnerAiTableContext,
+    type SqlRunnerAiTarget,
+} from '@lightdash/common';
+import isEqual from 'lodash/isEqual';
 import { type SqlEditorCatalog } from '../components/SqlEditor';
 
 const COMMENT_PROMPT = /^\s*--\s*(.*?)\s*$/;
@@ -20,6 +24,47 @@ export const getSqlWithoutLine = (
     const rest = lines.join('\n').trim();
     return rest.length > 0 ? rest : null;
 };
+
+export type SqlAiActivePrompt = {
+    lineNumber: number;
+    prompt: string;
+    currentSql: string | null;
+};
+
+/** The prompt on the cursor's line. With a selection, Tab indents instead. */
+export const getActiveSqlAiPrompt = ({
+    sql,
+    lineNumber,
+    hasSelection,
+}: {
+    sql: string;
+    lineNumber: number;
+    hasSelection: boolean;
+}): SqlAiActivePrompt | null => {
+    if (hasSelection) return null;
+    const prompt = getSqlAiPrompt(sql.split('\n')[lineNumber - 1] ?? '');
+    if (!prompt) return null;
+    return {
+        lineNumber,
+        prompt,
+        currentSql: getSqlWithoutLine(sql, lineNumber),
+    };
+};
+
+/** The editor state a generation started from. */
+export type SqlAiRequestSnapshot = {
+    versionId: number;
+    target: SqlRunnerAiTarget;
+};
+
+/** A response is stale when the query was edited or the warehouse changed since it was requested. */
+export const isSqlAiResponseStale = (
+    started: SqlAiRequestSnapshot,
+    current: SqlAiRequestSnapshot | null,
+): boolean =>
+    current === null ||
+    started.versionId !== current.versionId ||
+    !isEqual(started.target, current.target);
 
 /** Tables whose columns the editor has loaded: the open table and those in the SQL. */
 export const buildSqlAiKnownTables = (

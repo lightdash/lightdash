@@ -14,7 +14,12 @@ import { useProject } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
-import { getSqlAiPrompt, getSqlWithoutLine } from '../utils/sqlAiPrompt';
+import {
+    getActiveSqlAiPrompt,
+    isSqlAiResponseStale,
+    type SqlAiActivePrompt,
+    type SqlAiRequestSnapshot,
+} from '../utils/sqlAiPrompt';
 import { useGenerateSqlRunnerQuery } from './useGenerateSqlRunnerQuery';
 
 const AI_GENERIC_ERROR =
@@ -24,12 +29,7 @@ const PREVIEW_MIN_LENGTH = 5;
 const PREVIEW_MAX_LINES = 12;
 const PROMPT_CONTEXT_KEY = 'lightdashSqlAiPromptActive';
 const HINT_WIDGET_ID = 'lightdash.sqlAi.inlineHint';
-
-type ActivePrompt = {
-    lineNumber: number;
-    prompt: string;
-    currentSql: string | null;
-};
+const TAB_CONTEXT = `${PROMPT_CONTEXT_KEY} && !suggestWidgetVisible && !editorHasSelection && !inSnippetMode`;
 
 // A preview made before the known tables loaded, or for another target, is stale
 const requestKey = ({
@@ -45,24 +45,25 @@ const requestKey = ({
         knownTables.map((table) => `${table.schema}.${table.table}`).join(','),
     ].join('\u0000');
 
-const isSamePrompt = (a: ActivePrompt | null, b: ActivePrompt | null) =>
+const isSamePrompt = (
+    a: SqlAiActivePrompt | null,
+    b: SqlAiActivePrompt | null,
+) =>
     a?.lineNumber === b?.lineNumber &&
     a?.prompt === b?.prompt &&
     a?.currentSql === b?.currentSql;
 
 const readActivePrompt = (
     codeEditor: editor.IStandaloneCodeEditor,
-): ActivePrompt | null => {
+): SqlAiActivePrompt | null => {
     const model = codeEditor.getModel();
     const position = codeEditor.getPosition();
     if (!model || !position) return null;
-    const prompt = getSqlAiPrompt(model.getLineContent(position.lineNumber));
-    if (!prompt) return null;
-    return {
+    return getActiveSqlAiPrompt({
+        sql: model.getValue(),
         lineNumber: position.lineNumber,
-        prompt,
-        currentSql: getSqlWithoutLine(model.getValue(), position.lineNumber),
-    };
+        hasSelection: !(codeEditor.getSelection()?.isEmpty() ?? true),
+    });
 };
 
 type Options = {
@@ -91,7 +92,9 @@ export const useSqlAiAutocomplete = ({
     const { user } = useApp();
     const { track } = useTracking();
 
-    const [activePrompt, setActivePrompt] = useState<ActivePrompt | null>(null);
+    const [activePrompt, setActivePrompt] = useState<SqlAiActivePrompt | null>(
+        null,
+    );
     const [previews, setPreviews] = useState<Record<string, string>>({});
     const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
     const [aiError, setAiError] = useState<string | null>(null);
@@ -112,6 +115,20 @@ export const useSqlAiAutocomplete = ({
                 : null,
         [activePrompt, target, knownTables],
     );
+    // Responses apply only to the query and warehouse they were requested for
+    const startedRef = useRef<SqlAiRequestSnapshot | null>(null);
+    const targetRef = useRef(target);
+    targetRef.current = target;
+    const readSnapshot = useCallback((): SqlAiRequestSnapshot | null => {
+        const model = codeEditor?.getModel();
+        const currentTarget = targetRef.current;
+        if (!model || !currentTarget) return null;
+        return {
+            versionId: model.getAlternativeVersionId(),
+            target: currentTarget,
+        };
+    }, [codeEditor]);
+
     const previewSql = activeRequest
         ? (previews[requestKey(activeRequest)] ?? null)
         : null;
@@ -156,27 +173,42 @@ export const useSqlAiAutocomplete = ({
         [track, projectUuid, project?.organizationUuid, user?.data?.userUuid],
     );
 
-    const { generate: runGenerate, isLoading: isGenerating } =
-        useGenerateSqlRunnerQuery({
-            projectUuid,
-            onSuccess: (result, request) =>
-                applySql(result.sql, request.prompt),
-            onError: () => {
-                setAiError(AI_GENERIC_ERROR);
+    const {
+        generate: runGenerate,
+        cancel: cancelGenerate,
+        isLoading: isGenerating,
+    } = useGenerateSqlRunnerQuery({
+        projectUuid,
+        onSuccess: (result, request) => {
+            const started = startedRef.current;
+            startedRef.current = null;
+            if (!started || isSqlAiResponseStale(started, readSnapshot())) {
                 setPendingPrompt(null);
-            },
-        });
+                return;
+            }
+            applySql(result.sql, request.prompt);
+        },
+        onError: () => {
+            const wasCancelled = startedRef.current === null;
+            startedRef.current = null;
+            setPendingPrompt(null);
+            if (!wasCancelled) setAiError(AI_GENERIC_ERROR);
+        },
+    });
 
-    const { generate: runPreview, isLoading: isPreviewing } =
-        useGenerateSqlRunnerQuery({
-            projectUuid,
-            onSuccess: (result, request) =>
-                setPreviews((prev) => ({
-                    ...prev,
-                    [requestKey(request)]: result.sql,
-                })),
-            onError: () => {},
-        });
+    const {
+        generate: runPreview,
+        cancel: cancelPreview,
+        isLoading: isPreviewing,
+    } = useGenerateSqlRunnerQuery({
+        projectUuid,
+        onSuccess: (result, request) =>
+            setPreviews((prev) => ({
+                ...prev,
+                [requestKey(request)]: result.sql,
+            })),
+        onError: () => {},
+    });
 
     // Follow the prompt line under the cursor
     useEffect(() => {
@@ -190,7 +222,7 @@ export const useSqlAiAutocomplete = ({
         };
         sync();
         const subscriptions = [
-            codeEditor.onDidChangeCursorPosition(sync),
+            codeEditor.onDidChangeCursorSelection(sync),
             codeEditor.onDidChangeModelContent(sync),
         ];
         return () => subscriptions.forEach((s) => s.dispose());
@@ -204,6 +236,20 @@ export const useSqlAiAutocomplete = ({
         });
         return () => subscription.dispose();
     }, [codeEditor, provenance]);
+
+    // A request for the previous warehouse can't apply to the new one
+    const cancelGenerateRef = useRef(cancelGenerate);
+    cancelGenerateRef.current = cancelGenerate;
+    const cancelPreviewRef = useRef(cancelPreview);
+    cancelPreviewRef.current = cancelPreview;
+    useEffect(
+        () => () => {
+            startedRef.current = null;
+            cancelGenerateRef.current();
+            cancelPreviewRef.current();
+        },
+        [target],
+    );
 
     // Debounced background preview for the active prompt
     const runPreviewRef = useRef(runPreview);
@@ -228,6 +274,9 @@ export const useSqlAiAutocomplete = ({
             applySql(previewSql, activeRequest.prompt);
             return;
         }
+        const snapshot = readSnapshot();
+        if (!snapshot) return;
+        startedRef.current = snapshot;
         setPendingPrompt(activeRequest.prompt);
         setAiError(null);
         runGenerate(activeRequest);
@@ -235,7 +284,7 @@ export const useSqlAiAutocomplete = ({
     const handleTabRef = useRef(handleTab);
     handleTabRef.current = handleTab;
 
-    // Tab generates only on a prompt line, and never steals Tab from the suggest widget
+    // Tab generates only on a prompt line, and never steals Tab from suggestions, selections or snippets
     const promptContextKeyRef = useRef<editor.IContextKey<boolean> | null>(
         null,
     );
@@ -250,8 +299,8 @@ export const useSqlAiAutocomplete = ({
             id: 'lightdash.sqlAi.generate',
             label: 'Generate SQL from comment',
             keybindings: [monaco.KeyCode.Tab],
-            precondition: `${PROMPT_CONTEXT_KEY} && !suggestWidgetVisible`,
-            keybindingContext: `${PROMPT_CONTEXT_KEY} && !suggestWidgetVisible`,
+            precondition: TAB_CONTEXT,
+            keybindingContext: TAB_CONTEXT,
             run: () => handleTabRef.current(),
         });
         return () => {

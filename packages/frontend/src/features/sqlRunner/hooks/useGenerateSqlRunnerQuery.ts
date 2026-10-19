@@ -80,8 +80,13 @@ export const useGenerateSqlRunnerQuery = ({
         [projectUuid, mutation],
     );
 
+    const cancel = useCallback(() => {
+        abortControllerRef.current?.abort();
+    }, []);
+
     return {
         generate,
+        cancel,
         isLoading: mutation.isLoading,
         error: mutation.error,
     };

@@ -1000,7 +1000,7 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
         switch (target.kind) {
             case 'project': {
                 if (!projectWarehouseType) {
-                    throw new ForbiddenError('Warehouse type is not available');
+                    throw new NotFoundError('Warehouse type is not available');
                 }
                 return {
                     warehouseType: projectWarehouseType,

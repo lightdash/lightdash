@@ -193,13 +193,18 @@ export class AiController extends BaseController {
         };
     }
 
+    /**
+     * Write or revise a SQL runner query from a natural-language prompt,
+     * looking up the warehouse's tables and columns without running a query.
+     * @summary Generate SQL runner query
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/sql-runner/generate')
     @OperationId('generateSqlRunnerQuery')
     async generateSqlRunnerQuery(
         @Request() req: express.Request,
-        @Path() projectUuid: string,
+        @Path() projectUuid: UUID,
         @Body() body: GenerateSqlRunnerQueryRequest,
     ): Promise<ApiAiGenerateSqlRunnerQueryResponse> {
         assertRegisteredAccount(req.account);

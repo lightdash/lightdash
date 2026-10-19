@@ -1,4 +1,5 @@
 import {
+    UnexpectedServerError,
     type GeneratedSqlRunnerQuery,
     type GenerateSqlRunnerQueryRequest,
     type SqlRunnerAiTableContext,
@@ -55,7 +56,7 @@ const formatTable = (table: SqlRunnerAiTableContext): string => {
     return `  ${table.schema}.${table.table}: ${columns}`;
 };
 
-export const buildSqlRunnerQueryMessages = (context: SqlRunnerQueryContext) => [
+const buildSqlRunnerQueryMessages = (context: SqlRunnerQueryContext) => [
     {
         role: 'system' as const,
         content: [
@@ -149,7 +150,7 @@ export async function generateSqlRunnerQuery(
         ? stripMarkdownFences(submitted.data.sql)
         : '';
     if (sql.length === 0) {
-        throw new Error('The model did not return a SQL query');
+        throw new UnexpectedServerError('The model did not return a SQL query');
     }
     return { sql };
 }

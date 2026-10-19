@@ -1,3 +1,4 @@
+import { type UUID } from '../../types/api/uuid';
 import {
     type CustomSqlDimension,
     type Field,
@@ -132,7 +133,7 @@ export type SqlRunnerAiTarget =
     | { kind: 'project' }
     | {
           kind: 'connection';
-          warehouseConnectionUuid: string;
+          warehouseConnectionUuid: UUID;
           /** Name in the connection's database listing, used to list tables. */
           listedDatabase: string;
           /** Warehouse database name, used to read a table's columns. */

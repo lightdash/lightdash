@@ -2,8 +2,10 @@ import { DimensionType } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     buildSqlAiKnownTables,
+    getActiveSqlAiPrompt,
     getSqlAiPrompt,
     getSqlWithoutLine,
+    isSqlAiResponseStale,
 } from './sqlAiPrompt';
 
 describe('getSqlAiPrompt', () => {
@@ -31,6 +33,72 @@ describe('getSqlWithoutLine', () => {
 
     it('returns null when only the prompt is left', () => {
         expect(getSqlWithoutLine('\n-- revenue by month\n', 2)).toBeNull();
+    });
+});
+
+describe('getActiveSqlAiPrompt', () => {
+    const sql = 'SELECT *\nFROM orders\n-- only paid';
+
+    it('reads the prompt on the cursor line with the rest of the query', () => {
+        expect(
+            getActiveSqlAiPrompt({ sql, lineNumber: 3, hasSelection: false }),
+        ).toEqual({
+            lineNumber: 3,
+            prompt: 'only paid',
+            currentSql: 'SELECT *\nFROM orders',
+        });
+    });
+
+    it('leaves Tab to indent when text is selected', () => {
+        expect(
+            getActiveSqlAiPrompt({ sql, lineNumber: 3, hasSelection: true }),
+        ).toBeNull();
+    });
+
+    it('ignores lines that are not comments', () => {
+        expect(
+            getActiveSqlAiPrompt({ sql, lineNumber: 2, hasSelection: false }),
+        ).toBeNull();
+    });
+});
+
+describe('isSqlAiResponseStale', () => {
+    const project = { kind: 'project' } as const;
+    const connection = {
+        kind: 'connection',
+        warehouseConnectionUuid: 'c1',
+        listedDatabase: 'analytics',
+        database: 'analytics',
+    } as const;
+
+    it('applies a response when nothing changed', () => {
+        expect(
+            isSqlAiResponseStale(
+                { versionId: 4, target: connection },
+                { versionId: 4, target: { ...connection } },
+            ),
+        ).toBe(false);
+    });
+
+    it('drops a response after the query was edited', () => {
+        expect(
+            isSqlAiResponseStale(
+                { versionId: 4, target: project },
+                { versionId: 5, target: project },
+            ),
+        ).toBe(true);
+    });
+
+    it('drops a response after the warehouse changed', () => {
+        expect(
+            isSqlAiResponseStale(
+                { versionId: 4, target: connection },
+                { versionId: 4, target: project },
+            ),
+        ).toBe(true);
+        expect(
+            isSqlAiResponseStale({ versionId: 4, target: connection }, null),
+        ).toBe(true);
     });
 });
 
