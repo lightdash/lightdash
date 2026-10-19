@@ -4151,7 +4151,9 @@ export class AsyncQueryService extends ProjectService {
             // external ones run on the normal project warehouse client.
             const duckDbWarehouseClient =
                 preAggregateExecution === 'duckdb'
-                    ? this.preAggregateStrategy.createPreAggregateWarehouseClient()
+                    ? await this.preAggregateStrategy.createPreAggregateWarehouseClient(
+                          projectUuid,
+                      )
                     : undefined;
 
             await this.runAsyncWarehouseQuery({

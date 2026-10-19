@@ -120,6 +120,31 @@ To answer a matched query from the pre-aggregate — the active materialization
 (via DuckDB) or an external table (on the project warehouse) — rather than
 from the source tables.
 
+**Serve instance**:
+The warm DuckDB instance that reads a project's managed materializations.
+User-authored SQL (custom SQL dimensions) is inlined into the served query, so
+whoever can run a query on the instance effectively holds its storage
+credentials. The instance is therefore never shared across projects — one per
+project, keyed `pre-aggregate-query-instance:{projectUuid}` — and its S3
+secret is scoped to exactly that project's materialization URIs (read from
+`pre_aggregate_materializations` when the serve client is built, widened in
+place as new materializations appear, never narrowed). The instance itself is
+confined to the storage bucket and a private temp directory for spill
+(`objectStorageOnly`); it has no other use for local disk. This is a per-project,
+cross-tenant boundary only: one project's serve instance cannot read another
+project's or organization's files. It does not enforce per-user access within
+the project — see access policy. See
+`PreAggregationDuckDbClient.createPreAggregateWarehouseClient`.
+
+**Access policy**:
+Pre-aggregates are a project-scoped shared artifact. Any user with SQL access
+to the project can read pre-aggregated data regardless of their own warehouse
+credentials, exactly as raw SQL on the project already reaches past the data
+models. User-attribute row filters continue to apply to normal semantic-layer
+serving of a pre-aggregate, but, as everywhere else, they are not a boundary
+against raw SQL (including custom SQL dimensions), so the serve path does not
+try to block file access in user SQL.
+
 **Additivity**:
 A metric's capacity to be re-aggregated from pre-computed results: additive
 (sum, count), decomposable (average — derivable from stored components), or

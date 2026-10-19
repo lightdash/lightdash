@@ -9,7 +9,7 @@ import {
     COMPOSE_ENGINE_MISSING_EXTERNAL_SOURCES_STORAGE_MESSAGE,
     COMPOSE_ENGINE_MISSING_RESULTS_STORAGE_MESSAGE,
     ComposeEngineClient,
-    PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY,
+    EXTERNAL_SOURCES_QUERY_INSTANCE_CACHE_KEY,
 } from './ComposeEngineClient';
 
 // An OSS instance: results storage only, no pre-aggregate bucket
@@ -101,7 +101,10 @@ describe('ComposeEngineClient', () => {
                     s3Config: expect.objectContaining({
                         authMode: 'gcp_oauth',
                         getAccessToken: expect.any(Function),
-                        scope: ['s3://storage-bucket/'],
+                        scope:
+                            storage === 'results'
+                                ? ['s3://storage-bucket/']
+                                : ['s3://storage-bucket/external-sources/'],
                     }),
                 }),
             );
@@ -195,9 +198,12 @@ describe('ComposeEngineClient', () => {
         expect(second).toBe(first);
         expect(createDuckdbWarehouseClient).toHaveBeenCalledTimes(2);
         expect(createDuckdbWarehouseClient).toHaveBeenNthCalledWith(1, {
-            s3Config: preAggregateSession,
+            s3Config: {
+                ...preAggregateSession,
+                scope: ['s3://preagg-bucket/external-sources/'],
+            },
             sharedResourceLimits: undefined,
-            instanceCacheKey: PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY,
+            instanceCacheKey: EXTERNAL_SOURCES_QUERY_INSTANCE_CACHE_KEY,
         });
         expect(createDuckdbWarehouseClient).toHaveBeenNthCalledWith(
             2,
@@ -423,7 +429,9 @@ describe('ComposeEngineClient', () => {
         });
 
         expect(createDuckdbWarehouseClient).toHaveBeenCalledWith(
-            expect.objectContaining({ s3Config: preAggregateSession }),
+            expect.objectContaining({
+                s3Config: expect.objectContaining(preAggregateSession),
+            }),
         );
     });
 });

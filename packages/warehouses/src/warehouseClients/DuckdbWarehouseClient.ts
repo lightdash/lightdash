@@ -6,6 +6,7 @@ import {
 } from '@duckdb/node-api';
 import {
     AnyType,
+    assertUnreachable,
     CreateDuckdbCredentials,
     CreateDuckdbDucklakeCredentials,
     CreateDuckdbEmbeddedCredentials,
@@ -213,6 +214,12 @@ export type DuckdbWarehouseClientOptions = {
     projectUuid?: string;
     /** Process-local per-organization cap for isolated S3 query clients. */
     organizationConcurrencyLimit?: number;
+    /**
+     * Confine the instance to its storage bucket(s) and a private temp
+     * directory. Serve sessions only read object storage, so they have no
+     * use for anything else on disk or on the network.
+     */
+    objectStorageOnly?: boolean;
 };
 
 export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
@@ -598,7 +605,17 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
      */
     private static readonly sharedInstanceGcsTokens = new Map<string, string>();
 
-    private static readonly sharedInstanceGcsSecretLocks = new Map<
+    /**
+     * The S3 URIs each shared instance's secret is scoped to. Sessions that
+     * need a URI outside it widen the secret in place; it is never narrowed
+     * while other sessions may still read through it.
+     */
+    private static readonly sharedInstanceS3Scopes = new Map<
+        string,
+        string[]
+    >();
+
+    private static readonly sharedInstanceS3SecretLocks = new Map<
         string,
         AsyncSemaphore
     >();
@@ -650,6 +667,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     private readonly projectUuid?: string;
 
     private readonly organizationConcurrencyLimit?: number;
+
+    private readonly objectStorageOnly: boolean;
 
     private allowsPreAggregateFileReads = false;
 
@@ -801,6 +820,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         this.projectUuid = options?.projectUuid;
         this.organizationConcurrencyLimit =
             options?.organizationConcurrencyLimit;
+        this.objectStorageOnly = options?.objectStorageOnly ?? false;
     }
 
     private static hashDucklakeConfig(
@@ -946,6 +966,47 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         await db.run('SET allow_unredacted_secrets = false;');
     }
 
+    /**
+     * Limit the instance to its storage bucket(s) and a private temp
+     * directory for spill. Runs last in bootstrap: extensions are already
+     * loaded and the lockdown cannot be lifted afterwards, while the storage
+     * secret can still be replaced on the running instance.
+     */
+    private static async restrictToObjectStorage(
+        db: DuckdbConnection,
+        client: DuckdbWarehouseClient,
+    ): Promise<void> {
+        const escape = DuckdbWarehouseClient.escapeDuckdbString;
+        const buckets = new Set(
+            (client.s3Config?.scope ?? []).map((uri) => {
+                const { protocol, host } = new URL(uri);
+                return `${protocol}//${host}/`;
+            }),
+        );
+        if (buckets.size === 0) {
+            throw new Error(
+                'DuckDB object-storage sessions need a storage scope',
+            );
+        }
+        const tempDirectory = client.instanceCacheKey
+            ? path.join(
+                  os.tmpdir(),
+                  `duckdb-serve-${createHash('sha256')
+                      .update(client.instanceCacheKey)
+                      .digest('hex')
+                      .slice(0, 16)}`,
+              )
+            : await fs.mkdtemp(path.join(os.tmpdir(), 'duckdb-serve-'));
+        await fs.mkdir(tempDirectory, { recursive: true });
+        await db.run(`SET temp_directory = '${escape(tempDirectory)}';`);
+        await db.run(
+            `SET allowed_directories = [${[`${tempDirectory}/`, ...buckets]
+                .map((directory) => `'${escape(directory)}'`)
+                .join(', ')}];`,
+        );
+        await db.run('SET enable_external_access = false;');
+    }
+
     private static async applyResourceLimits(
         db: DuckdbConnection,
         resourceLimits?: DuckdbResourceLimits,
@@ -1086,6 +1147,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
 
         await DuckdbWarehouseClient.hardenInstance(db);
+
+        if (client.objectStorageOnly) {
+            await DuckdbWarehouseClient.restrictToObjectStorage(db, client);
+        }
 
         const bootstrapMs = performance.now() - bootstrapStart;
         client.logger?.info(
@@ -1403,6 +1468,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             DuckdbWarehouseClient.sharedInstanceGcsTokens.delete(
                 instanceCacheKey,
             );
+            DuckdbWarehouseClient.sharedInstanceS3Scopes.delete(
+                instanceCacheKey,
+            );
             const createStart = performance.now();
             const instance = await DuckDBInstance.create(':memory:');
             const instanceCreateMs = performance.now() - createStart;
@@ -1428,6 +1496,12 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 instanceCacheKey,
                 client.sharedResourceLimits,
             );
+            if (client.s3Config?.scope) {
+                DuckdbWarehouseClient.sharedInstanceS3Scopes.set(
+                    instanceCacheKey,
+                    [...client.s3Config.scope],
+                );
+            }
             client.logger?.info(
                 `DuckDB shared instance initialized: cacheKey=${instanceCacheKey} semaphore_wait=${formatMilliseconds(semaphoreWaitMs)}ms instance_create=${formatMilliseconds(instanceCreateMs)}ms bootstrap=${formatMilliseconds(bootstrapMs)}ms`,
                 {
@@ -1472,6 +1546,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 DuckdbWarehouseClient.sharedInstanceGcsTokens.delete(
                     instanceCacheKey,
                 );
+                DuckdbWarehouseClient.sharedInstanceS3Scopes.delete(
+                    instanceCacheKey,
+                );
                 logger?.info(
                     `DuckDB shared instance cleared: ${instanceCacheKey}`,
                 );
@@ -1487,7 +1564,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         DuckdbWarehouseClient.sharedInstanceResourceLimits.clear();
         DuckdbWarehouseClient.sharedInstanceSemaphores.clear();
         DuckdbWarehouseClient.sharedInstanceGcsTokens.clear();
-        DuckdbWarehouseClient.sharedInstanceGcsSecretLocks.clear();
+        DuckdbWarehouseClient.sharedInstanceS3Scopes.clear();
+        DuckdbWarehouseClient.sharedInstanceS3SecretLocks.clear();
         DuckdbWarehouseClient.embeddedConcurrencyBudget.reset();
         DuckdbWarehouseClient.embeddedOrganizationConcurrencyBudgets.forEach(
             (budget) => budget.reset(),
@@ -1774,21 +1852,51 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
     }
 
+    /** URIs this session needs that the shared instance's secret does not yet cover. */
+    private static getMissingSharedS3Scope(
+        instanceCacheKey: string,
+        s3Config: DuckdbS3SessionConfig,
+    ): string[] {
+        const installed =
+            DuckdbWarehouseClient.sharedInstanceS3Scopes.get(instanceCacheKey);
+        if (!installed || !s3Config.scope) return [];
+        return s3Config.scope.filter((uri) => !installed.includes(uri));
+    }
+
+    private static async getSharedS3SecretToken(
+        s3Config: DuckdbS3SessionConfig,
+    ): Promise<string | null> {
+        return s3Config.authMode === 'gcp_oauth'
+            ? DuckdbWarehouseClient.getGcsAccessToken(s3Config)
+            : null;
+    }
+
     /**
-     * Points a shared instance's GCS secret at the current token. The token
-     * provider caches tokens, so this only replaces the secret when the token
-     * rotates, once per instance under a lock.
+     * Keeps a shared instance's S3 secret current for this session: the
+     * GCS bearer token the provider now holds, and a scope covering every
+     * URI the session reads. Secrets belong to the instance, so the secret
+     * is only replaced when something changed, once per instance under a
+     * lock, and the scope only ever widens (union of what sessions needed).
      */
-    private static async ensureSharedGcsSecret(
+    private static async ensureSharedS3Secret(
         instanceCacheKey: string,
         db: DuckdbConnection,
-        s3Config: GcpOAuthS3SessionConfig,
+        s3Config: DuckdbS3SessionConfig,
     ): Promise<void> {
         const tokens = DuckdbWarehouseClient.sharedInstanceGcsTokens;
-        const token = await DuckdbWarehouseClient.getGcsAccessToken(s3Config);
-        if (tokens.get(instanceCacheKey) === token) return;
+        const scopes = DuckdbWarehouseClient.sharedInstanceS3Scopes;
+        const needsReplacement = (token: string | null): boolean =>
+            (token !== null && tokens.get(instanceCacheKey) !== token) ||
+            DuckdbWarehouseClient.getMissingSharedS3Scope(
+                instanceCacheKey,
+                s3Config,
+            ).length > 0;
 
-        const locks = DuckdbWarehouseClient.sharedInstanceGcsSecretLocks;
+        const token =
+            await DuckdbWarehouseClient.getSharedS3SecretToken(s3Config);
+        if (!needsReplacement(token)) return;
+
+        const locks = DuckdbWarehouseClient.sharedInstanceS3SecretLocks;
         let lock = locks.get(instanceCacheKey);
         if (!lock) {
             lock = new AsyncSemaphore();
@@ -1796,14 +1904,57 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
         await lock.acquire();
         try {
-            // Re-read the token under the lock. Another session may have
-            // installed a newer one while this one waited, and the token
-            // fetched above must not overwrite it.
+            // Re-read under the lock. Another session may have installed a
+            // newer token or a wider scope while this one waited, and what
+            // was fetched above must not overwrite it.
             const current =
-                await DuckdbWarehouseClient.getGcsAccessToken(s3Config);
-            if (tokens.get(instanceCacheKey) === current) return;
-            await DuckdbWarehouseClient.createGcsSecret(db, s3Config, current);
-            tokens.set(instanceCacheKey, current);
+                await DuckdbWarehouseClient.getSharedS3SecretToken(s3Config);
+            if (!needsReplacement(current)) return;
+
+            const installedScope = scopes.get(instanceCacheKey);
+            const scope = installedScope
+                ? [
+                      ...installedScope,
+                      ...DuckdbWarehouseClient.getMissingSharedS3Scope(
+                          instanceCacheKey,
+                          s3Config,
+                      ),
+                  ]
+                : s3Config.scope;
+
+            switch (s3Config.authMode) {
+                case 'gcp_oauth': {
+                    if (current === null) {
+                        throw new Error(
+                            'DuckDB GCP OAuth requires an access token',
+                        );
+                    }
+                    await DuckdbWarehouseClient.createGcsSecret(
+                        db,
+                        { ...s3Config, scope: scope ?? s3Config.scope },
+                        current,
+                    );
+                    tokens.set(instanceCacheKey, current);
+                    break;
+                }
+                case 'default':
+                case undefined:
+                    await db.run(
+                        DuckdbWarehouseClient.buildS3SecretSql({
+                            ...s3Config,
+                            scope,
+                        }),
+                    );
+                    break;
+                default:
+                    return assertUnreachable(
+                        s3Config,
+                        'Unsupported DuckDB storage auth mode',
+                    );
+            }
+            if (scope) {
+                scopes.set(instanceCacheKey, scope);
+            }
         } finally {
             lock.release();
         }
@@ -2099,8 +2250,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const sharedConnection = await this.connectWithRetry();
 
         try {
-            if (this.s3Config?.authMode === 'gcp_oauth') {
-                await DuckdbWarehouseClient.ensureSharedGcsSecret(
+            if (this.s3Config) {
+                await DuckdbWarehouseClient.ensureSharedS3Secret(
                     this.getRequiredInstanceCacheKey(),
                     sharedConnection.connection,
                     this.s3Config,
@@ -2812,10 +2963,13 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     }
                 }
 
+                // Profiles are written to a local file, which object-storage
+                // and embedded sessions do not use
                 const profilePath =
                     this.logger &&
                     this.enableQueryProfiling &&
                     !this.embeddedConfig &&
+                    !this.objectStorageOnly &&
                     !this.isMotherduck()
                         ? path.join(
                               os.tmpdir(),

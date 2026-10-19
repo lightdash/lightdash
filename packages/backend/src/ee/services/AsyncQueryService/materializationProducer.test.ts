@@ -77,6 +77,9 @@ const fixture = () => {
         },
         preAggregateModel: {
             getActiveMaterialization: vi.fn(async () => materialization),
+            findMaterializationUrisForProject: vi.fn(async () => [
+                materialization.materializationUri,
+            ]),
         } as unknown as PreAggregateModel,
         projectModel: { getExploreFromCache },
         createDuckdbWarehouseClient,
@@ -154,8 +157,24 @@ describe('managed materialization producer provenance', () => {
             expect(f.getResults).toHaveBeenCalledExactlyOnceWith(
                 'folder/results.producer',
             );
-            expect(f.createDuckdbWarehouseClient).toHaveBeenCalledOnce();
             expect(f.uploadResults).toHaveBeenCalledBefore(f.getResults);
+
+            // The serve client is built at execution time, on the project's
+            // own instance with credentials scoped to its own files
+            expect(f.createDuckdbWarehouseClient).not.toHaveBeenCalled();
+            await f.strategy.createPreAggregateWarehouseClient(
+                f.args.projectUuid,
+            );
+            expect(
+                f.createDuckdbWarehouseClient,
+            ).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    instanceCacheKey: 'pre-aggregate-query-instance:project',
+                    s3Config: expect.objectContaining({
+                        scope: [`s3://bucket/folder/results.${format}`],
+                    }),
+                }),
+            );
         },
     );
 
