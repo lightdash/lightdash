@@ -104,6 +104,7 @@ const space: Space = {
     projectMemberAccessRole: null,
     colorPaletteUuid: null,
     warehouseConnectionUuid: null,
+    effectiveWarehouseConnection: null,
     path: 'restricted_space',
 };
 

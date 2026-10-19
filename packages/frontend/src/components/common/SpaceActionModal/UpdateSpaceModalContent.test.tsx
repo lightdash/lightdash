@@ -16,6 +16,8 @@ const mocks = vi.hoisted(() => ({
     multiConnectionEnabled: true,
     connectionsLoaded: true,
     update: vi.fn(),
+    parentSpace: null as Space | null,
+    useSpace: vi.fn(),
 }));
 
 const space: Space = {
@@ -37,6 +39,7 @@ const space: Space = {
     projectMemberAccessRole: null,
     colorPaletteUuid: null,
     warehouseConnectionUuid: null,
+    effectiveWarehouseConnection: null,
     path: 'space',
 };
 
@@ -99,6 +102,18 @@ vi.mock('../../../hooks/useWarehouseConnections', () => ({
                           createdAt: new Date(),
                           updatedAt: new Date(),
                       },
+                      {
+                          warehouseConnectionUuid: 'same-type',
+                          name: 'Other Postgres',
+                          isOriginal: false,
+                          warehouseType: WarehouseTypes.POSTGRES,
+                      },
+                      {
+                          warehouseConnectionUuid: 'different-type',
+                          name: 'Snowflake warehouse',
+                          isOriginal: false,
+                          warehouseType: WarehouseTypes.SNOWFLAKE,
+                      },
                   ],
                   capabilities: { canAddConnection: true, reason: null },
               }
@@ -115,7 +130,13 @@ vi.mock('../../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastError: vi.fn() }),
 }));
 vi.mock('../../../hooks/useSpaces', () => ({
-    useSpace: () => ({ data: space, isInitialLoading: false }),
+    useSpace: (...args: unknown[]) => {
+        mocks.useSpace(...args);
+        return {
+            data: args[1] === 'parent' ? mocks.parentSpace : space,
+            isInitialLoading: false,
+        };
+    },
     useCreateMutation: () => ({ mutateAsync: vi.fn(), isLoading: false }),
     useUpdateMutation: () => ({ mutateAsync: mocks.update, isLoading: false }),
     useSpaceDeleteMutation: () => ({ mutateAsync: vi.fn(), isLoading: false }),
@@ -161,6 +182,9 @@ describe('space warehouse connection selection', () => {
             connectionsLoaded: true,
         });
         space.warehouseConnectionUuid = null;
+        space.parentSpaceUuid = null;
+        space.breadcrumbs = undefined;
+        mocks.parentSpace = null;
         mocks.update.mockResolvedValue(space);
     });
 
@@ -170,7 +194,9 @@ describe('space warehouse connection selection', () => {
         const select = screen.getByRole('combobox', {
             name: 'Warehouse connection',
         });
-        expect(select).toHaveValue('Inherit from parent space or project');
+        expect(select).toHaveValue(
+            "Inherit from Project (each chart's own connection)",
+        );
         expect(
             screen.getByText(
                 'Content in this space and its sub-spaces queries with this connection. People who can edit this space can also pick it in the SQL runner.',
@@ -194,6 +220,77 @@ describe('space warehouse connection selection', () => {
         expect(
             screen.queryByRole('combobox', { name: 'Warehouse connection' }),
         ).not.toBeInTheDocument();
+    });
+
+    it.each([true, false])(
+        'names the parent and its effective connection when present: %s',
+        (hasConnection) => {
+            space.parentSpaceUuid = 'parent';
+            space.breadcrumbs = [
+                { uuid: 'parent', name: 'Finance', hasAccess: true },
+                { uuid: 'space', name: 'Reports', hasAccess: true },
+            ];
+            mocks.parentSpace = {
+                ...space,
+                effectiveWarehouseConnection: hasConnection
+                    ? {
+                          warehouseConnectionUuid: 'same-type',
+                          name: 'Finance warehouse',
+                          warehouseType: WarehouseTypes.POSTGRES,
+                          inheritedFromSpace: null,
+                      }
+                    : null,
+            };
+            renderContent();
+            expect(
+                screen.getByRole('combobox', { name: 'Warehouse connection' }),
+            ).toHaveValue(
+                `Inherit from Finance (${hasConnection ? 'Finance warehouse' : "each chart's own connection"})`,
+            );
+            expect(mocks.useSpace).toHaveBeenCalledWith('project', 'parent', {
+                enabled: true,
+            });
+        },
+    );
+
+    it('does not fetch the parent when the field is hidden', () => {
+        space.parentSpaceUuid = 'parent';
+        mocks.enabled = false;
+        renderContent();
+        expect(mocks.useSpace).toHaveBeenCalledWith('project', 'parent', {
+            enabled: false,
+        });
+    });
+
+    it('lists only the original warehouse type', async () => {
+        renderContent();
+        await userEvent
+            .setup()
+            .click(
+                screen.getByRole('combobox', { name: 'Warehouse connection' }),
+            );
+        expect(
+            screen.getByRole('option', { name: 'Other Postgres' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('option', { name: 'Snowflake warehouse' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('keeps an existing binding of another warehouse type', async () => {
+        space.warehouseConnectionUuid = 'different-type';
+        renderContent();
+        expect(
+            screen.getByRole('combobox', { name: 'Warehouse connection' }),
+        ).toHaveValue('Snowflake warehouse');
+        await userEvent
+            .setup()
+            .click(
+                screen.getByRole('combobox', { name: 'Warehouse connection' }),
+            );
+        expect(
+            screen.getByRole('option', { name: 'Snowflake warehouse' }),
+        ).toBeInTheDocument();
     });
 
     it('sends the selected connection when the modal is saved', async () => {
@@ -227,7 +324,7 @@ describe('space warehouse connection selection', () => {
         );
         await user.click(
             screen.getByRole('option', {
-                name: 'Inherit from parent space or project',
+                name: "Inherit from Project (each chart's own connection)",
             }),
         );
         await user.click(screen.getByRole('button', { name: 'Update' }));

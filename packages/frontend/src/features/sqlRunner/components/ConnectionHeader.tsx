@@ -56,7 +56,14 @@ export const ConnectionHeader: FC<Props> = ({
     warehouseType,
     connections,
 }) => {
-    if (!connections || connections.items.length < 2) {
+    const availableConnections = connections?.items.filter(
+        (connection) => connection.canRunSql !== false,
+    );
+    if (
+        !connections ||
+        !availableConnections ||
+        availableConnections.length < 2
+    ) {
         return (
             <Group gap="xs" wrap="nowrap" className={styles.root}>
                 <MantineIcon icon={IconPlugConnected} color="dimmed" />
@@ -88,7 +95,7 @@ export const ConnectionHeader: FC<Props> = ({
                 </Button>
             </Menu.Target>
             <Menu.Dropdown>
-                {connections.items.map((connection) => (
+                {availableConnections.map((connection) => (
                     <Menu.Item
                         key={connection.warehouseConnectionUuid}
                         onClick={() =>

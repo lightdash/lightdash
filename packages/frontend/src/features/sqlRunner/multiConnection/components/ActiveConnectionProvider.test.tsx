@@ -41,6 +41,7 @@ const connection = (
     warehouseConnectionUuid,
     name,
     isOriginal: warehouseConnectionUuid === 'original-uuid',
+    canRunSql: true,
     warehouseType: WarehouseTypes.POSTGRES,
 });
 
@@ -164,6 +165,64 @@ describe('ActiveConnectionProvider', () => {
         act(() => view.rerenderWith([original, finance]));
 
         expect(screen.getByTestId('active')).toHaveTextContent('original-uuid');
+    });
+
+    it.each([undefined, 'finance-uuid', null])(
+        'rejects a reserved initial connection with hint %s',
+        (hint) => {
+            writeLastUsedConnection(projectUuid, 'finance-uuid');
+            renderProvider(
+                [
+                    { ...original, canRunSql: false },
+                    { ...finance, canRunSql: false },
+                ],
+                hint,
+            );
+            expect(screen.getByTestId('active')).toHaveTextContent('none');
+            expect(screen.getByTestId('settled')).toHaveTextContent('false');
+        },
+    );
+
+    it('rejects a reserved hint when the catalog refreshes', () => {
+        const view = renderProvider([original], 'finance-uuid');
+        act(() =>
+            view.rerenderWith([original, { ...finance, canRunSql: false }]),
+        );
+        expect(screen.getByTestId('active')).toHaveTextContent('none');
+    });
+
+    it('clears the active connection and table when SQL access is revoked', async () => {
+        writeLastUsedConnection(projectUuid, 'finance-uuid');
+        const view = renderProvider([original, finance]);
+        await userEvent.setup().click(screen.getByText('open ledger'));
+        act(() =>
+            view.rerenderWith([original, { ...finance, canRunSql: false }]),
+        );
+        expect(screen.getByTestId('active')).toHaveTextContent('none');
+        expect(screen.getByTestId('table')).toHaveTextContent('none');
+    });
+
+    it('rejects a reserved shared connection', () => {
+        renderWithProviders(
+            <ActiveConnectionProvider
+                projectUuid={projectUuid}
+                connections={[original, { ...finance, canRunSql: false }]}
+                isSharedLink
+                sharedConnectionUuid="finance-uuid"
+            >
+                <Consumer />
+            </ActiveConnectionProvider>,
+        );
+        expect(screen.getByTestId('active')).toHaveTextContent('none');
+    });
+
+    it('refuses switching to a reserved connection', async () => {
+        renderProvider([{ ...original, canRunSql: false }, finance]);
+        await userEvent
+            .setup()
+            .click(screen.getByRole('button', { name: 'pick original' }));
+        expect(screen.getByTestId('active')).toHaveTextContent('finance-uuid');
+        expect(readLastUsedConnection(projectUuid)).toBeUndefined();
     });
 
     it('drops a connection removed while the runner is open, with its table', async () => {

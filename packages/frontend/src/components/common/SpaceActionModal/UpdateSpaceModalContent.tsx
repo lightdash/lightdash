@@ -7,6 +7,7 @@ import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppea
 import useHealth from '../../../hooks/health/useHealth';
 import { useProject } from '../../../hooks/useProject';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useSpace } from '../../../hooks/useSpaces';
 import { useWarehouseConnections } from '../../../hooks/useWarehouseConnections';
 import useApp from '../../../providers/App/useApp';
 import Callout from '../Callout';
@@ -18,10 +19,11 @@ type Props = SpaceModalBody & {
 
 const INHERIT_VALUE = '__inherit__';
 
-const UpdateSpaceModalContent: FC<Props> = ({ form, projectUuid }) => {
-    const { data: project } = useProject(projectUuid);
-    const { data: palettes = [] } = useColorPalettes();
-    const { data: health } = useHealth();
+const SpaceWarehouseConnectionSelect: FC<Props & { parentLabel: string }> = ({
+    form,
+    projectUuid,
+    parentLabel,
+}) => {
     const { user } = useApp();
     const { data: spaceWarehouseConnectionsFlag } = useServerFeatureFlag(
         FeatureFlags.SpaceWarehouseConnections,
@@ -36,6 +38,65 @@ const UpdateSpaceModalContent: FC<Props> = ({ form, projectUuid }) => {
         }),
     );
 
+    const showWarehouseConnection = !!(
+        spaceWarehouseConnectionsFlag?.enabled &&
+        isEnabled &&
+        warehouseConnections &&
+        canManageProject
+    );
+    const { data: parentSpace } = useSpace(
+        projectUuid,
+        form.values.parentSpaceUuid ?? undefined,
+        { enabled: !!form.values.parentSpaceUuid && showWarehouseConnection },
+    );
+    const inheritedName =
+        parentSpace?.effectiveWarehouseConnection?.name ??
+        "each chart's own connection";
+    const originalWarehouseType = warehouseConnections?.connections.find(
+        (connection) => connection.isOriginal,
+    )?.warehouseType;
+
+    return (
+        showWarehouseConnection &&
+        warehouseConnections && (
+            <Select
+                label="Warehouse connection"
+                description="Content in this space and its sub-spaces queries with this connection. People who can edit this space can also pick it in the SQL runner."
+                data={[
+                    {
+                        value: INHERIT_VALUE,
+                        label: `Inherit from ${parentLabel} (${inheritedName})`,
+                    },
+                    ...warehouseConnections.connections
+                        .filter(
+                            (connection) =>
+                                connection.warehouseType ===
+                                    originalWarehouseType ||
+                                connection.warehouseConnectionUuid ===
+                                    form.values.warehouseConnectionUuid,
+                        )
+                        .map((connection) => ({
+                            value: connection.warehouseConnectionUuid,
+                            label: connection.name,
+                        })),
+                ]}
+                value={form.values.warehouseConnectionUuid ?? INHERIT_VALUE}
+                onChange={(value) =>
+                    form.setFieldValue(
+                        'warehouseConnectionUuid',
+                        value === INHERIT_VALUE ? null : value,
+                    )
+                }
+                allowDeselect={false}
+            />
+        )
+    );
+};
+
+const UpdateSpaceModalContent: FC<Props> = ({ form, projectUuid }) => {
+    const { data: project } = useProject(projectUuid);
+    const { data: palettes = [] } = useColorPalettes();
+    const { data: health } = useHealth();
     const overrideActive =
         !!health?.appearance.overrideColorPalette &&
         health.appearance.overrideColorPalette.length > 0;
@@ -71,43 +132,11 @@ const UpdateSpaceModalContent: FC<Props> = ({ form, projectUuid }) => {
                 parentLabel={parentLabel}
                 disabled={overrideActive}
             />
-            {spaceWarehouseConnectionsFlag?.enabled &&
-                isEnabled &&
-                warehouseConnections &&
-                canManageProject && (
-                    <Select
-                        label="Warehouse connection"
-                        description="Content in this space and its sub-spaces queries with this connection. People who can edit this space can also pick it in the SQL runner."
-                        inputWrapperOrder={[
-                            'label',
-                            'input',
-                            'description',
-                            'error',
-                        ]}
-                        data={[
-                            {
-                                value: INHERIT_VALUE,
-                                label: 'Inherit from parent space or project',
-                            },
-                            ...warehouseConnections.connections.map(
-                                (connection) => ({
-                                    value: connection.warehouseConnectionUuid,
-                                    label: connection.name,
-                                }),
-                            ),
-                        ]}
-                        value={
-                            form.values.warehouseConnectionUuid ?? INHERIT_VALUE
-                        }
-                        onChange={(value) =>
-                            form.setFieldValue(
-                                'warehouseConnectionUuid',
-                                value === INHERIT_VALUE ? null : value,
-                            )
-                        }
-                        allowDeselect={false}
-                    />
-                )}
+            <SpaceWarehouseConnectionSelect
+                form={form}
+                projectUuid={projectUuid}
+                parentLabel={parentLabel}
+            />
         </Stack>
     );
 };

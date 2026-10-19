@@ -65,10 +65,13 @@ export const resolveActiveConnection = ({
     connections: SqlRunnerWarehouseConnection[];
     lastUsedConnectionUuid: string | undefined;
 }): string | undefined => {
-    if (connections.length === 1) {
-        return connections[0].warehouseConnectionUuid;
+    const availableConnections = connections.filter(
+        (connection) => connection.canRunSql !== false,
+    );
+    if (availableConnections.length === 1) {
+        return availableConnections[0].warehouseConnectionUuid;
     }
-    return connections.some(
+    return availableConnections.some(
         (connection) =>
             connection.warehouseConnectionUuid === lastUsedConnectionUuid,
     )

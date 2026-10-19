@@ -116,12 +116,14 @@ const original = {
     warehouseConnectionUuid: 'original-uuid',
     name: 'Warehouse',
     isOriginal: true,
+    canRunSql: true,
     warehouseType: WarehouseTypes.POSTGRES,
 };
 const finance = {
     warehouseConnectionUuid: 'finance-uuid',
     name: 'Finance',
     isOriginal: false,
+    canRunSql: true,
     warehouseType: WarehouseTypes.POSTGRES,
 };
 const connections = [original, finance];
