@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     ProjectType,
     WarehouseTypes,
     type Project,
@@ -20,19 +19,16 @@ import { lightdashApi } from '../../api';
 import { renderWithProviders } from '../../testing/testUtils';
 import ConnectionsPanel from './ConnectionsPanel';
 
-const flag = vi.hoisted(() => ({ enabled: true, mixedTypesEnabled: true }));
+const flag = vi.hoisted(() => ({ enabled: true }));
 
 vi.mock('../../api', () => ({
     lightdashApi: vi.fn(),
 }));
 
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: (id: FeatureFlags) => ({
+    useServerFeatureFlag: () => ({
         data: {
-            enabled:
-                id === FeatureFlags.MixedWarehouseConnections
-                    ? flag.mixedTypesEnabled
-                    : flag.enabled,
+            enabled: flag.enabled,
         },
     }),
 }));
@@ -97,16 +93,14 @@ describe('ConnectionsPanel', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         flag.enabled = true;
-        flag.mixedTypesEnabled = true;
     });
 
     afterEach(() => {
         vi.restoreAllMocks();
     });
 
-    it('renders nothing and calls no API while both rollout flags are off', async () => {
+    it('renders nothing and calls no API while the rollout flag is off', async () => {
         flag.enabled = false;
-        flag.mixedTypesEnabled = false;
         renderPanel();
 
         await new Promise((resolve) => {
@@ -115,28 +109,6 @@ describe('ConnectionsPanel', () => {
         expect(screen.queryByText('Connections')).not.toBeInTheDocument();
         expect(mockApi).not.toHaveBeenCalled();
     });
-
-    it.each([
-        { enabled: true, mixedTypesEnabled: false },
-        { enabled: false, mixedTypesEnabled: true },
-    ])(
-        'loads connections with multi $enabled and mixed $mixedTypesEnabled',
-        async (flags) => {
-            flag.enabled = flags.enabled;
-            flag.mixedTypesEnabled = flags.mixedTypesEnabled;
-            mockApi.mockResolvedValue({
-                connections: [original],
-                capabilities: { canAddConnection: true, reason: null },
-            });
-            renderPanel();
-
-            await waitFor(() =>
-                expect(mockApi).toHaveBeenCalledWith(
-                    expect.objectContaining({ url: listUrl, method: 'GET' }),
-                ),
-            );
-        },
-    );
 
     it('renders nothing and calls no API for a preview project', async () => {
         renderPanel(ProjectType.PREVIEW);
@@ -206,25 +178,17 @@ describe('ConnectionsPanel', () => {
         ).not.toBeInTheDocument();
     });
 
-    it.each([false, true])(
-        'gates a Trino original in the panel with the resolved mixed flag %s',
-        async (enabled) => {
-            flag.mixedTypesEnabled = enabled;
-            mockApi.mockResolvedValue({
-                connections: [
-                    { ...original, warehouseType: WarehouseTypes.TRINO },
-                ],
-                capabilities: { canAddConnection: true, reason: null },
-            });
-            renderPanel();
-            const button = await screen.findByRole('button', {
-                name: 'Add connection',
-            });
-            await waitFor(() =>
-                expect(button).toHaveProperty('disabled', !enabled),
-            );
-        },
-    );
+    it('offers another connection type on a Trino original with the multi flag on', async () => {
+        mockApi.mockResolvedValue({
+            connections: [{ ...original, warehouseType: WarehouseTypes.TRINO }],
+            capabilities: { canAddConnection: true, reason: null },
+        });
+        renderPanel();
+        const button = await screen.findByRole('button', {
+            name: 'Add connection',
+        });
+        await waitFor(() => expect(button).toBeEnabled());
+    });
 
     it('lists connections and only offers edit and removal for extra connections', async () => {
         mockApi.mockResolvedValue({

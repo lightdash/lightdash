@@ -715,7 +715,7 @@ export class WarehouseConnectionService extends BaseService {
                     userUuid: account.user.userUuid,
                     organizationUuid: project.organizationUuid,
                 },
-                featureFlagId: FeatureFlags.MixedWarehouseConnections,
+                featureFlagId: FeatureFlags.MultiConnectionProjects,
             });
         const requestedSource =
             WarehouseConnectionService.toCreateSource(request);
@@ -947,7 +947,7 @@ export class WarehouseConnectionService extends BaseService {
                     userUuid: account.user.userUuid,
                     organizationUuid: project.organizationUuid,
                 },
-                featureFlagId: FeatureFlags.MixedWarehouseConnections,
+                featureFlagId: FeatureFlags.MultiConnectionProjects,
             });
         this.assertCanWrite(
             account,

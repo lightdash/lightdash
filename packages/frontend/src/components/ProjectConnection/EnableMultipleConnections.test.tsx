@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     ProjectType,
     WarehouseTypes,
     type Project,
@@ -12,19 +11,16 @@ import { lightdashApi } from '../../api';
 import { renderWithProviders } from '../../testing/testUtils';
 import ConnectionsPanel from './ConnectionsPanel';
 
-const flag = vi.hoisted(() => ({ enabled: true, mixedTypesEnabled: true }));
+const flag = vi.hoisted(() => ({ enabled: true }));
 
 vi.mock('../../api', () => ({
     lightdashApi: vi.fn(),
 }));
 
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: (id: FeatureFlags) => ({
+    useServerFeatureFlag: () => ({
         data: {
-            enabled:
-                id === FeatureFlags.MixedWarehouseConnections
-                    ? flag.mixedTypesEnabled
-                    : flag.enabled,
+            enabled: flag.enabled,
         },
     }),
 }));
@@ -153,28 +149,9 @@ describe('Enable multiple connections', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         flag.enabled = true;
-        flag.mixedTypesEnabled = true;
     });
 
-    it.each([false, true])(
-        'gates a Trino original with the resolved mixed flag %s',
-        async (enabled) => {
-            flag.mixedTypesEnabled = enabled;
-            routeApi({
-                availability: { canSwitch: true, reason: null },
-                originalWarehouseType: WarehouseTypes.TRINO,
-            });
-            renderPanel();
-            const button = await screen.findByRole('button', {
-                name: 'Enable multiple connections',
-            });
-            await waitFor(() =>
-                expect(button).toHaveProperty('disabled', !enabled),
-            );
-        },
-    );
-    it('offers the switch with only the mixed flag on', async () => {
-        flag.enabled = false;
+    it('offers the switch on a Trino original with the multi flag on', async () => {
         routeApi({
             availability: { canSwitch: true, reason: null },
             originalWarehouseType: WarehouseTypes.TRINO,
@@ -183,19 +160,7 @@ describe('Enable multiple connections', () => {
         const button = await screen.findByRole('button', {
             name: 'Enable multiple connections',
         });
-        await waitFor(() => expect(button).toHaveProperty('disabled', false));
-    });
-    it('keeps a Postgres original available with the mixed flag off', async () => {
-        flag.mixedTypesEnabled = false;
-        routeApi({ availability: { canSwitch: true, reason: null } });
-        renderPanel();
-        await waitFor(() =>
-            expect(
-                screen.getByRole('button', {
-                    name: 'Enable multiple connections',
-                }),
-            ).toBeEnabled(),
-        );
+        await waitFor(() => expect(button).toBeEnabled());
     });
 
     it('offers the switch on a single-connection project', async () => {
@@ -264,9 +229,8 @@ describe('Enable multiple connections', () => {
         ).toBeDisabled();
     });
 
-    it('offers nothing while both rollout flags are off', async () => {
+    it('offers nothing while the rollout flag is off', async () => {
         flag.enabled = false;
-        flag.mixedTypesEnabled = false;
         routeApi({ availability: { canSwitch: true, reason: null } });
         renderPanel();
 

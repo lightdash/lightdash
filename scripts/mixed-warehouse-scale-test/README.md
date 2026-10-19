@@ -6,7 +6,7 @@ pass/fail matrix with per-scenario timings.
 
 ## What it covers
 
-`--mode flag-on` (with `mixed-warehouse-connections` on):
+`--mode flag-on` (with `multi-connection-projects` on):
 
 - Every available warehouse as the original connection, with every other
   warehouse as an extra (one project per original, 6 extras each), plus
@@ -32,7 +32,10 @@ pass/fail matrix with per-scenario timings.
   Without a key or with AI Copilot off, the group is skipped and listed under
   "Skipped" in the summary.
 
-`--mode flag-off` (restart the API without `mixed-warehouse-connections`):
+`--mode flag-off` checks the retired same-type state from before
+`mixed-warehouse-connections` was retired. With `multi-connection-projects`
+off, no project can add a connection now, so these checks need rework before
+the next run:
 
 - Postgres and Snowflake projects can add same-type extras only.
 - Trino, BigQuery and ClickHouse projects cannot switch.
@@ -80,7 +83,7 @@ Not covered:
    `ATHENA_REGION` and `ATHENA_S3_STAGING_DIR`. Athena runs only when the
    bundle and `ATHENA_WORKGROUP` are both present. Its queries read three-row
    fixture tables, so each scans well under 1 KB.
-6. Set `LIGHTDASH_ENABLE_FEATURE_FLAGS=multi-connection-projects,mixed-warehouse-connections,multi-dbt-sources,cross-source-dbt-refs`
+6. Set `LIGHTDASH_ENABLE_FEATURE_FLAGS=multi-connection-projects,multi-dbt-sources,cross-source-dbt-refs`
    with an Enterprise licence key, and restart the instance.
 7. Build the CLI: `pnpm -F @lightdash/cli build`.
 
@@ -91,7 +94,7 @@ python3 scripts/mixed-warehouse-scale-test/run.py \
   --url http://localhost:<api-port> --pg-database <jaffle-warehouse-db> \
   --branch <branch with the fixtures pushed> --mode flag-on --out /tmp/mixed-scale
 
-# Remove mixed-warehouse-connections from LIGHTDASH_ENABLE_FEATURE_FLAGS and
+# Remove multi-connection-projects from LIGHTDASH_ENABLE_FEATURE_FLAGS and
 # add it to LIGHTDASH_DISABLE_FEATURE_FLAGS (dev instances turn preview flags
 # on by default), restart the API, then:
 python3 scripts/mixed-warehouse-scale-test/run.py ... --mode flag-off --out /tmp/mixed-scale

@@ -75,7 +75,7 @@ allow `DbtProjectType.MANIFEST` in the two GitHub-only checks in
 `packages/backend/src/services/ProjectDbtSourcesService.ts` and attach each
 `target/manifest.json` as a `manifest` source. Do not commit that edit. Then:
 
-1. Enable `multi-connection-projects` and `mixed-warehouse-connections`
+1. Enable `multi-connection-projects`
    (`LIGHTDASH_ENABLE_FEATURE_FLAGS`) with an Enterprise licence key.
 2. Create each extra connection with
    `POST /api/v1/projects/{projectUuid}/warehouse-connections`. Lightdash tests

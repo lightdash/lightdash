@@ -574,7 +574,7 @@ export class WarehouseConnectionSwitchService extends BaseService {
                     userUuid: account.user.userUuid,
                     organizationUuid: summary.organizationUuid,
                 },
-                featureFlagId: FeatureFlags.MixedWarehouseConnections,
+                featureFlagId: FeatureFlags.MultiConnectionProjects,
             });
         if (
             !mixedTypesEnabled &&

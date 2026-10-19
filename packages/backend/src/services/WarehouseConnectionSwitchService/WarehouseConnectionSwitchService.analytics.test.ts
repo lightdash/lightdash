@@ -82,7 +82,7 @@ const summary = {
     provisioningSource: null,
 } as ProjectSummary;
 
-const buildService = (mixedTypesEnabled = false) => {
+const buildService = (multiConnectionProjectsEnabled = true) => {
     const switchModel = {
         getProject: vi.fn().mockResolvedValue(project),
         getContentCounts: vi.fn().mockResolvedValue({
@@ -132,8 +132,8 @@ const buildService = (mixedTypesEnabled = false) => {
             .mockImplementation(async ({ featureFlagId }) => ({
                 id: featureFlagId,
                 enabled:
-                    featureFlagId === FeatureFlags.MixedWarehouseConnections
-                        ? mixedTypesEnabled
+                    featureFlagId === FeatureFlags.MultiConnectionProjects
+                        ? multiConnectionProjectsEnabled
                         : true,
             })),
     };
@@ -459,21 +459,21 @@ describe('WarehouseConnectionSwitchService mixed warehouse types', () => {
         },
     };
 
-    it('refuses a mixed type with the flag off', async () => {
-        const { service, credentialPolicy, analytics } = buildService();
+    it('refuses a mixed type with the multi flag off', async () => {
+        const { service, credentialPolicy, analytics } = buildService(false);
         await expect(
             service.preview(account, projectUuid, mixedRequest),
         ).rejects.toThrow(
-            'An extra connection must use the same warehouse type as the original connection.',
+            'Extra connections are not enabled for this organisation yet.',
         );
         expect(
             credentialPolicy.testWarehouseConnectionCredentialsForSave,
         ).not.toHaveBeenCalled();
         expect(analytics.track).toHaveBeenCalledWith(
             expect.objectContaining({
-                event: 'warehouse_connections.switch_preview_failed',
+                event: 'warehouse_connection.action_refused',
                 properties: expect.objectContaining({
-                    reason: 'warehouse_type_mismatch',
+                    reason: 'feature_disabled',
                 }),
             }),
         );
@@ -557,7 +557,7 @@ describe('WarehouseConnectionSwitchService mixed warehouse types', () => {
 
 describe('WarehouseConnectionSwitchService warehouse matrix', () => {
     it.each(Object.values(warehouseConnectionCredentials))(
-        'accepts a $type extra with mixed types enabled',
+        'accepts a $type extra with the multi flag on',
         async (warehouseConnection) => {
             const { service } = buildService(true);
             await expect(

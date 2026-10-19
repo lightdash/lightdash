@@ -1,6 +1,5 @@
 import {
     FeatureFlags,
-    isMultiConnectionRolloutEnabled,
     WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE,
     type ApiCreateWarehouseConnectionRequest,
     type ApiError,
@@ -58,16 +57,10 @@ const connectionsUrl = (projectUuid: string) =>
     `/projects/${projectUuid}/warehouse-connections`;
 
 export const useWarehouseConnections = (projectUuid: string) => {
-    const { data: multiConnectionFlag } = useServerFeatureFlag(
+    const { data: flag } = useServerFeatureFlag(
         FeatureFlags.MultiConnectionProjects,
     );
-    const { data: mixedWarehouseFlag } = useServerFeatureFlag(
-        FeatureFlags.MixedWarehouseConnections,
-    );
-    const isEnabled = isMultiConnectionRolloutEnabled({
-        multiConnectionProjectsEnabled: multiConnectionFlag?.enabled === true,
-        mixedWarehouseConnectionsEnabled: mixedWarehouseFlag?.enabled === true,
-    });
+    const isEnabled = flag?.enabled === true;
     const query = useQuery<ProjectWarehouseConnections, ApiError>({
         queryKey: connectionsQueryKey(projectUuid),
         queryFn: () =>

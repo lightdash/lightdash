@@ -1,7 +1,11 @@
 import { FeatureFlags, WarehouseTypes } from '@lightdash/common';
+import { type Knex } from 'knex';
 import { describe, expect, it, vi } from 'vitest';
 import { fromSession } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { type LightdashConfig } from '../../config/parseConfig';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import {
     ENTITLEMENT_REASON,
@@ -12,141 +16,111 @@ import {
 
 const account = fromSession(defaultSessionUser, 'session-cookie');
 
-describe('multiple connections gate', () => {
-    const flagService = (flags: { multi: boolean; mixed: boolean }) => ({
-        get: vi
-            .fn<FeatureFlagService['get']>()
-            .mockImplementation(async ({ featureFlagId }) => ({
-                id: featureFlagId,
-                enabled:
-                    featureFlagId === FeatureFlags.MixedWarehouseConnections
-                        ? flags.mixed
-                        : flags.multi,
-            })),
-    });
-    const gate = (
-        flags: { multi: boolean; mixed: boolean },
-        licensed: boolean,
-        originalWarehouseType: WarehouseTypes,
-    ) =>
-        getMultipleConnectionsBlockReason(
-            {
-                featureFlagService: flagService(flags),
-                licenseService: {
-                    canHoldMultipleConnections: vi
-                        .fn()
-                        .mockReturnValue(licensed),
-                },
-            },
-            account,
-            { organizationUuid: 'organization-uuid', originalWarehouseType },
-        );
-
-    it.each([WarehouseTypes.POSTGRES, WarehouseTypes.TRINO])(
-        'enables extra connections for a %s primary with only the mixed flag',
-        async (type) => {
-            expect(await gate({ multi: false, mixed: true }, true, type)).toBe(
-                null,
-            );
-        },
-    );
-    it('keeps the multi flag alone limited to same-type warehouses', async () => {
-        expect(
-            await gate(
-                { multi: true, mixed: false },
-                true,
-                WarehouseTypes.POSTGRES,
-            ),
-        ).toBe(null);
-        expect(
-            await gate(
-                { multi: true, mixed: false },
-                true,
-                WarehouseTypes.TRINO,
-            ),
-        ).toBe(WAREHOUSE_TYPE_REASON);
-    });
-    it('refuses extra connections when neither flag is enabled', async () => {
-        expect(
-            await gate(
-                { multi: false, mixed: false },
-                true,
-                WarehouseTypes.POSTGRES,
-            ),
-        ).toBe(ROLLOUT_REASON);
-    });
-    it.each([
-        { multi: true, mixed: false },
-        { multi: false, mixed: true },
-        { multi: true, mixed: true },
-    ])(
-        'requires the licence with multi $multi and mixed $mixed',
-        async (flags) => {
-            expect(await gate(flags, false, WarehouseTypes.POSTGRES)).toBe(
-                ENTITLEMENT_REASON,
-            );
-        },
-    );
-    it('refuses a missing original connection before resolving rollout flags', async () => {
-        const featureFlagService = { get: vi.fn<FeatureFlagService['get']>() };
-        expect(
-            await getMultipleConnectionsBlockReason(
-                {
-                    featureFlagService,
-                    licenseService: {
-                        canHoldMultipleConnections: vi
-                            .fn()
-                            .mockReturnValue(true),
-                    },
-                },
-                account,
-                {
-                    organizationUuid: 'organization-uuid',
-                    originalWarehouseType: null,
-                },
-            ),
-        ).toBe(WAREHOUSE_TYPE_REASON);
-        expect(featureFlagService.get).not.toHaveBeenCalled();
-        expect(WAREHOUSE_TYPE_REASON).toBe(
-            'Multiple connections are supported for Postgres, Athena, and Snowflake projects only.',
-        );
-    });
+const flagService = (multiConnectionProjectsEnabled: boolean) => ({
+    get: vi
+        .fn<FeatureFlagService['get']>()
+        .mockImplementation(async ({ featureFlagId }) => ({
+            id: featureFlagId,
+            enabled:
+                featureFlagId === FeatureFlags.MultiConnectionProjects &&
+                multiConnectionProjectsEnabled,
+        })),
 });
 
-describe('multiple connections original type matrix', () => {
-    it.each(
-        Object.values(WarehouseTypes).flatMap((type) =>
-            [false, true].map((enabled) => ({ type, enabled })),
-        ),
-    )('gates $type with mixed types $enabled', async ({ type, enabled }) => {
-        const reason = await getMultipleConnectionsBlockReason(
-            {
-                featureFlagService: {
-                    get: vi
-                        .fn<FeatureFlagService['get']>()
-                        .mockImplementation(async ({ featureFlagId }) => ({
-                            id: featureFlagId,
-                            enabled:
-                                featureFlagId ===
-                                FeatureFlags.MixedWarehouseConnections
-                                    ? enabled
-                                    : true,
-                        })),
-                },
-                licenseService: { canHoldMultipleConnections: () => true },
+const gate = (
+    featureFlagService: Pick<FeatureFlagService, 'get'>,
+    licensed: boolean,
+    originalWarehouseType: WarehouseTypes | null,
+) =>
+    getMultipleConnectionsBlockReason(
+        {
+            featureFlagService,
+            licenseService: {
+                canHoldMultipleConnections: vi.fn().mockReturnValue(licensed),
             },
-            account,
-            { organizationUuid: 'org', originalWarehouseType: type },
+        },
+        account,
+        { organizationUuid: 'organization-uuid', originalWarehouseType },
+    );
+
+const envFlagModel = (flags: { enabled: string[]; disabled: string[] }) =>
+    new FeatureFlagModel({
+        database: (() => {
+            throw new Error('no database in this test');
+        }) as unknown as Knex,
+        lightdashConfig: {
+            ...lightdashConfigMock,
+            previewFeatureFlags: { enabled: false },
+            enabledFeatureFlags: new Set(flags.enabled),
+            disabledFeatureFlags: new Set(flags.disabled),
+        } as LightdashConfig,
+    });
+
+describe('multiple connections gate', () => {
+    it.each(Object.values(WarehouseTypes))(
+        'allows a %s primary with the multi flag on and the licence',
+        async (type) => {
+            expect(await gate(flagService(true), true, type)).toBe(null);
+        },
+    );
+    it('reads only the multi-connection flag', async () => {
+        const featureFlagService = flagService(true);
+        await gate(featureFlagService, true, WarehouseTypes.TRINO);
+        expect(featureFlagService.get).toHaveBeenCalledTimes(1);
+        expect(featureFlagService.get).toHaveBeenCalledWith({
+            user: {
+                userUuid: account.user.userUuid,
+                organizationUuid: 'organization-uuid',
+            },
+            featureFlagId: FeatureFlags.MultiConnectionProjects,
+        });
+    });
+    it('refuses with the multi flag off', async () => {
+        expect(
+            await gate(flagService(false), true, WarehouseTypes.POSTGRES),
+        ).toBe(ROLLOUT_REASON);
+        expect(await gate(flagService(false), true, WarehouseTypes.TRINO)).toBe(
+            ROLLOUT_REASON,
         );
-        expect(reason).toBe(
-            enabled ||
-                [
-                    WarehouseTypes.POSTGRES,
-                    WarehouseTypes.ATHENA,
-                    WarehouseTypes.SNOWFLAKE,
-                ].includes(type)
-                ? null
-                : WAREHOUSE_TYPE_REASON,
+    });
+    it.each([
+        { type: WarehouseTypes.POSTGRES, multi: true },
+        { type: WarehouseTypes.TRINO, multi: true },
+        { type: WarehouseTypes.TRINO, multi: false },
+    ])(
+        'requires the licence first for a $type primary with the multi flag $multi',
+        async ({ type, multi }) => {
+            const featureFlagService = flagService(multi);
+            expect(await gate(featureFlagService, false, type)).toBe(
+                ENTITLEMENT_REASON,
+            );
+            expect(featureFlagService.get).not.toHaveBeenCalled();
+        },
+    );
+    it('refuses when LIGHTDASH_DISABLE_FEATURE_FLAGS lists the multi flag', async () => {
+        const killed = envFlagModel({
+            enabled: [],
+            disabled: [FeatureFlags.MultiConnectionProjects],
+        });
+        expect(await gate(killed, true, WarehouseTypes.POSTGRES)).toBe(
+            ROLLOUT_REASON,
         );
+        expect(await gate(killed, true, WarehouseTypes.TRINO)).toBe(
+            ROLLOUT_REASON,
+        );
+    });
+    it('allows a Trino primary when LIGHTDASH_ENABLE_FEATURE_FLAGS lists the multi flag', async () => {
+        const enabled = envFlagModel({
+            enabled: [FeatureFlags.MultiConnectionProjects],
+            disabled: [],
+        });
+        expect(await gate(enabled, true, WarehouseTypes.TRINO)).toBe(null);
+    });
+    it('refuses a missing original connection before resolving the flag', async () => {
+        const featureFlagService = flagService(true);
+        expect(await gate(featureFlagService, true, null)).toBe(
+            WAREHOUSE_TYPE_REASON,
+        );
+        expect(featureFlagService.get).not.toHaveBeenCalled();
     });
 });

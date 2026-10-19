@@ -18,8 +18,6 @@ export enum FeatureFlags {
     WarehouseOAuthRefreshLock = 'warehouse-oauth-refresh-lock',
 
     MultiConnectionProjects = 'multi-connection-projects',
-    /** Extra warehouse connections of a different type to the project's original connection. Also turns on the multi-connection rollout; the licence check still applies. */
-    MixedWarehouseConnections = 'mixed-warehouse-connections',
     /** Independent Documents containing narrative and saved chart definitions. */
     Documents = 'documents',
     /** Backend-provisioned usage analytics projects. */

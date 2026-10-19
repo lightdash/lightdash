@@ -144,7 +144,6 @@ describe('Enable multiple connections on the real schema', () => {
     let connectionModel: WarehouseConnectionModel;
     let projectService: ProjectService;
     const flag = { enabled: true };
-    const mixedTypes = { enabled: false };
     const testWarehouseConnectionCredentials = vi.fn();
     const resolveTestedCredentials = vi.fn(
         (credentials: CreateWarehouseCredentials) => credentials,
@@ -155,9 +154,8 @@ describe('Enable multiple connections on the real schema', () => {
         get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
             id: featureFlagId,
             enabled:
-                featureFlagId === FeatureFlags.MultiConnectionProjects
-                    ? flag.enabled
-                    : mixedTypes.enabled,
+                featureFlagId === FeatureFlags.MultiConnectionProjects &&
+                flag.enabled,
         })),
     });
 
@@ -418,7 +416,6 @@ describe('Enable multiple connections on the real schema', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
         flag.enabled = true;
-        mixedTypes.enabled = false;
         analytics.track.mockReset();
         vi.mocked(logAuditEvent).mockReset();
         testWarehouseConnectionCredentials.mockReset();
@@ -964,9 +961,6 @@ describe('Enable multiple connections on the real schema', () => {
         ])(
             'rejects Snowflake interactive authentication in preview and execution (%s)',
             async (authenticationType) => {
-                mixedTypes.enabled =
-                    authenticationType ===
-                    SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE;
                 const fixture = await createProject({
                     credentials: {
                         ...snowflakeCredentials,
@@ -1066,9 +1060,9 @@ describe('Enable multiple connections on the real schema', () => {
         });
 
         test.each([false, true])(
-            'gates a Redshift primary and same-type extra with mixed types %s',
+            'gates a Redshift primary and same-type extra with the multi flag %s',
             async (enabled) => {
-                mixedTypes.enabled = enabled;
+                flag.enabled = enabled;
                 const fixture = await createProject({
                     credentials: redshiftCredentials,
                 });
@@ -1091,9 +1085,7 @@ describe('Enable multiple connections on the real schema', () => {
                 if (enabled) {
                     await expect(preview).resolves.toBeDefined();
                 } else {
-                    await expect(preview).rejects.toThrow(
-                        WAREHOUSE_TYPE_REASON,
-                    );
+                    await expect(preview).rejects.toThrow(ROLLOUT_REASON);
                 }
                 expect(await state(fixture.projectUuid)).toEqual(singleState);
             },
@@ -1176,27 +1168,7 @@ describe('Enable multiple connections on the real schema', () => {
             );
         });
 
-        test('refuses an extra connection of another warehouse type', async () => {
-            const fixture = await createProject();
-
-            await refusesBoth(
-                fixture,
-                new ParameterError(
-                    'An extra connection must use the same warehouse type as the original connection.',
-                ),
-                fixture.admin,
-                switchRequest({
-                    connection: {
-                        name: 'Finance',
-                        warehouseConnection: snowflakeCredentials,
-                    },
-                }),
-            );
-            expect(await state(fixture.projectUuid)).toEqual(singleState);
-        });
-
-        test('previews an extra connection of another warehouse type when mixed types are enabled', async () => {
-            mixedTypes.enabled = true;
+        test('previews an extra connection of another warehouse type', async () => {
             const fixture = await createProject();
 
             const plan = await buildService().preview(

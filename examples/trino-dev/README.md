@@ -67,7 +67,7 @@ form still marks the password as required, so use the API for an empty password.
 This needs an Enterprise licence key and these flags:
 
 ```bash
-LIGHTDASH_ENABLE_FEATURE_FLAGS=multi-connection-projects,mixed-warehouse-connections
+LIGHTDASH_ENABLE_FEATURE_FLAGS=multi-connection-projects
 ```
 
 Restart the API after you change the env file.

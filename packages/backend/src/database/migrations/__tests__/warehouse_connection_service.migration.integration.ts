@@ -93,7 +93,6 @@ describe('WarehouseConnectionService on the real schema', () => {
     let model: WarehouseConnectionModel;
     let projectService: ProjectService;
     const flag = { enabled: true };
-    const mixedTypes = { enabled: false };
     const testWarehouseConnectionCredentials = vi.fn();
     const resolveTestedCredentials = vi.fn(
         (credentials: CreateWarehouseCredentials) => credentials,
@@ -118,9 +117,8 @@ describe('WarehouseConnectionService on the real schema', () => {
                         id: featureFlagId,
                         enabled:
                             featureFlagId ===
-                            FeatureFlags.MultiConnectionProjects
-                                ? flag.enabled
-                                : mixedTypes.enabled,
+                                FeatureFlags.MultiConnectionProjects &&
+                            flag.enabled,
                     }),
                 ),
             },
@@ -299,7 +297,6 @@ describe('WarehouseConnectionService on the real schema', () => {
 
     beforeEach(() => {
         flag.enabled = true;
-        mixedTypes.enabled = false;
         analytics.track.mockReset();
         testWarehouseConnectionCredentials.mockReset();
         resolveTestedCredentials.mockClear();
@@ -644,9 +641,6 @@ describe('WarehouseConnectionService on the real schema', () => {
         ])(
             'rejects interactive browser authentication on an extra Snowflake connection (%s)',
             async (authenticationType) => {
-                mixedTypes.enabled =
-                    authenticationType ===
-                    SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE;
                 const fixture = await createProject({
                     mode: 'multi',
                     warehouseType: WarehouseTypes.SNOWFLAKE,
@@ -683,9 +677,6 @@ describe('WarehouseConnectionService on the real schema', () => {
         ])(
             'applies Snowflake authentication rules when editing an extra connection (%s)',
             async (authenticationType) => {
-                mixedTypes.enabled =
-                    authenticationType ===
-                    SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE;
                 const fixture = await createProject({
                     mode: 'multi',
                     warehouseType: WarehouseTypes.SNOWFLAKE,
@@ -807,23 +798,7 @@ describe('WarehouseConnectionService on the real schema', () => {
             ).toMatchObject({ refreshToken: 'updated-refresh-token' });
         });
 
-        test('refuses an extra connection of another warehouse type', async () => {
-            const fixture = await createProject({ mode: 'multi' });
-
-            await expect(
-                buildService().create(
-                    fixture.credentialsAdmin,
-                    fixture.projectUuid,
-                    { name: 'Lake', warehouseConnection: athenaCredentials },
-                ),
-            ).rejects.toThrow(
-                'An extra connection must use the same warehouse type as the original connection.',
-            );
-            expect(await countConnections(fixture.projectUuid)).toBe(1);
-        });
-
-        test('adds an extra connection of another warehouse type when mixed types are enabled', async () => {
-            mixedTypes.enabled = true;
+        test('adds an extra connection of another warehouse type', async () => {
             const fixture = await createProject({ mode: 'multi' });
 
             const created = await buildService().create(
@@ -1021,7 +996,6 @@ describe('WarehouseConnectionService on the real schema', () => {
         });
 
         test('refuses Snowflake interactive authentication', async () => {
-            mixedTypes.enabled = true;
             const fixture = await createProject({ mode: 'multi' });
 
             await expect(
@@ -1303,9 +1277,9 @@ describe('WarehouseConnectionService on the real schema', () => {
                 })),
             ),
         )(
-            'refuses a warehouse type change with mixed types $enabled and $source credentials',
+            'refuses a warehouse type change with the multi flag $enabled and $source credentials',
             async ({ enabled, source }) => {
-                mixedTypes.enabled = enabled;
+                flag.enabled = enabled;
                 const fixture = await createProject({ mode: 'multi' });
                 const created = await addExtra(fixture);
                 const organizationCredential =

@@ -94,13 +94,13 @@ const githubAppInstallationsModel = {
     ),
 };
 
-const mixedWarehouseConnections = { enabled: false };
+const multiConnectionProjects = { enabled: false };
 const featureFlagService = {
     get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
         id: featureFlagId,
         enabled:
-            featureFlagId === FeatureFlags.MixedWarehouseConnections &&
-            mixedWarehouseConnections.enabled,
+            featureFlagId === FeatureFlags.MultiConnectionProjects &&
+            multiConnectionProjects.enabled,
     })),
 };
 
@@ -117,7 +117,7 @@ const getService = () =>
 describe('ProjectDbtSourcesService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mixedWarehouseConnections.enabled = false;
+        multiConnectionProjects.enabled = false;
         projectModel.getSummary.mockResolvedValue({
             organizationUuid: 'org-uuid',
             projectUuid,
@@ -298,7 +298,7 @@ describe('ProjectDbtSourcesService', () => {
             expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
         });
 
-        it('refuses a manifest source when mixed warehouse connections are off', async () => {
+        it('refuses a manifest source when multi-connection projects are off', async () => {
             const service = getService();
 
             await expect(
@@ -316,8 +316,8 @@ describe('ProjectDbtSourcesService', () => {
             expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
         });
 
-        it('creates a manifest source when mixed warehouse connections are on', async () => {
-            mixedWarehouseConnections.enabled = true;
+        it('creates a manifest source when multi-connection projects are on', async () => {
+            multiConnectionProjects.enabled = true;
             projectDbtSourcesModel.getSources.mockResolvedValue([]);
             projectDbtSourcesModel.createSource.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
@@ -348,13 +348,13 @@ describe('ProjectDbtSourcesService', () => {
             expect(created.name).toBe('trino_models');
             expect(featureFlagService.get).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    featureFlagId: FeatureFlags.MixedWarehouseConnections,
+                    featureFlagId: FeatureFlags.MultiConnectionProjects,
                 }),
             );
         });
 
-        it('still refuses other non-GitHub sources when mixed warehouse connections are on', async () => {
-            mixedWarehouseConnections.enabled = true;
+        it('still refuses other non-GitHub sources when multi-connection projects are on', async () => {
+            multiConnectionProjects.enabled = true;
             const service = getService();
 
             await expect(

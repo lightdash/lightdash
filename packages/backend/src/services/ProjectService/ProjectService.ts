@@ -5777,7 +5777,7 @@ export class ProjectService
         );
         if (withPreAggregates.length === 0) return new Map();
         const { enabled } = await this.featureFlagModel.get({
-            featureFlagId: FeatureFlags.MixedWarehouseConnections,
+            featureFlagId: FeatureFlags.MultiConnectionProjects,
             user: {
                 userUuid: args.userUuid,
                 organizationUuid: args.organizationUuid,
@@ -8657,7 +8657,7 @@ export class ProjectService
             });
         const { enabled: mixedWarehouseConnectionsEnabled } =
             await this.featureFlagModel.get({
-                featureFlagId: FeatureFlags.MixedWarehouseConnections,
+                featureFlagId: FeatureFlags.MultiConnectionProjects,
                 user: { userUuid, organizationUuid },
             });
         const sourceAdapters = new Map<string, ProjectAdapter>();

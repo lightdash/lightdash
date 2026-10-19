@@ -21269,7 +21269,7 @@ describe('ProjectService.getDeployStartOfWeekByExplore', () => {
         { name: 'customers' },
     ] as never;
 
-    const serviceWith = (mixedWarehouseConnectionsEnabled: boolean) => {
+    const serviceWith = (multiConnectionProjectsEnabled: boolean) => {
         const getDeployStartOfWeek = vi.fn(async () => ({
             kind: 'extra' as const,
             startOfWeek: WeekDay.MONDAY,
@@ -21285,8 +21285,8 @@ describe('ProjectService.getDeployStartOfWeekByExplore', () => {
                         id: featureFlagId,
                         enabled:
                             featureFlagId ===
-                                FeatureFlags.MixedWarehouseConnections &&
-                            mixedWarehouseConnectionsEnabled,
+                                FeatureFlags.MultiConnectionProjects &&
+                            multiConnectionProjectsEnabled,
                     })),
                 } as unknown as FeatureFlagModel,
             },

@@ -152,7 +152,7 @@ const EnableMultipleConnectionsModal: FC<{
     onClose,
 }) => {
     const mixedWarehouseFlag = useServerFeatureFlag(
-        FeatureFlags.MixedWarehouseConnections,
+        FeatureFlags.MultiConnectionProjects,
     );
     const mixedTypesEnabled = mixedWarehouseFlag.data?.enabled === true;
     const [originalName, setOriginalName] = useState(
@@ -298,7 +298,7 @@ export const EnableMultipleConnectionsCard: FC<{
     );
     const [isOpen, setIsOpen] = useState(false);
     const mixedWarehouseFlag = useServerFeatureFlag(
-        FeatureFlags.MixedWarehouseConnections,
+        FeatureFlags.MultiConnectionProjects,
     );
     const supportsExtras = supportsMultipleConnections(
         data?.originalWarehouseType ?? null,

@@ -146,7 +146,7 @@ const AddConnectionModal: FC<{
     onClose,
 }) => {
     const mixedWarehouseFlag = useServerFeatureFlag(
-        FeatureFlags.MixedWarehouseConnections,
+        FeatureFlags.MultiConnectionProjects,
     );
     const mixedTypesEnabled = mixedWarehouseFlag.data?.enabled === true;
     const form = useForm({
@@ -529,7 +529,7 @@ const useCanAddConnection = (
     data: ApiWarehouseConnectionsResponse['results'] | undefined,
 ): boolean => {
     const mixedWarehouseFlag = useServerFeatureFlag(
-        FeatureFlags.MixedWarehouseConnections,
+        FeatureFlags.MultiConnectionProjects,
     );
     const original = data?.connections.find(
         (connection) => connection.isOriginal,

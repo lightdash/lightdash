@@ -94,7 +94,7 @@ const trinoCredentials: CreateTrinoCredentials = {
     requireUserCredentials: false,
 };
 
-const buildService = (mixedTypesEnabled = false) => {
+const buildService = (multiConnectionProjectsEnabled = true) => {
     let primary = connection(primaryUuid, true);
     const extra = connection(extraUuid, false);
     const model = {
@@ -140,8 +140,8 @@ const buildService = (mixedTypesEnabled = false) => {
             .mockImplementation(async ({ featureFlagId }) => ({
                 id: featureFlagId,
                 enabled:
-                    featureFlagId === FeatureFlags.MixedWarehouseConnections
-                        ? mixedTypesEnabled
+                    featureFlagId === FeatureFlags.MultiConnectionProjects
+                        ? multiConnectionProjectsEnabled
                         : true,
             })),
     };
@@ -298,10 +298,10 @@ describe('WarehouseConnectionService lifecycle analytics', () => {
 
 describe('WarehouseConnectionService mixed warehouse types', () => {
     it.each(['create', 'update'] as const)(
-        'refuses a Trino extra with the flag off on %s',
+        'refuses a Trino extra with the multi flag off on %s',
         async (operation) => {
             const { service, model, analytics, credentialPolicy } =
-                buildService();
+                buildService(false);
             model.get.mockResolvedValue({
                 ...connection(extraUuid, false),
                 warehouseType: WarehouseTypes.TRINO,
@@ -316,7 +316,9 @@ describe('WarehouseConnectionService mixed warehouse types', () => {
                     ? service.create(account, projectUuid, request)
                     : service.update(account, projectUuid, extraUuid, request),
             ).rejects.toThrow(
-                'An extra connection must use the same warehouse type as the original connection.',
+                operation === 'create'
+                    ? 'Extra connections are not enabled for this organisation yet.'
+                    : 'An extra connection must use the same warehouse type as the original connection.',
             );
             expect(
                 credentialPolicy.testWarehouseConnectionCredentialsForSave,
@@ -325,7 +327,10 @@ describe('WarehouseConnectionService mixed warehouse types', () => {
                 expect.objectContaining({
                     event: 'warehouse_connection.action_refused',
                     properties: expect.objectContaining({
-                        reason: 'warehouse_type_mismatch',
+                        reason:
+                            operation === 'create'
+                                ? 'feature_disabled'
+                                : 'warehouse_type_mismatch',
                     }),
                 }),
             );
@@ -376,7 +381,7 @@ describe('WarehouseConnectionService mixed warehouse types', () => {
                 featureFlagService.get.mock.calls.filter(
                     ([args]) =>
                         args.featureFlagId ===
-                        FeatureFlags.MixedWarehouseConnections,
+                        FeatureFlags.MultiConnectionProjects,
                 ),
             ).toContainEqual([
                 {
@@ -384,7 +389,7 @@ describe('WarehouseConnectionService mixed warehouse types', () => {
                         userUuid: account.user.userUuid,
                         organizationUuid,
                     },
-                    featureFlagId: FeatureFlags.MixedWarehouseConnections,
+                    featureFlagId: FeatureFlags.MultiConnectionProjects,
                 },
             ]);
             expect(analytics.track).not.toHaveBeenCalledWith(
@@ -418,36 +423,29 @@ describe('WarehouseConnectionService mixed warehouse types', () => {
         },
     );
 
-    it.each(['create', 'update'] as const)(
-        'rechecks the warehouse type inside the %s transaction with the same flag value',
-        async (operation) => {
-            const { service, model, featureFlagService } = buildService();
-            model.get.mockResolvedValue(connection(extraUuid, false));
-            model.getProject.mockResolvedValueOnce(project).mockResolvedValue({
-                ...project,
-                originalWarehouseType: WarehouseTypes.SNOWFLAKE,
-            });
-            const request = { name: 'Extra', warehouseConnection: credentials };
-            await expect(
-                operation === 'create'
-                    ? service.create(account, projectUuid, request)
-                    : service.update(account, projectUuid, extraUuid, request),
-            ).rejects.toThrow(
-                'An extra connection must use the same warehouse type as the original connection.',
-            );
-            expect(model.createExtra).not.toHaveBeenCalled();
-            expect(model.updateExtraCredentials).not.toHaveBeenCalled();
-            expect(
-                featureFlagService.get.mock.calls.filter(
-                    ([args]) =>
-                        args.featureFlagId ===
-                        FeatureFlags.MixedWarehouseConnections,
-                ),
-            ).toHaveLength(operation === 'create' ? 2 : 1);
-        },
-    );
+    it('rechecks the warehouse type inside the update transaction with the multi flag off', async () => {
+        const { service, model, featureFlagService } = buildService(false);
+        model.get.mockResolvedValue(connection(extraUuid, false));
+        model.getProject.mockResolvedValueOnce(project).mockResolvedValue({
+            ...project,
+            originalWarehouseType: WarehouseTypes.SNOWFLAKE,
+        });
+        const request = { name: 'Extra', warehouseConnection: credentials };
+        await expect(
+            service.update(account, projectUuid, extraUuid, request),
+        ).rejects.toThrow(
+            'An extra connection must use the same warehouse type as the original connection.',
+        );
+        expect(model.updateExtraCredentials).not.toHaveBeenCalled();
+        expect(
+            featureFlagService.get.mock.calls.filter(
+                ([args]) =>
+                    args.featureFlagId === FeatureFlags.MultiConnectionProjects,
+            ),
+        ).toHaveLength(1);
+    });
 
-    it('keeps primary credential inheritance for the same warehouse type with the flag off', async () => {
+    it('keeps primary credential inheritance for the same warehouse type', async () => {
         const { service, model, credentialPolicy } = buildService();
         await service.create(account, projectUuid, {
             name: 'Extra',
@@ -515,7 +513,7 @@ describe('WarehouseConnectionService warehouse matrix', () => {
         },
     );
     it.each(Object.values(warehouseConnectionCredentials))(
-        'allows $type on a Postgres primary with mixed types enabled',
+        'allows $type on a Postgres primary with the multi flag on',
         async (warehouseConnection) => {
             const { service, model } = buildService(true);
             await service.create(account, projectUuid, {
@@ -535,7 +533,7 @@ describe('WarehouseConnectionService warehouse matrix', () => {
             (value) => value.type !== WarehouseTypes.POSTGRES,
         ),
     )(
-        'refuses $type on a Postgres primary with mixed types disabled',
+        'refuses $type on a Postgres primary with the multi flag off',
         async (warehouseConnection) => {
             const { service, model, credentialPolicy } = buildService(false);
             await expect(
@@ -543,7 +541,7 @@ describe('WarehouseConnectionService warehouse matrix', () => {
                     name: warehouseConnection.type,
                     warehouseConnection,
                 }),
-            ).rejects.toThrow('same warehouse type');
+            ).rejects.toThrow('not enabled for this organisation');
             expect(model.createExtra).not.toHaveBeenCalled();
             expect(
                 credentialPolicy.testWarehouseConnectionCredentialsForSave,

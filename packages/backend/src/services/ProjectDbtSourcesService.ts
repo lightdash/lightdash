@@ -85,7 +85,7 @@ export class ProjectDbtSourcesService extends BaseService {
         if (type === DbtProjectType.MANIFEST) {
             const { enabled } = await this.featureFlagService.get({
                 user: { userUuid: account.user.id, organizationUuid },
-                featureFlagId: FeatureFlags.MixedWarehouseConnections,
+                featureFlagId: FeatureFlags.MultiConnectionProjects,
             });
             if (enabled) return;
         }

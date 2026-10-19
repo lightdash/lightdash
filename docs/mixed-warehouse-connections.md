@@ -1,17 +1,16 @@
 # Mixed warehouse connections
 
 A project with [multiple warehouse connections](https://docs.lightdash.com/workspace-admin/multiple-warehouse-connections)
-can hold connections of different warehouse types when the
-`mixed-warehouse-connections` feature flag is on, for example a Snowflake
+can hold connections of different warehouse types, for example a Snowflake
 primary with Trino and BigQuery extras. Each explore runs on one connection and
 uses that connection's SQL dialect everywhere.
 
-The flag is off by default. It also turns on the multi-connection rollout, so
-`multi-connection-projects` is not needed as well. The Enterprise
-multi-connection licence check still applies. With the flag off, the rules are
-the ones that existed before: `multi-connection-projects` alone lets only
-Postgres, Athena and Snowflake projects hold extra connections, and every extra
-uses the primary's type.
+`multi-connection-projects` gates multiple connections and mixed types
+together, behind the Enterprise multi-connection licence check. The flag is off
+by default. The earlier `mixed-warehouse-connections` flag is retired and no
+longer read. With the flag off, no project can add a connection or switch;
+existing extras of a switched project keep working and follow the original
+same-type rules when edited.
 
 ## Which types can be mixed
 
@@ -21,8 +20,9 @@ uses the primary's type.
   flag-off allowlist. A new warehouse type does not compile until someone
   decides its value.
 - `supportsMultipleConnections(type, mixedTypesEnabled)` and
-  `canUseExtraConnectionWarehouseType` take the resolved flag as a required
-  argument. With the flag on, every `WarehouseTypes` value is allowed.
+  `canUseExtraConnectionWarehouseType` take the resolved
+  `multi-connection-projects` flag as a required argument. With the flag on,
+  every `WarehouseTypes` value is allowed.
 - `isUserConnectableWarehouseConnection` refuses the backend-provisioned DuckDB
   variants (`EMBEDDED` Playground and `ANALYTICS`) as a primary or an extra.
 
@@ -87,13 +87,13 @@ models compiled on the same connection.
 
 - A join to a model on another connection is skipped by partial compilation.
   `MultiConnectionCompiler` rewrites the warning to name the model and both
-  connections. With the mixed flag off, the warning is unchanged.
+  connections. With the multi-connection flag off, the warning is unchanged.
 - With [cross-source dbt refs](../examples/cross-source-dbt-refs/README.md)
   on, refs resolve inside one group. When a group fails because it refs a dbt
   project that an earlier, successful group compiled, and both
-  `mixed-warehouse-connections` and `cross-source-dbt-refs` are on, the
+  `multi-connection-projects` and `cross-source-dbt-refs` are on, the
   compile warning names the project, its dbt source and both connections. The
-  failed connection keeps its previous explores. With the mixed flag off, the
+  failed connection keeps its previous explores. With the multi-connection flag off, the
   message is unchanged.
 - Merge queries run each source on its own warehouse and join the results in
   DuckDB, so they are the supported way to combine data across warehouses.
@@ -108,7 +108,7 @@ models compiled on the same connection.
   uses its own connection's week start.
 - `getExploreResponse` resolves the bound connection on each request.
 - Additional dbt sources accept GitHub connections. With
-  `mixed-warehouse-connections` on, `ProjectDbtSourcesService` also accepts
+  `multi-connection-projects` on, `ProjectDbtSourcesService` also accepts
   `manifest` sources, so an uploaded manifest can run on an extra connection.
   With the flag off, the GitHub-only rule and its message are unchanged.
 - Three identifier paths that predate this feature wrap identifiers without

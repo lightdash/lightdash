@@ -452,26 +452,24 @@ endpoints; it rejects known ambient modes and filters inherited variables.
 
 ### Mixed warehouse connections
 
-`mixed-warehouse-connections` is off by default on Cloud and self-hosted. It
-allows originals and extras of every user-connectable warehouse type, in any
-mix. With it off, only Postgres, Athena and Snowflake originals can hold extras,
-and extras must use the original type. Trino is refused with the flag off.
-Backend-provisioned DuckDB variants are always refused. The flag also passes the
-multi-connection rollout check, so `multi-connection-projects` is not needed as
-well; `isMultiConnectionRolloutEnabled` in
-`packages/common/src/types/warehouseConnections.ts` resolves the two flags for the
-backend gate and the frontend connections panel. The licence check still applies.
+Mixed warehouse types have no flag of their own. `multi-connection-projects`
+gates multiple connections and mixed types together, and the Enterprise
+multi-connection licence check runs first. The retired
+`mixed-warehouse-connections` flag is no longer read; setting it has no effect.
 
-Create, credential update and switch requests resolve this flag for the requesting
+With `multi-connection-projects` on, originals and extras can be any
+user-connectable warehouse type, in any mix. Backend-provisioned DuckDB variants
+are always refused. With it off, or listed in `LIGHTDASH_DISABLE_FEATURE_FLAGS`,
+no project can add a connection or switch. Projects that already switched keep
+routing, and edits to their existing extras use the same-type rules: an extra
+must use the original type, and Snowflake external browser sign-in is refused.
+
+Create, credential update and switch requests resolve the flag for the requesting
 user and the project's organisation. User and organisation Console overrides
-apply. The add-connection modal uses the server-resolved flag. Console changes
-apply to the next backend request and frontend flag refetch. The generic ENV
-precedence above applies; ENV changes require an API restart.
+apply. Console changes apply to the next backend request and frontend flag
+refetch. The generic ENV precedence above applies; ENV changes require an API
+restart.
 
-Disabling the flag restores the original allowlist for new saves and switches.
-With `multi-connection-projects` also off, it refuses new extra connections and
-switches, as the rollout flag does.
-An existing extra cannot change its type with either flag value; add a new
-connection instead. It does not remove
-saved connections or change query execution. Mixed-type extras keep their own
-user-credential requirement; same-type extras still inherit the original's.
+An existing extra cannot change its type; add a new connection instead.
+Mixed-type extras keep their own user-credential requirement; same-type extras
+still inherit the original's.

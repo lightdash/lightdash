@@ -39,7 +39,7 @@ export const resolveExploreWarehouseConnection = (
 
 export const useMixedWarehouseConnectionsEnabled = (): boolean => {
     const mixedWarehouseFlag = useServerFeatureFlag(
-        FeatureFlags.MixedWarehouseConnections,
+        FeatureFlags.MultiConnectionProjects,
     );
     return mixedWarehouseFlag.data?.enabled === true;
 };
