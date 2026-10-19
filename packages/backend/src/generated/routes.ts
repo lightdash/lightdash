@@ -29032,35 +29032,65 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess__chips-AgentSuggestion-Array__': {
+    AgentSuggestionsSource: {
         dataType: 'refAlias',
         type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        chips: {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'refAlias',
-                                ref: 'AgentSuggestion',
-                            },
-                            required: true,
-                        },
-                    },
-                    required: true,
-                },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['generated'] },
+                { dataType: 'enum', enums: ['cached'] },
+                { dataType: 'enum', enums: ['default'] },
+            ],
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentSuggestionsResponseSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'AgentSuggestionsSource' },
+                { dataType: 'enum', enums: ['none'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiSuccess__chips-AgentSuggestion-Array--source-AgentSuggestionsResponseSource__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    results: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            source: {
+                                ref: 'AgentSuggestionsResponseSource',
+                                required: true,
+                            },
+                            chips: {
+                                dataType: 'array',
+                                array: {
+                                    dataType: 'refAlias',
+                                    ref: 'AgentSuggestion',
+                                },
+                                required: true,
+                            },
+                        },
+                        required: true,
+                    },
+                    status: { dataType: 'enum', enums: ['ok'], required: true },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiAgentSuggestionsResponse: {
         dataType: 'refAlias',
         type: {
-            ref: 'ApiSuccess__chips-AgentSuggestion-Array__',
+            ref: 'ApiSuccess__chips-AgentSuggestion-Array--source-AgentSuggestionsResponseSource__',
             validators: {},
         },
     },

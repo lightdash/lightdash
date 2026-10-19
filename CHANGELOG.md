@@ -1,3 +1,11 @@
+## [2.606.4](https://github.com/lightdash/lightdash/compare/2.606.3...2.606.4) (2026-10-19)
+
+
+### Bug Fixes
+
+* **ai-agents:** keep valid suggestion chips, fall back to the last good set, and record every outcome ([#31123](https://github.com/lightdash/lightdash/issues/31123)) ([d401bd9](https://github.com/lightdash/lightdash/commit/d401bd98bac2d91638376d4b5329d49f70303cc4))
+* **ai:** stop forcing a tool call for structured output on Claude 5.5 Bedrock models ([#31141](https://github.com/lightdash/lightdash/issues/31141)) ([601782a](https://github.com/lightdash/lightdash/commit/601782af8d7383dfbe62fd6a673c082159bf01c5))
+
 ## [2.606.3](https://github.com/lightdash/lightdash/compare/2.606.2...2.606.3) (2026-10-19)
 
 

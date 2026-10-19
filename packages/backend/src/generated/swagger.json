@@ -30632,10 +30632,28 @@
                     }
                 ]
             },
-            "ApiSuccess__chips-AgentSuggestion-Array__": {
+            "AgentSuggestionsSource": {
+                "type": "string",
+                "enum": ["generated", "cached", "default"]
+            },
+            "AgentSuggestionsResponseSource": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/AgentSuggestionsSource"
+                    },
+                    {
+                        "type": "string",
+                        "enum": ["none"]
+                    }
+                ]
+            },
+            "ApiSuccess__chips-AgentSuggestion-Array--source-AgentSuggestionsResponseSource__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "source": {
+                                "$ref": "#/components/schemas/AgentSuggestionsResponseSource"
+                            },
                             "chips": {
                                 "items": {
                                     "$ref": "#/components/schemas/AgentSuggestion"
@@ -30643,7 +30661,7 @@
                                 "type": "array"
                             }
                         },
-                        "required": ["chips"],
+                        "required": ["source", "chips"],
                         "type": "object"
                     },
                     "status": {
@@ -30656,7 +30674,7 @@
                 "type": "object"
             },
             "ApiAgentSuggestionsResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__chips-AgentSuggestion-Array__"
+                "$ref": "#/components/schemas/ApiSuccess__chips-AgentSuggestion-Array--source-AgentSuggestionsResponseSource__"
             },
             "ReadinessScoreEvaluation": {
                 "properties": {
@@ -73291,7 +73309,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.606.3",
+        "version": "2.606.4",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
