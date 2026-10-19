@@ -3,6 +3,12 @@ import FiltersProvider from '../../components/common/Filters/FiltersProvider';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import {
+    selectParameterValues,
+    useDashboardAllFilters,
+    useDashboardSelector,
+    useHasDashboardTemporaryFilters,
+} from '../dashboard/store';
 import { TemporaryFilters } from '../dashboardFilters/ActiveFilters/TemporaryFilters';
 
 type Props = {
@@ -17,12 +23,12 @@ const TemporaryPills: FC<Props> = ({ activeTabUuid }) => {
     const [openPopoverId, setOpenPopoverId] = useState<string>();
     const closePopover = useCallback(() => setOpenPopoverId(undefined), []);
 
-    const allFilters = useDashboardContext((c) => c.allFilters);
+    const allFilters = useDashboardAllFilters();
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const parameterValues = useDashboardSelector(selectParameterValues);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
@@ -52,10 +58,6 @@ const TemporaryPills: FC<Props> = ({ activeTabUuid }) => {
 };
 
 export const TemporaryFilterPills: FC<Props> = (props) => {
-    const hasTemporaryFilters = useDashboardContext(
-        (c) =>
-            c.dashboardTemporaryFilters.dimensions.length > 0 ||
-            c.dashboardTemporaryFilters.metrics.length > 0,
-    );
+    const hasTemporaryFilters = useHasDashboardTemporaryFilters();
     return hasTemporaryFilters ? <TemporaryPills {...props} /> : null;
 };

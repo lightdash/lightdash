@@ -19,6 +19,11 @@ import { useLocation } from 'react-router';
 import { LightdashEventType } from '../../ee/features/embed/events/types';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import {
+    selectParameterValues,
+    useDashboardAllFilters,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
+import {
     auditResponseToTileStatuses,
     useDashboardPreAggregateAudit,
 } from '../../hooks/dashboard/useDashboardPreAggregateAudit';
@@ -98,8 +103,8 @@ const DashboardTileStatusProvider: React.FC<
 
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const dashboard = useDashboardContext((c) => c.dashboard);
-    const allFilters = useDashboardContext((c) => c.allFilters);
-    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const allFilters = useDashboardAllFilters();
+    const parameterValues = useDashboardSelector(selectParameterValues);
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );

@@ -59,6 +59,25 @@ import {
     useRebaseDraftMutation,
     useReopenDraftMutation,
 } from '../features/contentAsCode/hooks/useContentDrafts';
+import {
+    selectDashboardFilters,
+    selectDashboardParameterReferences,
+    selectDashboardParameters,
+    selectHasParameterOrderChanged,
+    selectHaveFiltersChanged,
+    selectHavePinnedParametersChanged,
+    selectMissingRequiredParameters,
+    selectDashboardParameterDefinitions,
+    selectParameterOrder,
+    selectParametersHaveChanged,
+    selectParameterValues,
+    selectPinnedParameters,
+    getSafeTemporaryFilters,
+    selectRawTemporaryFilters,
+    useDashboardSelector,
+    useDashboardStore,
+    useHasDashboardTemporaryFilters,
+} from '../features/dashboard/store';
 import { ControlsSidebarPage } from '../features/dashboardControls/ControlsSidebarPage';
 import { DashboardHeaderGuard } from '../features/dashboardControls/DashboardHeaderGuard';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
@@ -130,11 +149,13 @@ const Dashboard: FC = () => {
         'dashboard',
         !isDashboardLoading && !dashboardError ? dashboardUuid : undefined,
     );
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
-    const dashboardTemporaryFilters = useDashboardContext(
-        (c) => c.dashboardTemporaryFilters,
+    // Filter and parameter objects are read at call time so editing them
+    // doesn't re-render the whole page
+    const dashboardStore = useDashboardStore();
+    const temporaryFilterLocks = useDashboardContext(
+        (c) => c.temporaryFilterLocks,
     );
-    const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
+    const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
     );
@@ -187,8 +208,8 @@ const Dashboard: FC = () => {
     const areAllChartsLoaded = useDashboardTileStatusContext(
         (c) => c.areAllChartsLoaded,
     );
-    const missingRequiredParameters = useDashboardContext(
-        (c) => c.missingRequiredParameters,
+    const missingRequiredParameters = useDashboardSelector(
+        selectMissingRequiredParameters,
     );
     const refreshDashboardVersion = useDashboardContext(
         (c) => c.refreshDashboardVersion,
@@ -197,10 +218,10 @@ const Dashboard: FC = () => {
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
 
     const setSavedParameters = useDashboardContext((c) => c.setSavedParameters);
-    const parametersHaveChanged = useDashboardContext(
-        (c) => c.parametersHaveChanged,
+    const parametersHaveChanged = useDashboardSelector(
+        selectParametersHaveChanged,
     );
-    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const parameterValues = useDashboardSelector(selectParameterValues);
     const clearAllParameters = useDashboardContext((c) => c.clearAllParameters);
     const hasDateZoomDisabledChanged = useMemo(() => {
         return (
@@ -226,13 +247,10 @@ const Dashboard: FC = () => {
     const preAggregateStatuses = useDashboardTileStatusContext(
         (c) => c.preAggregateStatuses,
     );
-    const dashboardParameters = useDashboardContext(
-        (c) => c.dashboardParameters,
-    );
-    const pinnedParameters = useDashboardContext((c) => c.pinnedParameters);
+    const pinnedParameters = useDashboardSelector(selectPinnedParameters);
     const toggleParameterPin = useDashboardContext((c) => c.toggleParameterPin);
-    const havePinnedParametersChanged = useDashboardContext(
-        (c) => c.havePinnedParametersChanged,
+    const havePinnedParametersChanged = useDashboardSelector(
+        selectHavePinnedParametersChanged,
     );
     const setHavePinnedParametersChanged = useDashboardContext(
         (c) => c.setHavePinnedParametersChanged,
@@ -240,10 +258,10 @@ const Dashboard: FC = () => {
     const setPinnedParameters = useDashboardContext(
         (c) => c.setPinnedParameters,
     );
-    const parameterOrder = useDashboardContext((c) => c.parameterOrder);
+    const parameterOrder = useDashboardSelector(selectParameterOrder);
     const setParameterOrder = useDashboardContext((c) => c.setParameterOrder);
-    const hasParameterOrderChanged = useDashboardContext(
-        (c) => c.hasParameterOrderChanged,
+    const hasParameterOrderChanged = useDashboardSelector(
+        selectHasParameterOrderChanged,
     );
     const setHasParameterOrderChanged = useDashboardContext(
         (c) => c.setHasParameterOrderChanged,
@@ -279,12 +297,12 @@ const Dashboard: FC = () => {
         (c) => c.setHasDateZoomConfigChanged,
     );
 
-    const parameterDefinitions = useDashboardContext(
-        (c) => c.parameterDefinitions,
+    const parameterDefinitions = useDashboardSelector(
+        selectDashboardParameterDefinitions,
     );
 
-    const parameterReferences = useDashboardContext(
-        (c) => c.dashboardParameterReferences,
+    const parameterReferences = useDashboardSelector(
+        selectDashboardParameterReferences,
     );
 
     const referencedParameters = useMemo(() => {
@@ -309,12 +327,7 @@ const Dashboard: FC = () => {
     const { showToastError } = useToaster();
 
     const { data: organization } = useOrganization();
-    const hasTemporaryFilters = useMemo(
-        () =>
-            dashboardTemporaryFilters.dimensions.length > 0 ||
-            dashboardTemporaryFilters.metrics.length > 0,
-        [dashboardTemporaryFilters],
-    );
+    const hasTemporaryFilters = useHasDashboardTemporaryFilters();
     // Callback to sync local state with server response after save
     // This is needed when the backend modifies tiles (e.g., duplicating charts during tab duplication)
     const handleDashboardUpdateSuccess = useCallback(
@@ -559,6 +572,9 @@ const Dashboard: FC = () => {
                 // Tab-aware auto-apply: a filter that already excludes every
                 // chart tile on the target tab is scoped away from that tab,
                 // so exclude the newly added tiles from it too.
+                const dashboardFilters = selectDashboardFilters(
+                    dashboardStore.getState(),
+                );
                 const scopedFilters = excludeTilesFromTabScopedFilters(
                     dashboardFilters,
                     newTiles,
@@ -577,7 +593,7 @@ const Dashboard: FC = () => {
             setDashboardTiles,
             setHaveTilesChanged,
             setHaveTabsChanged,
-            dashboardFilters,
+            dashboardStore,
             dashboardTiles,
             setDashboardFilters,
             setHaveFiltersChanged,
@@ -1200,7 +1216,7 @@ const Dashboard: FC = () => {
     const handleBeforeOpenChartPage = useCallback(() => {
         storeDashboard(
             dashboardTiles,
-            dashboardFilters,
+            selectDashboardFilters(dashboardStore.getState()),
             haveTilesChanged,
             haveFiltersChanged,
             dashboardUuid,
@@ -1212,7 +1228,7 @@ const Dashboard: FC = () => {
     }, [
         storeDashboard,
         dashboardTiles,
-        dashboardFilters,
+        dashboardStore,
         haveTilesChanged,
         haveFiltersChanged,
         dashboardUuid,
@@ -1261,6 +1277,13 @@ const Dashboard: FC = () => {
     const shouldShowVerificationSaveOptions = !!dashboard?.verification;
 
     const handleSaveDashboard = (preserveVerification?: boolean) => {
+        const dashboardState = dashboardStore.getState();
+        const dashboardFilters = selectDashboardFilters(dashboardState);
+        const dashboardTemporaryFilters = getSafeTemporaryFilters(
+            selectRawTemporaryFilters(dashboardState),
+            temporaryFilterLocks,
+            activeTab?.uuid,
+        ).filters;
         const dimensionFilters = [
             ...dashboardFilters.dimensions,
             ...dashboardTemporaryFilters.dimensions,
@@ -1310,7 +1333,7 @@ const Dashboard: FC = () => {
                     ? dashboardCustomMetrics
                     : undefined,
             }),
-            parameters: dashboardParameters,
+            parameters: selectDashboardParameters(dashboardState),
             ...(preserveVerification !== undefined
                 ? { preserveVerification }
                 : {}),

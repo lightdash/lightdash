@@ -5,12 +5,16 @@ import {
     FilterOperator,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type DashboardFilters,
     type DashboardTile,
 } from '@lightdash/common';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../../testing/testUtils';
+import { createDashboardTestStore } from '../../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../../testing/testUtils';
 import FilterConfiguration from './index';
 
 vi.mock('../../../providers/Dashboard/useDashboardTileStatusContext', () => ({
@@ -19,15 +23,25 @@ vi.mock('../../../providers/Dashboard/useDashboardTileStatusContext', () => ({
 
 const mockDashboardContext = vi.hoisted(() => ({
     current: {
-        dashboardFilters: {
-            dimensions: [] as DashboardFilterRule[],
-            metrics: [] as DashboardFilterRule[],
-            tableCalculations: [],
-        },
         allFilterableFieldsMap: {},
         allFilterableMetricsMap: {},
     },
 }));
+
+let dashboardFilters: DashboardFilters = {
+    dimensions: [],
+    metrics: [],
+    tableCalculations: [],
+};
+
+const renderWithProviders = (ui: ReactElement) =>
+    renderWithAppProviders(
+        <DashboardStoreTestProvider
+            store={createDashboardTestStore({ dashboardFilters })}
+        >
+            {ui}
+        </DashboardStoreTestProvider>,
+    );
 
 vi.mock('../../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -97,7 +111,7 @@ const anyValueRule: DashboardFilterRule = {
 describe('FilterConfiguration', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockDashboardContext.current.dashboardFilters = {
+        dashboardFilters = {
             dimensions: [],
             metrics: [],
             tableCalculations: [],
@@ -406,10 +420,7 @@ describe('FilterConfiguration', () => {
             label: 'Last name',
             requiredGroupId: 'group-1',
         };
-        mockDashboardContext.current.dashboardFilters.dimensions = [
-            memberRule,
-            otherMemberRule,
-        ];
+        dashboardFilters.dimensions = [memberRule, otherMemberRule];
 
         renderWithProviders(
             <FilterConfiguration
@@ -450,10 +461,7 @@ describe('FilterConfiguration', () => {
             label: 'Last name',
             requiredGroupId: 'group-1',
         };
-        mockDashboardContext.current.dashboardFilters.dimensions = [
-            memberRule,
-            otherMemberRule,
-        ];
+        dashboardFilters.dimensions = [memberRule, otherMemberRule];
 
         renderWithProviders(
             <FilterConfiguration

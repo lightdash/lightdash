@@ -34,6 +34,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import TruncatedText from '../../../components/common/TruncatedText';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import { useDashboardAllFilters } from '../../dashboard/store';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
 import LockedFilter from '../LockedFilter';
 import { useIsLockedDashboardFilterRule } from '../useIsLockedDashboardFilterRule';
@@ -197,7 +198,7 @@ const GuidedFilterSetup: FC<Props> = ({
     onSubPopoverClose,
 }) => {
     const projectUuid = useDashboardContext((c) => c.projectUuid);
-    const allFilters = useDashboardContext((c) => c.allFilters);
+    const allFilters = useDashboardAllFilters();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,

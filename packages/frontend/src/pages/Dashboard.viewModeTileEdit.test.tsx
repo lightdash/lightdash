@@ -9,6 +9,8 @@ import { createMemoryRouter, RouterProvider, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type LightdashApi } from '../api';
 import { AbilityContext } from '../providers/Ability/context';
+import { createDashboardTestStore } from '../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../testing/DashboardStoreTestProvider';
 import { manageChartRule } from '../testing/savedChartResponse.mock';
 import { renderWithProviders } from '../testing/testUtils';
 
@@ -17,7 +19,8 @@ const mockedApi = mockedLightdashApi;
 // Mock factories are hoisted above module scope, so the fixtures they share
 // with the tests are hoisted too.
 const fixtures = await vi.hoisted(async () => {
-    const { DashboardTileTypes: TileTypes } = await import('@lightdash/common');
+    const { DashboardTileTypes: TileTypes, FilterOperator } =
+        await import('@lightdash/common');
     const savedTile: DashboardChartTile = {
         uuid: 'tile-1',
         type: TileTypes.SAVED_CHART,
@@ -44,7 +47,8 @@ const fixtures = await vi.hoisted(async () => {
                         fieldId: 'payments_status',
                         tableName: 'payments',
                     },
-                    operator: 'equals',
+                    operator: FilterOperator.EQUALS,
+                    label: undefined,
                     values: ['paid'],
                 },
             ],
@@ -59,7 +63,8 @@ const fixtures = await vi.hoisted(async () => {
                         fieldId: 'payments_method',
                         tableName: 'payments',
                     },
-                    operator: 'equals',
+                    operator: FilterOperator.EQUALS,
+                    label: undefined,
                     values: ['card'],
                 },
             ],
@@ -109,32 +114,19 @@ vi.mock('../providers/Dashboard/useDashboardContext', async () => {
             },
         },
         dashboardError: undefined,
-        dashboardFilters: fixtures.savedFilters,
-        dashboardTemporaryFilters: fixtures.temporaryFilters,
         dashboardTiles: [fixtures.savedTile],
         dashboardTabs: [],
         dashboardCustomMetrics: [],
-        dashboardParameters: {},
-        dashboardParameterReferences: new Set<string>(),
-        parameterDefinitions: {},
-        parameterValues: {},
-        parameterOrder: [],
-        pinnedParameters: [],
-        missingRequiredParameters: [],
         dateZoomGranularities: [],
         defaultDateZoomGranularity: undefined,
         dateZoomConfig: { controls: [], tileTargets: {} },
         activeTab: undefined,
         haveTilesChanged: false,
-        haveFiltersChanged: false,
         haveTabsChanged: false,
         haveCustomMetricsChanged: false,
-        havePinnedParametersChanged: false,
         haveDateZoomGranularitiesChanged: false,
-        hasParameterOrderChanged: false,
         hasDefaultDateZoomGranularityChanged: false,
         hasDateZoomConfigChanged: false,
-        parametersHaveChanged: false,
         hasTilesThatSupportFilters: false,
         isDateZoomDisabled: false,
         isAddFilterDisabled: false,
@@ -329,9 +321,16 @@ const renderDashboard = (mode: 'view' | 'edit') => {
         },
     );
     renderWithProviders(
-        <AbilityContext.Provider value={ability}>
-            <RouterProvider router={router} />
-        </AbilityContext.Provider>,
+        <DashboardStoreTestProvider
+            store={createDashboardTestStore({
+                dashboardFilters: savedFilters,
+                dashboardTemporaryFilters: fixtures.temporaryFilters,
+            })}
+        >
+            <AbilityContext.Provider value={ability}>
+                <RouterProvider router={router} />
+            </AbilityContext.Provider>
+        </DashboardStoreTestProvider>,
         { user: { abilityRules: ability.rules } },
     );
 };

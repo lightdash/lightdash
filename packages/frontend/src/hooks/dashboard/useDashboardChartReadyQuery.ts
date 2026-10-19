@@ -16,6 +16,11 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 import { type LightdashApi } from '../../api';
+import {
+    selectParameterValues,
+    selectTileParameterReferences,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
@@ -86,7 +91,7 @@ export const useDashboardChartReadyQuery = (
     );
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
-    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const parameterValues = useDashboardSelector(selectParameterValues);
     const addParameterReferences = useDashboardContext(
         (c) => c.addParameterReferences,
     );
@@ -96,8 +101,8 @@ export const useDashboardChartReadyQuery = (
     const markTileLoaded = useDashboardTileStatusContext(
         (c) => c.markTileLoaded,
     );
-    const tileParameterReferences = useDashboardContext(
-        (c) => c.tileParameterReferences,
+    const tileParameterReferences = useDashboardSelector(
+        selectTileParameterReferences,
     );
     const dashboardSorts = useMemo(
         () => chartSort[tileUuid] || [],

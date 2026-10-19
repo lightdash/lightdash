@@ -4,6 +4,8 @@ import { render, screen } from '@testing-library/react';
 import { type ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type DashboardContextType } from '../../providers/Dashboard/types';
+import { createDashboardTestStore } from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { DashboardFiltersBar } from './DashboardFiltersBar';
 
 const definitions: ParameterDefinitions = {
@@ -63,19 +65,23 @@ const parameterButtons = (name: RegExp | string) =>
 
 const renderBar = (overrides: Partial<typeof props> = {}) =>
     render(
-        <MantineProvider>
-            <DashboardFiltersBar {...props} {...overrides} />
-        </MantineProvider>,
+        <DashboardStoreTestProvider
+            store={createDashboardTestStore({
+                parameterDefinitions: definitions,
+                parameterValues: props.parameterValues,
+                pinnedParameters: props.pinnedParameters,
+            })}
+        >
+            <MantineProvider>
+                <DashboardFiltersBar {...props} {...overrides} />
+            </MantineProvider>
+        </DashboardStoreTestProvider>,
     );
 
 describe('DashboardFiltersBar legacy pinned parameters', () => {
     beforeEach(() => {
         context.current = {
             isAddFilterDisabled: false,
-            allFilters: { dimensions: [], metrics: [], tableCalculations: [] },
-            parameterDefinitions: definitions,
-            parameterValues: props.parameterValues,
-            pinnedParameters: props.pinnedParameters,
             dashboard: { projectUuid: 'project-uuid' },
             setParameter: vi.fn(),
             toggleParameterPin: vi.fn(),

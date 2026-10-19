@@ -23,6 +23,11 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import {
+    selectDashboardFilters,
+    selectHaveFiltersChanged,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -64,9 +69,9 @@ const AddTileButton: FC<Props> = ({
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
-    const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
+    const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
     const dashboard = useDashboardContext((c) => c.dashboard);
 
     const { storeDashboard } = useDashboardStorage();

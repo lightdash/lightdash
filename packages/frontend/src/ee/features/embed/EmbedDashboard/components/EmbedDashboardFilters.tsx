@@ -4,6 +4,13 @@ import { IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import FiltersProvider from '../../../../../components/common/Filters/FiltersProvider';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import {
+    selectHaveFiltersChanged,
+    selectParameterValues,
+    useDashboardAllFilters,
+    useDashboardSelector,
+    useHasDashboardTemporaryFilters,
+} from '../../../../../features/dashboard/store';
 import ActiveFilters from '../../../../../features/dashboardFilters/ActiveFilters';
 import AddFilterButton from '../../../../../features/dashboardFilters/AddFilterButton';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
@@ -28,12 +35,12 @@ const EmbedDashboardFilters: FC<Props> = ({
 
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const activeTab = useDashboardContext((c) => c.activeTab);
-    const allFilters = useDashboardContext((c) => c.allFilters);
+    const allFilters = useDashboardAllFilters();
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const parameterValues = useDashboardSelector(selectParameterValues);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
@@ -47,12 +54,9 @@ const EmbedDashboardFilters: FC<Props> = ({
         (c) => c.allFilterableMetrics,
     );
 
-    const haveFiltersChanged = useDashboardContext(
-        (c) =>
-            c.haveFiltersChanged ||
-            c.dashboardTemporaryFilters.dimensions.length > 0 ||
-            c.dashboardTemporaryFilters.metrics.length > 0,
-    );
+    const hasTemporaryFilters = useHasDashboardTemporaryFilters();
+    const haveFiltersChanged =
+        useDashboardSelector(selectHaveFiltersChanged) || hasTemporaryFilters;
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
     );

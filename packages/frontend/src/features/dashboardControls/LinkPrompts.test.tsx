@@ -9,8 +9,12 @@ import {
 } from '@lightdash/common';
 import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../testing/testUtils';
+import { createDashboardTestStore } from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
+import { type DashboardStore } from '../dashboard/store';
 import { getLinkKey } from './linkCandidates';
 import { LinkPrompts } from './LinkPrompts';
 
@@ -124,17 +128,27 @@ const setSidebar = (overrides: Record<string, unknown> = {}) => {
     };
 };
 
+let dashboardStore: DashboardStore = createDashboardTestStore();
+const renderWithProviders = (ui: ReactElement) =>
+    renderWithAppProviders(
+        <DashboardStoreTestProvider store={dashboardStore}>
+            {ui}
+        </DashboardStoreTestProvider>,
+    );
+
 const setDashboard = (
     addedFields: FilterableDimension[],
     rules: DashboardFilterRule[] = [rule()],
 ) => {
-    mockDashboardContext.current = {
-        dashboardTiles: allTiles,
+    dashboardStore = createDashboardTestStore({
         dashboardFilters: {
             dimensions: rules,
             metrics: [],
             tableCalculations: [],
         },
+    });
+    mockDashboardContext.current = {
+        dashboardTiles: allTiles,
         allFilterableFieldsMap: {
             orders_status: ordersStatus,
             payments_method: paymentsMethod,

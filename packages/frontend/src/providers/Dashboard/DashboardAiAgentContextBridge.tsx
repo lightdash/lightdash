@@ -24,6 +24,11 @@ import {
 } from '../../ee/features/aiCopilot/store/hooks';
 import { getHandledAgentToolCallIds } from '../../ee/features/aiCopilot/streaming/handledAgentToolCalls';
 import { useAiAgentProjectStreamParts } from '../../ee/features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
+import {
+    selectParameterValues,
+    useDashboardAllFilters,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
 import { getDashboard } from '../../hooks/dashboard/useDashboard';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { getSavedQuery } from '../../hooks/useSavedQuery';
@@ -71,11 +76,9 @@ const DashboardAiAgentContextBridge = () => {
         (c) => c.includeUnpublishedDraft,
     );
     const activeTab = useDashboardContext((c) => c.activeTab);
-    const allFilters = useDashboardContext((c) => c.allFilters);
-    const originalDashboardFilters = useDashboardContext(
-        (c) => c.originalDashboardFilters,
-    );
-    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const allFilters = useDashboardAllFilters();
+    const originalDashboardFilters = dashboard?.filters ?? emptyFilters;
+    const parameterValues = useDashboardSelector(selectParameterValues);
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
@@ -88,9 +91,6 @@ const DashboardAiAgentContextBridge = () => {
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
-    );
-    const setOriginalDashboardFilters = useDashboardContext(
-        (c) => c.setOriginalDashboardFilters,
     );
     const setDashboardTemporaryFilters = useDashboardContext(
         (c) => c.setDashboardTemporaryFilters,
@@ -322,7 +322,6 @@ const DashboardAiAgentContextBridge = () => {
             setDashboardTiles(freshDashboard.tiles);
             setDashboardTabs(freshDashboard.tabs);
             setDashboardFilters(freshDashboard.filters);
-            setOriginalDashboardFilters(freshDashboard.filters);
             setDashboardTemporaryFilters(emptyFilters);
 
             await Promise.all([
@@ -361,7 +360,6 @@ const DashboardAiAgentContextBridge = () => {
             setDashboardTabs,
             setDashboardTemporaryFilters,
             setDashboardTiles,
-            setOriginalDashboardFilters,
         ],
     );
 

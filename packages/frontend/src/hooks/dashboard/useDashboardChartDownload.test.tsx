@@ -3,10 +3,13 @@ import {
     type ApiExecuteAsyncDashboardChartQueryResults,
 } from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
+import { type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sharedLightdashApi } from '../../api';
 import { Limit } from '../../components/ExportResults/types';
 import { pollForResults } from '../../features/queryRunner/executeQuery';
+import { createDashboardTestStore } from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { useDashboardChartDownload } from './useDashboardChartDownload';
 import { useEmbedDashboardChartDownload } from './useEmbedDashboardChartDownload';
@@ -17,7 +20,7 @@ vi.mock('../../features/queryRunner/executeQuery', () => ({
 }));
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: (selector: (context: unknown) => unknown) =>
-        selector({ chartSort: {}, parameterValues: {} }),
+        selector({ chartSort: {} }),
 }));
 vi.mock('./useDashboardFiltersForTile', () => ({ default: () => ({}) }));
 
@@ -56,7 +59,14 @@ describe.each(Object.entries(hooks))(
         });
 
         it('reuses the visible pivot query only for flat table rows', async () => {
-            const { result } = renderHook(useDownload);
+            const store = createDashboardTestStore({ parameterValues: {} });
+            const { result } = renderHook(useDownload, {
+                wrapper: ({ children }: { children: ReactNode }) => (
+                    <DashboardStoreTestProvider store={store}>
+                        {children}
+                    </DashboardStoreTestProvider>
+                ),
+            });
 
             await expect(
                 result.current.getDownloadQueryUuid(2, Limit.TABLE, false),

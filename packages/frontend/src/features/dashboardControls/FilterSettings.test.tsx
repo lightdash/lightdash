@@ -8,11 +8,24 @@ import {
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
+import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../testing/testUtils';
+import { createDashboardTestStore } from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { FilterBarPopoversProvider } from '../dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import { useFilterBarPopovers } from '../dashboardFilters/FilterRequirements/useFilterBarPopovers';
 import { FilterSettings } from './FilterSettings';
+
+// No filters and no parameter values in the dashboard store
+const renderWithProviders = (ui: ReactElement) =>
+    renderWithAppProviders(
+        <DashboardStoreTestProvider
+            store={createDashboardTestStore({ parameterValues: {} })}
+        >
+            {ui}
+        </DashboardStoreTestProvider>,
+    );
 
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
@@ -128,10 +141,8 @@ describe('FilterSettings', () => {
         close.mockClear();
         mockTileStatus.current = { sqlChartTilesMetadata: {} };
         mockDashboardContext.current = {
-            allFilters: { dimensions: [], metrics: [], tableCalculations: [] },
             allFilterableFieldsMap: {},
             dashboardTiles: [],
-            parameterValues: {},
             filterableFieldsByTileUuid: {},
             activeTab: undefined,
         };

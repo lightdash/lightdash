@@ -4,13 +4,29 @@ import {
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
+import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../testing/testUtils';
+import {
+    createDashboardTestStore,
+    type DashboardStoreTestValues,
+} from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { ViewerControls } from './ViewerControls';
 
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
+let storeValues: DashboardStoreTestValues = {};
+
+const renderWithProviders = (ui: ReactElement) =>
+    renderWithAppProviders(
+        <DashboardStoreTestProvider
+            store={createDashboardTestStore(storeValues)}
+        >
+            {ui}
+        </DashboardStoreTestProvider>,
+    );
 
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -50,6 +66,9 @@ const setContext = (
     tableCalculations: DashboardFilterRule[] = [],
     savedDimensions: DashboardFilterRule[] = dimensions,
 ) => {
+    storeValues = {
+        dashboardFilters: { dimensions, metrics: [], tableCalculations },
+    };
     mockDashboardContext.current = {
         dashboard: {
             uuid: 'dashboard-uuid',
@@ -60,7 +79,6 @@ const setContext = (
             },
         },
         dashboardTabs: tabs,
-        dashboardFilters: { dimensions, metrics: [], tableCalculations },
         setDashboardFilters,
         setHaveFiltersChanged,
     };

@@ -21,6 +21,7 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import { useProject } from '../../../../hooks/useProject';
 import useDashboardContext from '../../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../../providers/Dashboard/useDashboardTileStatusContext';
+import { useDashboardAllFilters } from '../../../dashboard/store';
 import { hasSavedFilterValueChanged } from '../../../dashboardFilters/FilterConfiguration/utils';
 import LockedFilter from '../../../dashboardFilters/LockedFilter';
 import { useIsLockedDashboardFilterRule } from '../../../dashboardFilters/useIsLockedDashboardFilterRule';
@@ -84,7 +85,7 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
     const isLoadingDashboardFilters = useDashboardContext(
         (c) => c.isLoadingDashboardFilters,
     );
-    const currentDashboardFilters = useDashboardContext((c) => c.allFilters);
+    const currentDashboardFilters = useDashboardAllFilters();
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );

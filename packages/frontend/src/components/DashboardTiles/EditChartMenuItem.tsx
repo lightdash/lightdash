@@ -3,6 +3,11 @@ import { Menu } from '@mantine/core';
 import { IconFilePencil } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import {
+    selectDashboardFilters,
+    selectHaveFiltersChanged,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useChartPermissions } from '../../hooks/useChartPermissions';
 import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
@@ -29,9 +34,9 @@ const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, chart, ...props }) => {
     const authoringEnabled = useContentAuthoringEnabled();
     const { user } = useApp();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const filtersFromContext = useDashboardContext((c) => c.dashboardFilters);
+    const filtersFromContext = useDashboardSelector(selectDashboardFilters);
     const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
-    const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
+    const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
     const dashboard = useDashboardContext((c) => c.dashboard);
     const activeTab = useDashboardContext((c) => c.activeTab);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);

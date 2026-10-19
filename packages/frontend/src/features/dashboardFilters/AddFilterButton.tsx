@@ -8,6 +8,11 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
+import {
+    selectHaveFiltersChanged,
+    useDashboardSelector,
+    useHasDashboardTemporaryFilters,
+} from '../dashboard/store';
 import FilterConfiguration from './FilterConfiguration';
 
 type Props = {
@@ -80,12 +85,9 @@ const AddFilterButton: FC<Props> = ({
         (c) => c.isFetchingDashboardFilters,
     );
 
-    const haveFiltersChanged = useDashboardContext(
-        (c) =>
-            c.haveFiltersChanged ||
-            c.dashboardTemporaryFilters.dimensions.length > 0 ||
-            c.dashboardTemporaryFilters.metrics.length > 0,
-    );
+    const hasTemporaryFilters = useHasDashboardTemporaryFilters();
+    const haveFiltersChanged =
+        useDashboardSelector(selectHaveFiltersChanged) || hasTemporaryFilters;
 
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,

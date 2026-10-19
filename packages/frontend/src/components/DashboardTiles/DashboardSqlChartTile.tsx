@@ -22,6 +22,10 @@ import {
     useState,
     type FC,
 } from 'react';
+import {
+    selectParameterValues,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
 import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useSavedSqlChartResults';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import { useConnectionBadges } from '../../hooks/useConnectionBadges';
@@ -107,7 +111,7 @@ const SqlChartTile: FC<Props> = ({
     const updateSqlChartTilesMetadata = useDashboardTileStatusContext(
         (c) => c.updateSqlChartTilesMetadata,
     );
-    const parameters = useDashboardContext((c) => c.parameterValues);
+    const parameters = useDashboardSelector(selectParameterValues);
     const addParameterReferences = useDashboardContext(
         (c) => c.addParameterReferences,
     );

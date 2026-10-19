@@ -27,6 +27,11 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { type TrackingContextType } from '../../providers/Tracking/types';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import {
+    selectDashboardFilters,
+    selectHaveFiltersChanged,
+    useDashboardSelector,
+} from '../dashboard/store';
 import { getLinkKey } from './linkCandidates';
 import { getFilterFields, getTileField, setTileField } from './peers';
 import { isLockedRequiredMissingValue } from './requirements';
@@ -149,11 +154,11 @@ const getFirstFieldRule = (
 export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     children,
 }) => {
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );
-    const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
+    const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
     );

@@ -8,6 +8,11 @@ import FiltersProvider from '../../components/common/Filters/FiltersProvider';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import {
+    selectParameterValues,
+    useDashboardAllFilters,
+    useDashboardSelector,
+} from '../dashboard/store';
 import { useFilterBarPopovers } from '../dashboardFilters/FilterRequirements/useFilterBarPopovers';
 import { getFilterRuleType } from './fieldKinds';
 import { FilterValueSettings } from './FilterValueSettings';
@@ -24,12 +29,12 @@ type Props = {
 export const FilterSettings: FC<Props> = ({ rule, field, onChange }) => {
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
-    const allFilters = useDashboardContext((c) => c.allFilters);
+    const allFilters = useDashboardAllFilters();
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const parameterValues = useDashboardSelector(selectParameterValues);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
