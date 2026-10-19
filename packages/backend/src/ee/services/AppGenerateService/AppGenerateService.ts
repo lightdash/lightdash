@@ -13869,6 +13869,27 @@ export class AppGenerateService extends BaseService {
         }
     }
 
+    /**
+     * A direct-access rejection raised while importing a bundle is about the
+     * manifest's `access` block, but the generic message does not say so.
+     * Name the file, the app and the two ways out, keeping the original
+     * reason (permission, or the feature being unavailable) on the end.
+     */
+    private static describeAccessBlockRejection(
+        error: unknown,
+        manifest: Pick<DataAppCode['manifest'], 'slug' | 'name'>,
+    ): unknown {
+        if (!(error instanceof ForbiddenError)) {
+            return error;
+        }
+        const label = manifest.slug ?? manifest.name;
+        return new ForbiddenError(
+            `Cannot apply the access block in lightdash-app.yml for app "${label}": ${getErrorMessage(
+                error,
+            )}. Remove the access block to keep the app's existing sharing, or ask someone who can manage sharing on this app (a space admin or project admin) to upload it.`,
+        );
+    }
+
     async importAppCode(
         user: SessionUser,
         projectUuid: string,
@@ -14348,12 +14369,19 @@ export class AppGenerateService extends BaseService {
             // purpose: the policy is evaluated against the app's new
             // location, exactly as the apply is.
             if (directAccessAssignments !== null) {
-                await this.coderService.assertCanApplyDirectAccessPolicy(
-                    user,
-                    projectUuid,
-                    DirectAccessResourceType.APP,
-                    existingApp.app_id,
-                );
+                try {
+                    await this.coderService.assertCanApplyDirectAccessPolicy(
+                        user,
+                        projectUuid,
+                        DirectAccessResourceType.APP,
+                        existingApp.app_id,
+                    );
+                } catch (error) {
+                    throw AppGenerateService.describeAccessBlockRejection(
+                        error,
+                        code.manifest,
+                    );
+                }
             }
             newAppUuid = existingApp.app_id;
             newAppSlug = existingApp.slug;
@@ -14495,13 +14523,20 @@ export class AppGenerateService extends BaseService {
             // Same reconciliation contract for the direct policy: present
             // (including empty) → atomic replacement; absent → untouched.
             if (directAccessAssignments !== null) {
-                await this.coderService.applyDirectAccessPolicy(
-                    user,
-                    projectUuid,
-                    DirectAccessResourceType.APP,
-                    newAppUuid,
-                    directAccessAssignments,
-                );
+                try {
+                    await this.coderService.applyDirectAccessPolicy(
+                        user,
+                        projectUuid,
+                        DirectAccessResourceType.APP,
+                        newAppUuid,
+                        directAccessAssignments,
+                    );
+                } catch (error) {
+                    throw AppGenerateService.describeAccessBlockRejection(
+                        error,
+                        code.manifest,
+                    );
+                }
             }
 
             await this.extractAndPersistVersionDataReferences(

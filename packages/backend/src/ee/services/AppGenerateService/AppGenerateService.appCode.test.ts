@@ -601,14 +601,16 @@ describe('AppGenerateService.importAppCode', () => {
             ),
         );
 
-        await expect(
-            service.importAppCode(makeUser(), PROJECT_UUID, {
-                targetAppUuid: EXISTING_APP_UUID,
-                code: makeCode(undefined, {
-                    access: { users: [], groups: [] },
-                }),
-            } as ImportAppCodeRequestBody),
-        ).rejects.toThrow(ForbiddenError);
+        const rejection = service.importAppCode(makeUser(), PROJECT_UUID, {
+            targetAppUuid: EXISTING_APP_UUID,
+            code: makeCode(undefined, {
+                access: { users: [], groups: [] },
+            }),
+        } as ImportAppCodeRequestBody);
+        await expect(rejection).rejects.toThrow(ForbiddenError);
+        await expect(rejection).rejects.toThrow(
+            /Cannot apply the access block in lightdash-app\.yml for app "[^"]+": You do not have permission to manage direct access for this resource\. Remove the access block/,
+        );
 
         expect(
             coderService.assertCanApplyDirectAccessPolicy,
@@ -638,7 +640,9 @@ describe('AppGenerateService.importAppCode', () => {
                     access: { users: [], groups: [] },
                 }),
             } as ImportAppCodeRequestBody),
-        ).rejects.toThrow('policy rejected');
+        ).rejects.toThrow(
+            /Cannot apply the access block in lightdash-app\.yml for app "[^"]+": policy rejected\./,
+        );
 
         expect(appModel.updateVersionStatusIfInProgress).toHaveBeenCalledWith(
             NEW_APP_UUID,
