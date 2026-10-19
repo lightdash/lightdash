@@ -118,7 +118,6 @@ import {
     type AiAgentSkill,
     type ParametersValuesMap,
     type PivotConfiguration,
-    type PivotValuesColumn,
     type QueryHistory,
     type ReadyQueryResultsPage,
     type RegisteredAccount,
@@ -489,7 +488,6 @@ const mcpRenderChartTool = withProjectScopeInput(
 type McpChartPivot = {
     rows: Record<string, unknown>[];
     fieldsMap: ItemsMap;
-    valuesColumns: PivotValuesColumn[];
     pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
     parameters: ParametersValuesMap | null;
     timezone: string | null;
@@ -1402,6 +1400,7 @@ export class McpService extends BaseService {
         pivotConfiguration,
         deadlineMs,
         signal,
+        noSeriesMessage,
     }: {
         ctx: McpProtocolContext;
         projectUuid: string;
@@ -1409,6 +1408,7 @@ export class McpService extends BaseService {
         pivotConfiguration: PivotConfiguration;
         deadlineMs: number;
         signal: AbortSignal;
+        noSeriesMessage: string;
     }): Promise<McpChartPivotResult> {
         const { account } = McpService.getAccount(ctx);
         const parameters =
@@ -1454,16 +1454,13 @@ export class McpService extends BaseService {
             aiAccessOnly: true,
         });
         if (!results.pivotDetails) {
-            throw new ParameterError(
-                'The grouped query returned no series to draw. Call render_chart without chartConfig.groupBy, or with defaultVizType table.',
-            );
+            throw new ParameterError(noSeriesMessage);
         }
         return {
             status: 'done',
             pivot: {
                 rows: results.rows,
                 fieldsMap: results.fields,
-                valuesColumns: results.pivotDetails.valuesColumns,
                 pivotDetails: results.pivotDetails,
                 parameters,
                 timezone: results.displayTimezone,
@@ -1545,13 +1542,18 @@ export class McpService extends BaseService {
             },
             // Builders only pivot grouped charts, so ungrouped ones get an empty pivot
             getPivotedResults: getWarehousePivotedResults(
-                pivot ?? {
-                    rows: [],
-                    fieldsMap: fields,
-                    valuesColumns: [],
-                    parameters: null,
-                    timezone: null,
-                },
+                pivot
+                    ? {
+                          ...pivot,
+                          valuesColumns: pivot.pivotDetails.valuesColumns,
+                      }
+                    : {
+                          rows: [],
+                          fieldsMap: fields,
+                          valuesColumns: [],
+                          parameters: null,
+                          timezone: null,
+                      },
             ),
         });
 
@@ -1703,6 +1705,7 @@ export class McpService extends BaseService {
                   pivotConfiguration,
                   deadlineMs,
                   signal,
+                  noSeriesMessage: `Custom chart type "${slug}" returned no series to draw. Bind its series slot to a different query dimension, or leave it unbound.`,
               })
             : null;
         if (pivotResult?.status === 'running') {
@@ -1723,7 +1726,8 @@ export class McpService extends BaseService {
                   rows: results.rows,
                   fields: results.fields,
                   pivotDetails: null,
-                  parameters: null,
+                  parameters:
+                      sourceQueryHistory.requestParameters?.parameters ?? null,
                   displayTimezone: results.displayTimezone,
               };
 
@@ -4639,6 +4643,8 @@ export class McpService extends BaseService {
                                       pivotConfiguration,
                                       deadlineMs,
                                       signal: extra.signal,
+                                      noSeriesMessage:
+                                          'The grouped query returned no series to draw. Call render_chart without chartConfig.groupBy, or with defaultVizType table.',
                                   })
                                 : null;
                             if (pivotResult?.status === 'running') {

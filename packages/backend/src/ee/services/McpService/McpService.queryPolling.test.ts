@@ -3268,6 +3268,68 @@ describe('render_chart with a custom chart type', () => {
             expect(result.isError).toBe(true);
             expect(result.content[0].text).toContain('Warehouse timed out');
         });
+
+        it('points the series slot elsewhere when the pivot returns no series', async () => {
+            const { aiAgentToolsService } = setupSeries({ pivoted: null });
+
+            const result = await render(seriesChartConfig);
+
+            expect(result.isError).toBe(true);
+            expect(result.content[0].text).toContain(
+                'Custom chart type "stacked-flow" returned no series to draw. Bind its series slot to a different query dimension, or leave it unbound.',
+            );
+            expect(result.content[0].text).not.toContain('groupBy');
+            expect(
+                aiAgentToolsService.getMcpCustomChartTypePreviewToken,
+            ).not.toHaveBeenCalled();
+        });
+    });
+
+    it('formats unpivoted rows with the source query parameters', async () => {
+        const { asyncQueryService } = setup();
+        asyncQueryService.getAsyncQueryHistory.mockResolvedValue({
+            ...makeQueryHistory(
+                QueryHistoryStatus.READY,
+                QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                null,
+                { dimensions: ['orders_status'] },
+            ),
+            requestParameters: {
+                context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                parameters: { currency: 'usd' },
+            },
+        });
+        asyncQueryService.getRawAsyncQueryResults.mockResolvedValue({
+            rows: [{ orders_status: 'completed', orders_orders_count: 42 }],
+            fields: {
+                ...fields,
+                orders_orders_count: {
+                    ...fields.orders_orders_count,
+                    format: '${ld.parameters.currency=="usd"?"$":""}0,0',
+                },
+            },
+            pivotDetails: null,
+            displayTimezone: null,
+            truncated: false,
+        });
+
+        const result = await render(customChartConfig);
+
+        expect(result.isError).toBeUndefined();
+        expect(result._meta?.result).toMatchObject({
+            customChartType: {
+                vizContext: {
+                    pivotDetails: null,
+                    rows: [
+                        {
+                            orders_orders_count: {
+                                value: { raw: 42, formatted: '$42' },
+                            },
+                        },
+                    ],
+                },
+            },
+        });
     });
 
     it('runs no pivoted query without a series slot', async () => {
