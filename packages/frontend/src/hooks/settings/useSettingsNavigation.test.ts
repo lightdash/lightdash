@@ -273,7 +273,7 @@ describe('limited project settings navigation', () => {
 
 describe('managed analytics project settings navigation', () => {
     it.each(['full', 'limited'] as const)(
-        'hides unusable project settings with %s access',
+        'keeps only useful analytics project settings with %s access',
         (type) => {
             const { result } = renderHook(() =>
                 useSettingsNavigation(
@@ -289,6 +289,15 @@ describe('managed analytics project settings navigation', () => {
                             provisioningSource: 'analytics',
                         } as Project,
                         canAccessAnalyticsSettings: true,
+                        health: {
+                            softDelete: { enabled: true },
+                            preAggregates: { enabled: false },
+                        } as SettingsContext['health'],
+                        user: {
+                            ability: new Ability([
+                                { action: 'manage', subject: 'all' },
+                            ]),
+                        } as SettingsContext['user'],
                         projectSettingsAccess:
                             type === 'full'
                                 ? { type, defaultPage: 'settings' }
@@ -301,8 +310,14 @@ describe('managed analytics project settings navigation', () => {
                 ),
             );
             expect(
-                result.current.find(({ id }) => id === 'current-project'),
-            ).toBeUndefined();
+                result.current
+                    .find(({ id }) => id === 'current-project')
+                    ?.items.map(({ label }) => label),
+            ).toEqual(
+                type === 'full'
+                    ? ['Project access', 'Recently deleted']
+                    : ['Recently deleted'],
+            );
             expect(result.current.flatMap(({ items }) => items)).toContainEqual(
                 expect.objectContaining({
                     label: 'Lightdash analytics',

@@ -817,10 +817,7 @@ export const useSettingsNavigation = (
         ];
 
         const hasProjectSettings =
-            !!organization &&
-            !organization.needsProject &&
-            !!project &&
-            project.provisioningSource !== 'analytics';
+            !!organization && !organization.needsProject && !!project;
         const canUpdateCurrentProject =
             hasProjectSettings && projectSettingsAccess.type === 'full';
         const base = `/generalSettings/projectManagement/${project?.projectUuid}`;
@@ -1318,7 +1315,14 @@ export const useSettingsNavigation = (
                 id: 'current-project',
                 title: 'Current project',
                 subtitle: project.name,
-                items: projectItems,
+                items:
+                    project.provisioningSource === 'analytics'
+                        ? projectItems.filter(
+                              ({ to }) =>
+                                  to === `${base}/projectAccess` ||
+                                  to === `${base}/recentlyDeleted`,
+                          )
+                        : projectItems,
             });
         }
 

@@ -213,7 +213,7 @@ const ProjectSettings: FC<{
                 },
             ];
         }
-        return [
+        const projectRoutes: RouteObject[] = [
             {
                 path: `/settings`,
                 element: (
@@ -259,7 +259,11 @@ const ProjectSettings: FC<{
                 element: (
                     <ProjectSettingsPage
                         title="Project access"
-                        description="Manage who can access this project and what they can do."
+                        description={
+                            project?.provisioningSource === 'analytics'
+                                ? 'Grant access with a custom role containing View managed analytics. Standard project roles alone do not grant access to organization analytics.'
+                                : 'Manage who can access this project and what they can do.'
+                        }
                         actions={
                             <SettingsPageDocumentationLink
                                 href="https://docs.lightdash.com/references/roles"
@@ -611,6 +615,32 @@ const ProjectSettings: FC<{
                   ]
                 : []),
         ];
+        if (project?.provisioningSource === 'analytics') {
+            return [
+                ...projectRoutes.filter(
+                    ({ path }) =>
+                        path === '/recentlyDeleted' ||
+                        (path === '/projectAccess' &&
+                            user.data?.ability.can(
+                                'manage',
+                                subject('Project', {
+                                    organizationUuid: project.organizationUuid,
+                                    projectUuid,
+                                }),
+                            )),
+                ),
+                {
+                    path: '*',
+                    element: (
+                        <Navigate
+                            to="/generalSettings/lightdashAnalytics"
+                            replace
+                        />
+                    ),
+                },
+            ];
+        }
+        return projectRoutes;
     }, [
         projectUuid,
         projectSettingsAccess,
@@ -676,10 +706,6 @@ const ProjectSettings: FC<{
                 <SuboptimalState title="Loading project" loading />
             </div>
         );
-    }
-
-    if (project.provisioningSource === 'analytics') {
-        return <Navigate to="/generalSettings/lightdashAnalytics" replace />;
     }
 
     return (

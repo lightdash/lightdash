@@ -65,7 +65,8 @@ const SettingsMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                         component={Link}
                         leftSection={<MantineIcon icon={IconDatabase} />}
                         to={
-                            project?.provisioningSource === 'analytics'
+                            project?.provisioningSource === 'analytics' &&
+                            projectSettingsAccess.type === 'full'
                                 ? '/generalSettings/lightdashAnalytics'
                                 : `/generalSettings/projectManagement/${activeProjectUuid}/${projectSettingsAccess.defaultPage}`
                         }

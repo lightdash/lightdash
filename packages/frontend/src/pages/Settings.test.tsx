@@ -210,6 +210,77 @@ describe('limited project settings routes', () => {
         },
     );
 
+    it.each(['projectAccess', 'recentlyDeleted'])(
+        'keeps managed analytics /%s accessible',
+        async (page) => {
+            renderSettings(
+                page,
+                [{ action: 'manage', subject: 'all' }],
+                true,
+                `${base}/${page}`,
+                false,
+                { isCopilotEnabled: false, isTrial: false },
+                true,
+                false,
+                true,
+            );
+            expect(
+                await screen.findByRole('heading', {
+                    name:
+                        page === 'projectAccess'
+                            ? 'Project access'
+                            : 'Recently deleted',
+                }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('status', { name: 'Current URL' }),
+            ).toHaveTextContent(`${base}/${page}`);
+            if (page === 'projectAccess') {
+                expect(
+                    screen.getByText(
+                        /Standard project roles alone do not grant access/,
+                    ),
+                ).toBeInTheDocument();
+            }
+            expect(
+                screen.queryByRole('link', { name: 'Connection settings' }),
+            ).not.toBeInTheDocument();
+        },
+    );
+
+    it('keeps analytics recovery available without project administration', async () => {
+        renderSettings(
+            'recentlyDeleted',
+            [
+                viewProject,
+                {
+                    action: 'manage',
+                    subject: 'DeletedContent',
+                    conditions: scope,
+                },
+            ],
+            true,
+            `${base}/recentlyDeleted`,
+            false,
+            { isCopilotEnabled: false, isTrial: false },
+            true,
+            false,
+            true,
+        );
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Recently deleted',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('link', { name: 'Project access' }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+        expect(
+            await screen.findByRole('menuitem', { name: 'Project settings' }),
+        ).toHaveAttribute('href', `${base}/recentlyDeleted`);
+    });
+
     it.each([
         'settings',
         'projectAccess',
