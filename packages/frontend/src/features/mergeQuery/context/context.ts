@@ -130,7 +130,12 @@ export type MergeContextValue = {
         namesByHandle?: Record<string, string>,
     ) => void;
     setFocus: (focus: MergeFocus) => void;
-    setSourceExplore: (sourceId: string, exploreName: string | null) => void;
+    setSourceExplore: (
+        sourceId: string,
+        exploreName: string | null,
+        /** Current names by handle; the other sources keep theirs. */
+        namesByHandle: Record<string, string>,
+    ) => void;
     toggleSourceField: (
         sourceId: string,
         fieldId: string,

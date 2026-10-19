@@ -42,6 +42,13 @@ vi.mock('../context/useMerge', () => ({
     }),
 }));
 
+vi.mock('../hooks/useMergeSourceNames', () => ({
+    useMergeSourceNames: () => ({
+        nameByHandle: { a: 'orders', combined: 'payments' },
+        handleByName: {},
+    }),
+}));
+
 vi.mock('../hooks/useMergeSourceFilter', () => ({
     useMergeSourceFilter: () => state.addSourceFilter,
 }));
@@ -143,6 +150,7 @@ describe('MergeSourceTree table picker', () => {
         expect(state.setSourceExplore).toHaveBeenCalledWith(
             'combined',
             'customers',
+            { a: 'orders', combined: 'payments' },
         );
         expect(setIsChoosingExplore).toHaveBeenCalledWith(false);
     });

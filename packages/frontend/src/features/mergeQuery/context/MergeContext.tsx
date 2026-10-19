@@ -262,19 +262,40 @@ export const MergeProvider: FC<
     );
 
     const setSourceExplore = useCallback(
-        (sourceId: string, exploreName: string | null) => {
+        (
+            sourceId: string,
+            exploreName: string | null,
+            namesByHandle: Record<string, string>,
+        ) => {
             // Fields belong to an explore, so changing it clears what was picked
-            // rather than leaving ids that no longer resolve.
+            // rather than leaving ids that no longer resolve. The other sources
+            // keep their names so calculations over them still read the same columns.
             setAdditionalSources((current) =>
-                current.map((source) =>
-                    source.id === sourceId
-                        ? {
-                              ...emptyMergeSource(sourceId),
-                              exploreName,
-                          }
-                        : source,
-                ),
+                current.map((source) => {
+                    if (source.id === sourceId) {
+                        return { ...emptyMergeSource(sourceId), exploreName };
+                    }
+                    return namesByHandle[source.id]
+                        ? { ...source, name: namesByHandle[source.id] }
+                        : source;
+                }),
             );
+            const changedSourceName = namesByHandle[sourceId];
+            const changedSource = additionalSources.find(
+                (source) => source.id === sourceId,
+            );
+            if (changedSourceName && changedSource?.exploreName) {
+                setTableCalculations((current) =>
+                    current.filter(
+                        (calculation) =>
+                            !referencesSource(
+                                calculation,
+                                changedSourceName,
+                                changedSource,
+                            ),
+                    ),
+                );
+            }
             setJoinParts((current) =>
                 current.map((part) => ({
                     ...part,
@@ -285,7 +306,7 @@ export const MergeProvider: FC<
                 })),
             );
         },
-        [],
+        [additionalSources],
     );
 
     const setJoinField = useCallback(

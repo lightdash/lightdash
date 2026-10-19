@@ -14,6 +14,7 @@ import {
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { useEffect, useRef, type PropsWithChildren } from 'react';
 import { PRIMARY_SOURCE_ID } from '../constants';
+import { getMergeSourceNames } from '../utils/getMergeSourceNames';
 import { MergeProvider } from './MergeContext';
 import { MERGE_URL_PARAM, serializeMergeState } from './mergeUrlState';
 import { useMerge } from './useMerge';
@@ -252,7 +253,7 @@ describe('MergeProvider', () => {
         const { result } = renderHook(() => useMerge(), { wrapper });
 
         act(() => result.current.addSource('b'));
-        act(() => result.current.setSourceExplore('b', 'payments'));
+        act(() => result.current.setSourceExplore('b', 'payments', {}));
         act(() => {
             result.current.toggleSourceField('b', 'orders_status', true);
             result.current.toggleSourceField(
@@ -302,7 +303,7 @@ describe('MergeProvider', () => {
         };
 
         act(() => result.current.addSource('b'));
-        act(() => result.current.setSourceExplore('b', 'payments'));
+        act(() => result.current.setSourceExplore('b', 'payments', {}));
         act(() => result.current.addSourceAdditionalMetric('b', metric));
         act(() => result.current.addSourceAdditionalMetric('b', metric));
 
@@ -322,9 +323,9 @@ describe('MergeProvider', () => {
             result.current.addSource('d');
         });
         act(() => {
-            result.current.setSourceExplore('b', 'payments');
-            result.current.setSourceExplore('c', 'payments');
-            result.current.setSourceExplore('d', 'payments');
+            result.current.setSourceExplore('b', 'payments', {});
+            result.current.setSourceExplore('c', 'payments', {});
+            result.current.setSourceExplore('d', 'payments', {});
             result.current.setJoinField(0, 'a', 'orders_week');
             result.current.setJoinField(0, 'b', 'payments_week');
             result.current.setJoinField(0, 'c', 'payments_week');
@@ -381,7 +382,7 @@ describe('MergeProvider', () => {
         });
         act(() => {
             ['b', 'c', 'd'].forEach((id) => {
-                result.current.setSourceExplore(id, 'payments');
+                result.current.setSourceExplore(id, 'payments', {});
             });
         });
         act(() => {
@@ -409,6 +410,57 @@ describe('MergeProvider', () => {
                 d: 'payments_3',
             }),
         );
+        expect(
+            result.current.tableCalculations.map(({ name }) => name),
+        ).toEqual(['keep_sum']);
+    });
+
+    it('keeps the other sources names when a middle source changes explore', () => {
+        const { result } = renderHook(() => useMerge(), { wrapper });
+        const names = () =>
+            getMergeSourceNames({
+                tableName: 'payments',
+                primarySourceName: null,
+                additionalSources: result.current.additionalSources,
+            }).nameByHandle;
+        act(() => {
+            result.current.addSource('b');
+            result.current.addSource('c');
+        });
+        act(() => {
+            result.current.setSourceExplore('b', 'payments', names());
+        });
+        act(() => {
+            result.current.setSourceExplore('c', 'payments', names());
+        });
+        act(() => {
+            ['b', 'c'].forEach((id) => {
+                result.current.toggleSourceField(id, 'payments_total', false);
+            });
+            result.current.addTableCalculation({
+                name: 'keep_sum',
+                displayName: 'Keep sum',
+                sql: '',
+                formula: '=payments_payments_total + payments_3_payments_total',
+            });
+            result.current.addTableCalculation({
+                name: 'remove_sum',
+                displayName: 'Remove sum',
+                sql: '',
+                formula: '=payments_payments_total + payments_2_payments_total',
+            });
+        });
+        expect(names()).toEqual({
+            a: 'payments',
+            b: 'payments_2',
+            c: 'payments_3',
+        });
+        act(() => result.current.setSourceExplore('b', 'refunds', names()));
+        expect(names()).toEqual({
+            a: 'payments',
+            b: 'refunds',
+            c: 'payments_3',
+        });
         expect(
             result.current.tableCalculations.map(({ name }) => name),
         ).toEqual(['keep_sum']);

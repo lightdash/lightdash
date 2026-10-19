@@ -12,6 +12,7 @@ import { ItemDetailProvider } from '../../../components/Explorer/ExploreTree/Tab
 import { useExplore } from '../../../hooks/useExplore';
 import { useMerge } from '../context/useMerge';
 import { useMergeSourceFilter } from '../hooks/useMergeSourceFilter';
+import { useMergeSourceNames } from '../hooks/useMergeSourceNames';
 
 /** Field picker for a source owned by the merge editor. */
 export const MergeSourceTree: FC<{
@@ -28,6 +29,7 @@ export const MergeSourceTree: FC<{
     hideSelectedFields = false,
 }) => {
     const merge = useMerge();
+    const { nameByHandle } = useMergeSourceNames();
     const source = merge.additionalSources.find(({ id }) => id === sourceId);
     const { data: explore, isInitialLoading } = useExplore(
         source?.exploreName ?? undefined,
@@ -76,12 +78,17 @@ export const MergeSourceTree: FC<{
                                 merge.setSourceExplore(
                                     source.id,
                                     selectedExplore.name,
+                                    nameByHandle,
                                 );
                             }
                             setIsChoosingExplore(false);
                         }}
                         onExploreCreated={(exploreName) => {
-                            merge.setSourceExplore(source.id, exploreName);
+                            merge.setSourceExplore(
+                                source.id,
+                                exploreName,
+                                nameByHandle,
+                            );
                             setIsChoosingExplore(false);
                         }}
                     />
