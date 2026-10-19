@@ -44,7 +44,7 @@ const SpaceWarehouseConnectionSelect: FC<Props & { parentLabel: string }> = ({
         warehouseConnections && (
             <Select
                 label="Warehouse connection"
-                description="Content in this space and its sub-spaces queries with this connection. People who can edit this space can also pick it in the SQL runner."
+                description="Content in this space and its sub-spaces queries with this connection. People with SQL runner access who can edit a space that sets this connection can use it in the SQL runner."
                 data={[
                     {
                         value: INHERIT_VALUE,
