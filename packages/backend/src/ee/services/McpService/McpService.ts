@@ -171,6 +171,8 @@ import { McpContextModel } from '../../../models/McpContextModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import { buildCspHeader } from '../../../routers/appPreviewRouter';
+import { verifyPreviewToken } from '../../../routers/appPreviewToken';
 import type { AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
 import {
     buildResultReader,
@@ -260,6 +262,7 @@ import {
     registerAppTool,
     RESOURCE_MIME_TYPE,
 } from './mcpAppHelpers';
+import { toMetaContentSecurityPolicy } from './mcpCustomChartFrameHtml';
 
 export enum McpToolName {
     CONNECT_AGENT = 'connect_agent',
@@ -1751,6 +1754,12 @@ export class McpService extends BaseService {
                 dataAppVizUuid: resolved.dataAppVizUuid,
                 version: resolved.dataAppVizVersion,
             });
+        const contentSecurityPolicy =
+            this.getCustomChartTypeContentSecurityPolicy({
+                dataAppVizUuid: resolved.dataAppVizUuid,
+                version: resolved.dataAppVizVersion,
+                token,
+            });
 
         const content = [
             {
@@ -1758,6 +1767,10 @@ export class McpService extends BaseService {
                 text: `Custom chart type "${resolved.name}" (${slug}, version ${resolved.dataAppVizVersion}) sent to the chart app for queryUuid: ${renderTool.queryUuid}. Only MCP App-capable clients display it; echartsOption in structuredContent is a placeholder, not a failed render. If your client cannot display MCP Apps, the user has not seen it: build the visual from the query rows.${
                     results.rows.length === 0
                         ? ' The query returned 0 rows.'
+                        : ''
+                }${
+                    contentSecurityPolicy === null
+                        ? ' The chart type could not be loaded, so the chart view shows the query rows instead.'
                         : ''
                 }${exploreUrl ? ` Explore from here: ${exploreUrl}` : ''}`,
             },
@@ -1793,6 +1806,7 @@ export class McpService extends BaseService {
                             version: resolved.dataAppVizVersion,
                             token,
                         }),
+                        contentSecurityPolicy,
                         previewOrigin,
                         vizContext: buildMcpCustomChartTypeVizContext({
                             chartConfig,
@@ -1814,6 +1828,39 @@ export class McpService extends BaseService {
                 },
             },
         };
+    }
+
+    /** The policy the preview router serves with the bundle, in the form a <meta> tag accepts. */
+    private getCustomChartTypeContentSecurityPolicy({
+        dataAppVizUuid,
+        version,
+        token,
+    }: {
+        dataAppVizUuid: string;
+        version: number;
+        token: string;
+    }): string | null {
+        const { appRuntime, lightdashSecrets } = this.lightdashConfig;
+        const verified = verifyPreviewToken(
+            token,
+            lightdashSecrets,
+            dataAppVizUuid,
+            version,
+        );
+        if (!verified.ok) {
+            this.logger.warn(
+                'Cannot build custom chart type policy for MCP render',
+                { dataAppVizUuid, version },
+            );
+            return null;
+        }
+        return toMetaContentSecurityPolicy(
+            buildCspHeader(
+                appRuntime,
+                [],
+                verified.payload.browserImageOrigins,
+            ),
+        );
     }
 
     private static buildMetricQueryPollResult({
@@ -4299,7 +4346,12 @@ export class McpService extends BaseService {
                                         connectDomains: previewDomains,
                                         resourceDomains: previewDomains,
                                         baseUriDomains: previewDomains,
-                                        frameDomains: previewDomains,
+                                        // Custom chart types run in a blob: frame; hosts that build
+                                        // frame-src from this list block it otherwise.
+                                        frameDomains: [
+                                            ...previewDomains,
+                                            'blob:',
+                                        ],
                                     },
                                 },
                             },
