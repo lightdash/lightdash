@@ -1496,8 +1496,6 @@ export class AsyncQueryService extends ProjectService {
             queryHistory,
         );
 
-        const previousStatus = queryHistory.status;
-
         const cancelled = await this.queryHistoryModel.update(
             queryHistory.queryUuid,
             projectUuid,
@@ -1507,9 +1505,20 @@ export class AsyncQueryService extends ProjectService {
             account,
         );
         if (cancelled === 0) return;
+        this.trackQueryCancelled(
+            queryHistory.status,
+            queryHistory.context,
+            queryHistory.createdAt,
+        );
+        await this.cancelMergeLegs(account, projectUuid, queryUuid);
+    }
 
-        // Track state transition to cancelled
-        const queryContext = queryHistory.context || 'unknown';
+    private trackQueryCancelled(
+        previousStatus: QueryHistoryStatus,
+        context: QueryExecutionContext,
+        createdAt: Date,
+    ) {
+        const queryContext = context || 'unknown';
         if (
             previousStatus === QueryHistoryStatus.PENDING ||
             previousStatus === QueryHistoryStatus.QUEUED ||
@@ -1521,15 +1530,11 @@ export class AsyncQueryService extends ProjectService {
                 queryContext,
             );
         }
-
-        // Track cancelled query in Prometheus
         this.trackQueryTerminalStatus(
             QueryHistoryStatus.CANCELLED,
-            queryHistory.createdAt,
+            createdAt,
             queryContext,
         );
-
-        await this.cancelMergeLegs(account, projectUuid, queryUuid);
     }
 
     /** Cancels a merge's running legs; a leg another running query reads is left to finish. */
@@ -1544,19 +1549,18 @@ export class AsyncQueryService extends ProjectService {
         const legUuids = Object.keys(spec.guard.legLabelByReferenceTable)
             .map((tableName) => spec.references[tableName])
             .filter((legUuid): legUuid is string => legUuid !== undefined);
-        const runningLegs =
-            await this.queryHistoryModel.findRunningQueriesReadOnlyBy(
+        const cancelledLegs =
+            await this.queryHistoryModel.cancelRunningQueriesReadOnlyBy(
                 legUuids,
                 projectUuid,
                 queryUuid,
+                account,
             );
-        await Promise.all(
-            runningLegs.map((legUuid) =>
-                this.cancelAsyncQuery({
-                    account,
-                    projectUuid,
-                    queryUuid: legUuid,
-                }),
+        cancelledLegs.forEach((leg) =>
+            this.trackQueryCancelled(
+                leg.previousStatus,
+                leg.context,
+                leg.createdAt,
             ),
         );
     }

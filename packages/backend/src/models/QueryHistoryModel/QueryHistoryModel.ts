@@ -666,12 +666,22 @@ export class QueryHistoryModel {
         return row?.duckdb_execution ?? null;
     }
 
-    /** Of the given queries, those still running that no running query but the consumer reads. */
-    async findRunningQueriesReadOnlyBy(
+    /** Cancels those of the given queries still running that no running query but the consumer reads. */
+    async cancelRunningQueriesReadOnlyBy(
         queryUuids: string[],
         projectUuid: string,
         consumerQueryUuid: string,
-    ): Promise<string[]> {
+        account: Pick<Account, 'isRegisteredUser'> & {
+            user: Pick<Account['user'], 'id'>;
+        },
+    ): Promise<
+        {
+            queryUuid: string;
+            previousStatus: QueryHistoryStatus;
+            context: QueryExecutionContext;
+            createdAt: Date;
+        }[]
+    > {
         if (queryUuids.length === 0) return [];
         const running = [
             QueryHistoryStatus.PENDING,
@@ -694,15 +704,40 @@ export class QueryHistoryModel {
                         `jsonb_path_exists(reader.request_parameters, '$.references.* \\? (@ == $uuid)', jsonb_build_object('uuid', query.query_uuid::text))`,
                     );
             });
-        const rows: { query_uuid: string }[] = await this.database(
-            `${QueryHistoryTableName} as query`,
-        )
-            .select('query.query_uuid')
+        const createdByColumn = account.isRegisteredUser()
+            ? 'created_by_user_uuid'
+            : 'created_by_account';
+        // A reader committed after this statement's snapshot is not seen; it then fails on the cancelled leg
+        const legs = this.database(`${QueryHistoryTableName} as query`)
+            .select('query.query_uuid', 'query.status')
             .whereIn('query.query_uuid', queryUuids)
             .andWhere('query.project_uuid', projectUuid)
+            .andWhere(`query.${createdByColumn}`, account.user.id)
             .whereIn('query.status', running)
-            .whereNotExists(readers);
-        return rows.map((row) => row.query_uuid);
+            .whereNotExists(readers)
+            .forUpdate();
+        const rows: {
+            query_uuid: string;
+            previous_status: QueryHistoryStatus;
+            context: QueryExecutionContext;
+            created_at: Date;
+        }[] = await this.database(QueryHistoryTableName)
+            .with('legs', legs)
+            .updateFrom('legs')
+            .whereRaw(`${QueryHistoryTableName}.query_uuid = legs.query_uuid`)
+            .update({ status: QueryHistoryStatus.CANCELLED })
+            .returning([
+                `${QueryHistoryTableName}.query_uuid`,
+                this.database.raw('legs.status as previous_status'),
+                `${QueryHistoryTableName}.context`,
+                `${QueryHistoryTableName}.created_at`,
+            ]);
+        return rows.map((row) => ({
+            queryUuid: row.query_uuid,
+            previousStatus: row.previous_status,
+            context: row.context,
+            createdAt: row.created_at,
+        }));
     }
 
     /** Records that a DuckDB source query was served from another run's results. */

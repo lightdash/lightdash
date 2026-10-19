@@ -1,25 +1,29 @@
-import { QueryHistoryStatus } from '@lightdash/common';
+import { QueryExecutionContext, QueryHistoryStatus } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
+import { buildAccount } from '../../auth/account/account.mock';
 import { QueryHistoryModel } from './QueryHistoryModel';
 
-describe('findRunningQueriesReadOnlyBy (PostgreSQL)', () => {
+describe('cancelRunningQueriesReadOnlyBy (PostgreSQL)', () => {
     let database: Knex;
     let tx: Knex.Transaction;
     let model: QueryHistoryModel;
     const projectUuid = randomUUID();
     const consumer = randomUUID();
+    const account = buildAccount();
 
     const insert = async ({
         queryUuid = randomUUID(),
         status = QueryHistoryStatus.EXECUTING,
         project = projectUuid,
+        createdBy = account.user.id,
         duckdbReferences = null,
         requestReferences = null,
     }: {
         queryUuid?: string;
         status?: QueryHistoryStatus;
         project?: string;
+        createdBy?: string;
         duckdbReferences?: Record<string, string> | null;
         requestReferences?: Record<string, string> | null;
     } = {}) => {
@@ -27,12 +31,16 @@ describe('findRunningQueriesReadOnlyBy (PostgreSQL)', () => {
             query_uuid: string;
             project_uuid: string;
             status: QueryHistoryStatus;
+            created_by_user_uuid: string;
+            context: QueryExecutionContext;
             duckdb_execution: { references: Record<string, string> } | null;
             request_parameters: { references?: Record<string, string> };
         }>('query_history').insert({
             query_uuid: queryUuid,
             project_uuid: project,
             status,
+            created_by_user_uuid: createdBy,
+            context: QueryExecutionContext.EXPLORE,
             duckdb_execution: duckdbReferences
                 ? { references: duckdbReferences }
                 : null,
@@ -42,8 +50,23 @@ describe('findRunningQueriesReadOnlyBy (PostgreSQL)', () => {
         });
         return queryUuid;
     };
-    const find = (legs: string[]) =>
-        model.findRunningQueriesReadOnlyBy(legs, projectUuid, consumer);
+    const statusOf = async (queryUuid: string) =>
+        (
+            await tx<{ query_uuid: string; status: QueryHistoryStatus }>(
+                'query_history',
+            )
+                .where('query_uuid', queryUuid)
+                .first()
+        )?.status;
+    const cancel = async (legs: string[]) =>
+        (
+            await model.cancelRunningQueriesReadOnlyBy(
+                legs,
+                projectUuid,
+                consumer,
+                account,
+            )
+        ).map((leg) => leg.queryUuid);
 
     beforeAll(() => {
         if (!process.env.PGDATABASE && !process.env.PGCONNECTIONURI)
@@ -64,7 +87,7 @@ describe('findRunningQueriesReadOnlyBy (PostgreSQL)', () => {
     beforeEach(async () => {
         tx = await database.transaction();
         await tx.raw(
-            `CREATE TEMP TABLE query_history (query_uuid uuid, project_uuid uuid, status text, created_at timestamptz DEFAULT clock_timestamp(), duckdb_execution jsonb, request_parameters jsonb) ON COMMIT DROP`,
+            `CREATE TEMP TABLE query_history (query_uuid uuid, project_uuid uuid, status text, created_by_user_uuid text, created_by_account text, context text, created_at timestamptz DEFAULT clock_timestamp(), duckdb_execution jsonb, request_parameters jsonb) ON COMMIT DROP`,
         );
         model = new QueryHistoryModel({ database: tx });
     });
@@ -75,15 +98,45 @@ describe('findRunningQueriesReadOnlyBy (PostgreSQL)', () => {
         await database?.destroy();
     });
 
-    it('returns running legs and leaves finished ones', async () => {
+    it('cancels running legs and leaves finished ones', async () => {
         const executing = await insert();
         const pending = await insert({ status: QueryHistoryStatus.PENDING });
         const ready = await insert({ status: QueryHistoryStatus.READY });
         const otherProject = await insert({ project: randomUUID() });
 
+        const cancelled = await model.cancelRunningQueriesReadOnlyBy(
+            [executing, pending, ready, otherProject],
+            projectUuid,
+            consumer,
+            account,
+        );
+
         expect(
-            (await find([executing, pending, ready, otherProject])).sort(),
-        ).toEqual([executing, pending].sort());
+            cancelled
+                .map(({ queryUuid, previousStatus, context }) => ({
+                    queryUuid,
+                    previousStatus,
+                    context,
+                }))
+                .sort((a, b) => a.queryUuid.localeCompare(b.queryUuid)),
+        ).toEqual(
+            [
+                {
+                    queryUuid: executing,
+                    previousStatus: QueryHistoryStatus.EXECUTING,
+                    context: QueryExecutionContext.EXPLORE,
+                },
+                {
+                    queryUuid: pending,
+                    previousStatus: QueryHistoryStatus.PENDING,
+                    context: QueryExecutionContext.EXPLORE,
+                },
+            ].sort((a, b) => a.queryUuid.localeCompare(b.queryUuid)),
+        );
+        expect(await statusOf(executing)).toBe(QueryHistoryStatus.CANCELLED);
+        expect(await statusOf(pending)).toBe(QueryHistoryStatus.CANCELLED);
+        expect(await statusOf(ready)).toBe(QueryHistoryStatus.READY);
+        expect(await statusOf(otherProject)).toBe(QueryHistoryStatus.EXECUTING);
     });
 
     it('leaves a leg another running query reads', async () => {
@@ -92,10 +145,14 @@ describe('findRunningQueriesReadOnlyBy (PostgreSQL)', () => {
         await insert({ duckdbReferences: { orders: readByCompose } });
         await insert({ requestReferences: { orders: readByPython } });
 
-        expect(await find([readByCompose, readByPython])).toEqual([]);
+        expect(await cancel([readByCompose, readByPython])).toEqual([]);
+        expect(await statusOf(readByCompose)).toBe(
+            QueryHistoryStatus.EXECUTING,
+        );
+        expect(await statusOf(readByPython)).toBe(QueryHistoryStatus.EXECUTING);
     });
 
-    it('returns a leg read only by the consumer, finished queries or another project', async () => {
+    it('cancels a leg read only by the consumer, finished queries or another project', async () => {
         const leg = await insert();
         await insert({
             queryUuid: consumer,
@@ -110,10 +167,18 @@ describe('findRunningQueriesReadOnlyBy (PostgreSQL)', () => {
             duckdbReferences: { orders: leg },
         });
 
-        expect(await find([leg])).toEqual([leg]);
+        expect(await cancel([leg])).toEqual([leg]);
+        expect(await statusOf(leg)).toBe(QueryHistoryStatus.CANCELLED);
+    });
+
+    it("leaves another account's legs", async () => {
+        const leg = await insert({ createdBy: randomUUID() });
+
+        expect(await cancel([leg])).toEqual([]);
+        expect(await statusOf(leg)).toBe(QueryHistoryStatus.EXECUTING);
     });
 
     it('runs no query without legs', async () => {
-        expect(await find([])).toEqual([]);
+        expect(await cancel([])).toEqual([]);
     });
 });
