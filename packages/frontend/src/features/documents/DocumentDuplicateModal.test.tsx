@@ -3,6 +3,7 @@ import { SpaceMemberRole, type PossibleAbilities } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import DocumentDuplicateModal from './DocumentDuplicateModal';
 
 const mocks = vi.hoisted(() => ({
@@ -13,7 +14,7 @@ const mocks = vi.hoisted(() => ({
     spacesLoading: false,
     spacesError: false,
 }));
-vi.mock('../../api', () => ({ lightdashApi: mocks.api }));
+vi.mock('../../api');
 vi.mock('../../hooks/useContent', () => ({
     invalidateContent: mocks.invalidate,
 }));
@@ -59,7 +60,7 @@ vi.mock('../../hooks/useSpaces', () => ({
 describe('Duplicate document', () => {
     const clients: QueryClient[] = [];
     beforeEach(() => {
-        mocks.api.mockReset();
+        mockedLightdashApi.mockReset();
         mocks.navigate.mockReset();
         mocks.invalidate.mockReset();
         mocks.close.mockReset();
@@ -90,7 +91,7 @@ describe('Duplicate document', () => {
     };
 
     it('requires create rights in the chosen space and navigates to the returned copy', async () => {
-        mocks.api.mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             documentUuid: 'fresh-id',
             slug: 'fresh-copy',
         });
@@ -116,7 +117,7 @@ describe('Duplicate document', () => {
         });
         fireEvent.click(submit);
         await waitFor(() =>
-            expect(mocks.api).toHaveBeenCalledWith({
+            expect(mockedLightdashApi).toHaveBeenCalledWith({
                 url: '/projects/project/documents/source/duplicate',
                 method: 'POST',
                 body: JSON.stringify({
@@ -139,7 +140,7 @@ describe('Duplicate document', () => {
     });
 
     it('blocks empty names and duplicate submissions while saving', async () => {
-        mocks.api.mockReturnValue(new Promise(() => {}));
+        mockedLightdashApi.mockReturnValue(new Promise(() => {}));
         renderModal();
         fireEvent.click(screen.getByText('editor space'));
         const name = screen.getByRole('textbox', { name: 'Document name' });
@@ -153,12 +154,12 @@ describe('Duplicate document', () => {
         );
         await waitFor(() => expect(name).toBeDisabled());
         expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
-        expect(mocks.api).toHaveBeenCalledOnce();
+        expect(mockedLightdashApi).toHaveBeenCalledOnce();
         expect(mocks.navigate).not.toHaveBeenCalled();
     });
 
     it('retains the form and error on failure', async () => {
-        mocks.api.mockRejectedValue({
+        mockedLightdashApi.mockRejectedValue({
             status: 'error',
             error: { statusCode: 403, message: 'Cannot create in this space' },
         });

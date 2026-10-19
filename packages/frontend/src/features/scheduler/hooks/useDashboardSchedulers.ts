@@ -10,13 +10,15 @@ import {
     useMutation,
     useQueryClient,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type DashboardSchedulersResponse =
     ApiDashboardPaginatedSchedulersResponse['results'];
 
 const getDashboardSchedulers = async (
+    lightdashApi: LightdashApi,
     uuid: string,
     paginateArgs: KnexPaginateArgs,
     searchQuery?: string,
@@ -55,8 +57,9 @@ export const useDashboardSchedulers = ({
     searchQuery,
     pageSize = 25,
     includeLatestRun,
-}: UseDashboardSchedulersParams) =>
-    useInfiniteQuery<DashboardSchedulersResponse, ApiError>({
+}: UseDashboardSchedulersParams) => {
+    const lightdashApi = useLightdashApi();
+    return useInfiniteQuery<DashboardSchedulersResponse, ApiError>({
         queryKey: [
             'dashboard_schedulers',
             dashboardUuid,
@@ -66,6 +69,7 @@ export const useDashboardSchedulers = ({
         ],
         queryFn: ({ pageParam = 1 }) =>
             getDashboardSchedulers(
+                lightdashApi,
                 dashboardUuid,
                 { page: pageParam as number, pageSize },
                 searchQuery,
@@ -80,8 +84,10 @@ export const useDashboardSchedulers = ({
         refetchOnWindowFocus: false,
         enabled: !!dashboardUuid,
     });
+};
 
 const createDashboardScheduler = async (
+    lightdashApi: LightdashApi,
     uuid: string,
     data: CreateSchedulerAndTargetsWithoutIds,
 ) =>
@@ -92,6 +98,7 @@ const createDashboardScheduler = async (
     });
 
 export const useDashboardSchedulerCreateMutation = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
@@ -100,7 +107,7 @@ export const useDashboardSchedulerCreateMutation = () => {
         { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
     >(
         ({ resourceUuid, data }) =>
-            createDashboardScheduler(resourceUuid, data),
+            createDashboardScheduler(lightdashApi, resourceUuid, data),
         {
             mutationKey: ['create_dashboard_scheduler'],
             onSuccess: async (_, variables) => {

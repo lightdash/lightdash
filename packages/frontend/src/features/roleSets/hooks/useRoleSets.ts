@@ -8,10 +8,10 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 /** Role sets follow the custom-roles gate: instance config or the custom-roles flag. */
 export const useMultipleRolesEnabled = (): boolean => {
@@ -31,6 +31,7 @@ export const useOrganizationUserRoleSet = (
     userUuid: string,
     { enabled = true }: { enabled?: boolean } = {},
 ) => {
+    const lightdashApi = useLightdashApi();
     const { user } = useApp();
     const organizationUuid = user.data?.organizationUuid;
     return useQuery<OrganizationRoleSet, ApiError>(
@@ -50,8 +51,9 @@ export const useProjectUserRoleSet = (
     projectUuid: string,
     userUuid: string,
     { enabled = true }: { enabled?: boolean } = {},
-) =>
-    useQuery<ProjectRoleSet, ApiError>(
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ProjectRoleSet, ApiError>(
         [PROJECT_USER_ROLE_SET_KEY, projectUuid, userUuid],
         () =>
             lightdashApi<ApiProjectRoleSetResponse['results']>({
@@ -62,13 +64,15 @@ export const useProjectUserRoleSet = (
             }),
         { enabled },
     );
+};
 
 export const useProjectGroupRoleSet = (
     projectUuid: string,
     groupUuid: string,
     { enabled = true }: { enabled?: boolean } = {},
-) =>
-    useQuery<ProjectRoleSet, ApiError>(
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ProjectRoleSet, ApiError>(
         [PROJECT_GROUP_ROLE_SET_KEY, projectUuid, groupUuid],
         () =>
             lightdashApi<ApiProjectRoleSetResponse['results']>({
@@ -79,8 +83,10 @@ export const useProjectGroupRoleSet = (
             }),
         { enabled },
     );
+};
 
 export const useReplaceOrganizationUserRoleSetMutation = () => {
+    const lightdashApi = useLightdashApi();
     const { user } = useApp();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -138,6 +144,7 @@ export const useReplaceOrganizationUserRoleSetMutation = () => {
 };
 
 export const useReplaceProjectUserRoleSetMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
 
@@ -181,6 +188,7 @@ export const useReplaceProjectUserRoleSetMutation = (projectUuid: string) => {
 };
 
 export const useReplaceProjectGroupRoleSetMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
 

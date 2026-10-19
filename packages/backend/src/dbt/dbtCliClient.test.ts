@@ -1,7 +1,15 @@
-import { DbtError, SupportedDbtVersions } from '@lightdash/common';
+import {
+    DbtError,
+    SupportedDbtVersions,
+    type DbtExternalModelNode,
+    type DbtRawModelNode,
+    type WarehouseClient,
+} from '@lightdash/common';
 import execa from 'execa';
 import * as fs from 'fs/promises';
 import path from 'path';
+import { DbtBaseProjectAdapter } from '../projectAdapters/dbtBaseProjectAdapter';
+import { DbtGitProjectAdapter } from '../projectAdapters/dbtGitProjectAdapter';
 import { DbtCliClient } from './dbtCliClient';
 import {
     cliArgs as cliArgsWithoutVersion,
@@ -16,8 +24,10 @@ import {
 const execaMock = execa as unknown as import('vitest').Mock;
 
 vi.mock('fs/promises', () => ({
+    access: vi.fn(),
     readFile: vi.fn(),
     writeFile: vi.fn(),
+    mkdir: vi.fn(),
     mkdtemp: vi.fn(),
     rm: vi.fn(),
 }));
@@ -250,5 +260,190 @@ describe('DbtCliClient environment', () => {
         expect((options as { env: Record<string, string> }).env).toMatchObject({
             DBT_TARGET_PATH: '/tmp/dbt_target_test',
         });
+    });
+});
+
+describe('DbtCliClient external model nodes', () => {
+    const externalNode: DbtExternalModelNode = {
+        name: 'orders',
+        package_name: 'shared',
+        identifier: 'orders',
+        schema: 'public',
+        database: 'db',
+        relation_name: null,
+        version: null,
+        latest_version: null,
+        access: null,
+        depends_on_nodes: [],
+    };
+    beforeEach(() => {
+        vi.resetAllMocks();
+        vi.mocked(fs.mkdtemp).mockResolvedValue('/tmp/dbt_target_test');
+        execaMock.mockResolvedValue({
+            stdout: '{"unique_id":"model.shared.orders"}\n{"unique_id":"model.analytics.orders"}',
+            all: '',
+        });
+        vi.mocked(fs.readFile).mockResolvedValue(
+            JSON.stringify({
+                ...manifestMock,
+                nodes: {
+                    'model.shared.orders': {
+                        resource_type: 'model',
+                        path: '',
+                        original_file_path: '',
+                    } as DbtRawModelNode,
+                    'model.analytics.orders': {
+                        resource_type: 'model',
+                        path: 'orders.sql',
+                        original_file_path: 'models/orders.sql',
+                    } as DbtRawModelNode,
+                },
+            }),
+        );
+    });
+    it('writes the plugin, passes controlled paths and removes external selections', async () => {
+        const client = new DbtCliClient({
+            ...cliArgsWithoutVersion,
+            dbtVersion: SupportedDbtVersions.V1_7,
+            selector: 'package:analytics,tag:lightdash',
+            environment: {
+                PYTHONPATH: '/project',
+                LIGHTDASH_DBT_EXTERNAL_NODES: '/project.json',
+            },
+        });
+        const fetched = await client.getDbtManifest({
+            externalNodes: [externalNode],
+        });
+        expect(fs.writeFile).toHaveBeenCalledWith(
+            '/tmp/dbt_target_test/dbt_external_nodes/external_nodes.json',
+            JSON.stringify([externalNode]),
+            'utf8',
+        );
+        expect(execaMock.mock.calls[0][2].env).toMatchObject({
+            PYTHONPATH: '/tmp/dbt_target_test/dbt_external_nodes',
+            LIGHTDASH_DBT_EXTERNAL_NODES:
+                '/tmp/dbt_target_test/dbt_external_nodes/external_nodes.json',
+        });
+        expect(fetched.selectedModelIds).toEqual(['model.analytics.orders']);
+        await client.cleanup();
+        expect(fs.rm).toHaveBeenCalledWith('/tmp/dbt_target_test', {
+            recursive: true,
+            force: true,
+        });
+    });
+    it.each([SupportedDbtVersions.V1_4, SupportedDbtVersions.V1_5])(
+        'rejects managed external nodes on %s',
+        async (dbtVersion) => {
+            await expect(
+                new DbtCliClient({
+                    ...cliArgsWithoutVersion,
+                    dbtVersion,
+                }).getDbtManifest({ externalNodes: [externalNode] }),
+            ).rejects.toThrow(
+                'Cross-source dbt refs require dbt 1.6 or newer.',
+            );
+            expect(execaMock).not.toHaveBeenCalled();
+        },
+    );
+    it('does not create a plugin without external nodes', async () => {
+        await new DbtCliClient({
+            ...cliArgsWithoutVersion,
+            dbtVersion: SupportedDbtVersions.V1_5,
+        }).getDbtManifest({ externalNodes: [] });
+        expect(fs.writeFile).not.toHaveBeenCalled();
+        expect(execaMock.mock.calls[0][2].env).not.toHaveProperty('PYTHONPATH');
+    });
+});
+
+describe.each(['local', 'git'] as const)('%s connection test', (source) => {
+    let sequence: string[];
+    let client: DbtCliClient;
+    let adapter: DbtBaseProjectAdapter;
+    let refresh: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+        vi.resetAllMocks();
+        sequence = [];
+        client = new DbtCliClient({
+            ...cliArgsWithoutVersion,
+            dbtProjectDirectory: '/checkout/missing-project',
+            dbtVersion: SupportedDbtVersions.V1_9,
+        });
+        vi.mocked(fs.access).mockImplementation(async () => {
+            sequence.push('directory');
+        });
+        vi.mocked(fs.mkdtemp).mockResolvedValue(
+            '/tmp/dbt_target_test' as never,
+        );
+        vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(manifestMock));
+        execaMock.mockImplementation(async (_executable, args: string[]) => {
+            sequence.push(
+                args.find((arg) => ['deps', 'parse', 'ls'].includes(arg))!,
+            );
+            return cliMockImplementation.success();
+        });
+        const warehouseClient = {
+            test: vi.fn(async () => {
+                sequence.push('warehouse');
+            }),
+        } as unknown as WarehouseClient;
+        refresh = vi.fn(async () => {
+            sequence.push('refresh');
+        });
+        if (source === 'git') {
+            adapter = Object.create(
+                DbtGitProjectAdapter.prototype,
+            ) as DbtGitProjectAdapter;
+            Object.defineProperty(adapter, '_refreshRepo', { value: refresh });
+            adapter.dbtClient = client;
+            adapter.warehouseClient = warehouseClient;
+        } else {
+            adapter = new DbtBaseProjectAdapter(
+                client,
+                warehouseClient,
+                {
+                    warehouseCatalog: undefined,
+                    onWarehouseCatalogChange: vi.fn(),
+                },
+                SupportedDbtVersions.V1_9,
+            );
+        }
+    });
+
+    it('checks the directory, installs dependencies, parses, then tests the warehouse without a feature flag', async () => {
+        await adapter.test();
+        expect(sequence).toEqual([
+            ...(source === 'git' ? ['refresh'] : []),
+            'directory',
+            'deps',
+            'parse',
+            'warehouse',
+        ]);
+    });
+
+    it('installs dependencies once across test and getDbtManifest', async () => {
+        await adapter.test();
+        expect(sequence.filter((step) => step === 'deps')).toHaveLength(1);
+        await adapter.getDbtManifest();
+        expect(sequence.filter((step) => step === 'deps')).toHaveLength(1);
+        expect(sequence.at(-1)).toBe('ls');
+        expect(refresh).toHaveBeenCalledTimes(source === 'git' ? 1 : 0);
+    });
+
+    it('rejects a missing project subdirectory before installing dependencies', async () => {
+        vi.mocked(fs.access).mockImplementation(async () => {
+            sequence.push('directory');
+            throw new Error('ENOENT');
+        });
+        execaMock.mockRejectedValue(new Error('deps failed'));
+        await expect(adapter.test()).rejects.toThrow(
+            'dbt project directory not found: /missing-project',
+        );
+        expect(sequence).toEqual([
+            ...(source === 'git' ? ['refresh'] : []),
+            'directory',
+        ]);
+        expect(execaMock).not.toHaveBeenCalled();
+        expect(adapter.warehouseClient.test).not.toHaveBeenCalled();
     });
 });

@@ -5,12 +5,14 @@ import {
 } from '@lightdash/common';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { type PullRequestAuthor, type PullRequestRow } from '../types';
 import { DEFAULT_PULL_REQUESTS_PAGE_SIZE } from '../utils';
 
 const getPullRequests = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     paginateArgs: KnexPaginateArgs,
 ): Promise<ApiPullRequestsResponse['results']> =>
@@ -27,13 +29,14 @@ const getPullRequests = async (
  * scroll.
  */
 export const usePullRequestsTable = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const query = useInfiniteQuery<
         ApiPullRequestsResponse['results'],
         ApiError
     >({
         queryKey: ['pull-requests', projectUuid],
         queryFn: ({ pageParam = 1 }) =>
-            getPullRequests(projectUuid, {
+            getPullRequests(lightdashApi, projectUuid, {
                 page: pageParam as number,
                 pageSize: DEFAULT_PULL_REQUESTS_PAGE_SIZE,
             }),

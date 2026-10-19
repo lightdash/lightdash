@@ -4,7 +4,8 @@ import {
     type UpdateResultsCacheProjectSettings,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useToaster from './toaster/useToaster';
 
 const queryKey = (projectUuid: string) => [
@@ -12,21 +13,30 @@ const queryKey = (projectUuid: string) => [
     projectUuid,
 ];
 
-const getResultsCacheSettings = async (projectUuid: string) =>
+const getResultsCacheSettings = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<ApiResultsCacheProjectSettingsResponse['results']>({
         url: `/projects/${projectUuid}/results-cache-config`,
         method: 'GET',
         body: undefined,
     });
 
-export const useResultsCacheSettings = (projectUuid: string) =>
-    useQuery<ApiResultsCacheProjectSettingsResponse['results'], ApiError>({
+export const useResultsCacheSettings = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<
+        ApiResultsCacheProjectSettingsResponse['results'],
+        ApiError
+    >({
         queryKey: queryKey(projectUuid),
-        queryFn: () => getResultsCacheSettings(projectUuid),
+        queryFn: () => getResultsCacheSettings(lightdashApi, projectUuid),
         enabled: !!projectUuid,
     });
+};
 
 const updateResultsCacheSettings = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     data: UpdateResultsCacheProjectSettings,
 ) =>
@@ -37,6 +47,7 @@ const updateResultsCacheSettings = async (
     });
 
 export const useUpdateResultsCacheSettings = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 
@@ -44,7 +55,7 @@ export const useUpdateResultsCacheSettings = (projectUuid: string) => {
         ApiResultsCacheProjectSettingsResponse['results'],
         ApiError,
         UpdateResultsCacheProjectSettings
-    >((data) => updateResultsCacheSettings(projectUuid, data), {
+    >((data) => updateResultsCacheSettings(lightdashApi, projectUuid, data), {
         mutationKey: ['results_cache_settings_update', projectUuid],
         onSuccess: async () => {
             showToastSuccess({

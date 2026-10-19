@@ -82,6 +82,7 @@ import {
     type StoredSignInSubject,
     type SummaryExplore,
     type WarehouseSqlBuilder,
+    type WeekDay,
 } from '@lightdash/common';
 import {
     buildMotherduckConnectionString,
@@ -237,12 +238,14 @@ import {
 } from '../../utils/warehouseCredentialVersion';
 import { AwsWebIdentityAudienceModel } from '../AwsWebIdentityAudienceModel';
 import { FeatureFlagModel } from '../FeatureFlagModel/FeatureFlagModel';
+import { OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
 import { RefreshTokenSourceChangedError } from '../RefreshTokenRotation/RefreshTokenRotation';
 import { clearProjectExtraRoles } from '../roleSetUtils';
 import {
     remapRowBinding,
     type WarehouseConnectionMap,
 } from '../WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
+import { WarehouseConnectionModel } from '../WarehouseConnectionModel/WarehouseConnectionModel';
 import {
     WarehouseConnectionRouter,
     type ConnectionBinding,
@@ -1714,13 +1717,21 @@ export class ProjectModel {
             }
             const [project] = projects;
 
-            const extraOfAnotherType = await trx('warehouse_connections')
+            const extra = await trx('warehouse_connections')
                 .where('project_uuid', projectUuid)
                 .where('is_original', false)
-                .whereNot('warehouse_type', data.warehouseConnection.type)
-                .first('warehouse_connection_uuid');
-            if (extraOfAnotherType) {
-                throw new ConflictError(ORIGINAL_TYPE_LOCKED_MESSAGE);
+                .first('warehouse_type');
+            if (extra) {
+                const storedOriginal = await trx(WarehouseCredentialTableName)
+                    .where('project_id', project.project_id)
+                    .forUpdate()
+                    .first('warehouse_type');
+                if (
+                    (storedOriginal?.warehouse_type ?? extra.warehouse_type) !==
+                    data.warehouseConnection.type
+                ) {
+                    throw new ConflictError(ORIGINAL_TYPE_LOCKED_MESSAGE);
+                }
             }
 
             await this.upsertWarehouseConnection(
@@ -5382,6 +5393,147 @@ export class ProjectModel {
         return this.connectionRouter.resolveCredentialReadWithRoute(
             projectUuid,
             binding,
+        );
+    }
+
+    private getWarehouseConnectionModel(): WarehouseConnectionModel {
+        return new WarehouseConnectionModel({
+            database: this.database,
+            encryptionUtil: this.encryptionUtil,
+            organizationWarehouseCredentialsModel:
+                new OrganizationWarehouseCredentialsModel({
+                    database: this.database,
+                    encryptionUtil: this.encryptionUtil,
+                }),
+        });
+    }
+
+    async getWarehouseConnectionForBinding(
+        projectUuid: string,
+        binding: ConnectionBinding,
+    ): Promise<WarehouseCredentials> {
+        const target = await this.resolveWarehouseCredentialRead(
+            projectUuid,
+            binding,
+        );
+        const model = this.getWarehouseConnectionModel();
+        const credentials =
+            target.kind === 'original'
+                ? await this.getWarehouseCredentialsForBinding(
+                      projectUuid,
+                      binding,
+                  )
+                : await model.getCredentials(
+                      await model.getProject(projectUuid),
+                      target.warehouseConnectionUuid,
+                  );
+        return OrganizationWarehouseCredentialsModel.stripSensitiveCredentials(
+            credentials,
+        );
+    }
+
+    private async getDbtSourceWarehouseConnectionUuid(
+        projectUuid: string,
+        sourceUuid: string,
+    ): Promise<string | null> {
+        if (
+            sourceUuid ===
+            (await this.getDbtSourceIdentity(projectUuid)).dbtSourceUuid
+        ) {
+            return null;
+        }
+        const source = await this.database('project_dbt_sources')
+            .select<{ warehouse_connection_uuid: string | null }>(
+                'warehouse_connection_uuid',
+            )
+            .where('project_uuid', projectUuid)
+            .where('project_dbt_source_uuid', sourceUuid)
+            .first();
+        if (!source)
+            throw new ParameterError(
+                'The selected dbt source does not belong to this project.',
+            );
+        return source.warehouse_connection_uuid;
+    }
+
+    async getDbtSourceWarehouseType(
+        projectUuid: string,
+        sourceUuid: string,
+    ): Promise<WarehouseTypes | null> {
+        const warehouseConnectionUuid =
+            await this.getDbtSourceWarehouseConnectionUuid(
+                projectUuid,
+                sourceUuid,
+            );
+        const connections =
+            await this.getWarehouseConnectionsMetadata(projectUuid);
+        return (
+            connections.find(
+                (connection) =>
+                    connection.warehouseConnectionUuid ===
+                    warehouseConnectionUuid,
+            )?.warehouseType ?? null
+        );
+    }
+
+    async getDeployStartOfWeek(
+        projectUuid: string,
+        exploreName: string,
+        sourceUuid: string | null,
+    ): Promise<
+        { kind: 'original' } | { kind: 'extra'; startOfWeek: WeekDay | null }
+    > {
+        const warehouseConnectionUuid =
+            sourceUuid === null
+                ? await this.getExploreWarehouseConnectionUuid(
+                      projectUuid,
+                      exploreName,
+                  )
+                : await this.getDbtSourceWarehouseConnectionUuid(
+                      projectUuid,
+                      sourceUuid,
+                  );
+        if (warehouseConnectionUuid === null) return { kind: 'original' };
+        const credentials = await this.getWarehouseConnectionForBinding(
+            projectUuid,
+            { kind: 'connection', warehouseConnectionUuid },
+        );
+        return { kind: 'extra', startOfWeek: credentials.startOfWeek ?? null };
+    }
+
+    async getWarehouseConnectionsMetadata(projectUuid: string): Promise<
+        {
+            name: string;
+            warehouseConnectionUuid: string | null;
+            warehouseType: WarehouseTypes;
+            isOriginal: boolean;
+        }[]
+    > {
+        const route = await this.getConnectionRoute(projectUuid, {
+            kind: 'original',
+        });
+        if (route === 'single') {
+            const project = await this.get(projectUuid);
+            if (!project.warehouseConnection) return [];
+            return [
+                {
+                    name: project.name,
+                    warehouseConnectionUuid: null,
+                    warehouseType: project.warehouseConnection.type,
+                    isOriginal: true,
+                },
+            ];
+        }
+        const model = this.getWarehouseConnectionModel();
+        return (await model.list(await model.getProject(projectUuid))).map(
+            (connection) => ({
+                name: connection.name,
+                warehouseConnectionUuid: connection.isOriginal
+                    ? null
+                    : connection.warehouseConnectionUuid,
+                warehouseType: connection.warehouseType,
+                isOriginal: connection.isOriginal,
+            }),
         );
     }
 

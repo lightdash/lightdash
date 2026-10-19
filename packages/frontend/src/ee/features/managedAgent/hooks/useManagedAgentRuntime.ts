@@ -1,9 +1,13 @@
 import { type ApiError, type ManagedAgentRuntimeInfo } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
-export const useManagedAgentRuntime = (projectUuid: string, enabled: boolean) =>
-    useQuery<ManagedAgentRuntimeInfo, ApiError>({
+export const useManagedAgentRuntime = (
+    projectUuid: string,
+    enabled: boolean,
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ManagedAgentRuntimeInfo, ApiError>({
         queryKey: ['managed-agent-runtime', projectUuid],
         queryFn: () =>
             lightdashApi<ManagedAgentRuntimeInfo>({
@@ -13,6 +17,7 @@ export const useManagedAgentRuntime = (projectUuid: string, enabled: boolean) =>
             }),
         enabled: enabled && !!projectUuid,
     });
+};
 
 // True when the runtime has a configuration error or a cleanup downgrade
 // notice worth showing outside the setup modal.

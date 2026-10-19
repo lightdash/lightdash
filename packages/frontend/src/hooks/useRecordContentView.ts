@@ -1,8 +1,8 @@
 import type { RecordRecentContentView } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
-import { lightdashApi } from '../api';
 import useApp from '../providers/App/useApp';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
 export const recentContentQueryKey = (
     userUuid: string | undefined,
@@ -14,6 +14,7 @@ export function useRecordContentView(
     contentType: RecordRecentContentView['contentType'],
     contentUuid: string | undefined,
 ) {
+    const lightdashApi = useLightdashApi();
     const { user } = useApp();
     const userUuid = user.data?.userUuid;
     const queryClient = useQueryClient();
@@ -42,5 +43,12 @@ export function useRecordContentView(
             .catch(() => {
                 // Recency tracking must not interrupt opening content.
             });
-    }, [userUuid, projectUuid, contentType, contentUuid, queryClient]);
+    }, [
+        userUuid,
+        projectUuid,
+        contentType,
+        contentUuid,
+        queryClient,
+        lightdashApi,
+    ]);
 }

@@ -6,9 +6,9 @@ import { type ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
 import { createExplorerStore } from '../../../features/explorer/store';
 import { AbilityContext } from '../../../providers/Ability/context';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { mockViewport } from '../../../testing/mockViewport';
 import {
     manageChartRule,
@@ -27,9 +27,7 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-vi.mock('../../../api', () => ({
-    lightdashApi: vi.fn(() => new Promise(() => {})),
-}));
+vi.mock('../../../api');
 
 vi.mock('../../../hooks/useExplorerQuery', () => ({
     useExplorerQuery: () => ({ query: { data: undefined } }),
@@ -67,7 +65,7 @@ const renderMenu = (
             seededMetrics: [],
         }),
     });
-    vi.mocked(lightdashApi).mockImplementation(() => new Promise(() => {}));
+    mockedLightdashApi.mockImplementation(() => new Promise(() => {}));
     renderWithProviders(
         <MemoryRouter
             initialEntries={['/projects/project-uuid/saved/chart-uuid']}

@@ -7,7 +7,7 @@ import {
     type DirectAccessResourceType,
     type SpaceMemberRole,
 } from '@lightdash/common';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
 
 /**
  * Closed reference to a resource that can carry direct access grants. The
@@ -22,6 +22,7 @@ const assignmentsPath = (projectUuid: string, ref: DirectAccessResourceRef) =>
     `/projects/${projectUuid}/direct-access/${ref.resourceType}/${ref.resourceUuid}/assignments`;
 
 export const getDirectAccessGroups = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     ref: DirectAccessResourceRef,
 ) =>
@@ -33,6 +34,7 @@ export const getDirectAccessGroups = (
     });
 
 export const getDirectAccessUsers = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     ref: DirectAccessResourceRef,
 ) =>
@@ -44,6 +46,7 @@ export const getDirectAccessUsers = (
     });
 
 export const getDirectAccessAssignments = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     ref: DirectAccessResourceRef,
 ) =>
@@ -55,6 +58,7 @@ export const getDirectAccessAssignments = (
     });
 
 export const upsertDirectAccessAssignment = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     ref: DirectAccessResourceRef,
     principalType: DirectAccessPrincipalType,
@@ -72,6 +76,7 @@ export const upsertDirectAccessAssignment = (
     });
 
 export const revokeDirectAccessAssignment = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     ref: DirectAccessResourceRef,
     principalType: DirectAccessPrincipalType,
@@ -88,6 +93,7 @@ export const revokeDirectAccessAssignment = (
     });
 
 export const resetDirectAccess = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     ref: DirectAccessResourceRef,
 ) =>

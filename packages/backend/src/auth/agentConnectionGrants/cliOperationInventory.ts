@@ -229,7 +229,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             '`/api/v2/projects/${projectUuid}/query/${queryUuid}${pageSizeParam}`',
             ['QueryController.getAsyncQueryResults'],
         ),
-        allowed('handlers/compile.ts:518', 'GET', 'manifestEndpoint', [
+        allowed('handlers/compile.ts:521', 'GET', 'manifestEndpoint', [
             'ProjectController.getMergedManifest',
         ]),
         refused(
@@ -753,31 +753,54 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ['ProjectController.getDashboards'],
         ),
         refused(
-            'handlers/preview.ts:108',
+            'handlers/preview.ts:113',
             'DELETE',
             '`/api/v1/org/projects/${projectUuid}`',
             ['organizationRouter DELETE /projects/:projectUuid'],
             'Project lifecycle and warehouse configuration changes are refused in v1.',
         ),
         refused(
-            'handlers/preview.ts:160',
+            'handlers/preview.ts:165',
             'PATCH',
             '`/api/v1/projects/${projectUuid}/preview-expiration`',
             ['ProjectController.updatePreviewExpiresAt'],
             'Project lifecycle and warehouse configuration changes are refused in v1.',
         ),
         refused(
-            'handlers/preview.ts:186',
+            'handlers/preview.ts:191',
             'GET',
             '`/api/v1/org/projects/`',
             ['OrganizationController.getProjects'],
             'Project lifecycle and warehouse configuration changes are refused in v1.',
         ),
         allowed(
-            'handlers/preview.ts:252',
+            'handlers/preview.ts:418',
             'GET',
             '`/api/v1/projects/${config.context.project}`',
             ['ProjectController.getProject'],
+        ),
+        refused(
+            'handlers/preview.ts:239',
+            'GET',
+            '`/api/v1/projects/${project.projectUuid}/warehouse-connections/dbt-sources/bindings`',
+            [
+                'WarehouseConnectionBindingController.getDbtSourceWarehouseConnectionBindings',
+            ],
+            'Project lifecycle and warehouse configuration changes are refused in v1.',
+        ),
+        refused(
+            'handlers/preview.ts:331',
+            'GET',
+            '`/api/v1/projects/${projectUuid}/warehouse-connections/${connection.warehouseConnectionUuid}`',
+            ['WarehouseConnectionController.getWarehouseConnection'],
+            'Project lifecycle and warehouse configuration changes are refused in v1.',
+        ),
+        refused(
+            'handlers/preview.ts:342',
+            'PATCH',
+            '`/api/v1/projects/${projectUuid}/warehouse-connections/${connection.warehouseConnectionUuid}`',
+            ['WarehouseConnectionController.updateWarehouseConnection'],
+            'Project lifecycle and warehouse configuration changes are refused in v1.',
         ),
         refused(
             'handlers/renameHandler.ts:154',
@@ -873,10 +896,26 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ['QueryController.executeAsyncSqlQuery'],
         ),
         allowed(
-            'handlers/timestampConversion.ts:35',
+            'handlers/timestampConversion.ts:39',
             'GET',
             '`/api/v1/projects/${projectUuid}`',
             ['ProjectController.getProject'],
+        ),
+        refused(
+            'handlers/timestampConversion.ts:51',
+            'GET',
+            '`/api/v1/projects/${projectUuid}/warehouse-connections/dbt-sources/bindings`',
+            [
+                'WarehouseConnectionBindingController.getDbtSourceWarehouseConnectionBindings',
+            ],
+            'Selected agent connections never choose a dbt source, so deploy does not read source bindings in v1.',
+        ),
+        refused(
+            'handlers/timestampConversion.ts:66',
+            'GET',
+            '`/api/v1/projects/${projectUuid}/warehouse-connections/${warehouseConnectionUuid}`',
+            ['WarehouseConnectionController.getWarehouseConnection'],
+            'Selected agent connections never choose a dbt source, so deploy does not read source connection settings in v1.',
         ),
         external(
             'handlers/upgradeCheck.ts:151',

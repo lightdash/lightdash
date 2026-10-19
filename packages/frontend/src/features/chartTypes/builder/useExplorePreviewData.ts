@@ -16,6 +16,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useExploreByProjectUuid } from '../../../hooks/useExplore';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import {
     buildExplorePreviewMetricQuery,
     executeExplorePreviewQuery,
@@ -151,6 +152,7 @@ export const useExplorePreviewData = ({
      *  query runs once, with the suggested bindings. */
     isPickingFields: boolean;
 }): ExplorePreviewRun => {
+    const lightdashApi = useLightdashApi();
     const exploreName = explore?.name ?? null;
     const liveBindingRequestKey = useMemo(() => {
         if (!explore || !schema) return '';
@@ -240,7 +242,7 @@ export const useExplorePreviewData = ({
                 appliedFieldMapping,
             );
             return {
-                ...(await executeExplorePreviewQuery({
+                ...(await executeExplorePreviewQuery(lightdashApi, {
                     projectUuid: projectUuid ?? '',
                     query: metricQuery,
                     pivotConfiguration: deriveDataAppVizPivotConfiguration(

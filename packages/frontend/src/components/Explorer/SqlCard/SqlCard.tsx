@@ -27,6 +27,7 @@ import {
 } from '../../../features/explorer/store';
 import { useMergeCompiledSql } from '../../../features/mergeQuery/hooks/useMergeCompiledSql';
 import { useCompiledSql } from '../../../hooks/useCompiledSql';
+import { useExploreWarehouseConnection } from '../../../hooks/useExploreWarehouseConnection';
 import { useProject } from '../../../hooks/useProject';
 import { useCannotViewCompiledSql } from '../../../hooks/user/useCannotViewCompiledSql';
 import { Can } from '../../../providers/Ability';
@@ -92,9 +93,15 @@ const SqlCard: FC<SqlCardProps> = memo((props) => {
           ? data?.pivotQuery
           : data?.query;
 
-    const warehouseType = project?.warehouseConnection?.type;
+    const { warehouseType } = useExploreWarehouseConnection(
+        unsavedChartVersionTableName,
+        projectUuid,
+    );
     const formattedSql = useMemo(
-        () => (selectedSql ? formatSql(selectedSql, warehouseType) : ''),
+        () =>
+            selectedSql
+                ? formatSql(selectedSql, warehouseType ?? undefined)
+                : '',
         [selectedSql, warehouseType],
     );
 

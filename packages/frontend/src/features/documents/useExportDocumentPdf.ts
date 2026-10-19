@@ -5,8 +5,8 @@ import {
     type Document,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { pollJobStatus } from '../scheduler/hooks/useScheduler';
 
 const TOAST_KEY = 'document_pdf_export_toast';
@@ -27,6 +27,7 @@ const downloadFile = (url: string, fileName: string) => {
 
 /** Queues a PDF of the Document, waits for the job, then downloads the file. */
 export const useExportDocumentPdf = () => {
+    const lightdashApi = useLightdashApi();
     const {
         showToastInfo,
         showToastSuccess,
@@ -52,7 +53,7 @@ export const useExportDocumentPdf = () => {
                 });
             },
             onSuccess: (job, document) => {
-                pollJobStatus(job.jobId, document.projectUuid)
+                pollJobStatus(lightdashApi, job.jobId, document.projectUuid)
                     .then((rawDetails) => {
                         const details =
                             rawDetails as DocumentPdfExportDetails | null;

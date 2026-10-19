@@ -1,0 +1,33 @@
+version: 2
+models:
+  - name: dim_calendar
+    description: One row per calendar day. Shared by every downstream project.
+    access: public
+    config:
+      meta:
+        primary_key: calendar_date
+        metrics:
+          day_count:
+            type: count
+            sql: ${TABLE}.calendar_date
+    columns:
+      - name: calendar_date
+        meta:
+          dimension:
+            type: date
+      - name: calendar_year
+        meta:
+          dimension:
+            type: number
+      - name: calendar_month
+        meta:
+          dimension:
+            type: number
+      - name: day_name
+        meta:
+          dimension:
+            type: string
+      - name: is_weekend
+        meta:
+          dimension:
+            type: boolean

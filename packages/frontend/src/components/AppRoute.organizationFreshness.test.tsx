@@ -8,9 +8,7 @@ import { type FC, type PropsWithChildren } from 'react';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
-vi.mock('../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../api');
 
 vi.mock('../providers/App/useApp', () => ({
     default: () => ({
@@ -31,11 +29,11 @@ vi.mock('../providers/App/useApp', () => ({
     }),
 }));
 
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
 import { createQueryClient } from '../providers/ReactQuery/createQueryClient';
 import AppRoute from './AppRoute';
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 
 const ORG_URL = '/org';
 const PROJECT_ROUTE = '/projects/project-1/home';

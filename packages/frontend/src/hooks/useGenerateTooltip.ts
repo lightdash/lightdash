@@ -6,12 +6,14 @@ import {
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
 // 10 second timeout for AI tooltip generation
 const TOOLTIP_GENERATION_TIMEOUT_MS = 10000;
 
 const generateTooltipApi = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     payload: GenerateTooltipRequest,
     signal?: AbortSignal,
@@ -34,6 +36,7 @@ export const useGenerateTooltip = ({
     fields,
     onSuccess,
 }: UseGenerateTooltipOptions) => {
+    const lightdashApi = useLightdashApi();
     // Track abort controller to cancel in-flight requests
     const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -68,6 +71,7 @@ export const useGenerateTooltip = ({
             );
 
             return generateTooltipApi(
+                lightdashApi,
                 projectUuid,
                 {
                     prompt,

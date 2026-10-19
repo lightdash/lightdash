@@ -14,7 +14,7 @@ import Logger from '../logging/logger';
 import type { DbtTargetResult } from '../services/WarehouseClientFactory/CredentialResolver';
 import {
     CachedWarehouse,
-    DbtManifestFetchResult,
+    DbtSourcePreparation,
     ProjectAdapter,
     type TrackingParams,
 } from '../types';
@@ -56,6 +56,10 @@ export class DbtGitProjectAdapter
     branch: string;
 
     git: SimpleGit;
+
+    private gitRefresh: Promise<number> | null = null;
+
+    private gitPreparation: Promise<DbtSourcePreparation> | null = null;
 
     constructor({
         warehouseClient,
@@ -149,7 +153,7 @@ export class DbtGitProjectAdapter
         loadSources?: boolean,
         allowPartialCompilation?: boolean,
     ) {
-        await this._refreshRepo();
+        await this.prepareDbtSource();
         return super.prepareExploreStream(
             trackingParams,
             loadSources,
@@ -158,15 +162,28 @@ export class DbtGitProjectAdapter
     }
 
     public async test() {
-        await this._refreshRepo();
+        await this.prepareRepository();
         await super.test();
     }
 
-    public async getDbtManifest(): Promise<DbtManifestFetchResult> {
-        const refreshStartedAt = Date.now();
-        await this._refreshRepo();
-        const gitRefreshMs = Date.now() - refreshStartedAt;
-        const result = await super.getDbtManifest();
-        return { ...result, timings: { ...result.timings, gitRefreshMs } };
+    private prepareRepository(): Promise<number> {
+        this.gitRefresh ??= (async () => {
+            const startedAt = Date.now();
+            await this._refreshRepo();
+            return Date.now() - startedAt;
+        })();
+        return this.gitRefresh;
+    }
+
+    public prepareDbtSource(): Promise<DbtSourcePreparation> {
+        this.gitPreparation ??= (async () => {
+            const gitRefreshMs = await this.prepareRepository();
+            const preparation = await super.prepareDbtSource();
+            return {
+                ...preparation,
+                timings: { ...preparation.timings, gitRefreshMs },
+            };
+        })();
+        return this.gitPreparation;
     }
 }

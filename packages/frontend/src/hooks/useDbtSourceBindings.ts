@@ -1,6 +1,6 @@
 import { type ApiError, type DbtSourceBindings } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
 const bindingsUrl = (projectUuid: string) =>
     `/projects/${projectUuid}/warehouse-connections/dbt-sources`;
@@ -11,8 +11,9 @@ const bindingsQueryKey = (projectUuid: string) => [
     'dbt-source-bindings',
 ];
 
-export const useDbtSourceBindings = (projectUuid: string, enabled: boolean) =>
-    useQuery<DbtSourceBindings, ApiError>({
+export const useDbtSourceBindings = (projectUuid: string, enabled: boolean) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<DbtSourceBindings, ApiError>({
         queryKey: bindingsQueryKey(projectUuid),
         queryFn: () =>
             lightdashApi<DbtSourceBindings>({
@@ -23,8 +24,10 @@ export const useDbtSourceBindings = (projectUuid: string, enabled: boolean) =>
         enabled,
         retry: false,
     });
+};
 
 export const useBindDbtSource = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<
         undefined,

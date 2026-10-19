@@ -6,10 +6,11 @@ import {
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 export const usePromoteDocumentDiffMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { showToastError } = useToaster();
     return useMutation<PromotionChanges, ApiError, string>(
         (documentUuid) =>
@@ -31,6 +32,7 @@ export const usePromoteDocumentDiffMutation = (projectUuid: string) => {
 };
 
 export const usePromoteDocumentMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<Document, ApiError, string>(
         (documentUuid) =>

@@ -1231,6 +1231,7 @@ describe('ChartTypeBuilder', () => {
             expect(
                 asyncCalculateTotal.fetchColumnSubtotalRows,
             ).toHaveBeenCalledWith(
+                expect.anything(),
                 expect.objectContaining({
                     sourceQueryUuid: 'live-query',
                     subtotalDimensions: ['orders_region'],
@@ -1322,6 +1323,7 @@ describe('ChartTypeBuilder', () => {
             expect(
                 asyncCalculateTotal.fetchColumnSubtotalRows,
             ).toHaveBeenCalledWith(
+                expect.anything(),
                 expect.objectContaining({
                     sourceQueryUuid: 'saved-query',
                     subtotalDimensions: ['orders_region'],
@@ -2261,7 +2263,7 @@ describe('ChartTypeBuilder', () => {
             renderBuilder(path);
 
             expect(suggestChartTypeFields).toHaveBeenCalledTimes(1);
-            expect(vi.mocked(suggestChartTypeFields).mock.calls[0][1]).toEqual({
+            expect(vi.mocked(suggestChartTypeFields).mock.calls[0][2]).toEqual({
                 prompt: 'revenue by region',
                 clarifications: ['Total revenue'],
                 exploreName: 'orders',
@@ -2408,7 +2410,7 @@ describe('ChartTypeBuilder', () => {
 
             expect(suggestChartTypeFields).toHaveBeenCalledTimes(2);
             expect(
-                vi.mocked(suggestChartTypeFields).mock.calls[1][1].fields,
+                vi.mocked(suggestChartTypeFields).mock.calls[1][2].fields,
             ).toEqual([colour]);
             expect(lastPreviewCall()).toMatchObject({ isPickingFields: true });
 

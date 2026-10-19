@@ -1,0 +1,22 @@
+version: 2
+models:
+  - name: duck_events
+    description: Local DuckLake fixture (see README). Lightdash reads the existing table.
+    columns:
+      - name: event_id
+        meta:
+          dimension: { type: number }
+          metrics:
+            event_count: { type: count_distinct }
+      - name: user_id
+        meta: { dimension: { type: number } }
+      - name: event_type
+        meta: { dimension: { type: string } }
+      - name: event_date
+        meta:
+          dimension: { type: date, time_intervals: ['DAY', 'WEEK', 'MONTH'] }
+      - name: amount
+        meta:
+          dimension: { type: number }
+          metrics:
+            total_amount: { type: sum, round: 2 }

@@ -84,6 +84,7 @@ type DbtProcessEnvironmentArgs = {
     processEnvironment: NodeJS.ProcessEnv;
     environmentVariableAllowlist: string[];
     projectEnvironment: Record<string, string>;
+    pluginEnvironment?: Record<string, string>;
     targetPath: string;
     partialParse: boolean;
     gitConfigGlobalPath?: string;
@@ -103,6 +104,7 @@ export const getDbtProcessEnvironment = ({
     processEnvironment,
     environmentVariableAllowlist,
     projectEnvironment,
+    pluginEnvironment = {},
     targetPath,
     partialParse,
     gitConfigGlobalPath,
@@ -125,6 +127,7 @@ export const getDbtProcessEnvironment = ({
             : environmentVariableAllowlist,
     ),
     ...projectEnvironment,
+    ...pluginEnvironment,
     // Runtime plumbing sits above it: PATH decides which binary runs, and the
     // proxy and CA settings decide where dbt deps fetches from, so a project
     // cannot redirect either.

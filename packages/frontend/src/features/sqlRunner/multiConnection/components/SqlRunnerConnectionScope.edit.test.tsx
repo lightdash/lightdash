@@ -16,7 +16,7 @@ import {
     vi,
     type Mock,
 } from 'vitest';
-import { lightdashApi } from '../../../../api';
+import { sharedLightdashApi } from '../../../../api';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { HeaderEdit } from '../../components/Header/HeaderEdit';
 import { store } from '../../store';
@@ -31,9 +31,7 @@ import { SqlRunnerSidebar } from './SqlRunnerSidebar';
 
 const updateSqlChart = vi.fn();
 
-vi.mock('../../../../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../../../../api');
 
 vi.mock('react-router', () => ({
     useNavigate: () => vi.fn(),
@@ -107,7 +105,7 @@ vi.mock('../../../../components/DataViz/VisualizationConfigPanel', () => ({
     VisualizationConfigPanel: () => null,
 }));
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 const projectUuid = 'project-uuid';
 const connectionsUrl = `/projects/${projectUuid}/sqlRunner/connections`;
 

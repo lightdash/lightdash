@@ -5,6 +5,7 @@ import {
     type DataAppInvestigation,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { type QueryEvent } from '../hooks/useAppSdkBridge';
 import {
     detectDataAppAnomalies,
@@ -113,6 +114,7 @@ export const useDataAppAnalysis = ({
      */
     onSourcesExpired?: () => void;
 }) => {
+    const lightdashApi = useLightdashApi();
     const sources = useMemo(
         () =>
             mountedQueryUuids === null
@@ -167,7 +169,7 @@ export const useDataAppAnalysis = ({
                 investigations: {},
             }));
             try {
-                const analysis = await detectDataAppAnomalies({
+                const analysis = await detectDataAppAnomalies(lightdashApi, {
                     projectUuid,
                     appUuid,
                     sources: sourcesToAnalyse,
@@ -216,7 +218,7 @@ export const useDataAppAnalysis = ({
                 }));
             }
         },
-        [projectUuid, appUuid, scope, patch],
+        [projectUuid, appUuid, scope, patch, lightdashApi],
     );
 
     const { state } = current;
@@ -245,7 +247,11 @@ export const useDataAppAnalysis = ({
         const run = runRef.current;
         const timer = setTimeout(() => {
             patch(scope, (prev) => ({ ...prev, lookedUpSignature: signature }));
-            lookupDataAppAnalysis({ projectUuid, appUuid, sources })
+            lookupDataAppAnalysis(lightdashApi, {
+                projectUuid,
+                appUuid,
+                sources,
+            })
                 .then((found) => {
                     // Drop a response for a view that is no longer current:
                     // a newer analyse run, or a later lookup for other rows.
@@ -313,6 +319,7 @@ export const useDataAppAnalysis = ({
         appUuid,
         patch,
         analyse,
+        lightdashApi,
     ]);
 
     const investigate = useCallback(
@@ -330,13 +337,16 @@ export const useDataAppAnalysis = ({
                 }));
             setInvestigation({ status: 'running' });
             try {
-                const investigation = await investigateDataAppAnomaly({
-                    projectUuid,
-                    appUuid,
-                    analysisId,
-                    anomalyId,
-                    agentUuid,
-                });
+                const investigation = await investigateDataAppAnomaly(
+                    lightdashApi,
+                    {
+                        projectUuid,
+                        appUuid,
+                        analysisId,
+                        anomalyId,
+                        agentUuid,
+                    },
+                );
                 if (run !== runRef.current) return;
                 setInvestigation({ status: 'ready', investigation });
             } catch (e) {
@@ -344,7 +354,7 @@ export const useDataAppAnalysis = ({
                 setInvestigation({ status: 'error', message: errorMessage(e) });
             }
         },
-        [projectUuid, appUuid, scope, state, patch],
+        [projectUuid, appUuid, scope, state, patch, lightdashApi],
     );
 
     return {

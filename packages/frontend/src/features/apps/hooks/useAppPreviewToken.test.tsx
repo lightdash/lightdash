@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import {
     APP_PREVIEW_TOKEN_REFRESH_INTERVAL_MS,
     APP_PREVIEW_TOKEN_RETRY_INTERVAL_MS,
@@ -11,9 +11,7 @@ import {
 } from './previewTokenQueryOptions';
 import { useAppPreviewToken } from './useAppPreviewToken';
 
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
-
-const mockedLightdashApi = vi.mocked(lightdashApi);
+vi.mock('../../../api');
 
 describe('useAppPreviewToken', () => {
     beforeEach(() => {

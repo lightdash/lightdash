@@ -16,18 +16,23 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
 import { useManagedAgentLatestRun } from '../../ee/features/managedAgent/hooks/useManagedAgentLatestRun';
 import { useManagedAgentSettings } from '../../ee/features/managedAgent/hooks/useManagedAgentSettings';
 import { ManagedAgentSetupModal } from '../../ee/features/managedAgent/ManagedAgentSetupModal';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import MantineIcon from '../common/MantineIcon';
 import AppColorSchemeScope from './AppColorSchemeScope';
 import classes from './AutopilotNavButton.module.css';
 import { useNavBarPortalTarget } from './NavBarPortalContext';
 
-const resumeSettings = async (projectUuid: string, schedule: string) =>
+const resumeSettings = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    schedule: string,
+) =>
     lightdashApi({
         url: `/projects/${projectUuid}/managed-agent/settings`,
         method: 'PATCH',
@@ -79,6 +84,7 @@ export const AutopilotNavButton = ({
     projectUuid,
     withLabel = false,
 }: Props) => {
+    const lightdashApi = useLightdashApi();
     const portalTarget = useNavBarPortalTarget();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -108,7 +114,8 @@ export const AutopilotNavButton = ({
         void navigate(`/projects/${projectUuid}/autopilot`);
 
     const resumeMutation = useMutation({
-        mutationFn: () => resumeSettings(projectUuid, settings!.schedule),
+        mutationFn: () =>
+            resumeSettings(lightdashApi, projectUuid, settings!.schedule),
         onSuccess: () => {
             void queryClient.invalidateQueries({
                 queryKey: ['managed-agent-settings', projectUuid],

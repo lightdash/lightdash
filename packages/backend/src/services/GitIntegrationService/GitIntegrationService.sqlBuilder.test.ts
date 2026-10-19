@@ -54,7 +54,10 @@ vi.mock('../UserService', () => ({
 }));
 
 type SqlBuilderProbe = {
-    getWarehouseSqlBuilder(projectUuid: string): Promise<WarehouseSqlBuilder>;
+    getWarehouseSqlBuilder(
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<WarehouseSqlBuilder>;
 };
 
 type ServiceArguments = ConstructorParameters<typeof GitIntegrationService>[0];
@@ -122,13 +125,16 @@ const credentialCases: {
 ];
 
 describe('GitIntegrationService SQL builder without warehouse network access', () => {
-    const getWarehouseCredentialsForBinding =
-        vi.fn<ProjectModel['getWarehouseCredentialsForBinding']>();
+    const getWarehouseConnectionForBinding =
+        vi.fn<ProjectModel['getWarehouseConnectionForBinding']>();
     const service = new GitIntegrationService({
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: {
-            getWarehouseCredentialsForBinding,
+            getWarehouseConnectionForBinding,
+            findExploreContainingTable: vi
+                .fn()
+                .mockResolvedValue({ name: 'bound_explore' }),
         } as unknown as ProjectModel,
         savedChartModel: {} as ServiceArguments['savedChartModel'],
         projectDbtSourcesModel:
@@ -154,21 +160,24 @@ describe('GitIntegrationService SQL builder without warehouse network access', (
                         ? { token: 'expired-stored-access-token' }
                         : {}),
                 };
-                getWarehouseCredentialsForBinding.mockResolvedValue(
+                getWarehouseConnectionForBinding.mockResolvedValue(
                     storedCredentials,
                 );
 
-                const builder = await service.getWarehouseSqlBuilder('project');
+                const builder = await service.getWarehouseSqlBuilder(
+                    'project',
+                    'orders',
+                );
 
                 expect(vi.isMockFunction(warehouseSqlBuilderFromType)).toBe(
                     false,
                 );
-                expect(getWarehouseCredentialsForBinding).toHaveBeenCalledTimes(
+                expect(getWarehouseConnectionForBinding).toHaveBeenCalledTimes(
                     1,
                 );
-                expect(getWarehouseCredentialsForBinding).toHaveBeenCalledWith(
+                expect(getWarehouseConnectionForBinding).toHaveBeenCalledWith(
                     'project',
-                    { kind: 'original' },
+                    { kind: 'explore', exploreName: 'bound_explore' },
                 );
                 expect(builder).toBeInstanceOf(builderClass);
                 expect(builder.constructor).toBe(builderClass);

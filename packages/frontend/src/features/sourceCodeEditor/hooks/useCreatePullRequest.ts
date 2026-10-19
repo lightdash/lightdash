@@ -4,13 +4,15 @@ import {
     type CreateGitPullRequestRequest,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type CreatePullRequestParams = CreateGitPullRequestRequest & {
     branch: string;
 };
 
 const createPullRequest = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     params: CreatePullRequestParams,
 ) =>
@@ -24,11 +26,14 @@ const createPullRequest = async (
         }),
     });
 
-export const useCreatePullRequest = (projectUuid: string) =>
-    useMutation<
+export const useCreatePullRequest = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+    return useMutation<
         ApiGitPullRequestCreatedResponse['results'],
         ApiError,
         CreatePullRequestParams
     >({
-        mutationFn: (params) => createPullRequest(projectUuid, params),
+        mutationFn: (params) =>
+            createPullRequest(lightdashApi, projectUuid, params),
     });
+};

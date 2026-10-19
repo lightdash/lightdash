@@ -961,6 +961,12 @@ export type GetProjectInfoFn = () => Promise<{
     dbtConnectionType: DbtProjectType;
     dbtVersion: string;
     warehouseType: WarehouseTypes | null;
+    connections: {
+        name: string;
+        warehouseConnectionUuid: string | null;
+        warehouseType: WarehouseTypes;
+        isOriginal: boolean;
+    }[];
     git: {
         repository: string;
         branch: string;

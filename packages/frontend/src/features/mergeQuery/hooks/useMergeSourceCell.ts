@@ -11,11 +11,12 @@ import {
     type ResultValue,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import { type MetricQueryDataSource } from '../../../components/MetricQueryData/types';
 import { useMetricQueryDataContext } from '../../../components/MetricQueryData/useMetricQueryDataContext';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { convertDateFilters } from '../../../utils/dateFilter';
 import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
@@ -41,6 +42,7 @@ export const getMergeSourceFieldValues = (
     );
 
 const executeSourceQuery = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     metricQuery: MetricQuery,
     parameters: ParametersValuesMap | undefined,
@@ -72,6 +74,7 @@ type PreparedMergeSourceCell = Omit<ResolvedMergeSourceCell, 'source'> & {
 };
 
 export const useMergeSourceCell = () => {
+    const lightdashApi = useLightdashApi();
     const projectUuid = useProjectUuid();
     const merge = useMergeSafe();
     const { handleByName } = useMergeSourceNames();
@@ -190,6 +193,7 @@ export const useMergeSourceCell = () => {
         ): Promise<PreparedMergeSourceCell> => {
             if (!projectUuid) throw new Error('Project is required');
             const started = await executeSourceQuery(
+                lightdashApi,
                 projectUuid,
                 sourceCell.source.metricQuery,
                 parameters,
@@ -203,7 +207,7 @@ export const useMergeSourceCell = () => {
                 },
             };
         },
-        [parameters, projectUuid, resolvedTimezone],
+        [parameters, projectUuid, resolvedTimezone, lightdashApi],
     );
 
     return { prepareUnderlyingData, resolve };

@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { useContext } from 'react';
 import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
 import { executeSqlQuery } from '../features/queryRunner/executeQuery';
 import { ConnectionPicker } from '../features/sqlRunner/multiConnection/components/ConnectionPicker';
 import { ActiveConnectionContext } from '../features/sqlRunner/multiConnection/hooks/activeConnectionContext';
@@ -27,7 +27,7 @@ const { runs, toaster } = vi.hoisted(() => ({
     },
 }));
 
-vi.mock('../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../api');
 vi.mock('../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
 }));
@@ -108,7 +108,7 @@ vi.mock('../features/sqlRunner', () => ({
     },
 }));
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 const projectUuid = 'project-uuid';
 const runnerPath = `/projects/${projectUuid}/sql-runner`;
 const connectionsUrl = `/projects/${projectUuid}/sqlRunner/connections`;
@@ -217,7 +217,7 @@ const renderPage = ({
 };
 
 const lastExecuteConnection = () =>
-    vi.mocked(executeSqlQuery).mock.calls.at(-1)?.[5];
+    vi.mocked(executeSqlQuery).mock.calls.at(-1)?.[6];
 
 const runOnce = async (user: ReturnType<typeof userEvent.setup>) => {
     const before = runs.length;

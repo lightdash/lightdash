@@ -505,7 +505,12 @@ import { RepoFs } from '../ai/repoFs/RepoFs';
 import type { AiAgentSkill as ServedSkill } from '../ai/skills/types';
 import { executeEditContent } from '../ai/tools/editContent';
 import { formatSkillResult } from '../ai/tools/loadSkill';
-import { renderBlocks as renderSqlApprovalBlocks } from '../ai/tools/slackSqlAggregate';
+import {
+    getAgentThreadUrl,
+    getSqlApprovalDisplay,
+    getSqlApprovalSteps,
+    renderBlocks as renderSqlApprovalBlocks,
+} from '../ai/tools/slackSqlAggregate';
 import {
     buildSqlApprovalDecidedEvent,
     getRejectedOutput,
@@ -2084,8 +2089,7 @@ export class AiAgentService extends BaseService {
                 return null;
             throw error;
         }
-        if (!agent.enableDataAccess || !(await this.getDecisionClient(user)))
-            return null;
+        if (!agent.enableDataAccess) return null;
         const installation =
             await this.slackAuthenticationModel.getRawInstallationFromOrganizationUuid(
                 prompt.organizationUuid,
@@ -16004,6 +16008,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                           { kind: 'connection', warehouseConnectionUuid: null },
                       )
                     : null;
+                const warehouseConnections = canRunSql
+                    ? await this.projectModel.getWarehouseConnectionsMetadata(
+                          prompt.projectUuid,
+                      )
+                    : [];
                 const warehouseType = warehouseCredentials?.type ?? null;
                 const warehouseSchema = warehouseCredentials
                     ? ('schema' in warehouseCredentials &&
@@ -16661,6 +16670,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     slackLinksOnly,
                     warehouseType,
                     warehouseSchema,
+                    warehouseConnections,
                     sqlScope: agentSqlScope,
                     hyphenatedIdentifiers,
                     availableSkills,
@@ -18218,6 +18228,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         threadTs: string;
         toolCallId: string;
         toolName: NativeSqlApprovalToolName;
+        toolArgs: unknown;
         sql: string;
         agentName?: string;
     }): Promise<void> {
@@ -18232,7 +18243,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
             blocks: renderSqlApprovalBlocks(
                 {
                     kind: 'pending',
-                    sql: input.sql,
+                    display: getSqlApprovalDisplay({
+                        sql: input.sql,
+                        steps: getSqlApprovalSteps(
+                            input.toolName,
+                            input.toolArgs,
+                        ),
+                        threadUrl: getAgentThreadUrl(
+                            this.lightdashConfig.siteUrl,
+                            input.slackPrompt,
+                        ),
+                    }),
                     toolCallId: input.toolCallId,
                     threadUuid: input.slackPrompt.threadUuid,
                     heading,
@@ -18838,6 +18859,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     threadTs,
                     toolCallId: pendingApproval.toolCallId,
                     toolName: pendingApproval.toolName,
+                    toolArgs: pendingApproval.toolArgs,
                     sql: pendingApproval.sql,
                     agentName: agent?.name,
                 });

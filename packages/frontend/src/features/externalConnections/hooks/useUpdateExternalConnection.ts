@@ -4,8 +4,9 @@ import {
     type UpdateExternalConnection,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type UpdateParams = {
     projectUuid: string;
@@ -13,11 +14,10 @@ type UpdateParams = {
     data: UpdateExternalConnection;
 };
 
-const updateExternalConnection = async ({
-    projectUuid,
-    connectionUuid,
-    data,
-}: UpdateParams) =>
+const updateExternalConnection = async (
+    lightdashApi: LightdashApi,
+    { projectUuid, connectionUuid, data }: UpdateParams,
+) =>
     lightdashApi<ExternalConnection>({
         url: `/ee/projects/${projectUuid}/external-connections/${connectionUuid}`,
         method: 'PATCH',
@@ -25,10 +25,12 @@ const updateExternalConnection = async ({
     });
 
 export const useUpdateExternalConnection = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<ExternalConnection, ApiError, UpdateParams>({
-        mutationFn: updateExternalConnection,
+        mutationFn: (args: UpdateParams) =>
+            updateExternalConnection(lightdashApi, args),
         onSuccess: async (_data, variables) => {
             await queryClient.invalidateQueries({
                 queryKey: ['external-connections', variables.projectUuid],

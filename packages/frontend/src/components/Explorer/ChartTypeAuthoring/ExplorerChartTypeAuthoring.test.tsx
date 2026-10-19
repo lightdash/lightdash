@@ -630,6 +630,7 @@ describe('ExplorerChartTypeAuthoring', () => {
             expect(
                 asyncCalculateTotal.fetchColumnSubtotalRows,
             ).toHaveBeenCalledWith(
+                expect.anything(),
                 expect.objectContaining({
                     sourceQueryUuid: 'explorer-query',
                     subtotalDimensions: ['orders_region'],

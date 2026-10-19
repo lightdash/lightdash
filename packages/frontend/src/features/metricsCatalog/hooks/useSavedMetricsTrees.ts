@@ -15,10 +15,12 @@ import {
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 const getMetricsTrees = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     page: number,
     pageSize: number,
@@ -34,17 +36,20 @@ export const useMetricsTrees = (
     projectUuid: string | undefined,
     options?: { page?: number; pageSize?: number },
 ) => {
+    const lightdashApi = useLightdashApi();
     const page = options?.page ?? 1;
     const pageSize = options?.pageSize ?? 20;
 
     return useQuery<ApiGetMetricsTreesResponse['results'], ApiError>({
         queryKey: ['metrics-trees', projectUuid, page, pageSize],
-        queryFn: () => getMetricsTrees(projectUuid!, page, pageSize),
+        queryFn: () =>
+            getMetricsTrees(lightdashApi, projectUuid!, page, pageSize),
         enabled: !!projectUuid,
     });
 };
 
 const getMetricsTreeDetails = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     metricsTreeUuidOrSlug: string,
 ) => {
@@ -62,16 +67,22 @@ export const useMetricsTreeDetails = (
         UseQueryOptions<ApiGetMetricsTreeResponse['results'], ApiError>
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<ApiGetMetricsTreeResponse['results'], ApiError>({
         queryKey: ['metrics-tree-details', projectUuid, metricsTreeUuidOrSlug],
         queryFn: () =>
-            getMetricsTreeDetails(projectUuid!, metricsTreeUuidOrSlug!),
+            getMetricsTreeDetails(
+                lightdashApi,
+                projectUuid!,
+                metricsTreeUuidOrSlug!,
+            ),
         enabled: !!projectUuid && !!metricsTreeUuidOrSlug,
         ...queryOptions,
     });
 };
 
 const createSavedMetricsTree = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     payload: ApiCreateMetricsTreePayload,
 ) => {
@@ -83,6 +94,7 @@ const createSavedMetricsTree = async (
 };
 
 export const useCreateSavedMetricsTree = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
 
@@ -93,7 +105,7 @@ export const useCreateSavedMetricsTree = () => {
     >({
         mutationKey: ['create-saved-metrics-tree'],
         mutationFn: ({ projectUuid, payload }) =>
-            createSavedMetricsTree(projectUuid, payload),
+            createSavedMetricsTree(lightdashApi, projectUuid, payload),
         onSuccess: (_, variables) => {
             void queryClient.invalidateQueries({
                 queryKey: ['metrics-trees', variables.projectUuid],
@@ -112,6 +124,7 @@ export const useCreateSavedMetricsTree = () => {
 // --- Lock hooks ---
 
 const acquireTreeLock = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     metricsTreeUuid: string,
 ) => {
@@ -123,6 +136,7 @@ const acquireTreeLock = async (
 };
 
 export const useAcquireTreeLock = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
 
@@ -133,7 +147,7 @@ export const useAcquireTreeLock = () => {
     >({
         mutationKey: ['acquire-tree-lock'],
         mutationFn: ({ projectUuid, metricsTreeUuid }) =>
-            acquireTreeLock(projectUuid, metricsTreeUuid),
+            acquireTreeLock(lightdashApi, projectUuid, metricsTreeUuid),
         onSuccess: (_, variables) => {
             void queryClient.invalidateQueries({
                 queryKey: [
@@ -163,6 +177,7 @@ export const useAcquireTreeLock = () => {
 };
 
 const releaseTreeLock = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     metricsTreeUuid: string,
 ) => {
@@ -174,6 +189,7 @@ const releaseTreeLock = async (
 };
 
 export const useReleaseTreeLock = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
 
     return useMutation<
@@ -183,7 +199,7 @@ export const useReleaseTreeLock = () => {
     >({
         mutationKey: ['release-tree-lock'],
         mutationFn: ({ projectUuid, metricsTreeUuid }) =>
-            releaseTreeLock(projectUuid, metricsTreeUuid),
+            releaseTreeLock(lightdashApi, projectUuid, metricsTreeUuid),
         onSuccess: (_, variables) => {
             void queryClient.invalidateQueries({
                 queryKey: [
@@ -200,6 +216,7 @@ export const useReleaseTreeLock = () => {
 };
 
 const refreshTreeLockHeartbeat = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     metricsTreeUuid: string,
 ) => {
@@ -221,6 +238,7 @@ export const useTreeLockHeartbeat = (
     enabled: boolean,
     onLockLost?: () => void,
 ) => {
+    const lightdashApi = useLightdashApi();
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const onLockLostRef = useRef(onLockLost);
     onLockLostRef.current = onLockLost;
@@ -228,11 +246,15 @@ export const useTreeLockHeartbeat = (
     const sendHeartbeat = useCallback(async () => {
         if (!projectUuid || !metricsTreeUuid) return;
         try {
-            await refreshTreeLockHeartbeat(projectUuid, metricsTreeUuid);
+            await refreshTreeLockHeartbeat(
+                lightdashApi,
+                projectUuid,
+                metricsTreeUuid,
+            );
         } catch {
             onLockLostRef.current?.();
         }
-    }, [projectUuid, metricsTreeUuid]);
+    }, [projectUuid, metricsTreeUuid, lightdashApi]);
 
     useEffect(() => {
         if (enabled && projectUuid && metricsTreeUuid) {
@@ -261,6 +283,7 @@ export const useTreeLockHeartbeat = (
 // --- Delete tree hook ---
 
 const deleteSavedMetricsTree = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     metricsTreeUuid: string,
 ) => {
@@ -272,6 +295,7 @@ const deleteSavedMetricsTree = async (
 };
 
 export const useDeleteSavedMetricsTree = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
 
@@ -282,7 +306,7 @@ export const useDeleteSavedMetricsTree = () => {
     >({
         mutationKey: ['delete-saved-metrics-tree'],
         mutationFn: ({ projectUuid, metricsTreeUuid }) =>
-            deleteSavedMetricsTree(projectUuid, metricsTreeUuid),
+            deleteSavedMetricsTree(lightdashApi, projectUuid, metricsTreeUuid),
         onSuccess: (_, variables) => {
             void queryClient.invalidateQueries({
                 queryKey: ['metrics-trees', variables.projectUuid],
@@ -315,6 +339,7 @@ export const useDeleteSavedMetricsTree = () => {
 // --- Update tree hook ---
 
 const updateSavedMetricsTree = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     metricsTreeUuid: string,
     payload: ApiUpdateMetricsTreePayload,
@@ -327,6 +352,7 @@ const updateSavedMetricsTree = async (
 };
 
 export const useUpdateSavedMetricsTree = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
 
@@ -341,7 +367,12 @@ export const useUpdateSavedMetricsTree = () => {
     >({
         mutationKey: ['update-saved-metrics-tree'],
         mutationFn: ({ projectUuid, metricsTreeUuid, payload }) =>
-            updateSavedMetricsTree(projectUuid, metricsTreeUuid, payload),
+            updateSavedMetricsTree(
+                lightdashApi,
+                projectUuid,
+                metricsTreeUuid,
+                payload,
+            ),
         onSuccess: (_, variables) => {
             void queryClient.invalidateQueries({
                 queryKey: [

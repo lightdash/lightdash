@@ -148,6 +148,7 @@ describe('useExplorePreviewData', () => {
             explorePreviewQuery.executeExplorePreviewQuery,
         ).toHaveBeenNthCalledWith(
             1,
+            expect.anything(),
             expect.objectContaining({
                 query: expect.objectContaining({
                     dimensions: [
@@ -187,6 +188,7 @@ describe('useExplorePreviewData', () => {
             explorePreviewQuery.executeExplorePreviewQuery,
         ).toHaveBeenNthCalledWith(
             2,
+            expect.anything(),
             expect.objectContaining({
                 pivotConfiguration: expect.objectContaining({
                     groupByColumns: [
@@ -274,6 +276,7 @@ describe('useExplorePreviewData', () => {
         expect(
             explorePreviewQuery.executeExplorePreviewQuery,
         ).toHaveBeenLastCalledWith(
+            expect.anything(),
             expect.objectContaining({
                 query: expect.objectContaining({ exploreName: 'customers' }),
             }),

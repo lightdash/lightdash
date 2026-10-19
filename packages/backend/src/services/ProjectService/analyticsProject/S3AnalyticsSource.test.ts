@@ -85,6 +85,34 @@ describe('signed analytics file manifests', () => {
         );
     });
 
+    it('allows authenticated empty storage only for provisioning before initial processing', async () => {
+        send.mockResolvedValue({ Contents: [] });
+        const source = await createS3AnalyticsSourceResolver({
+            ...config,
+            allowEmpty: true,
+        })();
+        expect(source.tables).toEqual([]);
+        expect(source.emptyTables?.map(({ name }) => name)).toContain(
+            'query_events',
+        );
+        expect(source.emptyTables?.map(({ name }) => name)).toContain(
+            'user_activity',
+        );
+        await expect(createS3AnalyticsSourceResolver(config)()).rejects.toThrow(
+            noDataMessage,
+        );
+    });
+
+    it('still rejects storage errors when provisioning an empty organization', async () => {
+        send.mockRejectedValue(new Error('authentication failed'));
+        await expect(
+            createS3AnalyticsSourceResolver({
+                ...config,
+                allowEmpty: true,
+            })(),
+        ).rejects.toThrow('Analytics storage access failed');
+    });
+
     it('signs only requested tables while preserving every retained date', async () => {
         const queryKey = key('query_events');
         const oldExport = key('export_events', '2025-09-07');

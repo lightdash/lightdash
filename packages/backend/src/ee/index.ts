@@ -672,6 +672,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiService: ({ repository, context, models }) =>
                 new AiService({
+                    organizationSettingsModel:
+                        models.getOrganizationSettingsModel(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     projectService: repository.getProjectService(),
@@ -1654,12 +1656,16 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     projectService: repository.getProjectService(),
                     schedulerClient: clients.getSchedulerClient(),
-                    exploreEnhancer: (explores, { startOfWeek }) =>
+                    exploreEnhancer: (
+                        explores,
+                        { startOfWeek, startOfWeekByExplore },
+                    ) =>
                         enhanceExploresForPreAggregates({
                             explores,
                             enabled:
                                 context.lightdashConfig.preAggregates.enabled,
                             startOfWeek,
+                            startOfWeekByExplore,
                         }),
                 }),
         },

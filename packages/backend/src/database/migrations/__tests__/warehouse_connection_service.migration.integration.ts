@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     AthenaAuthenticationType,
     ConflictError,
+    DuckdbConnectionType,
     FeatureFlags,
     ForbiddenError,
     NotFoundError,
@@ -31,6 +32,7 @@ import { LicenseService } from '../../../services/LicenseService/LicenseService'
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
     ENTITLEMENT_REASON,
+    PROVISIONED_WAREHOUSE_REASON,
     ROLLOUT_REASON,
     WAREHOUSE_TYPE_REASON,
     WarehouseConnectionService,
@@ -91,6 +93,7 @@ describe('WarehouseConnectionService on the real schema', () => {
     let model: WarehouseConnectionModel;
     let projectService: ProjectService;
     const flag = { enabled: true };
+    const mixedTypes = { enabled: false };
     const testWarehouseConnectionCredentials = vi.fn();
     const resolveTestedCredentials = vi.fn(
         (credentials: CreateWarehouseCredentials) => credentials,
@@ -110,10 +113,16 @@ describe('WarehouseConnectionService on the real schema', () => {
                 encryptionUtil,
             }),
             featureFlagService: {
-                get: vi.fn(async () => ({
-                    id: FeatureFlags.MultiConnectionProjects,
-                    enabled: flag.enabled,
-                })),
+                get: vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId ===
+                            FeatureFlags.MultiConnectionProjects
+                                ? flag.enabled
+                                : mixedTypes.enabled,
+                    }),
+                ),
             },
             licenseService: licensed
                 ? new EnterpriseLicenseService({ licenseKey: 'licence' })
@@ -290,6 +299,7 @@ describe('WarehouseConnectionService on the real schema', () => {
 
     beforeEach(() => {
         flag.enabled = true;
+        mixedTypes.enabled = false;
         analytics.track.mockReset();
         testWarehouseConnectionCredentials.mockReset();
         resolveTestedCredentials.mockClear();
@@ -628,82 +638,105 @@ describe('WarehouseConnectionService on the real schema', () => {
             expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
         });
 
-        test('rejects interactive browser authentication on an extra Snowflake connection', async () => {
-            const fixture = await createProject({
-                mode: 'multi',
-                warehouseType: WarehouseTypes.SNOWFLAKE,
-                credentials: {
-                    ...snowflakeCredentials,
-                    requireUserCredentials: true,
-                },
-            });
-            await expect(
-                buildService().create(
-                    fixture.credentialsAdmin,
-                    fixture.projectUuid,
-                    {
-                        name: 'Browser',
-                        warehouseConnection: {
-                            ...snowflakeCredentials,
-                            requireUserCredentials: true,
-                            authenticationType:
-                                SnowflakeAuthenticationType.EXTERNAL_BROWSER,
-                        },
+        test.each([
+            SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+            SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
+        ])(
+            'rejects interactive browser authentication on an extra Snowflake connection (%s)',
+            async (authenticationType) => {
+                mixedTypes.enabled =
+                    authenticationType ===
+                    SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE;
+                const fixture = await createProject({
+                    mode: 'multi',
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                    credentials: {
+                        ...snowflakeCredentials,
+                        requireUserCredentials: true,
                     },
-                ),
-            ).rejects.toThrow(
-                'External browser authentication is not supported for an extra Snowflake connection.',
-            );
-            expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
-        });
+                });
+                await expect(
+                    buildService().create(
+                        fixture.credentialsAdmin,
+                        fixture.projectUuid,
+                        {
+                            name: 'Browser',
+                            warehouseConnection: {
+                                ...snowflakeCredentials,
+                                requireUserCredentials: true,
+                                authenticationType,
+                            },
+                        },
+                    ),
+                ).rejects.toThrow(
+                    'External browser authentication is not supported for an extra Snowflake connection.',
+                );
+                expect(
+                    testWarehouseConnectionCredentials,
+                ).not.toHaveBeenCalled();
+            },
+        );
 
-        test('applies Snowflake authentication rules when editing an extra connection', async () => {
-            const fixture = await createProject({
-                mode: 'multi',
-                warehouseType: WarehouseTypes.SNOWFLAKE,
-                credentials: snowflakeCredentials,
-            });
-            const service = buildService();
-            const created = await service.create(
-                fixture.credentialsAdmin,
-                fixture.projectUuid,
-                { name: 'Extra', warehouseConnection: snowflakeCredentials },
-            );
-            testWarehouseConnectionCredentials.mockClear();
-            await expect(
-                service.update(
+        test.each([
+            SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+            SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
+        ])(
+            'applies Snowflake authentication rules when editing an extra connection (%s)',
+            async (authenticationType) => {
+                mixedTypes.enabled =
+                    authenticationType ===
+                    SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE;
+                const fixture = await createProject({
+                    mode: 'multi',
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                    credentials: snowflakeCredentials,
+                });
+                const service = buildService();
+                const created = await service.create(
                     fixture.credentialsAdmin,
                     fixture.projectUuid,
-                    created.warehouseConnectionUuid,
                     {
-                        warehouseConnection: {
-                            ...snowflakeCredentials,
-                            authenticationType:
-                                SnowflakeAuthenticationType.NONE,
-                        },
+                        name: 'Extra',
+                        warehouseConnection: snowflakeCredentials,
                     },
-                ),
-            ).rejects.toThrow(
-                'A Snowflake connection without shared credentials requires users to provide their own credentials on the original connection.',
-            );
-            await expect(
-                service.update(
-                    fixture.credentialsAdmin,
-                    fixture.projectUuid,
-                    created.warehouseConnectionUuid,
-                    {
-                        warehouseConnection: {
-                            ...snowflakeCredentials,
-                            authenticationType:
-                                SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+                );
+                testWarehouseConnectionCredentials.mockClear();
+                await expect(
+                    service.update(
+                        fixture.credentialsAdmin,
+                        fixture.projectUuid,
+                        created.warehouseConnectionUuid,
+                        {
+                            warehouseConnection: {
+                                ...snowflakeCredentials,
+                                authenticationType:
+                                    SnowflakeAuthenticationType.NONE,
+                            },
                         },
-                    },
-                ),
-            ).rejects.toThrow(
-                'External browser authentication is not supported for an extra Snowflake connection.',
-            );
-            expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
-        });
+                    ),
+                ).rejects.toThrow(
+                    'A Snowflake connection without shared credentials requires users to provide their own credentials on the original connection.',
+                );
+                await expect(
+                    service.update(
+                        fixture.credentialsAdmin,
+                        fixture.projectUuid,
+                        created.warehouseConnectionUuid,
+                        {
+                            warehouseConnection: {
+                                ...snowflakeCredentials,
+                                authenticationType,
+                            },
+                        },
+                    ),
+                ).rejects.toThrow(
+                    'External browser authentication is not supported for an extra Snowflake connection.',
+                );
+                expect(
+                    testWarehouseConnectionCredentials,
+                ).not.toHaveBeenCalled();
+            },
+        );
 
         test('saves a Snowflake SSO form payload with the resolved refresh token for later queries and updates', async () => {
             const fixture = await createProject({
@@ -789,29 +822,39 @@ describe('WarehouseConnectionService on the real schema', () => {
             expect(await countConnections(fixture.projectUuid)).toBe(1);
         });
 
-        test('refuses a project whose warehouse type cannot hold several connections', async () => {
+        test('adds an extra connection of another warehouse type when mixed types are enabled', async () => {
+            mixedTypes.enabled = true;
+            const fixture = await createProject({ mode: 'multi' });
+
+            const created = await buildService().create(
+                fixture.credentialsAdmin,
+                fixture.projectUuid,
+                { name: 'Lake', warehouseConnection: athenaCredentials },
+            );
+
+            expect(created.warehouseType).toBe(WarehouseTypes.ATHENA);
+            expect(await countConnections(fixture.projectUuid)).toBe(2);
+        });
+
+        test('refuses a backend-managed analytics primary connection', async () => {
+            const analyticsCredentials: CreateWarehouseCredentials = {
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.ANALYTICS,
+                database: 'memory',
+                schema: 'main',
+            };
             const fixture = await createProject({
                 mode: 'multi',
-                warehouseType: WarehouseTypes.REDSHIFT,
-                credentials: {
-                    ...postgresCredentials,
-                    type: WarehouseTypes.REDSHIFT,
-                } as CreateWarehouseCredentials,
+                warehouseType: WarehouseTypes.DUCKDB,
+                credentials: analyticsCredentials,
             });
-
             await expect(
                 buildService().create(
                     fixture.credentialsAdmin,
                     fixture.projectUuid,
-                    {
-                        name: 'Finance',
-                        warehouseConnection: {
-                            ...postgresCredentials,
-                            type: WarehouseTypes.REDSHIFT,
-                        } as CreateWarehouseCredentials,
-                    },
+                    { name: 'Extra', warehouseConnection: postgresCredentials },
                 ),
-            ).rejects.toEqual(new ForbiddenError(WAREHOUSE_TYPE_REASON));
+            ).rejects.toEqual(new ForbiddenError(PROVISIONED_WAREHOUSE_REASON));
         });
 
         test('refuses without the licence and without the rollout flag', async () => {
@@ -978,6 +1021,7 @@ describe('WarehouseConnectionService on the real schema', () => {
         });
 
         test('refuses Snowflake interactive authentication', async () => {
+            mixedTypes.enabled = true;
             const fixture = await createProject({ mode: 'multi' });
 
             await expect(
@@ -995,7 +1039,7 @@ describe('WarehouseConnectionService on the real schema', () => {
                 ),
             ).rejects.toEqual(
                 new ParameterError(
-                    'Snowflake OAuth authorization code authentication is only supported in the CLI and cannot be saved on a project',
+                    'External browser authentication is not supported for an extra Snowflake connection.',
                 ),
             );
             expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
@@ -1251,21 +1295,50 @@ describe('WarehouseConnectionService on the real schema', () => {
             ).toBe('');
         });
 
-        test('refuses a change to another warehouse type', async () => {
-            const fixture = await createProject({ mode: 'multi' });
-            const created = await addExtra(fixture);
-
-            await expect(
-                buildService().update(
-                    fixture.credentialsAdmin,
-                    fixture.projectUuid,
-                    created.warehouseConnectionUuid,
-                    { warehouseConnection: athenaCredentials },
-                ),
-            ).rejects.toThrow(
-                'An extra connection must use the same warehouse type as the original connection.',
-            );
-        });
+        test.each(
+            [false, true].flatMap((enabled) =>
+                ['project', 'organization'].map((source) => ({
+                    enabled,
+                    source,
+                })),
+            ),
+        )(
+            'refuses a warehouse type change with mixed types $enabled and $source credentials',
+            async ({ enabled, source }) => {
+                mixedTypes.enabled = enabled;
+                const fixture = await createProject({ mode: 'multi' });
+                const created = await addExtra(fixture);
+                const organizationCredential =
+                    await createOrganizationCredential(
+                        fixture.organizationUuid,
+                        athenaCredentials,
+                    );
+                await expect(
+                    buildService().update(
+                        fixture.credentialsAdmin,
+                        fixture.projectUuid,
+                        created.warehouseConnectionUuid,
+                        source === 'project'
+                            ? { warehouseConnection: athenaCredentials }
+                            : {
+                                  organizationWarehouseCredentialsUuid:
+                                      organizationCredential,
+                              },
+                    ),
+                ).rejects.toThrow(
+                    enabled
+                        ? "A connection's warehouse type cannot be changed. Add a new connection instead."
+                        : 'An extra connection must use the same warehouse type as the original connection.',
+                );
+                const row = await database('warehouse_connections')
+                    .where(
+                        'warehouse_connection_uuid',
+                        created.warehouseConnectionUuid,
+                    )
+                    .first();
+                expect(row.warehouse_type).toBe(WarehouseTypes.POSTGRES);
+            },
+        );
     });
 
     describe('removing an extra connection', () => {

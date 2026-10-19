@@ -80,6 +80,7 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Connect agent",
       },
       "description": "Returns whether the person's agent is connected to the warehouse for this project and, when needed, the link to connect once. Call before queries when get_context shows the organisation requires agent identity, or after a refusal.",
       "inputSchema": {
@@ -236,6 +237,7 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Get Lightdash version",
       },
       "description": "Get the current Lightdash version",
       "inputSchema": {
@@ -253,6 +255,7 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Generate hashes",
       },
       "description": "Generate deterministic base-36 hashes for input strings.",
       "inputSchema": {
@@ -301,6 +304,7 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "List explores",
       },
       "description": "Tool: list_explores
 
@@ -344,6 +348,7 @@ Usage Tips:
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Search fields",
       },
       "description": "Tool: grep_fields
 
@@ -812,6 +817,7 @@ A field annotated with \`⚠params: <names>\` depends on those Lightdash paramet
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Get metadata",
       },
       "description": "Tool: get_metadata
 
@@ -1368,6 +1374,7 @@ Each entry in \`requests\` is one of:
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Find content",
       },
       "description": "Tool: "find_content"
 Purpose:
@@ -1448,6 +1455,7 @@ Usage tips:
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "List content",
       },
       "description": "Tool: "list_content"
 Purpose:
@@ -1498,6 +1506,7 @@ Usage tips:
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Read content",
       },
       "description": "Read a dashboard, chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only and returned without code.",
       "inputSchema": {
@@ -1548,6 +1557,7 @@ Usage tips:
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Resolve URL",
       },
       "description": "Tool: resolve_url
 
@@ -1594,10 +1604,11 @@ Usage tips:
     {
       "agentName": null,
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
+        "title": "Create content",
       },
       "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
       "inputSchema": {
@@ -1658,6 +1669,7 @@ Usage tips:
                   "slug",
                   "name",
                   "spaceSlug",
+                  "version",
                   "contentType",
                   "verified",
                   "tiles",
@@ -1743,6 +1755,7 @@ Usage tips:
                   "slug",
                   "name",
                   "spaceSlug",
+                  "version",
                   "contentType",
                   "verified",
                   "tableName",
@@ -1823,8 +1836,10 @@ Usage tips:
                   "slug",
                   "name",
                   "spaceSlug",
+                  "version",
                   "contentType",
                   "sql",
+                  "limit",
                   "chartKind",
                   "config",
                 ],
@@ -1865,6 +1880,7 @@ Usage tips:
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
+        "title": "Edit content",
       },
       "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting",
       "inputSchema": {
@@ -1916,10 +1932,11 @@ Usage tips:
     {
       "agentName": null,
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
+        "title": "Create scheduled delivery",
       },
       "description": "Create a LIVE scheduled delivery that sends a saved chart or dashboard to Slack channels and/or email recipients on a cron schedule. IMPORTANT: before calling this tool, propose the full configuration to the user (name, schedule in plain words, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Requires an existing saved chart or dashboard — if the content only exists in this conversation, create it with create_content first, then schedule the created uuid. On success, share the returned href with the user — the delivery is managed (paused, edited, deleted) from that page.",
       "inputSchema": {
@@ -1967,6 +1984,7 @@ Usage tips:
             },
             "required": [
               "formatted",
+              "limit",
             ],
             "type": "object",
           },
@@ -2081,6 +2099,7 @@ Usage tips:
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Get context",
       },
       "description": "Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call. When agent-specific scope is useful and routing is available, use route_agent and pass its returned agentUuid explicitly. If routing is unavailable or full project scope is desired, omit agentUuid; use set_agent for manual selection. This tool reports context but does not establish implicit execution state. When the session is pinned to a project, activeProject is the only allowed project. Otherwise it is a stored default, not a restriction on projectUuid. Use the project the user requested; if none was specified, use activeProject if present or ask. If the requested project is unavailable or rejected, explain rather than substitute another project.",
       "inputSchema": {
@@ -2253,6 +2272,7 @@ Usage tips:
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "List projects",
       },
       "description": "List all accessible projects in the organization. Projects contain explores, fields, and content. Prefer get_context for bootstrap, then pass the selected projectUuid explicitly to every project-scoped operation. Each project includes a "type": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so queries can fail with 403 errors even when the schema is still visible. Only select a PREVIEW project if the user explicitly asks for it.",
       "inputSchema": {
@@ -2269,7 +2289,8 @@ Usage tips:
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false,
-        "readOnlyHint": false,
+        "readOnlyHint": true,
+        "title": "Set project",
       },
       "description": "Set the configured project context. Most tools (list_explores, MCP schema-discovery tools, run_metric_query, etc.) also require its projectUuid explicitly. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request and pass its returned agentUuid explicitly to subsequent scoped tools; use list_agents and set_agent only for manual override.",
       "inputSchema": {
@@ -2300,6 +2321,7 @@ Usage tips:
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Get current project (deprecated)",
       },
       "description": "@deprecated Use get_context instead. Returns legacy shared project context for older clients.",
       "inputSchema": {
@@ -2317,6 +2339,7 @@ Usage tips:
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "List agents",
       },
       "description": "List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection.",
       "inputSchema": {
@@ -2341,9 +2364,10 @@ Usage tips:
       "agentName": null,
       "annotations": {
         "destructiveHint": false,
-        "idempotentHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
-        "readOnlyHint": false,
+        "readOnlyHint": true,
+        "title": "Route agent",
       },
       "description": "Select the best AI agent for a user request within the required projectUuid when agent-specific scope is useful and routing is available. Pass the returned agentUuid explicitly to subsequent scoped tools. If routing is unavailable, use list_agents and set_agent for manual selection; omit agentUuid when full project scope is desired. Also updates shared agent context for clients that use it.",
       "inputSchema": {
@@ -2496,7 +2520,8 @@ Usage tips:
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false,
-        "readOnlyHint": false,
+        "readOnlyHint": true,
+        "title": "Set agent",
       },
       "description": "Manually select an AI agent for the required projectUuid. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Pass the agentUuid explicitly to subsequent scoped tools and use this context to guide them — prefer the agent's explores when calling MCP schema-discovery tools, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
       "inputSchema": {
@@ -2527,7 +2552,8 @@ Usage tips:
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false,
-        "readOnlyHint": false,
+        "readOnlyHint": true,
+        "title": "Clear agent (deprecated)",
       },
       "description": "@deprecated Omit agentUuid from scoped tool calls instead. Clears legacy shared agent context for older clients only.",
       "inputSchema": {
@@ -2555,6 +2581,7 @@ Usage tips:
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Get current agent (deprecated)",
       },
       "description": "@deprecated Use get_context for legacy configured context or route_agent for an explicit agent selection.",
       "inputSchema": {
@@ -2582,6 +2609,7 @@ Usage tips:
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Run metric query",
       },
       "description": "Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore. For running queries, follow the polling instructions in the response.
 
@@ -4077,6 +4105,7 @@ Example B — "Revenue by month with year-over-year comparison"
                         "baseMetricId",
                         "timeDimensionId",
                         "granularity",
+                        "periodOffset",
                       ],
                       "type": "object",
                     },
@@ -7243,6 +7272,7 @@ All branches of an IF must return the same type.",
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Render chart",
       },
       "description": "Render a completed run_metric_query result in Lightdash's built-in chart app in MCP App-capable clients.
 
@@ -7448,6 +7478,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Search field values",
       },
       "description": "Tool: search_field_values
 
@@ -10377,6 +10408,7 @@ Usage Tips:
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Run SQL",
       },
       "description": "Execute a read-only SQL query against the project's data warehouse. For running queries, follow the polling instructions in the response. Prefer run_metric_query when the semantic layer can answer the question; use SQL for ad-hoc analysis or queries outside modeled explores.
 
@@ -10523,6 +10555,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Get query result",
       },
       "description": "Poll an existing run_sql or run_metric_query query until done, error, cancelled, or expired. Use the exact queryUuid returned by the query tool; never invent it. This tool retrieves results without rerunning the query.
 
@@ -10757,6 +10790,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "List verified content",
       },
       "description": "List all verified charts, dashboards, and data apps in the required projectUuid. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Each item includes contentType (chart, dashboard, or data_app), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or MCP schema-discovery tools on its explore.",
       "inputSchema": {
@@ -10790,6 +10824,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "List Skills",
       },
       "description": "List Lightdash built-in skills available to this MCP server. Use this when the client does not expose MCP resources directly.",
       "inputSchema": {
@@ -10900,6 +10935,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Read Skill",
       },
       "description": "Read the main SKILL.md instructions for a Lightdash built-in skill. Call list_skills first to discover available skill names.",
       "inputSchema": {
@@ -11019,6 +11055,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Read Skill Resource",
       },
       "description": "Read a supporting resource file for a Lightdash built-in skill. Use the resource path returned by list_skills.",
       "inputSchema": {
@@ -11184,6 +11221,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
+        "title": "Run AI writeback",
       },
       "description": "Tool: run_ai_writeback
 
@@ -11275,6 +11313,7 @@ Normal response (MCP CallToolResult): content contains a text message saying the
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Get AI writeback status",
       },
       "description": "Tool: get_ai_writeback_status
 
@@ -11362,10 +11401,11 @@ Response shape (MCP CallToolResult):
     {
       "agentName": null,
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
+        "title": "Generate data app",
       },
       "description": "Tool: generate_data_app
 
@@ -11503,10 +11543,11 @@ Errors: an unknown themeSlug, dashboardSlug, or chartSlug returns an error and s
     {
       "agentName": null,
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
+        "title": "Iterate on data app",
       },
       "description": "Tool: iterate_data_app
 
@@ -11631,6 +11672,7 @@ Errors: an unknown appSlug, themeSlug, dashboardSlug, or chartSlug returns an er
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "List data app themes",
       },
       "description": "Tool: list_data_app_themes
 
@@ -11735,6 +11777,7 @@ Response shape (MCP CallToolResult):
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Get data app build status",
       },
       "description": "Tool: get_data_app_build_status
 
@@ -11869,10 +11912,11 @@ Errors: an unknown slug, or an app or version this caller may not view, returns 
     {
       "agentName": null,
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
+        "title": "Create custom chart type",
       },
       "description": "Tool: create_custom_chart_type
 
@@ -11968,10 +12012,11 @@ Build a custom chart type: a reusable visualization for saved charts in the proj
     {
       "agentName": null,
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
+        "title": "Iterate on custom chart type",
       },
       "description": "Tool: iterate_custom_chart_type
 
@@ -12069,6 +12114,7 @@ Start a build that adds a version to an existing custom chart type from a follow
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Find custom chart types",
       },
       "description": "Tool: find_custom_chart_types
 
@@ -12454,6 +12500,7 @@ Search the project's custom chart types (reusable visualizations, including ones
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "List custom chart types",
       },
       "description": "Tool: list_custom_chart_types
 
@@ -12857,6 +12904,7 @@ exports[`MCP tool contracts > matches the filter-expression run_metric_query too
     "idempotentHint": true,
     "openWorldHint": false,
     "readOnlyHint": true,
+    "title": "Run metric query",
   },
   "description": "Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore. For running queries, follow the polling instructions in the response.
 
@@ -13126,6 +13174,7 @@ Example B — "Revenue by month with year-over-year comparison"
                     "baseMetricId",
                     "timeDimensionId",
                     "granularity",
+                    "periodOffset",
                   ],
                   "type": "object",
                 },
@@ -13450,6 +13499,7 @@ exports[`MCP tool contracts > matches the filter-expression search_field_values 
     "idempotentHint": true,
     "openWorldHint": false,
     "readOnlyHint": true,
+    "title": "Search field values",
   },
   "description": "Tool: search_field_values
 

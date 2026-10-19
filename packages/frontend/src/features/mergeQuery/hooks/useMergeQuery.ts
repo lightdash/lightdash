@@ -9,11 +9,12 @@ import {
     QueryExecutionContext,
     type SavedChartDAO,
 } from '@lightdash/common';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 
 export type CompiledMergeQuery = ApiCompiledMergeQueryResults;
 
 export const compileMergeQuery = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     mergeQuery: MergeQuery,
     parameters: ParametersValuesMap | undefined,
@@ -30,6 +31,7 @@ export const compileMergeQuery = (
 export type MergeQueryRun = ApiExecuteAsyncMergeQueryResults;
 
 const runMergeQuery = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     mergeQuery: MergeQuery,
     parameters: ParametersValuesMap | undefined,
@@ -60,6 +62,7 @@ const runMergeQuery = (
  * returned as data so the caller can render them against their source rows.
  */
 export const executeMergeQuery = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     mergeQuery: MergeQuery,
     parameters?: ParametersValuesMap,
@@ -67,6 +70,7 @@ export const executeMergeQuery = async (
     csvLimit?: number | null,
 ): Promise<MergeQueryRun> => {
     return runMergeQuery(
+        lightdashApi,
         projectUuid,
         mergeQuery,
         parameters,

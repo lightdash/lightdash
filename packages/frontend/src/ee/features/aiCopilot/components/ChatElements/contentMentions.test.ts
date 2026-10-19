@@ -9,7 +9,8 @@ import Document from '@tiptap/extension-document';
 import Paragraph from '@tiptap/extension-paragraph';
 import Text from '@tiptap/extension-text';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../../../api';
+import { sharedLightdashApi } from '../../../../../api';
+import { mockedLightdashApi } from '../../../../../testing/mockedLightdashApi';
 import {
     buildContentMentionSuggestionItems,
     contentMentionMenuOwnsEnter,
@@ -23,11 +24,7 @@ import {
     type ContentMentionSuggestionItem,
 } from './contentMentions';
 
-vi.mock('../../../../../api', () => ({
-    lightdashApi: vi.fn(),
-}));
-
-const mockedLightdashApi = vi.mocked(lightdashApi);
+vi.mock('../../../../../api');
 
 const dataAppResult = (
     overrides: Partial<DataAppContent> & Pick<DataAppContent, 'uuid'>,
@@ -61,7 +58,7 @@ const buildMentionEditor = (mentions: Record<string, unknown>[]) => {
             Document,
             Paragraph,
             Text,
-            createContentMentionExtension({
+            createContentMentionExtension(sharedLightdashApi, {
                 getProjectUuid: () => 'project-uuid',
                 getPriorityItems: () => [],
             }),
@@ -92,7 +89,7 @@ describe('contentMentions', () => {
         it('requests data apps, including personal ones, without chart types', async () => {
             mockContentSearch([]);
 
-            await buildContentMentionSuggestionItems({
+            await buildContentMentionSuggestionItems(sharedLightdashApi, {
                 projectUuid: 'project-uuid',
                 query: 'f1',
                 priorityItems: [],
@@ -124,11 +121,14 @@ describe('contentMentions', () => {
                 }),
             ]);
 
-            const items = await buildContentMentionSuggestionItems({
-                projectUuid: 'project-uuid',
-                query: 'app',
-                priorityItems: [],
-            });
+            const items = await buildContentMentionSuggestionItems(
+                sharedLightdashApi,
+                {
+                    projectUuid: 'project-uuid',
+                    query: 'app',
+                    priorityItems: [],
+                },
+            );
 
             expect(items.map((item) => item.uuid)).toEqual([
                 'app-1',
@@ -154,12 +154,15 @@ describe('contentMentions', () => {
                 dataAppResult({ uuid: 'app-personal', space: null }),
             ]);
 
-            const items = await buildContentMentionSuggestionItems({
-                projectUuid: 'project-uuid',
-                query: 'app',
-                priorityItems: [],
-                hidePersonalDataApps: true,
-            });
+            const items = await buildContentMentionSuggestionItems(
+                sharedLightdashApi,
+                {
+                    projectUuid: 'project-uuid',
+                    query: 'app',
+                    priorityItems: [],
+                    hidePersonalDataApps: true,
+                },
+            );
 
             expect(items.map((item) => item.uuid)).toEqual(['app-1']);
         });
@@ -167,22 +170,25 @@ describe('contentMentions', () => {
         it('hides personal apps offered by priority groups when the agent is space-restricted', async () => {
             mockContentSearch([dataAppResult({ uuid: 'app-1' })]);
 
-            const items = await buildContentMentionSuggestionItems({
-                projectUuid: 'project-uuid',
-                query: 'app',
-                priorityItems: [
-                    {
-                        id: 'current:data_app:app-personal',
-                        label: 'App scratch',
-                        contentType: ContentType.DATA_APP,
-                        uuid: 'app-personal',
-                        slug: 'scratch',
-                        isPersonalDataApp: true,
-                        group: 'current',
-                    },
-                ],
-                hidePersonalDataApps: true,
-            });
+            const items = await buildContentMentionSuggestionItems(
+                sharedLightdashApi,
+                {
+                    projectUuid: 'project-uuid',
+                    query: 'app',
+                    priorityItems: [
+                        {
+                            id: 'current:data_app:app-personal',
+                            label: 'App scratch',
+                            contentType: ContentType.DATA_APP,
+                            uuid: 'app-personal',
+                            slug: 'scratch',
+                            isPersonalDataApp: true,
+                            group: 'current',
+                        },
+                    ],
+                    hidePersonalDataApps: true,
+                },
+            );
 
             expect(items.map((item) => item.uuid)).toEqual(['app-1']);
         });
@@ -192,21 +198,24 @@ describe('contentMentions', () => {
                 dataAppResult({ uuid: 'app-1', name: 'F1 standings' }),
             ]);
 
-            const items = await buildContentMentionSuggestionItems({
-                projectUuid: 'project-uuid',
-                query: 'f1',
-                priorityItems: [
-                    {
-                        id: 'thread:data_app:app-1',
-                        label: 'F1 standings',
-                        contentType: ContentType.DATA_APP,
-                        uuid: 'app-1',
-                        slug: 'f1-standings',
-                        isPersonalDataApp: false,
-                        group: 'thread',
-                    },
-                ],
-            });
+            const items = await buildContentMentionSuggestionItems(
+                sharedLightdashApi,
+                {
+                    projectUuid: 'project-uuid',
+                    query: 'f1',
+                    priorityItems: [
+                        {
+                            id: 'thread:data_app:app-1',
+                            label: 'F1 standings',
+                            contentType: ContentType.DATA_APP,
+                            uuid: 'app-1',
+                            slug: 'f1-standings',
+                            isPersonalDataApp: false,
+                            group: 'thread',
+                        },
+                    ],
+                },
+            );
 
             expect(items).toHaveLength(1);
             expect(items[0].group).toBe('thread');
@@ -466,7 +475,7 @@ describe('contentMentions', () => {
 
     it('filters priority suggestions by query when no project search is available', async () => {
         await expect(
-            buildContentMentionSuggestionItems({
+            buildContentMentionSuggestionItems(sharedLightdashApi, {
                 projectUuid: undefined,
                 query: 'rev',
                 priorityItems: [
@@ -514,7 +523,7 @@ describe('contentMentions', () => {
 
     it('does not search content API until the query has at least two characters', async () => {
         await expect(
-            buildContentMentionSuggestionItems({
+            buildContentMentionSuggestionItems(sharedLightdashApi, {
                 projectUuid: 'project-uuid',
                 query: 'r',
                 priorityItems: [],

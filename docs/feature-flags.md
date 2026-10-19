@@ -449,3 +449,24 @@ Disabling the flag restores the existing profile and child-environment behaviour
 It does not change credential selection, revoke credentials or stop work already
 in progress. This policy does not isolate the child from host files or metadata
 endpoints; it rejects known ambient modes and filters inherited variables.
+
+### Mixed warehouse connections
+
+`mixed-warehouse-connections` is off by default on Cloud and self-hosted. It
+allows originals and extras of every user-connectable warehouse type, in any
+mix. With it off, only Postgres, Athena and Snowflake originals can hold extras,
+and extras must use the original type. Trino is refused with the flag off.
+Backend-provisioned DuckDB variants are always refused. The multi-connection rollout flag and
+licence checks still apply.
+
+Create, credential update and switch requests resolve this flag for the requesting
+user and the project's organisation. User and organisation Console overrides
+apply. The add-connection modal uses the server-resolved flag. Console changes
+apply to the next backend request and frontend flag refetch. The generic ENV
+precedence above applies; ENV changes require an API restart.
+
+Disabling the flag restores the original allowlist for new saves and switches.
+An existing extra cannot change its type with either flag value; add a new
+connection instead. It does not remove
+saved connections or change query execution. Mixed-type extras keep their own
+user-credential requirement; same-type extras still inherit the original's.

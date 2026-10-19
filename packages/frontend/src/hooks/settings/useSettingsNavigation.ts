@@ -1315,7 +1315,14 @@ export const useSettingsNavigation = (
                 id: 'current-project',
                 title: 'Current project',
                 subtitle: project.name,
-                items: projectItems,
+                items:
+                    project.provisioningSource === 'analytics'
+                        ? projectItems.filter(
+                              ({ to }) =>
+                                  to === `${base}/projectAccess` ||
+                                  to === `${base}/recentlyDeleted`,
+                          )
+                        : projectItems,
             });
         }
 

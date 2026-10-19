@@ -14,15 +14,20 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 const AI_AGENT_DOCUMENTS_KEY = 'aiAgentDocuments';
 
 const documentsUrl = (projectUuid: string, agentUuid: string) =>
     `/projects/${projectUuid}/aiAgents/${agentUuid}/documents`;
 
-const listDocuments = async (projectUuid: string, agentUuid: string) =>
+const listDocuments = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    agentUuid: string,
+) =>
     lightdashApi<ApiAiAgentDocumentSummaryListResponse['results']>({
         version: 'v1',
         url: documentsUrl(projectUuid, agentUuid),
@@ -31,6 +36,7 @@ const listDocuments = async (projectUuid: string, agentUuid: string) =>
     });
 
 const createDocument = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     body: ApiCreateAgentDocument,
@@ -43,6 +49,7 @@ const createDocument = async (
     });
 
 const getDocumentContent = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     documentUuid: string,
@@ -55,6 +62,7 @@ const getDocumentContent = async (
     });
 
 const updateDocumentContent = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     documentUuid: string,
@@ -68,6 +76,7 @@ const updateDocumentContent = async (
     });
 
 const updateDocument = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     documentUuid: string,
@@ -81,6 +90,7 @@ const updateDocument = async (
     });
 
 const deleteDocument = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     documentUuid: string,
@@ -99,17 +109,22 @@ export const useAiAgentDocuments = (
         ApiAiAgentDocumentSummaryListResponse['results'],
         ApiError
     >,
-) =>
-    useQuery<ApiAiAgentDocumentSummaryListResponse['results'], ApiError>({
-        queryKey: [AI_AGENT_DOCUMENTS_KEY, projectUuid, agentUuid],
-        queryFn: () => listDocuments(projectUuid, agentUuid),
-        ...options,
-    });
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiAiAgentDocumentSummaryListResponse['results'], ApiError>(
+        {
+            queryKey: [AI_AGENT_DOCUMENTS_KEY, projectUuid, agentUuid],
+            queryFn: () => listDocuments(lightdashApi, projectUuid, agentUuid),
+            ...options,
+        },
+    );
+};
 
 export const useCreateAiAgentDocument = (
     projectUuid: string,
     agentUuid: string,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<
@@ -117,7 +132,8 @@ export const useCreateAiAgentDocument = (
         ApiError,
         ApiCreateAgentDocument
     >({
-        mutationFn: (body) => createDocument(projectUuid, agentUuid, body),
+        mutationFn: (body) =>
+            createDocument(lightdashApi, projectUuid, agentUuid, body),
         onSuccess: async () => {
             // Org level documents appear under every agent, so invalidate them all
             await queryClient.invalidateQueries({
@@ -141,8 +157,9 @@ export const useAiAgentDocumentContent = (
         ApiAiAgentDocumentContentResponse['results'],
         ApiError
     >,
-) =>
-    useQuery<ApiAiAgentDocumentContentResponse['results'], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiAiAgentDocumentContentResponse['results'], ApiError>({
         ...options,
         queryKey: [
             AI_AGENT_DOCUMENTS_KEY,
@@ -155,15 +172,22 @@ export const useAiAgentDocumentContent = (
             if (!documentUuid) {
                 throw new Error('Document uuid is required');
             }
-            return getDocumentContent(projectUuid, agentUuid, documentUuid);
+            return getDocumentContent(
+                lightdashApi,
+                projectUuid,
+                agentUuid,
+                documentUuid,
+            );
         },
         enabled: documentUuid !== null && (options?.enabled ?? true),
     });
+};
 
 export const useUpdateAiAgentDocumentContent = (
     projectUuid: string,
     agentUuid: string,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<
@@ -172,7 +196,13 @@ export const useUpdateAiAgentDocumentContent = (
         { documentUuid: string; body: ApiUpdateAgentDocumentContent }
     >({
         mutationFn: ({ documentUuid, body }) =>
-            updateDocumentContent(projectUuid, agentUuid, documentUuid, body),
+            updateDocumentContent(
+                lightdashApi,
+                projectUuid,
+                agentUuid,
+                documentUuid,
+                body,
+            ),
         onSuccess: async (document) => {
             await Promise.all([
                 queryClient.invalidateQueries({
@@ -202,6 +232,7 @@ export const useUpdateAiAgentDocument = (
     projectUuid: string,
     agentUuid: string,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<
@@ -210,7 +241,13 @@ export const useUpdateAiAgentDocument = (
         { documentUuid: string; body: ApiUpdateAgentDocument }
     >({
         mutationFn: ({ documentUuid, body }) =>
-            updateDocument(projectUuid, agentUuid, documentUuid, body),
+            updateDocument(
+                lightdashApi,
+                projectUuid,
+                agentUuid,
+                documentUuid,
+                body,
+            ),
         onSuccess: async () => {
             await queryClient.invalidateQueries({
                 queryKey: [AI_AGENT_DOCUMENTS_KEY],
@@ -229,11 +266,12 @@ export const useDeleteAiAgentDocument = (
     projectUuid: string,
     agentUuid: string,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<ApiSuccessEmpty['results'], ApiError, string>({
         mutationFn: (documentUuid) =>
-            deleteDocument(projectUuid, agentUuid, documentUuid),
+            deleteDocument(lightdashApi, projectUuid, agentUuid, documentUuid),
         onSuccess: async () => {
             // Org level documents appear under every agent, so invalidate them all
             await queryClient.invalidateQueries({

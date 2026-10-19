@@ -5,6 +5,8 @@
  * If the feature flag is no longer in use, remove it from this enum.
  */
 export enum FeatureFlags {
+    /** Organization-scoped, off by default. Retry missing cross-project refs with sibling models injected through a generated dbt plugin. */
+    CrossSourceDbtRefs = 'cross-source-dbt-refs',
     DbtExplicitCredentials = 'dbt-explicit-credentials',
     /**
      * Agent identity gates agent query identity, organisation settings and
@@ -18,6 +20,8 @@ export enum FeatureFlags {
     MultiConnectionProjects = 'multi-connection-projects',
     // Organisation scope, off by default, no handler.
     SpaceWarehouseConnections = 'space-warehouse-connections',
+    /** Extra warehouse connections of a different type to the project's original connection. */
+    MixedWarehouseConnections = 'mixed-warehouse-connections',
     /** Independent Documents containing narrative and saved chart definitions. */
     Documents = 'documents',
     /** Backend-provisioned usage analytics projects. */

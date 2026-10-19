@@ -46,7 +46,11 @@ const PostgresForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
-    const { savedProject, isProjectExtraConnection } = useProjectFormContext();
+    const {
+        savedProject,
+        isProjectExtraConnection,
+        inheritsPrimaryCredentialRequirement = true,
+    } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.POSTGRES;
     const form = useFormContext();
@@ -128,7 +132,8 @@ const PostgresForm: FC<{
                 />
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt="xs">
-                        {isProjectExtraConnection ? (
+                        {isProjectExtraConnection &&
+                        inheritsPrimaryCredentialRequirement ? (
                             <Text size="sm" c="dimmed">
                                 Require users to provide their own credentials
                                 follows the primary connection.

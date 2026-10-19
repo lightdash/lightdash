@@ -14,7 +14,7 @@ import {
     type PivotConfiguration,
     type SortField,
 } from '@lightdash/common';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import { pollForResults } from '../../queryRunner/executeQuery';
 import { type SavedChartPreviewQueryResult } from './savedChartPreviewQuery';
 
@@ -55,15 +55,18 @@ export const buildExplorePreviewMetricQuery = (
 };
 
 /** Run an explore's ad-hoc query once and hand back its rows. */
-export const executeExplorePreviewQuery = async ({
-    projectUuid,
-    query,
-    pivotConfiguration,
-}: {
-    projectUuid: string;
-    query: Omit<MetricQueryRequest, 'csvLimit'>;
-    pivotConfiguration?: PivotConfiguration;
-}): Promise<SavedChartPreviewQueryResult> => {
+export const executeExplorePreviewQuery = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        query,
+        pivotConfiguration,
+    }: {
+        projectUuid: string;
+        query: Omit<MetricQueryRequest, 'csvLimit'>;
+        pivotConfiguration?: PivotConfiguration;
+    },
+): Promise<SavedChartPreviewQueryResult> => {
     try {
         const started = await lightdashApi<ApiExecuteAsyncMetricQueryResults>({
             url: `/projects/${projectUuid}/query/metric-query`,
@@ -76,7 +79,11 @@ export const executeExplorePreviewQuery = async ({
             } satisfies ExecuteAsyncMetricQueryRequestParams),
         });
 
-        const results = await pollForResults(projectUuid, started.queryUuid);
+        const results = await pollForResults(
+            lightdashApi,
+            projectUuid,
+            started.queryUuid,
+        );
         if (results.status !== QueryHistoryStatus.READY) {
             throw new Error(
                 ('error' in results ? results.error : null) ??

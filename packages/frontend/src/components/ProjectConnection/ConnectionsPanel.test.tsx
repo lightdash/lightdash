@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     ProjectType,
     WarehouseTypes,
     type Project,
@@ -15,21 +16,26 @@ import {
     vi,
     type Mock,
 } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import { renderWithProviders } from '../../testing/testUtils';
 import ConnectionsPanel from './ConnectionsPanel';
 
-const flag = vi.hoisted(() => ({ enabled: true }));
+const flag = vi.hoisted(() => ({ enabled: true, mixedTypesEnabled: true }));
 
-vi.mock('../../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../../api');
 
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: flag.enabled } }),
+    useServerFeatureFlag: (id: FeatureFlags) => ({
+        data: {
+            enabled:
+                id === FeatureFlags.MixedWarehouseConnections
+                    ? flag.mixedTypesEnabled
+                    : flag.enabled,
+        },
+    }),
 }));
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 
 const original: WarehouseConnection = {
     warehouseConnectionUuid: 'original-uuid',
@@ -89,6 +95,7 @@ describe('ConnectionsPanel', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         flag.enabled = true;
+        flag.mixedTypesEnabled = true;
     });
 
     afterEach(() => {
@@ -173,6 +180,26 @@ describe('ConnectionsPanel', () => {
             screen.queryByText('Failed to load connections.'),
         ).not.toBeInTheDocument();
     });
+
+    it.each([false, true])(
+        'gates a Trino original in the panel with the resolved mixed flag %s',
+        async (enabled) => {
+            flag.mixedTypesEnabled = enabled;
+            mockApi.mockResolvedValue({
+                connections: [
+                    { ...original, warehouseType: WarehouseTypes.TRINO },
+                ],
+                capabilities: { canAddConnection: true, reason: null },
+            });
+            renderPanel();
+            const button = await screen.findByRole('button', {
+                name: 'Add connection',
+            });
+            await waitFor(() =>
+                expect(button).toHaveProperty('disabled', !enabled),
+            );
+        },
+    );
 
     it('lists connections and only offers edit and removal for extra connections', async () => {
         mockApi.mockResolvedValue({
@@ -295,6 +322,92 @@ describe('ConnectionsPanel', () => {
                         name: 'Reporting',
                         organizationWarehouseCredentialsUuid:
                             'org-credential-uuid',
+                    }),
+                }),
+            ),
+        );
+    });
+
+    it('clears organisation credentials when changing the warehouse type before adding a connection', async () => {
+        mockApi.mockImplementation(
+            async ({ url, method }: { url: string; method: string }) => {
+                if (url === listUrl && method === 'GET')
+                    return {
+                        connections: [
+                            {
+                                ...original,
+                                warehouseType: WarehouseTypes.SNOWFLAKE,
+                            },
+                        ],
+                        capabilities: { canAddConnection: true, reason: null },
+                    };
+                if (url === '/org/warehouse-credentials' && method === 'GET')
+                    return [
+                        {
+                            organizationWarehouseCredentialsUuid:
+                                'org-credential-uuid',
+                            warehouseType: WarehouseTypes.SNOWFLAKE,
+                            name: 'Saved Snowflake',
+                        },
+                    ];
+                if (url === listUrl && method === 'POST') return extra;
+                return undefined;
+            },
+        );
+        const user = renderPanel();
+        await user.click(
+            await screen.findByRole('button', { name: 'Add connection' }),
+        );
+        await user.type(
+            screen.getByRole('textbox', { name: 'Name' }),
+            'Reporting',
+        );
+        await user.click(
+            await screen.findByRole('radio', {
+                name: 'Use organization credentials',
+            }),
+        );
+        expect(
+            screen.getByRole('combobox', { name: 'Organization credentials' }),
+        ).toHaveValue('Saved Snowflake');
+        await user.click(screen.getByRole('combobox', { name: 'Type' }));
+        await user.click(screen.getByRole('option', { name: 'Trino' }));
+        for (const [name, value] of [
+            ['Host', 'trino.internal'],
+            ['User', 'reporter'],
+            ['DB name', 'analytics'],
+            ['Schema', 'public'],
+        ]) {
+            await user.click(screen.getByRole('textbox', { name }));
+            await user.paste(value);
+        }
+        await user.click(screen.getByLabelText(/^Password/));
+        await user.paste('trino-password');
+        const dialog = screen
+            .getByText('Add a connection')
+            .closest<HTMLElement>('[role="alertdialog"], [role="dialog"]')!;
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Add connection' }),
+        );
+        await waitFor(() =>
+            expect(mockApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: listUrl,
+                    method: 'POST',
+                    body: JSON.stringify({
+                        name: 'Reporting',
+                        warehouseConnection: {
+                            type: WarehouseTypes.TRINO,
+                            schema: 'public',
+                            host: 'trino.internal',
+                            user: 'reporter',
+                            password: 'trino-password',
+                            requireUserCredentials: false,
+                            port: 443,
+                            dbname: 'analytics',
+                            http_scheme: 'https',
+                            source: '',
+                        },
                     }),
                 }),
             ),

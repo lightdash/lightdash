@@ -2,12 +2,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { type FC, type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
+import { sharedLightdashApi } from '../../../api';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { useSaveWorkspaceFile } from './useSaveWorkspaceFile';
 import { workspaceFileQueryKey } from './useWorkspaceFile';
 import { workspaceFilesQueryKey } from './useWorkspaceFiles';
 
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../api');
 
 const setup = () => {
     const queryClient = new QueryClient({
@@ -33,7 +34,7 @@ describe('useSaveWorkspaceFile', () => {
     });
 
     it('PUTs the content and invalidates both the file and file-list queries', async () => {
-        vi.mocked(lightdashApi).mockResolvedValue(undefined);
+        mockedLightdashApi.mockResolvedValue(undefined);
         const { queryClient, result } = setup();
         queryClient.setQueryData(workspaceFilesQueryKey('p'), []);
         queryClient.setQueryData(workspaceFileQueryKey('p', 'a.sql'), {
@@ -45,7 +46,7 @@ describe('useSaveWorkspaceFile', () => {
         result.current.mutate({ path: 'a.sql', content: 'select 1' });
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
-        expect(lightdashApi).toHaveBeenCalledWith(
+        expect(sharedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: `/projects/p/learn/workspace/files/${encodeURIComponent('a.sql')}`,
                 method: 'PUT',

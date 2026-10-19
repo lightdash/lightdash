@@ -1,3 +1,130 @@
+## [2.606.2](https://github.com/lightdash/lightdash/compare/2.606.1...2.606.2) (2026-10-19)
+
+
+### Bug Fixes
+
+* **ai-agents:** deliver Slack chart images without the fast-decisions client ([#31139](https://github.com/lightdash/lightdash/issues/31139)) ([1525123](https://github.com/lightdash/lightdash/commit/152512315d90dda1b7f70322ed3ab1f2df2f5f8e))
+
+## [2.606.1](https://github.com/lightdash/lightdash/compare/2.606.0...2.606.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* honor organization row limits in Sheets AI drafts ([#31137](https://github.com/lightdash/lightdash/issues/31137)) ([56b0ae9](https://github.com/lightdash/lightdash/commit/56b0ae987be5a443d968a017db6b2fd11180097d))
+
+# [2.606.0](https://github.com/lightdash/lightdash/compare/2.605.5...2.606.0) (2026-10-19)
+
+
+### Features
+
+* process retained usage when creating analytics projects ([#31128](https://github.com/lightdash/lightdash/issues/31128)) ([36cf94d](https://github.com/lightdash/lightdash/commit/36cf94d05e0e77c4ffdc7b5fd13658a9bb2e249a))
+
+## [2.605.5](https://github.com/lightdash/lightdash/compare/2.605.4...2.605.5) (2026-10-19)
+
+
+### Bug Fixes
+
+* **sdk:** give each SDK component its own API client ([#30827](https://github.com/lightdash/lightdash/issues/30827)) ([440ce44](https://github.com/lightdash/lightdash/commit/440ce44dbbc31e07ed26cac5c06f4cf30b2b15b8))
+
+## [2.605.4](https://github.com/lightdash/lightdash/compare/2.605.3...2.605.4) (2026-10-19)
+
+
+### Bug Fixes
+
+* **ai-agents:** Slack SQL approval for runComposerQueries ([#31126](https://github.com/lightdash/lightdash/issues/31126)) ([0bfcf3e](https://github.com/lightdash/lightdash/commit/0bfcf3e137de09f52d578e1c8552d9345eb43c2f))
+
+## [2.605.3](https://github.com/lightdash/lightdash/compare/2.605.2...2.605.3) (2026-10-19)
+
+
+### Bug Fixes
+
+* **mcp:** publish required numeric tool inputs as required ([#31106](https://github.com/lightdash/lightdash/issues/31106)) ([37ee14a](https://github.com/lightdash/lightdash/commit/37ee14af246a7ed2a089bd45f5cb5af7988a71cf))
+
+## [2.605.2](https://github.com/lightdash/lightdash/compare/2.605.1...2.605.2) (2026-10-19)
+
+
+### Bug Fixes
+
+* simplify analytics settings while keeping access and recovery ([#31124](https://github.com/lightdash/lightdash/issues/31124)) ([e9b6f45](https://github.com/lightdash/lightdash/commit/e9b6f45b4cb7725c0186a1c6785a55bb543d1151))
+
+## [2.605.1](https://github.com/lightdash/lightdash/compare/2.605.0...2.605.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* **ai-agents:** don't persist step responses in generate path ([#31125](https://github.com/lightdash/lightdash/issues/31125)) ([385f5a9](https://github.com/lightdash/lightdash/commit/385f5a9c3d1824b399ff12b19135c1399f5c6c39))
+
+# [2.605.0](https://github.com/lightdash/lightdash/compare/2.604.0...2.605.0) (2026-10-19)
+
+
+### Features
+
+* capture usage events independently of the analytics flag ([#31098](https://github.com/lightdash/lightdash/issues/31098)) ([c709742](https://github.com/lightdash/lightdash/commit/c709742c9d8b3aaa87a26faf62750b65e22c88e8))
+
+# [2.604.0](https://github.com/lightdash/lightdash/compare/2.603.4...2.604.0) (2026-10-18)
+
+
+### Features
+
+* **connections:** mix warehouse types in one project behind a flag ([#31096](https://github.com/lightdash/lightdash/issues/31096)) ([f69a637](https://github.com/lightdash/lightdash/commit/f69a6378d4b50b4c6bfc5acdad9ef68430ac4b2c))
+
+## [2.603.4](https://github.com/lightdash/lightdash/compare/2.603.3...2.603.4) (2026-10-18)
+
+
+### Bug Fixes
+
+* **formula:** memoize the formula parser so nested calls parse in linear time ([#31122](https://github.com/lightdash/lightdash/issues/31122)) ([93bf1e2](https://github.com/lightdash/lightdash/commit/93bf1e203e409a1c8f49fa932408b088bb48e131))
+
+## [2.603.3](https://github.com/lightdash/lightdash/compare/2.603.2...2.603.3) (2026-10-18)
+
+
+### Bug Fixes
+
+* copy upstream primary connection when lightdash preview --source creates a temporary preview ([#31121](https://github.com/lightdash/lightdash/issues/31121)) ([7a5a0ea](https://github.com/lightdash/lightdash/commit/7a5a0ea4319d75b0b64dd7fb999c2455324dc917)), closes [#28702](https://github.com/lightdash/lightdash/issues/28702)
+
+## [2.603.2](https://github.com/lightdash/lightdash/compare/2.603.1...2.603.2) (2026-10-18)
+
+
+### Bug Fixes
+
+* copy upstream primary connection when lightdash start-preview --source creates a preview ([#31120](https://github.com/lightdash/lightdash/issues/31120)) ([4f209f2](https://github.com/lightdash/lightdash/commit/4f209f22fe22159cdb56eb152cdccfa7adf8058d)), closes [#28702](https://github.com/lightdash/lightdash/issues/28702) [#28702](https://github.com/lightdash/lightdash/issues/28702)
+
+## [2.603.1](https://github.com/lightdash/lightdash/compare/2.603.0...2.603.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* refresh source connection credentials in lightdash start-preview --source ([#31119](https://github.com/lightdash/lightdash/issues/31119)) ([1408762](https://github.com/lightdash/lightdash/commit/14087626d962258350fafb3b764a82cadeea8018)), closes [#28702](https://github.com/lightdash/lightdash/issues/28702) [#28702](https://github.com/lightdash/lightdash/issues/28702)
+* use source connection timestamp setting in lightdash deploy --source ([#31118](https://github.com/lightdash/lightdash/issues/31118)) ([fc2de50](https://github.com/lightdash/lightdash/commit/fc2de50bb756c5f379f21a2f60f94f3bf0f54fe8)), closes [#28702](https://github.com/lightdash/lightdash/issues/28702) [#28702](https://github.com/lightdash/lightdash/issues/28702)
+
+# [2.603.0](https://github.com/lightdash/lightdash/compare/2.602.1...2.603.0) (2026-10-17)
+
+
+### Features
+
+* **dbt:** resolve cross-source dbt refs without dbt-loom ([#31113](https://github.com/lightdash/lightdash/issues/31113)) ([b36463f](https://github.com/lightdash/lightdash/commit/b36463f0eaa8bb92a45853ca7783bf04ab4760c8)), closes [#31025](https://github.com/lightdash/lightdash/issues/31025)
+
+## [2.602.1](https://github.com/lightdash/lightdash/compare/2.602.0...2.602.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* **mcp:** serve favicon.ico cross-origin so Claude can show the connector icon ([#31117](https://github.com/lightdash/lightdash/issues/31117)) ([9422463](https://github.com/lightdash/lightdash/commit/942246331c49e8fc2aac22692b4cc8f535eb4b09))
+
+# [2.602.0](https://github.com/lightdash/lightdash/compare/2.601.0...2.602.0) (2026-10-17)
+
+
+### Features
+
+* **mcp:** advertise each tool's title in its annotations ([#31116](https://github.com/lightdash/lightdash/issues/31116)) ([46ce99c](https://github.com/lightdash/lightdash/commit/46ce99c20d0581c615eb5ac04e2daf58e3ca2e0b))
+
+# [2.601.0](https://github.com/lightdash/lightdash/compare/2.600.1...2.601.0) (2026-10-17)
+
+
+### Features
+
+* **plugins:** add the Lightdash plugin for Claude with a per-instance MCP URL ([#31114](https://github.com/lightdash/lightdash/issues/31114)) ([0200785](https://github.com/lightdash/lightdash/commit/02007851bfb14cae22f993720d064abe8110378d))
+
 ## [2.600.1](https://github.com/lightdash/lightdash/compare/2.600.0...2.600.1) (2026-10-16)
 
 

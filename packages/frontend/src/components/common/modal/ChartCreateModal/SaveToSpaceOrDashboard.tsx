@@ -50,6 +50,7 @@ import {
     useSpaceSummaries,
 } from '../../../../hooks/useSpaces';
 import useApp from '../../../../providers/App/useApp';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import Callout from '../../Callout';
 import MantineIcon from '../../MantineIcon';
 import classes from './ChartCreateModal.module.css';
@@ -120,6 +121,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     redirectOnSuccess = true,
     showViewChartAction = true,
 }) => {
+    const lightdashApi = useLightdashApi();
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
         projectRoute?.projectUrlIdentifier ?? projectUuid;
@@ -506,6 +508,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                 };
                 if (isCreatingNewDashboard && projectUuid) {
                     await updateDashboardApi(
+                        lightdashApi,
                         destinationDashboard.uuid,
                         updateFields,
                         projectUuid,
@@ -585,6 +588,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             createDashboard,
             createSpace,
             forcedSpaceUuid,
+            lightdashApi,
         ],
     );
 

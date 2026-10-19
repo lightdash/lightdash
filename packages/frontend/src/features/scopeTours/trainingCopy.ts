@@ -1,17 +1,23 @@
 import { type CreateTrainingPreviewResults } from '@lightdash/common';
 import { NavigationType } from 'react-router';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
 import { hasCodeLesson } from '../learn/codeLessons';
 
 /** A learner's own fresh copy of the training project, for one walkthrough. */
-export const createTrainingPreview = (trainingProjectUuid: string) =>
+export const createTrainingPreview = (
+    lightdashApi: LightdashApi,
+    trainingProjectUuid: string,
+) =>
     lightdashApi<CreateTrainingPreviewResults>({
         url: `/projects/${trainingProjectUuid}/training-previews`,
         method: 'POST',
         body: undefined,
     });
 
-export const deleteTrainingPreviews = (trainingProjectUuid: string) =>
+export const deleteTrainingPreviews = (
+    lightdashApi: LightdashApi,
+    trainingProjectUuid: string,
+) =>
     lightdashApi<undefined>({
         url: `/projects/${trainingProjectUuid}/training-previews`,
         method: 'DELETE',

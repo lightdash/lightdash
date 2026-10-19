@@ -26,7 +26,13 @@ import { useAmbientAiEnabled } from '../../../ee/features/ambientAi/hooks/useAmb
 import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
 import { useEditorTheme } from '../../../hooks/useEditorTheme';
 import { useTableCalculationAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
+import {
+    useExploreWarehouseConnection,
+    useMixedWarehouseConnectionsEnabled,
+} from '../../../hooks/useExploreWarehouseConnection';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { getWarehouseSqlCaption } from '../../../utils/mixedWarehouseConnections';
+import { selectTableName, useExplorerSelector } from '../../explorer/store';
 import { type TableCalculationForm } from '../types';
 import FormulaConversionPreviewBody from './FormulaConversionPreview';
 import 'ace-builds/src-noconflict/mode-sql';
@@ -115,6 +121,15 @@ export const SqlForm: FC<Props> = ({
 
     const { setAceEditor } = useTableCalculationAceEditorCompleter();
     const projectUuid = useProjectUuid();
+    const tableName = useExplorerSelector(selectTableName);
+    const { warehouseType } = useExploreWarehouseConnection(
+        tableName,
+        projectUuid,
+    );
+    const sqlCaption = getWarehouseSqlCaption(
+        warehouseType,
+        useMixedWarehouseConnectionsEnabled(),
+    );
     const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid);
     const isEmbedded = useIsEmbedded();
 
@@ -209,6 +224,11 @@ export const SqlForm: FC<Props> = ({
                 flex={1}
                 className={conversionState ? classes.editorBlurred : undefined}
             >
+                {sqlCaption !== null && (
+                    <Text size="xs" c="dimmed">
+                        {sqlCaption}
+                    </Text>
+                )}
                 <SqlEditor
                     mode="sql"
                     theme={aceTheme}

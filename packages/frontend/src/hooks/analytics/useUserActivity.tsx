@@ -4,10 +4,14 @@ import {
     type UserActivity,
 } from '@lightdash/common';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useQueryError from '../useQueryError';
 
-const getUserActivity = async (projectUuid: string) =>
+const getUserActivity = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<UserActivity>({
         url: `/analytics/user-activity/${projectUuid}`,
         method: 'GET',
@@ -15,17 +19,21 @@ const getUserActivity = async (projectUuid: string) =>
     });
 
 export const useUserActivity = (projectUuid?: string) => {
+    const lightdashApi = useLightdashApi();
     const setErrorResponse = useQueryError();
     return useQuery<UserActivity, ApiError>({
         queryKey: ['user_activity', projectUuid],
-        queryFn: () => getUserActivity(projectUuid || ''),
+        queryFn: () => getUserActivity(lightdashApi, projectUuid || ''),
         enabled: projectUuid !== undefined,
         retry: false,
         onError: (result) => setErrorResponse(result),
     });
 };
 
-const downloadUserActivityCsv = async (projectUuid: string) =>
+const downloadUserActivityCsv = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<ApiUserActivityDownloadCsv['results']>({
         url: `/analytics/user-activity/${projectUuid}/download`,
         method: 'POST',
@@ -33,9 +41,11 @@ const downloadUserActivityCsv = async (projectUuid: string) =>
     });
 
 export const useDownloadUserActivityCsv = () => {
+    const lightdashApi = useLightdashApi();
     const setErrorResponse = useQueryError();
     return useMutation<ApiUserActivityDownloadCsv['results'], ApiError, string>(
-        downloadUserActivityCsv,
+        (projectUuid: string) =>
+            downloadUserActivityCsv(lightdashApi, projectUuid),
         {
             mutationKey: ['download_user_activity_csv'],
             onError: (result) => setErrorResponse(result),

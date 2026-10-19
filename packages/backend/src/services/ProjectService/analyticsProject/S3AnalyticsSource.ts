@@ -22,6 +22,8 @@ import { analyticsFileCache } from './AnalyticsFileCache';
 type S3AnalyticsSourceConfig = {
     storage: S3ConnectionConfig & { bucket: string };
     organizationUuid: string;
+    // Provisioning must authenticate storage before the first processing job.
+    allowEmpty?: boolean;
 };
 
 const SIGNED_URL_LIFETIME_SECONDS = 900;
@@ -32,6 +34,7 @@ const SIGNING_CONCURRENCY = 8;
 export const createS3AnalyticsSourceResolver = ({
     storage,
     organizationUuid,
+    allowEmpty = false,
 }: S3AnalyticsSourceConfig): ((
     referencedTables?: readonly string[],
 ) => Promise<DuckdbParquetSource>) => {
@@ -207,7 +210,7 @@ export const createS3AnalyticsSourceResolver = ({
         } finally {
             client.destroy();
         }
-        if (!hasEvents) {
+        if (!hasEvents && !allowEmpty) {
             throw new ParameterError(
                 'No analytics data is available yet. Newly captured events become available after daily processing. Try again after the next daily update.',
             );

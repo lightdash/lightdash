@@ -28,7 +28,10 @@ import {
 
 export type DeployExploreEnhancer = (
     explores: (Explore | ExploreError)[],
-    context: { startOfWeek: WeekDay | null },
+    context: {
+        startOfWeek: WeekDay | null;
+        startOfWeekByExplore?: ReadonlyMap<string, WeekDay | null>;
+    },
 ) => (Explore | ExploreError)[];
 
 type ProjectServiceInterface = {
@@ -53,6 +56,13 @@ type ProjectServiceInterface = {
         dbtModelNames?: string[];
         cliDeploy: CliDeploySelection;
     }) => Promise<string>;
+    getDeployStartOfWeekByExplore: (args: {
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+        explores: (Explore | ExploreError)[];
+        sourceUuid: string | null;
+    }) => Promise<Map<string, WeekDay | null>>;
     trackCliSourceDeploy: (
         args: {
             userUuid: string;
@@ -315,8 +325,17 @@ export class DeployService extends BaseService {
             const deployData =
                 await this.deploySessionModel.getDeployData(sessionUuid);
             const uploadedExplores = deployData.explores;
+            const startOfWeekByExplore =
+                await this.projectService.getDeployStartOfWeekByExplore({
+                    userUuid: user.userUuid,
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                    explores: uploadedExplores,
+                    sourceUuid: cliDeploy.sourceUuid,
+                });
             const explores = this.exploreEnhancer(uploadedExplores, {
                 startOfWeek: project.warehouseConnection?.startOfWeek ?? null,
+                startOfWeekByExplore,
             });
 
             this.logger.info(

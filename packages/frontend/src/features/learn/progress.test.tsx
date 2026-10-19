@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 
 // Learn's organization switch: the library and the navbar link read it, and
 // progress is only asked for where it is on.
@@ -12,11 +12,11 @@ vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: learnFlag.enabled } }),
 }));
 
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import { createQueryClient } from '../../providers/ReactQuery/createQueryClient';
 import { useLearnProgress, useLearnProgressActions } from './progress';
 
-const api = lightdashApi as unknown as Mock;
+const api = sharedLightdashApi as unknown as Mock;
 
 const calls = () =>
     api.mock.calls.map(([{ method, url, body }]) => ({

@@ -40,8 +40,10 @@ import {
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
+import { type OrganizationSettingsModel } from '../../../models/OrganizationSettingsModel';
 import { BaseService } from '../../../services/BaseService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
+import { resolveOrganizationExportLimits } from '../../../services/OrganizationSettingsService/resolveExportLimits';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
     ChartTypeExploreSuggested,
@@ -124,6 +126,7 @@ type Dependencies = {
     lightdashConfig: LightdashConfig;
     featureFlagService: FeatureFlagService;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+    organizationSettingsModel: OrganizationSettingsModel;
 };
 
 export class AiService extends BaseService {
@@ -138,6 +141,8 @@ export class AiService extends BaseService {
     private readonly featureFlagService: FeatureFlagService;
 
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+
+    private readonly organizationSettingsModel: OrganizationSettingsModel;
 
     private static readonly MAX_CHART_TYPE_EXPLORE_CANDIDATES = 200;
 
@@ -283,6 +288,7 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
     constructor(dependencies: Dependencies) {
         super();
         this.analytics = dependencies.analytics;
+        this.organizationSettingsModel = dependencies.organizationSettingsModel;
         this.projectService = dependencies.projectService;
         this.openAi = dependencies.openAi;
         this.lightdashConfig = dependencies.lightdashConfig;
@@ -508,6 +514,7 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
         projectUuid: string,
         payload: GenerateGoogleSheetsExtensionReportDraftRequest,
     ): Promise<GeneratedGoogleSheetsExtensionReportDraft> {
+        if (!user.organizationUuid) throw new ForbiddenError();
         await this.assertCanManageExplore(user, projectUuid);
         const request = parseGoogleSheetsExtensionReportDraftRequest(payload);
         const explore = await this.projectService.getExplore(
@@ -517,6 +524,11 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
             undefined,
             false,
         );
+        const { maxLimit } = await resolveOrganizationExportLimits(
+            this.organizationSettingsModel,
+            this.lightdashConfig.query,
+            user.organizationUuid,
+        );
         const modelOptions = await this.getAmbientAiModel(user, {
             projectUuid,
         });
@@ -524,6 +536,7 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
             modelOptions,
             explore,
             request,
+            maxLimit,
         );
     }
 
@@ -720,7 +733,9 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
     async generateTableCalculation(
         user: SessionUser,
         projectUuid: string,
-        payload: GenerateTableCalculationRequest,
+        payload: Omit<GenerateTableCalculationRequest, 'exploreName'> & {
+            exploreName?: string;
+        },
     ): Promise<GeneratedTableCalculation> {
         const project = await this.projectService.getProject(
             projectUuid,
@@ -741,11 +756,13 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
         const modelOptions = await this.getAmbientAiModel(user, {
             projectUuid,
         });
-        const warehouseType = project.warehouseConnection?.type;
-
-        if (!warehouseType) {
-            throw new ForbiddenError('Warehouse type is not available');
-        }
+        const { type: warehouseType } =
+            await this.projectService.getWarehouseSqlBuilderSettings(
+                projectUuid,
+                payload.exploreName
+                    ? { kind: 'explore', exploreName: payload.exploreName }
+                    : { kind: 'original' },
+            );
 
         const result = await generateTableCalculationFromContext(modelOptions, {
             prompt: payload.prompt,
@@ -777,7 +794,9 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
     async generateCustomDimension(
         user: SessionUser,
         projectUuid: string,
-        payload: GenerateCustomDimensionRequest,
+        payload: Omit<GenerateCustomDimensionRequest, 'exploreName'> & {
+            exploreName?: string;
+        },
     ): Promise<GeneratedCustomDimension> {
         const project = await this.projectService.getProject(
             projectUuid,
@@ -798,11 +817,13 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
         const modelOptions = await this.getAmbientAiModel(user, {
             projectUuid,
         });
-        const warehouseType = project.warehouseConnection?.type;
-
-        if (!warehouseType) {
-            throw new ForbiddenError('Warehouse type is not available');
-        }
+        const { type: warehouseType } =
+            await this.projectService.getWarehouseSqlBuilderSettings(
+                projectUuid,
+                payload.exploreName
+                    ? { kind: 'explore', exploreName: payload.exploreName }
+                    : { kind: 'original' },
+            );
 
         const result = await generateCustomDimensionFromContext(modelOptions, {
             ...payload,

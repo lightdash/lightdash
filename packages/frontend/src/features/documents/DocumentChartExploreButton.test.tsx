@@ -8,6 +8,7 @@ import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type * as ReactRouter from 'react-router';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import DocumentChartExploreButton from './DocumentChartExploreButton';
 
 const mocks = vi.hoisted(() => ({
@@ -15,7 +16,7 @@ const mocks = vi.hoisted(() => ({
     navigate: vi.fn(),
     track: vi.fn(),
 }));
-vi.mock('../../api', () => ({ lightdashApi: mocks.api }));
+vi.mock('../../api');
 vi.mock('../../providers/Tracking/useTracking', () => ({
     default: () => ({ track: mocks.track }),
 }));
@@ -74,7 +75,7 @@ const chart: CreateSavedChartVersion = {
 describe('Document chart exploration', () => {
     const clients: QueryClient[] = [];
     beforeEach(() => {
-        mocks.api.mockReset();
+        mockedLightdashApi.mockReset();
         mocks.navigate.mockReset();
         mocks.track.mockReset();
         sessionStorage.clear();
@@ -104,7 +105,7 @@ describe('Document chart exploration', () => {
     };
 
     it('opens an unsaved Explore with the complete query and visualization through the existing share API', async () => {
-        mocks.api.mockResolvedValue({ nanoid: 'explore-link' });
+        mockedLightdashApi.mockResolvedValue({ nanoid: 'explore-link' });
         sessionStorage.setItem('fromDashboard', 'Old dashboard');
         sessionStorage.setItem('dashboardUuid', 'dashboard');
         const before = structuredClone(chart);
@@ -115,7 +116,7 @@ describe('Document chart exploration', () => {
         await waitFor(() =>
             expect(mocks.navigate).toHaveBeenCalledWith('/share/explore-link'),
         );
-        expect(mocks.api).toHaveBeenCalledTimes(1);
+        expect(mockedLightdashApi).toHaveBeenCalledTimes(1);
         expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
             name: 'document_chart_explore.clicked',
             properties: {
@@ -125,7 +126,7 @@ describe('Document chart exploration', () => {
                 isCustomChart: false,
             },
         });
-        const request = mocks.api.mock.calls[0][0];
+        const request = mockedLightdashApi.mock.calls[0][0];
         expect(request).toMatchObject({ url: '/share/', method: 'POST' });
         const payload = JSON.parse(request.body);
         expect(payload.path).toBe('/projects/project/tables/orders');
@@ -141,7 +142,7 @@ describe('Document chart exploration', () => {
 
     it('prevents duplicate requests and waits for the share link before navigating', async () => {
         let resolveShare: (value: { nanoid: string }) => void = () => {};
-        mocks.api.mockReturnValue(
+        mockedLightdashApi.mockReturnValue(
             new Promise((resolve) => {
                 resolveShare = resolve;
             }),
@@ -153,7 +154,7 @@ describe('Document chart exploration', () => {
         fireEvent.click(button);
         await waitFor(() => expect(button).toBeDisabled());
         fireEvent.click(button);
-        expect(mocks.api).toHaveBeenCalledTimes(1);
+        expect(mockedLightdashApi).toHaveBeenCalledTimes(1);
         expect(mocks.navigate).not.toHaveBeenCalled();
         resolveShare({ nanoid: 'ready' });
         await waitFor(() =>
@@ -162,10 +163,10 @@ describe('Document chart exploration', () => {
     });
 
     it('keeps the reader on the document after a failure and allows retrying', async () => {
-        mocks.api.mockRejectedValueOnce({
+        mockedLightdashApi.mockRejectedValueOnce({
             error: { message: 'Could not create link' },
         });
-        mocks.api.mockResolvedValueOnce({ nanoid: 'retry' });
+        mockedLightdashApi.mockResolvedValueOnce({ nanoid: 'retry' });
         sessionStorage.setItem('fromDashboard', 'Old dashboard');
         renderButton();
         fireEvent.click(

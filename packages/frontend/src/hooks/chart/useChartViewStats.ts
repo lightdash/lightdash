@@ -1,8 +1,12 @@
 import { type ApiError, type DetailedViewStatistics } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
-const getChartViewStats = async (chartUuid: string) => {
+const getChartViewStats = async (
+    lightdashApi: LightdashApi,
+    chartUuid: string,
+) => {
     return lightdashApi<DetailedViewStatistics>({
         url: `/saved/${chartUuid}/views`,
         method: 'GET',
@@ -14,9 +18,10 @@ export const useChartViewStats = (
     chartUuid: string | undefined,
     queryOptions?: UseQueryOptions<DetailedViewStatistics, ApiError>,
 ) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<DetailedViewStatistics, ApiError>(
         ['chart-views', chartUuid],
-        () => getChartViewStats(chartUuid || ''),
+        () => getChartViewStats(lightdashApi, chartUuid || ''),
         {
             enabled: !!chartUuid,
             staleTime: 5 * 60 * 1000,
