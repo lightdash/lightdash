@@ -21218,9 +21218,6 @@ Presenting results: results are hidden from the user by default. Each successful
                     {
                       "additionalProperties": false,
                       "properties": {
-                        "artifactVersionUuid": {
-                          "type": "string",
-                        },
                         "description": {
                           "anyOf": [
                             {
@@ -21450,9 +21447,6 @@ Presenting results: results are hidden from the user by default. Each successful
                     {
                       "additionalProperties": false,
                       "properties": {
-                        "artifactVersionUuid": {
-                          "type": "string",
-                        },
                         "description": {
                           "anyOf": [
                             {

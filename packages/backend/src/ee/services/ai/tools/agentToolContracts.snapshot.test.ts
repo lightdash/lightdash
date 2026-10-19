@@ -211,7 +211,6 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         }),
         runComposerQueries: getRunComposerQueries({
             agentContext: new AgentContext([]),
-            createOrUpdateArtifact: noop,
             listThreadComposerQueryNodes: noop,
             registerThreadComposerQueryNodes: noop,
             enableDataAccess: true,

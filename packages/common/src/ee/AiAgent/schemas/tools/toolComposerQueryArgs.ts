@@ -519,8 +519,6 @@ const toolComposerQueriesSuccessMetadataSchema = z.object({
     terminalNodeId: nodeIdSchema.describe('The node a presentation shows.'),
     title: z.string(),
     description: z.string().nullable(),
-    // Slack saves an artifact version per call; web saves on presentation.
-    artifactVersionUuid: z.string().optional(),
 });
 
 export type ToolComposerQueriesSuccessMetadata = z.infer<

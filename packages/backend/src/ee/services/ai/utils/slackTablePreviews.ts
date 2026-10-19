@@ -1,6 +1,8 @@
 import {
     isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
+    parsePartialToolComposerQueriesArgs,
+    parseToolComposerQueriesSuccessMetadata,
     QuerySourceType,
     type AiAgentToolResult,
     type AiArtifact,
@@ -106,7 +108,14 @@ export const getSlackTablePreviews = async ({
     const artifactsByVersion = new Map(
         artifacts.map((artifact) => [artifact.versionUuid, artifact]),
     );
-    const tableCalls = toolCalls.flatMap((call) => {
+    type TableCall = {
+        call: (typeof toolCalls)[number];
+        title: string | null;
+        exploreNames: string[];
+        metadata: { queryUuid: string };
+        artifact: AiArtifact | undefined;
+    };
+    const tableCalls = toolCalls.flatMap((call): TableCall[] => {
         if (
             ![
                 'runQuery',
@@ -116,35 +125,41 @@ export const getSlackTablePreviews = async ({
         ) {
             return [];
         }
-        const metadata = queryResultMetadataSchema.safeParse(
-            resultsByCall.get(call.tool_call_id)?.metadata,
-        );
-        if (!metadata.success) return [];
-        const artifact = metadata.data.artifactVersionUuid
-            ? artifactsByVersion.get(metadata.data.artifactVersionUuid)
-            : undefined;
-        const chartConfig = artifact?.chartConfig;
+        const toolMetadata = resultsByCall.get(call.tool_call_id)?.metadata;
         if (call.tool_name === 'runComposerQueries') {
-            if (!isAiComposerChartArtifactConfig(chartConfig)) return [];
+            const composer =
+                parseToolComposerQueriesSuccessMetadata(toolMetadata);
+            if (!composer) return [];
             return [
                 {
                     call,
-                    title: artifact?.title || null,
+                    title: composer.title,
                     exploreNames: [
                         ...new Set(
-                            chartConfig.queries.flatMap((query) =>
+                            (
+                                parsePartialToolComposerQueriesArgs(
+                                    call.tool_args,
+                                )?.queries ?? []
+                            ).flatMap((query) =>
                                 query.sourceType ===
-                                QuerySourceType.SEMANTIC_LAYER
+                                    QuerySourceType.SEMANTIC_LAYER &&
+                                query.exploreName
                                     ? [query.exploreName]
                                     : [],
                             ),
                         ),
                     ],
-                    metadata: metadata.data,
-                    artifact,
+                    metadata: { queryUuid: composer.queryUuid },
+                    artifact: undefined,
                 },
             ];
         }
+        const metadata = queryResultMetadataSchema.safeParse(toolMetadata);
+        if (!metadata.success) return [];
+        const artifact = metadata.data.artifactVersionUuid
+            ? artifactsByVersion.get(metadata.data.artifactVersionUuid)
+            : undefined;
+        const chartConfig = artifact?.chartConfig;
         if (
             chartConfig &&
             (isAiSqlChartArtifactConfig(chartConfig) ||

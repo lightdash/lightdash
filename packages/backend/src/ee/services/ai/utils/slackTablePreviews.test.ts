@@ -2,6 +2,7 @@ import {
     parseAiArtifactChartConfig,
     QuerySourceType,
     type AiArtifact,
+    type ToolComposerQueriesSuccessMetadata,
 } from '@lightdash/common';
 import {
     getSlackTableBlocks,
@@ -117,34 +118,35 @@ const artifact = (
     };
 };
 
-const composerArtifact = (versionUuid: string): AiArtifact => {
-    const chartConfig = parseAiArtifactChartConfig({
-        source: 'composer',
-        schemaVersion: 1,
-        queries: [
-            {
-                sourceType: QuerySourceType.SEMANTIC_LAYER,
-                nodeId: 'revenue',
-                exploreName: 'payments',
-                dimensions: ['payments_month'],
-                metrics: ['payments_total_revenue'],
-            },
-            {
-                sourceType: QuerySourceType.DUCKDB,
-                nodeId: 'joined',
-                sql: 'SELECT * FROM revenue',
-                references: ['revenue'],
-            },
-        ],
-        terminalNodeId: 'joined',
-        vizConfig: null,
-    });
-    if (!chartConfig) throw new Error('Invalid fixture');
-    return {
-        ...artifact(versionUuid, 'table'),
-        title: 'Revenue pipeline',
-        chartConfig,
-    };
+const composerMetadata: ToolComposerQueriesSuccessMetadata = {
+    status: 'success',
+    queryUuid: 'query-composer',
+    terminalNodeId: 'joined',
+    title: 'Revenue pipeline',
+    description: null,
+};
+
+const composerArgs = {
+    title: 'Revenue pipeline',
+    description: null,
+    queries: [
+        {
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            nodeId: 'revenue',
+            title: 'Revenue',
+            exploreName: 'payments',
+            dimensions: ['payments_month'],
+            metrics: ['payments_total_revenue'],
+        },
+        {
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: 'joined',
+            title: 'Joined',
+            sql: 'SELECT * FROM revenue',
+            references: ['revenue'],
+        },
+    ],
+    terminalNodeId: 'joined',
 };
 
 describe('getSlackTablePreviews', () => {
@@ -155,7 +157,7 @@ describe('getSlackTablePreviews', () => {
                 {
                     tool_call_id: 'composer',
                     tool_name: 'runComposerQueries',
-                    tool_args: {},
+                    tool_args: composerArgs,
                 },
             ],
             toolResults: [
@@ -163,14 +165,10 @@ describe('getSlackTablePreviews', () => {
                     toolCallId: 'composer',
                     toolType: 'built-in' as const,
                     toolName: 'runComposerQueries',
-                    metadata: {
-                        status: 'success',
-                        queryUuid: 'query-composer',
-                        artifactVersionUuid: 'composer-version',
-                    },
+                    metadata: composerMetadata,
                 },
             ],
-            artifacts: [composerArtifact('composer-version')],
+            artifacts: [],
         };
         const authorizeExplores =
             (allowed: string[]) =>
