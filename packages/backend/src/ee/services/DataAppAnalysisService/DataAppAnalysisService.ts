@@ -81,6 +81,7 @@ import {
     type DataAppProjectContext,
 } from '../AppGenerateService/appAuthz';
 import { groundAnomalies, type GroundingSource } from './grounding';
+import { seasonalityPrePass } from './seasonalityPrePass';
 
 const MAX_SOURCES = 50;
 
@@ -501,9 +502,13 @@ export class DataAppAnalysisService extends BaseService {
         sectionHashes: DataAppSourceHash[];
         /** Rows or whole charts left out to fit the model budget. */
         truncated: boolean;
+        /** Deterministic caveats from the seasonality pre-pass, per section. */
+        prePassLimitations: string[];
     }> {
         const grounding: GroundingSource[] = [];
         const sectionHashes: DataAppSourceHash[] = [];
+        const prePassLimitations: string[] = [];
+        const todayUtc = utcDay(new Date());
         const sections = await sources.reduce<Promise<SectionAccumulator>>(
             async (accPromise, source, index) => {
                 const acc = await accPromise;
@@ -547,9 +552,18 @@ export class DataAppAnalysisService extends BaseService {
                         rowValueSets(row, fields, fieldIds, displayTimezone),
                     ),
                 });
-                const csv = convertQueryResultsToCsv({ rows, fields });
+                const prePass = seasonalityPrePass(rows, fields, todayUtc);
+                if (prePass.limitation) {
+                    prePassLimitations.push(`${title}: ${prePass.limitation}`);
+                }
+                const csv = convertQueryResultsToCsv(
+                    { rows, fields },
+                    undefined,
+                    prePass.annotations,
+                );
                 const legend = fieldLegend(fields, fieldIds);
-                // Label and query uuid excluded: identity is the rows read.
+                // Label and query uuid excluded: identity is the rows read
+                // (markers included — they change what the model sees).
                 sectionHashes.push({
                     queryUuid: source.queryUuid,
                     hash: sha256(
@@ -561,7 +575,9 @@ export class DataAppAnalysisService extends BaseService {
                     title,
                     csv,
                     truncated,
-                    `Query: ${source.queryUuid}\nFields: ${legend}\n`,
+                    `Query: ${source.queryUuid}\nFields: ${legend}\n${
+                        prePass.note ? `${prePass.note}\n` : ''
+                    }`,
                 );
             },
             Promise.resolve(emptySectionAccumulator()),
@@ -570,6 +586,7 @@ export class DataAppAnalysisService extends BaseService {
             content: serializeSections(sections),
             grounding,
             sectionHashes,
+            prePassLimitations,
             truncated:
                 sections.omittedCharts.length > 0 ||
                 sections.parts.some((part) => part.includes('[Data truncated')),
@@ -820,8 +837,13 @@ export class DataAppAnalysisService extends BaseService {
         // Content is read before the rate check on purpose: the hash decides
         // whether a stored analysis serves this request, and cache hits must
         // stay free. The 429 protects model spend, not the result reads.
-        const { content, grounding, sectionHashes, truncated } =
-            await this.buildContent(account, projectUuid, body.sources);
+        const {
+            content,
+            grounding,
+            sectionHashes,
+            truncated,
+            prePassLimitations,
+        } = await this.buildContent(account, projectUuid, body.sources);
         note({ truncated });
         const contentHash = contentHashOf(sectionHashes, instructions);
         if (!body.force) {
@@ -879,6 +901,7 @@ export class DataAppAnalysisService extends BaseService {
                     grounding,
                     sectionHashes,
                     contentHash,
+                    prePassLimitations,
                 });
             })
             .finally(() => this.inFlightDetects.delete(inFlightKey));
@@ -903,6 +926,7 @@ export class DataAppAnalysisService extends BaseService {
         grounding: GroundingSource[];
         sectionHashes: DataAppSourceHash[];
         contentHash: string;
+        prePassLimitations: string[];
     }): Promise<{
         analysis: DataAppAnalysis;
         sectionHashes: DataAppSourceHash[];
@@ -931,15 +955,17 @@ export class DataAppAnalysisService extends BaseService {
             detection.anomalies,
             grounding,
         );
-        const limitations =
-            droppedCount > 0
+        const limitations = [
+            ...detection.limitations,
+            ...(droppedCount > 0
                 ? [
-                      ...detection.limitations,
                       `${droppedCount} finding${
                           droppedCount === 1 ? '' : 's'
                       } could not be matched to the data and were left out`,
                   ]
-                : detection.limitations;
+                : []),
+            ...args.prePassLimitations,
+        ];
         const result = {
             headline: detection.headline,
             summary: detection.summary,
