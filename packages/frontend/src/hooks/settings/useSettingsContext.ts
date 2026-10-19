@@ -211,17 +211,6 @@ export const useSettingsContext = (): SettingsContext => {
     const isServiceAccountsEnabled =
         health?.isServiceAccountEnabled || isServiceAccountFeatureFlagEnabled;
 
-    const { data: warehouseCredentialsFlag } = useServerFeatureFlag(
-        CommercialFeatureFlags.OrganizationWarehouseCredentials,
-    );
-    const isWarehouseCredentialsFeatureFlagEnabled =
-        warehouseCredentialsFlag?.enabled ?? false;
-
-    // This allows us to enable organization warehouse credentials in the UI for on-premise installations
-    const isWarehouseCredentialsEnabled =
-        (health?.isOrganizationWarehouseCredentialsEnabled ?? false) ||
-        isWarehouseCredentialsFeatureFlagEnabled;
-
     const isAgentIdentityEnabled = agentIdentityFlag?.enabled ?? false;
 
     return {
@@ -260,7 +249,6 @@ export const useSettingsContext = (): SettingsContext => {
         allowPasswordAuthentication,
         hasSocialLogin,
         isGroupManagementEnabled,
-        isWarehouseCredentialsEnabled,
         isAgentIdentityEnabled,
         isAgentIdentityFlagLoading,
         isGitProject,

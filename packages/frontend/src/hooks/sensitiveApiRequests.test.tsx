@@ -32,10 +32,6 @@ import { useTestConnection } from '../features/externalConnections/hooks/useTest
 import { useTestConnectionConfig } from '../features/externalConnections/hooks/useTestConnectionConfig';
 import { useLoginWithEmailMutation } from '../features/users/hooks/useLogin';
 import { getGdriveAccessToken } from './gdrive/useGdrive';
-import {
-    useCreateOrganizationWarehouseCredentials,
-    useUpdateOrganizationWarehouseCredentials,
-} from './organization/useOrganizationWarehouseCredentials';
 import { useRotateAccessToken } from './useAccessToken';
 import { usePasswordResetMutation } from './usePasswordReset';
 import { useUpdateWarehouseCredentialsMutation } from './useProject';
@@ -191,39 +187,6 @@ describe('credential-bearing requests are marked sensitive', () => {
         expect(mockApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/user/warehouseCredentials/cred-uuid',
-                method: 'PATCH',
-                sensitive: true,
-            }),
-        );
-    });
-
-    it('organization warehouse credentials create and update', async () => {
-        const created = renderHook(
-            () => useCreateOrganizationWarehouseCredentials(),
-            { wrapper: createWrapper() },
-        );
-        await created.result.current.mutateAsync({} as AnyType);
-
-        expect(mockApi).toHaveBeenCalledWith(
-            expect.objectContaining({
-                url: '/org/warehouse-credentials',
-                method: 'POST',
-                sensitive: true,
-            }),
-        );
-
-        const updated = renderHook(
-            () => useUpdateOrganizationWarehouseCredentials(),
-            { wrapper: createWrapper() },
-        );
-        await updated.result.current.mutateAsync({
-            uuid: 'cred-uuid',
-            data: {},
-        } as AnyType);
-
-        expect(mockApi).toHaveBeenCalledWith(
-            expect.objectContaining({
-                url: '/org/warehouse-credentials/cred-uuid',
                 method: 'PATCH',
                 sensitive: true,
             }),

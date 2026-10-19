@@ -258,7 +258,7 @@ describe('ConnectionsPanel', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('renders Snowflake fields and saves a selected organisation credential', async () => {
+    it('renders Snowflake fields without fetching organization credentials', async () => {
         mockApi.mockImplementation(
             async ({ url, method }: { url: string; method: string }) => {
                 if (url === listUrl && method === 'GET')
@@ -271,15 +271,6 @@ describe('ConnectionsPanel', () => {
                         ],
                         capabilities: { canAddConnection: true, reason: null },
                     };
-                if (url === '/org/warehouse-credentials' && method === 'GET')
-                    return [
-                        {
-                            organizationWarehouseCredentialsUuid:
-                                'org-credential-uuid',
-                            warehouseType: WarehouseTypes.SNOWFLAKE,
-                            name: 'Saved Snowflake',
-                        },
-                    ];
                 if (url === listUrl && method === 'POST') return extra;
                 return undefined;
             },
@@ -297,38 +288,17 @@ describe('ConnectionsPanel', () => {
         expect(screen.getAllByRole('textbox', { name: 'Schema' })).toHaveLength(
             1,
         );
-        await user.type(
-            screen.getByRole('textbox', { name: 'Name' }),
-            'Reporting',
-        );
-        await user.click(
-            screen.getByRole('radio', { name: 'Use organization credentials' }),
-        );
         expect(
-            screen.getByRole('combobox', { name: 'Organization credentials' }),
-        ).toBeInTheDocument();
-        const dialog = screen
-            .getByText('Add a connection')
-            .closest<HTMLElement>('[role="alertdialog"], [role="dialog"]')!;
-        await user.click(
-            within(dialog).getByRole('button', { name: 'Add connection' }),
-        );
-        await waitFor(() =>
-            expect(mockApi).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    url: listUrl,
-                    method: 'POST',
-                    body: JSON.stringify({
-                        name: 'Reporting',
-                        organizationWarehouseCredentialsUuid:
-                            'org-credential-uuid',
-                    }),
-                }),
-            ),
+            screen.queryByRole('radio', {
+                name: 'Use organization credentials',
+            }),
+        ).not.toBeInTheDocument();
+        expect(mockApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({ url: '/org/warehouse-credentials' }),
         );
     });
 
-    it('clears organisation credentials when changing the warehouse type before adding a connection', async () => {
+    it('saves manual credentials after changing the warehouse type', async () => {
         mockApi.mockImplementation(
             async ({ url, method }: { url: string; method: string }) => {
                 if (url === listUrl && method === 'GET')
@@ -341,15 +311,6 @@ describe('ConnectionsPanel', () => {
                         ],
                         capabilities: { canAddConnection: true, reason: null },
                     };
-                if (url === '/org/warehouse-credentials' && method === 'GET')
-                    return [
-                        {
-                            organizationWarehouseCredentialsUuid:
-                                'org-credential-uuid',
-                            warehouseType: WarehouseTypes.SNOWFLAKE,
-                            name: 'Saved Snowflake',
-                        },
-                    ];
                 if (url === listUrl && method === 'POST') return extra;
                 return undefined;
             },
@@ -358,18 +319,8 @@ describe('ConnectionsPanel', () => {
         await user.click(
             await screen.findByRole('button', { name: 'Add connection' }),
         );
-        await user.type(
-            screen.getByRole('textbox', { name: 'Name' }),
-            'Reporting',
-        );
-        await user.click(
-            await screen.findByRole('radio', {
-                name: 'Use organization credentials',
-            }),
-        );
-        expect(
-            screen.getByRole('combobox', { name: 'Organization credentials' }),
-        ).toHaveValue('Saved Snowflake');
+        await user.click(screen.getByLabelText(/^Name\s*\*?$/));
+        await user.paste('Reporting');
         await user.click(screen.getByRole('combobox', { name: 'Type' }));
         await user.click(screen.getByRole('option', { name: 'Trino' }));
         for (const [name, value] of [
@@ -378,7 +329,9 @@ describe('ConnectionsPanel', () => {
             ['DB name', 'analytics'],
             ['Schema', 'public'],
         ]) {
-            await user.click(screen.getByRole('textbox', { name }));
+            await user.click(
+                screen.getByLabelText(new RegExp(`^${name}\\s*\\*?$`)),
+            );
             await user.paste(value);
         }
         await user.click(screen.getByLabelText(/^Password/));
@@ -455,24 +408,12 @@ describe('ConnectionsPanel', () => {
     it.each([true, false])(
         'offers None in the Snowflake add form only when the primary requires personal credentials: %s',
         async (required) => {
-            mockApi.mockImplementation(({ url }: { url: string }) =>
-                Promise.resolve(
-                    url === '/org/warehouse-credentials'
-                        ? []
-                        : {
-                              connections: [
-                                  {
-                                      ...original,
-                                      warehouseType: WarehouseTypes.SNOWFLAKE,
-                                  },
-                              ],
-                              capabilities: {
-                                  canAddConnection: true,
-                                  reason: null,
-                              },
-                          },
-                ),
-            );
+            mockApi.mockResolvedValue({
+                connections: [
+                    { ...original, warehouseType: WarehouseTypes.SNOWFLAKE },
+                ],
+                capabilities: { canAddConnection: true, reason: null },
+            });
             const user = renderPanel(
                 ProjectType.DEFAULT,
                 [projectRule('manage')],
@@ -521,8 +462,6 @@ describe('ConnectionsPanel', () => {
                         reason: null,
                         originalWarehouseType: WarehouseTypes.SNOWFLAKE,
                     });
-                if (url === '/org/warehouse-credentials')
-                    return Promise.resolve([]);
                 return Promise.resolve(undefined);
             });
             const user = renderPanel(
@@ -554,11 +493,10 @@ describe('ConnectionsPanel', () => {
         },
     );
 
-    it('hides the ineffective toggle when editing an organisation credential extra', async () => {
+    it('edits an extra connection with the inherited user credential setting', async () => {
         const shared = {
             ...extra,
             name: 'Shared',
-            organizationWarehouseCredentialsUuid: 'org-credential-uuid',
         };
         mockApi.mockImplementation(
             async ({ url, method }: { url: string; method: string }) => {
@@ -619,9 +557,16 @@ describe('ConnectionsPanel', () => {
         const patch = mockApi.mock.calls.find(
             ([call]) => (call as { method: string }).method === 'PATCH',
         )![0] as { body: string };
-        expect(JSON.parse(patch.body)).not.toHaveProperty(
-            'organizationWarehouseCredentialsUuid',
-        );
+        expect(JSON.parse(patch.body)).toEqual({
+            warehouseConnection: {
+                type: WarehouseTypes.POSTGRES,
+                host: 'shared.internal',
+                dbname: 'analytics',
+                schema: 'public',
+                port: 5432,
+                requireUserCredentials: true,
+            },
+        });
     });
 
     it('shows why a bound connection cannot be removed', async () => {

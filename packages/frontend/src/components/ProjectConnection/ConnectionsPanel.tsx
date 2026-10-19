@@ -84,9 +84,6 @@ const ConnectionRow: FC<{
                     {connection.name}
                 </Text>
                 {connection.isOriginal && <Badge size="sm">Original</Badge>}
-                {connection.organizationWarehouseCredentialsUuid !== null && (
-                    <Badge size="sm">Organisation credential</Badge>
-                )}
             </Group>
             <Text className={classes.meta} c="dimmed" truncate>
                 {getWarehouseLabel(connection.warehouseType)}
@@ -155,7 +152,6 @@ const AddConnectionModal: FC<{
             warehouse: {
                 ...warehouseDefaultValues[warehouseType],
             } as CreateWarehouseCredentials,
-            organizationWarehouseCredentialsUuid: undefined,
             ...unusedDbtFormValues,
         },
         validate: (values) => {
@@ -187,21 +183,11 @@ const AddConnectionModal: FC<{
     });
 
     const handleSubmit = () => {
-        const organizationWarehouseCredentialsUuid =
-            form.values.organizationWarehouseCredentialsUuid;
-        if (organizationWarehouseCredentialsUuid) {
-            if (form.validateField('name').hasError) return;
-            createMutation.mutate({
-                name: form.values.name.trim(),
-                organizationWarehouseCredentialsUuid,
-            });
-        } else {
-            if (form.validate().hasErrors) return;
-            createMutation.mutate({
-                name: form.values.name.trim(),
-                warehouseConnection: form.values.warehouse,
-            });
-        }
+        if (form.validate().hasErrors) return;
+        createMutation.mutate({
+            name: form.values.name.trim(),
+            warehouseConnection: form.values.warehouse,
+        });
     };
 
     return (
@@ -241,8 +227,6 @@ const EditConnectionForm: FC<{
 }> = ({ projectUuid, connection, credentials, onClose }) => {
     const savedProject = {
         warehouseConnection: credentials,
-        organizationWarehouseCredentialsUuid:
-            connection.organizationWarehouseCredentialsUuid,
     } as Project;
     const updateMutation = useUpdateWarehouseConnection(projectUuid, {
         onSuccess: onClose,
@@ -251,8 +235,6 @@ const EditConnectionForm: FC<{
         initialValues: {
             name: connection.name,
             warehouse: credentials,
-            organizationWarehouseCredentialsUuid:
-                connection.organizationWarehouseCredentialsUuid ?? undefined,
             ...unusedDbtFormValues,
         },
         validate: {
@@ -262,22 +244,12 @@ const EditConnectionForm: FC<{
     });
 
     const handleSubmit = () => {
-        const organizationWarehouseCredentialsUuid =
-            form.values.organizationWarehouseCredentialsUuid;
-        if (!organizationWarehouseCredentialsUuid && form.validate().hasErrors)
-            return;
+        if (form.validate().hasErrors) return;
         updateMutation.mutate({
             warehouseConnectionUuid: connection.warehouseConnectionUuid,
-            data: organizationWarehouseCredentialsUuid
-                ? organizationWarehouseCredentialsUuid ===
-                  connection.organizationWarehouseCredentialsUuid
-                    ? {}
-                    : { organizationWarehouseCredentialsUuid }
-                : {
-                      warehouseConnection: omitEmptySecrets(
-                          form.values.warehouse,
-                      ),
-                  },
+            data: {
+                warehouseConnection: omitEmptySecrets(form.values.warehouse),
+            },
         });
     };
 

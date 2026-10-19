@@ -138,12 +138,18 @@ const renderPanel = () => {
 
 const fillForm = async (user: ReturnType<typeof userEvent.setup>) => {
     const dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByLabelText(/^Name\s*\*?$/), 'Finance');
-    await user.type(within(dialog).getByLabelText(/^Host/), 'finance.internal');
-    await user.type(within(dialog).getByLabelText(/^User/), 'analyst');
-    await user.type(within(dialog).getByLabelText(/^Password/), 'secret');
-    await user.type(within(dialog).getByLabelText(/^DB name/), 'finance');
-    await user.type(within(dialog).getByLabelText(/^Schema/), 'public');
+    // Paste whole field values: these tests exercise the switch, not per-key input.
+    for (const [label, value] of [
+        [/^Name\s*\*?$/, 'Finance'],
+        [/^Host/, 'finance.internal'],
+        [/^User/, 'analyst'],
+        [/^Password/, 'secret'],
+        [/^DB name/, 'finance'],
+        [/^Schema/, 'public'],
+    ] as const) {
+        await user.click(within(dialog).getByLabelText(label));
+        await user.paste(value);
+    }
     return dialog;
 };
 

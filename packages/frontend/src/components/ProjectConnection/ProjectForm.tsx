@@ -96,16 +96,13 @@ export const ProjectForm: FC<Props> = ({
                         disabled={disabled}
                         isProjectUpdate={isProjectUpdate}
                     >
-                        {(warehouseOnly || isNative) &&
-                            warehouse &&
-                            !form.values
-                                .organizationWarehouseCredentialsUuid && (
-                                <WarehouseSchemaInput
-                                    warehouseType={warehouse}
-                                    disabled={disabled}
-                                    warehouseOnly
-                                />
-                            )}
+                        {(warehouseOnly || isNative) && warehouse && (
+                            <WarehouseSchemaInput
+                                warehouseType={warehouse}
+                                disabled={disabled}
+                                warehouseOnly
+                            />
+                        )}
                     </WarehouseSettingsForm>
                 </div>
             </SettingsGridCard>

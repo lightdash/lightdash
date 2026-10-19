@@ -110,7 +110,6 @@ const renderSettings = (
         ['ai-access', 'org', 'agent-identity'],
         agentSettingsIdentityMock,
     );
-    queryClient.setQueryData(['organization-warehouse-credentials'], []);
     nock(BASE_API_URL)
         .get('/api/v1/user/account')
         .reply(200, {
@@ -592,43 +591,20 @@ describe('Agent identity settings routes', () => {
             screen.getByRole('status', { name: 'Current URL' }),
         ).toHaveTextContent('/generalSettings/agentIdentity');
     });
-
-    it('keeps Warehouse credentials available without the agent identity card', async () => {
+    it('redirects the removed organization warehouse credentials settings to Profile', async () => {
         renderSettings(
             '',
-            [
-                viewProject,
-                manageOrganization,
-                {
-                    action: 'manage',
-                    subject: 'OrganizationWarehouseCredentials',
-                },
-            ],
+            [viewProject, manageOrganization],
             true,
             '/generalSettings/warehouseCredentials',
             true,
         );
-
         expect(
-            await screen.findByRole('heading', {
-                name: 'Warehouse credentials',
-            }),
+            await screen.findByRole('heading', { name: 'Profile' }),
         ).toBeInTheDocument();
         expect(
-            screen.getByText('No warehouse credentials'),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('heading', { name: 'Identity' }),
+            screen.queryByRole('link', { name: 'Warehouse credentials' }),
         ).not.toBeInTheDocument();
-        expect(
-            screen.queryByRole('heading', { name: 'Agents' }),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.getByRole('link', { name: 'Agents' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('status', { name: 'Current URL' }),
-        ).toHaveTextContent('/generalSettings/warehouseCredentials');
     });
 });
 
@@ -731,7 +707,10 @@ describe('MCP settings route permission parity', () => {
                     true,
                     AGENT_IDENTITY_SETTINGS_PATH,
                     enabled,
-                    { isCopilotEnabled: true, isTrial: false },
+                    {
+                        isCopilotEnabled: true,
+                        isTrial: false,
+                    },
                 );
                 await screen.findByRole('heading', { name: 'Profile' });
                 expect(
@@ -774,7 +753,10 @@ describe('MCP settings route permission parity', () => {
                 true,
                 '/generalSettings/mcp/general',
                 enabled,
-                { isCopilotEnabled: true, isTrial: false },
+                {
+                    isCopilotEnabled: true,
+                    isTrial: false,
+                },
             );
             if (!manageAi) {
                 expect(
