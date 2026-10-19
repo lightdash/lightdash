@@ -22,6 +22,10 @@ export const getLineChartEchartsConfig = async (
     const yMetrics = chartConfig?.yAxisMetrics || queryMetrics;
     const secondaryYAxisMetric = chartConfig?.secondaryYAxisMetric;
     let metrics: string[] = yMetrics;
+    let secondaryMetrics: string[] = secondaryYAxisMetric
+        ? [secondaryYAxisMetric]
+        : [];
+    let getSeriesName = (key: string) => formatFieldLabel(key, fieldsMap);
     let chartData = rows;
 
     if (chartConfig?.groupBy?.length) {
@@ -30,10 +34,13 @@ export const getLineChartEchartsConfig = async (
             fieldsMap,
             chartConfig.groupBy,
             yMetrics,
+            secondaryMetrics,
             sorts as SortField[],
         );
         chartData = pivoted.results;
         metrics = pivoted.metrics;
+        secondaryMetrics = pivoted.secondaryMetrics;
+        getSeriesName = (key: string) => pivoted.labels[key];
     }
 
     const xAxisField = fieldsMap[xDimension];
@@ -93,10 +100,7 @@ export const getLineChartEchartsConfig = async (
             ...metrics.map((metric) => ({
                 type: 'line' as const,
                 yAxisIndex: 0,
-                // Use formatted label for non-pivoted metrics, otherwise use the metric name as-is (already formatted by pivot)
-                name: yMetrics.includes(metric)
-                    ? formatFieldLabel(metric, fieldsMap)
-                    : metric,
+                name: getSeriesName(metric),
                 encode: {
                     x: xDimension,
                     y: metric,
@@ -106,26 +110,19 @@ export const getLineChartEchartsConfig = async (
                 }),
                 showSymbol: true,
             })),
-            ...(secondaryYAxisMetric
-                ? [
-                      {
-                          type: 'line' as const,
-                          yAxisIndex: 1,
-                          name: formatFieldLabel(
-                              secondaryYAxisMetric,
-                              fieldsMap,
-                          ),
-                          encode: {
-                              x: xDimension,
-                              y: secondaryYAxisMetric,
-                          },
-                          ...(chartConfig?.lineType === 'area' && {
-                              areaStyle: {},
-                          }),
-                          showSymbol: true,
-                      },
-                  ]
-                : []),
+            ...secondaryMetrics.map((metric) => ({
+                type: 'line' as const,
+                yAxisIndex: 1,
+                name: getSeriesName(metric),
+                encode: {
+                    x: xDimension,
+                    y: metric,
+                },
+                ...(chartConfig?.lineType === 'area' && {
+                    areaStyle: {},
+                }),
+                showSymbol: true,
+            })),
         ],
     };
 };
