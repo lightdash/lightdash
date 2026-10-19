@@ -821,8 +821,9 @@ export const getMergeSourceTableLabel = (sourceIndex: number): string =>
 /**
  * The SQL a compiled merge runs, as one readable text: each leg under a
  * comment naming its source, then the join. Each section is formatted in
- * its own dialect: legs in the warehouse's, the join in DuckDB's. Null when
- * the merge did not compile.
+ * its own dialect: legs in the warehouse's, the join in DuckDB's. Legs stay
+ * as compiled when the warehouse is unknown, since the generic dialect can
+ * break warehouse syntax such as `->>`. Null when the merge did not compile.
  */
 export const getMergeCompiledSqlText = (
     compiled: Pick<ApiCompiledMergeQueryResults, 'legs' | 'sql'>,
@@ -831,9 +832,12 @@ export const getMergeCompiledSqlText = (
     if (compiled.sql === null) return null;
     const legs = compiled.legs.map((leg, index) => {
         const label = `${getMergeSourceTableLabel(index)} ("${leg.sourceId}")`;
-        return leg.sql === null
-            ? `-- ${label}: existing results, nothing runs`
-            : `-- ${label}: runs on the warehouse\n${formatSql(leg.sql, warehouseType)}`;
+        if (leg.sql === null)
+            return `-- ${label}: existing results, nothing runs`;
+        const legSql = warehouseType
+            ? formatSql(leg.sql, warehouseType)
+            : leg.sql;
+        return `-- ${label}: runs on the warehouse\n${legSql}`;
     });
     return [
         ...legs,

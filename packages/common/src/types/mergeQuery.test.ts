@@ -910,6 +910,30 @@ describe('getMergeCompiledSqlText', () => {
         },
     );
 
+    it('keeps legs as compiled when the warehouse is unknown', () => {
+        const legSql = "SELECT payload->>'status' AS orders_status FROM orders";
+        const text = getMergeCompiledSqlText(
+            {
+                legs: [{ sourceId: 'orders', sql: legSql, metricQuery: null }],
+                sql: 'SELECT * FROM "merge_source_0"',
+            },
+            undefined,
+        );
+
+        expect(text).toBe(
+            [
+                '-- Query A ("orders"): runs on the warehouse',
+                legSql,
+                '',
+                mergeComment,
+                'SELECT',
+                '  *',
+                'FROM',
+                '  "merge_source_0"',
+            ].join('\n'),
+        );
+    });
+
     it('is null when the merge did not compile', () => {
         expect(
             getMergeCompiledSqlText({ legs: [], sql: null }, undefined),
