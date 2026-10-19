@@ -34,8 +34,6 @@ import {
     McpDocumentAsCode,
     McpDocumentEdit,
     McpDocumentRead,
-    MergeQuery,
-    MetricQuery,
     ParameterDefinitions,
     ParametersValuesMap,
     PreviewDeploySetupResult,
@@ -526,17 +524,6 @@ export type RunAsyncQueryFn = (
     cacheMetadata: CacheMetadata;
     fields: ItemsMap;
     executionStats: WarehouseExecutionStats | null;
-}>;
-
-export type RunAsyncMergeQueryFn = (
-    mergeQuery: MergeQuery,
-    parameters?: ParametersValuesMap,
-) => Promise<{
-    queryUuid: string;
-    rows: Record<string, AnyType>[];
-    cacheMetadata: CacheMetadata;
-    fields: ItemsMap;
-    metricQuery: MetricQuery;
 }>;
 
 export type RunSavedChartQueryFn = (args: {

@@ -175,7 +175,6 @@ import {
     ReadContentFn,
     ResolveCustomChartTypeFn,
     ResolveUrlFn,
-    RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
     RunComposerQueriesFn,
     RunSavedChartQueryFn,
@@ -190,6 +189,10 @@ import {
     UpdateUserNameFn,
     ValidateContentFn,
 } from '../ai/types/aiAgentDependencies';
+import {
+    assertAgentKeepsChartMerge,
+    assertAgentKeepsDocumentMerges,
+} from '../ai/utils/agentMergeGuard';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import {
     expandMetricsWithPopAdditionalMetrics,
@@ -317,7 +320,6 @@ export type AiAgentToolsRuntime = {
     analyzeFieldImpact: AnalyzeFieldImpactFn;
     syncDbtProject: SyncDbtProjectFn;
     runAsyncQuery: RunAsyncQueryFn;
-    runAsyncMergeQuery: RunAsyncMergeQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlChartQuery: RunSqlChartQueryFn;
     runSqlJob: RunSqlJobFn;
@@ -367,7 +369,6 @@ const AGENT_RUNTIME_TOOL_NAMES = {
     analyzeFieldImpact: 'analyzeFieldImpact',
     syncDbtProject: 'syncDbtProject',
     runAsyncQuery: 'runQuery',
-    runAsyncMergeQuery: 'runQuery',
     runSavedChartQuery: 'runSavedChart',
     runSqlChartQuery: 'runSql',
     runSqlJob: 'runSql',
@@ -964,8 +965,6 @@ export class AiAgentToolsService extends BaseService {
                     abortSignal,
                     reuseQueryUuid,
                 ),
-            runAsyncMergeQuery: (mergeQuery, parameters) =>
-                this.runAsyncMergeQuery(context, mergeQuery, parameters),
             runSavedChartQuery: (args) =>
                 this.runSavedChartQuery(context, args),
             runSqlJob: (args) => this.runSqlJob(context, args),
@@ -3233,6 +3232,14 @@ export class AiAgentToolsService extends BaseService {
                     }
                     case 'chart': {
                         this.validateContentAsCode(type, patchedContent);
+                        if (context.source === 'ai_agent') {
+                            assertAgentKeepsChartMerge(
+                                patchedContent,
+                                currentContent.type === 'chart'
+                                    ? currentContent.content
+                                    : undefined,
+                            );
+                        }
                         await this.assertContentSpaceInScope(
                             context,
                             patchedContent.spaceSlug,
@@ -3324,6 +3331,9 @@ export class AiAgentToolsService extends BaseService {
             { slug: content.slug, type },
             async () => {
                 this.aiAgentContentValidation.validateNewContent(type, content);
+                if (context.source === 'ai_agent' && type === 'chart') {
+                    assertAgentKeepsChartMerge(content, undefined);
+                }
                 await this.assertContentSpaceInScope(
                     context,
                     content.spaceSlug,
@@ -3781,49 +3791,6 @@ export class AiAgentToolsService extends BaseService {
                     });
                 }
 
-                return result;
-            },
-        );
-    }
-
-    private runAsyncMergeQuery(
-        context: AiAgentToolsRuntimeContext,
-        mergeQuery: Parameters<RunAsyncMergeQueryFn>[0],
-        parameters: Parameters<RunAsyncMergeQueryFn>[1],
-    ): ReturnType<RunAsyncMergeQueryFn> {
-        return wrapSentryTransaction(
-            `${AiAgentToolsService.transactionPrefix(context)}.runAsyncMergeQuery`,
-            mergeQuery,
-            async () => {
-                await context.onWarehouseQuery?.();
-                const result =
-                    await this.asyncQueryService.executeMergeQueryAndGetResults(
-                        {
-                            account: context.account,
-                            projectUuid: context.projectUuid,
-                            mergeQuery,
-                            context: context.defaultQueryExecutionContext,
-                            querySurface: context.querySurface,
-                            parameters,
-                            mode: { type: 'interactive' },
-                            userAttributeOverrides:
-                                context.userAttributeOverrides,
-                            ...(context.invalidateQueryCache
-                                ? { invalidateCache: true }
-                                : {}),
-                        },
-                    );
-
-                if (context.queryResultsExpirationMs) {
-                    await this.asyncQueryService.extendQueryResultsExpiration({
-                        account: context.account,
-                        projectUuid: context.projectUuid,
-                        queryUuid: result.queryUuid,
-                        expiresAt: new Date(
-                            Date.now() + context.queryResultsExpirationMs,
-                        ),
-                    });
-                }
                 return result;
             },
         );
@@ -5729,6 +5696,13 @@ export class AiAgentToolsService extends BaseService {
         assertRegisteredAccount(context.account);
         const input = documentAsCodeSchema.parse(raw);
         AiAgentToolsService.assertNoConversationTags(input.markdown);
+        const content = parseDocumentContent(input.schemaVersion, {
+            markdown: input.markdown,
+            charts: input.charts,
+        });
+        if (context.source === 'ai_agent') {
+            assertAgentKeepsDocumentMerges(content.charts, {});
+        }
         const space =
             input.spaceSlug === null
                 ? null
@@ -5746,10 +5720,7 @@ export class AiAgentToolsService extends BaseService {
                 description: input.description,
                 spaceUuid: space?.uuid,
                 schemaVersion: input.schemaVersion,
-                content: parseDocumentContent(input.schemaVersion, {
-                    markdown: input.markdown,
-                    charts: input.charts,
-                }),
+                content,
             },
             AiAgentToolsService.documentChange(context),
             // Like AI chart and dashboard creates, a taken slug gets a suffix.
@@ -5943,18 +5914,19 @@ export class AiAgentToolsService extends BaseService {
                 charts: { ...stored.charts, [edit.chartId]: patched },
             };
         };
+        const content = parseDocumentContent(
+            existing.version.schemaVersion,
+            getContent(),
+            { previous: stored },
+        );
+        if (context.source === 'ai_agent') {
+            assertAgentKeepsDocumentMerges(content.charts, stored.charts);
+        }
         const document = await this.documentService.updateContent(
             context.account,
             context.projectUuid,
             current.uuid,
-            {
-                baseVersionUuid: edit.baseVersionUuid,
-                content: parseDocumentContent(
-                    existing.version.schemaVersion,
-                    getContent(),
-                    { previous: stored },
-                ),
-            },
+            { baseVersionUuid: edit.baseVersionUuid, content },
             {
                 allowedSpaceUuids: AiAgentToolsService.getDocumentScope(
                     context,

@@ -17,6 +17,7 @@ import {
     ForbiddenError,
     JobStatusType,
     mcpFindCustomChartTypesOutputSchema,
+    MergeJoinType,
     NotFoundError,
     PossibleAbilities,
     PromotionAction,
@@ -33,6 +34,7 @@ import {
     type DataAppVizSchema,
     type ExtractedDataReference,
     type PersistedDataAppDataReferences,
+    type SavedMergeDefinition,
 } from '@lightdash/common';
 import { EventEmitter } from 'events';
 import knex from 'knex';
@@ -2399,6 +2401,260 @@ describe('AiAgentToolsService', () => {
                 ],
             }),
         ).resolves.toBeDefined();
+    });
+
+    describe('agent merge authoring', () => {
+        const merge: SavedMergeDefinition = {
+            queries: {
+                returns: {
+                    explore: 'returns',
+                    dimensions: ['returns_status'],
+                    metrics: ['returns_count'],
+                },
+            },
+            join: MergeJoinType.FULL,
+            keys: { orders_status: ['returns.returns_status'] },
+            limit: 500,
+        };
+        const mergedChart = {
+            ...makeChartContent({}),
+            metricQuery: {
+                ...makeChartContent({}).metricQuery,
+                dimensions: ['orders_status'],
+                filters: {
+                    dimensions: {
+                        id: 'stored-group',
+                        and: [
+                            {
+                                id: 'stored-rule',
+                                target: { fieldId: 'orders_status' },
+                                operator: FilterOperator.EQUALS,
+                                values: ['completed'],
+                            },
+                        ],
+                    },
+                },
+            },
+            merge,
+        };
+        const makeChartService = (stored: Record<string, unknown>) => {
+            const upsertChart = vi.fn().mockResolvedValue({
+                charts: [{ data: { uuid: 'chart-uuid', slug: stored.slug } }],
+            });
+            const service = makeService({
+                savedChartService: {
+                    get: vi.fn().mockResolvedValue({ uuid: 'chart-uuid' }),
+                },
+                coderService: {
+                    getChartsForRead: vi
+                        .fn()
+                        .mockResolvedValue({ charts: [stored] }),
+                    getCurrentContentVersionBySlug: vi
+                        .fn()
+                        .mockResolvedValue({ versionUuid: 'version' }),
+                    upsertChart,
+                },
+                aiAgentContentValidation: {
+                    validatePatch: vi.fn(),
+                    validateContent: vi.fn(),
+                    validateNewContent: vi.fn(),
+                },
+            });
+            return { service, upsertChart };
+        };
+        const editChart = (
+            stored: Record<string, unknown>,
+            patch: unknown[],
+            source: 'ai_agent' | 'mcp' = 'ai_agent',
+        ) => {
+            const { service, upsertChart } = makeChartService(stored);
+            const runtime =
+                source === 'mcp'
+                    ? service.createRuntime(
+                          makeRuntimeContext({ source: 'mcp' }),
+                      )
+                    : service.createRuntime(makeRuntimeContext());
+            return {
+                upsertChart,
+                edit: runtime.editContent({
+                    slug: 'null-config-chart',
+                    type: 'chart',
+                    patch,
+                }),
+            };
+        };
+        const refusal = 'Merge queries are not supported by the agent.';
+
+        it('refuses a chart created with a merge', async () => {
+            const { service, upsertChart } = makeChartService(
+                makeChartContent({}),
+            );
+            await expect(
+                service.createRuntime(makeRuntimeContext()).createContent({
+                    type: 'chart',
+                    content: {
+                        ...mergedChart,
+                        chartConfig: { type: ChartType.TABLE },
+                        dashboardSlug: undefined,
+                        updatedAt: new Date(),
+                    },
+                }),
+            ).rejects.toThrow(refusal);
+            expect(upsertChart).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            [
+                'adds a merge',
+                makeChartContent({}),
+                [{ op: 'add', path: '/merge', value: merge }],
+            ],
+            [
+                'changes the merge',
+                mergedChart,
+                [{ op: 'replace', path: '/merge/join', value: 'inner' }],
+            ],
+            [
+                'removes the merge',
+                mergedChart,
+                [{ op: 'remove', path: '/merge' }],
+            ],
+            [
+                'changes the metrics feeding the merge',
+                mergedChart,
+                [
+                    {
+                        op: 'replace',
+                        path: '/metricQuery/metrics',
+                        value: ['orders_total_revenue'],
+                    },
+                ],
+            ],
+            [
+                'changes the filters feeding the merge',
+                mergedChart,
+                [
+                    {
+                        op: 'replace',
+                        path: '/metricQuery/filters/dimensions/and/0/values',
+                        value: ['returned'],
+                    },
+                ],
+            ],
+            [
+                'changes the explore through tableName',
+                mergedChart,
+                [{ op: 'replace', path: '/tableName', value: 'customers' }],
+            ],
+            [
+                'changes the parameters feeding the merge',
+                mergedChart,
+                [{ op: 'add', path: '/parameters', value: { region: 'EMEA' } }],
+            ],
+            [
+                'moves it to another space while changing tableName',
+                mergedChart,
+                [
+                    { op: 'replace', path: '/spaceSlug', value: 'reports' },
+                    { op: 'replace', path: '/tableName', value: 'customers' },
+                ],
+            ],
+            [
+                'changes a field outside the presentation allowlist',
+                mergedChart,
+                [{ op: 'add', path: '/futureSetting', value: true }],
+            ],
+        ])('refuses an edit that %s', async (_label, stored, patch) => {
+            const { edit, upsertChart } = editChart(stored, patch);
+            await expect(edit).rejects.toThrow(refusal);
+            expect(upsertChart).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            [
+                'renames it and changes its visualization',
+                [
+                    { op: 'replace', path: '/name', value: 'Renamed' },
+                    {
+                        op: 'replace',
+                        path: '/chartConfig',
+                        value: { type: 'big_number' },
+                    },
+                ],
+            ],
+            [
+                'drops filter ids',
+                [
+                    {
+                        op: 'remove',
+                        path: '/metricQuery/filters/dimensions/and/0/id',
+                    },
+                ],
+            ],
+            [
+                'adds merge fields the parser defaults',
+                [{ op: 'add', path: '/merge/sort', value: [] }],
+            ],
+            [
+                'changes decimal places through a format override',
+                [
+                    {
+                        op: 'add',
+                        path: '/metricQuery/metricOverrides',
+                        value: {
+                            orders_count: {
+                                formatOptions: { type: 'default', round: 2 },
+                            },
+                        },
+                    },
+                ],
+            ],
+            [
+                'moves it to another space and re-slugs it',
+                [
+                    { op: 'replace', path: '/spaceSlug', value: 'reports' },
+                    { op: 'replace', path: '/slug', value: 'merged-orders' },
+                ],
+            ],
+            [
+                'changes its table and pivot config',
+                [
+                    {
+                        op: 'replace',
+                        path: '/tableConfig',
+                        value: { columnOrder: ['orders_count'] },
+                    },
+                    {
+                        op: 'add',
+                        path: '/pivotConfig',
+                        value: { columns: [] },
+                    },
+                ],
+            ],
+        ])('allows a merged chart edit that %s', async (_label, patch) => {
+            const { edit, upsertChart } = editChart(mergedChart, patch);
+            await edit;
+            expect(upsertChart).toHaveBeenCalledOnce();
+        });
+
+        it('leaves MCP chart merges to the content-as-code contract', async () => {
+            const { edit, upsertChart } = editChart(
+                mergedChart,
+                [
+                    { op: 'replace', path: '/merge/join', value: 'inner' },
+                    {
+                        op: 'replace',
+                        path: '/metricQuery/metrics',
+                        value: ['orders_total_revenue'],
+                    },
+                ],
+                'mcp',
+            );
+            await edit;
+            expect(upsertChart.mock.calls[0][3]).toMatchObject({
+                merge: { join: 'inner' },
+            });
+        });
     });
 
     describe('SQL charts', () => {

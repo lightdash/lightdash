@@ -414,27 +414,32 @@ export const toolRunQueryArgsSchema = toolRunQueryArgsSchemaV4;
 //   narrow it — old threads must keep parsing.
 export const toolRunQueryArgsSchemaPersisted = toolRunQueryArgsSchemaV3;
 
-// For runtimes where merge queries are disabled: a merge-shaped payload
-// must fail validation, not have Zod strip mergeConfig and run only the
-// primary query. The preprocess leaves the emitted JSON schema unchanged.
+export const AI_AGENT_MERGE_REFUSAL =
+    'Merge queries are not supported by the agent.';
+
+// The agent cannot build merges: a merge-shaped payload must fail validation,
+// not have Zod strip mergeConfig and run only the primary query. Used with
+// z.preprocess, it leaves the emitted JSON schema unchanged.
+export const rejectAgentMergeConfig = (raw: unknown, ctx: z.RefinementCtx) => {
+    if (
+        raw !== null &&
+        typeof raw === 'object' &&
+        'mergeConfig' in raw &&
+        raw.mergeConfig !== null &&
+        raw.mergeConfig !== undefined
+    ) {
+        ctx.addIssue({
+            code: 'custom',
+            path: ['mergeConfig'],
+            message: AI_AGENT_MERGE_REFUSAL,
+        });
+        return z.NEVER;
+    }
+    return raw;
+};
+
 export const toolRunQueryArgsSchemaV2RejectingMerge = z.preprocess(
-    (raw, ctx) => {
-        if (
-            raw !== null &&
-            typeof raw === 'object' &&
-            'mergeConfig' in raw &&
-            raw.mergeConfig !== null &&
-            raw.mergeConfig !== undefined
-        ) {
-            ctx.addIssue({
-                code: 'custom',
-                path: ['mergeConfig'],
-                message: 'Merge queries are not enabled for this organization.',
-            });
-            return z.NEVER;
-        }
-        return raw;
-    },
+    rejectAgentMergeConfig,
     toolRunQueryArgsSchemaV2FormulaOnly,
 );
 

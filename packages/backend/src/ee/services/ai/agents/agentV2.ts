@@ -1905,7 +1905,6 @@ export const getAgentTools = (
         searchFieldValues: dependencies.searchFieldValues,
         updateProgress: dependencies.updateProgress,
         runAsyncQuery: queryDependencies.runAsyncQuery,
-        runAsyncMergeQuery: queryDependencies.runAsyncMergeQuery,
         getPrompt: dependencies.getPrompt,
         sendFile: dependencies.sendFile,
         deferSlackVisualization:
@@ -1921,7 +1920,6 @@ export const getAgentTools = (
         enableDataAccess: args.enableDataAccess,
         projectParameterDefinitions,
         slackLinksOnly: args.slackLinksOnly,
-        enableMergeQueries: args.enableMergeQueries,
         enableFilterExpressions: args.enableFilterExpressions,
         resolveCustomChartType: dependencies.resolveCustomChartType,
         exportCustomChartTypeImage: dependencies.exportCustomChartTypeImage,
@@ -1944,7 +1942,6 @@ export const getAgentTools = (
                   searchFieldValues: dependencies.searchFieldValues,
                   updateProgress: dependencies.updateProgress,
                   runAsyncQuery: queryDependencies.runAsyncQuery,
-                  runAsyncMergeQuery: queryDependencies.runAsyncMergeQuery,
                   getPrompt: dependencies.getPrompt,
                   sendFile: dependencies.sendFile,
                   createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
@@ -1955,7 +1952,6 @@ export const getAgentTools = (
                   enableDataAccess: true,
                   projectParameterDefinitions,
                   slackLinksOnly: args.slackLinksOnly,
-                  enableMergeQueries: args.enableMergeQueries,
                   enableFilterExpressions: args.enableFilterExpressions,
                   resolveCustomChartType: dependencies.resolveCustomChartType,
                   exportCustomChartTypeImage:
@@ -2763,7 +2759,6 @@ export const getAgentMessages = (
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         slackLinksOnly: args.slackLinksOnly,
-        enableMergeQueries: args.enableMergeQueries,
         enableComposerPythonNodes: args.enableComposerPythonNodes,
         unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
             args,

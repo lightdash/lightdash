@@ -91,7 +91,6 @@ import {
     RecordSqlApprovalFn,
     ResolveCustomChartTypeFn,
     ResolveUrlFn,
-    RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
     RunComposerQueriesFn,
     RunSavedChartQueryFn,
@@ -274,7 +273,6 @@ export type AiAgentArgs = AnyAiModel & {
     // The thread owns at least one attached document, so readAttachments is
     // registered.
     enableReadAttachments: boolean;
-    enableMergeQueries: boolean;
     enableFilterExpressions: boolean;
     // Whether the general-purpose coding agent (`editRepo`) is available — the
     // CodingAgent flag, the org has a writable Git installation, and (in Slack)
@@ -391,7 +389,6 @@ export type AiAgentDependencies = {
     searchSemanticLayer: SearchSemanticLayerFn;
     analyzeFieldImpact: AnalyzeFieldImpactFn;
     runAsyncQuery: RunAsyncQueryFn;
-    runAsyncMergeQuery: RunAsyncMergeQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlChartQuery: RunSqlChartQueryFn;
     runSqlJob: RunSqlJobFn;

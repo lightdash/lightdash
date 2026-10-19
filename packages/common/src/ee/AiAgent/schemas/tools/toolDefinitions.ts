@@ -673,7 +673,7 @@ export const runQueryFilterExpressionToolDefinition: ToolDefinitionWithMcpOutput
     },
 });
 
-// The agent view of runQuery for runtimes without merge queries: identical
+// The agent view of runQuery (the agent cannot build merges): identical
 // contract, but a merge-shaped payload fails validation instead of being
 // stripped to the primary query by Zod. Lazy, like `.for('agent')`.
 export const getRunQueryAgentViewRejectingMerge = (): AgentToolView<

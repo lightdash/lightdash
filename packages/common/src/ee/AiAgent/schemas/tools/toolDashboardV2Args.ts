@@ -8,9 +8,10 @@ import {
 import { createToolSchema } from '../toolSchemaBuilder';
 import {
     chartConfigBuiltinOnlySchema,
-    toolRunQueryArgsSchema,
+    rejectAgentMergeConfig,
     toolRunQueryArgsSchemaPersisted,
     toolRunQueryArgsSchemaTransformed,
+    toolRunQueryArgsSchemaV2FormulaOnly,
 } from './toolRunQueryArgs';
 
 export const TOOL_DASHBOARD_V2_DESCRIPTION = `
@@ -35,9 +36,12 @@ Recommended Dashboard Structure:
 // Dashboard visualization schema - use generateVisualization format for each
 // visualization. Custom chart types are thread-only for the PoC, so each
 // dashboard visualization pins the builtin-only chart config.
-const dashboardV2VisualizationSchema = toolRunQueryArgsSchema.extend({
-    chartConfig: chartConfigBuiltinOnlySchema,
-});
+const dashboardV2VisualizationSchema = z.preprocess(
+    rejectAgentMergeConfig,
+    toolRunQueryArgsSchemaV2FormulaOnly.extend({
+        chartConfig: chartConfigBuiltinOnlySchema,
+    }),
+);
 
 // Persisted artifacts may carry legacy template table calcs the advertised
 // (formula-only) viz schema no longer accepts; type as the wide persisted shape.

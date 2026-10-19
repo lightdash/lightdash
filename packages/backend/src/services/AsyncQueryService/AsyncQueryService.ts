@@ -44,7 +44,6 @@ import {
     FieldType,
     ForbiddenError,
     formatItemValue,
-    formatMergeQueryRefusal,
     formatRawRows,
     formatRawValue,
     formatRow,
@@ -13158,50 +13157,6 @@ export class AsyncQueryService extends ProjectService {
             ...execution,
             pivotInput: chart ? { type: 'chart', chart } : undefined,
         });
-    }
-
-    /** Execute a merge query and wait for all results. */
-    async executeMergeQueryAndGetResults(
-        args: ExecuteAsyncMergeQueryArgs,
-        pollingOptions?: PollingOptions,
-    ): Promise<{
-        queryUuid: string;
-        rows: Record<string, unknown>[];
-        cacheMetadata: CacheMetadata;
-        fields: ItemsMap;
-        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
-        displayTimezone: string | null;
-        executionStats: WarehouseExecutionStats | null;
-        metricQuery: MetricQuery;
-    }> {
-        const { account, projectUuid } = args;
-        const outcome = await this.executeAsyncMergeQuery(args);
-        if (outcome.outcome === 'refused') {
-            throw new ParameterError(formatMergeQueryRefusal(outcome.errors), {
-                errors: outcome.errors,
-            });
-        }
-
-        const { queryUuid, cacheMetadata, fields, metricQuery } = outcome.query;
-        await this.pollForQueryCompletion({
-            account,
-            projectUuid,
-            queryUuid,
-            ...pollingOptions,
-        });
-        const results = await this.getReadyQueryResults({
-            reader: buildResultReader(
-                account,
-                args.context,
-                args.querySurface ?? null,
-            ),
-            account,
-            projectUuid,
-            queryUuid,
-            cacheMetadata,
-            fields,
-        });
-        return { queryUuid, metricQuery, ...results };
     }
 
     /** Compatibility seam for the v1 endpoint's already-derived pivot. */

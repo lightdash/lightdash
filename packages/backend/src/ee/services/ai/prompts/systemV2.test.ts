@@ -511,24 +511,10 @@ describe('getSystemPromptV2 merge queries', () => {
         );
     });
 
-    test('directs cross-explore questions to generateVisualization when enabled', () => {
+    test('directs cross-explore questions to runSql, never mergeConfig', () => {
         const content = promptText({
             availableExplores: [],
             canRunSql: true,
-            enableMergeQueries: true,
-        });
-
-        expect(content).toContain('use generateVisualization with mergeConfig');
-        expect(content).toContain(
-            'Do not use runSql merely to combine explores',
-        );
-    });
-
-    test('keeps the SQL fallback when merge queries are disabled', () => {
-        const content = promptText({
-            availableExplores: [],
-            canRunSql: true,
-            enableMergeQueries: false,
         });
 
         expect(content).toContain(
@@ -543,7 +529,6 @@ describe('getSystemPromptV2 composer queries', () => {
         const content = promptText({
             availableExplores: [],
             canRunSql: true,
-            enableMergeQueries: false,
             enableComposerQueries: true,
         });
 

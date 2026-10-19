@@ -14162,7 +14162,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
             updateProgress,
             getPrompt,
             runAsyncQuery: toolsRuntime.runAsyncQuery,
-            runAsyncMergeQuery: toolsRuntime.runAsyncMergeQuery,
             runSavedChartQuery: toolsRuntime.runSavedChartQuery,
             runSqlChartQuery: toolsRuntime.runSqlChartQuery,
             runSqlJob: toolsRuntime.runSqlJob,
@@ -16266,11 +16265,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         deepResearchContextRuns,
                         latestDeepResearchProgress,
                     );
-                const { enabled: mergeQueriesEnabled } =
-                    await this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.MergeQueries,
-                    });
                 // Web-chat composer requires both orchestration and execution flags.
                 const [
                     { enabled: multiSourceQueryEnabled },
@@ -16494,7 +16488,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     updateProgress,
                     getPrompt,
                     runAsyncQuery,
-                    runAsyncMergeQuery,
                     runSavedChartQuery,
                     runSqlChartQuery,
                     runSqlJob,
@@ -16819,7 +16812,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,
-                    enableMergeQueries: mergeQueriesEnabled,
                     enableFilterExpressions: filterExpressionsEnabled,
                     repoFsRoot,
                     repoFsSupportsCodeSearch,
@@ -16978,7 +16970,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     analyzeFieldImpact,
                     syncDbtProject,
                     runAsyncQuery,
-                    runAsyncMergeQuery,
                     runSavedChartQuery,
                     runSqlChartQuery,
                     runSqlJob,
