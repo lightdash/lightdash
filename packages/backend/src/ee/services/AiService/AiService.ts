@@ -14,11 +14,13 @@ import {
     GenerateFormulaTableCalculationRequest,
     GenerateTableCalculationRequest,
     GenerateTooltipRequest,
+    getAccountUserTimezone,
     getErrorMessage,
     getItemId,
     isField,
     isSummaryExploreError,
     ItemsMap,
+    resolveQueryTimezone,
     SessionUser,
     SuggestChartTypeExploreRequest,
     SuggestChartTypeFieldsRequest,
@@ -517,6 +519,15 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
         if (!user.organizationUuid) throw new ForbiddenError();
         await this.assertCanManageExplore(user, projectUuid);
         const request = parseGoogleSheetsExtensionReportDraftRequest(payload);
+        const timezone = resolveQueryTimezone({
+            sessionTimezone: null,
+            metricQuery: { timezone: request.timezone },
+            projectTimezone:
+                await this.projectService.getQueryTimezoneForProject(
+                    projectUuid,
+                ),
+            userTimezone: getAccountUserTimezone(fromSession(user)),
+        });
         const explore = await this.projectService.getExplore(
             fromSession(user),
             projectUuid,
@@ -535,7 +546,7 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
         return generateGoogleSheetsExtensionReportDraftFromContext(
             modelOptions,
             explore,
-            request,
+            { ...request, timezone },
             maxLimit,
         );
     }
