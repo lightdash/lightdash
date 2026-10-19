@@ -6160,6 +6160,7 @@ test.each(['off', 'legacy', 'query-only managed'])(
             maxLimit: 100,
             maxContextRows: 10,
             enableDataAccess: true,
+            sqlQuerying: null,
         });
         const result = await tool.execute!(
             {
