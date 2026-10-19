@@ -1,3 +1,10 @@
+## [2.616.1](https://github.com/lightdash/lightdash/compare/2.616.0...2.616.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* **pre-aggregates:** scope the DuckDB serve instance to the querying project ([#31163](https://github.com/lightdash/lightdash/issues/31163)) ([ed255a9](https://github.com/lightdash/lightdash/commit/ed255a92e5992add2007cbccfca31e420d6da234))
+
 # [2.616.0](https://github.com/lightdash/lightdash/compare/2.615.0...2.616.0) (2026-10-19)
 
 

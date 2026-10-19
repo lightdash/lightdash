@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.616.0",
-  "previousVersion": "2.615.0",
-  "releaseDate": "2026-10-19T17:06:01.673Z",
+  "version": "2.616.1",
+  "previousVersion": "2.616.0",
+  "releaseDate": "2026-10-19T18:52:46.614Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -17,11 +17,9 @@
   "api": {
     "rest": {
       "checked": true,
-      "breaking": true,
-      "changes": [
-        "POST /api/v1/aiAgents/admin/review-replay-capture — api path removed without deprecation"
-      ],
-      "breakingCount": 1,
+      "breaking": false,
+      "changes": [],
+      "breakingCount": 0,
       "advisories": [],
       "advisoryCount": 0
     },
@@ -44,21 +42,5 @@
     "requiredStops": []
   },
   "declaredBreaks": [],
-  "declaredAdvisories": [
-    {
-      "id": "ai-review-replay-capture-endpoint-removed",
-      "reason": "POST /api/v1/aiAgents/admin/review-replay-capture and its AiAgentReviewReplayCapture request and response types are removed together with the ai-review-replay-capture feature flag. The endpoint was org-admin only and refused callers unless that flag was on, and the flag was off by default on Cloud and on self-hosted. Callers now get a 404.",
-      "requiredStop": false,
-      "impact": {
-        "kind": "no-external-callers",
-        "firstPartyOnly": "The internal AI review classifier scoreboard repl script (captureReviewScoreboardFixtureFromApi) was the only client, and it is removed in the same change. An older checkout of that script gets a 404 during a rolling update, which is safe because it is an offline eval tool, not part of the product.",
-        "covers": {
-          "rest": [
-            "POST /api/v1/aiAgents/admin/review-replay-capture"
-          ],
-          "mcp": []
-        }
-      }
-    }
-  ]
+  "declaredAdvisories": []
 }
