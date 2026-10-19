@@ -1,3 +1,4 @@
+import { DimensionType, FieldType, type Dimension } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ComponentProps, type ReactNode } from 'react';
@@ -7,6 +8,7 @@ import { MergeSourceTree } from './MergeSourceTree';
 
 const state = vi.hoisted(() => ({
     setSourceExplore: vi.fn(),
+    addSourceFilter: vi.fn(),
     exploreTreeProps: undefined as
         | ComponentProps<typeof ExploreTree>
         | undefined,
@@ -20,11 +22,28 @@ vi.mock('../context/useMerge', () => ({
                 exploreName: 'subscriptions',
                 dimensions: ['subscriptions_started_at'],
                 metrics: ['subscriptions_count'],
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'rule',
+                                target: { fieldId: 'subscriptions_plan' },
+                                operator: 'equals',
+                                values: ['pro'],
+                            },
+                        ],
+                    },
+                },
             },
         ],
         setSourceExplore: state.setSourceExplore,
         toggleSourceField: vi.fn(),
     }),
+}));
+
+vi.mock('../hooks/useMergeSourceFilter', () => ({
+    useMergeSourceFilter: () => state.addSourceFilter,
 }));
 
 vi.mock('../../../hooks/useExplore', () => ({
@@ -132,5 +151,26 @@ describe('MergeSourceTree table picker', () => {
         renderPicker({ isChoosingExplore: false });
 
         expect(state.exploreTreeProps?.customMetricSourceId).toBe('combined');
+    });
+
+    it('adds filters from its field tree to its own source', () => {
+        renderPicker({ isChoosingExplore: false });
+        const field: Dimension = {
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+            name: 'status',
+            label: 'Status',
+            table: 'subscriptions',
+            tableLabel: 'Subscriptions',
+            sql: '${TABLE}.status',
+            hidden: false,
+        };
+
+        state.exploreTreeProps?.filterTarget?.addFilter(field);
+
+        expect(state.addSourceFilter).toHaveBeenCalledWith('combined', field);
+        expect([
+            ...(state.exploreTreeProps?.filterTarget?.filteredFieldIds ?? []),
+        ]).toEqual(['subscriptions_plan']);
     });
 });

@@ -48,6 +48,7 @@ import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import MantineIcon from '../../../../common/MantineIcon';
 import { useCustomMetricSourceId } from '../../CustomMetricSourceContext';
+import { useFieldFilterTarget } from '../../FieldFilterTargetContext';
 
 type Props = {
     item: Metric | Dimension | AdditionalMetric | CustomDimension;
@@ -88,6 +89,7 @@ const TreeSingleNodeActions: FC<Props> = ({
 
     const dispatch = useExplorerDispatch();
     const customMetricSourceId = useCustomMetricSourceId();
+    const filterTarget = useFieldFilterTarget();
     const customDimensionWriteBackError = isCustomDimension(item)
         ? getCustomDimensionWriteBackError(item)
         : null;
@@ -163,6 +165,8 @@ const TreeSingleNodeActions: FC<Props> = ({
                             });
                             if (onAddFilter) {
                                 onAddFilter(item);
+                            } else if (filterTarget) {
+                                filterTarget.addFilter(item);
                             } else {
                                 addFilter(item, undefined);
                             }
