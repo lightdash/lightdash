@@ -13,6 +13,7 @@ export type CacheHitCacheResult = {
     cacheKey: string;
     cacheHit: true;
     totalRowCount: number;
+    rowLimitExceeded?: boolean | null;
     fileName: string;
     createdAt: Date;
     updatedAt: Date;

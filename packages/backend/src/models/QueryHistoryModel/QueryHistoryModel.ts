@@ -77,6 +77,7 @@ function convertDbQueryHistoryToQueryHistory(
         warehouseExecutionStats: queryHistory.warehouse_execution_stats ?? null,
         status: queryHistory.status,
         totalRowCount: queryHistory.total_row_count,
+        rowLimitExceeded: queryHistory.row_limit_exceeded ?? null,
         warehouseExecutionTimeMs: queryHistory.warehouse_execution_time_ms,
         error: queryHistory.error,
         erroredAt: queryHistory.errored_at,
@@ -127,6 +128,7 @@ export class QueryHistoryModel {
         projectUuid: string,
         resultsIdentifiers: {
             sql: string;
+            rowLimitDetectionLimit?: number;
             timezone?: string;
             userUuid: string | null;
             dataTimezone?: string;
@@ -153,6 +155,9 @@ export class QueryHistoryModel {
         }
 
         queryHashKey += `.${resultsIdentifiers.sql}`;
+        if (resultsIdentifiers.rowLimitDetectionLimit !== undefined) {
+            queryHashKey += `.row-limit-v1:${resultsIdentifiers.rowLimitDetectionLimit}`;
+        }
 
         if (resultsIdentifiers.timezone) {
             queryHashKey += `.${resultsIdentifiers.timezone}`;
@@ -569,6 +574,7 @@ export class QueryHistoryModel {
             queryHistory: convertDbQueryHistoryToQueryHistory(result),
             resultProducer: result.request_parameters?.resultProducer ?? null,
             totalRowCount: result.total_row_count,
+            rowLimitExceeded: result.row_limit_exceeded ?? null,
             cacheKey: result.cache_key,
             pivotValuesColumns: result.pivot_values_columns,
             pivotTotalColumnCount: result.pivot_total_column_count,

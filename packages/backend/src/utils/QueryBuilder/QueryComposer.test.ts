@@ -76,6 +76,41 @@ const TOTALS_SOURCE_PIVOT_CONFIGURATION: PivotConfiguration = {
 };
 
 describe('QueryComposer', () => {
+    test.each([undefined, PIVOT_CONFIGURATION])(
+        'probes one extra row without changing the saved limit (pivot: %j)',
+        (pivotConfiguration) => {
+            const metricQuery = { ...METRIC_QUERY, limit: 5000 };
+            const baseline = new QueryComposer(
+                { metricQuery, pivotConfiguration },
+                CONTEXT,
+            );
+            const disabled = new QueryComposer(
+                {
+                    metricQuery,
+                    pivotConfiguration,
+                    detectRowLimitExceeded: false,
+                },
+                CONTEXT,
+            );
+            const probe = new QueryComposer(
+                {
+                    metricQuery,
+                    pivotConfiguration,
+                    detectRowLimitExceeded: true,
+                },
+                CONTEXT,
+            );
+            expect(disabled.getSql({ columnLimit: 100 })).toBe(
+                baseline.getSql({ columnLimit: 100 }),
+            );
+            expect(probe.getSql({ columnLimit: 100 })).toMatch(/LIMIT 5001$/);
+            expect(baseline.getSql({ columnLimit: 100 })).toMatch(
+                /LIMIT 5000$/,
+            );
+            expect(probe.getMetricQuery().limit).toBe(5000);
+        },
+    );
+
     it('compiles a metric query and returns the base SQL via getSql when there is no pivot', () => {
         const composer = new QueryComposer(
             { metricQuery: METRIC_QUERY, pivotConfiguration: undefined },

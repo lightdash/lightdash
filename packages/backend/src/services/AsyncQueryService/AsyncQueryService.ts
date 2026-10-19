@@ -2610,6 +2610,10 @@ export class AsyncQueryService extends ProjectService {
             resolvedTimezone: displayTimezone,
             totalPageCount: pageCount,
             totalResults: totalRowCount ?? 0,
+            ...('detectRowLimitExceeded' in queryHistory.requestParameters &&
+            queryHistory.requestParameters.detectRowLimitExceeded
+                ? { rowLimitExceeded: queryHistory.rowLimitExceeded ?? null }
+                : {}),
             queryUuid: queryHistory.queryUuid,
             pageSize: rows.length,
             page,
@@ -3683,6 +3687,7 @@ export class AsyncQueryService extends ProjectService {
         queryTags,
         write,
         pivotConfiguration,
+        rowLimitDetectionLimit,
         itemsMap,
         usedParameters,
         dataTimezone,
@@ -3693,11 +3698,13 @@ export class AsyncQueryService extends ProjectService {
         queryTags: RunQueryTags & { query_uuid?: string };
         write?: (rows: Record<string, unknown>[]) => void | Promise<void>;
         pivotConfiguration?: PivotConfiguration;
+        rowLimitDetectionLimit?: number;
         itemsMap: ItemsMap;
         usedParameters?: ParametersValuesMap | null;
         dataTimezone?: string;
         displayTimezone: string | null;
     }): Promise<{
+        rowLimitExceeded: boolean | null;
         columns: ResultColumns;
         /** Pre-pivot columns, so pivoted queries keep a record of the
          *  original result shape (original_columns). */
@@ -3709,6 +3716,20 @@ export class AsyncQueryService extends ProjectService {
             totalRows: number;
         } | null;
     }> {
+        let rowLimitExceeded: boolean | null =
+            rowLimitDetectionLimit === undefined ? null : false;
+        let retainedRows = 0;
+        const trimRows = (rows: WarehouseResults['rows']) => {
+            if (rowLimitDetectionLimit === undefined) return rows;
+            const remaining = Math.max(
+                0,
+                rowLimitDetectionLimit - retainedRows,
+            );
+            if (rows.length > remaining) rowLimitExceeded = true;
+            const retained = rows.slice(0, remaining);
+            retainedRows += retained.length;
+            return retained;
+        };
         let currentRowIndex = 0;
         let currentTransformedRow: WarehouseResults['rows'][number] | undefined;
         const valuesColumnData = new Map<string, PivotValuesColumn>();
@@ -3774,13 +3795,24 @@ export class AsyncQueryService extends ProjectService {
                               // columnIndex is omitted when no groupBy columns
                           });
                       });
-                      pivotTotalRows += rows.length;
-                      await write?.(rows);
+                      const retained = trimRows(rows);
+                      pivotTotalRows += retained.length;
+                      if (retained.length) await write?.(retained);
                       return;
                   }
 
+                  const visibleRows =
+                      rowLimitDetectionLimit === undefined
+                          ? rows
+                          : rows.filter((row) => {
+                                const isProbe =
+                                    Number(row.row_index) >
+                                    rowLimitDetectionLimit;
+                                if (isProbe) rowLimitExceeded = true;
+                                return !isProbe;
+                            });
                   // Process rows sequentially to handle backpressure properly
-                  for (const row of rows) {
+                  for (const row of visibleRows) {
                       // Write rows to file in order of row_index. This is so that we can pivot the data later
                       if (currentRowIndex !== row.row_index) {
                           if (currentTransformedRow) {
@@ -3942,7 +3974,9 @@ export class AsyncQueryService extends ProjectService {
                       itemsMap,
                       usedParameters,
                   );
-                  await write?.(rows);
+                  const retained = trimRows(rows);
+                  if (rowLimitDetectionLimit === undefined || retained.length)
+                      await write?.(retained);
               };
 
         if (dataTimezone && !isValidTimezone(dataTimezone)) {
@@ -3999,9 +4033,14 @@ export class AsyncQueryService extends ProjectService {
         }
 
         return {
+            rowLimitExceeded,
             warehouseResults: {
                 ...warehouseResults,
-                totalRows: Math.max(0, warehouseResults.totalRows),
+                totalRows:
+                    rowLimitDetectionLimit !== undefined &&
+                    !pivotConfiguration?.groupByColumns?.length
+                        ? retainedRows
+                        : Math.max(0, warehouseResults.totalRows),
             },
             columns,
             unpivotedColumns,
@@ -4027,6 +4066,7 @@ export class AsyncQueryService extends ProjectService {
         executionExplore,
         fieldsMap,
         pivotConfiguration,
+        detectRowLimitExceeded,
         startOfWeek,
         userAccessControls,
         availableParameterDefinitions,
@@ -4046,6 +4086,7 @@ export class AsyncQueryService extends ProjectService {
         executionExplore?: (name: string) => Promise<Explore>;
         fieldsMap: ItemsMap;
         pivotConfiguration?: PivotConfiguration;
+        detectRowLimitExceeded?: boolean;
         startOfWeek: CreateWarehouseCredentials['startOfWeek'];
         userAccessControls?: UserAccessControls;
         availableParameterDefinitions?: ParameterDefinitions;
@@ -4073,6 +4114,7 @@ export class AsyncQueryService extends ProjectService {
                 parameters,
                 fieldsMap,
                 pivotConfiguration,
+                detectRowLimitExceeded,
                 startOfWeek,
                 userAccessControls,
                 availableParameterDefinitions,
@@ -4131,6 +4173,7 @@ export class AsyncQueryService extends ProjectService {
         cacheKey,
         warehouseCredentialsOverrides,
         pivotConfiguration,
+        rowLimitDetectionLimit,
         originalColumns,
         preAggregateQuery,
         warehouseQuery,
@@ -4173,6 +4216,7 @@ export class AsyncQueryService extends ProjectService {
                 cacheKey,
                 warehouseCredentialsOverrides,
                 pivotConfiguration,
+                rowLimitDetectionLimit,
                 originalColumns,
                 queryCreatedAt,
                 queryUsage,
@@ -4311,6 +4355,7 @@ export class AsyncQueryService extends ProjectService {
                 cacheKey,
                 warehouseCredentialsOverrides,
                 pivotConfiguration,
+                rowLimitDetectionLimit,
                 originalColumns,
                 queryCreatedAt,
                 queryUsage,
@@ -4834,6 +4879,7 @@ export class AsyncQueryService extends ProjectService {
         queryUuid,
         cacheKey,
         pivotConfiguration,
+        rowLimitDetectionLimit,
         originalColumns,
         queryCreatedAt,
         queryUsage,
@@ -5176,6 +5222,7 @@ export class AsyncQueryService extends ProjectService {
                                   }
                                 : undefined,
                             pivotConfiguration,
+                            rowLimitDetectionLimit,
                             itemsMap: fieldsMap,
                             usedParameters,
                             dataTimezone: resolvedDataTimezone,
@@ -5324,6 +5371,12 @@ export class AsyncQueryService extends ProjectService {
                         error: null,
                         warehouse_execution_time_ms: Math.round(durationMs),
                         total_row_count: pivotDetails?.totalRows ?? totalRows,
+                        ...(rowLimitDetectionLimit !== undefined
+                            ? {
+                                  row_limit_exceeded:
+                                      queryResults.rowLimitExceeded,
+                              }
+                            : {}),
                         pivot_total_column_count:
                             pivotDetails?.totalColumnCount,
                         pivot_values_columns: pivotDetails
@@ -5653,6 +5706,11 @@ export class AsyncQueryService extends ProjectService {
             cacheKey: query.cacheKey,
             warehouseCredentialsOverrides,
             pivotConfiguration: query.pivotConfiguration ?? undefined,
+            rowLimitDetectionLimit:
+                'detectRowLimitExceeded' in query.requestParameters &&
+                query.requestParameters.detectRowLimitExceeded
+                    ? query.metricQuery.limit
+                    : undefined,
             originalColumns: query.originalColumns ?? undefined,
             queryCreatedAt: query.createdAt,
             queryUsage: query.requestParameters.queryUsage,
@@ -5718,6 +5776,11 @@ export class AsyncQueryService extends ProjectService {
             cacheKey: query.cacheKey,
             warehouseCredentialsOverrides,
             pivotConfiguration: query.pivotConfiguration ?? undefined,
+            rowLimitDetectionLimit:
+                'detectRowLimitExceeded' in query.requestParameters &&
+                query.requestParameters.detectRowLimitExceeded
+                    ? query.metricQuery.limit
+                    : undefined,
             originalColumns: query.originalColumns ?? undefined,
             queryCreatedAt: query.createdAt,
             queryUsage: query.requestParameters.queryUsage,
@@ -6076,6 +6139,7 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         pivotConfiguration,
         totalConfiguration,
+        detectRowLimitExceeded,
         pivotDimensions,
         userAttributeOverrides,
         materializationRole,
@@ -6098,6 +6162,7 @@ export class AsyncQueryService extends ProjectService {
         | 'userAttributeOverrides'
         | 'materializationRole'
         | 'totalConfiguration'
+        | 'detectRowLimitExceeded'
     > & {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
@@ -6164,7 +6229,12 @@ export class AsyncQueryService extends ProjectService {
         });
 
         return new QueryComposer(
-            { metricQuery, pivotConfiguration, totalConfiguration },
+            {
+                metricQuery,
+                pivotConfiguration,
+                totalConfiguration,
+                detectRowLimitExceeded,
+            },
             {
                 explore,
                 warehouseSqlBuilder,
@@ -6479,6 +6549,8 @@ export class AsyncQueryService extends ProjectService {
                         projectUuid,
                         {
                             sql: query,
+                            rowLimitDetectionLimit:
+                                queryComposer.getRowLimitDetectionLimit(),
                             timezone,
                             userUuid:
                                 warehouseCredentials.userWarehouseCredentialsUuid
@@ -6712,6 +6784,14 @@ export class AsyncQueryService extends ProjectService {
                                 status: QueryHistoryStatus.READY,
                                 error: null,
                                 total_row_count: resultsCache.totalRowCount,
+                                ...(queryComposer.getRowLimitDetectionLimit() !==
+                                undefined
+                                    ? {
+                                          row_limit_exceeded:
+                                              resultsCache.rowLimitExceeded ??
+                                              null,
+                                      }
+                                    : {}),
                                 columns: resultsCache.columns,
                                 // Cached rows created before original columns were persisted at creation may hold null — don't clobber the value this row was created with
                                 original_columns:
@@ -6801,6 +6881,9 @@ export class AsyncQueryService extends ProjectService {
                         : await this.resolveAsyncQueryExecutionPlan({
                               projectUuid,
                               warehouseQuery: query,
+                              detectRowLimitExceeded:
+                                  queryComposer.getRowLimitDetectionLimit() !==
+                                  undefined,
                               metricQuery,
                               timezone: timezone ?? 'UTC',
                               dateZoom,
@@ -6897,6 +6980,8 @@ export class AsyncQueryService extends ProjectService {
                     trackQueryExecuted(executedSource);
 
                     const warehouseArgs: RunAsyncWarehouseQueryArgs = {
+                        rowLimitDetectionLimit:
+                            queryComposer.getRowLimitDetectionLimit(),
                         authMethod: account.authentication.type,
                         agentIdentity: agentIdentity ?? null,
                         resultEntitlementFingerprint: entitlementFingerprint,
@@ -7415,6 +7500,7 @@ export class AsyncQueryService extends ProjectService {
             materializationRole,
             dashboardFilters,
             totalConfiguration,
+            detectRowLimitExceeded,
             documentQueryContext,
         }: ExecuteAsyncMetricQueryArgs,
         organizationUuid: string,
@@ -7556,6 +7642,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             pivotConfiguration: documentPivot ?? pivotConfiguration,
             totalConfiguration,
+            detectRowLimitExceeded,
             userAttributeOverrides,
             materializationRole,
             context,
@@ -7589,6 +7676,7 @@ export class AsyncQueryService extends ProjectService {
                 ? { source: sourceQueryHistory.queryUuid }
                 : sourceParameters.references;
         const requestParameters: ExecuteAsyncQueryRequestParams = {
+            ...(detectRowLimitExceeded ? { detectRowLimitExceeded: true } : {}),
             ...(documentQueryContext
                 ? { documentSource: documentQueryContext.reference }
                 : {}),
@@ -7660,6 +7748,8 @@ export class AsyncQueryService extends ProjectService {
                 previous &&
                 canReuseQueryResult(previous, {
                     userUuid: account.user.id,
+                    rowLimitDetectionLimit:
+                        queryComposer.getRowLimitDetectionLimit(),
                     sql: queryComposer.getSql({
                         columnLimit:
                             this.lightdashConfig.pivotTable.maxColumnLimit,

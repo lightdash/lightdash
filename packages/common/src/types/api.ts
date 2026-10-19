@@ -1194,6 +1194,9 @@ export type QueryResultsMetadata = {
 };
 
 export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
+    /** Additional matching rows (pivot groups before column limiting).
+     * Present only when detection was requested; null means unavailable. */
+    rowLimitExceeded?: boolean | null;
     queryUuid: string;
     columns: ResultColumns;
     rows: ResultRow[];

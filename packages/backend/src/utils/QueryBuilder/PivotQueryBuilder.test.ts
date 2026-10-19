@@ -1,3 +1,4 @@
+import { DuckDBInstance } from '@duckdb/node-api';
 import {
     BinType,
     ChartType,
@@ -20,6 +21,7 @@ import {
     WarehouseSqlBuilder,
     WeekDay,
 } from '@lightdash/common';
+import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import Logger from '../../logging/logger';
 import { PivotQueryBuilder } from './PivotQueryBuilder';
 
@@ -6894,4 +6896,79 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(colRankingSelect).not.toContain('"orders_image_url"');
         });
     });
+});
+
+describe('pivot row-limit detection', () => {
+    test.each([
+        {
+            name: 'exact limit',
+            source: "('A','X',10),('B','X',20)",
+            expected: false,
+        },
+        {
+            name: 'probe hidden by column cap',
+            source: "('A','X',10),('B','X',20),('C','Y',30)",
+            expected: true,
+        },
+        {
+            name: 'no visible cells',
+            source: "('A','Y',10),('B','Y',20),('C','X',30)",
+            expected: true,
+        },
+    ])(
+        '$name preserves visible cells and column metadata',
+        async ({ source, expected }) => {
+            const instance = await DuckDBInstance.create(':memory:');
+            const db = await instance.connect();
+            try {
+                const builder = new PivotQueryBuilder(
+                    `SELECT * FROM (VALUES ${source}) events(city, category, amount)`,
+                    {
+                        indexColumn: [
+                            { reference: 'city', type: VizIndexType.CATEGORY },
+                        ],
+                        groupByColumns: [{ reference: 'category' }],
+                        valuesColumns: [
+                            {
+                                reference: 'amount',
+                                aggregation: VizAggregationOptions.SUM,
+                            },
+                        ],
+                        sortBy: [
+                            {
+                                reference: 'city',
+                                direction: SortByDirection.ASC,
+                            },
+                        ],
+                    },
+                    warehouseSqlBuilderFromType(SupportedDbtAdapter.DUCKDB),
+                    2,
+                );
+                const baseline = (
+                    await db.runAndReadAll(builder.toSql({ columnLimit: 1 }))
+                ).getRowObjectsJson();
+                const probe = (
+                    await db.runAndReadAll(
+                        builder.toSql({
+                            columnLimit: 1,
+                            detectRowLimitExceeded: true,
+                        }),
+                    )
+                ).getRowObjectsJson();
+                expect(
+                    probe.filter((row) => Number(row.row_index) <= 2),
+                ).toEqual(baseline);
+                expect(
+                    probe.filter((row) => Number(row.row_index) > 2),
+                ).toHaveLength(expected ? 1 : 0);
+                if (expected)
+                    expect(probe.at(-1)?.total_columns).toBe(
+                        baseline[0]?.total_columns ?? '1',
+                    );
+            } finally {
+                db.closeSync();
+                instance.closeSync();
+            }
+        },
+    );
 });

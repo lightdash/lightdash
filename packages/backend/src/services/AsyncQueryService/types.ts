@@ -110,6 +110,7 @@ export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
+    detectRowLimitExceeded?: boolean;
     documentQueryContext?: DocumentQueryContext;
     metricQuery: MetricQuery;
     dataAppPreviewToken?: string;
@@ -320,6 +321,7 @@ export const SCHEDULER_POLLING_OPTIONS: PollingOptions = {
 };
 
 export type RunAsyncWarehouseQueryArgs = {
+    rowLimitDetectionLimit?: number;
     authMethod?: QueryResultProducer['authMethod'];
     resultEntitlementFingerprint?: string | null;
     agentIdentity?: AgentIdentityClaim | null;

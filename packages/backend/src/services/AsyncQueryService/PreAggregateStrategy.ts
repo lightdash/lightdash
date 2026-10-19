@@ -107,6 +107,7 @@ export interface PreAggregateStrategy {
 }
 
 export type ResolveExecutionArgs = {
+    detectRowLimitExceeded?: boolean;
     executionExplore?: (name: string) => Promise<Explore>;
     metricQuery: MetricQuery;
     timezone: string;

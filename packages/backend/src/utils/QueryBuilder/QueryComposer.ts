@@ -32,6 +32,7 @@ export type { TotalConfiguration } from './utils';
 /** What to compile: the metric query and, optionally, how to pivot it. */
 export type QueryComposerDefinition = {
     metricQuery: MetricQuery;
+    detectRowLimitExceeded?: boolean;
     pivotConfiguration?: PivotConfiguration;
     // When set, MetricQueryBuilder builds the totals query for this grain
     // instead of the source query. Mutually exclusive with dashboard filters
@@ -215,6 +216,15 @@ export class QueryComposer {
         );
     }
 
+    /** The retained row limit; the execution-only probe never changes query metadata. */
+    getRowLimitDetectionLimit(): number | undefined {
+        return this.definition.detectRowLimitExceeded &&
+            !this.definition.totalConfiguration &&
+            !this.definition.asCteBody
+            ? this.definition.metricQuery.limit
+            : undefined;
+    }
+
     /** The effective (totals-collapsed) metric query the composer compiles. */
     getMetricQuery(): MetricQuery {
         if (this.definition.totalConfiguration) {
@@ -331,9 +341,15 @@ export class QueryComposer {
      */
     protected computeCompiled(): CompiledQuery {
         const queryBuilder = this.getQueryBuilder();
+        const detectionLimit = this.getRowLimitDetectionLimit();
         return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
             queryBuilder.compileQuery({
                 excludeOrderByAndLimit: this.definition.asCteBody,
+                executionLimit:
+                    detectionLimit !== undefined &&
+                    !this.getPivotConfiguration()
+                        ? detectionLimit + 1
+                        : undefined,
             }),
         );
     }
@@ -357,7 +373,14 @@ export class QueryComposer {
             this.getMetricQuery().limit,
             this.context.pivotItemsMap ?? compiledQuery.fields,
         );
-        return this.finalizeSql(pivotQueryBuilder.toSql({ columnLimit }), true);
+        return this.finalizeSql(
+            pivotQueryBuilder.toSql({
+                columnLimit,
+                detectRowLimitExceeded:
+                    this.getRowLimitDetectionLimit() !== undefined,
+            }),
+            true,
+        );
     }
 
     /**

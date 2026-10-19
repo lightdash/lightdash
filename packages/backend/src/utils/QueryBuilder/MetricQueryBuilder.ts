@@ -5983,6 +5983,7 @@ export class MetricQueryBuilder {
          * outer query that orders and limits once for the whole statement.
          */
         excludeOrderByAndLimit?: boolean;
+        executionLimit?: number;
     }): CompiledQuery {
         const {
             fields,
@@ -5996,7 +5997,14 @@ export class MetricQueryBuilder {
         const query = MetricQueryBuilder.assembleSqlParts([
             MetricQueryBuilder.buildCtesSQL(ctes),
             ...finalSelectParts,
-            ...(options?.excludeOrderByAndLimit ? [] : [sqlOrderBy, sqlLimit]),
+            ...(options?.excludeOrderByAndLimit
+                ? []
+                : [
+                      sqlOrderBy,
+                      options?.executionLimit !== undefined
+                          ? `LIMIT ${options.executionLimit}`
+                          : sqlLimit,
+                  ]),
         ]);
 
         const {

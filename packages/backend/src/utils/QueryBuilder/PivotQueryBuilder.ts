@@ -2046,6 +2046,7 @@ export class PivotQueryBuilder {
         columnLimit: number | undefined,
         sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
         passthroughDimensions?: PivotConfiguration['passthroughDimensions'],
+        detectRowLimitExceeded = false,
     ): string {
         const rowLimit = this.limit ?? DEFAULT_PIVOT_ROW_LIMIT;
 
@@ -2132,7 +2133,7 @@ export class PivotQueryBuilder {
                   passthroughDimensions,
               );
 
-        let columnIndexFilterSql = '';
+        let columnIndexPredicate = '';
 
         if (columnLimit) {
             const maxColumnsPerValueColumn =
@@ -2142,7 +2143,7 @@ export class PivotQueryBuilder {
                     this.pivotConfiguration.metricsAsRows,
                 );
 
-            columnIndexFilterSql = ` WHERE ${this.quoteIdentifier(
+            columnIndexPredicate = `${this.quoteIdentifier(
                 'column_index',
             )} <= ${maxColumnsPerValueColumn}`;
         }
@@ -2181,7 +2182,7 @@ export class PivotQueryBuilder {
         ctes.push(
             `filtered_rows AS (SELECT * FROM ${pivotTableRef} WHERE ${this.quoteIdentifier(
                 'row_index',
-            )} <= ${rowLimit})`,
+            )} <= ${rowLimit + (detectRowLimitExceeded ? 1 : 0)})`,
         );
 
         // total_columns is the distinct groupBy-combination count (× valuesCount
@@ -2220,12 +2221,33 @@ export class PivotQueryBuilder {
             adapterType === SupportedDbtAdapter.ATHENA
                 ? ''
                 : ` ORDER BY ${groupByPartition}`;
+        let columnIndexFilterSql = columnIndexPredicate
+            ? ` WHERE ${columnIndexPredicate}`
+            : '';
+        const rowIndex = this.quoteIdentifier('row_index');
+        // Probe rows must not change the retained page's distinct column count.
+        const probePartition = detectRowLimitExceeded
+            ? `, CASE WHEN ${rowIndex} <= ${rowLimit} THEN 1 ELSE 0 END`
+            : '';
+        const countVisibleRows = detectRowLimitExceeded
+            ? ` AND p.${rowIndex} <= ${rowLimit}`
+            : '';
+        const probeCell = detectRowLimitExceeded
+            ? `, ROW_NUMBER() OVER (PARTITION BY ${rowIndex}${grpRnOrderBy ? ` ORDER BY ${this.quoteIdentifier('column_index')}` : ''}) AS ${this.quoteIdentifier('__probe_cell')}`
+            : '';
+        if (detectRowLimitExceeded) {
+            // Keep one probe cell even when its column is outside the cap.
+            const columnFilter = columnIndexPredicate
+                ? ` AND ${columnIndexPredicate}`
+                : '';
+            columnIndexFilterSql = ` WHERE (${rowIndex} <= ${rowLimit}${columnFilter}) OR (${rowIndex} > ${rowLimit} AND ${this.quoteIdentifier('__probe_cell')} = 1)`;
+        }
         const finalSelect = `SELECT ${outputColumns}, total_columns FROM (SELECT p.*, SUM(CASE WHEN ${this.qualifyIdentifier(
             'p',
             '__grp_rn',
-        )} = 1 THEN 1 ELSE 0 END) OVER ()${totalColumnsMultiplier} AS total_columns FROM (SELECT f.*, ROW_NUMBER() OVER (PARTITION BY ${groupByPartition}${grpRnOrderBy}) AS ${this.quoteIdentifier(
+        )} = 1${countVisibleRows} THEN 1 ELSE 0 END) OVER ()${totalColumnsMultiplier} AS total_columns FROM (SELECT f.*, ROW_NUMBER() OVER (PARTITION BY ${groupByPartition}${probePartition}${grpRnOrderBy}) AS ${this.quoteIdentifier(
             '__grp_rn',
-        )} FROM filtered_rows f) p) pivoted${columnIndexFilterSql} order by ${this.quoteIdentifier(
+        )}${probeCell} FROM filtered_rows f) p) pivoted${columnIndexFilterSql} order by ${this.quoteIdentifier(
             'row_index',
         )}, ${this.quoteIdentifier('column_index')}`;
 
@@ -2246,6 +2268,7 @@ export class PivotQueryBuilder {
         userSql: string,
         groupByQuery: string,
         sortBy: PivotConfiguration['sortBy'],
+        detectRowLimitExceeded = false,
     ): string {
         const orderBy = this.getOrderBySQL(sortBy);
         const ctes = [
@@ -2257,7 +2280,7 @@ export class PivotQueryBuilder {
             PivotQueryBuilder.buildCtesSQL(ctes),
             `SELECT * FROM group_by_query${
                 orderBy ? ` ${orderBy}` : ''
-            } LIMIT ${this.limit ?? DEFAULT_PIVOT_ROW_LIMIT}`,
+            } LIMIT ${(this.limit ?? DEFAULT_PIVOT_ROW_LIMIT) + (detectRowLimitExceeded ? 1 : 0)}`,
         ]);
     }
 
@@ -2276,7 +2299,10 @@ export class PivotQueryBuilder {
      * @returns Complete SQL query with CTEs for pivoting the data
      * @throws {ParameterError} If no index columns are provided
      */
-    toSql(opts?: { columnLimit: number }): string {
+    toSql(opts?: {
+        columnLimit: number;
+        detectRowLimitExceeded?: boolean;
+    }): string {
         const indexColumns = normalizeIndexColumns(
             this.pivotConfiguration.indexColumn,
         );
@@ -2337,9 +2363,15 @@ export class PivotQueryBuilder {
                 columnLimit,
                 sortOnlyDimensions,
                 passthroughDimensions,
+                opts?.detectRowLimitExceeded,
             );
         } else {
-            finalSql = this.getSimpleQuerySQL(baseSql, groupByQuery, sortBy);
+            finalSql = this.getSimpleQuerySQL(
+                baseSql,
+                groupByQuery,
+                sortBy,
+                opts?.detectRowLimitExceeded,
+            );
         }
 
         return this.scriptPrelude

@@ -74,6 +74,29 @@ const resolveExecutionParams = (externalTable?: string) => ({
 });
 
 describe('PreAggregateStrategy.resolveExecution', () => {
+    test.each([undefined, 'analytics.rollup'])(
+        'forwards detection without changing the requested limit (external=%s)',
+        async (table) => {
+            const { strategy, duckDbClient, externalResolver } = makeStrategy();
+            const params = resolveExecutionParams(table);
+            await strategy.resolveExecution({
+                ...params,
+                resolveArgs: {
+                    ...params.resolveArgs,
+                    detectRowLimitExceeded: true,
+                },
+            });
+            expect(
+                (table ? externalResolver : duckDbClient).resolve,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    detectRowLimitExceeded: true,
+                    metricQuery: expect.objectContaining({ limit: 500 }),
+                }),
+            );
+        },
+    );
+
     test('managed routes resolve via DuckDB with duckdb execution', async () => {
         const { strategy, duckDbClient, externalResolver } = makeStrategy();
 

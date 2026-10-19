@@ -39,6 +39,7 @@ export type DbQueryHistory = {
     request_parameters: QueryHistory['requestParameters'];
     used_parameters: ParametersValuesMap | null;
     total_row_count: number | null;
+    row_limit_exceeded: boolean | null;
     warehouse_execution_time_ms: number | null;
     error: string | null;
     errored_at: Date | null;
@@ -62,7 +63,11 @@ export type DbQueryHistory = {
 
 export type DbQueryHistoryIn = Omit<
     DbQueryHistory,
-    'query_uuid' | 'created_at' | 'created_by_actor_type' | 'agent_identity'
+    | 'query_uuid'
+    | 'created_at'
+    | 'created_by_actor_type'
+    | 'agent_identity'
+    | 'row_limit_exceeded'
 > & {
     created_by_actor_type: AuthType;
     agent_identity?: AgentIdentityClaim;
@@ -79,6 +84,7 @@ export type DbQueryHistoryUpdate = Partial<
         | 'fields'
         | 'warehouse_execution_time_ms'
         | 'total_row_count'
+        | 'row_limit_exceeded'
         | 'warehouse_query_id'
         | 'warehouse_query_metadata'
         | 'warehouse_execution_stats'

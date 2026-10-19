@@ -120,6 +120,7 @@ export class PreAggregationExternalResolver extends BaseService {
             {
                 metricQuery: args.metricQuery,
                 pivotConfiguration: args.pivotConfiguration,
+                detectRowLimitExceeded: args.detectRowLimitExceeded,
             },
             {
                 explore: preAggExplore,

@@ -156,6 +156,7 @@ export type QueryHistory = {
     usedParameters: ParametersValuesMap | null;
     status: QueryHistoryStatus;
     totalRowCount: number | null;
+    rowLimitExceeded?: boolean | null;
     warehouseExecutionTimeMs: number | null;
     error: string | null;
     erroredAt: Date | null;

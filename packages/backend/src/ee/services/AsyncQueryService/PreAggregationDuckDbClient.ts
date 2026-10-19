@@ -68,6 +68,7 @@ export type ResolvePreAggregationDuckDbArgs = {
     preAggregationRoute: PreAggregationRoute;
     fieldsMap: ItemsMap;
     pivotConfiguration: PivotConfiguration | undefined;
+    detectRowLimitExceeded?: boolean;
     startOfWeek: CreateWarehouseCredentials['startOfWeek'];
     userAccessControls: UserAccessControls;
     availableParameterDefinitions: ParameterDefinitions;
@@ -380,6 +381,7 @@ export class PreAggregationDuckDbClient {
             {
                 metricQuery: args.metricQuery,
                 pivotConfiguration: args.pivotConfiguration,
+                detectRowLimitExceeded: args.detectRowLimitExceeded,
             },
             {
                 explore: patchedPreAggExplore,

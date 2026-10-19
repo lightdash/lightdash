@@ -29,6 +29,8 @@ export type DateZoom = {
 export type ExecuteAsyncMetricQueryRequestParams =
     CommonExecuteQueryRequestParams & {
         query: Omit<MetricQueryRequest, 'csvLimit'>;
+        /** Probe for additional matching rows without returning them. */
+        detectRowLimitExceeded?: boolean;
         dateZoom?: DateZoom;
         pivotConfiguration?: PivotConfiguration;
         // Filters whose target field is absent from the query's explore are

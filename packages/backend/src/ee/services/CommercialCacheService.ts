@@ -165,6 +165,7 @@ export class CommercialCacheService implements ICacheService {
                 updatedAt: latestMatchingQuery.resultsUpdatedAt,
                 expiresAt: cacheExpiresAt,
                 totalRowCount: latestMatchingQuery.totalRowCount,
+                rowLimitExceeded: latestMatchingQuery.rowLimitExceeded,
                 columns: latestMatchingQuery.columns,
                 originalColumns: latestMatchingQuery.originalColumns,
                 pivotValuesColumns: latestMatchingQuery.pivotValuesColumns,

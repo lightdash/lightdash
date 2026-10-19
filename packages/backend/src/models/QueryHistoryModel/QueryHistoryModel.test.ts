@@ -171,6 +171,31 @@ describe('QueryHistoryModel', () => {
         );
     });
     describe('getCacheKey', () => {
+        test('isolates a detected N-row result from an ordinary N+1 query with identical SQL', () => {
+            const inputs = {
+                sql: 'SELECT value FROM events LIMIT 501',
+                userUuid: null,
+            };
+            const normal = QueryHistoryModel.getCacheKey('project', inputs);
+            expect(
+                QueryHistoryModel.getCacheKey('project', {
+                    ...inputs,
+                    rowLimitDetectionLimit: undefined,
+                }),
+            ).toBe(normal);
+            const probe = QueryHistoryModel.getCacheKey('project', {
+                ...inputs,
+                rowLimitDetectionLimit: 500,
+            });
+            expect(probe).not.toBe(normal);
+            expect(probe).not.toBe(
+                QueryHistoryModel.getCacheKey('project', {
+                    ...inputs,
+                    rowLimitDetectionLimit: 499,
+                }),
+            );
+        });
+
         const projectUuid = 'test-project-uuid';
         const sql = 'SELECT * FROM test_table';
         const timezone = 'UTC';

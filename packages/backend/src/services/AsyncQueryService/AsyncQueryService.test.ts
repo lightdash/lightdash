@@ -372,6 +372,7 @@ const createQueryComposerMock = ({
 } = {}) =>
     ({
         getSql: () => sql,
+        getRowLimitDetectionLimit: () => undefined,
         getExplore: () => explore,
         getMetricQuery: () => metricQuery,
         getPivotConfiguration: () => undefined,
@@ -3717,115 +3718,130 @@ describe('AsyncQueryService', () => {
             },
         );
 
-        test('Cache Hit - Complete Flow', async () => {
-            // GIVEN: Cache returns a hit with metadata
-            const createdAt = new Date();
-            const updatedAt = new Date();
-            const expiresAt = new Date(
-                createdAt.getTime() + 1000 * 60 * 60 * 24,
-            );
-            const mockCacheResult: CacheHitCacheResult = {
-                resultProducer: null,
-                cacheHit: true,
-                cacheKey: 'test-cache-key',
-                totalRowCount: 10,
-                createdAt,
-                updatedAt,
-                expiresAt,
-                fileName: 'file-name',
-                columns: expectedColumns,
-                originalColumns: expectedColumns,
-                pivotValuesColumns: null,
-                pivotTotalColumnCount: null,
-            };
-
-            (
-                serviceWithCache.findResultsCache as import('vitest').Mock
-            ).mockResolvedValueOnce(mockCacheResult);
-
-            (
-                serviceWithCache.queryHistoryModel
-                    .create as import('vitest').Mock
-            ).mockResolvedValue({
-                queryUuid: 'test-query-uuid',
-            });
-
-            // Spy on methods to verify they are NOT called
-            const runAsyncWarehouseQuerySpy = vi.spyOn(
-                serviceWithCache,
-                'runAsyncWarehouseQuery',
-            );
-            const warehouseClientExecuteAsyncQuerySpy = vi.spyOn(
-                warehouseClientMock,
-                'executeAsyncQuery',
-            );
-
-            // WHEN: executeAsyncQuery is called
-            const result = await serviceWithCache['executeAsyncQuery'](
-                {
-                    inheritedFromProjectUuid: null,
-                    aiPrincipalUuid: null,
-                    account: sessionAccount,
-                    projectUuid,
-                    context: QueryExecutionContext.EXPLORE,
-                    queryTags: {
-                        query_context: QueryExecutionContext.EXPLORE,
-                    },
-                    invalidateCache: false,
-                    queryComposer: createQueryComposerMock(),
-                    warehouseCredentials: warehouseCredentialsMock,
-                    warehouseConnectionUuid: null,
-                },
-                { query: metricQueryMock },
-            );
-
-            // THEN: Returns immediately with queryUuid and cache metadata
-            expect(result).toEqual({
-                queryUuid: 'test-query-uuid',
-                cacheMetadata: {
+        test.each([undefined, false, true])(
+            'Cache Hit - Complete Flow (detected=%s)',
+            async (rowLimitExceeded) => {
+                // GIVEN: Cache returns a hit with metadata
+                const createdAt = new Date();
+                const updatedAt = new Date();
+                const expiresAt = new Date(
+                    createdAt.getTime() + 1000 * 60 * 60 * 24,
+                );
+                const mockCacheResult: CacheHitCacheResult = {
+                    resultProducer: null,
                     cacheHit: true,
-                    cacheUpdatedTime: updatedAt,
-                    cacheExpiresAt: expiresAt,
-                },
-            } satisfies ExecuteAsyncQueryReturn);
-
-            // THEN: Query history updated with READY status and all cache data
-            expect(
-                serviceWithCache.queryHistoryModel.update,
-            ).toHaveBeenCalledWith(
-                'test-query-uuid',
-                projectUuid,
-                {
-                    status: QueryHistoryStatus.READY,
-                    error: null,
-                    total_row_count: 10,
-                    warehouse_execution_time_ms: 0,
-                    results_file_name: 'file-name',
+                    cacheKey: 'test-cache-key',
+                    totalRowCount: 10,
+                    rowLimitExceeded,
+                    createdAt,
+                    updatedAt,
+                    expiresAt,
+                    fileName: 'file-name',
                     columns: expectedColumns,
-                    original_columns: expectedColumns,
-                    results_created_at: createdAt,
-                    results_updated_at: updatedAt,
-                    results_expires_at: expiresAt,
-                    pivot_total_column_count: null,
-                    pivot_values_columns: null,
-                },
-                sessionAccount,
-            );
+                    originalColumns: expectedColumns,
+                    pivotValuesColumns: null,
+                    pivotTotalColumnCount: null,
+                };
 
-            // NATS is disabled, so lifecycle statuses are skipped
-            expect(
-                serviceWithCache.queryHistoryModel.updateStatusToExecuting,
-            ).not.toHaveBeenCalled();
-            expect(
-                serviceWithCache.queryHistoryModel.updateStatusToQueued,
-            ).not.toHaveBeenCalled();
+                (
+                    serviceWithCache.findResultsCache as import('vitest').Mock
+                ).mockResolvedValueOnce(mockCacheResult);
 
-            // THEN: runAsyncWarehouseQuery is NOT called
-            expect(runAsyncWarehouseQuerySpy).not.toHaveBeenCalled();
+                (
+                    serviceWithCache.queryHistoryModel
+                        .create as import('vitest').Mock
+                ).mockResolvedValue({
+                    queryUuid: 'test-query-uuid',
+                });
 
-            // THEN: Warehouse client methods are NOT called
-            expect(warehouseClientExecuteAsyncQuerySpy).not.toHaveBeenCalled();
-        });
+                // Spy on methods to verify they are NOT called
+                const runAsyncWarehouseQuerySpy = vi.spyOn(
+                    serviceWithCache,
+                    'runAsyncWarehouseQuery',
+                );
+                const warehouseClientExecuteAsyncQuerySpy = vi.spyOn(
+                    warehouseClientMock,
+                    'executeAsyncQuery',
+                );
+
+                // WHEN: executeAsyncQuery is called
+                const result = await serviceWithCache['executeAsyncQuery'](
+                    {
+                        inheritedFromProjectUuid: null,
+                        aiPrincipalUuid: null,
+                        account: sessionAccount,
+                        projectUuid,
+                        context: QueryExecutionContext.EXPLORE,
+                        queryTags: {
+                            query_context: QueryExecutionContext.EXPLORE,
+                        },
+                        invalidateCache: false,
+                        queryComposer: {
+                            ...createQueryComposerMock(),
+                            getRowLimitDetectionLimit: () =>
+                                rowLimitExceeded === undefined
+                                    ? undefined
+                                    : metricQueryMock.limit,
+                        } as QueryComposer,
+                        warehouseCredentials: warehouseCredentialsMock,
+                        warehouseConnectionUuid: null,
+                    },
+                    { query: metricQueryMock },
+                );
+
+                // THEN: Returns immediately with queryUuid and cache metadata
+                expect(result).toEqual({
+                    queryUuid: 'test-query-uuid',
+                    cacheMetadata: {
+                        cacheHit: true,
+                        cacheUpdatedTime: updatedAt,
+                        cacheExpiresAt: expiresAt,
+                    },
+                } satisfies ExecuteAsyncQueryReturn);
+
+                // THEN: Query history updated with READY status and all cache data
+                expect(
+                    serviceWithCache.queryHistoryModel.update,
+                ).toHaveBeenCalledWith(
+                    'test-query-uuid',
+                    projectUuid,
+                    {
+                        status: QueryHistoryStatus.READY,
+                        error: null,
+                        total_row_count: 10,
+                        ...(rowLimitExceeded !== undefined
+                            ? { row_limit_exceeded: rowLimitExceeded }
+                            : {}),
+                        warehouse_execution_time_ms: 0,
+                        results_file_name: 'file-name',
+                        columns: expectedColumns,
+                        original_columns: expectedColumns,
+                        results_created_at: createdAt,
+                        results_updated_at: updatedAt,
+                        results_expires_at: expiresAt,
+                        pivot_total_column_count: null,
+                        pivot_values_columns: null,
+                    },
+                    sessionAccount,
+                );
+
+                // NATS is disabled, so lifecycle statuses are skipped
+                expect(
+                    serviceWithCache.queryHistoryModel.updateStatusToExecuting,
+                ).not.toHaveBeenCalled();
+                expect(
+                    serviceWithCache.queryHistoryModel.updateStatusToQueued,
+                ).not.toHaveBeenCalled();
+
+                // THEN: runAsyncWarehouseQuery is NOT called
+                expect(runAsyncWarehouseQuerySpy).not.toHaveBeenCalled();
+
+                // THEN: Warehouse client methods are NOT called
+                expect(
+                    warehouseClientExecuteAsyncQuerySpy,
+                ).not.toHaveBeenCalled();
+            },
+        );
 
         test('Cache Miss - Complete Flow', async () => {
             // GIVEN: Cache returns a miss
@@ -5886,6 +5902,7 @@ describe('AsyncQueryService', () => {
 
         test.each([
             'reuse',
+            'trimmed-result',
             'scope-change',
             'identity-mismatch',
             'expired',
@@ -6007,6 +6024,13 @@ describe('AsyncQueryService', () => {
                     .mockResolvedValue({
                         queryUuid: 'previous',
                         status: QueryHistoryStatus.READY,
+                        metricQuery: metricQueryMock,
+                        requestParameters: {
+                            query: metricQueryMock,
+                            ...(scenario === 'trimmed-result'
+                                ? { detectRowLimitExceeded: true }
+                                : {}),
+                        },
                         compiledSql: 'SELECT * FROM test',
                         usedParameters: {},
                         createdByUserUuid: sessionAccount.user.id,
@@ -7955,148 +7979,171 @@ describe('AsyncQueryService', () => {
             );
         });
 
-        test('Successful Results with Pivot Data - Complete Flow', async () => {
-            // GIVEN: Query history with READY status, valid results file, and pivot configuration
-            const mockOriginalColumns: ResultColumns = {
-                user_id: { reference: 'user_id', type: DimensionType.STRING },
-                order_date: {
-                    reference: 'order_date',
-                    type: DimensionType.DATE,
-                },
-                amount: { reference: 'amount', type: DimensionType.NUMBER },
-            };
-
-            const mockPivotConfiguration = {
-                indexColumn: {
-                    reference: 'user_id',
-                    type: VizIndexType.CATEGORY,
-                },
-                valuesColumns: [
-                    {
-                        reference: 'amount',
-                        aggregation: VizAggregationOptions.SUM,
+        test.each([undefined, null, false, true])(
+            'Successful Results with Pivot Data (detection=%s)',
+            async (rowLimitExceeded) => {
+                // GIVEN: Query history with READY status, valid results file, and pivot configuration
+                const mockOriginalColumns: ResultColumns = {
+                    user_id: {
+                        reference: 'user_id',
+                        type: DimensionType.STRING,
                     },
-                ],
-                groupByColumns: [{ reference: 'order_date' }],
-                sortBy: [],
-            };
+                    order_date: {
+                        reference: 'order_date',
+                        type: DimensionType.DATE,
+                    },
+                    amount: { reference: 'amount', type: DimensionType.NUMBER },
+                };
 
-            const mockPivotValuesColumns = {
-                amount_sum_2021: {
-                    referenceField: 'amount',
-                    pivotColumnName: 'amount_sum_2021',
-                    aggregation: VizAggregationOptions.SUM,
-                    pivotValues: [
-                        { referenceField: 'order_date', value: '2021' },
+                const mockPivotConfiguration = {
+                    indexColumn: {
+                        reference: 'user_id',
+                        type: VizIndexType.CATEGORY,
+                    },
+                    valuesColumns: [
+                        {
+                            reference: 'amount',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
                     ],
-                },
-            };
+                    groupByColumns: [{ reference: 'order_date' }],
+                    sortBy: [],
+                };
 
-            const mockQueryHistory: QueryHistory = {
-                createdAt: new Date(),
-                organizationUuid: sessionAccount.organization.organizationUuid!,
-                createdByUserUuid: sessionAccount.user.id,
-                createdBy: sessionAccount.user.id,
-                createdByAccount: null,
-                createdByActorType: 'session',
-                queryUuid: 'test-query-uuid',
-                projectUuid,
-                status: QueryHistoryStatus.READY,
-                error: null,
-                erroredAt: null,
-                metricQuery: metricQueryMock,
-                context: QueryExecutionContext.EXPLORE,
-                fields: validExplore.tables.a.dimensions,
-                compiledSql: 'SELECT * FROM test.table',
-                warehouseQueryId: 'test-warehouse-query-id',
-                warehouseQueryMetadata: null,
-                warehouseExecutionStats: null,
-                requestParameters: {} as ExecuteAsyncQueryRequestParams,
-                usedParameters: null,
-                totalRowCount: 10,
-                warehouseExecutionTimeMs: 1500,
-                defaultPageSize: 10,
-                cacheKey: 'test-cache-key',
-                pivotConfiguration: mockPivotConfiguration,
-                pivotTotalColumnCount: 5,
-                pivotValuesColumns: mockPivotValuesColumns,
-                resultsFileName: 'results-file-name.json',
-                resultsCreatedAt: new Date(),
-                resultsUpdatedAt: new Date(),
-                resultsExpiresAt: new Date(Date.now() + 60_000),
-                columns: expectedColumns,
-                originalColumns: mockOriginalColumns,
-                preAggregateCompiledSql: null,
-                preAggregateExecution: null,
-                preAggregateFallbackReason: null,
-                processingStartedAt: null,
-                agentIdentity: null,
-            };
+                const mockPivotValuesColumns = {
+                    amount_sum_2021: {
+                        referenceField: 'amount',
+                        pivotColumnName: 'amount_sum_2021',
+                        aggregation: VizAggregationOptions.SUM,
+                        pivotValues: [
+                            { referenceField: 'order_date', value: '2021' },
+                        ],
+                    },
+                };
 
-            serviceWithCache.queryHistoryModel.get = vi
-                .fn()
-                .mockResolvedValue(mockQueryHistory);
-            (serviceWithCache as AnyType).getResultsPageFromS3 = vi
-                .fn()
-                .mockResolvedValue({
-                    rows: [expectedFormattedRow],
+                const mockQueryHistory: QueryHistory = {
+                    createdAt: new Date(),
+                    organizationUuid:
+                        sessionAccount.organization.organizationUuid!,
+                    createdByUserUuid: sessionAccount.user.id,
+                    createdBy: sessionAccount.user.id,
+                    createdByAccount: null,
+                    createdByActorType: 'session',
+                    queryUuid: 'test-query-uuid',
+                    projectUuid,
+                    status: QueryHistoryStatus.READY,
+                    error: null,
+                    erroredAt: null,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    fields: validExplore.tables.a.dimensions,
+                    compiledSql: 'SELECT * FROM test.table',
+                    warehouseQueryId: 'test-warehouse-query-id',
+                    warehouseQueryMetadata: null,
+                    warehouseExecutionStats: null,
+                    rowLimitExceeded,
+                    requestParameters: {
+                        query: metricQueryMock,
+                        ...(rowLimitExceeded !== undefined
+                            ? { detectRowLimitExceeded: true }
+                            : {}),
+                    },
+                    usedParameters: null,
+                    totalRowCount: 10,
+                    warehouseExecutionTimeMs: 1500,
+                    defaultPageSize: 10,
+                    cacheKey: 'test-cache-key',
+                    pivotConfiguration: mockPivotConfiguration,
+                    pivotTotalColumnCount: 5,
+                    pivotValuesColumns: mockPivotValuesColumns,
+                    resultsFileName: 'results-file-name.json',
+                    resultsCreatedAt: new Date(),
+                    resultsUpdatedAt: new Date(),
+                    resultsExpiresAt: new Date(Date.now() + 60_000),
+                    columns: expectedColumns,
+                    originalColumns: mockOriginalColumns,
+                    preAggregateCompiledSql: null,
+                    preAggregateExecution: null,
+                    preAggregateFallbackReason: null,
+                    processingStartedAt: null,
+                    agentIdentity: null,
+                };
+
+                serviceWithCache.queryHistoryModel.get = vi
+                    .fn()
+                    .mockResolvedValue(mockQueryHistory);
+                (serviceWithCache as AnyType).getResultsPageFromS3 = vi
+                    .fn()
+                    .mockResolvedValue({
+                        rows: [expectedFormattedRow],
+                    });
+                serviceWithCache.getExplore = vi
+                    .fn()
+                    .mockResolvedValue(validExplore);
+
+                // WHEN: getAsyncQueryResults is called
+                const result = await serviceWithCache.getAsyncQueryResults({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                    page: 1,
+                    pageSize: 10,
                 });
-            serviceWithCache.getExplore = vi
-                .fn()
-                .mockResolvedValue(validExplore);
 
-            // WHEN: getAsyncQueryResults is called
-            const result = await serviceWithCache.getAsyncQueryResults({
-                account: sessionAccount,
-                projectUuid,
-                queryUuid: 'test-query-uuid',
-                page: 1,
-                pageSize: 10,
-            });
+                // THEN: Returns READY status with complete result structure and
+                // the persisted display timezone (null when the metric query was
+                // built without one)
+                expect(result).toMatchObject({
+                    status: QueryHistoryStatus.READY,
+                    queryUuid: 'test-query-uuid',
+                    rows: expect.any(Array),
+                    resolvedTimezone: metricQueryMock.timezone ?? null,
+                });
 
-            // THEN: Returns READY status with complete result structure and
-            // the persisted display timezone (null when the metric query was
-            // built without one)
-            expect(result).toMatchObject({
-                status: QueryHistoryStatus.READY,
-                queryUuid: 'test-query-uuid',
-                rows: expect.any(Array),
-                resolvedTimezone: metricQueryMock.timezone ?? null,
-            });
+                if (rowLimitExceeded === undefined)
+                    expect(result).not.toHaveProperty('rowLimitExceeded');
+                else
+                    expect(result).toHaveProperty(
+                        'rowLimitExceeded',
+                        rowLimitExceeded,
+                    );
 
-            // THEN: Includes execution metadata
-            expect(result).toEqual(
-                expect.objectContaining({
-                    totalResults: 10,
-                    metadata: expect.objectContaining({
-                        performance: expect.objectContaining({
-                            initialQueryExecutionMs: 1500,
+                // THEN: Includes execution metadata
+                expect(result).toEqual(
+                    expect.objectContaining({
+                        totalResults: 10,
+                        metadata: expect.objectContaining({
+                            performance: expect.objectContaining({
+                                initialQueryExecutionMs: 1500,
+                            }),
                         }),
                     }),
-                }),
-            );
+                );
 
-            // THEN: Includes pivot details with all required components
-            expect(result).toMatchObject({
-                pivotDetails: {
-                    totalColumnCount: 5,
-                    valuesColumns: Object.values(mockPivotValuesColumns),
-                    indexColumn: mockPivotConfiguration.indexColumn,
-                    groupByColumns: mockPivotConfiguration.groupByColumns,
-                    sortBy: mockPivotConfiguration.sortBy,
-                    originalColumns: mockOriginalColumns,
-                },
-            });
+                // THEN: Includes pivot details with all required components
+                expect(result).toMatchObject({
+                    pivotDetails: {
+                        totalColumnCount: 5,
+                        valuesColumns: Object.values(mockPivotValuesColumns),
+                        indexColumn: mockPivotConfiguration.indexColumn,
+                        groupByColumns: mockPivotConfiguration.groupByColumns,
+                        sortBy: mockPivotConfiguration.sortBy,
+                        originalColumns: mockOriginalColumns,
+                    },
+                });
 
-            // THEN: Query history retrieval was called with correct parameters
-            expect(serviceWithCache.queryHistoryModel.get).toHaveBeenCalledWith(
-                'test-query-uuid',
-                projectUuid,
-                sessionAccount,
-            );
+                // THEN: Query history retrieval was called with correct parameters
+                expect(
+                    serviceWithCache.queryHistoryModel.get,
+                ).toHaveBeenCalledWith(
+                    'test-query-uuid',
+                    projectUuid,
+                    sessionAccount,
+                );
 
-            // THEN: Test completed successfully - all critical behaviors verified
-        });
+                // THEN: Test completed successfully - all critical behaviors verified
+            },
+        );
 
         test('serves DuckDB compose query columns from the persisted row without adding metadata', async () => {
             // A DuckDB compose query runs arbitrary SQL, so its columns carry
@@ -9493,6 +9540,33 @@ describe('AsyncQueryService', () => {
         processingStartedAt: null,
         agentIdentity: null,
     });
+
+    test.each([undefined, true])(
+        'queued warehouse and pre-aggregate workers restore detection (%s)',
+        async (detectRowLimitExceeded) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.mocked(
+                service.queryHistoryModel.getByQueryUuid,
+            ).mockResolvedValue({
+                ...createMockQueryHistory(QueryHistoryStatus.QUEUED),
+                preAggregateCompiledSql: 'SELECT 1',
+                requestParameters: {
+                    query: metricQueryMock,
+                    detectRowLimitExceeded,
+                },
+            });
+            const warehouse =
+                await service['buildWarehouseQueryArgs']('test-query-uuid');
+            const preAggregate =
+                await service['buildPreAggregateQueryArgs']('test-query-uuid');
+            expect(warehouse.rowLimitDetectionLimit).toBe(
+                detectRowLimitExceeded ? metricQueryMock.limit : undefined,
+            );
+            expect(preAggregate.rowLimitDetectionLimit).toBe(
+                warehouse.rowLimitDetectionLimit,
+            );
+        },
+    );
 
     describe('queued argument rebuild failures', () => {
         test.each([
@@ -14557,6 +14631,156 @@ describe('AsyncQueryService', () => {
                     },
                 ),
             }) as unknown as WarehouseClient;
+
+        test.each([undefined, 2])(
+            'only trims opted-in flat streams (limit=%s)',
+            async (rowLimitDetectionLimit) => {
+                const batches = [
+                    [{ dim_a: 'a' }],
+                    [{ dim_a: 'b' }, { dim_a: 'probe' }],
+                ];
+                const write = vi.fn();
+                const result = await AsyncQueryService.runQueryAndTransformRows(
+                    {
+                        warehouseClient: buildWarehouseClientStreaming(batches),
+                        query: 'SELECT 1',
+                        queryTags: { query_context: QueryExecutionContext.API },
+                        write,
+                        itemsMap: {},
+                        displayTimezone: null,
+                        rowLimitDetectionLimit,
+                    },
+                );
+                expect(write.mock.calls.flatMap(([rows]) => rows)).toEqual(
+                    batches.flat().slice(0, rowLimitDetectionLimit ?? 3),
+                );
+                expect(result.warehouseResults.totalRows).toBe(
+                    rowLimitDetectionLimit ?? 3,
+                );
+                expect(result.rowLimitExceeded).toBe(
+                    rowLimitDetectionLimit === undefined ? null : true,
+                );
+            },
+        );
+
+        test.each([false, true])(
+            'simple pivots report exact-limit versus truncated streams (%s)',
+            async (extra) => {
+                const batches = [
+                    [
+                        { dim_a: 'a', metric_x_any: 1 },
+                        { dim_a: 'b', metric_x_any: 2 },
+                    ],
+                    ...(extra ? [[{ dim_a: 'probe', metric_x_any: 3 }]] : []),
+                ];
+                const write = vi.fn();
+                const result = await AsyncQueryService.runQueryAndTransformRows(
+                    {
+                        warehouseClient: buildWarehouseClientStreaming(batches),
+                        query: 'SELECT 1',
+                        queryTags: { query_context: QueryExecutionContext.API },
+                        write,
+                        itemsMap: {},
+                        displayTimezone: null,
+                        rowLimitDetectionLimit: 2,
+                        pivotConfiguration: {
+                            indexColumn: {
+                                reference: 'dim_a',
+                                type: VizIndexType.CATEGORY,
+                            },
+                            valuesColumns: [
+                                {
+                                    reference: 'metric_x',
+                                    aggregation: VizAggregationOptions.ANY,
+                                },
+                            ],
+                            groupByColumns: [],
+                            sortBy: undefined,
+                        },
+                    },
+                );
+                expect(result.rowLimitExceeded).toBe(extra);
+                expect(result.pivotDetails?.totalRows).toBe(2);
+                expect(result.warehouseResults.totalRows).toBe(2);
+                expect(write.mock.calls.flatMap(([rows]) => rows)).toEqual(
+                    batches[0],
+                );
+            },
+        );
+
+        test.each([false, true])(
+            'pivot probe cannot leak into rows or column metadata (probe-only=%s)',
+            async (probeOnly) => {
+                const batches = [
+                    ...(probeOnly
+                        ? []
+                        : [
+                              [
+                                  {
+                                      dim_a: 'a',
+                                      category: 'X',
+                                      metric_x_any: 1,
+                                      row_index: 1,
+                                      column_index: 1,
+                                      total_columns: 1,
+                                  },
+                              ],
+                          ]),
+                    [
+                        {
+                            dim_a: 'probe',
+                            category: 'Y',
+                            metric_x_any: 2,
+                            row_index: 3,
+                            column_index: 2,
+                            total_columns: 1,
+                        },
+                    ],
+                ];
+                const write = vi.fn();
+                const result = await AsyncQueryService.runQueryAndTransformRows(
+                    {
+                        warehouseClient: buildWarehouseClientStreaming(batches),
+                        query: 'SELECT 1',
+                        queryTags: { query_context: QueryExecutionContext.API },
+                        write,
+                        itemsMap: {},
+                        displayTimezone: null,
+                        rowLimitDetectionLimit: 2,
+                        pivotConfiguration: {
+                            indexColumn: {
+                                reference: 'dim_a',
+                                type: VizIndexType.CATEGORY,
+                            },
+                            valuesColumns: [
+                                {
+                                    reference: 'metric_x',
+                                    aggregation: VizAggregationOptions.ANY,
+                                },
+                            ],
+                            groupByColumns: [{ reference: 'category' }],
+                            sortBy: undefined,
+                        },
+                    },
+                );
+                expect(result.rowLimitExceeded).toBe(true);
+                expect(result.pivotDetails?.totalRows).toBe(probeOnly ? 0 : 1);
+                expect(result.pivotDetails?.totalColumnCount).toBe(1);
+                expect(result.pivotDetails?.valuesColumns.size).toBe(
+                    probeOnly ? 0 : 1,
+                );
+                expect(
+                    write.mock.calls
+                        .flatMap(([rows]) => rows)
+                        .map((row) => row.dim_a),
+                ).toEqual(probeOnly ? [] : ['a']);
+                expect(
+                    JSON.stringify(
+                        Array.from(result.pivotDetails!.valuesColumns.values()),
+                    ),
+                ).not.toContain('Y');
+            },
+        );
 
         test('counts total rows when the pivot has no groupBy columns (collapsed totals query)', async () => {
             const batches = [
@@ -22549,6 +22773,7 @@ describe('fresh execution producer to result reader', () => {
             expect(oldKey).not.toBe(original.cacheKey);
             const candidate = {
                 ...original,
+                rowLimitExceeded: original.rowLimitExceeded ?? null,
                 cacheKey: oldKey,
                 resultsUpdatedAt: new Date(),
                 resultsCreatedAt: new Date(),

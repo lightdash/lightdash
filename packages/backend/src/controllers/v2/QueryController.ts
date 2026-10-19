@@ -402,6 +402,7 @@ export class QueryController extends BaseController {
                 parameters: body.parameters,
                 pivotConfiguration: body.pivotConfiguration,
                 dashboardFilters: body.dashboardFilters,
+                detectRowLimitExceeded: body.detectRowLimitExceeded,
                 dataAppPreviewToken,
                 customSqlProvenanceChartUuid,
             });
