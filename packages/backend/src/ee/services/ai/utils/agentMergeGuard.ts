@@ -6,73 +6,120 @@ import {
     type ChartAsCode,
     type DocumentChartContent,
     type DocumentCharts,
+    type SemanticChartAsCode,
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
+import omit from 'lodash/omit';
 import {
     normalizeFilterIds,
     stripFilterIds,
 } from '../../../../services/CoderService/filterIds';
 
-type MergeInputs = { metricQuery: unknown; merge: unknown };
+// The only fields an agent may change on a merged chart; anything else,
+// including fields added later, counts as a change to what the merge runs.
+const PRESENTATION_FIELDS = [
+    'name',
+    'description',
+    'chartConfig',
+    'tableConfig',
+    'pivotConfig',
+] as const;
 
-// What running a merged chart reads: the chart's own query, which feeds the
-// merge's primary source, and the merge parsed as persistence parses it.
-const chartMergeInputs = (
-    chart: ChartAsCode | undefined,
-): MergeInputs | null => {
-    if (!chart?.merge) return null;
-    const { metricQuery } = chart;
+type FormatOverrides = Record<string, object> | undefined;
+
+// Overrides only carry formatOptions today; any other key stays compared.
+const withoutFormatting = (overrides: FormatOverrides): FormatOverrides => {
+    const kept = Object.entries(overrides ?? {}).flatMap(([fieldId, value]) => {
+        const rest = omit(value, 'formatOptions');
+        return Object.keys(rest).length > 0 ? [[fieldId, rest]] : [];
+    });
+    return kept.length > 0 ? Object.fromEntries(kept) : undefined;
+};
+
+const queryInputs = ({
+    metricOverrides,
+    dimensionOverrides,
+    ...metricQuery
+}: ChartAsCode['metricQuery']) => {
+    const metrics = withoutFormatting(metricOverrides);
+    const dimensions = withoutFormatting(dimensionOverrides);
     return {
-        metricQuery: {
-            ...metricQuery,
-            filters: stripFilterIds(metricQuery.filters),
-        },
-        merge:
-            normalizeSavedMergeDefinition(chart.merge, {
-                ...metricQuery,
-                filters: normalizeFilterIds(metricQuery.filters),
-            }) ?? chart.merge,
+        ...metricQuery,
+        filters: stripFilterIds(metricQuery.filters),
+        ...(metrics ? { metricOverrides: metrics } : {}),
+        ...(dimensions ? { dimensionOverrides: dimensions } : {}),
     };
 };
 
-const documentMergeInputs = (
+const chartInputs = (
+    chart: ChartAsCode | SemanticChartAsCode,
+    merge: unknown,
+) => ({
+    ...omit(chart, [...PRESENTATION_FIELDS, 'merge']),
+    metricQuery: queryInputs(chart.metricQuery),
+    merge,
+});
+
+const chartAsCodeInputs = (chart: ChartAsCode | undefined) =>
+    chart &&
+    chartInputs(
+        chart,
+        chart.merge
+            ? (normalizeSavedMergeDefinition(chart.merge, {
+                  ...chart.metricQuery,
+                  filters: normalizeFilterIds(chart.metricQuery.filters),
+              }) ?? chart.merge)
+            : null,
+    );
+
+const documentChartInputs = (
     documentChart: DocumentChartContent | undefined,
-): MergeInputs | null => {
-    if (documentChart?.source !== 'merge') return null;
-    const { metricQuery, merge } = documentChart.chart;
+) => {
+    if (!documentChart || documentChart.source === 'sql') return documentChart;
     return {
-        metricQuery: {
-            ...metricQuery,
-            filters: stripFilterIds(metricQuery.filters),
-        },
-        merge: parseSavedMergeQuery(merge) ?? merge,
+        source: documentChart.source,
+        chart: chartInputs(
+            documentChart.chart,
+            documentChart.source === 'merge'
+                ? (parseSavedMergeQuery(documentChart.chart.merge) ??
+                      documentChart.chart.merge)
+                : null,
+        ),
     };
 };
 
-// Where a merge is stored or requested, the agent may change presentation only.
-const assertSameMergeInputs = (
-    next: MergeInputs | null,
-    current: MergeInputs | null,
+const assertSameInputs = (
+    hasMerge: boolean,
+    next: unknown,
+    current: unknown,
 ) => {
-    if ((next || current) && !isEqual(next, current)) {
+    if (hasMerge && !isEqual(next, current)) {
         throw new ParameterError(AI_AGENT_MERGE_REFUSAL);
     }
 };
 
+// Where a merge is stored or requested, the agent may change presentation only.
 export const assertAgentKeepsChartMerge = (
     next: ChartAsCode,
     current: ChartAsCode | undefined,
-) => assertSameMergeInputs(chartMergeInputs(next), chartMergeInputs(current));
+) =>
+    assertSameInputs(
+        !!next.merge || !!current?.merge,
+        chartAsCodeInputs(next),
+        chartAsCodeInputs(current),
+    );
 
 export const assertAgentKeepsDocumentMerges = (
     next: DocumentCharts,
     current: DocumentCharts,
 ) =>
-    Object.entries(next).forEach(([chartId, documentChart]) =>
-        assertSameMergeInputs(
-            documentMergeInputs(documentChart),
-            documentMergeInputs(
-                Object.hasOwn(current, chartId) ? current[chartId] : undefined,
-            ),
-        ),
-    );
+    Object.entries(next).forEach(([chartId, documentChart]) => {
+        const stored = Object.hasOwn(current, chartId)
+            ? current[chartId]
+            : undefined;
+        assertSameInputs(
+            documentChart.source === 'merge' || stored?.source === 'merge',
+            documentChartInputs(documentChart),
+            documentChartInputs(stored),
+        );
+    });

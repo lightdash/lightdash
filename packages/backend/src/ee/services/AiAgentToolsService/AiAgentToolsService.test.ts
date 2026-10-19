@@ -2541,6 +2541,21 @@ describe('AiAgentToolsService', () => {
                     },
                 ],
             ],
+            [
+                'changes the explore through tableName',
+                mergedChart,
+                [{ op: 'replace', path: '/tableName', value: 'customers' }],
+            ],
+            [
+                'changes the parameters feeding the merge',
+                mergedChart,
+                [{ op: 'add', path: '/parameters', value: { region: 'EMEA' } }],
+            ],
+            [
+                'changes a field outside the presentation allowlist',
+                mergedChart,
+                [{ op: 'add', path: '/futureSetting', value: true }],
+            ],
         ])('refuses an edit that %s', async (_label, stored, patch) => {
             const { edit, upsertChart } = editChart(stored, patch);
             await expect(edit).rejects.toThrow(refusal);
@@ -2571,6 +2586,35 @@ describe('AiAgentToolsService', () => {
             [
                 'adds merge fields the parser defaults',
                 [{ op: 'add', path: '/merge/sort', value: [] }],
+            ],
+            [
+                'changes decimal places through a format override',
+                [
+                    {
+                        op: 'add',
+                        path: '/metricQuery/metricOverrides',
+                        value: {
+                            orders_count: {
+                                formatOptions: { type: 'default', round: 2 },
+                            },
+                        },
+                    },
+                ],
+            ],
+            [
+                'changes its table and pivot config',
+                [
+                    {
+                        op: 'replace',
+                        path: '/tableConfig',
+                        value: { columnOrder: ['orders_count'] },
+                    },
+                    {
+                        op: 'add',
+                        path: '/pivotConfig',
+                        value: { columns: [] },
+                    },
+                ],
             ],
         ])('allows a merged chart edit that %s', async (_label, patch) => {
             const { edit, upsertChart } = editChart(mergedChart, patch);

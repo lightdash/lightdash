@@ -998,6 +998,21 @@ describe('MCP Document runtime', () => {
                     },
                 },
             ],
+            [
+                'changes the parameters feeding the merge',
+                {
+                    type: 'chart' as const,
+                    baseVersionUuid: versionUuid,
+                    chartId: 'c1',
+                    patch: [
+                        {
+                            op: 'add',
+                            path: '/chart/parameters',
+                            value: { region: 'EMEA' },
+                        },
+                    ],
+                },
+            ],
         ])('refuses an edit that %s', async (_label, documentEdit) => {
             const { edit, documentService } = editMergedChart({
                 type: 'document',
@@ -1006,6 +1021,34 @@ describe('MCP Document runtime', () => {
             });
             await expect(edit).rejects.toThrow(refusal);
             expect(documentService.updateContent).not.toHaveBeenCalled();
+        });
+
+        test('allows a decimal places format override on a merged chart', async () => {
+            const { edit, documentService } = editMergedChart({
+                type: 'document',
+                slug: document.slug,
+                documentEdit: {
+                    type: 'chart',
+                    baseVersionUuid: versionUuid,
+                    chartId: 'c1',
+                    patch: [
+                        {
+                            op: 'add',
+                            path: '/chart/metricQuery/metricOverrides',
+                            value: {
+                                orders_count: {
+                                    formatOptions: {
+                                        type: 'default',
+                                        round: 2,
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                },
+            });
+            await edit;
+            expect(documentService.updateContent).toHaveBeenCalledOnce();
         });
 
         test('allows merge fields the parser defaults', async () => {
