@@ -56,17 +56,20 @@ function buildService() {
         chartRegistryClient: {} as never,
         contentVerificationModel: {} as never,
     });
-    // Private members; the repo's tests cast through `never` for these.
-    vi.spyOn(service as never, 'getSandboxManager' as never).mockReturnValue({
-        suspendByUuid,
-    } as never);
+    // Private members; cast to a structural type so the spy keeps its
+    // mock API (the same pattern as the other AppGenerateService tests).
     vi.spyOn(
-        service as never,
-        'assertDataAppsEnabled' as never,
-    ).mockResolvedValue(undefined as never);
-    vi.spyOn(service as never, 'assertCanManageApp' as never).mockResolvedValue(
-        {} as never,
-    );
+        service as unknown as { getSandboxManager: () => unknown },
+        'getSandboxManager',
+    ).mockReturnValue({ suspendByUuid });
+    vi.spyOn(
+        service as unknown as { assertDataAppsEnabled: () => Promise<void> },
+        'assertDataAppsEnabled',
+    ).mockResolvedValue(undefined);
+    vi.spyOn(
+        service as unknown as { assertCanManageApp: () => Promise<unknown> },
+        'assertCanManageApp',
+    ).mockResolvedValue({});
     return { service, appModel, suspendByUuid };
 }
 
@@ -81,6 +84,29 @@ describe('AppGenerateService.cancelVersion', () => {
         expect(appModel.updateVersionStatusIfInProgress).toHaveBeenCalledWith(
             'app-1',
             7,
+            'error',
+            APP_VERSION_CANCELLED_BY_USER,
+            APP_VERSION_CANCELLED_BY_USER,
+        );
+        expect(suspendByUuid).toHaveBeenCalledWith(
+            'sandbox-1',
+            expect.anything(),
+        );
+    });
+
+    it('suspends the sandbox when a non-latest version had already started building', async () => {
+        const { service, appModel, suspendByUuid } = buildService();
+        appModel.getVersion.mockResolvedValue({
+            status: 'building',
+            created_at: new Date(),
+            resources: null,
+        });
+
+        await service.cancelVersion(user, 'proj-1', 'app-1', 3);
+
+        expect(appModel.updateVersionStatusIfInProgress).toHaveBeenCalledWith(
+            'app-1',
+            3,
             'error',
             APP_VERSION_CANCELLED_BY_USER,
             APP_VERSION_CANCELLED_BY_USER,
