@@ -121,7 +121,8 @@ export const useMergeDrillDownConfig = (
 /** Routes a merged-row underlying data request to the source that owns the clicked column. */
 export const useMergeUnderlyingDataConfig = (
     config: UnderlyingDataConfig | undefined,
-): { config: UnderlyingDataConfig | undefined; isError: boolean } => {
+    onError: () => void,
+): UnderlyingDataConfig | undefined => {
     const { prepareUnderlyingData, resolve } = useMergeSourceCell();
     const fieldOrigins = useMergeSafe()?.mergeResults?.fieldOrigins;
     const sourceCell = useMemo(
@@ -132,29 +133,25 @@ export const useMergeUnderlyingDataConfig = (
         [config, fieldOrigins, resolve],
     );
     const prepared = useQuery({
-        queryKey: ['mergeUnderlyingDataSource', sourceCell],
+        queryKey: ['mergeUnderlyingDataSource', config, sourceCell],
         queryFn: () => {
             if (!sourceCell) throw new Error('Column has no source field');
             return prepareUnderlyingData(sourceCell);
         },
-        enabled: sourceCell !== null,
+        enabled: config !== undefined && fieldOrigins !== undefined,
+        onError,
         cacheTime: 0,
         retry: false,
         refetchOnWindowFocus: false,
     });
 
-    return {
-        config:
-            config && sourceCell && prepared.data
-                ? {
-                      ...config,
-                      item: prepared.data.item,
-                      fieldValues: prepared.data.fieldValues,
-                      pivotReference: sourceCell.pivotReference,
-                      source: prepared.data.source,
-                  }
-                : undefined,
-        isError:
-            (config !== undefined && sourceCell === null) || prepared.isError,
-    };
+    return config && sourceCell && prepared.data
+        ? {
+              ...config,
+              item: prepared.data.item,
+              fieldValues: prepared.data.fieldValues,
+              pivotReference: sourceCell.pivotReference,
+              source: prepared.data.source,
+          }
+        : undefined;
 };

@@ -16,13 +16,12 @@ import {
 } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { IconArrowBarToDown, IconExternalLink } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import useEmbedDrillDownExplore from '../../ee/providers/Embed/useEmbedDrillDownExplore';
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { MERGE_URL_PARAM } from '../../features/mergeQuery/context/mergeUrlState';
 import { useMergeSafe } from '../../features/mergeQuery/context/useMerge';
 import { useMergeDrillDownConfig } from '../../features/mergeQuery/hooks/useMergeUnderlyingDataConfig';
-import useToaster from '../../hooks/toaster/useToaster';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -245,20 +244,10 @@ const DrillDownModalContent: FC<
 };
 
 const MergedDrillDownModal: FC<DrillDownModalProps> = (props) => {
-    const { drillDownConfig, isDrillDownModalOpen, closeDrillDownModal } =
-        useMetricQueryDataContext();
-    const { showToastError } = useToaster();
+    const { drillDownConfig } = useMetricQueryDataContext();
     const sourceConfig = useMergeDrillDownConfig(drillDownConfig);
-    const isUnresolved =
-        isDrillDownModalOpen && drillDownConfig !== undefined && !sourceConfig;
-
-    useEffect(() => {
-        if (!isUnresolved) return;
-        showToastError({ title: 'Could not drill into this column' });
-        closeDrillDownModal();
-    }, [closeDrillDownModal, isUnresolved, showToastError]);
-
-    if (isUnresolved) return null;
+    // Drill menus are hidden for columns no source owns, so this stays closed
+    if (drillDownConfig && !sourceConfig) return null;
     return <DrillDownModalContent {...props} drillDownConfig={sourceConfig} />;
 };
 

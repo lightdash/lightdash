@@ -10,12 +10,17 @@ import {
     type MergeFieldOrigins,
     type MetricQuery,
 } from '@lightdash/common';
+import { Menu } from '@mantine/core';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { StrictMode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import { Context, type MetricQueryDataContext } from './context';
+import DrillDownMenuItem from './DrillDownMenuItem';
 import { DrillDownModal } from './DrillDownModal';
+
+const { showToastError } = vi.hoisted(() => ({ showToastError: vi.fn() }));
 
 vi.mock('../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project',
@@ -29,6 +34,9 @@ vi.mock('../../providers/LightdashApi/useLightdashApi', () => ({
 }));
 vi.mock('../../features/mergeQuery/context/useMerge', () => ({
     useMergeSafe: () => merge,
+}));
+vi.mock('../../hooks/toaster/useToaster', () => ({
+    default: () => ({ showToastError, showToastSuccess: vi.fn() }),
 }));
 
 const field = {
@@ -168,6 +176,7 @@ describe('drill-down modal on a merged result', () => {
     const mergeWithKeySelected = merge;
     afterEach(() => {
         vi.restoreAllMocks();
+        showToastError.mockReset();
         merge = mergeWithKeySelected;
         window.history.replaceState(null, '', '/');
     });
@@ -221,41 +230,76 @@ describe('drill-down modal on a merged result', () => {
         },
     );
 
-    it('refuses a merged column no source owns', () => {
-        const closeDrillDownModal = vi.fn();
+    describe('a merged column no source owns', () => {
         const ratio: CompiledMetric = {
             ...count,
             table: 'merge',
             name: 'merge_ratio',
         };
-        merge = {
-            ...merge,
-            mergeResults: {
-                fieldOrigins: {
-                    ...merge.mergeResults.fieldOrigins,
-                    merge_merge_ratio: { kind: 'tableCalculation' },
-                },
-            },
+        const ratioFieldValues = {
+            merge_merge_ratio: { raw: 3, formatted: '3' },
         };
-        renderWithProviders(
-            <Context.Provider
-                value={{
-                    ...metricQueryData,
-                    closeDrillDownModal,
-                    drillDownConfig: {
-                        item: ratio,
-                        fieldValues: {
-                            merge_merge_ratio: { raw: 3, formatted: '3' },
-                        },
+        const withRatio = () => {
+            merge = {
+                ...merge,
+                mergeResults: {
+                    fieldOrigins: {
+                        ...merge.mergeResults.fieldOrigins,
+                        merge_merge_ratio: { kind: 'tableCalculation' },
                     },
-                }}
-            >
-                <DrillDownModal />
-            </Context.Provider>,
-        );
+                },
+            };
+        };
 
-        expect(closeDrillDownModal).toHaveBeenCalled();
-        expect(screen.queryByText('Open in new tab')).not.toBeInTheDocument();
+        it('is never offered for drilling', () => {
+            withRatio();
+            renderWithProviders(
+                <Context.Provider value={metricQueryData}>
+                    <Menu opened>
+                        <Menu.Target>
+                            <button type="button">Cell</button>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            <DrillDownMenuItem
+                                item={ratio}
+                                fieldValues={ratioFieldValues}
+                                trackingData={{
+                                    organizationId: undefined,
+                                    userId: undefined,
+                                    projectId: undefined,
+                                }}
+                            />
+                        </Menu.Dropdown>
+                    </Menu>
+                </Context.Provider>,
+            );
+
+            expect(screen.queryByText(/Drill into/)).not.toBeInTheDocument();
+        });
+
+        it('renders no drill modal and no toast', () => {
+            withRatio();
+            renderWithProviders(
+                <StrictMode>
+                    <Context.Provider
+                        value={{
+                            ...metricQueryData,
+                            drillDownConfig: {
+                                item: ratio,
+                                fieldValues: ratioFieldValues,
+                            },
+                        }}
+                    >
+                        <DrillDownModal />
+                    </Context.Provider>
+                </StrictMode>,
+            );
+
+            expect(
+                screen.queryByText('Open in new tab'),
+            ).not.toBeInTheDocument();
+            expect(showToastError).not.toHaveBeenCalled();
+        });
     });
 
     it('does not carry the open merge into the drilled chart', async () => {

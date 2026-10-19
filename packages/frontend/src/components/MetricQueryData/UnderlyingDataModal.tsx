@@ -14,7 +14,7 @@ import {
 } from '@lightdash/common';
 import { Box, Button, Divider, Group, Popover } from '@mantine/core';
 import { IconShare2, IconStack, IconTelescope } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { MERGE_URL_PARAM } from '../../features/mergeQuery/context/mergeUrlState';
 import { useMergeSafe } from '../../features/mergeQuery/context/useMerge';
@@ -399,14 +399,10 @@ const MergedUnderlyingDataModalContent: FC = () => {
     const { underlyingDataConfig, closeUnderlyingDataModal } =
         useMetricQueryDataContext();
     const { showToastError } = useToaster();
-    const { config, isError } =
-        useMergeUnderlyingDataConfig(underlyingDataConfig);
-
-    useEffect(() => {
-        if (!isError) return;
+    const config = useMergeUnderlyingDataConfig(underlyingDataConfig, () => {
         showToastError({ title: 'Could not open underlying data' });
         closeUnderlyingDataModal();
-    }, [closeUnderlyingDataModal, isError, showToastError]);
+    });
 
     if (!config) return null;
     return <UnderlyingDataModalContent underlyingDataConfig={config} />;

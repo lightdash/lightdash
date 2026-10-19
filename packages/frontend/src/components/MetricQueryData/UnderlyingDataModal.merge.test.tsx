@@ -7,19 +7,25 @@ import {
     type CompiledDimension,
     type CompiledMetric,
     type Explore,
+    type Filters,
+    type MergeFieldOrigins,
     type MetricQuery,
 } from '@lightdash/common';
 import { waitFor } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import { Context, type MetricQueryDataContext } from './context';
 import UnderlyingDataModal from './UnderlyingDataModal';
 
-const { lightdashApi, useUnderlyingDataResults } = vi.hoisted(() => ({
-    lightdashApi: vi.fn(),
-    useUnderlyingDataResults: vi.fn(),
-}));
+const { lightdashApi, useUnderlyingDataResults, showToastError } = vi.hoisted(
+    () => ({
+        lightdashApi: vi.fn(),
+        useUnderlyingDataResults: vi.fn(),
+        showToastError: vi.fn(),
+    }),
+);
 
 vi.mock('../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project',
@@ -37,6 +43,9 @@ vi.mock('../../hooks/useUnderlyingDataResults', () => ({
 }));
 vi.mock('../../features/mergeQuery/context/useMerge', () => ({
     useMergeSafe: () => merge,
+}));
+vi.mock('../../hooks/toaster/useToaster', () => ({
+    default: () => ({ showToastError, showToastSuccess: vi.fn() }),
 }));
 
 const field = {
@@ -94,7 +103,16 @@ const metricQuery: MetricQuery = {
     limit: 500,
     tableCalculations: [],
 };
-let merge = {
+let merge: {
+    additionalSources: Array<{
+        id: string;
+        exploreName: string;
+        dimensions: string[];
+        metrics: string[];
+        filters: Filters;
+    }>;
+    mergeResults: { fieldOrigins: MergeFieldOrigins };
+} = {
     additionalSources: [
         {
             id: 'b',
@@ -143,11 +161,13 @@ const metricQueryData: MetricQueryDataContext = {
 
 const renderModal = (context: MetricQueryDataContext) =>
     renderWithProviders(
-        <MemoryRouter>
-            <Context.Provider value={context}>
-                <UnderlyingDataModal />
-            </Context.Provider>
-        </MemoryRouter>,
+        <StrictMode>
+            <MemoryRouter>
+                <Context.Provider value={context}>
+                    <UnderlyingDataModal />
+                </Context.Provider>
+            </MemoryRouter>
+        </StrictMode>,
     );
 
 describe('underlying data modal on a merged result', () => {
@@ -266,5 +286,41 @@ describe('underlying data modal on a merged result', () => {
                 [],
             ),
         );
+    });
+    it.each([
+        [
+            'the source run fails',
+            () => lightdashApi.mockRejectedValue(new Error('down')),
+        ],
+        [
+            'no source owns the column',
+            () => {
+                merge = {
+                    ...merge,
+                    mergeResults: {
+                        fieldOrigins: {
+                            ...merge.mergeResults.fieldOrigins,
+                            orders_2_orders_count: {
+                                kind: 'tableCalculation',
+                            },
+                        },
+                    },
+                };
+            },
+        ],
+    ])('closes with a single toast when %s', async (_, arrange) => {
+        arrange();
+        const closeUnderlyingDataModal = vi.fn();
+        renderModal({ ...metricQueryData, closeUnderlyingDataModal });
+
+        await waitFor(() =>
+            expect(closeUnderlyingDataModal).toHaveBeenCalled(),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(showToastError).toHaveBeenCalledTimes(1);
+        expect(showToastError).toHaveBeenCalledWith({
+            title: 'Could not open underlying data',
+        });
+        expect(useUnderlyingDataResults).not.toHaveBeenCalled();
     });
 });
