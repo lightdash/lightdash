@@ -1,3 +1,11 @@
+# [2.608.0](https://github.com/lightdash/lightdash/compare/2.607.0...2.608.0) (2026-10-19)
+
+
+### Features
+
+* **ai-agent:** run approved SQL through runContentQuery without an artifact ([#30823](https://github.com/lightdash/lightdash/issues/30823)) ([0b54961](https://github.com/lightdash/lightdash/commit/0b54961a5106cbaabd97a1f56b8e869592e997e3))
+* **ai-agent:** run saved SQL charts through runContentQuery ([#30836](https://github.com/lightdash/lightdash/issues/30836)) ([927e493](https://github.com/lightdash/lightdash/commit/927e493a73a760efc7ed1797d07c9e24d9d366c7))
+
 # [2.607.0](https://github.com/lightdash/lightdash/compare/2.606.8...2.607.0) (2026-10-19)
 
 
