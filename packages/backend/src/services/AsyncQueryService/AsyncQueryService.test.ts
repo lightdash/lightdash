@@ -16375,54 +16375,6 @@ describe('runDuckdbQuery', () => {
             expect(runWarehouseQuery).not.toHaveBeenCalled();
             expect(update).not.toHaveBeenCalled();
         });
-
-        it('stays cancelled when its cancelled legs fail the reference wait', async () => {
-            const {
-                run,
-                runWarehouseQuery,
-                pollForQueryCompletion,
-                update,
-                recordDuckdbRefusal,
-                getByQueryUuid,
-            } = buildService();
-            getByQueryUuid.mockResolvedValue(cancelledRow);
-            pollForQueryCompletion.mockRejectedValueOnce(
-                new Error('Query was cancelled'),
-            );
-
-            await run(baseArgs({ references: queryReferences }));
-
-            expect(runWarehouseQuery).not.toHaveBeenCalled();
-            expect(update).not.toHaveBeenCalled();
-            expect(recordDuckdbRefusal).not.toHaveBeenCalled();
-        });
-
-        it('cancelled while the join executes keeps its status instead of turning errored', async () => {
-            const { run, runWarehouseQuery, update, getByQueryUuid } =
-                buildService();
-            const { warehouseClient } = probingClient({
-                one: { type: DimensionType.NUMBER },
-            });
-            runWarehouseQuery.mockImplementationOnce(async () => {
-                getByQueryUuid.mockResolvedValue(cancelledRow);
-                throw new Error('DuckDB join failed');
-            });
-
-            await run(
-                baseArgs({
-                    references: queryReferences,
-                    engine: { kind: 'client', warehouseClient },
-                }),
-            );
-
-            expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
-            expect(update).not.toHaveBeenCalledWith(
-                expect.anything(),
-                expect.anything(),
-                expect.objectContaining({ status: QueryHistoryStatus.ERROR }),
-                expect.anything(),
-            );
-        });
     });
 });
 

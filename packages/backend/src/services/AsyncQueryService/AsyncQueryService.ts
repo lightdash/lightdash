@@ -12568,8 +12568,6 @@ export class AsyncQueryService extends ProjectService {
                     warehouseClient.credentials.type,
             });
         } catch (e) {
-            // A cancelled row stays cancelled, whatever the run failed with
-            if (await this.isQueryCancelled(queryUuid)) return;
             // A refusal is the feature working, and whoever reports the
             // outcome must tell it from a failure by reading the row alone,
             // so the refusal lands with the error status in one write
