@@ -12,7 +12,7 @@ import {
     type SavedChartDAO,
 } from '@lightdash/common';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { type PropsWithChildren } from 'react';
+import { useEffect, useRef, type PropsWithChildren } from 'react';
 import { PRIMARY_SOURCE_ID } from '../constants';
 import { MergeProvider } from './MergeContext';
 import { MERGE_URL_PARAM, serializeMergeState } from './mergeUrlState';
@@ -412,6 +412,34 @@ describe('MergeProvider', () => {
         expect(
             result.current.tableCalculations.map(({ name }) => name),
         ).toEqual(['keep_sum']);
+    });
+
+    it('finishes a run started on mount under StrictMode', async () => {
+        executeMergeQuery.mockResolvedValueOnce(startedResult('mount-query'));
+        const RunOnMount = () => {
+            const merge = useMerge();
+            const hasRun = useRef(false);
+            useEffect(() => {
+                if (hasRun.current) return;
+                hasRun.current = true;
+                merge.run(mergeQuery);
+            }, [merge]);
+            return null;
+        };
+        const { result } = renderHook(() => useMerge(), {
+            wrapper: ({ children }: PropsWithChildren) => (
+                <MergeProvider>
+                    <RunOnMount />
+                    {children}
+                </MergeProvider>
+            ),
+            reactStrictMode: true,
+        });
+
+        await waitFor(() =>
+            expect(result.current.mergeResults?.queryUuid).toBe('mount-query'),
+        );
+        expect(result.current.isRunning).toBe(false);
     });
 
     it('keeps the parameter values used by the merged run', async () => {

@@ -471,13 +471,6 @@ export const MergeProvider: FC<
         setSearchParams,
     ]);
 
-    useEffect(
-        () => () => {
-            activeRun.current += 1;
-        },
-        [],
-    );
-
     const run = useCallback(
         (
             mergeQuery: MergeQuery,
