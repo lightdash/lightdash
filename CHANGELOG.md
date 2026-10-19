@@ -1,3 +1,10 @@
+# [2.613.0](https://github.com/lightdash/lightdash/compare/2.612.0...2.613.0) (2026-10-19)
+
+
+### Features
+
+* return the backend trace ID in an x-trace-id response header ([#31180](https://github.com/lightdash/lightdash/issues/31180)) ([23c73cc](https://github.com/lightdash/lightdash/commit/23c73cc72fc0c61e1a18cc35b37dd03581e8b3d7))
+
 # [2.612.0](https://github.com/lightdash/lightdash/compare/2.611.0...2.612.0) (2026-10-19)
 
 
