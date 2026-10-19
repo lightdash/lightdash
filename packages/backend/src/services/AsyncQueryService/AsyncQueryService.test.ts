@@ -16525,6 +16525,32 @@ describe('cancelling a merge', () => {
         }
     });
 
+    it('a retry after a partial cancel still cancels the remaining legs', async () => {
+        const { cancel, join, cancelRunningQueriesReadOnlyBy, ...rest } = setup(
+            {
+                joinStatus: QueryHistoryStatus.CANCELLED,
+                cancelledLegs: [cancelledLeg(legB)],
+            },
+        );
+        try {
+            await cancel();
+
+            expect(join.status).toBe(QueryHistoryStatus.CANCELLED);
+            expect(cancelRunningQueriesReadOnlyBy).toHaveBeenCalledTimes(1);
+            // Only the leg counts as newly cancelled
+            expect(
+                rest.prometheusMetrics.incrementQueryStatus.mock.calls,
+            ).toEqual([
+                [
+                    QueryHistoryStatus.CANCELLED,
+                    QueryExecutionContext.SQL_RUNNER,
+                ],
+            ]);
+        } finally {
+            await rest.teardown();
+        }
+    });
+
     it.each([
         QueryHistoryStatus.READY,
         QueryHistoryStatus.ERROR,

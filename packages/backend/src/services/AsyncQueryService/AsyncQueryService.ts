@@ -1504,12 +1504,16 @@ export class AsyncQueryService extends ProjectService {
             },
             account,
         );
-        if (cancelled === 0) return;
-        this.trackQueryCancelled(
-            queryHistory.status,
-            queryHistory.context,
-            queryHistory.createdAt,
-        );
+        if (cancelled === 0) {
+            // A retry of an already-cancelled merge still finishes a partial cascade
+            if (queryHistory.status !== QueryHistoryStatus.CANCELLED) return;
+        } else {
+            this.trackQueryCancelled(
+                queryHistory.status,
+                queryHistory.context,
+                queryHistory.createdAt,
+            );
+        }
         await this.cancelMergeLegs(account, projectUuid, queryUuid);
     }
 
