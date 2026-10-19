@@ -16,7 +16,10 @@ import {
     registerAiUsageTracker,
     type AiUsageEvent,
 } from '../../../../analytics/aiUsage';
-import { validExplore } from '../../../../services/ProjectService/ProjectService.mock';
+import {
+    metricQueryMock,
+    validExplore,
+} from '../../../../services/ProjectService/ProjectService.mock';
 import { MCP_UNTRUSTED_OUTPUT_NOTICE } from '../AiAgentMcpRuntimeClient';
 import { AiDecisionClient } from '../decisions/AiDecisionClient';
 import { getLoadAgentTools } from '../tools/loadAgentTools';
@@ -2223,6 +2226,102 @@ describe('getAgentTools workstream tool gate', () => {
             expect('exportChartAsCode' in enabled).toBe(enableDataAccess);
         },
     );
+
+    it('registers Slack chart images for delivery without a decision client', async () => {
+        const args = buildArgs({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+            enableDataAccess: true,
+        });
+        const deferSlackVisualization = vi.fn().mockResolvedValue(undefined);
+        const dependencies = new Proxy(
+            {
+                deferSlackVisualization,
+                getPrompt: vi.fn().mockResolvedValue({
+                    organizationUuid: 'org-1',
+                    projectUuid: 'project-1',
+                    agentUuid: 'agent-1',
+                    promptUuid: 'prompt-1',
+                    threadUuid: 'thread-1',
+                    threadCreatedFrom: 'slack',
+                    threadEmbedSpaceUuid: null,
+                    externalUserId: null,
+                    createdByUserUuid: 'user-1',
+                    userUuid: 'user-1',
+                    prompt: 'Show a bar chart',
+                    createdAt: new Date('2026-10-19T00:00:00Z'),
+                    response: null,
+                    errorMessage: null,
+                    humanScore: null,
+                    modelConfig: null,
+                    battleProfile: null,
+                    response_slack_ts: 'response-ts',
+                    slackUserId: 'slack-user',
+                    slackChannelId: 'slack-channel',
+                    promptSlackTs: 'prompt-ts',
+                    slackThreadTs: 'thread-ts',
+                }),
+                runAsyncQuery: vi.fn().mockResolvedValue({
+                    queryUuid: '11111111-1111-4111-8111-111111111111',
+                    rows: [{ a_dim1: 'one', a_met1: 1 }],
+                    cacheMetadata: { cacheHit: false },
+                    fields: {},
+                }),
+                createOrUpdateArtifact: vi.fn().mockResolvedValue({
+                    artifactUuid: 'artifact-1',
+                    versionUuid: 'version-1',
+                }),
+            },
+            { get: (target, key) => Reflect.get(target, key) ?? vi.fn() },
+        ) as unknown as AiAgentDependencies;
+        const tools = getAgentTools(
+            args,
+            dependencies,
+            [validExplore],
+            mcpStub,
+            new Map(),
+            {},
+            { types: [], totalCount: 0 },
+            new AgentContext([validExplore]),
+        );
+        await tools.generateVisualization.execute!(
+            {
+                title: 'Bar',
+                description: 'One row',
+                queryConfig: {
+                    exploreName: validExplore.name,
+                    dimensions: metricQueryMock.dimensions,
+                    metrics: metricQueryMock.metrics,
+                    sorts: [],
+                    limit: null,
+                    parameters: null,
+                    customMetrics: null,
+                    tableCalculations: null,
+                    filters: null,
+                },
+                chartConfig: {
+                    defaultVizType: 'bar',
+                    xAxisDimension: 'a_dim1',
+                    yAxisMetrics: ['a_met1'],
+                    groupBy: null,
+                    xAxisType: 'category',
+                    stackBars: null,
+                    lineType: null,
+                    xAxisLabel: 'Dimension',
+                    yAxisLabel: 'Metric',
+                    secondaryYAxisMetric: null,
+                    secondaryYAxisLabel: null,
+                },
+            },
+            { toolCallId: 'viz', messages: [], context: {} },
+        );
+        expect(deferSlackVisualization).toHaveBeenCalledWith(
+            expect.objectContaining({
+                artifactUuid: 'artifact-1',
+                versionUuid: 'version-1',
+            }),
+        );
+    });
 
     it.each([
         [false, false, false],
