@@ -29,7 +29,7 @@ const PREVIEW_MIN_LENGTH = 5;
 const PREVIEW_MAX_LINES = 12;
 const PROMPT_CONTEXT_KEY = 'lightdashSqlAiPromptActive';
 const HINT_WIDGET_ID = 'lightdash.sqlAi.inlineHint';
-const TAB_CONTEXT = `${PROMPT_CONTEXT_KEY} && !suggestWidgetVisible && !editorHasSelection && !inSnippetMode`;
+const TAB_CONTEXT = `${PROMPT_CONTEXT_KEY} && !suggestWidgetVisible && !editorHasSelection && !inSnippetMode && !editorTabMovesFocus`;
 
 // A preview made before the known tables loaded, or for another target, is stale
 const requestKey = ({
@@ -284,7 +284,7 @@ export const useSqlAiAutocomplete = ({
     const handleTabRef = useRef(handleTab);
     handleTabRef.current = handleTab;
 
-    // Tab generates only on a prompt line, and never steals Tab from suggestions, selections or snippets
+    // Tab generates only on a prompt line, and never steals Tab from suggestions, selections, snippets or focus navigation
     const promptContextKeyRef = useRef<editor.IContextKey<boolean> | null>(
         null,
     );
