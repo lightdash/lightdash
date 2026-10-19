@@ -4,6 +4,7 @@ import {
     ChartKind,
     ChartType,
     ConflictError,
+    FeatureFlags,
     ForbiddenError,
     getUserAbilityBuilder,
     MergeJoinType,
@@ -256,6 +257,7 @@ const setup = (dependencies: Record<string, unknown> = {}) => {
         access: [{ userUuid, role: SpaceMemberRole.EDITOR }],
     };
     const spacePermissionService = {
+        resolveAccessBatch: vi.fn().mockResolvedValue([]),
         resolveAccess: vi.fn().mockResolvedValue(context),
     };
     const projectService = {
@@ -277,6 +279,7 @@ const setup = (dependencies: Record<string, unknown> = {}) => {
             unverify: vi.fn(),
         },
         analytics,
+        spaceModel: { getConnectionBoundSpaces: vi.fn().mockResolvedValue([]) },
         documentModel,
         projectModel,
         featureFlagModel,
@@ -1588,6 +1591,112 @@ describe('DocumentService SQL charts', () => {
             ),
         ).rejects.toThrow(ForbiddenError);
         expect(documentModel.updateContent).not.toHaveBeenCalled();
+    });
+
+    test.each(['create', 'update'] as const)(
+        '%s refuses a named reserved connection after resolving its name',
+        async (operation) => {
+            const { service, documentModel } = setup({
+                projectModel: {
+                    getSummary: vi
+                        .fn()
+                        .mockResolvedValue({ projectUuid, organizationUuid }),
+                    getConnectionRoute: vi.fn().mockResolvedValue('multi'),
+                },
+                warehouseConnectionModel: {
+                    getProject: vi.fn().mockResolvedValue({}),
+                    list: vi.fn().mockResolvedValue([
+                        {
+                            name: 'analytics',
+                            warehouseConnectionUuid: 'reserved',
+                            isOriginal: false,
+                        },
+                    ]),
+                },
+                spaceModel: {
+                    getConnectionBoundSpaces: vi.fn().mockResolvedValue([
+                        {
+                            spaceUuid: 'bound',
+                            warehouseConnectionUuid: 'reserved',
+                        },
+                    ]),
+                },
+            });
+            const content = toContent([
+                {
+                    type: 'chart',
+                    content: {
+                        ...sqlChart.content,
+                        chart: {
+                            ...sqlChart.content.chart,
+                            connection: 'analytics',
+                        },
+                    },
+                } as ChartBlock,
+            ]);
+            const author = makeAccount(OrganizationMemberRole.DEVELOPER);
+            await expect(
+                operation === 'create'
+                    ? service.create(author, projectUuid, {
+                          ...createInput,
+                          content,
+                      })
+                    : service.updateContent(author, projectUuid, documentUuid, {
+                          baseVersionUuid,
+                          content,
+                      }),
+            ).rejects.toThrow(
+                'This connection is reserved for a space you cannot edit.',
+            );
+            expect(documentModel.create).not.toHaveBeenCalled();
+            expect(documentModel.updateContent).not.toHaveBeenCalled();
+        },
+    );
+
+    test('does no reservation lookups for a named connection with the flag off', async () => {
+        const getConnectionBoundSpaces = vi.fn();
+        const { service, featureFlagModel } = setup({
+            projectModel: {
+                getSummary: vi
+                    .fn()
+                    .mockResolvedValue({ projectUuid, organizationUuid }),
+                getConnectionRoute: vi.fn().mockResolvedValue('multi'),
+            },
+            warehouseConnectionModel: {
+                getProject: vi.fn().mockResolvedValue({}),
+                list: vi.fn().mockResolvedValue([
+                    {
+                        name: 'analytics',
+                        warehouseConnectionUuid: 'reserved',
+                        isOriginal: false,
+                    },
+                ]),
+            },
+            spaceModel: { getConnectionBoundSpaces },
+        });
+        featureFlagModel.get.mockImplementation(async ({ featureFlagId }) => ({
+            enabled: featureFlagId !== FeatureFlags.SpaceWarehouseConnections,
+        }));
+        await service.create(
+            makeAccount(OrganizationMemberRole.DEVELOPER),
+            projectUuid,
+            {
+                ...createInput,
+                content: toContent([
+                    {
+                        type: 'chart',
+                        content: {
+                            ...sqlChart.content,
+                            chart: {
+                                ...sqlChart.content.chart,
+                                connection: 'analytics',
+                            },
+                        },
+                    } as ChartBlock,
+                ]),
+            },
+        );
+        expect(getConnectionBoundSpaces).not.toHaveBeenCalled();
     });
 
     test('stores a named connection by uuid and reads its name back', async () => {

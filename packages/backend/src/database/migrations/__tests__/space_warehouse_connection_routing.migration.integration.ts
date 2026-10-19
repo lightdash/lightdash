@@ -2,8 +2,10 @@ import {
     ChartKind,
     ChartType,
     defineUserAbility,
+    DimensionType,
     FeatureFlags,
     ForbiddenError,
+    MetricType,
     OrganizationMemberRole,
     PROJECT_TIMEZONE_SETTING,
     QueryExecutionContext,
@@ -905,6 +907,99 @@ describe('Space warehouse routing on the real schema', () => {
                 .delete();
         }
     });
+
+    test.each(['table-calculation', 'custom-dimension', 'custom-metric'])(
+        'space restore refuses saved charts with %s SQL before exposing the space',
+        async (kind) => {
+            const chart = await database('saved_queries')
+                .where('saved_query_uuid', charts[1])
+                .first();
+            if (!chart) throw new Error('Missing test chart');
+            const version = await database('saved_queries_versions')
+                .where('saved_query_id', chart.saved_query_id)
+                .first();
+            if (!version) throw new Error('Missing test chart version');
+            const versionId = version.saved_queries_version_id;
+            let table:
+                | 'saved_queries_version_table_calculations'
+                | 'saved_queries_version_custom_sql_dimensions'
+                | 'saved_queries_version_additional_metrics';
+            if (kind === 'table-calculation') {
+                table = 'saved_queries_version_table_calculations';
+                await database(table).insert({
+                    saved_queries_version_id: versionId,
+                    name: 'custom',
+                    display_name: 'Custom',
+                    order: 0,
+                    calculation_raw_sql: 'SELECT secret FROM private_table',
+                });
+            } else if (kind === 'custom-dimension') {
+                table = 'saved_queries_version_custom_sql_dimensions';
+                await database(table).insert({
+                    saved_queries_version_id: versionId,
+                    name: 'Custom',
+                    id: 'custom',
+                    table: 'orders',
+                    order: 0,
+                    sql: 'SELECT secret FROM private_table',
+                    dimension_type: DimensionType.STRING,
+                });
+            } else {
+                table = 'saved_queries_version_additional_metrics';
+                await database(table).insert({
+                    saved_queries_version_id: versionId,
+                    name: 'custom',
+                    table: 'orders',
+                    base_dimension_name: null,
+                    base_metric_name: null,
+                    filters: null,
+                    format_options: null,
+                    type: MetricType.SUM,
+                    sql: 'SELECT secret FROM private_table',
+                });
+            }
+            try {
+                await database('spaces').where('space_uuid', child).update({
+                    deleted_at: new Date(),
+                    deleted_by_user_uuid: userUuid,
+                });
+                expect(
+                    await spaceModel.getSqlChartsForSpaceRestore(child),
+                ).toEqual([
+                    { spaceUuid: child, warehouseConnectionUuid: null },
+                ]);
+                await expect(
+                    spaceService.restore(
+                        {
+                            ...defaultSessionUser,
+                            userUuid,
+                            organizationUuid,
+                            ability: account.user.ability,
+                        },
+                        child,
+                        { bypassPermissions: true },
+                    ),
+                ).rejects.toThrow(
+                    'This connection is reserved for a space you cannot edit.',
+                );
+                expect(
+                    (
+                        await database('spaces')
+                            .where('space_uuid', child)
+                            .first()
+                    )?.deleted_at,
+                ).not.toBeNull();
+            } finally {
+                await database(table)
+                    .where('saved_queries_version_id', versionId)
+                    .delete();
+                await database('spaces').where('space_uuid', child).update({
+                    deleted_at: null,
+                    deleted_by_user_uuid: null,
+                });
+            }
+        },
+    );
 
     test('a bound-space editor with SqlRunner can restore its SQL charts with the binding', async () => {
         const { savedSqlUuid } = await savedSqlModel.create(

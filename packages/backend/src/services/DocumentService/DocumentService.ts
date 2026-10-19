@@ -82,6 +82,7 @@ import {
 } from '../CoderService/handlers/contentConnections';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { ProjectService } from '../ProjectService/ProjectService';
+import { SpaceConnectionReservation } from '../SpaceService/SpaceConnectionReservation';
 import type {
     AccessTarget,
     SpacePermissionService,
@@ -155,8 +156,13 @@ const MAX_CONCURRENT_AS_CODE_READS = 4;
 const DOCUMENT_AS_CODE_PAGE_SIZE = 50;
 
 export class DocumentService extends BaseService {
+    private readonly spaceConnectionReservation: SpaceConnectionReservation;
+
     constructor(private readonly dependencies: DocumentServiceArguments) {
         super();
+        this.spaceConnectionReservation = new SpaceConnectionReservation(
+            dependencies,
+        );
     }
 
     private async authorizeDelete(
@@ -1553,7 +1559,11 @@ export class DocumentService extends BaseService {
                                 isEqual(copied, chartContent),
                             )
                         ) {
-                            await this.assertCanAuthorSql(account, projectUuid);
+                            await this.assertCanAuthorSql(
+                                account,
+                                projectUuid,
+                                chartContent.chart.warehouseConnectionUuid,
+                            );
                         }
                         return;
                     }
@@ -1620,6 +1630,7 @@ export class DocumentService extends BaseService {
     private async assertCanAuthorSql(
         account: RegisteredAccount,
         projectUuid: string,
+        warehouseConnectionUuid: string | undefined,
     ): Promise<void> {
         const { organizationUuid } =
             await this.dependencies.projectModel.getSummary(projectUuid);
@@ -1632,6 +1643,15 @@ export class DocumentService extends BaseService {
             throw new ForbiddenError(
                 'You need SQL Runner access to add or change SQL charts',
             );
+        }
+        if (warehouseConnectionUuid) {
+            await this.spaceConnectionReservation.assertCanUseConnection({
+                userUuid: account.user.id,
+                ability: this.createAuditedAbility(account),
+                organizationUuid,
+                projectUuid,
+                warehouseConnectionUuid,
+            });
         }
     }
 

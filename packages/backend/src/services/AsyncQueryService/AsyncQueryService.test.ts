@@ -13177,6 +13177,15 @@ describe('AsyncQueryService', () => {
             async (enabled) => {
                 const { service } = buildService();
                 const internal = service as AnyType;
+                internal.getExplore = vi.fn().mockResolvedValue(validExplore);
+                internal.spacePermissionService.resolveAccess = vi
+                    .fn()
+                    .mockResolvedValue({
+                        organizationUuid: projectSummary.organizationUuid,
+                        projectUuid,
+                        inheritsFromOrgOrProject: true,
+                        access: [],
+                    });
                 vi.mocked(service.featureFlagModel.get).mockImplementation(
                     async ({ featureFlagId }) => ({
                         id: featureFlagId,
@@ -13195,21 +13204,40 @@ describe('AsyncQueryService', () => {
                     internal,
                     'getPreAggregationRoutingDecision',
                 );
-                const reachedExecution = new Error('Prepared legacy totals');
-                internal.executePreparedAsyncQuery = vi
+                internal.getWarehouseCredentialsWithConnection.mockResolvedValue(
+                    {
+                        ...resolvedCredentials,
+                        warehouseConnectionUuid: enabled
+                            ? 'space-connection'
+                            : extraConnectionUuid,
+                    },
+                );
+                internal.executePreparedAsyncQuery = vi.fn().mockResolvedValue({
+                    queryUuid: 'total-query',
+                    cacheMetadata: { cacheHit: false },
+                });
+                internal.pollForQueryCompletion = vi
                     .fn()
-                    .mockRejectedValue(reachedExecution);
+                    .mockResolvedValue(undefined);
+                internal.getReadyQueryResults = vi
+                    .fn()
+                    .mockResolvedValue({ rows: [{ orders_total: 42 }] });
                 await expect(
-                    internal.executeMetricQueryAndGetResultsForTotals({
-                        account: viewer,
-                        projectUuid,
-                        organizationUuid: projectSummary.organizationUuid,
-                        metricQuery: metricQueryMock,
-                        explore: validExplore,
-                        context: QueryExecutionContext.CALCULATE_TOTAL,
-                        queryTags: { chart_uuid: savedChart.uuid },
+                    service.calculateTotalFromSavedChart(
+                        viewer,
+                        savedChart.uuid,
+                    ),
+                ).resolves.toEqual({ orders_total: 42 });
+                expect(internal.executePreparedAsyncQuery).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        warehouseConnectionUuid: enabled
+                            ? 'space-connection'
+                            : extraConnectionUuid,
+                        routingTarget: 'warehouse',
                     }),
-                ).rejects.toBe(reachedExecution);
+                    expect.anything(),
+                    projectSummary.organizationUuid,
+                );
                 expect(
                     internal.getWarehouseCredentialsWithConnection,
                 ).toHaveBeenCalledWith(

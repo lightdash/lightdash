@@ -9030,7 +9030,8 @@ export class ProjectService
             isCustomSqlDimension,
         );
         const additionalMetrics = metricQuery.additionalMetrics ?? [];
-        if (!hasCustomSql(metricQuery)) return;
+        if (!hasCustomSql(metricQuery) && additionalMetrics.length === 0)
+            return;
 
         const unmodelledAdditionalMetrics =
             await this.assertAgentCustomSqlAuthorizedForQuery({
@@ -17272,6 +17273,15 @@ export class ProjectService
             projectUuid,
             payload.warehouseConnectionUuid ?? null,
         );
+        if (boundConnectionUuid !== null) {
+            await this.spaceConnectionReservation.assertCanUseConnection({
+                userUuid: account.user.id,
+                ability: auditedAbility,
+                organizationUuid,
+                projectUuid,
+                warehouseConnectionUuid: boundConnectionUuid,
+            });
+        }
         const settings = await this.getWarehouseSqlBuilderSettings(
             projectUuid,
             {
@@ -17363,6 +17373,15 @@ export class ProjectService
                 projectUuid,
                 exploreName,
             );
+        if (boundConnectionUuid !== null) {
+            await this.spaceConnectionReservation.assertCanUseConnection({
+                userUuid: account.user.id,
+                ability: auditedAbility,
+                organizationUuid,
+                projectUuid,
+                warehouseConnectionUuid: boundConnectionUuid,
+            });
+        }
         const settings = await this.getWarehouseSqlBuilderSettings(
             projectUuid,
             {

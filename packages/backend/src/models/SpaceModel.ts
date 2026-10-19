@@ -8,6 +8,7 @@ import {
     ForbiddenError,
     generateSlug,
     getLtreePathFromSlug,
+    hasCustomSql,
     NotFoundError,
     ParameterError,
     Space,
@@ -17,6 +18,7 @@ import {
     SpaceQuery,
     UpdateSpace,
     type DataAppContent,
+    type MetricQuery,
     type PersonalSpaceSummary,
     type SpaceSummaryBase,
 } from '@lightdash/common';
@@ -2065,6 +2067,12 @@ export class SpaceModel {
             rows: {
                 spaceUuid: string;
                 warehouseConnectionUuid: string | null;
+                metricQuery: Pick<
+                    MetricQuery,
+                    | 'tableCalculations'
+                    | 'customDimensions'
+                    | 'additionalMetrics'
+                > | null;
             }[];
         }>(
             `WITH RECURSIVE restoring_spaces AS (
@@ -2078,7 +2086,8 @@ export class SpaceModel {
                     AND s.deleted_by_user_uuid = p.deleted_by_user_uuid
             )
             SELECT DISTINCT s.space_uuid AS "spaceUuid",
-                v.warehouse_connection_uuid AS "warehouseConnectionUuid"
+                v.warehouse_connection_uuid AS "warehouseConnectionUuid",
+                NULL::jsonb AS "metricQuery"
             FROM saved_sql c
             LEFT JOIN dashboards d ON d.dashboard_uuid = c.dashboard_uuid
             JOIN restoring_spaces s ON c.space_uuid = s.space_uuid OR d.space_id = s.space_id
@@ -2090,10 +2099,57 @@ export class SpaceModel {
                 SELECT saved_sql_version_uuid FROM saved_sql_versions
                 WHERE saved_sql_uuid = c.saved_sql_uuid
                 ORDER BY created_at DESC, saved_sql_version_uuid DESC LIMIT 1
-            )`,
+            )
+            UNION ALL
+            SELECT s.space_uuid AS "spaceUuid", NULL::uuid AS "warehouseConnectionUuid",
+                jsonb_build_object(
+                    'tableCalculations', (
+                        SELECT jsonb_agg(jsonb_build_object('sql', calculation_raw_sql))
+                        FROM saved_queries_version_table_calculations
+                        WHERE saved_queries_version_id = v.saved_queries_version_id
+                    ),
+                    'customDimensions', (
+                        SELECT jsonb_agg(jsonb_build_object('type', 'sql'))
+                        FROM saved_queries_version_custom_sql_dimensions
+                        WHERE saved_queries_version_id = v.saved_queries_version_id
+                    ),
+                    'additionalMetrics', (
+                        SELECT jsonb_agg(jsonb_build_object(
+                            'sql', sql, 'table', "table", 'name', name, 'type', type,
+                            'baseDimensionName', base_dimension_name,
+                            'baseMetricName', base_metric_name,
+                            'generationType', generation_type,
+                            'baseMetricId', base_metric_id,
+                            'timeDimensionId', time_dimension_id,
+                            'granularity', granularity, 'periodOffset', period_offset
+                        ))
+                        FROM saved_queries_version_additional_metrics
+                        WHERE saved_queries_version_id = v.saved_queries_version_id
+                    )
+                ) AS "metricQuery"
+            FROM saved_queries c
+            LEFT JOIN dashboards d ON d.dashboard_uuid = c.dashboard_uuid
+            JOIN restoring_spaces s ON c.space_id = s.space_id OR d.space_id = s.space_id
+            JOIN saved_queries_versions v ON v.saved_query_id = c.saved_query_id
+            WHERE (c.deleted_at IS NULL OR c.deleted_by_user_uuid = s.deleted_by_user_uuid)
+                AND (c.dashboard_uuid IS NULL OR d.deleted_at IS NULL
+                    OR d.deleted_by_user_uuid = s.deleted_by_user_uuid)
+                AND v.saved_queries_version_id = (
+                    SELECT saved_queries_version_id FROM saved_queries_versions
+                    WHERE saved_query_id = c.saved_query_id
+                    ORDER BY created_at DESC, saved_queries_version_id DESC LIMIT 1
+                )`,
             [spaceUuid],
         );
-        return rows;
+        return rows
+            .filter(
+                ({ metricQuery }) =>
+                    metricQuery === null || hasCustomSql(metricQuery),
+            )
+            .map(({ spaceUuid: chartSpaceUuid, warehouseConnectionUuid }) => ({
+                spaceUuid: chartSpaceUuid,
+                warehouseConnectionUuid,
+            }));
     }
 
     async getConnectionBoundSpaces({

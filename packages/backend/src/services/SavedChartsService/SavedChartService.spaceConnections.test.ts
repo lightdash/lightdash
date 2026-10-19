@@ -73,8 +73,13 @@ const setup = ({
         updateMultiple: vi.fn().mockRejectedValue(saved),
         createVersion: vi.fn().mockRejectedValue(saved),
         moveToSpace: vi.fn().mockRejectedValue(saved),
+        restore: vi.fn().mockRejectedValue(saved),
     };
     const spaceModel = {
+        getEffectiveWarehouseConnectionBinding: vi.fn().mockResolvedValue({
+            spaceUuid: 'bound',
+            warehouseConnectionUuid: 'reserved',
+        }),
         getConnectionBoundSpaces: vi
             .fn()
             .mockResolvedValue([
@@ -161,6 +166,8 @@ const setup = ({
 describe('Saved chart SQL connection reservations', () => {
     const write = (operation: string, fixture: ReturnType<typeof setup>) => {
         const { service, user } = fixture;
+        if (operation === 'restore')
+            return service.restore(user, 'chart', { bypassPermissions: true });
         if (operation === 'create')
             return service.create(
                 fromSession(user, 'session'),
@@ -192,13 +199,14 @@ describe('Saved chart SQL connection reservations', () => {
         );
     };
 
-    it.each(['create', 'version', 'update', 'move', 'bulk'])(
+    it.each(['create', 'version', 'update', 'move', 'bulk', 'restore'])(
         'refuses %s by an editor of only an inheriting child',
         async (operation) => {
             const fixture = setup();
             await expect(write(operation, fixture)).rejects.toBeInstanceOf(
                 ForbiddenError,
             );
+            expect(fixture.savedChartModel.restore).not.toHaveBeenCalled();
             expect(fixture.savedChartModel.create).not.toHaveBeenCalled();
             expect(
                 fixture.savedChartModel.createVersion,
@@ -208,7 +216,7 @@ describe('Saved chart SQL connection reservations', () => {
         },
     );
 
-    it.each(['create', 'version', 'update', 'move', 'bulk'])(
+    it.each(['create', 'version', 'update', 'move', 'bulk', 'restore'])(
         'allows %s by a bound-space editor with SqlRunner',
         async (operation) => {
             await expect(
@@ -223,7 +231,7 @@ describe('Saved chart SQL connection reservations', () => {
         ).rejects.toBeInstanceOf(ForbiddenError);
     });
 
-    it.each(['create', 'version', 'update', 'move', 'bulk'])(
+    it.each(['create', 'version', 'update', 'move', 'bulk', 'restore'])(
         'leaves %s unchanged with the flag off',
         async (operation) => {
             const fixture = setup({ enabled: false });
@@ -233,6 +241,9 @@ describe('Saved chart SQL connection reservations', () => {
             ).not.toHaveBeenCalled();
             expect(
                 fixture.spaceModel.getEffectiveWarehouseConnectionUuid,
+            ).not.toHaveBeenCalled();
+            expect(
+                fixture.spaceModel.getEffectiveWarehouseConnectionBinding,
             ).not.toHaveBeenCalled();
             if (operation === 'move' || operation === 'update')
                 expect(fixture.savedChartModel.get).not.toHaveBeenCalled();

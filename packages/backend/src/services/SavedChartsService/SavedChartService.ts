@@ -3480,6 +3480,17 @@ export class SavedChartService
             }
         }
 
+        if (hasCustomSql(deletedChart.metricQuery)) {
+            await this.spaceConnectionReservation.assertCanAuthorSqlInSpace({
+                userUuid: user.userUuid,
+                ability: this.createAuditedAbility(user),
+                organizationUuid,
+                projectUuid,
+                spaceUuid: deletedChart.spaceUuid,
+                includeDeletedSpaces: true,
+            });
+        }
+
         await this.savedChartModel.restore(chartUuid);
 
         await this.schedulerService.restoreByChartUuid(

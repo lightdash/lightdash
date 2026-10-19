@@ -15487,6 +15487,7 @@ export class AsyncQueryService extends ProjectService {
                     organization_uuid: savedChart.organizationUuid,
                     project_uuid: projectUuid,
                     explore_name: explore.name,
+                    chart_uuid: chartUuid,
                     query_context: QueryExecutionContext.CALCULATE_TOTAL,
                 },
                 parameters: combinedParameters,
