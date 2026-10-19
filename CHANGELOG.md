@@ -1,3 +1,10 @@
+# [2.605.0](https://github.com/lightdash/lightdash/compare/2.604.0...2.605.0) (2026-10-19)
+
+
+### Features
+
+* capture usage events independently of the analytics flag ([#31098](https://github.com/lightdash/lightdash/issues/31098)) ([c709742](https://github.com/lightdash/lightdash/commit/c709742c9d8b3aaa87a26faf62750b65e22c88e8))
+
 # [2.604.0](https://github.com/lightdash/lightdash/compare/2.603.4...2.604.0) (2026-10-18)
 
 
