@@ -93,7 +93,6 @@ describe('answer evidence', () => {
 
     it('captures every query family after successful execution without another warehouse call', async () => {
         const runAsyncQuery = vi.fn().mockResolvedValue(input);
-        const runAsyncMergeQuery = vi.fn().mockResolvedValue(input);
         const execution = {
             metricQuery: {
                 limit: 50,
@@ -125,7 +124,6 @@ describe('answer evidence', () => {
             .mockResolvedValue({ terminal: input });
         const dependencies = {
             runAsyncQuery,
-            runAsyncMergeQuery,
             runSavedChartQuery,
             runSqlJob,
             runComposerQueries,
@@ -135,11 +133,7 @@ describe('answer evidence', () => {
         const query = { limit: 100 } as Parameters<
             AiAgentDependencies['runAsyncQuery']
         >[0];
-        const merge = { limit: 100 } as Parameters<
-            AiAgentDependencies['runAsyncMergeQuery']
-        >[0];
         await wrapped.runAsyncQuery(query, [], { region: 'EMEA' });
-        await wrapped.runAsyncMergeQuery(merge, { region: 'EMEA' });
         await wrapped.runSavedChartQuery({
             chartUuid: 'chart',
             dashboardSlug: null,
@@ -151,9 +145,6 @@ describe('answer evidence', () => {
             terminalNodeId: 'terminal',
         });
         expect(runAsyncQuery).toHaveBeenCalledExactlyOnceWith(query, [], {
-            region: 'EMEA',
-        });
-        expect(runAsyncMergeQuery).toHaveBeenCalledExactlyOnceWith(merge, {
             region: 'EMEA',
         });
         expect(runSavedChartQuery).toHaveBeenCalledExactlyOnceWith({
@@ -169,13 +160,13 @@ describe('answer evidence', () => {
             queries: [],
             terminalNodeId: 'terminal',
         });
-        expect(evidence.snapshot()).toHaveLength(5);
+        expect(evidence.snapshot()).toHaveLength(4);
         expect(evidence.snapshot()[0].scope).toContain('EMEA');
-        expect(evidence.snapshot()[2].queryUuid).toBe('saved-query');
-        expect(evidence.snapshot()[2].scope).toContain(
+        expect(evidence.snapshot()[1].queryUuid).toBe('saved-query');
+        expect(evidence.snapshot()[1].scope).toContain(
             JSON.stringify(execution),
         );
-        expect(evidence.snapshot()[4].complete).toBe(false);
+        expect(evidence.snapshot()[3].complete).toBe(false);
     });
 
     it('preserves query failures and records no evidence', async () => {

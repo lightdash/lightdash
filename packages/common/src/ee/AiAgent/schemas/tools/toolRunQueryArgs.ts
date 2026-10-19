@@ -414,7 +414,7 @@ export const toolRunQueryArgsSchema = toolRunQueryArgsSchemaV4;
 //   narrow it — old threads must keep parsing.
 export const toolRunQueryArgsSchemaPersisted = toolRunQueryArgsSchemaV3;
 
-// For runtimes where merge queries are disabled: a merge-shaped payload
+// The agent cannot build merges: a merge-shaped payload
 // must fail validation, not have Zod strip mergeConfig and run only the
 // primary query. The preprocess leaves the emitted JSON schema unchanged.
 export const toolRunQueryArgsSchemaV2RejectingMerge = z.preprocess(
@@ -429,7 +429,7 @@ export const toolRunQueryArgsSchemaV2RejectingMerge = z.preprocess(
             ctx.addIssue({
                 code: 'custom',
                 path: ['mergeConfig'],
-                message: 'Merge queries are not enabled for this organization.',
+                message: 'Merge queries are not supported by the agent.',
             });
             return z.NEVER;
         }

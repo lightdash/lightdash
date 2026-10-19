@@ -75,10 +75,7 @@ const sharedAgentToolDefinitionNames = agentToolDefinitions.map(
     (toolDefinition) => toolDefinition.for('agent').name,
 );
 
-const makeAgentTools = (
-    enableFilterExpressions = false,
-    enableMergeQueries = true,
-) => {
+const makeAgentTools = (enableFilterExpressions = false) => {
     const noop = vi.fn();
     const noopAsync = vi.fn().mockResolvedValue(undefined);
 
@@ -173,14 +170,12 @@ const makeAgentTools = (
             createOrUpdateArtifact: noop,
             enableDataAccess: true,
             slackLinksOnly: false,
-            enableMergeQueries,
             enableFilterExpressions,
             getPrompt: noop,
             maxLimit: 500,
             projectParameterDefinitions: {},
             maxContextRows: Number.POSITIVE_INFINITY,
             exposeQueryUuid: false,
-            runAsyncMergeQuery: noop,
             runAsyncQuery: noop,
             sendFile: noop,
             updateProgress: noopAsync,
@@ -259,19 +254,11 @@ describe('AI agent tool contracts', () => {
             ),
         ).toMatchSnapshot();
     });
-    it.each(
-        [false, true].flatMap((enableFilterExpressions) =>
-            [false, true].map((enableMergeQueries) => ({
-                enableFilterExpressions,
-                enableMergeQueries,
-            })),
-        ),
-    )(
-        'keeps MCP polling out of Agent query guidance: expressions=$enableFilterExpressions merge=$enableMergeQueries',
-        ({ enableFilterExpressions, enableMergeQueries }) => {
+    it.each([false, true])(
+        'keeps MCP polling out of Agent query guidance: expressions=%s',
+        (enableFilterExpressions) => {
             const { generateVisualization, runSql } = makeAgentTools(
                 enableFilterExpressions,
-                enableMergeQueries,
             );
             for (const description of [
                 generateVisualization.description,
@@ -297,7 +284,7 @@ describe('AI agent tool contracts', () => {
                 'mcp-artifact-integration',
             );
         }
-        for (const tool of Object.values(makeAgentTools(true, true))) {
+        for (const tool of Object.values(makeAgentTools(true))) {
             expect(tool.description).not.toContain('mcp-artifact-integration');
         }
     });

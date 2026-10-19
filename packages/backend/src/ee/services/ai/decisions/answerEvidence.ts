@@ -162,17 +162,6 @@ export const withAnswerEvidence = (
             });
             return result;
         },
-        runAsyncMergeQuery: async (...args) => {
-            const result = await dependencies.runAsyncMergeQuery(...args);
-            evidence.record({
-                ...result,
-                rowCount: result.rows.length,
-                maxContextRows,
-                limit: args[0].limit,
-                scope: { merge: args[0], parameters: args[1] ?? null },
-            });
-            return result;
-        },
         runSavedChartQuery: async (args) => {
             const result = await dependencies.runSavedChartQuery(args);
             evidence.record({

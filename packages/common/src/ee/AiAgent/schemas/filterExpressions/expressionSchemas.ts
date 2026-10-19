@@ -230,7 +230,7 @@ export const toolRunQueryExpressionArgsSchemaV2RejectingMerge = z.preprocess(
             context.addIssue({
                 code: 'custom',
                 path: ['mergeConfig'],
-                message: 'Merge queries are not enabled for this organization.',
+                message: 'Merge queries are not supported by the agent.',
             });
             return z.NEVER;
         }

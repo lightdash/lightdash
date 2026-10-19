@@ -3,8 +3,6 @@ import {
     AiAgentValidatorError,
     convertAiTableCalcsSchemaToTableCalcs,
     filterAggregationCustomMetrics,
-    generateVisualizationFilterExpressionToolDefinition,
-    generateVisualizationToolDefinition,
     getItemId,
     getItemLabelWithoutTableName,
     getReferencedExploreParameterDefinitions,
@@ -13,17 +11,11 @@ import {
     getTotalFilterRules,
     getValidAiQueryLimit,
     isCustomChartTypeSlugChartConfig,
-    isMergeMetricSource,
     isSlackPrompt,
-    MERGE_TABLE_NAME,
-    runQueryFilterExpressionToolDefinition,
-    runQueryToolDefinition,
     toolRunQueryArgsSchemaTransformed,
-    toolRunQueryExpressionArgsSchema,
     toolRunQueryExpressionArgsSchemaV2RejectingMerge,
     type AiArtifact,
     type AiCustomChartTypeChartArtifactConfig,
-    type AiMergeChartArtifactConfig,
     type AiSemanticChartArtifactConfig,
     type DataAppVizSchema,
     type Explore,
@@ -57,10 +49,7 @@ import {
     getEmptyFilterHints,
     queryReviewNote,
 } from '../decisions/queryChecks';
-import {
-    createQueryReviewer,
-    EMPTY_QUERY_GUIDANCE,
-} from '../decisions/queryReview';
+import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import { joinedMeasureGuidance } from '../decisions/sourceEvidence';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
@@ -69,7 +58,6 @@ import type {
     ExportCustomChartTypeImageFn,
     GetPromptFn,
     ResolveCustomChartTypeFn,
-    RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
     SearchFieldValuesFn,
     SendFileFn,
@@ -77,10 +65,6 @@ import type {
 } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
 import { AiAgentUnknownFieldsError } from '../utils/AiAgentUnknownFieldsError';
-import {
-    buildAiMergeQuery,
-    buildAiMergeSourceConfigs,
-} from '../utils/buildAiMergeQuery';
 import {
     prepareChartAsCode,
     type ChartExportSource,
@@ -217,9 +201,7 @@ type Dependencies = {
     slackLinksOnly: boolean;
     // Project-level parameter definitions; model-level ones come from the explore.
     projectParameterDefinitions: ParameterDefinitions;
-    enableMergeQueries: boolean;
     enableFilterExpressions: boolean;
-    runAsyncMergeQuery: RunAsyncMergeQueryFn;
     resolveCustomChartType: ResolveCustomChartTypeFn;
     exportCustomChartTypeImage: ExportCustomChartTypeImageFn;
 };
@@ -456,7 +438,6 @@ export const validateRunQueryTool = (
 
 type ResolvedRunQueryArtifactConfig =
     | AiSemanticChartArtifactConfig
-    | AiMergeChartArtifactConfig
     | AiCustomChartTypeChartArtifactConfig;
 
 const buildResolvedRunQueryArtifactConfig = ({
@@ -468,14 +449,6 @@ const buildResolvedRunQueryArtifactConfig = ({
     dataAppVizUuid: string | null;
     dataAppVizVersion: number | null;
 }): ResolvedRunQueryArtifactConfig => {
-    if (persistedArgs.mergeConfig !== null) {
-        return {
-            source: 'merge',
-            schemaVersion: 1,
-            config: persistedArgs,
-        };
-    }
-
     if (dataAppVizUuid !== null && dataAppVizVersion !== null) {
         return {
             source: 'customChartType',
@@ -605,9 +578,7 @@ export const getRunQuery = ({
     enableDataAccess,
     slackLinksOnly,
     projectParameterDefinitions,
-    enableMergeQueries,
     enableFilterExpressions,
-    runAsyncMergeQuery,
     resolveCustomChartType,
     decisions,
     question,
@@ -618,22 +589,9 @@ export const getRunQuery = ({
     searchFieldValues,
 }: Dependencies) => {
     const fastAnswer = enableFastResponse && purpose === 'answer';
-    const toolView = (() => {
-        if (enableFilterExpressions) {
-            return enableMergeQueries
-                ? (purpose === 'answer'
-                      ? runQueryFilterExpressionToolDefinition
-                      : generateVisualizationFilterExpressionToolDefinition
-                  ).for('agent')
-                : getRunQueryFilterExpressionAgentViewRejectingMerge();
-        }
-        return enableMergeQueries
-            ? (purpose === 'answer'
-                  ? runQueryToolDefinition
-                  : generateVisualizationToolDefinition
-              ).for('agent')
-            : getRunQueryAgentViewRejectingMerge();
-    })();
+    const toolView = enableFilterExpressions
+        ? getRunQueryFilterExpressionAgentViewRejectingMerge()
+        : getRunQueryAgentViewRejectingMerge();
     const { inputSchema: rawInputSchema, description: baseDescription } =
         toolView;
     const inputSchema: Schema<RunQueryToolInput> = rawInputSchema;
@@ -659,20 +617,13 @@ export const getRunQuery = ({
                     null;
 
                 if (enableFilterExpressions) {
-                    let normalizedExpressionToolArgs: ToolRunQueryExpressionArgs;
-                    if (enableMergeQueries) {
-                        normalizedExpressionToolArgs =
-                            toolRunQueryExpressionArgsSchema.parse(toolArgs);
-                    } else {
-                        const parsedExpressionToolArgs =
-                            toolRunQueryExpressionArgsSchemaV2RejectingMerge.parse(
+                    const normalizedExpressionToolArgs: ToolRunQueryExpressionArgs =
+                        {
+                            ...toolRunQueryExpressionArgsSchemaV2RejectingMerge.parse(
                                 toolArgs,
-                            );
-                        normalizedExpressionToolArgs = {
-                            ...parsedExpressionToolArgs,
+                            ),
                             mergeConfig: null,
                         };
-                    }
                     const resolution = await resolveFilterExpressionArgs({
                         toolArgs: normalizedExpressionToolArgs,
                         getExplore: (exploreName) =>
@@ -715,6 +666,12 @@ export const getRunQuery = ({
                 } else {
                     queryTool =
                         toolRunQueryArgsSchemaTransformed.parse(toolArgs);
+                    // The input schema rejects merges; never drop one silently.
+                    if (queryTool.mergeConfig) {
+                        throw new AiAgentValidatorError(
+                            'Merge queries are not supported by the agent.',
+                        );
+                    }
                 }
 
                 if (purpose === 'answer') {
@@ -735,447 +692,14 @@ export const getRunQuery = ({
                     queryTool.queryConfig.exploreName,
                 );
 
-                if (!queryTool.mergeConfig) {
-                    validateRunQueryTool(queryTool, explore);
-                    validateQueryParameters(
-                        queryTool.queryConfig.parameters,
-                        explore,
-                        projectParameterDefinitions,
-                    );
-                }
-
-                // Merge × custom chart type has no defined contract yet —
-                // reject explicitly rather than silently falling back.
-                if (
-                    queryTool.mergeConfig &&
-                    isCustomChartTypeSlugChartConfig(queryTool.chartConfig)
-                ) {
-                    throw new AiAgentValidatorError(
-                        'Custom chart types cannot be combined with mergeConfig. Either set mergeConfig to null to render this answer through the custom chart type, or keep the merge and use a builtin chartConfig.',
-                    );
-                }
+                validateRunQueryTool(queryTool, explore);
+                validateQueryParameters(
+                    queryTool.queryConfig.parameters,
+                    explore,
+                    projectParameterDefinitions,
+                );
 
                 const prompt = await getPrompt();
-
-                if (queryTool.mergeConfig) {
-                    if (!enableMergeQueries) {
-                        throw new AiAgentValidatorError(
-                            'Merge queries are not enabled for this organization.',
-                        );
-                    }
-
-                    buildAiMergeSourceConfigs(queryTool).forEach(
-                        ({ queryConfig }) => {
-                            const sourceExplore = ctx.getExplore(
-                                queryConfig.exploreName,
-                            );
-                            const sourceTool = {
-                                ...queryTool,
-                                queryConfig,
-                                chartConfig: null,
-                                mergeConfig: null,
-                            };
-                            validateRunQueryTool(sourceTool, sourceExplore);
-                            validateQueryParameters(
-                                queryConfig.parameters,
-                                sourceExplore,
-                                projectParameterDefinitions,
-                            );
-                        },
-                    );
-                    const mergeQuery = buildAiMergeQuery({
-                        toolArgs: queryTool,
-                        getExplore: (exploreName) =>
-                            ctx.getExplore(exploreName),
-                        maxQueryLimit: maxLimit,
-                    });
-
-                    // Custom chart configs were rejected above; the guard
-                    // narrows chartConfig to the builtin branch.
-                    if (
-                        queryTool.chartConfig &&
-                        !isCustomChartTypeSlugChartConfig(queryTool.chartConfig)
-                    ) {
-                        // Merged output columns are fields of the merge/source
-                        // "tables", so getItemId is the naming authority.
-                        const dimensionIds = queryTool.mergeConfig.joinKey.map(
-                            (part) =>
-                                getItemId({
-                                    table: MERGE_TABLE_NAME,
-                                    name: part.name,
-                                }),
-                        );
-                        const metricIds = mergeQuery.sources
-                            .filter(isMergeMetricSource)
-                            .flatMap((source) =>
-                                source.metricQuery.metrics.map((metricId) =>
-                                    getItemId({
-                                        table: source.id,
-                                        name: metricId,
-                                    }),
-                                ),
-                            );
-                        const selected = new Set([
-                            ...dimensionIds,
-                            ...metricIds,
-                        ]);
-                        const configuredFields = [
-                            queryTool.chartConfig.xAxisDimension,
-                            ...(queryTool.chartConfig.yAxisMetrics ?? []),
-                            ...(queryTool.chartConfig.groupBy ?? []),
-                            queryTool.chartConfig.secondaryYAxisMetric,
-                        ].filter((field): field is string => field !== null);
-                        const unknownFields = configuredFields.filter(
-                            (field) => !selected.has(field),
-                        );
-                        if (unknownFields.length > 0) {
-                            throw new AiAgentValidatorError(
-                                `Merged chart references unknown fields: ${unknownFields.join(
-                                    ', ',
-                                )}. Available fields: ${[
-                                    ...dimensionIds,
-                                    ...metricIds,
-                                ].join(', ')}.`,
-                            );
-                        }
-                    }
-
-                    const createMergeArtifactHook = (
-                        chartConfig: ToolRunQueryBuiltinChartConfig | null = null,
-                        contentAsCode?: PreparedChartAsCode,
-                    ) => {
-                        const vizConfig =
-                            persistedExpressionArgs === null
-                                ? {
-                                      source: 'merge' as const,
-                                      schemaVersion: 1 as const,
-                                      config: chartConfig
-                                          ? { ...artifactToolArgs, chartConfig }
-                                          : artifactToolArgs,
-                                  }
-                                : buildResolvedRunQueryArtifactConfig({
-                                      persistedArgs: chartConfig
-                                          ? {
-                                                ...persistedExpressionArgs,
-                                                chartConfig,
-                                            }
-                                          : persistedExpressionArgs,
-                                      dataAppVizUuid: null,
-                                      dataAppVizVersion: null,
-                                  });
-                        return ctx.measureStage('render', () =>
-                            createOrUpdateArtifact({
-                                threadUuid: prompt.threadUuid,
-                                promptUuid: prompt.promptUuid,
-                                artifactType: 'chart',
-                                title: toolArgs.title,
-                                description: toolArgs.description,
-                                vizConfig: contentAsCode
-                                    ? { ...vizConfig, contentAsCode }
-                                    : vizConfig,
-                            }),
-                        );
-                    };
-
-                    if (
-                        !enableDataAccess &&
-                        (!isSlackPrompt(prompt) || slackLinksOnly)
-                    ) {
-                        const artifact = await createMergeArtifactHook();
-                        return {
-                            result: `Success${getChartReference(prompt, queryTool.chartConfig, artifact)}${getDocumentReference(queryTool.chartConfig, artifact, documentsEnabled)}`,
-                            metadata: {
-                                status: 'success',
-                                ...(isSlackPrompt(prompt) && artifact
-                                    ? {
-                                          artifactVersionUuid:
-                                              artifact.versionUuid,
-                                      }
-                                    : {}),
-                            },
-                            structuredContent: {
-                                outcome: 'chartOnly',
-                                chartVersionUuid:
-                                    getChartReference(
-                                        prompt,
-                                        queryTool.chartConfig,
-                                        artifact,
-                                    ) && artifact
-                                        ? artifact.versionUuid
-                                        : null,
-                            },
-                        };
-                    }
-
-                    const [queryResults, review] = await Promise.all([
-                        ctx.measureStage('query', () =>
-                            runAsyncMergeQuery(
-                                mergeQuery,
-                                queryTool.queryConfig.parameters ?? undefined,
-                            ),
-                        ),
-                        decisions && enableDataAccess
-                            ? createQueryReviewer({
-                                  decisions,
-                                  question: question ?? prompt.prompt,
-                                  conversation,
-                                  explores: ctx.getAvailableExplores(),
-                              })({
-                                  kind: 'merge',
-                                  query: mergeQuery,
-                                  parameters: queryTool.queryConfig.parameters,
-                              })
-                            : '',
-                    ]);
-
-                    if (queryResults.rows.length === 0) {
-                        const diagnosis =
-                            decisions && enableDataAccess
-                                ? await diagnoseEmptyResult({
-                                      decisions,
-                                      question: question ?? prompt.prompt,
-                                      conversation,
-                                      explores: ctx.getAvailableExplores(),
-                                      plan: {
-                                          kind: 'merge',
-                                          query: mergeQuery,
-                                          parameters:
-                                              queryTool.queryConfig.parameters,
-                                      },
-                                      review,
-                                  })
-                                : NO_RESULTS_RETRY_PROMPT;
-                        return {
-                            result: diagnosis,
-                            metadata: { status: 'success' },
-                            structuredContent: {
-                                outcome: 'noResults',
-                                rowCount: 0,
-                                parameters: null,
-                                review:
-                                    decisions && enableDataAccess
-                                        ? diagnosis
-                                        : null,
-                            },
-                        };
-                    }
-
-                    const presentation =
-                        purpose === 'visualization' &&
-                        decisions &&
-                        enableDataAccess
-                            ? await resolveChartPresentation({
-                                  decisions,
-                                  question: question ?? prompt.prompt,
-                                  instructions: presentationInstructions,
-                                  allowCorrection: allowPresentationCorrection,
-                                  query: {
-                                      ...queryTool,
-                                      queryConfig: {
-                                          ...queryTool.queryConfig,
-                                          dimensions:
-                                              queryResults.metricQuery
-                                                  .dimensions,
-                                          metrics:
-                                              queryResults.metricQuery.metrics,
-                                          tableCalculations: null,
-                                      },
-                                  },
-                                  explore,
-                                  rows: queryResults.rows,
-                                  resultFields: queryResults.fields,
-                              })
-                            : {
-                                  config: fastAnswer
-                                      ? getDataAnswerChart({
-                                            query: {
-                                                ...queryTool,
-                                                queryConfig: {
-                                                    ...queryTool.queryConfig,
-                                                    dimensions:
-                                                        queryResults.metricQuery
-                                                            .dimensions,
-                                                    metrics:
-                                                        queryResults.metricQuery
-                                                            .metrics,
-                                                    tableCalculations: null,
-                                                },
-                                            },
-                                            explore,
-                                            rows: queryResults.rows,
-                                            resultFields: queryResults.fields,
-                                        })
-                                      : null,
-                                  advice: [],
-                              };
-                    if (presentation.config)
-                        queryTool = {
-                            ...queryTool,
-                            chartConfig: presentation.config,
-                        };
-                    const presentationNote =
-                        getChartPresentationNote(presentation);
-                    const portableChart = registerChartExport({
-                        enabled: enableChartExport && enableDataAccess,
-                        context: ctx,
-                        queryUuid: queryResults.queryUuid,
-                        source: {
-                            queryTool,
-                            metricQuery: queryResults.metricQuery,
-                            fields: queryResults.fields,
-                            mergeQuery,
-                        },
-                    });
-                    const artifact = await createMergeArtifactHook(
-                        presentation.config,
-                        portableChart,
-                    );
-
-                    let exportReference = '';
-                    if (portableChart)
-                        exportReference = getChartExportReference(
-                            queryResults.queryUuid,
-                            artifact,
-                        );
-
-                    if (
-                        isSlackPrompt(prompt) &&
-                        enableDataAccess &&
-                        !slackLinksOnly &&
-                        (!queryTool.chartConfig ||
-                            (!isCustomChartTypeSlugChartConfig(
-                                queryTool.chartConfig,
-                            ) &&
-                                queryTool.chartConfig.defaultVizType ===
-                                    'table'))
-                    ) {
-                        ctx.registerSlackTableResults(
-                            queryResults.queryUuid,
-                            queryResults,
-                        );
-                    }
-
-                    const chartReference = `${getChartReference(
-                        prompt,
-                        queryTool.chartConfig,
-                        artifact,
-                    )}${getDocumentReference(queryTool.chartConfig, artifact, documentsEnabled)}`;
-                    if (isSlackPrompt(prompt) && !slackLinksOnly) {
-                        await deferSlackChart({
-                            queryTool,
-                            queryResults,
-                            artifact,
-                            deferSlackVisualization,
-                        });
-                    }
-
-                    const resultSummary = getQueryResultSummary({
-                        rowCount: queryResults.rows.length,
-                        requestedLimit: queryTool.queryConfig.limit,
-                        effectiveLimit: mergeQuery.limit,
-                        maxLimit,
-                    });
-                    const csv = convertQueryResultsToCsv(
-                        queryResults,
-                        maxContextRows,
-                    );
-                    const queryReference = getQueryReference({
-                        prompt,
-                        chartConfig: queryTool.chartConfig,
-                        queryUuid: queryResults.queryUuid,
-                        exposeQueryUuid: false,
-                        enableDataAccess,
-                        slackLinksOnly,
-                    });
-                    const shownMergeRows = selectShownRows(
-                        queryResults.rows,
-                        maxContextRows,
-                        queryResults.fields,
-                    );
-                    const mergeLimit = {
-                        requested:
-                            queryResults.rows.length >= mergeQuery.limit
-                                ? queryTool.queryConfig.limit
-                                : null,
-                        effective: mergeQuery.limit,
-                        max:
-                            queryResults.rows.length >= mergeQuery.limit &&
-                            (queryTool.queryConfig.limit === null ||
-                                queryTool.queryConfig.limit > maxLimit)
-                                ? maxLimit
-                                : null,
-                    };
-                    const mergeTruncationNote = getContextTruncationNote({
-                        rowCount: queryResults.rows.length,
-                        maxContextRows,
-                    });
-                    const mergeChartQualityNote = decisions
-                        ? chartQualityHints(queryTool, queryResults.rows)
-                        : '';
-                    return {
-                        result: enableDataAccess
-                            ? [
-                                  `${resultSummary}${queryReference}${chartReference}${mergeTruncationNote}${exportReference}${review}${presentationNote}${mergeChartQualityNote}`,
-                                  serializeData(csv, 'csv'),
-                              ].join('\n\n')
-                            : `Success. ${resultSummary}${chartReference}`,
-                        metadata: getSuccessMetadata({
-                            queryUuid: queryResults.queryUuid,
-                            queryCacheHit:
-                                queryResults.cacheMetadata.cacheHit === true,
-                            queryReuseHit:
-                                queryResults.cacheMetadata.queryReuseHit ===
-                                true,
-                            artifact,
-                            deferredSlack: !!deferSlackVisualization,
-                            fastResponse:
-                                fastAnswer && enableDataAccess
-                                    ? (getFastAnswerText(
-                                          queryResults,
-                                          presentation.config,
-                                      ) ?? undefined)
-                                    : undefined,
-                        }),
-                        structuredContent: {
-                            outcome: 'results',
-                            // Each note or id is carried exactly when the text states it.
-                            queryUuid:
-                                queryReference || (portableChart && !artifact)
-                                    ? queryResults.queryUuid
-                                    : null,
-                            chartVersionUuid:
-                                chartReference && artifact
-                                    ? artifact.versionUuid
-                                    : null,
-                            chartExport:
-                                portableChart && artifact
-                                    ? {
-                                          artifactUuid: artifact.artifactUuid,
-                                          versionUuid: artifact.versionUuid,
-                                      }
-                                    : null,
-                            truncationNote:
-                                enableDataAccess && mergeTruncationNote
-                                    ? mergeTruncationNote
-                                    : null,
-                            review: enableDataAccess && review ? review : null,
-                            presentationNote:
-                                enableDataAccess && presentationNote
-                                    ? presentationNote
-                                    : null,
-                            chartQualityNote:
-                                enableDataAccess && mergeChartQualityNote
-                                    ? mergeChartQualityNote
-                                    : null,
-                            sourceCoverageNote: null,
-                            rowCount: queryResults.rows.length,
-                            limit: mergeLimit,
-                            parameters: null,
-                            data: enableDataAccess ? shownMergeRows : null,
-                            executionStats: null,
-                        },
-                    };
-                }
 
                 // Custom chart type answers: resolve the slug project-scoped
                 // and validate the field mapping against the type's schema.

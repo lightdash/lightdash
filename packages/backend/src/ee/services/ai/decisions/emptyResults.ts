@@ -3,7 +3,6 @@ import {
     getFields,
     getItemId,
     getTotalFilterRules,
-    isMergeMetricSource,
     QuerySourceType,
     type Explore,
 } from '@lightdash/common';
@@ -82,12 +81,6 @@ export const diagnoseEmptyResult = async ({
                         ? plan.timezone
                         : plan.query.timezone,
             });
-        if (plan.kind === 'merge')
-            queries.push(
-                ...plan.query.sources
-                    .filter(isMergeMetricSource)
-                    .map((source) => source.metricQuery),
-            );
         if (plan.kind === 'composer')
             plan.queries.forEach((source) => {
                 if (source.sourceType === QuerySourceType.SEMANTIC_LAYER)
@@ -161,10 +154,6 @@ export const diagnoseEmptyResult = async ({
             cause === 'parameter_state' &&
             !queries.some(
                 (query) => Object.keys(query.parameters ?? {}).length > 0,
-            ) &&
-            !(
-                plan.kind === 'merge' &&
-                Object.keys(plan.parameters ?? {}).length > 0
             )
         )
             return fallback;
@@ -177,7 +166,7 @@ export const diagnoseEmptyResult = async ({
         if (cause === 'date_scope') return fallback;
         if (cause === 'empty_scope') {
             // A positive empty-scope verdict requires complete semantic metadata.
-            // Opaque SQL, referenced prior results and merge semantics retain abstention.
+            // Opaque SQL and referenced prior results retain abstention.
             const knownIds = new Set(
                 explore ? getFields(explore).map(getItemId) : [],
             );

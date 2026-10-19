@@ -175,7 +175,6 @@ import {
     ReadContentFn,
     ResolveCustomChartTypeFn,
     ResolveUrlFn,
-    RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
     RunComposerQueriesFn,
     RunSavedChartQueryFn,
@@ -317,7 +316,6 @@ export type AiAgentToolsRuntime = {
     analyzeFieldImpact: AnalyzeFieldImpactFn;
     syncDbtProject: SyncDbtProjectFn;
     runAsyncQuery: RunAsyncQueryFn;
-    runAsyncMergeQuery: RunAsyncMergeQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlChartQuery: RunSqlChartQueryFn;
     runSqlJob: RunSqlJobFn;
@@ -367,7 +365,6 @@ const AGENT_RUNTIME_TOOL_NAMES = {
     analyzeFieldImpact: 'analyzeFieldImpact',
     syncDbtProject: 'syncDbtProject',
     runAsyncQuery: 'runQuery',
-    runAsyncMergeQuery: 'runQuery',
     runSavedChartQuery: 'runSavedChart',
     runSqlChartQuery: 'runSql',
     runSqlJob: 'runSql',
@@ -964,8 +961,6 @@ export class AiAgentToolsService extends BaseService {
                     abortSignal,
                     reuseQueryUuid,
                 ),
-            runAsyncMergeQuery: (mergeQuery, parameters) =>
-                this.runAsyncMergeQuery(context, mergeQuery, parameters),
             runSavedChartQuery: (args) =>
                 this.runSavedChartQuery(context, args),
             runSqlJob: (args) => this.runSqlJob(context, args),
@@ -3781,49 +3776,6 @@ export class AiAgentToolsService extends BaseService {
                     });
                 }
 
-                return result;
-            },
-        );
-    }
-
-    private runAsyncMergeQuery(
-        context: AiAgentToolsRuntimeContext,
-        mergeQuery: Parameters<RunAsyncMergeQueryFn>[0],
-        parameters: Parameters<RunAsyncMergeQueryFn>[1],
-    ): ReturnType<RunAsyncMergeQueryFn> {
-        return wrapSentryTransaction(
-            `${AiAgentToolsService.transactionPrefix(context)}.runAsyncMergeQuery`,
-            mergeQuery,
-            async () => {
-                await context.onWarehouseQuery?.();
-                const result =
-                    await this.asyncQueryService.executeMergeQueryAndGetResults(
-                        {
-                            account: context.account,
-                            projectUuid: context.projectUuid,
-                            mergeQuery,
-                            context: context.defaultQueryExecutionContext,
-                            querySurface: context.querySurface,
-                            parameters,
-                            mode: { type: 'interactive' },
-                            userAttributeOverrides:
-                                context.userAttributeOverrides,
-                            ...(context.invalidateQueryCache
-                                ? { invalidateCache: true }
-                                : {}),
-                        },
-                    );
-
-                if (context.queryResultsExpirationMs) {
-                    await this.asyncQueryService.extendQueryResultsExpiration({
-                        account: context.account,
-                        projectUuid: context.projectUuid,
-                        queryUuid: result.queryUuid,
-                        expiresAt: new Date(
-                            Date.now() + context.queryResultsExpirationMs,
-                        ),
-                    });
-                }
                 return result;
             },
         );

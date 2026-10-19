@@ -18,6 +18,7 @@ import {
     type ToolRunQueryExpressionRuntimeArgs,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import { asSchema } from 'ai';
 import {
     metricQueryMock,
     validExplore,
@@ -27,7 +28,6 @@ import type {
     DeferSlackVisualizationFn,
     ExportCustomChartTypeImageFn,
     ResolveCustomChartTypeFn,
-    RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
     SendFileFn,
 } from '../types/aiAgentDependencies';
@@ -169,8 +169,6 @@ const executeTool = async (
         agentContext,
         updateProgress: vi.fn().mockResolvedValue(undefined),
         runAsyncQuery,
-        runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
-        enableMergeQueries: false,
         enableFilterExpressions,
         projectParameterDefinitions: {},
         getPrompt: vi.fn().mockResolvedValue(prompt),
@@ -387,32 +385,24 @@ describe('getRunQuery', () => {
         expect(input.queryConfig.metrics).toEqual(['total_sales']);
     });
 
-    it.each([false, true])(
-        'runs a merge and registers export only when enabled (%s)',
-        async (enableChartExport) => {
+    it.each(
+        [false, true].flatMap((enableFilterExpressions) =>
+            (['visualization', 'answer'] as const).map((purpose) => ({
+                enableFilterExpressions,
+                purpose,
+            })),
+        ),
+    )(
+        'rejects mergeConfig without running a query: %j',
+        async ({ enableFilterExpressions, purpose }) => {
             const runAsyncQuery = vi.fn() as RunAsyncQueryFn;
-            const runAsyncMergeQuery: RunAsyncMergeQueryFn = vi
-                .fn()
-                .mockResolvedValue({
-                    queryUuid: '22222222-2222-4222-8222-222222222222',
-                    rows: [{ merge_key: 'one', primary_a_met1: 1 }],
-                    cacheMetadata: { cacheHit: false },
-                    fields: {},
-                    metricQuery: metricQueryMock,
-                });
-            const createOrUpdateArtifact = vi.fn().mockResolvedValue({
-                artifactUuid: 'stored-chart',
-                versionUuid: 'stored-version',
-            });
-            const context = new AgentContext([validExplore]);
+            const createOrUpdateArtifact = vi.fn();
             const queryTool = getRunQuery({
-                agentContext: context,
-                enableChartExport,
+                purpose,
+                agentContext: new AgentContext([validExplore]),
                 updateProgress: vi.fn().mockResolvedValue(undefined),
                 runAsyncQuery,
-                runAsyncMergeQuery,
-                enableMergeQueries: true,
-                enableFilterExpressions: false,
+                enableFilterExpressions,
                 projectParameterDefinitions: {},
                 getPrompt: vi.fn().mockResolvedValue(makePrompt()),
                 sendFile: vi.fn().mockResolvedValue(undefined),
@@ -426,6 +416,12 @@ describe('getRunQuery', () => {
                 exportCustomChartTypeImage:
                     vi.fn() as ExportCustomChartTypeImageFn,
             });
+
+            const validation = await asSchema(queryTool.inputSchema).validate!(
+                mergeInput,
+            );
+            expect(validation.success).toBe(false);
+
             const output = await queryTool.execute!(mergeInput, {
                 messages: [],
                 toolCallId: 'tool-call-1',
@@ -434,175 +430,14 @@ describe('getRunQuery', () => {
             if (Symbol.asyncIterator in output) {
                 throw new Error('Expected a non-streaming tool result');
             }
-
-            if (enableChartExport) {
-                expect(
-                    context.getChartExport(
-                        '22222222-2222-4222-8222-222222222222',
-                    ).mergeQuery,
-                ).toEqual(vi.mocked(runAsyncMergeQuery).mock.calls[0][0]);
-                expect(output.result).toContain('exportChartAsCode');
-                expect(output.result).toContain(
-                    'artifactUuid=stored-chart, versionUuid=stored-version',
-                );
-                expect(output.result).toContain('queryUuid set to null');
-                expect(output.result).not.toContain(
-                    'queryUuid=22222222-2222-4222-8222-222222222222',
-                );
-            } else {
-                expect(() =>
-                    context.getChartExport(
-                        '22222222-2222-4222-8222-222222222222',
-                    ),
-                ).toThrow();
-                expect(output.result).not.toContain('exportChartAsCode');
-            }
+            expect(output.metadata.status).toBe('error');
+            expect(output.result).toContain(
+                'Merge queries are not supported by the agent',
+            );
             expect(runAsyncQuery).not.toHaveBeenCalled();
-            expect(runAsyncMergeQuery).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    sources: expect.arrayContaining([
-                        expect.objectContaining({ id: 'primary' }),
-                        expect.objectContaining({ id: 'comparison' }),
-                    ]),
-                    joinType: 'full',
-                }),
-                undefined,
-            );
-            expect(createOrUpdateArtifact).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    vizConfig: expect.objectContaining({
-                        source: 'merge',
-                        schemaVersion: 1,
-                        config: mergeInput,
-                    }),
-                }),
-            );
-            if (enableChartExport) {
-                expect(createOrUpdateArtifact).toHaveBeenCalledWith(
-                    expect.objectContaining({
-                        vizConfig: expect.objectContaining({
-                            contentAsCode: expect.objectContaining({
-                                contentType: 'chart',
-                                name: 'Baseline',
-                            }),
-                        }),
-                    }),
-                );
-            }
-            expect(output.metadata).toMatchObject({
-                status: 'success',
-                queryUuid: '22222222-2222-4222-8222-222222222222',
-            });
+            expect(createOrUpdateArtifact).not.toHaveBeenCalled();
         },
     );
-
-    it('resolves and persists each merge source expression in its explore scope', async () => {
-        const runAsyncMergeQuery: RunAsyncMergeQueryFn = vi
-            .fn()
-            .mockResolvedValue({
-                queryUuid: '22222222-2222-4222-8222-222222222222',
-                rows: [{ merge_key: 'one', primary_a_met1: 1 }],
-                cacheMetadata: { cacheHit: false },
-                fields: {},
-                metricQuery: metricQueryMock,
-            });
-        const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
-        const context = new AgentContext([validExplore]);
-        const queryTool = getRunQuery({
-            agentContext: context,
-            updateProgress: vi.fn().mockResolvedValue(undefined),
-            runAsyncQuery: vi.fn() as RunAsyncQueryFn,
-            runAsyncMergeQuery,
-            enableMergeQueries: true,
-            enableFilterExpressions: true,
-            projectParameterDefinitions: {},
-            getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-            sendFile: vi.fn().mockResolvedValue(undefined),
-            createOrUpdateArtifact,
-            maxLimit: 500,
-            maxContextRows: Number.POSITIVE_INFINITY,
-            exposeQueryUuid: false,
-            enableDataAccess: true,
-            slackLinksOnly: false,
-            resolveCustomChartType: vi.fn().mockResolvedValue(null),
-            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
-        });
-        const expressionMergeInput = {
-            ...mergeInput,
-            queryConfig: {
-                ...mergeInput.queryConfig,
-                filters: {
-                    dimensions: 'a_dim1 equals=primary',
-                    metrics: null,
-                    tableCalculations: null,
-                },
-            },
-            mergeConfig: {
-                ...mergeInput.mergeConfig,
-                additionalSources: mergeInput.mergeConfig.additionalSources.map(
-                    (source) => ({
-                        ...source,
-                        queryConfig: {
-                            ...source.queryConfig,
-                            filters: {
-                                dimensions: 'a_dim1 equals=comparison',
-                                metrics: null,
-                                tableCalculations: null,
-                            },
-                        },
-                    }),
-                ),
-            },
-        };
-
-        const output = await queryTool.execute!(expressionMergeInput, {
-            messages: [],
-            toolCallId: 'tool-call-1',
-            context: {},
-        });
-        if (Symbol.asyncIterator in output) {
-            throw new Error('Expected a non-streaming tool result');
-        }
-
-        expect(output.metadata.status).toBe('success');
-        expect(runAsyncMergeQuery).toHaveBeenCalledOnce();
-        expect(createOrUpdateArtifact).toHaveBeenCalledWith(
-            expect.objectContaining({
-                vizConfig: expect.objectContaining({
-                    source: 'merge',
-                    schemaVersion: 1,
-                    config: expect.objectContaining({
-                        queryConfig: expect.objectContaining({
-                            filters: expect.objectContaining({
-                                dimensions: [
-                                    expect.objectContaining({
-                                        fieldId: 'a_dim1',
-                                        values: ['primary'],
-                                    }),
-                                ],
-                            }),
-                        }),
-                        mergeConfig: expect.objectContaining({
-                            additionalSources: [
-                                expect.objectContaining({
-                                    queryConfig: expect.objectContaining({
-                                        filters: expect.objectContaining({
-                                            dimensions: [
-                                                expect.objectContaining({
-                                                    fieldId: 'a_dim1',
-                                                    values: ['comparison'],
-                                                }),
-                                            ],
-                                        }),
-                                    }),
-                                }),
-                            ],
-                        }),
-                    }),
-                }),
-            }),
-        );
-    });
 
     it('states warehouse execution stats with the results', async () => {
         const executionStats = {
@@ -643,8 +478,6 @@ describe('getRunQuery', () => {
             agentContext: new AgentContext([validExplore]),
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
-            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
-            enableMergeQueries: false,
             enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
@@ -695,8 +528,6 @@ describe('getRunQuery', () => {
             decisions,
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
-            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
-            enableMergeQueries: false,
             enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
@@ -746,8 +577,6 @@ describe('getRunQuery', () => {
             agentContext: new AgentContext([validExplore]),
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
-            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
-            enableMergeQueries: false,
             enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
@@ -796,8 +625,6 @@ describe('getRunQuery', () => {
             agentContext: new AgentContext([validExplore]),
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
-            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
-            enableMergeQueries: false,
             enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
@@ -847,8 +674,6 @@ describe('getRunQuery', () => {
             agentContext: new AgentContext([validExplore]),
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
-            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
-            enableMergeQueries: false,
             enableFilterExpressions: true,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
@@ -956,8 +781,6 @@ describe('getRunQuery', () => {
             agentContext: new AgentContext([popExplore]),
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
-            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
-            enableMergeQueries: false,
             enableFilterExpressions: true,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
@@ -1032,8 +855,6 @@ describe('getRunQuery', () => {
             agentContext: new AgentContext([validExplore]),
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
-            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
-            enableMergeQueries: false,
             enableFilterExpressions: true,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
@@ -1093,8 +914,6 @@ describe('getRunQuery', () => {
             agentContext: new AgentContext([validExplore]),
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
-            runAsyncMergeQuery: vi.fn<RunAsyncMergeQueryFn>(),
-            enableMergeQueries: false,
             enableFilterExpressions: true,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
@@ -1337,8 +1156,6 @@ describe('getRunQuery custom chart types', () => {
             agentContext: context,
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
-            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
-            enableMergeQueries: false,
             enableFilterExpressions,
             enableChartExport,
             projectParameterDefinitions: {},
@@ -1589,88 +1406,6 @@ describe('getRunQuery custom chart types', () => {
         expect(runAsyncQuery).not.toHaveBeenCalled();
     });
 
-    it('rejects mergeConfig combined with a custom chart type', async () => {
-        const runAsyncMergeQuery = vi.fn() as RunAsyncMergeQueryFn;
-        const runAsyncQuery = vi.fn() as RunAsyncQueryFn;
-        const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
-        const queryTool = getRunQuery({
-            agentContext: new AgentContext([validExplore]),
-            updateProgress: vi.fn().mockResolvedValue(undefined),
-            runAsyncQuery,
-            runAsyncMergeQuery,
-            enableMergeQueries: true,
-            enableFilterExpressions: false,
-            projectParameterDefinitions: {},
-            getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-            sendFile: vi.fn().mockResolvedValue(undefined),
-            createOrUpdateArtifact,
-            maxLimit: 500,
-            maxContextRows: Number.POSITIVE_INFINITY,
-            exposeQueryUuid: false,
-            enableDataAccess: true,
-            slackLinksOnly: false,
-            resolveCustomChartType: vi.fn().mockResolvedValue({
-                dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
-                dataAppVizVersion: 2,
-                schema: vizSchema,
-            }) as ResolveCustomChartTypeFn,
-            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
-        });
-
-        const mergeCustomInput = {
-            ...toolInput,
-            chartConfig: customChartConfig,
-            mergeConfig: {
-                primarySourceId: 'primary',
-                additionalSources: [
-                    {
-                        id: 'comparison',
-                        queryConfig: {
-                            exploreName: validExplore.name,
-                            dimensions: metricQueryMock.dimensions,
-                            metrics: metricQueryMock.metrics,
-                            sorts: [],
-                            customMetrics: null,
-                            filters: null,
-                        },
-                    },
-                ],
-                joinKey: [
-                    {
-                        name: 'key',
-                        fields: [
-                            {
-                                sourceId: 'primary',
-                                fieldId: metricQueryMock.dimensions[0],
-                            },
-                            {
-                                sourceId: 'comparison',
-                                fieldId: metricQueryMock.dimensions[0],
-                            },
-                        ],
-                    },
-                ],
-                joinType: MergeJoinType.FULL,
-            },
-        };
-        const output = await queryTool.execute!(mergeCustomInput, {
-            messages: [],
-            toolCallId: 'tool-call-1',
-            context: {},
-        });
-        if (Symbol.asyncIterator in output) {
-            throw new Error('Expected a non-streaming tool result');
-        }
-
-        expect(output.metadata).toMatchObject({ status: 'error' });
-        expect(output.result).toContain(
-            'Custom chart types cannot be combined with mergeConfig',
-        );
-        expect(runAsyncMergeQuery).not.toHaveBeenCalled();
-        expect(runAsyncQuery).not.toHaveBeenCalled();
-        expect(createOrUpdateArtifact).not.toHaveBeenCalled();
-    });
-
     it('does not call the image exporter for web prompts', async () => {
         const exportCustomChartTypeImage =
             vi.fn() as ExportCustomChartTypeImageFn;
@@ -1713,8 +1448,6 @@ describe('getRunQuery custom chart types', () => {
                 runAsyncQuery: vi
                     .fn()
                     .mockResolvedValue(makeQueryResults()) as RunAsyncQueryFn,
-                runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
-                enableMergeQueries: false,
                 enableFilterExpressions: false,
                 projectParameterDefinitions: {},
                 getPrompt: vi.fn().mockResolvedValue(makeSlackPrompt()),
@@ -2028,8 +1761,6 @@ describe('getRunQuery parameters', () => {
             agentContext: new AgentContext([parameterizedExplore]),
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
-            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
-            enableMergeQueries: false,
             enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
@@ -2170,8 +1901,6 @@ describe('getRunQuery parameters', () => {
             agentContext: new AgentContext([noDefaultExplore]),
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
-            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
-            enableMergeQueries: false,
             enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
@@ -2227,8 +1956,7 @@ describe('getRunQuery Slack links only', () => {
         enableDataAccess,
         slackLinksOnly,
         deferSlackVisualization,
-        merge = false,
-        input = merge ? mergeInput : toolInput,
+        input = toolInput,
         purpose = 'visualization',
         artifactVersionUuid = 'version-uuid',
         documentsEnabled = false,
@@ -2237,7 +1965,6 @@ describe('getRunQuery Slack links only', () => {
         slackLinksOnly: boolean;
         deferSlackVisualization?: DeferSlackVisualizationFn;
         input?: ToolRunQueryArgs;
-        merge?: boolean;
         purpose?: 'answer' | 'visualization';
         artifactVersionUuid?: string;
         documentsEnabled?: boolean;
@@ -2248,13 +1975,6 @@ describe('getRunQuery Slack links only', () => {
             cacheMetadata: { cacheHit: false },
             fields: {},
         }) as RunAsyncQueryFn;
-        const runAsyncMergeQuery = vi.fn().mockResolvedValue({
-            queryUuid: 'query-uuid',
-            rows: [{ merge_key: 'one', primary_a_met1: 1 }],
-            cacheMetadata: { cacheHit: false },
-            fields: {},
-            metricQuery: metricQueryMock,
-        });
         const sendFile = vi
             .fn()
             .mockResolvedValue(
@@ -2271,8 +1991,6 @@ describe('getRunQuery Slack links only', () => {
             agentContext,
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
-            runAsyncMergeQuery,
-            enableMergeQueries: merge,
             enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makeSlackPrompt()),
@@ -2299,38 +2017,21 @@ describe('getRunQuery Slack links only', () => {
             output,
             agentContext,
             runAsyncQuery,
-            runAsyncMergeQuery,
             sendFile,
             createOrUpdateArtifact,
         };
     };
 
-    it.each([
-        { slackLinksOnly: false, merge: false },
-        { slackLinksOnly: true, merge: false },
-        { slackLinksOnly: false, merge: true },
-        { slackLinksOnly: true, merge: true },
-    ])(
-        'keeps the result card for answer-only Slack queries (%j)',
-        async ({ slackLinksOnly, merge }) => {
-            const {
-                output,
-                runAsyncQuery,
-                runAsyncMergeQuery,
-                sendFile,
-                createOrUpdateArtifact,
-            } = await executeLinksOnly({
-                purpose: 'answer',
-                merge,
-                enableDataAccess: true,
-                slackLinksOnly,
-            });
-            expect(
-                merge ? runAsyncMergeQuery : runAsyncQuery,
-            ).toHaveBeenCalledTimes(1);
-            expect(
-                merge ? runAsyncQuery : runAsyncMergeQuery,
-            ).not.toHaveBeenCalled();
+    it.each([false, true])(
+        'keeps the result card for answer-only Slack queries (slackLinksOnly=%s)',
+        async (slackLinksOnly) => {
+            const { output, runAsyncQuery, sendFile, createOrUpdateArtifact } =
+                await executeLinksOnly({
+                    purpose: 'answer',
+                    enableDataAccess: true,
+                    slackLinksOnly,
+                });
+            expect(runAsyncQuery).toHaveBeenCalledTimes(1);
             expect(createOrUpdateArtifact).toHaveBeenCalledExactlyOnceWith(
                 expect.objectContaining({
                     promptUuid: 'prompt-uuid',
@@ -2348,75 +2049,28 @@ describe('getRunQuery Slack links only', () => {
         },
     );
 
-    it.each(['table', null] as const)(
-        'exposes a successful merged Slack %s execution for final table selection',
-        async (type) => {
-            const { output } = await executeLinksOnly({
-                enableDataAccess: true,
-                slackLinksOnly: false,
-                merge: true,
-                input: {
-                    ...mergeInput,
-                    chartConfig:
-                        type === null
-                            ? null
-                            : {
-                                  ...mergeInput.chartConfig,
-                                  defaultVizType: type,
-                              },
-                },
-            });
-            expect(output.result).toContain(
-                "This execution's queryUuid is query-uuid",
-            );
-        },
-    );
-
-    it.each([
-        { enableDataAccess: true, slackLinksOnly: true },
-        { enableDataAccess: false, slackLinksOnly: false },
-    ])(
-        'keeps merged selection references hidden when Slack sharing is disabled: %j',
-        async ({ enableDataAccess, slackLinksOnly }) => {
-            const { output } = await executeLinksOnly({
-                enableDataAccess,
-                slackLinksOnly,
-                merge: true,
-                input: { ...mergeInput, chartConfig: null },
-            });
-            expect(output.result).not.toContain("This execution's queryUuid");
-        },
-    );
-
     it.each([
         { enableDataAccess: true, slackLinksOnly: false },
         { enableDataAccess: true, slackLinksOnly: true },
         { enableDataAccess: false, slackLinksOnly: false },
         { enableDataAccess: false, slackLinksOnly: true },
     ])(
-        'exposes saved normal and merged chart versions without granting row access: %j',
+        'exposes saved chart versions without granting row access: %j',
         async ({ enableDataAccess, slackLinksOnly }) => {
-            const executions = await Promise.all(
-                [false, true].map((merge) =>
-                    executeLinksOnly({
-                        enableDataAccess,
-                        slackLinksOnly,
-                        merge,
-                    }),
-                ),
+            const { output, sendFile } = await executeLinksOnly({
+                enableDataAccess,
+                slackLinksOnly,
+            });
+            expect(output.result).toContain(
+                "This chart's versionUuid is version-uuid",
             );
-            for (const { output, sendFile } of executions) {
-                expect(output.result).toContain(
-                    "This chart's versionUuid is version-uuid",
-                );
-                expect(output.metadata).toMatchObject({
-                    status: 'success',
-                    artifactVersionUuid: 'version-uuid',
-                });
-                if (!enableDataAccess)
-                    expect(output.result).not.toContain('```csv');
-                expect(sendFile).not.toHaveBeenCalled();
-            }
+            expect(output.metadata).toMatchObject({
+                status: 'success',
+                artifactVersionUuid: 'version-uuid',
+            });
+            if (!enableDataAccess)
+                expect(output.result).not.toContain('```csv');
+            expect(sendFile).not.toHaveBeenCalled();
         },
     );
 
@@ -2519,38 +2173,26 @@ describe('getRunQuery Slack links only', () => {
         expect(sendFile).not.toHaveBeenCalled();
     });
 
-    it.each([false, true])(
-        'retains executed Slack table rows in context (merge=%s)',
-        async (merge) => {
-            const input = merge ? mergeInput : toolInput;
-            const { output, agentContext, runAsyncQuery, runAsyncMergeQuery } =
-                await executeLinksOnly({
-                    enableDataAccess: true,
-                    slackLinksOnly: false,
-                    merge,
-                    input: {
-                        ...input,
-                        chartConfig: {
-                            ...input.chartConfig,
-                            defaultVizType: 'table',
-                        },
-                    },
-                });
-            expect(output.metadata.status).toBe('success');
-            expect(
-                agentContext.getSlackTableResults().get('query-uuid'),
-            ).toEqual({
-                rows: merge
-                    ? [{ merge_key: 'one', primary_a_met1: 1 }]
-                    : [{ a_dim1: 'one', a_met1: 1 }],
-                fields: {},
-                truncated: false,
-            });
-            expect(
-                merge ? runAsyncMergeQuery : runAsyncQuery,
-            ).toHaveBeenCalledTimes(1);
-        },
-    );
+    it('retains executed Slack table rows in context', async () => {
+        const { output, agentContext, runAsyncQuery } = await executeLinksOnly({
+            enableDataAccess: true,
+            slackLinksOnly: false,
+            input: {
+                ...toolInput,
+                chartConfig: {
+                    ...toolInput.chartConfig,
+                    defaultVizType: 'table',
+                },
+            },
+        });
+        expect(output.metadata.status).toBe('success');
+        expect(agentContext.getSlackTableResults().get('query-uuid')).toEqual({
+            rows: [{ a_dim1: 'one', a_met1: 1 }],
+            fields: {},
+            truncated: false,
+        });
+        expect(runAsyncQuery).toHaveBeenCalledTimes(1);
+    });
 
     it.each([
         { enableDataAccess: false, slackLinksOnly: false },
@@ -2996,8 +2638,6 @@ describe('validated default chart publication', () => {
                 enableChartExport: true,
                 updateProgress: vi.fn().mockResolvedValue(undefined),
                 runAsyncQuery,
-                runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
-                enableMergeQueries: false,
                 enableFilterExpressions,
                 projectParameterDefinitions: {},
                 getPrompt: vi.fn().mockResolvedValue(makePrompt()),
@@ -3086,131 +2726,6 @@ describe('validated default chart publication', () => {
     );
 });
 
-describe('merged chart defaults', () => {
-    it('uses merged field IDs without rewriting either source or the join', async () => {
-        const decisions = new AiDecisionClient({
-            apiKey: null,
-            model: 'test',
-            timeoutMs: 100,
-        });
-        const evaluate = vi
-            .spyOn(decisions, 'evaluate')
-            .mockImplementation(async ({ questions, operation }) =>
-                Object.fromEntries(
-                    Object.keys(questions).map((key) => {
-                        if (key === 'type' || key === 'x') {
-                            const value = key === 'type' ? 'bar' : 'merge_key';
-                            return [
-                                key,
-                                {
-                                    type: 'choice' as const,
-                                    choice: value,
-                                    confidence: 0.99,
-                                    probabilities: { [value]: 1 },
-                                },
-                            ];
-                        }
-                        return [
-                            key,
-                            {
-                                type: 'noul' as const,
-                                noul:
-                                    key.startsWith('metric_') ||
-                                    (operation === 'query-plan-intent' &&
-                                        key === 'conditions')
-                                        ? 0.99
-                                        : 0.01,
-                            },
-                        ];
-                    }),
-                ),
-            );
-        const runAsyncMergeQuery = vi.fn().mockResolvedValue({
-            queryUuid: 'merge-query',
-            rows: [
-                {
-                    merge_key: 'one',
-                    primary_a_met1: 10,
-                    comparison_a_met1: 20,
-                },
-            ],
-            fields: {},
-            cacheMetadata: { cacheHit: false },
-            metricQuery: {
-                ...metricQueryMock,
-                dimensions: ['merge_key'],
-                metrics: ['primary_a_met1', 'comparison_a_met1'],
-            },
-        });
-        const runAsyncQuery = vi.fn();
-        const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
-        const queryTool = getRunQuery({
-            decisions,
-            agentContext: new AgentContext([validExplore]),
-            updateProgress: vi.fn().mockResolvedValue(undefined),
-            runAsyncQuery,
-            runAsyncMergeQuery,
-            enableMergeQueries: true,
-            enableFilterExpressions: false,
-            projectParameterDefinitions: {},
-            getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-            sendFile: vi.fn().mockResolvedValue(undefined),
-            createOrUpdateArtifact,
-            maxLimit: 500,
-            maxContextRows: 100,
-            exposeQueryUuid: false,
-            enableDataAccess: true,
-            slackLinksOnly: false,
-            resolveCustomChartType: vi.fn().mockResolvedValue(null),
-            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
-        });
-        const input = { ...mergeInput, chartConfig: null };
-        const output = await queryTool.execute!(input, {
-            messages: [],
-            toolCallId: 'merge-default',
-            context: {},
-        });
-        if (Symbol.asyncIterator in output)
-            throw new Error('Expected a non-streaming result');
-        expect(output.metadata.status).toBe('success');
-        expect(output.result).toContain('Query/question review');
-        expect(
-            evaluate.mock.calls.filter(
-                ([call]) => call.operation === 'query-plan-intent',
-            ),
-        ).toHaveLength(1);
-        expect(
-            evaluate.mock.calls.find(
-                ([call]) => call.operation === 'query-plan-intent',
-            )?.[0].state,
-        ).toMatchObject({
-            plan: { kind: 'merge', query: runAsyncMergeQuery.mock.calls[0][0] },
-        });
-        expect(runAsyncQuery).not.toHaveBeenCalled();
-        expect(runAsyncMergeQuery).toHaveBeenCalledTimes(1);
-        expect(createOrUpdateArtifact).toHaveBeenCalledWith(
-            expect.objectContaining({
-                vizConfig: {
-                    source: 'merge',
-                    schemaVersion: 1,
-                    config: {
-                        ...input,
-                        chartConfig: expect.objectContaining({
-                            defaultVizType: 'bar',
-                            xAxisDimension: 'merge_key',
-                            yAxisMetrics: [
-                                'primary_a_met1',
-                                'comparison_a_met1',
-                            ],
-                        }),
-                    },
-                },
-            }),
-        );
-        expect(input.chartConfig).toBeNull();
-    });
-});
-
 describe('getRunQuery structured content', () => {
     const rows = [
         { a_dim1: 'one', a_met1: 1 },
@@ -3243,8 +2758,6 @@ describe('getRunQuery structured content', () => {
                 cacheMetadata: { cacheHit: false },
                 fields: {},
             }) as RunAsyncQueryFn,
-            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
-            enableMergeQueries: false,
             enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(prompt),
