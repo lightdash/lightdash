@@ -1,3 +1,10 @@
+# [2.616.0](https://github.com/lightdash/lightdash/compare/2.615.0...2.616.0) (2026-10-19)
+
+
+### Features
+
+* **merge-queries:** make merge queries generally available ([#31191](https://github.com/lightdash/lightdash/issues/31191)) ([a573992](https://github.com/lightdash/lightdash/commit/a573992e8101e6b05880a9f7404cefa6adce0198))
+
 # [2.615.0](https://github.com/lightdash/lightdash/compare/2.614.1...2.615.0) (2026-10-19)
 
 

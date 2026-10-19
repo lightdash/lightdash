@@ -47536,66 +47536,6 @@
                 ],
                 "type": "object"
             },
-            "AiAgentReviewReplayCaptureEntry": {
-                "properties": {
-                    "input": {},
-                    "captureError": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "threadUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "promptUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "signalUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "input",
-                    "captureError",
-                    "threadUuid",
-                    "promptUuid",
-                    "signalUuid"
-                ],
-                "type": "object"
-            },
-            "ApiSuccess_AiAgentReviewReplayCaptureEntry-Array_": {
-                "properties": {
-                    "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiAgentReviewReplayCaptureEntry"
-                        },
-                        "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAiAgentReviewReplayCaptureResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_AiAgentReviewReplayCaptureEntry-Array_"
-            },
-            "AiAgentReviewReplayCaptureRequest": {
-                "properties": {
-                    "signalUuids": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["signalUuids"],
-                "type": "object"
-            },
             "AiAgentReviewRemediationEventDetail": {
                 "anyOf": [
                     {
@@ -73313,7 +73253,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.615.0",
+        "version": "2.616.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -91611,47 +91551,6 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/UpdateAiAgentReviewItemStatus"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/aiAgents/admin/review-replay-capture": {
-            "post": {
-                "operationId": "captureAiAgentReviewReplayInputs",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAiAgentReviewReplayCaptureResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Rebuild judge replay inputs for historical review signals so the eval\nscoreboard can replay the judge offline. Read-only; feature-flag gated.",
-                "summary": "Capture AI review judge replay inputs",
-                "security": [],
-                "parameters": [],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/AiAgentReviewReplayCaptureRequest"
                             }
                         }
                     }
