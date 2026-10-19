@@ -80,6 +80,7 @@
                                     "slug",
                                     "name",
                                     "spaceSlug",
+                                    "version",
                                     "contentType",
                                     "verified",
                                     "tiles",
@@ -165,6 +166,7 @@
                                     "slug",
                                     "name",
                                     "spaceSlug",
+                                    "version",
                                     "contentType",
                                     "verified",
                                     "tableName",
@@ -243,8 +245,10 @@
                                     "slug",
                                     "name",
                                     "spaceSlug",
+                                    "version",
                                     "contentType",
                                     "sql",
+                                    "limit",
                                     "chartKind",
                                     "config"
                                 ],
@@ -382,7 +386,7 @@
                                 "description": "\"table\" = the chart's own limit, \"all\" = all results, or an explicit row count."
                             }
                         },
-                        "required": ["formatted"],
+                        "required": ["formatted", "limit"],
                         "type": "object"
                     },
                     "enabled": {
@@ -5720,7 +5724,8 @@
                                                 "kind",
                                                 "baseMetricId",
                                                 "timeDimensionId",
-                                                "granularity"
+                                                "granularity",
+                                                "periodOffset"
                                             ],
                                             "type": "object"
                                         }

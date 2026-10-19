@@ -68,9 +68,11 @@ export class McpSchemaCompatLayer extends SchemaCompatLayer {
             return description ? normalized.describe(description) : normalized;
         }
 
-        // always coerce numbers
-        if (this.isNumber(v)) {
-            return z.preprocess((val) => Number(val), v);
+        // Coerce in place: a preprocess wrapper types the input as unknown,
+        // which drops the field from the published JSON Schema's required list
+        if (v instanceof z.ZodNumber) {
+            const coerced = v.clone({ ...v.def, coerce: true });
+            return v.description ? coerced.describe(v.description) : coerced;
         }
 
         // Identical to @mastra/schema-compat/src/provider-compats/anthropic.ts
