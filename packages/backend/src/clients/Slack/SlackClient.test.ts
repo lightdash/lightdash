@@ -409,3 +409,93 @@ describe('SlackClient.syncChannelsToCache scope gate', () => {
         expect(result.status).toBe('completed');
     });
 });
+
+describe('SlackClient.postMessage custom icon fallback', () => {
+    const invalidArgumentsError = () => ({
+        data: {
+            error: 'invalid_arguments',
+            response_metadata: { messages: ['[ERROR] invalid `icon_url`'] },
+        },
+    });
+
+    const clientWithIcon = (appProfilePhotoUrl: string | undefined) => {
+        const postMessageMock = vi.fn();
+        const client = new SlackClient({
+            slackAuthenticationModel: {
+                getInstallationFromOrganizationUuid: vi.fn().mockResolvedValue({
+                    appProfilePhotoUrl,
+                    scopes: makeClient().getRequiredScopes(),
+                }),
+            },
+            slackChannelCacheModel: {},
+            lightdashConfig: { slack: {} },
+            analytics: {},
+            schedulerClient: {},
+        } as unknown as ConstructorParameters<typeof SlackClient>[0]);
+        vi.spyOn(client, 'getWebClient').mockResolvedValue({
+            chat: { postMessage: postMessageMock },
+        } as unknown as WebClient);
+        vi.spyOn(client, 'resolveChannelToId').mockResolvedValue('C123');
+        return { client, postMessageMock };
+    };
+
+    it('delivers with the default icon when Slack rejects the custom icon URL', async () => {
+        const { client, postMessageMock } = clientWithIcon(
+            'https://cdn.example.com/signed.jpg?oe=expired',
+        );
+        postMessageMock
+            .mockRejectedValueOnce(invalidArgumentsError())
+            .mockResolvedValueOnce({ ok: true, ts: '1.2' });
+
+        const result = await client.postMessage({
+            organizationUuid: 'org',
+            channel: 'C123',
+            text: 'Scheduled delivery',
+            blocks,
+        });
+
+        expect(result).toEqual({ ok: true, ts: '1.2' });
+        expect(postMessageMock).toHaveBeenCalledTimes(2);
+        expect(postMessageMock.mock.calls[0][0]).toHaveProperty('icon_url');
+        expect(postMessageMock.mock.calls[1][0]).not.toHaveProperty('icon_url');
+        expect(postMessageMock.mock.calls[1][0]).toMatchObject({
+            channel: 'C123',
+            text: 'Scheduled delivery',
+            blocks,
+        });
+    });
+
+    it('does not retry invalid_arguments when no custom icon was sent', async () => {
+        const { client, postMessageMock } = clientWithIcon(undefined);
+        const error = invalidArgumentsError();
+        postMessageMock.mockRejectedValueOnce(error);
+
+        await expect(
+            client.postMessage({
+                organizationUuid: 'org',
+                channel: 'C123',
+                text: 'hi',
+            }),
+        ).rejects.toBe(error);
+        expect(postMessageMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('rethrows when the message is still rejected without the icon', async () => {
+        const { client, postMessageMock } = clientWithIcon(
+            'https://cdn.example.com/logo.png',
+        );
+        const retryError = invalidArgumentsError();
+        postMessageMock
+            .mockRejectedValueOnce(invalidArgumentsError())
+            .mockRejectedValueOnce(retryError);
+
+        await expect(
+            client.postMessage({
+                organizationUuid: 'org',
+                channel: 'C123',
+                text: 'hi',
+            }),
+        ).rejects.toBe(retryError);
+        expect(postMessageMock).toHaveBeenCalledTimes(2);
+    });
+});

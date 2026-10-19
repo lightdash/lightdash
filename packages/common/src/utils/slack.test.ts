@@ -1,5 +1,6 @@
 import {
     getSlackErrorCode,
+    getSlackErrorMessages,
     getSlackInvalidBlockIndices,
     isSlackMessageTooLongError,
     isSlackRateLimitedError,
@@ -21,6 +22,29 @@ describe('getSlackErrorCode', () => {
         expect(getSlackErrorCode(null)).toBeUndefined();
         expect(getSlackErrorCode('string')).toBeUndefined();
         expect(getSlackErrorCode({ data: {} })).toBeUndefined();
+    });
+});
+
+describe('getSlackErrorMessages', () => {
+    it('surfaces the detail Slack attaches to a terse error code', () => {
+        const error = {
+            data: {
+                error: 'invalid_arguments',
+                response_metadata: {
+                    messages: ['[ERROR] invalid `icon_url`', 42],
+                },
+            },
+        };
+        expect(getSlackErrorMessages(error)).toEqual([
+            '[ERROR] invalid `icon_url`',
+        ]);
+    });
+
+    it('returns nothing for errors without Slack metadata', () => {
+        expect(getSlackErrorMessages(new Error('boom'))).toEqual([]);
+        expect(
+            getSlackErrorMessages({ data: { error: 'invalid_arguments' } }),
+        ).toEqual([]);
     });
 });
 
