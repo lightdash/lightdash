@@ -1,3 +1,16 @@
+# [2.610.0](https://github.com/lightdash/lightdash/compare/2.609.0...2.610.0) (2026-10-19)
+
+
+### Bug Fixes
+
+* **data-apps:** reap pending versions that have no build job ([#31155](https://github.com/lightdash/lightdash/issues/31155)) ([89c0f18](https://github.com/lightdash/lightdash/commit/89c0f18ebd373479e4d251ba50489ad78b72e8bf))
+* **slack:** deliver with the default icon when Slack rejects the custom app icon URL ([#31165](https://github.com/lightdash/lightdash/issues/31165)) ([a07003d](https://github.com/lightdash/lightdash/commit/a07003d9e70240e2fc2e6cf0db2d451a841dc14e))
+
+
+### Features
+
+* **data-apps:** cancel any building version from history ([#31156](https://github.com/lightdash/lightdash/issues/31156)) ([154c52a](https://github.com/lightdash/lightdash/commit/154c52af3711c9fe306348cc3cc9577f0ffd5bed))
+
 # [2.609.0](https://github.com/lightdash/lightdash/compare/2.608.0...2.609.0) (2026-10-19)
 
 
