@@ -15762,6 +15762,8 @@ describe('runDuckdbQuery', () => {
             markDuckdbCacheHit,
             findCachedResultsFile,
             update: service.queryHistoryModel.update as import('vitest').Mock,
+            getByQueryUuid: service.queryHistoryModel
+                .getByQueryUuid as import('vitest').Mock,
         };
     };
 
@@ -16343,6 +16345,205 @@ describe('runDuckdbQuery', () => {
             expect.objectContaining({ status: QueryHistoryStatus.ERROR }),
             expect.anything(),
         );
+    });
+
+    describe('a cancelled query', () => {
+        const queryReferences: RunDuckdbQueryArgs['references'] = {
+            kind: 'queries',
+            references: { merge_source_0: 'leg-uuid' },
+            guard: null,
+            labelByTable: { merge_source_0: 'Query A' },
+        };
+        const cancelledRow = {
+            queryUuid: 'duckdb-query-uuid',
+            status: QueryHistoryStatus.CANCELLED,
+        } as QueryHistory;
+
+        it('never runs once its references complete', async () => {
+            const {
+                run,
+                runWarehouseQuery,
+                findCachedResultsFile,
+                update,
+                getByQueryUuid,
+            } = buildService(cachedResults);
+            getByQueryUuid.mockResolvedValue(cancelledRow);
+
+            await run(baseArgs({ references: queryReferences }));
+
+            expect(findCachedResultsFile).not.toHaveBeenCalled();
+            expect(runWarehouseQuery).not.toHaveBeenCalled();
+            expect(update).not.toHaveBeenCalled();
+        });
+
+        it('stays cancelled when its cancelled legs fail the reference wait', async () => {
+            const {
+                run,
+                runWarehouseQuery,
+                pollForQueryCompletion,
+                update,
+                recordDuckdbRefusal,
+                getByQueryUuid,
+            } = buildService();
+            getByQueryUuid.mockResolvedValue(cancelledRow);
+            pollForQueryCompletion.mockRejectedValueOnce(
+                new Error('Query was cancelled'),
+            );
+
+            await run(baseArgs({ references: queryReferences }));
+
+            expect(runWarehouseQuery).not.toHaveBeenCalled();
+            expect(update).not.toHaveBeenCalled();
+            expect(recordDuckdbRefusal).not.toHaveBeenCalled();
+        });
+
+        it('cancelled while the join executes keeps its status instead of turning errored', async () => {
+            const { run, runWarehouseQuery, update, getByQueryUuid } =
+                buildService();
+            const { warehouseClient } = probingClient({
+                one: { type: DimensionType.NUMBER },
+            });
+            runWarehouseQuery.mockImplementationOnce(async () => {
+                getByQueryUuid.mockResolvedValue(cancelledRow);
+                throw new Error('DuckDB join failed');
+            });
+
+            await run(
+                baseArgs({
+                    references: queryReferences,
+                    engine: { kind: 'client', warehouseClient },
+                }),
+            );
+
+            expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
+            expect(update).not.toHaveBeenCalledWith(
+                expect.anything(),
+                expect.anything(),
+                expect.objectContaining({ status: QueryHistoryStatus.ERROR }),
+                expect.anything(),
+            );
+        });
+    });
+});
+
+describe('cancelling a merge', () => {
+    const joinUuid = 'join-uuid';
+    const legA = 'leg-a-uuid';
+    const legB = 'leg-b-uuid';
+    const resultSourceUuid = 'result-source-uuid';
+    const mergeSpec: DuckdbExecutionSpec = {
+        references: {
+            merge_source_0: legA,
+            merge_source_1: legB,
+            merge_source_2: resultSourceUuid,
+        },
+        engine: 'scopedToReferencedResults',
+        columns: { mode: 'supplied' },
+        guard: {
+            legLabelByReferenceTable: {
+                merge_source_0: 'Query A',
+                merge_source_1: 'Query B',
+            },
+            sourceRowCap: 5000,
+        },
+        storedCompiledSql: null,
+        referenceLabels: {
+            merge_source_0: 'Query A',
+            merge_source_1: 'Query B',
+        },
+        invalidateCache: false,
+        cacheHit: false,
+        refusal: null,
+    };
+
+    const buildService = ({
+        spec,
+        runningLegs,
+    }: {
+        spec: DuckdbExecutionSpec | null;
+        runningLegs: string[];
+    }) => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const get = vi.fn(
+            async (queryUuid: string) =>
+                ({
+                    queryUuid,
+                    status: QueryHistoryStatus.EXECUTING,
+                    context: QueryExecutionContext.EXPLORE,
+                    createdAt: new Date(),
+                    metricQuery: { exploreName: 'merge' },
+                }) as unknown as QueryHistory,
+        );
+        const update = vi.fn();
+        const getDuckdbExecution = vi.fn(async (queryUuid: string) =>
+            queryUuid === joinUuid ? spec : null,
+        );
+        const findRunningQueriesReadOnlyBy = vi.fn(async () => runningLegs);
+        Object.assign(service.queryHistoryModel, {
+            get,
+            update,
+            getDuckdbExecution,
+            findRunningQueriesReadOnlyBy,
+        });
+        const cancelledUuids = () =>
+            update.mock.calls
+                .filter(
+                    ([, , values]) =>
+                        values.status === QueryHistoryStatus.CANCELLED,
+                )
+                .map(([queryUuid]) => queryUuid);
+        return {
+            cancel: () =>
+                service.cancelAsyncQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid: joinUuid,
+                }),
+            get,
+            findRunningQueriesReadOnlyBy,
+            cancelledUuids,
+        };
+    };
+
+    it('cancels every running leg the merge ran, as the cancelling account', async () => {
+        const { cancel, get, findRunningQueriesReadOnlyBy, cancelledUuids } =
+            buildService({ spec: mergeSpec, runningLegs: [legA, legB] });
+
+        await cancel();
+
+        // A result the merge references is not a leg it ran
+        expect(findRunningQueriesReadOnlyBy).toHaveBeenCalledWith(
+            [legA, legB],
+            projectUuid,
+            joinUuid,
+        );
+        expect(cancelledUuids()).toEqual([joinUuid, legA, legB]);
+        expect(get).toHaveBeenCalledWith(legA, projectUuid, sessionAccount);
+        expect(get).toHaveBeenCalledWith(legB, projectUuid, sessionAccount);
+    });
+
+    it('leaves legs that already finished or that another running query reads', async () => {
+        const { cancel, cancelledUuids } = buildService({
+            spec: mergeSpec,
+            runningLegs: [legB],
+        });
+
+        await cancel();
+
+        expect(cancelledUuids()).toEqual([joinUuid, legB]);
+    });
+
+    it('cancels only the query itself when it ran no legs', async () => {
+        const { cancel, findRunningQueriesReadOnlyBy, cancelledUuids } =
+            buildService({
+                spec: { ...mergeSpec, guard: null },
+                runningLegs: [legA],
+            });
+
+        await cancel();
+
+        expect(findRunningQueriesReadOnlyBy).not.toHaveBeenCalled();
+        expect(cancelledUuids()).toEqual([joinUuid]);
     });
 });
 

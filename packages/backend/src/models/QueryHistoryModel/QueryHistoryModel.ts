@@ -666,6 +666,45 @@ export class QueryHistoryModel {
         return row?.duckdb_execution ?? null;
     }
 
+    /** Of the given queries, those still running that no running query but the consumer reads. */
+    async findRunningQueriesReadOnlyBy(
+        queryUuids: string[],
+        projectUuid: string,
+        consumerQueryUuid: string,
+    ): Promise<string[]> {
+        if (queryUuids.length === 0) return [];
+        const running = [
+            QueryHistoryStatus.PENDING,
+            QueryHistoryStatus.QUEUED,
+            QueryHistoryStatus.EXECUTING,
+        ];
+        // DuckDB queries keep their references on the spec, python queries on the request
+        const readers = this.database(`${QueryHistoryTableName} as reader`)
+            .select(this.database.raw('1'))
+            .whereRaw('reader.project_uuid = query.project_uuid')
+            .whereRaw('reader.created_at >= query.created_at')
+            .whereNot('reader.query_uuid', consumerQueryUuid)
+            .whereIn('reader.status', running)
+            .where((builder) => {
+                void builder
+                    .whereRaw(
+                        `jsonb_path_exists(reader.duckdb_execution, '$.references.* \\? (@ == $uuid)', jsonb_build_object('uuid', query.query_uuid::text))`,
+                    )
+                    .orWhereRaw(
+                        `jsonb_path_exists(reader.request_parameters, '$.references.* \\? (@ == $uuid)', jsonb_build_object('uuid', query.query_uuid::text))`,
+                    );
+            });
+        const rows: { query_uuid: string }[] = await this.database(
+            `${QueryHistoryTableName} as query`,
+        )
+            .select('query.query_uuid')
+            .whereIn('query.query_uuid', queryUuids)
+            .andWhere('query.project_uuid', projectUuid)
+            .whereIn('query.status', running)
+            .whereNotExists(readers);
+        return rows.map((row) => row.query_uuid);
+    }
+
     /** Records that a DuckDB source query was served from another run's results. */
     async markDuckdbCacheHit(queryUuid: string): Promise<void> {
         await this.database.raw(

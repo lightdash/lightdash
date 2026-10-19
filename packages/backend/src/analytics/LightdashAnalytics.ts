@@ -867,7 +867,7 @@ export type MergeQueryExecutedEvent = BaseTrack & {
     properties: MergeQueryShapeProperties & {
         queryId: string;
         engine: MergeEngine;
-        status: 'ready' | 'error';
+        status: 'ready' | 'error' | 'cancelled';
         /** Whether the merged result itself was served from cache. */
         cacheHit: boolean;
         /** Legs this merge ran; referenced results run nothing. */
