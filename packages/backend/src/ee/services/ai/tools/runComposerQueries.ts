@@ -25,11 +25,13 @@ import {
 } from '../decisions/vizPlanner';
 import type {
     CreateOrUpdateArtifactFn,
+    GetLatestComposerVizConfigFn,
     GetPromptFn,
     IsThreadSqlAutoApprovedFn,
     ListSqlApprovalDecisionsFn,
-    ListThreadComposerPipelinesFn,
+    ListThreadComposerQueryNodesFn,
     RecordSqlApprovalFn,
+    RegisterThreadComposerQueryNodesFn,
     RunComposerQueriesFn,
     StoreToolResultsFn,
     UpdateProgressFn,
@@ -69,7 +71,9 @@ type Dependencies = {
     trackSqlApprovalTimeout: TrackSqlApprovalTimeoutFn;
     storeToolResults: StoreToolResultsFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
-    listThreadComposerPipelines: ListThreadComposerPipelinesFn;
+    listThreadComposerQueryNodes: ListThreadComposerQueryNodesFn;
+    registerThreadComposerQueryNodes: RegisterThreadComposerQueryNodesFn;
+    getLatestComposerVizConfig: GetLatestComposerVizConfigFn;
     maxQueryLimit: number;
     enableDataAccess: boolean;
     canRunSql: boolean;
@@ -177,7 +181,9 @@ export const getRunComposerQueries = ({
     trackSqlApprovalTimeout,
     storeToolResults,
     createOrUpdateArtifact,
-    listThreadComposerPipelines,
+    listThreadComposerQueryNodes,
+    registerThreadComposerQueryNodes,
+    getLatestComposerVizConfig,
     maxQueryLimit,
     enableDataAccess,
     canRunSql,
@@ -217,7 +223,7 @@ export const getRunComposerQueries = ({
         outputSchema: toolDefinition.outputSchema,
         toModelOutput: toolDefinition.toModelOutput,
         // Only sql nodes submitted in this call gate; sql reused from an
-        // earlier version was approved then.
+        // earlier call was approved then.
         needsApproval: (args, { toolCallId }) =>
             approvalGate.needsNativeApproval({
                 toolCallId,
@@ -257,12 +263,11 @@ export const getRunComposerQueries = ({
                 }
 
                 const prompt = await getPrompt();
-                const earlierPipelines = await listThreadComposerPipelines(
-                    prompt.threadUuid,
-                );
                 const queries = buildComposerArtifactPipeline({
                     queries: queryNodes.map(toolComposerQueryNodeToSourceQuery),
-                    earlierPipelines,
+                    threadNodes: await listThreadComposerQueryNodes(
+                        prompt.threadUuid,
+                    ),
                 });
                 const resolvedTerminalNodeId = resolveTerminalNodeId(
                     queryNodes,
@@ -364,6 +369,12 @@ export const getRunComposerQueries = ({
                         : '',
                 ]);
 
+                await registerThreadComposerQueryNodes({
+                    threadUuid: prompt.threadUuid,
+                    toolCallId,
+                    nodes: queries,
+                });
+
                 if (approvalSql !== null) {
                     await renderState({
                         kind: 'success',
@@ -396,8 +407,9 @@ export const getRunComposerQueries = ({
                             rows: terminal.rows,
                             rowCount: terminal.rowCount,
                             enableDataAccess,
-                            previousVizConfig:
-                                earlierPipelines.at(-1)?.vizConfig ?? null,
+                            previousVizConfig: await getLatestComposerVizConfig(
+                                prompt.threadUuid,
+                            ),
                         })) ?? null;
                     vizNote = vizConfig
                         ? getVizConfigNote(vizConfig)

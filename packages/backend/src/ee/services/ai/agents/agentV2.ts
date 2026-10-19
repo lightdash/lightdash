@@ -2039,8 +2039,12 @@ export const getAgentTools = (
               trackSqlApprovalTimeout,
               storeToolResults: dependencies.storeToolResults,
               createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
-              listThreadComposerPipelines:
-                  dependencies.listThreadComposerPipelines,
+              listThreadComposerQueryNodes:
+                  dependencies.listThreadComposerQueryNodes,
+              registerThreadComposerQueryNodes:
+                  dependencies.registerThreadComposerQueryNodes,
+              getLatestComposerVizConfig:
+                  dependencies.getLatestComposerVizConfig,
               maxQueryLimit: args.runSqlMaxLimit,
               enableDataAccess: args.enableDataAccess,
               canRunSql: args.canRunSql,

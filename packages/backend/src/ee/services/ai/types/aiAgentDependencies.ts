@@ -47,6 +47,7 @@ import {
     SourceQuery,
     SourceQuerySubmission,
     SqlChartAsCode,
+    ThreadComposerQueryNode,
     ToolFindContentArgs,
     ToolFindFieldsArgs,
     ToolListContentArgs,
@@ -685,10 +686,21 @@ export type CreateOrUpdateArtifactFn = (data: {
     vizConfig: Record<string, unknown>;
 }) => Promise<AiArtifact>;
 
-/** Every stored composer pipeline of the thread's chart artifact versions, oldest first. */
-export type ListThreadComposerPipelinesFn = (
+export type ListThreadComposerQueryNodesFn = (
     threadUuid: string,
-) => Promise<AiComposerChartArtifactConfig[]>;
+) => Promise<ThreadComposerQueryNode[]>;
+
+/** Throws on a different definition under a registered node id. */
+export type RegisterThreadComposerQueryNodesFn = (args: {
+    threadUuid: string;
+    toolCallId: string;
+    nodes: ThreadComposerQueryNode[];
+}) => Promise<void>;
+
+/** The viz config of the thread's latest composer artifact version. */
+export type GetLatestComposerVizConfigFn = (
+    threadUuid: string,
+) => Promise<AiComposerChartArtifactConfig['vizConfig']>;
 
 type RecordedPromptDecisionField =
     | 'operation'

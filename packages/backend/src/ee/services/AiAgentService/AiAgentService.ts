@@ -17221,12 +17221,32 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         return artifact;
                     },
 
-                    listThreadComposerPipelines: async (threadUuid) =>
+                    listThreadComposerQueryNodes: (threadUuid) =>
+                        this.aiAgentModel.listComposerQueryNodes({
+                            scopeType: 'thread',
+                            scopeUuid: threadUuid,
+                        }),
+                    registerThreadComposerQueryNodes: ({
+                        threadUuid,
+                        toolCallId,
+                        nodes,
+                    }) =>
+                        this.aiAgentModel.registerComposerQueryNodes({
+                            scope: {
+                                scopeType: 'thread',
+                                scopeUuid: threadUuid,
+                            },
+                            toolCallId,
+                            nodes,
+                        }),
+                    getLatestComposerVizConfig: async (threadUuid) =>
                         (
                             await this.aiAgentModel.findChartArtifactConfigsByThreadUuid(
                                 threadUuid,
                             )
-                        ).filter(isAiComposerChartArtifactConfig),
+                        )
+                            .filter(isAiComposerChartArtifactConfig)
+                            .at(-1)?.vizConfig ?? null,
 
                     waitForSqlApproval: (toolCallId, timeoutMs) =>
                         this.aiAgentModel.waitForSqlApproval(
