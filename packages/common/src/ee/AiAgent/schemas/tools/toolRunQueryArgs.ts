@@ -241,7 +241,7 @@ const chartConfigCustomChartTypeSchema = z.object({
     customChartTypeSlug: z
         .string()
         .describe(
-            'Slug of the custom chart type to render this answer through. Must be a slug from availableCustomChartTypes or findCustomChartTypes.',
+            'Slug of the custom chart type to render this answer through, as returned by the custom chart type discovery tools.',
         ),
     fieldMapping: z
         .record(

@@ -19134,7 +19134,7 @@ All branches of an IF must return the same type.",
               "additionalProperties": false,
               "properties": {
                 "customChartTypeSlug": {
-                  "description": "Slug of the custom chart type to render this answer through. Must be a slug from availableCustomChartTypes or findCustomChartTypes.",
+                  "description": "Slug of the custom chart type to render this answer through, as returned by the custom chart type discovery tools.",
                   "type": "string",
                 },
                 "fieldMapping": {
@@ -24246,7 +24246,7 @@ All branches of an IF must return the same type.",
             "additionalProperties": false,
             "properties": {
               "customChartTypeSlug": {
-                "description": "Slug of the custom chart type to render this answer through. Must be a slug from availableCustomChartTypes or findCustomChartTypes.",
+                "description": "Slug of the custom chart type to render this answer through, as returned by the custom chart type discovery tools.",
                 "type": "string",
               },
               "fieldMapping": {
