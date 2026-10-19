@@ -14309,6 +14309,20 @@ export class AppGenerateService extends BaseService {
                     });
                 }
             }
+            // Authorize the declared access policy before the version row
+            // is written. The apply below runs after the row exists; a 403
+            // there used to orphan a pending version that still counted
+            // against the build cap. This runs after the space move on
+            // purpose: the policy is evaluated against the app's new
+            // location, exactly as the apply is.
+            if (directAccessAssignments !== null) {
+                await this.coderService.assertCanApplyDirectAccessPolicy(
+                    user,
+                    projectUuid,
+                    DirectAccessResourceType.APP,
+                    existingApp.app_id,
+                );
+            }
             newAppUuid = existingApp.app_id;
             newAppSlug = existingApp.slug;
             const latestVersion = await this.appModel.getLatestVersion(
@@ -14432,132 +14446,147 @@ export class AppGenerateService extends BaseService {
             newAppSlug = app.slug;
         }
 
-        // Reconcile links only when the manifest carries the field — bundles
-        // downloaded before link support must leave existing links untouched.
-        if (manifestLinks !== undefined) {
-            await this.externalConnectionModel.replaceAppLinks(
+        // Everything from here to the enqueue runs with a pending version
+        // row already committed. If any step throws, the row must not stay
+        // pending: it would count against the per-project build cap with
+        // no job behind it. Mark it error and surface the original cause.
+        try {
+            // Reconcile links only when the manifest carries the field — bundles
+            // downloaded before link support must leave existing links untouched.
+            if (manifestLinks !== undefined) {
+                await this.externalConnectionModel.replaceAppLinks(
+                    newAppUuid,
+                    resolvedLinks,
+                );
+            }
+
+            // Same reconciliation contract for the direct policy: present
+            // (including empty) → atomic replacement; absent → untouched.
+            if (directAccessAssignments !== null) {
+                await this.coderService.applyDirectAccessPolicy(
+                    user,
+                    projectUuid,
+                    DirectAccessResourceType.APP,
+                    newAppUuid,
+                    directAccessAssignments,
+                );
+            }
+
+            await this.extractAndPersistVersionDataReferences(
                 newAppUuid,
-                resolvedLinks,
+                newVersion,
+                sourceFiles,
             );
-        }
 
-        // Same reconciliation contract for the direct policy: present
-        // (including empty) → atomic replacement; absent → untouched.
-        if (directAccessAssignments !== null) {
-            await this.coderService.applyDirectAccessPolicy(
-                user,
-                projectUuid,
-                DirectAccessResourceType.APP,
-                newAppUuid,
-                directAccessAssignments,
-            );
-        }
+            // Re-tar the source files into a single source.tar Buffer
+            const sourceTar = await new Promise<Buffer>((resolve, reject) => {
+                const packer = tarPack();
+                const chunks: Buffer[] = [];
+                packer.on('data', (chunk: Buffer) => chunks.push(chunk));
+                packer.on('end', () => resolve(Buffer.concat(chunks)));
+                packer.on('error', reject);
 
-        await this.extractAndPersistVersionDataReferences(
-            newAppUuid,
-            newVersion,
-            sourceFiles,
-        );
-
-        // Re-tar the source files into a single source.tar Buffer
-        const sourceTar = await new Promise<Buffer>((resolve, reject) => {
-            const packer = tarPack();
-            const chunks: Buffer[] = [];
-            packer.on('data', (chunk: Buffer) => chunks.push(chunk));
-            packer.on('end', () => resolve(Buffer.concat(chunks)));
-            packer.on('error', reject);
-
-            const addNext = (index: number): void => {
-                if (index >= sourceFiles.length) {
-                    packer.finalize();
-                    return;
-                }
-                const file = sourceFiles[index];
-                const content = Buffer.from(file.contentBase64, 'base64');
-                packer.entry({ name: file.path }, content, (err) => {
-                    if (err) {
-                        reject(err);
+                const addNext = (index: number): void => {
+                    if (index >= sourceFiles.length) {
+                        packer.finalize();
                         return;
                     }
-                    addNext(index + 1);
-                });
-            };
-            addNext(0);
-        });
+                    const file = sourceFiles[index];
+                    const content = Buffer.from(file.contentBase64, 'base64');
+                    packer.entry({ name: file.path }, content, (err) => {
+                        if (err) {
+                            reject(err);
+                            return;
+                        }
+                        addNext(index + 1);
+                    });
+                };
+                addNext(0);
+            });
 
-        // Store source.tar in S3
-        const { client, bucket } = this.getS3Client();
-        await client.send(
-            new PutObjectCommand({
-                Bucket: bucket,
-                Key: `${versionPrefix(newAppUuid, newVersion)}source.tar`,
-                Body: sourceTar,
-                ContentType: 'application/x-tar',
-            }),
-        );
-
-        // Store the declared dependency files next to the source archive so
-        // download can round-trip them (builds consume them in a later slice).
-        // The stored package.json carries the TRUSTED template scripts, not
-        // the uploader's — the sandbox `pnpm build` and every downstream
-        // download read this file, so script commands must stay server-owned.
-        if (
-            dependencySummary !== undefined &&
-            code.dependencies !== undefined
-        ) {
-            const depsPrefix = `${versionPrefix(newAppUuid, newVersion)}deps/`;
+            // Store source.tar in S3
+            const { client, bucket } = this.getS3Client();
             await client.send(
                 new PutObjectCommand({
                     Bucket: bucket,
-                    Key: `${depsPrefix}package.json`,
-                    Body: sanitizeAppPackageJsonScripts(
-                        code.dependencies.packageJson,
-                        TEMPLATE_SCRIPTS,
-                        TEMPLATE_DEV_DEPENDENCIES,
-                    ),
-                    ContentType: 'application/json',
+                    Key: `${versionPrefix(newAppUuid, newVersion)}source.tar`,
+                    Body: sourceTar,
+                    ContentType: 'application/x-tar',
                 }),
             );
-            await client.send(
-                new PutObjectCommand({
-                    Bucket: bucket,
-                    Key: `${depsPrefix}pnpm-lock.yaml`,
-                    Body: code.dependencies.lockfile,
-                    ContentType: 'text/yaml',
-                }),
-            );
-        }
 
-        // Enqueue the build-only pipeline
-        await this.schedulerClient.appBuildFromSource({
-            appUuid: newAppUuid,
-            version: newVersion,
-            projectUuid,
-            organizationUuid,
-            userUuid: user.userUuid,
-        });
+            // Store the declared dependency files next to the source archive so
+            // download can round-trip them (builds consume them in a later slice).
+            // The stored package.json carries the TRUSTED template scripts, not
+            // the uploader's — the sandbox `pnpm build` and every downstream
+            // download read this file, so script commands must stay server-owned.
+            if (
+                dependencySummary !== undefined &&
+                code.dependencies !== undefined
+            ) {
+                const depsPrefix = `${versionPrefix(newAppUuid, newVersion)}deps/`;
+                await client.send(
+                    new PutObjectCommand({
+                        Bucket: bucket,
+                        Key: `${depsPrefix}package.json`,
+                        Body: sanitizeAppPackageJsonScripts(
+                            code.dependencies.packageJson,
+                            TEMPLATE_SCRIPTS,
+                            TEMPLATE_DEV_DEPENDENCIES,
+                        ),
+                        ContentType: 'application/json',
+                    }),
+                );
+                await client.send(
+                    new PutObjectCommand({
+                        Bucket: bucket,
+                        Key: `${depsPrefix}pnpm-lock.yaml`,
+                        Body: code.dependencies.lockfile,
+                        ContentType: 'text/yaml',
+                    }),
+                );
+            }
 
-        this.analytics.track({
-            event: 'data_app.uploaded',
-            userId: user.userUuid,
-            properties: {
-                organizationId: organizationUuid,
-                projectId: projectUuid,
+            // Enqueue the build-only pipeline
+            await this.schedulerClient.appBuildFromSource({
                 appUuid: newAppUuid,
                 version: newVersion,
-                action,
-                template: code.manifest.template,
-                sourceFileCount: sourceFiles.length,
-                sourceBytes: sourceTar.length,
-                hasCustomDependencies: dependencySummary !== undefined,
-                customDependencyCount: dependencySummary?.custom.length ?? 0,
-                customDependencies: dependencySummary?.custom ?? [],
-                identitySource,
-                ...(dependencySummary !== undefined
-                    ? { lockfileHash: dependencySummary.lockfileHash }
-                    : {}),
-            },
-        });
+                projectUuid,
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+            this.analytics.track({
+                event: 'data_app.uploaded',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    appUuid: newAppUuid,
+                    version: newVersion,
+                    action,
+                    template: code.manifest.template,
+                    sourceFileCount: sourceFiles.length,
+                    sourceBytes: sourceTar.length,
+                    hasCustomDependencies: dependencySummary !== undefined,
+                    customDependencyCount:
+                        dependencySummary?.custom.length ?? 0,
+                    customDependencies: dependencySummary?.custom ?? [],
+                    identitySource,
+                    ...(dependencySummary !== undefined
+                        ? { lockfileHash: dependencySummary.lockfileHash }
+                        : {}),
+                },
+            });
+        } catch (error) {
+            await this.markError(
+                newAppUuid,
+                newVersion,
+                error,
+                'Upload failed before the build started',
+            );
+            throw error;
+        }
 
         return {
             appUuid: newAppUuid,
@@ -14586,12 +14615,22 @@ export class AppGenerateService extends BaseService {
             );
             return;
         }
-        const { client, bucket } = this.getS3Client();
-        const copilot = await this.getCodingAgentConfig(organizationUuid);
-
-        // Look up the version's custom dependency set once — null means the
-        // build uses the template set only (no install step).
-        const versionRow = await this.appModel.getVersion(appUuid, version);
+        let client: S3Client;
+        let bucket: string;
+        let copilot: CodingAgentConfig;
+        let versionRow: Awaited<ReturnType<AppModel['getVersion']>>;
+        try {
+            ({ client, bucket } = this.getS3Client());
+            copilot = await this.getCodingAgentConfig(organizationUuid);
+            // Look up the version's custom dependency set once — null means
+            // the build uses the template set only (no install step).
+            versionRow = await this.appModel.getVersion(appUuid, version);
+        } catch (error) {
+            // Nothing has started yet, but the version is already pending
+            // and holding a build slot — never leave it there.
+            await this.markError(appUuid, version, error, 'Build failed');
+            return;
+        }
         const versionDeps = versionRow?.dependencies ?? null;
         const registryHosts =
             versionDeps !== null

@@ -1412,6 +1412,25 @@ export class CoderService extends BaseService {
     }
 
     /**
+     * Preflight twin of `applyDirectAccessPolicy`: raises the same
+     * authorization errors without writing, so an import can reject before
+     * it creates anything.
+     */
+    async assertCanApplyDirectAccessPolicy(
+        user: SessionUser,
+        projectUuid: string,
+        resourceType: DirectAccessResourceType,
+        resourceUuid: string,
+    ): Promise<void> {
+        await this.directAccessService.assertCanManage(
+            fromSession(user),
+            projectUuid,
+            resourceType,
+            resourceUuid,
+        );
+    }
+
+    /**
      * Apply a preflighted access block to a resource that now exists:
      * authorization, atomic replacement, and audit all run inside
      * DirectAccessService.replacePolicy. No-op for null (block absent).
