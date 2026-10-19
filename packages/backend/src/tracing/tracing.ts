@@ -30,6 +30,7 @@ import {
     propagation,
     SpanStatusCode,
     trace,
+    TraceFlags,
 } from '@opentelemetry/api';
 import {
     CompositePropagator,
@@ -84,6 +85,7 @@ type TracingStrategy = {
     initialize(): void;
     shutdown(): Promise<void>;
     getActiveSpanId(): string | undefined;
+    getActiveTraceId(): string | undefined;
     getActiveSpanName(): string | undefined;
     getTraceHeaders(): TraceHeaders;
     continueTrace<T>(headers: TraceHeaders, callback: () => T): T;
@@ -94,6 +96,16 @@ type TracingStrategy = {
 };
 
 const serviceVersion = String(VERSION);
+
+// Only a sampled trace is exported, so an unsampled ID would send callers
+// looking for a trace that does not exist in their store.
+const getSampledTraceId = (
+    spanContext: ReturnType<OtelSpan['spanContext']> | undefined,
+): string | undefined =>
+    // eslint-disable-next-line no-bitwise
+    spanContext && (spanContext.traceFlags & TraceFlags.SAMPLED) !== 0
+        ? spanContext.traceId
+        : undefined;
 
 const parseBoolean = (value: string | undefined) => value === 'true';
 
@@ -476,6 +488,10 @@ class SentryTracingStrategy implements TracingStrategy {
         return this.sentry.getActiveSpan()?.spanContext().spanId;
     }
 
+    getActiveTraceId(): string | undefined {
+        return getSampledTraceId(this.sentry.getActiveSpan()?.spanContext());
+    }
+
     getActiveSpanName(): string | undefined {
         const span = this.sentry.getActiveSpan();
         return span ? this.sentry.spanToJSON(span).description : undefined;
@@ -647,6 +663,12 @@ class OtelTracingStrategy implements TracingStrategy {
             : undefined;
     }
 
+    getActiveTraceId(): string | undefined {
+        return this.isEnabled()
+            ? getSampledTraceId(trace.getActiveSpan()?.spanContext())
+            : undefined;
+    }
+
     getActiveSpanName(): string | undefined {
         if (!this.isEnabled()) return undefined;
 
@@ -788,6 +810,10 @@ class TracingService {
         return this.strategy.getActiveSpanId();
     }
 
+    getActiveTraceId(): string | undefined {
+        return this.strategy.getActiveTraceId();
+    }
+
     getActiveSpanName(): string | undefined {
         return this.strategy.getActiveSpanName();
     }
@@ -825,6 +851,8 @@ export const initOtelTracing = () => tracingService.initialize();
 export const shutdownOtelTracing = async () => tracingService.shutdown();
 
 export const getActiveSpanId = () => tracingService.getActiveSpanId();
+
+export const getActiveTraceId = () => tracingService.getActiveTraceId();
 
 export const getActiveSpanName = () => tracingService.getActiveSpanName();
 
