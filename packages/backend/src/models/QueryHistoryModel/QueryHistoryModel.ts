@@ -400,6 +400,17 @@ export class QueryHistoryModel {
                 QueryHistoryStatus.EXECUTING,
             ]);
         }
+        // Only cancel a running query, so a finished one keeps its results.
+        if (update.status === QueryHistoryStatus.CANCELLED) {
+            void query.whereIn('status', [
+                QueryHistoryStatus.PENDING,
+                QueryHistoryStatus.QUEUED,
+                QueryHistoryStatus.EXECUTING,
+            ]);
+        }
+        if (update.status === QueryHistoryStatus.ERROR) {
+            void query.whereNot('status', QueryHistoryStatus.CANCELLED);
+        }
         return query;
     }
 
@@ -686,7 +697,7 @@ export class QueryHistoryModel {
             `UPDATE ${QueryHistoryTableName}
              SET status = ?, error = ?, errored_at = NOW(),
                  duckdb_execution = jsonb_set(COALESCE(duckdb_execution, '{}'::jsonb), '{refusal}', ?::jsonb)
-             WHERE query_uuid = ? AND project_uuid = ? AND ${createdByColumn} = ?`,
+             WHERE query_uuid = ? AND project_uuid = ? AND ${createdByColumn} = ? AND status <> ?`,
             [
                 QueryHistoryStatus.ERROR,
                 error,
@@ -694,6 +705,7 @@ export class QueryHistoryModel {
                 queryUuid,
                 projectUuid,
                 account.user.id,
+                QueryHistoryStatus.CANCELLED,
             ],
         );
     }

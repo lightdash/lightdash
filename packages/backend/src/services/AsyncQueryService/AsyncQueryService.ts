@@ -1498,7 +1498,7 @@ export class AsyncQueryService extends ProjectService {
 
         const previousStatus = queryHistory.status;
 
-        await this.queryHistoryModel.update(
+        const cancelled = await this.queryHistoryModel.update(
             queryHistory.queryUuid,
             projectUuid,
             {
@@ -1506,6 +1506,7 @@ export class AsyncQueryService extends ProjectService {
             },
             account,
         );
+        if (cancelled === 0) return;
 
         // Track state transition to cancelled
         const queryContext = queryHistory.context || 'unknown';
