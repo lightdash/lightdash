@@ -13,6 +13,7 @@ import { IconArrowBarToDown, IconCopy } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import { useLocation } from 'react-router';
 import { FilterDashboardTo } from '../../../features/dashboardFilters/FilterDashboardTo';
+import { MergeSourceGate } from '../../../features/mergeQuery/components/MergeSourceGate';
 import { useContextMenuPermissions } from '../../../hooks/useContextMenuPermissions';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -239,23 +240,25 @@ const ValueCellMenuDropdownContent: FC<{
                 )}
 
             {!isMinimal && hasDrillInto && canDrillInto && project && (
-                <Menu.Item
-                    leftSection={
-                        <MantineIcon
-                            icon={IconArrowBarToDown}
-                            size="md"
-                            fillOpacity={0}
-                        />
-                    }
-                    onClick={handleOpenDrillIntoModal}
-                >
-                    <>
-                        Drill into{' '}
-                        <Text span fw={500}>
-                            {value.formatted}
-                        </Text>
-                    </>
-                </Menu.Item>
+                <MergeSourceGate item={item}>
+                    <Menu.Item
+                        leftSection={
+                            <MantineIcon
+                                icon={IconArrowBarToDown}
+                                size="md"
+                                fillOpacity={0}
+                            />
+                        }
+                        onClick={handleOpenDrillIntoModal}
+                    >
+                        <>
+                            Drill into{' '}
+                            <Text span fw={500}>
+                                {value.formatted}
+                            </Text>
+                        </>
+                    </Menu.Item>
+                </MergeSourceGate>
             )}
             {isDashboardPage && filters.length > 0 && (
                 <FilterDashboardTo filters={filters} />

@@ -7,6 +7,7 @@ import {
 import { Menu, Text } from '@mantine/core';
 import { IconArrowBarToDown } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
+import { MergeSourceGate } from '../../features/mergeQuery/components/MergeSourceGate';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
@@ -85,7 +86,7 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
         fieldValues &&
         (source?.metricQuery || metricQuery)
     ) {
-        return (
+        const menuItem = (
             <Menu.Item
                 leftSection={<MantineIcon icon={IconArrowBarToDown} />}
                 onClick={handleDrillInto}
@@ -97,6 +98,12 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
                     </Text>
                 </>
             </Menu.Item>
+        );
+        // A caller-supplied source is already resolved to that source's own fields
+        return source ? (
+            menuItem
+        ) : (
+            <MergeSourceGate item={item}>{menuItem}</MergeSourceGate>
         );
     }
 

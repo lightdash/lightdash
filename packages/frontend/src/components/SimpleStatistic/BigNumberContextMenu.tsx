@@ -4,6 +4,7 @@ import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useMemo, type FC } from 'react';
+import { MergeSourceGate } from '../../features/mergeQuery/components/MergeSourceGate';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -133,15 +134,19 @@ const BigNumberContextMenu: FC<
                 )}
 
                 {!isMinimal && item && value && canDrillInto && (
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconArrowBarToDown} />}
-                        onClick={handleOpenDrillIntoModal}
-                    >
-                        Drill into{' '}
-                        <Text span fw="bold" fz="sm">
-                            {value.formatted}
-                        </Text>
-                    </Menu.Item>
+                    <MergeSourceGate item={item}>
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon icon={IconArrowBarToDown} />
+                            }
+                            onClick={handleOpenDrillIntoModal}
+                        >
+                            Drill into{' '}
+                            <Text span fw="bold" fz="sm">
+                                {value.formatted}
+                            </Text>
+                        </Menu.Item>
+                    </MergeSourceGate>
                 )}
             </Menu.Dropdown>
         </Menu>
