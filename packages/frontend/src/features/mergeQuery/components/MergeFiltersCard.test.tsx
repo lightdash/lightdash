@@ -2,6 +2,7 @@ import { WarehouseTypes, WeekDay } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { type PropsWithChildren } from 'react';
 import { MergeFiltersCard } from './MergeFiltersCard';
 
@@ -36,7 +37,9 @@ const merge = vi.hoisted(() => ({
         },
     ],
     joinParts: [],
+    setSourceFilters: vi.fn(),
 }));
+const dispatch = vi.hoisted(() => vi.fn());
 vi.mock('../context/useMerge', () => ({
     useMerge: () => merge,
     useMergeSafe: () => merge,
@@ -44,6 +47,14 @@ vi.mock('../context/useMerge', () => ({
 vi.mock('../hooks/useMergeSetup', () => ({
     useMergeSetup: () => ({
         sourceLabels: ['Orders', 'Payments'],
+        effectiveParts: [
+            {
+                fieldIdBySourceId: {
+                    a: 'orders_order_date_month',
+                    second: 'payments_order_date_month',
+                },
+            },
+        ],
         sourceSetups: merge.additionalSources.map((source) => ({
             additionalSourceId: source.id,
             additionalSource: source,
@@ -57,8 +68,13 @@ vi.mock('../hooks/useMergeSetup', () => ({
     }),
 }));
 vi.mock('../../explorer/store', () => ({
-    explorerActions: {},
-    useExplorerDispatch: () => vi.fn(),
+    explorerActions: {
+        setFilters: (filters: unknown) => ({
+            type: 'setFilters',
+            payload: filters,
+        }),
+    },
+    useExplorerDispatch: () => dispatch,
     useExplorerSelector: (selector: () => unknown) => selector(),
     selectTableName: () => 'orders',
     selectFilters: () => ({}),
@@ -84,17 +100,43 @@ vi.mock(
 vi.mock('../../../components/common/CollapsableCard/CollapsableCard', () => ({
     default: ({ children }: PropsWithChildren) => children,
 }));
-vi.mock('../../../components/common/Filters', () => ({ default: () => null }));
+vi.mock('../../../components/common/Filters', () => ({
+    default: ({ setFilters }: { setFilters: (filters: unknown) => void }) => (
+        <button
+            onClick={() =>
+                setFilters({
+                    dimensions: {
+                        id: 'group',
+                        and: [
+                            {
+                                id: 'rule',
+                                target: {
+                                    fieldId: 'payments_order_date_month',
+                                },
+                                operator: 'equals',
+                                values: ['2026-10-01'],
+                            },
+                        ],
+                    },
+                })
+            }
+        >
+            Filter on the join field
+        </button>
+    ),
+}));
 vi.mock('../../../components/common/Filters/FiltersProvider', () => ({
     default: ({
         baseTable,
         startOfWeek,
-    }: {
+        children,
+    }: PropsWithChildren<{
         baseTable: string;
         startOfWeek?: WeekDay;
-    }) => (
+    }>) => (
         <div data-testid={`${baseTable}-filters`}>
             {startOfWeek ?? 'default'}
+            {children}
         </div>
     ),
 }));
@@ -146,6 +188,29 @@ describe('MergeFiltersCard', () => {
         );
         expect(screen.getByTestId('payments-filters')).toHaveTextContent(
             String(WeekDay.MONDAY),
+        );
+    });
+
+    it('shares a join-field filter with the first source when the key is the default', async () => {
+        flag.enabled = true;
+        renderCard();
+        await userEvent.click(
+            screen.getAllByRole('button', {
+                name: 'Filter on the join field',
+            })[1],
+        );
+        expect(dispatch).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                payload: expect.objectContaining({
+                    dimensions: expect.objectContaining({
+                        and: [
+                            expect.objectContaining({
+                                target: { fieldId: 'orders_order_date_month' },
+                            }),
+                        ],
+                    }),
+                }),
+            }),
         );
     });
 });

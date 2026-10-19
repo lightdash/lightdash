@@ -88,7 +88,7 @@ const SourceFilters: FC<{
 /** Join-key rules are shared across every source; other filters stay local. */
 export const MergeFiltersCard: FC = () => {
     const merge = useMerge();
-    const { sourceLabels, sourceSetups } = useMergeSetup();
+    const { sourceLabels, sourceSetups, effectiveParts } = useMergeSetup();
     const dispatch = useExplorerDispatch();
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const filterIsOpen = useExplorerSelector(selectIsFiltersExpanded);
@@ -126,14 +126,15 @@ export const MergeFiltersCard: FC = () => {
                     ),
                     [changedSourceId]: filters,
                 },
-                joinParts: merge.joinParts,
+                // The key in effect, including fields filled in by default
+                joinParts: effectiveParts,
             });
             dispatch(explorerActions.setFilters(synced[PRIMARY_SOURCE_ID]));
             merge.additionalSources.forEach((source) =>
                 merge.setSourceFilters(source.id, synced[source.id]),
             );
         },
-        [dispatch, merge, metricQuery.filters],
+        [dispatch, merge, metricQuery.filters, effectiveParts],
     );
     return (
         <CollapsableCard
