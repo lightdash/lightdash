@@ -16,6 +16,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useAccount } from '../../../hooks/user/useAccount';
@@ -47,7 +48,8 @@ export const SeriesContextMenu: FC<{
     const projectUuid = useProjectUuid();
 
     const context = useVisualizationContext();
-    const { resultsData: { metricQuery } = {} } = context;
+    const { resultsData: { metricQuery } = {}, itemsMap } = context;
+    const isMerged = !!useMergeSafe()?.mergeResults;
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const { openUnderlyingDataModal, tableName } = useMetricQueryDataContext();
@@ -84,11 +86,15 @@ export const SeriesContextMenu: FC<{
 
     const underlyingData = useMemo(() => {
         if (explore !== undefined && echartsSeriesClickEvent !== undefined) {
-            const allItemsMap = getItemMap(
-                explore,
-                metricQuery?.additionalMetrics,
-                metricQuery?.tableCalculations,
-            );
+            // Merged columns only exist in the merged result's fields
+            const allItemsMap =
+                isMerged && itemsMap
+                    ? itemsMap
+                    : getItemMap(
+                          explore,
+                          metricQuery?.additionalMetrics,
+                          metricQuery?.tableCalculations,
+                      );
 
             return getDataFromChartClick(
                 echartsSeriesClickEvent,
@@ -96,7 +102,14 @@ export const SeriesContextMenu: FC<{
                 series || [],
             );
         }
-    }, [echartsSeriesClickEvent, explore, metricQuery, series]);
+    }, [
+        echartsSeriesClickEvent,
+        explore,
+        isMerged,
+        itemsMap,
+        metricQuery,
+        series,
+    ]);
 
     const handleCopyToClipboard = useCallback(() => {
         if (underlyingData === undefined) return;
