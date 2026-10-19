@@ -1,3 +1,10 @@
+## [2.605.2](https://github.com/lightdash/lightdash/compare/2.605.1...2.605.2) (2026-10-19)
+
+
+### Bug Fixes
+
+* simplify analytics settings while keeping access and recovery ([#31124](https://github.com/lightdash/lightdash/issues/31124)) ([e9b6f45](https://github.com/lightdash/lightdash/commit/e9b6f45b4cb7725c0186a1c6785a55bb543d1151))
+
 ## [2.605.1](https://github.com/lightdash/lightdash/compare/2.605.0...2.605.1) (2026-10-19)
 
 
