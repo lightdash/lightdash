@@ -46,7 +46,7 @@ Every node has a "nodeId" (for references) and a "title" (what users see). The t
 
 Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id. Every call lists its nodes' ids and titles.
 
-Presenting results: results are hidden by default. To show one, write <show node="<terminal node id>"/> in your final answer; every successful call's result names its terminal node id.`;
+Presenting results: results are hidden from the user by default. Each successful result says how to present it.`;
 
 export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
     getToolComposerQueriesDescription({ enablePythonNodes: false });
