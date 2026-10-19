@@ -1,3 +1,10 @@
+## [2.606.1](https://github.com/lightdash/lightdash/compare/2.606.0...2.606.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* honor organization row limits in Sheets AI drafts ([#31137](https://github.com/lightdash/lightdash/issues/31137)) ([56b0ae9](https://github.com/lightdash/lightdash/commit/56b0ae987be5a443d968a017db6b2fd11180097d))
+
 # [2.606.0](https://github.com/lightdash/lightdash/compare/2.605.5...2.606.0) (2026-10-19)
 
 
