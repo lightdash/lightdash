@@ -21,6 +21,7 @@ export const getScatterChartEchartsConfig = async (
     const xDimension = chartConfig?.xAxisDimension || dimensions[0];
     const yMetrics = chartConfig?.yAxisMetrics || queryMetrics;
     let metrics: string[] = yMetrics;
+    let getSeriesName = (key: string) => formatFieldLabel(key, fieldsMap);
     let chartData = rows;
 
     // If we should pivot and have a breakdown dimension, pivot the data
@@ -30,10 +31,12 @@ export const getScatterChartEchartsConfig = async (
             fieldsMap,
             chartConfig.groupBy,
             yMetrics,
+            [],
             sorts as SortField[],
         );
         chartData = pivoted.results;
         metrics = pivoted.metrics;
+        getSeriesName = (key: string) => pivoted.labels[key];
     }
 
     // Get axis field items for formatting
@@ -74,10 +77,7 @@ export const getScatterChartEchartsConfig = async (
         ],
         series: metrics.map((metric) => ({
             type: 'scatter',
-            // Use formatted label for non-pivoted metrics, otherwise use the metric name as-is (already formatted by pivot)
-            name: yMetrics.includes(metric)
-                ? formatFieldLabel(metric, fieldsMap)
-                : metric,
+            name: getSeriesName(metric),
             encode: {
                 x: xDimension,
                 y: metric,
