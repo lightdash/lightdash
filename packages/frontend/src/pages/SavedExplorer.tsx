@@ -2,7 +2,6 @@ import { FeatureFlags } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import isEqual from 'lodash/isEqual';
-import pick from 'lodash/pick';
 import {
     lazy,
     memo,
@@ -42,17 +41,7 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import { ExplorerSection } from '../providers/Explorer/types';
 import { getCandidateExploreNames } from '../utils/exploreSplitError';
-
-const chartVersionKeys = [
-    'tableName',
-    'metricQuery',
-    'chartConfig',
-    'tableConfig',
-    'pivotConfig',
-    'parameters',
-    'merge',
-    'colorPaletteUuid',
-] as const;
+import { pickSavedChartVersion } from '../utils/savedChartVersion';
 
 const LazyExplorePanel = lazy(
     () => import('../components/Explorer/ExplorePanel'),
@@ -93,7 +82,7 @@ const SavedExplorerSession = () => {
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const versionKey = isEditMode
         ? 'editing'
-        : JSON.stringify(pick(savedChart, chartVersionKeys));
+        : JSON.stringify(pickSavedChartVersion(savedChart));
 
     return (
         <MergeProvider
@@ -206,13 +195,17 @@ const SavedExplorer = () => {
 
         const currentSavedChart = store.getState().explorer.savedChart;
         const isNewChart = currentSavedChart?.uuid !== data.uuid;
+        const isExploreChanged =
+            currentSavedChart?.tableName !== data.tableName;
+        // View mode follows saved versions, e.g. after an agent edit; edit mode keeps staged changes.
+        const isViewedVersionChanged =
+            !isEditMode &&
+            !isEqual(
+                pickSavedChartVersion(currentSavedChart),
+                pickSavedChartVersion(data),
+            );
 
-        const isSavedVersionChanged = !isEqual(
-            pick(currentSavedChart, chartVersionKeys),
-            pick(data, chartVersionKeys),
-        );
-
-        if (isNewChart || (!isEditMode && isSavedVersionChanged)) {
+        if (isNewChart || isExploreChanged || isViewedVersionChanged) {
             // Switching charts must never inherit the previous session's
             // handover, even if create_saved_chart_version is still briefly
             // in the URL while cleanup races the route change.
@@ -229,8 +222,6 @@ const SavedExplorer = () => {
                     : urlChartVersion,
             });
             store.dispatch(explorerActions.reset(initialState));
-        } else if (isEditMode) {
-            store.dispatch(explorerActions.setSavedChartMetadata(data));
         } else {
             store.dispatch(explorerActions.setSavedChart(data));
         }

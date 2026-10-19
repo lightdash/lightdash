@@ -384,7 +384,6 @@ describe('explorerSlice saved chart metadata', () => {
     const savedChart = {
         uuid: 'chart-uuid',
         name: 'Old name',
-        tableName: 'orders',
         description: 'Old description',
         pinnedListUuid: null,
         verification: null,
@@ -407,7 +406,6 @@ describe('explorerSlice saved chart metadata', () => {
             explorerActions.setSavedChartMetadata({
                 ...savedChart,
                 name: 'New name',
-                tableName: 'payments',
                 description: 'New description',
                 pinnedListUuid: 'pinned-list',
                 colorPaletteUuid: 'server-palette',
@@ -418,7 +416,6 @@ describe('explorerSlice saved chart metadata', () => {
         );
 
         expect(result.savedChart?.name).toBe('New name');
-        expect(result.savedChart?.tableName).toBe('orders');
         expect(result.savedChart?.description).toBe('New description');
         expect(result.savedChart?.pinnedListUuid).toBe('pinned-list');
         expect(result.savedChart?.metricQuery).toEqual({

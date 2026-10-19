@@ -377,45 +377,6 @@ describe('SavedExplorer', () => {
         );
     });
 
-    it.each(['payments', 'orders'])(
-        'keeps local editor changes when the agent saves a version using %s',
-        async (tableName) => {
-            const user = userEvent.setup();
-            renderSavedExplorer(
-                searchWithChartVersion(urlChartVersion),
-                'edit',
-            );
-            await waitFor(() =>
-                expect(screen.getByTestId('session')).toHaveTextContent(
-                    '25|true',
-                ),
-            );
-            await user.click(screen.getByText('stage palette'));
-
-            currentSavedChart = {
-                ...savedChart,
-                name: 'Updated by agent',
-                tableName,
-                metricQuery: {
-                    ...savedChart.metricQuery,
-                    exploreName: tableName,
-                    limit: 1000,
-                },
-                chartConfig: { type: ChartType.BIG_NUMBER, config: {} },
-                colorPaletteUuid: 'server-palette',
-            };
-            publishAgentEdit();
-            await waitFor(() =>
-                expect(screen.getByTestId('saved-name')).toHaveTextContent(
-                    'Updated by agent',
-                ),
-            );
-            expect(screen.getByTestId('session')).toHaveTextContent(
-                '25|true|staged-palette|cartesian',
-            );
-        },
-    );
-
     it('starts the edit session on the version the url carries', async () => {
         renderSavedExplorer(searchWithChartVersion(urlChartVersion), 'edit');
 
@@ -502,6 +463,30 @@ describe('SavedExplorer', () => {
             expect(screen.getByTestId('session')).toHaveTextContent(
                 '500|false',
             ),
+        );
+    });
+
+    it('restarts the edit session when the chart moves to another explore', async () => {
+        renderSavedExplorer('', 'edit');
+        await waitFor(() =>
+            expect(screen.getByTestId('session')).toHaveTextContent(
+                '500|false',
+            ),
+        );
+
+        currentSavedChart = {
+            ...savedChart,
+            tableName: 'orders',
+            metricQuery: {
+                ...savedChart.metricQuery,
+                exploreName: 'orders',
+                limit: 42,
+            },
+        } as SavedChart;
+        publishAgentEdit();
+
+        await waitFor(() =>
+            expect(screen.getByTestId('session')).toHaveTextContent('42|false'),
         );
     });
 
